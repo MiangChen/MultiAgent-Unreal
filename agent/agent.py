@@ -1,17 +1,17 @@
 """
-Actor 类 - CARLA 风格的 Actor 封装
+Agent 类 - 封装 UE 中的智能体对象
 """
 from agent.transform import Location, Rotation, Scale, Transform
 
 
-class Actor:
+class Agent:
     """
-    Actor 类，封装 UE 中的对象操作
+    Agent 类，封装 UE 中的智能体操作
     """
 
     def __init__(self, client, name: str, class_name: str, transform: Transform):
         """
-        初始化 Actor
+        初始化 Agent
 
         Args:
             client: UnrealCv_API 客户端
@@ -65,7 +65,7 @@ class Actor:
         )
 
     def destroy(self) -> bool:
-        """销毁 Actor"""
+        """销毁 Agent"""
         if not self._is_alive:
             return False
         cmd = f"vset /object/{self.name}/destroy"
@@ -75,8 +75,8 @@ class Actor:
         return True
 
     def is_alive(self) -> bool:
-        """检查 Actor 是否存活"""
+        """检查 Agent 是否存活"""
         return self._is_alive
 
     def __repr__(self):
-        return f"Actor(name='{self.name}', class='{self.class_name}')"
+        return f"Agent(name='{self.name}', class='{self.class_name}')"

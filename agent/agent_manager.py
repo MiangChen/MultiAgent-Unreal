@@ -1,5 +1,5 @@
 """
-Agent Manager - CARLA 风格的 Agent 管理器
+Agent Manager - 管理智能体的创建和控制
 """
 # Standard library imports
 from typing import Any, Dict, List, Optional
@@ -8,13 +8,13 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 
 # Local imports
-from agent.actor import Actor
+from agent.agent import Agent
 from agent.transform import Location, Rotation, Scale, Transform
 
 
 class AgentManager:
     """
-    Agent 管理器，负责 spawn 和管理 actors
+    Agent 管理器，负责 spawn 和管理 agents
     """
 
     def __init__(self, client, env_config: Dict[str, Any]):
@@ -27,18 +27,18 @@ class AgentManager:
         """
         self.client = client
         self.env_config = env_config
-        self.actors: Dict[str, Actor] = {}
+        self.agents: Dict[str, Agent] = {}
         self.safe_starts = env_config.get("safe_start", [])
 
-    def spawn_actor(
+    def spawn_agent(
         self,
         class_name: str,
         name: str,
         transform: Transform,
         enable_physics: bool = False,
-    ) -> Actor:
+    ) -> Agent:
         """
-        Spawn 单个 actor (CARLA 风格)
+        Spawn 单个 agent
 
         Args:
             class_name: 蓝图类名 (如 "BP_drone01_C")
@@ -47,7 +47,7 @@ class AgentManager:
             enable_physics: 是否启用物理
 
         Returns:
-            Actor 对象
+            Agent 对象
         """
         loc = transform.location
         rot = transform.rotation
@@ -66,22 +66,22 @@ class AgentManager:
         for cmd in cmds:
             self.client.client.request(cmd)
 
-        # 创建 Actor 对象
-        actor = Actor(self.client, name, class_name, transform)
-        self.actors[name] = actor
+        # 创建 Agent 对象
+        agent = Agent(self.client, name, class_name, transform)
+        self.agents[name] = agent
 
         print(f"   ✅ Spawned: {name} ({class_name}) at {loc}")
-        return actor
+        return agent
 
-    def spawn_agents_from_config(self) -> List[Actor]:
+    def spawn_agents_from_config(self) -> List[Agent]:
         """
         从 JSON 配置中 spawn 所有 agents
 
         Returns:
-            已创建的 Actor 列表
+            已创建的 Agent 列表
         """
         agents_config = self.env_config.get("agents", {})
-        spawned_actors = []
+        spawned_agents = []
 
         for agent_type, config in agents_config.items():
             names = config.get("name", [])
@@ -104,16 +104,16 @@ class AgentManager:
                     scale=Scale.from_list(scale_list),
                 )
 
-                # Spawn actor
-                actor = self.spawn_actor(
+                # Spawn agent
+                agent = self.spawn_agent(
                     class_name=class_name,
                     name=name,
                     transform=transform,
                     enable_physics=enable_physics,
                 )
-                spawned_actors.append(actor)
+                spawned_agents.append(agent)
 
-        return spawned_actors
+        return spawned_agents
 
     def _get_spawn_location(self, index: int) -> List[float]:
         """获取出生点位置"""
@@ -124,24 +124,24 @@ class AgentManager:
         else:
             return [0, 0, 100]
 
-    def get_actor(self, name: str) -> Optional[Actor]:
-        """获取 Actor"""
-        return self.actors.get(name)
+    def get_agent(self, name: str) -> Optional[Agent]:
+        """获取 Agent"""
+        return self.agents.get(name)
 
-    def get_actors(self) -> List[Actor]:
-        """获取所有 Actor"""
-        return list(self.actors.values())
+    def get_agents(self) -> List[Agent]:
+        """获取所有 Agent"""
+        return list(self.agents.values())
 
-    def destroy_actor(self, name: str) -> bool:
-        """销毁指定 Actor"""
-        actor = self.actors.get(name)
-        if actor:
-            actor.destroy()
-            del self.actors[name]
+    def destroy_agent(self, name: str) -> bool:
+        """销毁指定 Agent"""
+        agent = self.agents.get(name)
+        if agent:
+            agent.destroy()
+            del self.agents[name]
             return True
         return False
 
     def destroy_all(self) -> None:
-        """销毁所有 Actor"""
-        for name in list(self.actors.keys()):
-            self.destroy_actor(name)
+        """销毁所有 Agent"""
+        for name in list(self.agents.keys()):
+            self.destroy_agent(name)
