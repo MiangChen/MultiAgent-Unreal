@@ -7,7 +7,22 @@ UnrealZoo 代码风格规范
 
 - Transform: 封装 Location, Rotation, Scale
 - Agent: 封装 UE 中的智能体，提供 get/set 方法
-- AgentManager: 类似 CARLA 的 World，负责 spawn_agent
+- Sensor: 封装传感器（Camera, Depth 等），可绑定到 Agent
+- AgentManager: 类似 CARLA 的 World，负责 spawn_agent 和 spawn_sensor
+
+核心概念 - Agent 统一抽象:
+-------------------------
+在本项目中，Agent 是一个广义概念，代表场景中任何可交互的实体：
+- Robot/Drone: 可移动的机器人或无人机
+- Camera: 固定或移动的摄像头
+- Sensor: 各类传感器（深度、激光雷达等）
+- Vehicle: 车辆
+- Character: 角色
+
+这种设计的好处：
+1. 统一的 API：所有实体都有 get_location/set_location/destroy 等方法
+2. 灵活的组合：Sensor 可以 attach_to 任何 Agent
+3. 易于扩展：新增实体类型只需继承 Agent 基类
 
 命名约定:
 - 使用 Agent（智能体）而非 Actor
@@ -32,6 +47,20 @@ drone.destroy()
 
 # 从 JSON 配置批量 spawn
 agents = agent_manager.spawn_agents_from_config()
+
+# Sensor 绑定（CARLA 风格）
+camera = agent_manager.spawn_sensor("sensor.camera.rgb", attach_to=drone)
+depth = agent_manager.spawn_sensor("sensor.camera.depth", attach_to=drone)
+
+# Sensor 操作
+image = camera.get_image()
+camera.listen(lambda img: process(img))  # 注册回调
+camera.tick()  # 手动触发采集
+
+# 通过 Agent 访问 Sensor
+drone.get_sensors()  # 获取所有绑定的传感器
+drone.get_sensor("camera.rgb")  # 获取指定类型的传感器
+drone.has_sensor()  # 检查是否有传感器
 ```
 
 
