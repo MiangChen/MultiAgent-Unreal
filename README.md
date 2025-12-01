@@ -1,23 +1,3 @@
-UnrealZoo: Enriching Photo-realistic Virtual Worlds for Embodied AI
-===
-### ICCV 2025 (Highlights🚀)
-
-[📄 Paper](https://arxiv.org/abs/2412.20977) \| [🌐 Project Page](http://unrealzoo.site/) \| [📝 Document](https://unrealzoo.notion.site/) \| [🤖 ModelScope](https://www.modelscope.cn/organization/UnrealZoo) \| 
-[🎬 YouTube](https://www.youtube.com/watch?v=Xe2VmsJYTAU)
-![framework](doc/figs/overview.png)
-
-# 🔥 News
-- 2025/09 We update package to **v1.0.4**, which supports optical flow rendering and fixes some camera-related bugs.  
-- 2025/07 We released the full version of UnrealZoo environment package, built on UE5.5 which contains **100+ scenes**.
-  - **UnrealZoo_UE5_5_V1.0.1** is available for download, which contains 100+ scenes and playable entities, with a total size of **67GB**.
-  - We integrate the latest chaos system for vehicles, enabling more realistic animation(enter/exit) and visual effect(collision, explode, fire, etc.).
-  - The **object interaction(pick/drop)** now is available, you could spawn the object anywhere in the map and interact with it, just use one command to change its appearance.
-- 2025/03 New Download Link in 🤖[ModelScope](https://www.modelscope.cn/organization/UnrealZoo) is released for fast downloading the UE5 binary.
-- 2024/12 Paper Link: [UnrealZoo: Enriching Photo-realistic Virtual Worlds for Embodied AI](https://arxiv.org/abs/2412.20977)
-- 2024/12 Comprehensive documentation and Scene Gallery are available in [Notion Page](https://unrealzoo.notion.site/scene-gallery) 
-- 2024/12 Project website is available at [UnrealZoo](http://unrealzoo.site/)
-
-
 # Table of Contents
 
 1. [What is UnrealZoo?](#what-is-unrealzoo)
@@ -74,10 +54,10 @@ Integrated with [UnrealCV](https://unrealcv.org/), UnrealZoo provides a suite of
 - Numpy
 - Docker(Optional)
 - Nvidia-Docker(Optional)
- 
+
 We recommend you use [anaconda](https://www.continuum.io/downloads) to install and manage your Python environment.
 ```CV2``` is used for image processing, like extracting object masks and bounding boxes. ```Matplotlib``` is used for visualization.
-### Install UnrealZoo-Gym
+### 1. Install UnrealZoo-Gym
 
 It is easy to install unrealzoo-gym, just run
 ```
@@ -87,42 +67,8 @@ pip install -e .
 ```
 While installing gym-unrealcv, dependencies including OpenAI Gym, UnrealCV, numpy and matplotlib are installed.
 
-### Prepare UE Binary
-Before running the environments, you need to prepare unreal binaries. The full version of UnrealZoo environment package is built on **UE5.5** and contains **100+ scenes**.
+### 2. Prepare UE Binary
 
-**UE5 Example Scenes**
-<table>
-  <tr>
-    <td>
-      <figure>
-        <img src="./doc/figs/UE5_ExampleScene/ChemicalFactory.png" width="480" height="200">  
-        <figcaption style="text-align: center;"> ChemicalFactory</figcaption>
-      </figure>
-    </td>
-    <td>
-      <figure>
-        <img src="./doc/figs/UE5_ExampleScene/ModularOldTown.png" width="480" height="200">  
-        <figcaption style="text-align: center;">Modular Old Town</figcaption>
-      </figure>
-    </td>
-
-  </tr>
-  <tr>
-    <td>
-      <figure>
-        <img src="./doc/figs/UE5_ExampleScene/MiddleEast.png" width="480" height="200">  
-        <figcaption style="text-align: center;">MiddleEast</figcaption>
-      </figure>
-    </td>
-    <td>
-      <figure>
-        <img src="./doc/figs/UE5_ExampleScene/Roof-City.png" width="480" height="200">  
-        <figcaption style="text-align: center;">Roof-City</figcaption>
-      </figure>
-    </td>
- 
-  </tr>
-</table> 
 
 **Full version Environment Package (UnrealZoo_UE5_5)**
 We released the full version of UnrealZoo environment package, built on UE5.5 which contains **100+ scenes**. All maps in the **[scene gallery](https://www.notion.so/Scene-Gallery-a801475ff98943159da66f641f4c38b2)** are included.
@@ -131,42 +77,54 @@ We released the full version of UnrealZoo environment package, built on UE5.5 wh
 
 | Environment                       | Download Link                                                              | Size       |
 |-----------------------------------|----------------------------------------------------------------------------|------------|
-| UE5_ExampleScene                  | [🤖ModelScope](https://modelscope.cn/datasets/UnrealZoo/UnrealZoo-UE5/files) | ~10GB      |
+|                                  |                                                              |       |
 |**UnrealZoo_UE5_5_Mac_V1.0.3** | [Cloud](https://pan.baidu.com/s/1lUqQYEkn7mfXd8G8F2tQGA?pwd=xvxh)|    ~67GB |
 | **UnrealZoo_UE5_5_Win64_V1.0.4**  | [Cloud](https://pan.baidu.com/s/11myDa5iY1xi0OLziOZi-Nw?pwd=ae7w)         |    ~67GB |
-| **UnrealZoo_UE5_5_Linux_V1.0.5**  | [🤖ModelScope](https://modelscope.cn/datasets/UnrealZoo/UnrealZoo-UE5/files) |    ~72GB |
+| **UnrealZoo_UE5_5_Linux_V1.0.5**  | [🤖ModelScope](https://modelscope.cn/datasets/UnrealZoo/UnrealZoo-UE5/tree/master/UnrealZoo_UE5_5_Linux_v1.0.5) |    ~72GB |
 
+下载对应系统的 UnrealZoo 压缩包, 解压到 UnrealEnv 文件夹中
 
-Then unzip and move the downloaded binary to the `UnrealEnv` folder, which is our default location for binaries, the folder structures are as follows:
+以 Linux 为例, 下载好2个压缩包后, 会得到两个 `.gzaa` 和 `.gzab` 的文件, 需要将他们合并成一个 `.gza` 文件, 然后再解压
+
 ```
-unrealzoo-gym/  
-|-- docs/                  
-|-- example/                
-|-- gym_unrealcv/              
-|   |-- envs/    
-|   |   |-- agent/     
-|   |-- setting/
-|   |   |-- env_config/                   # environment config json file location  
-...
-|-- generate_env_config.py                    # generate environment config json file
-...
+cat UnrealZoo_UE5_5_Linux_v1.0.5.tar.gz* > UnrealZoo_UE5_5_Linux_v1.0.5.tar.gz
+tar -xvzf UnrealZoo_UE5_5_Linux_v1.0.5.tar.gz  # 这一步解压后会得到一个 zip 文件
+```
+
+```
+mkdir -p ~/UnrealEnv # 建议在 ~ 目录下创建 一个 UnrealEnv 文件夹
+unzip ./UnrealZoo_UE5_5_Linux_v1.0.5.zip -d ~/UnrealEnv
+chmod -R +x ~/UnrealEnv
+```
+
+
+
+之后的路径应该是这样子的: 
+
+```
 
 UnrealEnv/                    # Binary default location
 |-- UnrealZoo_UE5_5_Linux_v1.0.5/   # Binary folder
 ...
 
 ```
-If there is a permission issue, run the command ```chmod +x ./``` under the ```UnrealEnv``` folder path to give the necessary permissions.
-#### Available Map Names in UE5.5 Binary
 
-| Map Name                | Description             |
-|-------------------------|-------------------------|
-| Map\_ChemicalPlant\_1   | Chemical Factory        |
-| Old\_Town               | Modular Old Town        |
-| MiddleEast              | Middle East Scene       |
-| Demo\_Roof              | Roof-City Scene         |
-| DowntownWest            | Downtown West (City)    |
-| ModularCity             | Modular City            |
+
+在 terminal 输入
+
+```
+gedit ~/.bashrc
+```
+
+在最后一行, 加入 UnrealEnv 的位置
+
+```
+export UnrealEnv=/home/ubuntu/UnrealEnv  # 根据具体路径来填写, 文件中不能用 ~ 
+```
+
+
+
+
 
 ⚠️ **Note**: The full version contains **100+ scenes**, but only the above maps have configuration files ready. Use `generate_env_config.py` to create configs for other maps.
 
@@ -184,15 +142,8 @@ We have predefined a naming rule to launch different environment maps and their 
 - If your mouse cursor disappears after the game launches, press ``` ` ``` (the key above Tab) to release the mouse cursor from the game.
 
 #### 1. Specify the environment location： 
- ##### Option 1: In the terminal. 
- - Default path to UnrealEnv is in user home directory under .unrealcv  
-   - Windows: C:\\Users\\{username}\\.unrealcv\\UnrealEnv
-   - Linux: /home/{username}/.unrealcv/UnrealEnv
-   - Mac: /Users/{username}/.unrealcv/UnrealEnv
-```
-export UnrealEnv=/your/path/to/UnrealEnv
-```
-##### Option 2: In the example code:
+前面在 ~/.bashrc 中已经设置了 UnrealEnv 的位置, 如果发现不行, 则可以在代码中再设置一次: 
+
 Add environment variable in the example code
 ```
 import os
