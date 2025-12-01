@@ -1,9 +1,4 @@
 {
-    "env_name": "FlexibleRoom",
-    "env_bin": "UnrealZoo_UE5_5_Linux_v1.0.4/Linux/UnrealZoo_UE5_5/Binaries/Linux/UnrealZoo_UE5_5",
-    "env_map": "FlexibleRoom",
-    "env_bin_win": "UnrealZoo_UE5_5_Win_v1.0.4\\Win\\UnrealZoo_UE5_5\\Binaries\\Win\\UnrealZoo_UE5_5",
-    "env_bin_mac": "UnrealZoo_UE5_5_Linux_v1.0.4/Linux/UnrealZoo_UE5_5/Binaries/Linux/UnrealZoo_UE5_5",
     "third_cam": {
         "cam_id": 0,
         "pitch": -90,

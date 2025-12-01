@@ -1,8 +1,4 @@
 {
-    "env_name": "Old_Town",
-    "env_bin": "UnrealZoo_UE5_5_Linux_v1.0.5/Linux/UnrealZoo_UE5_5/Binaries/Linux/UnrealZoo_UE5_5",
-    "env_map": "Old_Town",
-    "env_bin_win": "UnrealZoo_UE5_5_Win64_V1.0.4\\UnrealZoo_UE5_5\\Binaries\\Win64\\UnrealZoo_UE5_5.exe",
     "third_cam": {
         "cam_id": 0,
         "pitch": -90,

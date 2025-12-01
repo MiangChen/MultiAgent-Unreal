@@ -217,11 +217,6 @@ if __name__ == '__main__':
             "motorbike": copy.deepcopy(motorbike_config)
         }
         env_config = {
-            "env_name": None,
-            "env_bin": None,
-            "env_map": None,
-            "env_bin_win": None,
-            "env_bin_mac": None,
             "third_cam": {
                 "cam_id": 0,
                 "pitch": -90,
@@ -244,12 +239,6 @@ if __name__ == '__main__':
                 }
             }
         }
-
-        env_config['env_name'] = env_map
-        env_config['env_map'] = env_map
-        env_config['env_bin'] = ue_binary.env_bin
-        env_config['env_bin_win'] = ue_binary.env_bin.replace("/", "\\").replace("Linux", "Win")
-        env_config['env_bin_mac'] = ue_binary.env_bin
 
         # time.sleep(1)
         cam_num = unrealcv.get_camera_num()

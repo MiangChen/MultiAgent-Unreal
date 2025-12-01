@@ -1,9 +1,4 @@
 {
-    "env_name": "StonePineForest",
-    "env_bin": "UnrealZoo_UE5_5_Linux_v1.0.5/Linux/UnrealZoo_UE5_5/Binaries/Linux/UnrealZoo_UE5_5",
-    "env_map": "StonePineForest",
-    "env_bin_win": "UnrealZoo_UE5_5_Win64_V1.0.4\\UnrealZoo_UE5_5\\Binaries\\Win64\\UnrealZoo_UE5_5.exe",
-    "env_bin_mac": "UnrealZoo_UE5_5_Mac_V1.0.3/UnrealZoo_UE5_5.app",
     "third_cam": {
         "cam_id": 0,
         "pitch": -90,
@@ -16,36 +11,142 @@
     "interval": 1000,
     "agents": {
         "player": {
-            "name": ["BP_Character_C_1"],
-            "cam_id": [1],
-            "class_name": ["bp_character_C"],
+            "name": [
+                "BP_Character_C_1"
+            ],
+            "cam_id": [
+                1
+            ],
+            "class_name": [
+                "bp_character_C"
+            ],
             "internal_nav": true,
-            "scale": [1, 1, 1],
-            "relative_location": [0, 0, 0],
-            "relative_rotation": [0, 0, 0],
+            "scale": [
+                1,
+                1,
+                1
+            ],
+            "relative_location": [
+                0,
+                0,
+                0
+            ],
+            "relative_rotation": [
+                0,
+                0,
+                0
+            ],
             "head_action_continuous": {
-                "high": [15, 15, 15],
-                "low": [-15, -15, -15]
+                "high": [
+                    15,
+                    15,
+                    15
+                ],
+                "low": [
+                    -15,
+                    -15,
+                    -15
+                ]
             },
-            "head_action": [[0, 0, 0], [0, 30, 0], [0, -30, 0]],
-            "animation_action": ["stand", "jump", "crouch"],
-            "move_action": [[0, 100], [0, -100], [15, 50], [-15, 50], [30, 0], [-30, 0], [0, 0]],
+            "head_action": [
+                [
+                    0,
+                    0,
+                    0
+                ],
+                [
+                    0,
+                    30,
+                    0
+                ],
+                [
+                    0,
+                    -30,
+                    0
+                ]
+            ],
+            "animation_action": [
+                "stand",
+                "jump",
+                "crouch"
+            ],
+            "move_action": [
+                [
+                    0,
+                    100
+                ],
+                [
+                    0,
+                    -100
+                ],
+                [
+                    15,
+                    50
+                ],
+                [
+                    -15,
+                    50
+                ],
+                [
+                    30,
+                    0
+                ],
+                [
+                    -30,
+                    0
+                ],
+                [
+                    0,
+                    0
+                ]
+            ],
             "move_action_continuous": {
-                "high": [30, 100],
-                "low": [-30, -100]
+                "high": [
+                    30,
+                    100
+                ],
+                "low": [
+                    -30,
+                    -100
+                ]
             }
         }
     },
     "safe_start": [
-        [0, 0, 200],
-        [500, 500, 200],
-        [-500, 500, 200],
-        [500, -500, 200]
+        [
+            0,
+            0,
+            200
+        ],
+        [
+            500,
+            500,
+            200
+        ],
+        [
+            -500,
+            500,
+            200
+        ],
+        [
+            500,
+            -500,
+            200
+        ]
     ],
-    "reset_area": [-2000, 2000, -2000, 2000, 0, 1000],
+    "reset_area": [
+        -2000,
+        2000,
+        -2000,
+        2000,
+        0,
+        1000
+    ],
     "random_init": false,
     "env": {
         "interactive_door": [],
-        "targets": {"Point": []}
+        "targets": {
+            "Point": []
+        }
     }
 }

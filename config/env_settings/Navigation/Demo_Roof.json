@@ -1,8 +1,4 @@
 {
-    "env_name": "Demo_Roof",
-    "env_bin": "UE5_ExampleScene_Linux/Linux/Compile_unrealcv5_4/Binaries/Linux/Compile_unrealcv5_4",
-    "env_map": "Demo_Roof",
-    "env_bin_win": "UE5_ExampleScene_Win64\\Compile_unrealcv5_4\\Binaries\\Win64\\Compile_unrealcv5_4.exe",
     "third_cam": {
         "cam_id": 0,
         "pitch": -90,
@@ -185,8 +181,10 @@
     "env": {
         "interactive_door": [],
         "targets": {
-		    "Point": ["B_AC_Unit12"]
-	}
+            "Point": [
+                "B_AC_Unit12"
+            ]
+        }
     },
     "obj_num": 4523,
     "size": 121176.0,
