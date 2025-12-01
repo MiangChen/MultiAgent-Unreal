@@ -17,13 +17,10 @@ class_name = {
     "player": "bp_character_C",
     "animal": "BP_animal_C",
     "drone": "BP_drone01_C",
-    # "car": "BP_BaseCar_C", #for UE4 binary`
-    # "motorbike": "MotorBikes_C",#for UE4 binary
-
-    "car":"BP_Hatchback_child_base_C", #for UE5.5 binary
-    "motorbike": "BP_BaseBike_C",#for UE5.5 binary
+    "car": "BP_Hatchback_child_base_C",
+    "motorbike": "BP_BaseBike_C",
 }
-Addition_Vechicles={ #only available in latest UE5.5 package
+Addition_Vechicles = {
        "car":["BP_Hatchback_child_extras_C","BP_Hatchback_child_police_C","BP_Hatchback_child_taxi_C",
             "BP_Sedan_child_base_C","BP_Sedan_child_extras_C","BP_Sedan_child_police_C","BP_Sedan_child_taxi_C",
             "BP_SUV_child_base_C","BP_SUV_child_extras_C","BP_SUV_child_police_C","BP_SUV_child_taxi_C"],
@@ -157,14 +154,8 @@ agents = {
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    # parser.add_argument('--env-bin', default='UE4_ExampleScene_Win/UE4_ExampleScene/Binaries/Win64/UE4_ExampleScene.exe', help='The path to the UE4Editor binary')
-    # parser.add_argument('--env-bin', default='UE5_ExampleScene_Win64\Compile_unrealcv5_4\Binaries\Win64\Compile_unrealcv5_4.exe', help='The path to the UE4Editor binary')
-    # parser.add_argument('--env-bin', default='Collection_WinNoEditor\WindowsNoEditor\Collection\Binaries\Win64\Collection.exe', help='The path to the UE4Editor binary')
-    # parser.add_argument('--env-bin', default='UnrealZoo_UE5_5_Win64_v1.0.1\\UnrealZoo_UE5_5\\Binaries\\Win64\\UnrealZoo_UE5_5.exe', help='The path to the UE4Editor binary')
-    parser.add_argument('--env-bin', default='UnrealZoo_UE5_5_Linux/Linux/UnrealZoo_UE5_5/Binaries/Linux/UnrealZoo_UE5_5', help='The path to the UE4Editor binary')
-
+    parser.add_argument('--env-bin', default='UnrealZoo_UE5_5_Linux/Linux/UnrealZoo_UE5_5/Binaries/Linux/UnrealZoo_UE5_5', help='The path to the UE Editor binary')
     parser.add_argument('--env-map', default='Lighthouse', help='The map to load')
-    # parser.add_argument('--target_dir', default='gym_unrealcv/envs/setting/Track', help='The folder to save the json file')
     parser.add_argument('--target_dir', default='gym_unrealcv/envs/setting/Track', help='The folder to save the json file')
 
     parser.add_argument('--use-docker', action='store_true', help='Run the game in a docker container')

@@ -629,7 +629,7 @@ class UnrealCv_base(gym.Env):
         return np.array(pose_obs), relative_pose
 
     def launch_ue_env(self):
-        # launch the UE4 binary
+        # launch the UE binary
         env_ip, env_port = self.ue_binary.start(docker=self.docker, resolution=self.resolution, display=self.display,
                                                opengl=self.use_opengl, offscreen=self.offscreen_rendering,
                                                nullrhi=self.nullrhi,sleep_time=10)

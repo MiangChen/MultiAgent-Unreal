@@ -17,18 +17,13 @@ The following maps have ready-to-use configuration files in `gym_unrealcv/envs/s
 | MiddleEast            | Middle East Scene              | Desert Architecture               |
 | Demo_Roof             | Roof-City Scene                | Urban Rooftop Environment         |
 | FlexibleRoom          | Flexible Room                  | Indoor Environment                |
-| Greek_Island          | Greek Island                   | Mediterranean Landscape           |
-| ContainerYard_Day     | Container Yard (Day)           | Industrial Port (Day)             |
-| ContainerYard_Night   | Container Yard (Night)         | Industrial Port (Night)           |
-| SuburbNeighborhood_Day| Suburb Neighborhood (Day)      | Residential Area (Day)            |
-| SuburbNeighborhood_Night| Suburb Neighborhood (Night)  | Residential Area (Night)          |
 
 ### Creating Configuration Files for Other Maps
 
 To use other maps from the 100+ scenes available in the full package, you can generate configuration files using:
 
 ```bash
-python generate_env_config.py --map_name <MapName>
+python generate_env_config.py --env-map <MapName>
 ```
 
 For more details, see the [Configuration File Guide](ConfigFileGuide.md).
