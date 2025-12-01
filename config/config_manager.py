@@ -3,11 +3,11 @@
 # =============================================================================
 #
 # This module provides a centralized configuration management system that
-# manages UnrealEnv path and other global settings for the UnrealZoo project.
+# manages global settings for the UnrealZoo project.
 #
 # Usage:
 #   from config.config_manager import config_manager
-#   unreal_env_path = config_manager.get("unreal_env")
+#   ue_binary = config_manager.get("ue_binary_path")
 #
 # =============================================================================
 
@@ -30,8 +30,9 @@ class ConfigManager:
     def __init__(self):
         self.config: Dict[str, Any] = {}
         self.config_path = Path(__file__).parent / "config_parameter.yaml"
+        # 自动计算项目根目录
+        self.project_root = Path(__file__).parent.parent.absolute()
         self.load()
-        self._setup_environment()
 
     def load(self) -> None:
         """加载 YAML 配置文件"""
@@ -40,31 +41,6 @@ class ConfigManager:
                 self.config = yaml.safe_load(f) or {}
         else:
             self.config = {}
-
-        self._derive_paths()
-
-    def _derive_paths(self) -> None:
-        """计算所有派生路径"""
-        # 自动计算项目根目录
-        # config/config_manager.py -> config -> project_root
-        project_root = Path(__file__).parent.parent.absolute()
-        self.config["project_root"] = str(project_root)
-
-        # 设置默认的 UnrealEnv 路径
-        if "unreal_env" not in self.config:
-            # 优先级: 配置文件 > 环境变量 > 默认路径
-            default_path = os.path.expanduser("~/UnrealEnv")
-            self.config["unreal_env"] = os.environ.get("UnrealEnv", default_path)
-
-        # 设置默认的 UE Binary 相对路径
-        if "ue_binary_path" not in self.config:
-            self.config["ue_binary_path"] = "UnrealZoo_UE5_5_Linux_v1.0.5/Linux/UnrealZoo_UE5_5/Binaries/Linux/UnrealZoo_UE5_5"
-
-    def _setup_environment(self) -> None:
-        """设置环境变量，确保 unrealcv 能正确找到 UE Binary"""
-        unreal_env = self.config.get("unreal_env")
-        if unreal_env:
-            os.environ["UnrealEnv"] = unreal_env
 
     def get(self, key: str, default: Any = None) -> Any:
         """
@@ -102,15 +78,29 @@ class ConfigManager:
             config = config[k]
         config[keys[-1]] = value
 
-        # 如果设置了 unreal_env，同步更新环境变量
-        if key == "unreal_env":
-            os.environ["UnrealEnv"] = value
+    def get_ue_binary_path(self) -> str:
+        """获取 UE Binary 的绝对路径"""
+        return self.get("ue_binary_path")
 
-    def get_ue_binary_full_path(self) -> str:
-        """获取 UE Binary 的完整路径"""
-        unreal_env = self.get("unreal_env")
-        ue_binary = self.get("ue_binary_path")
-        return os.path.join(unreal_env, ue_binary)
+    def load_env_config(self) -> Dict[str, Any]:
+        """
+        加载环境 JSON 配置文件。
+        根据 env.task 和 env.map 自动拼接路径: {task}/{map}.json
+        
+        Returns:
+            环境配置字典
+        """
+        import json
+
+        task = self.get("env.task", "Track")
+        map_name = self.get("env.map", "Grass_Hills")
+        config_path = f"{task}/{map_name}.json"
+
+        full_path = self.project_root / "gym_unrealcv" / "envs" / "setting" / config_path
+
+        print(f"📄 加载环境配置: {full_path}")
+        with open(full_path, "r") as f:
+            return json.load(f)
 
     def get_summary(self) -> str:
         """获取配置摘要"""

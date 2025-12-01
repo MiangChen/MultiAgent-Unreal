@@ -2,22 +2,19 @@
 # UnrealZoo Configuration Parameters
 # =============================================================================
 
-# UnrealEnv 路径 - UE Binary 所在的根目录
-unreal_env: "/home/ubuntu/UnrealEnv"
+# UE Binary 绝对路径
+ue_binary_path: "/home/ubuntu/UnrealEnv/UnrealZoo_UE5_5_Linux_v1.0.5/Linux/UnrealZoo_UE5_5/Binaries/Linux/UnrealZoo_UE5_5"
 
-# UE Binary 相对路径 (相对于 unreal_env)
-ue_binary_path: "UnrealZoo_UE5_5_Linux_v1.0.5/Linux/UnrealZoo_UE5_5/Binaries/Linux/UnrealZoo_UE5_5"
-
-# 默认环境设置
-default_env:
-  map: "DowntownWest"
-  action_type: "Continuous"
-  observation_type: "Color"
-  task: "Track"
+# 环境设置
+env:
+  task: "Track"              # 任务类型，对应 setting 下的文件夹名
+  map: "Grass_Hills"         # 地图名，对应 JSON 文件名
+  action_type: "Continuous"  # 动作类型: Continuous / Discrete
+  observation_type: "Color"  # 观测类型: Color / Depth / Mask
 
 # 渲染设置
 rendering:
-  resolution: [240, 240]
+  resolution: [640, 480]
   offscreen: false
 
 # 仿真设置
