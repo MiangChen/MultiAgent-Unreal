@@ -98,11 +98,16 @@ class AgentManager:
         # 根据 agent 类型决定是否启用物理
         enable_physics = 0 if class_name in ["bp_character_C", "target_C"] else 1
 
+        # 获取 scale（默认 [1, 1, 1]）
+        scale = config.get("scale", [1, 1, 1]) if config else [1, 1, 1]
+        sx, sy, sz = scale
+
         # 构建 spawn 命令
         cmds = [
             f"vset /objects/spawn {class_name} {obj_name}",
             f"vset /object/{obj_name}/location {x} {y} {z}",
             f"vset /object/{obj_name}/rotation {pitch} {yaw} {roll}",
+            f"vset /object/{obj_name}/scale {sx} {sy} {sz}",
             f"vbp {obj_name} set_phy {enable_physics}",
         ]
 
