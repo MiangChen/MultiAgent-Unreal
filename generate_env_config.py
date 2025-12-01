@@ -8,7 +8,9 @@ import json
 import copy
 import numpy as np
 import os
-os.environ['UnrealEnv']='/home/wuk/DataDisk/UnrealEnv/'
+# 从 ~/.bashrc 中读取 UnrealEnv 环境变量，如果未设置则使用默认值
+if 'UnrealEnv' not in os.environ:
+    os.environ['UnrealEnv'] = os.path.expanduser('/home/ubuntu/UnrealEnv')
 
 '''
 An example to show how to use the UnrealCV API to launch the game and run some functions
@@ -154,8 +156,8 @@ agents = {
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--env-bin', default='UnrealZoo_UE5_5_Linux/Linux/UnrealZoo_UE5_5/Binaries/Linux/UnrealZoo_UE5_5', help='The path to the UE Editor binary')
-    parser.add_argument('--env-map', default='Lighthouse', help='The map to load')
+    parser.add_argument('--env-bin', default='UnrealZoo_UE5_5_Linux_v1.0.5/Linux/UnrealZoo_UE5_5/Binaries/Linux/UnrealZoo_UE5_5', help='The path to the UE Editor binary')
+    parser.add_argument('--env-map', default='Grass_Hills', help='The map to load')
     parser.add_argument('--target_dir', default='gym_unrealcv/envs/setting/Track', help='The folder to save the json file')
 
     parser.add_argument('--use-docker', action='store_true', help='Run the game in a docker container')
@@ -200,7 +202,7 @@ if __name__ == '__main__':
         env_map = maps[0]
     else:
         maps = [env_map]
-    # print(len(maps))
+
     ue_binary = RunUnreal(ENV_BIN=env_bin, ENV_MAP=env_map)
     env_ip, env_port = ue_binary.start(args.use_docker, parse_resolution(args.resolution), args.display, args.use_opengl, args.offscreen, args.nullrhi, str(args.gpu_id))
     unrealcv = UnrealCv_API(env_port, env_ip, parse_resolution(args.resolution), 'tcp')  # 'tcp' or 'unix', 'unix' is only for local machine in Linux
@@ -266,9 +268,9 @@ if __name__ == '__main__':
         print(env_map, 'object number:',len(objects))
         env_config['obj_num'] = len(objects)
         for obj in objects:
-            if 'RecastNavMesh' in obj:
-                uclass = unrealcv.get_obj_uclass(obj)
-                bbox = unrealcv.get_obj_size(obj)
+            if 'RecastNavMesh' in obj:  ## 找到了导航网格对象
+                uclass = unrealcv.get_obj_uclass(obj)  ## 获取 NavMesh 的边界框大小
+                bbox = unrealcv.get_obj_size(obj) # bbox 代表了地图中可行走区域的范围
                 bbox[0] = bbox[0]/100.0
                 bbox[1] = bbox[1]/100.0
                 bbox[2] = bbox[2]/100.0
@@ -314,16 +316,19 @@ if __name__ == '__main__':
                 dis_list.append(distance)
             cam_id = dis_list.index(min(dis_list))
             return cam_id
+        """
+        对象命名规则识别不同类型的智能体，然后写入 JSON 配置文件。这样就不需要手动填写每个地图有哪些智能体了。
+        """
         for obj in objects:
+            # Character 和 Animal 都需要在 NavMesh 上采样出生点
             if re.match(re.compile(r'bp_character', re.I), obj) is not None:
                 agents['player']['name'].append(obj)
                 agents['player']['class_name'].append(class_name['player'])
                 agents['player']['cam_id'].append(match_cam_id(cam_locs, obj))
                 start_pos_list.append(unrealcv.get_obj_location(obj))
-                print('Sample start point from Nav Mesh:')
+                print('Sample start point from Nav Mesh (player):')
                 for i in range(10):
-                    # print(generate_nav_goal(obj, 1000))
-                    goal_loc = generate_nav_goal(obj, 2000)
+                    goal_loc = generate_nav_goal(obj, 200)
                     print(goal_loc)
                     if goal_loc is not None:
                         goal_loc[-1] += 50
