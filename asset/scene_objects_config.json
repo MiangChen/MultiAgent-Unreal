@@ -1,0 +1,167 @@
+{
+  "agents": {
+    "bp_character_C": {
+      "class_name": "bp_character_C",
+      "agent_type": "player",
+      "instances": [
+        "BP_Character_C_1",
+        "BP_Character_2"
+      ],
+      "found_in": [
+        "Old_Town_with_dog.json",
+        "Demo_Roof.json",
+        "ContainerYard_Day.json",
+        "Greek_Island.json",
+        "Map_ChemicalPlant_1.json",
+        "MiddleEast.json",
+        "FlexibleRoom.json",
+        "track_train.json",
+        "Old_Town.json",
+        "SuburbNeighborhood_Day.json",
+        "DowntownWest.json",
+        "SuburbNeighborhood_Night.json",
+        "Old_Town_drone_quadruped.json",
+        "TEMPLATE.json",
+        "ModularCity.json",
+        "ContainerYard_Night.json"
+      ]
+    },
+    "BP_animal_C": {
+      "class_name": "BP_animal_C",
+      "agent_type": "animal",
+      "instances": [
+        "BP_animal_C_1",
+        "BP_animal_2"
+      ],
+      "found_in": [
+        "Old_Town_with_dog.json",
+        "Greek_Island.json",
+        "FlexibleRoom.json",
+        "track_train.json",
+        "SuburbNeighborhood_Day.json",
+        "SuburbNeighborhood_Night.json",
+        "Old_Town_drone_quadruped.json",
+        "ContainerYard_Night.json"
+      ]
+    },
+    "BP_drone01_C": {
+      "class_name": "BP_drone01_C",
+      "agent_type": "drone",
+      "instances": [
+        "BP_Drone01_2",
+        "BP_Drone01_C_1"
+      ],
+      "found_in": [
+        "Greek_Island.json",
+        "Map_ChemicalPlant_1.json",
+        "MiddleEast.json",
+        "FlexibleRoom.json",
+        "track_train.json",
+        "SuburbNeighborhood_Day.json",
+        "DowntownWest.json",
+        "SuburbNeighborhood_Night.json",
+        "Old_Town_drone_quadruped.json",
+        "ModularCity.json",
+        "ContainerYard_Night.json"
+      ]
+    },
+    "BP_BaseCar_C": {
+      "class_name": "BP_BaseCar_C",
+      "agent_type": "car",
+      "instances": [
+        "BP_BaseCar_2"
+      ],
+      "found_in": [
+        "Greek_Island.json",
+        "track_train.json",
+        "SuburbNeighborhood_Day.json",
+        "SuburbNeighborhood_Night.json",
+        "ContainerYard_Night.json"
+      ]
+    },
+    "MotorBikes_C": {
+      "class_name": "MotorBikes_C",
+      "agent_type": "motorbike",
+      "instances": [
+        "Sport_2",
+        "MotorBikes_2"
+      ],
+      "found_in": [
+        "Greek_Island.json",
+        "SuburbNeighborhood_Day.json",
+        "SuburbNeighborhood_Night.json",
+        "ContainerYard_Night.json"
+      ]
+    },
+    "BP_Hatchback_child_base_C": {
+      "class_name": "BP_Hatchback_child_base_C",
+      "agent_type": "car",
+      "instances": [
+        "BP_BaseCar_C_1",
+        "BP_Hatchback_child_base_C_1"
+      ],
+      "found_in": [
+        "FlexibleRoom.json",
+        "ModularCity.json"
+      ]
+    },
+    "BP_BaseBike_C": {
+      "class_name": "BP_BaseBike_C",
+      "agent_type": "motorbike",
+      "instances": [
+        "BP_BaseBike_C_1"
+      ],
+      "found_in": [
+        "FlexibleRoom.json",
+        "DowntownWest.json"
+      ]
+    },
+    "BP_Sedan_child_base_C": {
+      "class_name": "BP_Sedan_child_base_C",
+      "agent_type": "car",
+      "instances": [
+        "BP_Sedan_child_base_C_1"
+      ],
+      "found_in": [
+        "DowntownWest.json"
+      ]
+    }
+  },
+  "maps": [
+    "Old_Town",
+    "Demo_Roof",
+    "ContainerYard_Day",
+    "Greek_Island",
+    "Map_ChemicalPlant_1",
+    "MiddleEast",
+    "FlexibleRoom",
+    "track_train",
+    "SuburbNeighborhood_Day",
+    "DowntownWest",
+    "SuburbNeighborhood_Night",
+    "YourMapName",
+    "ModularCity",
+    "ContainerYard_Night"
+  ],
+  "configs": [
+    "Old_Town_with_dog.json",
+    "Demo_Roof.json",
+    "ContainerYard_Day.json",
+    "Greek_Island.json",
+    "Map_ChemicalPlant_1.json",
+    "MiddleEast.json",
+    "FlexibleRoom.json",
+    "track_train.json",
+    "Old_Town.json",
+    "SuburbNeighborhood_Day.json",
+    "DowntownWest.json",
+    "SuburbNeighborhood_Night.json",
+    "Old_Town_drone_quadruped.json",
+    "TEMPLATE.json",
+    "ModularCity.json",
+    "ContainerYard_Night.json",
+    "Demo_Roof.json",
+    "SuburbNeighborhood_Day.json",
+    "SuburbNeighborhood_Night.json"
+  ]
+}
