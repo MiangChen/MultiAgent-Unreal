@@ -1,4 +1,15 @@
 import argparse
+import sys
+from pathlib import Path
+
+# 添加项目根目录到 Python 路径
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
+# 从全局配置管理器读取 UnrealEnv（必须在 import gym_unrealcv 之前）
+from config.config_manager import config_manager
+print(config_manager.get_summary())
+
 import gym_unrealcv
 import gym
 from gym import wrappers
@@ -11,7 +22,7 @@ from gym_unrealcv.envs.tracking.baseline import PoseTracker, Nav2GoalAgent
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=None)
-    parser.add_argument("-e", "--env_id", nargs='?', default='UnrealTrack-track_train-ContinuousColor-v5',
+    parser.add_argument("-e", "--env_id", nargs='?', default='UnrealTrack-DowntownWest-ContinuousColor-v0',
                         help='Select the environment to run')
     parser.add_argument("-r", '--render', dest='render', action='store_true', help='show env using cv2')
     parser.add_argument("-s", '--seed', dest='seed', default=0, help='random seed')
