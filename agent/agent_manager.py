@@ -1,5 +1,5 @@
 """
-Agent Manager - 统一管理机器人的创建和控制
+Agent Manager - CARLA 风格的 Agent 管理器
 """
 # Standard library imports
 from typing import Any, Dict, List, Optional
@@ -7,10 +7,14 @@ from typing import Any, Dict, List, Optional
 # Third-party library imports
 import numpy as np
 
+# Local imports
+from agent.actor import Actor
+from agent.transform import Location, Rotation, Scale, Transform
+
 
 class AgentManager:
     """
-    Agent 管理器，负责从 JSON 配置中加载并 spawn 机器人
+    Agent 管理器，负责 spawn 和管理 actors
     """
 
     def __init__(self, client, env_config: Dict[str, Any]):
@@ -23,142 +27,121 @@ class AgentManager:
         """
         self.client = client
         self.env_config = env_config
-        self.agents: Dict[str, Dict] = {}  # 已创建的 agent 信息
+        self.actors: Dict[str, Actor] = {}
         self.safe_starts = env_config.get("safe_start", [])
 
-    def spawn_agents_from_config(self, agent_types: Optional[List[str]] = None) -> Dict[str, List[str]]:
-        """
-        从配置中 spawn 所有或指定类型的 agents
-
-        Args:
-            agent_types: 要 spawn 的 agent 类型列表，如 ["player", "drone"]
-                        如果为 None，则 spawn 所有配置的 agents
-
-        Returns:
-            已创建的 agent 名称字典 {agent_type: [agent_names]}
-        """
-        agents_config = self.env_config.get("agents", {})
-        spawned = {}
-
-        for agent_type, config in agents_config.items():
-            if agent_types and agent_type not in agent_types:
-                continue
-
-            spawned[agent_type] = []
-            names = config.get("name", [])
-            class_names = config.get("class_name", [])
-
-            for i, name in enumerate(names):
-                class_name = class_names[i] if i < len(class_names) else class_names[0]
-
-                # 获取出生点
-                spawn_loc = self._get_spawn_location(i)
-
-                # Spawn agent
-                self.spawn_agent(
-                    class_name=class_name,
-                    obj_name=name,
-                    location=spawn_loc,
-                    agent_type=agent_type,
-                    config=config,
-                )
-                spawned[agent_type].append(name)
-
-        return spawned
-
-    def spawn_agent(
+    def spawn_actor(
         self,
         class_name: str,
-        obj_name: str,
-        location: List[float],
-        rotation: List[float] = None,
-        agent_type: str = "unknown",
-        config: Dict = None,
-    ) -> str:
+        name: str,
+        transform: Transform,
+        enable_physics: bool = False,
+    ) -> Actor:
         """
-        Spawn 单个 agent
+        Spawn 单个 actor (CARLA 风格)
 
         Args:
-            class_name: UE 蓝图类名 (如 "bp_character_C")
-            obj_name: 对象名称 (如 "BP_Character_C_1")
-            location: 出生位置 [x, y, z]
-            rotation: 旋转角度 [pitch, yaw, roll]，默认 [0, 0, 0]
-            agent_type: agent 类型 (player/drone/animal 等)
-            config: agent 配置
+            class_name: 蓝图类名 (如 "BP_drone01_C")
+            name: 对象名称 (如 "drone_1")
+            transform: 变换信息 (位置、旋转、缩放)
+            enable_physics: 是否启用物理
 
         Returns:
-            创建的对象名称
+            Actor 对象
         """
-        if rotation is None:
-            rotation = [0, 0, 0]
-
-        x, y, z = location
-        pitch, yaw, roll = rotation
-
-        # 根据 agent 类型决定是否启用物理
-        enable_physics = 0 if class_name in ["bp_character_C", "target_C"] else 1
-
-        # 获取 scale（默认 [1, 1, 1]）
-        scale = config.get("scale", [1, 1, 1]) if config else [1, 1, 1]
-        sx, sy, sz = scale
+        loc = transform.location
+        rot = transform.rotation
+        scale = transform.scale
 
         # 构建 spawn 命令
         cmds = [
-            f"vset /objects/spawn {class_name} {obj_name}",
-            f"vset /object/{obj_name}/location {x} {y} {z}",
-            f"vset /object/{obj_name}/rotation {pitch} {yaw} {roll}",
-            f"vset /object/{obj_name}/scale {sx} {sy} {sz}",
-            f"vbp {obj_name} set_phy {enable_physics}",
+            f"vset /objects/spawn {class_name} {name}",
+            f"vset /object/{name}/location {loc.x} {loc.y} {loc.z}",
+            f"vset /object/{name}/rotation {rot.pitch} {rot.yaw} {rot.roll}",
+            f"vset /object/{name}/scale {scale.x} {scale.y} {scale.z}",
+            f"vbp {name} set_phy {1 if enable_physics else 0}",
         ]
 
         # 执行命令
         for cmd in cmds:
             self.client.client.request(cmd)
 
-        # 记录 agent 信息
-        self.agents[obj_name] = {
-            "class_name": class_name,
-            "agent_type": agent_type,
-            "location": location,
-            "rotation": rotation,
-            "config": config or {},
-        }
+        # 创建 Actor 对象
+        actor = Actor(self.client, name, class_name, transform)
+        self.actors[name] = actor
 
-        print(f"   ✅ Spawned {agent_type}: {obj_name} at {location}")
-        return obj_name
+        print(f"   ✅ Spawned: {name} ({class_name}) at {loc}")
+        return actor
+
+    def spawn_agents_from_config(self) -> List[Actor]:
+        """
+        从 JSON 配置中 spawn 所有 agents
+
+        Returns:
+            已创建的 Actor 列表
+        """
+        agents_config = self.env_config.get("agents", {})
+        spawned_actors = []
+
+        for agent_type, config in agents_config.items():
+            names = config.get("name", [])
+            class_names = config.get("class_name", [])
+            scale_list = config.get("scale", [1, 1, 1])
+
+            for i, name in enumerate(names):
+                class_name = class_names[i] if i < len(class_names) else class_names[0]
+
+                # 判断是否需要物理
+                enable_physics = class_name not in ["bp_character_C", "target_C"]
+
+                # 获取出生点
+                spawn_loc = self._get_spawn_location(i)
+
+                # 构建 Transform
+                transform = Transform(
+                    location=Location.from_list(spawn_loc),
+                    rotation=Rotation(),
+                    scale=Scale.from_list(scale_list),
+                )
+
+                # Spawn actor
+                actor = self.spawn_actor(
+                    class_name=class_name,
+                    name=name,
+                    transform=transform,
+                    enable_physics=enable_physics,
+                )
+                spawned_actors.append(actor)
+
+        return spawned_actors
 
     def _get_spawn_location(self, index: int) -> List[float]:
         """获取出生点位置"""
         if index < len(self.safe_starts):
             return self.safe_starts[index]
         elif self.safe_starts:
-            # 随机选择一个出生点
             return self.safe_starts[np.random.randint(len(self.safe_starts))]
         else:
-            return [0, 0, 100]  # 默认位置
+            return [0, 0, 100]
 
-    def get_agent(self, name: str) -> Optional[Dict]:
-        """获取 agent 信息"""
-        return self.agents.get(name)
+    def get_actor(self, name: str) -> Optional[Actor]:
+        """获取 Actor"""
+        return self.actors.get(name)
 
-    def get_agents_by_type(self, agent_type: str) -> List[str]:
-        """获取指定类型的所有 agent 名称"""
-        return [
-            name for name, info in self.agents.items() if info["agent_type"] == agent_type
-        ]
+    def get_actors(self) -> List[Actor]:
+        """获取所有 Actor"""
+        return list(self.actors.values())
 
-    def destroy_agent(self, name: str) -> bool:
-        """销毁 agent"""
-        if name not in self.agents:
-            return False
+    def destroy_actor(self, name: str) -> bool:
+        """销毁指定 Actor"""
+        actor = self.actors.get(name)
+        if actor:
+            actor.destroy()
+            del self.actors[name]
+            return True
+        return False
 
-        cmd = f"vset /object/{name}/destroy"
-        self.client.client.request(cmd)
-        del self.agents[name]
-        print(f"   🗑️ Destroyed: {name}")
-        return True
-
-    def destroy_all(self):
-        """销毁所有 agent"""
-        for name in list(self.agents.keys()):
-            self.destroy_agent(name)
+    def destroy_all(self) -> None:
+        """销毁所有 Actor"""
+        for name in list(self.actors.keys()):
+            self.destroy_actor(name)

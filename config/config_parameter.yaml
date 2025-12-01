@@ -8,7 +8,7 @@ ue_binary_path: "/home/ubuntu/UnrealEnv/UnrealZoo_UE5_5_Linux_v1.0.5/Linux/Unrea
 # 环境设置
 env:
   map: "Grass_Hills"         # UE 地图名 (用于 set_map)
-  agent_config: "Grass_Hills.json"  # Agent 配置文件 (必填，包含 .json 后缀)
+  agent_config: "multi_drone.json"  # Agent 配置文件 (必填，包含 .json 后缀)
                                    # 完整路径: config/agent_config/{agent_config}
   action_type: "Continuous"  # 动作类型: Continuous / Discrete
   observation_type: "Color"  # 观测类型: Color / Depth / Mask

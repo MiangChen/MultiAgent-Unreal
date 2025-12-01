@@ -101,7 +101,6 @@ def main():
         # 8. Spawn agents from config
         print(f"\n🤖 Spawn Agents...")
         agent_manager = AgentManager(client, config)
-        # 可以指定只 spawn 某些类型: agent_manager.spawn_agents_from_config(["player", "drone"])
         spawned = agent_manager.spawn_agents_from_config()
         print(f"   已创建 agents: {spawned}")
 
