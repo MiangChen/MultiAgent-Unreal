@@ -96,7 +96,7 @@ class ConfigManager:
         map_name = self.get("env.map", "Grass_Hills")
         config_path = f"{task}/{map_name}.json"
 
-        full_path = self.project_root / "gym_unrealcv" / "envs" / "setting" / config_path
+        full_path = Path(__file__).parent / "env_settings" / config_path
 
         print(f"📄 加载环境配置: {full_path}")
         with open(full_path, "r") as f:
