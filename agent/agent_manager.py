@@ -2,14 +2,22 @@
 Agent Manager - 管理智能体的创建和控制
 """
 # Standard library imports
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Type
 
 # Third-party library imports
 import numpy as np
 
 # Local imports
 from agent.agent import Agent
+from agent.sensor import SensorRgb, SensorDepth, Sensor
 from agent.transform import Location, Rotation, Scale, Transform
+
+
+# Sensor 类型注册表（类似 CARLA 的 blueprint library）
+SENSOR_BLUEPRINTS: Dict[str, Type[Sensor]] = {
+    "sensor.camera.rgb": SensorRgb,
+    "sensor.camera.depth": SensorDepth,
+}
 
 
 class AgentManager:
@@ -35,6 +43,7 @@ class AgentManager:
         class_name: str,
         name: str,
         transform: Transform,
+        cam_id: int = -1,
         enable_physics: bool = False,
     ) -> Agent:
         """
@@ -44,6 +53,7 @@ class AgentManager:
             class_name: 蓝图类名 (如 "BP_drone01_C")
             name: 对象名称 (如 "drone_1")
             transform: 变换信息 (位置、旋转、缩放)
+            cam_id: 绑定的摄像头 ID，-1 表示无摄像头
             enable_physics: 是否启用物理
 
         Returns:
@@ -67,10 +77,10 @@ class AgentManager:
             self.client.client.request(cmd)
 
         # 创建 Agent 对象
-        agent = Agent(self.client, name, class_name, transform)
+        agent = Agent(self.client, name, class_name, transform, cam_id)
         self.agents[name] = agent
 
-        print(f"   ✅ Spawned: {name} ({class_name}) at {loc}")
+        print(f"   ✅ Spawned: {name} ({class_name}) at {loc}, cam_id={cam_id}")
         return agent
 
     def spawn_agents_from_config(self) -> List[Agent]:
@@ -86,10 +96,12 @@ class AgentManager:
         for agent_type, config in agents_config.items():
             names = config.get("name", [])
             class_names = config.get("class_name", [])
+            cam_ids = config.get("cam_id", [])
             scale_list = config.get("scale", [1, 1, 1])
 
             for i, name in enumerate(names):
                 class_name = class_names[i] if i < len(class_names) else class_names[0]
+                cam_id = cam_ids[i] if i < len(cam_ids) else -1
 
                 # 判断是否需要物理
                 enable_physics = class_name not in ["bp_character_C", "target_C"]
@@ -109,6 +121,7 @@ class AgentManager:
                     class_name=class_name,
                     name=name,
                     transform=transform,
+                    cam_id=cam_id,
                     enable_physics=enable_physics,
                 )
                 spawned_agents.append(agent)
@@ -145,3 +158,48 @@ class AgentManager:
         """销毁所有 Agent"""
         for name in list(self.agents.keys()):
             self.destroy_agent(name)
+
+    # ==================== CARLA 风格的 Sensor 管理 ====================
+
+    def spawn_sensor(
+        self,
+        blueprint_id: str,
+        attach_to: Agent,
+        sensor_id: Optional[int] = None,
+    ) -> Sensor:
+        """
+        Spawn 传感器并绑定到 Agent（CARLA 风格）
+
+        Args:
+            blueprint_id: 传感器蓝图 ID (如 "sensor.camera.rgb")
+            attach_to: 要绑定的 Agent
+            sensor_id: 传感器 ID，None 则使用 Agent 的 cam_id
+
+        Returns:
+            Sensor 对象
+
+        Example:
+            # CARLA 风格用法
+            camera = manager.spawn_sensor("sensor.camera.rgb", attach_to=drone)
+            camera.listen(lambda img: process(img))
+        """
+        # 获取 sensor 类
+        sensor_class = SENSOR_BLUEPRINTS.get(blueprint_id)
+        if sensor_class is None:
+            raise ValueError(f"Unknown sensor blueprint: {blueprint_id}")
+
+        # 确定 sensor_id
+        sid = sensor_id if sensor_id is not None else attach_to.cam_id
+        if sid < 0:
+            raise ValueError(f"Agent {attach_to.name} has no valid cam_id")
+
+        # 创建并绑定 sensor
+        sensor = sensor_class(self.client, sid)
+        sensor.attach_to(attach_to)
+
+        print(f"   📷 Sensor spawned: {blueprint_id} -> {attach_to.name} (id={sid})")
+        return sensor
+
+    def get_blueprint_library(self) -> List[str]:
+        """获取可用的传感器蓝图列表（CARLA 风格）"""
+        return list(SENSOR_BLUEPRINTS.keys())
