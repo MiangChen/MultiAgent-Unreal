@@ -21,6 +21,8 @@ from unrealcv.api import UnrealCv_API
 
 # Local project imports
 from config.config_manager import config_manager
+from map.map_grid import MapGrid
+from agent.agent_manager import AgentManager
 
 
 def main():
@@ -33,16 +35,15 @@ def main():
     config = config_manager.load_env_config()
 
     print(f"\n📋 配置信息:")
-    print(f"   环境名称: {config['env_name']}")
-    print(f"   地图: {config['env_map']}")
-    print(f"   UE Binary: {config['env_bin']}")
+    print(f"   Agent 配置: {config_manager.get_agent_config_name()}")
+    print(f"   UE 地图: {config_manager.get_env_map()}")
+    print(f"   UE Binary: {config_manager.get_ue_binary_path()}")
     print(f"   智能体类型: {list(config['agents'].keys())}")
     print(f"   出生点数量: {len(config['safe_start'])}")
 
     # 2. 从配置提取启动参数
-    # env_bin 使用 config_parameter.yaml 中的绝对路径
     env_bin = config_manager.get_ue_binary_path()
-    env_map = config["env_map"]
+    env_map = config_manager.get_env_map()
     resolution = tuple(config_manager.get("rendering.resolution", [640, 480]))
 
     # 3. 创建 RunUnreal 启动器
@@ -90,7 +91,21 @@ def main():
         if img is not None:
             print(f"   图像尺寸: {img.shape}")
 
-        # 7. 保持运行，等待用户输入
+        # 7. 获取 NavMesh 信息并可视化
+        print(f"\n🗺️ 获取 NavMesh 信息...")
+        map_grid = MapGrid(config)
+        map_grid.load_from_client(client, objects)
+        if map_grid.navmesh_info:
+            map_grid.visualize()
+
+        # 8. Spawn agents from config
+        print(f"\n🤖 Spawn Agents...")
+        agent_manager = AgentManager(client, config)
+        # 可以指定只 spawn 某些类型: agent_manager.spawn_agents_from_config(["player", "drone"])
+        spawned = agent_manager.spawn_agents_from_config()
+        print(f"   已创建 agents: {spawned}")
+
+        # 9. 保持运行，等待用户输入
         print(f"\n" + "=" * 60)
         print("✅ UE 环境已就绪!")
         print("   按 Enter 键关闭环境...")

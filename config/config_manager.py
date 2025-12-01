@@ -82,21 +82,35 @@ class ConfigManager:
         """获取 UE Binary 的绝对路径"""
         return self.get("ue_binary_path")
 
+    def get_env_map(self) -> str:
+        """获取 UE 地图名"""
+        return self.get("env.map", "Grass_Hills")
+
+    def get_agent_config_name(self) -> str:
+        """
+        获取 Agent 配置文件名。
+        必须在 config_parameter.yaml 中设置 env.agent_config。
+        """
+        agent_config = self.get("env.agent_config", "")
+        if not agent_config:
+            raise ValueError(
+                "env.agent_config 未设置！请在 config/config_parameter.yaml 中填写 agent_config。\n"
+                "例如: agent_config: 'Grass_Hills'"
+            )
+        return agent_config
+
     def load_env_config(self) -> Dict[str, Any]:
         """
         加载环境 JSON 配置文件。
-        根据 env.task 和 env.map 自动拼接路径: {task}/{map}.json
+        路径: config/agent_settings/{agent_config}
         
         Returns:
             环境配置字典
         """
         import json
 
-        task = self.get("env.task", "Track")
-        map_name = self.get("env.map", "Grass_Hills")
-        config_path = f"{task}/{map_name}.json"
-
-        full_path = Path(__file__).parent / "env_settings" / config_path
+        agent_config_file = self.get_agent_config_name()
+        full_path = Path(__file__).parent / "agent_config" / agent_config_file
 
         print(f"📄 加载环境配置: {full_path}")
         with open(full_path, "r") as f:

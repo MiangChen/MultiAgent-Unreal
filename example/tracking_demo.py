@@ -33,7 +33,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     env = gym.make(args.env_id)
     env = configUE.ConfigUEWrapper(env, offscreen=False, resolution=(240, 240))
-    env.unwrapped.agents_category=['player'] #choose the agent type in the scene
+    env.unwrapped.agents_category = ['player', 'car', 'motorbike', 'drone', 'animal']
 
     if int(args.time_dilation) > 0:  # -1 means no time_dilation
         env = time_dilation.TimeDilationWrapper(env, args.time_dilation)

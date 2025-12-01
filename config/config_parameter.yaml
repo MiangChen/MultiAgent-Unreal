@@ -7,8 +7,9 @@ ue_binary_path: "/home/ubuntu/UnrealEnv/UnrealZoo_UE5_5_Linux_v1.0.5/Linux/Unrea
 
 # 环境设置
 env:
-  task: "Track"              # 任务类型，对应 setting 下的文件夹名
-  map: "Grass_Hills"         # 地图名，对应 JSON 文件名
+  map: "Grass_Hills"         # UE 地图名 (用于 set_map)
+  agent_config: "Grass_Hills.json"  # Agent 配置文件 (必填，包含 .json 后缀)
+                                   # 完整路径: config/agent_config/{agent_config}
   action_type: "Continuous"  # 动作类型: Continuous / Discrete
   observation_type: "Color"  # 观测类型: Color / Depth / Mask
 
