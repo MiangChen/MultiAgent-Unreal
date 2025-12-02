@@ -101,13 +101,17 @@ def main():
         if map_grid.navmesh_info:
             map_grid.visualize()
 
-        # 8. Spawn agents from config
-        print(f"\n🤖 Spawn Agents...")
+        # 8. 清理场景中已存在的 BP 对象
+        print(f"\n🧹 清理场景...")
         agent_manager = AgentManager(client, config)
+        agent_manager.cleanup_scene()  # 删除所有 BP_ 开头的Agent
+
+        # 9. Spawn agents from config
+        print(f"\n🤖 Spawn Agents...")
         spawned = agent_manager.spawn_agents_from_config()
         print(f"   已创建 {len(spawned)} 个 agents")
 
-        # 9. 为每个 drone 创建 camera sensor（CARLA 风格）
+        # 10. 为每个 drone 创建 camera sensor（CARLA 风格）
         # 一半 RGB，一半 Depth
         print(f"\n📷 为 Drones 绑定 Camera Sensors...")
         output_dir = Path("/home/ubuntu/Pictures")
@@ -121,6 +125,8 @@ def main():
             if i < half:
                 sensor_type = "sensor.camera.rgb"
                 sensor = agent_manager.spawn_sensor(sensor_type, attach_to=agent)
+                if sensor is None:
+                    continue
                 img = sensor.get_image()
                 if img is not None:
                     filename = output_dir / f"{agent.name}_rgb.png"
@@ -129,15 +135,19 @@ def main():
             else:
                 sensor_type = "sensor.camera.depth"
                 sensor = agent_manager.spawn_sensor(sensor_type, attach_to=agent)
+                if sensor is None:
+                    continue
                 depth = sensor.get_depth()
-                if depth is not None:
+                if depth is not None and depth.max() > 0:
                     # 深度图归一化后保存
                     depth_normalized = (depth / depth.max() * 255).astype("uint8")
                     filename = output_dir / f"{agent.name}_depth.png"
                     cv2.imwrite(str(filename), depth_normalized)
                     print(f"   {agent.name}: Depth 已保存 {filename}")
+                else:
+                    print(f"   {agent.name}: Depth 获取失败")
 
-        # 10. 演示 sensor 的使用
+        # 11. 演示 sensor 的使用
         print(f"\n🎯 Sensor 使用示例:")
         first_agent = spawned[0] if spawned else None
         if first_agent and first_agent.has_sensor():
@@ -147,7 +157,7 @@ def main():
             print(f"   Camera Location: {sensor.get_location()}")
             print(f"   Camera Rotation: {sensor.get_rotation()}")
 
-        # 11. 保持运行，等待用户输入
+        # 12. 保持运行，等待用户输入
         print(f"\n" + "=" * 60)
         print("✅ UE 环境已就绪!")
         print("   按 Enter 键关闭环境...")

@@ -45,6 +45,7 @@ class AgentManager:
         transform: Transform,
         cam_id: int = -1,
         enable_physics: bool = False,
+        auto_detect_camera: bool = True,
     ) -> Agent:
         """
         Spawn 单个 agent
@@ -53,8 +54,9 @@ class AgentManager:
             class_name: 蓝图类名 (如 "BP_drone01_C")
             name: 对象名称 (如 "drone_1")
             transform: 变换信息 (位置、旋转、缩放)
-            cam_id: 绑定的摄像头 ID，-1 表示无摄像头
+            cam_id: 绑定的摄像头 ID，-1 表示自动检测
             enable_physics: 是否启用物理
+            auto_detect_camera: 是否自动检测新增的 camera
 
         Returns:
             Agent 对象
@@ -62,6 +64,9 @@ class AgentManager:
         loc = transform.location
         rot = transform.rotation
         scale = transform.scale
+
+        # 记录 spawn 前的 camera 数量
+        cam_num_before = self.client.get_camera_num() if auto_detect_camera else 0
 
         # 构建 spawn 命令
         cmds = [
@@ -76,6 +81,13 @@ class AgentManager:
         for cmd in cmds:
             self.client.client.request(cmd)
 
+        # 自动检测新增的 camera
+        if auto_detect_camera and cam_id == -1:
+            cam_num_after = self.client.get_camera_num()
+            if cam_num_after > cam_num_before:
+                # 新增了 camera，分配最后一个
+                cam_id = cam_num_after - 1
+
         # 创建 Agent 对象
         agent = Agent(self.client, name, class_name, transform, cam_id)
         self.agents[name] = agent
@@ -83,9 +95,12 @@ class AgentManager:
         print(f"   ✅ Spawned: {name} ({class_name}) at {loc}, cam_id={cam_id}")
         return agent
 
-    def spawn_agents_from_config(self) -> List[Agent]:
+    def spawn_agents_from_config(self, auto_detect_camera: bool = True) -> List[Agent]:
         """
         从 JSON 配置中 spawn 所有 agents
+
+        Args:
+            auto_detect_camera: 是否自动检测 camera（推荐 True）
 
         Returns:
             已创建的 Agent 列表
@@ -96,12 +111,10 @@ class AgentManager:
         for agent_type, config in agents_config.items():
             names = config.get("name", [])
             class_names = config.get("class_name", [])
-            cam_ids = config.get("cam_id", [])
             scale_list = config.get("scale", [1, 1, 1])
 
             for i, name in enumerate(names):
                 class_name = class_names[i] if i < len(class_names) else class_names[0]
-                cam_id = cam_ids[i] if i < len(cam_ids) else -1
 
                 # 判断是否需要物理
                 enable_physics = class_name not in ["bp_character_C", "target_C"]
@@ -116,13 +129,14 @@ class AgentManager:
                     scale=Scale.from_list(scale_list),
                 )
 
-                # Spawn agent
+                # Spawn agent（cam_id=-1 表示自动检测）
                 agent = self.spawn_agent(
                     class_name=class_name,
                     name=name,
                     transform=transform,
-                    cam_id=cam_id,
+                    cam_id=-1,
                     enable_physics=enable_physics,
+                    auto_detect_camera=auto_detect_camera,
                 )
                 spawned_agents.append(agent)
 
@@ -193,6 +207,12 @@ class AgentManager:
         if sid < 0:
             raise ValueError(f"Agent {attach_to.name} has no valid cam_id")
 
+        # 检查 camera ID 是否在有效范围内
+        cam_num = self.client.get_camera_num()
+        if sid >= cam_num:
+            print(f"   ⚠️ cam_id {sid} 超出范围 (max={cam_num-1})，跳过")
+            return None
+
         # 创建并绑定 sensor
         sensor = sensor_class(self.client, sid)
         sensor.attach_to(attach_to)
@@ -203,3 +223,40 @@ class AgentManager:
     def get_blueprint_library(self) -> List[str]:
         """获取可用的传感器蓝图列表（CARLA 风格）"""
         return list(SENSOR_BLUEPRINTS.keys())
+
+    # ==================== 场景清理 ====================
+
+    def cleanup_scene(self, patterns: List[str] = None) -> int:
+        """
+        清理场景中已存在的对象（在 spawn 新 agents 之前调用）
+
+        Args:
+            patterns: 要删除的对象名称前缀列表，默认删除所有 BP_ 开头的对象
+
+        Returns:
+            删除的对象数量
+
+        Example:
+            # 删除所有 BP_ 开头的对象
+            agent_manager.cleanup_scene()
+
+            # 只删除特定类型
+            agent_manager.cleanup_scene(patterns=["BP_Drone", "BP_Character"])
+        """
+        if patterns is None:
+            patterns = ["BP_"]
+
+        # 获取场景中所有对象
+        objects = self.client.get_objects()
+        destroyed_count = 0
+
+        for obj_name in objects:
+            # 检查是否匹配任一 pattern
+            if any(obj_name.startswith(p) for p in patterns):
+                cmd = f"vset /object/{obj_name}/destroy"
+                self.client.client.request(cmd)
+                print(f"   🗑️ Cleaned: {obj_name}")
+                destroyed_count += 1
+
+        print(f"   ✅ Scene cleanup: {destroyed_count} objects removed")
+        return destroyed_count
