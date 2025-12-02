@@ -26,6 +26,7 @@ from unrealcv.api import UnrealCv_API
 from config.config_manager import config_manager
 from map.map_grid import MapGrid
 from agent.agent_manager import AgentManager
+from agent.transform import Location, Scale, Transform
 
 
 def main():
@@ -157,7 +158,35 @@ def main():
             print(f"   Camera Location: {sensor.get_location()}")
             print(f"   Camera Rotation: {sensor.get_rotation()}")
 
-        # 12. 保持运行，等待用户输入
+        # 12. 生成静态障碍物（Static Agents）
+        print(f"\n🧊 生成 Static Agents...")
+        # 在第一个 drone 附近生成几个障碍物
+        if spawned:
+            base_loc = spawned[0].get_location()
+            obstacles = []
+            for i in range(3):
+                obstacle = agent_manager.spawn_static(
+                    name=f"obstacle_{i}",
+                    transform=Transform(
+                        location=Location(
+                            x=base_loc.x + (i + 1) * 200,
+                            y=base_loc.y,
+                            z=base_loc.z,
+                        ),
+                        scale=Scale(x=1, y=1, z=1),
+                    ),
+                    shape="cube",
+                    color=(255, 0, 0) if i == 0 else None,  # 第一个红色
+                )
+                obstacles.append(obstacle)
+
+        # 13. 发现场景中已有的静态对象
+        print(f"\n🔍 发现场景中的 Static Agents...")
+        static_agents = agent_manager.discover_agents(patterns=["Cube", "SM_"])
+        if static_agents:
+            print(f"   发现 {len(static_agents)} 个静态对象")
+
+        # 14. 保持运行，等待用户输入
         print(f"\n" + "=" * 60)
         print("✅ UE 环境已就绪!")
         print("   按 Enter 键关闭环境...")

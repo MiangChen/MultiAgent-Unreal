@@ -65,28 +65,24 @@ class AgentManager:
         rot = transform.rotation
         scale = transform.scale
 
-        # 记录 spawn 前的 camera 数量
-        cam_num_before = self.client.get_camera_num() if auto_detect_camera else 0
+        # 使用 unrealcv API spawn 对象（会自动注册新 camera）
+        self.client.set_new_obj(class_name, name)
 
-        # 构建 spawn 命令
-        cmds = [
-            f"vset /objects/spawn {class_name} {name}",
-            f"vset /object/{name}/location {loc.x} {loc.y} {loc.z}",
-            f"vset /object/{name}/rotation {rot.pitch} {rot.yaw} {rot.roll}",
-            f"vset /object/{name}/scale {scale.x} {scale.y} {scale.z}",
-            f"vbp {name} set_phy {1 if enable_physics else 0}",
-        ]
+        # 设置位置、旋转、缩放
+        self.client.set_obj_location(name, [loc.x, loc.y, loc.z])
+        self.client.set_obj_rotation(name, [rot.pitch, rot.yaw, rot.roll])
+        self.client.set_obj_scale(name, [scale.x, scale.y, scale.z])
 
-        # 执行命令
-        for cmd in cmds:
-            self.client.client.request(cmd)
+        # 设置物理
+        cmd = f"vbp {name} set_phy {1 if enable_physics else 0}"
+        self.client.client.request(cmd)
 
-        # 自动检测新增的 camera , todo 目前是任务一个agent最多一个camera, 如果有多个camera, 这里的逻辑会报错
+        # 自动检测新增的 camera（set_new_obj 已经注册了 camera）
         if auto_detect_camera and cam_id == -1:
-            cam_num_after = self.client.get_camera_num()
-            if cam_num_after > cam_num_before:
-                # 新增了 camera，分配最后一个
-                cam_id = cam_num_after - 1
+            cam_num = self.client.get_camera_num()
+            if cam_num > 0:
+                # 使用最后一个 camera
+                cam_id = cam_num - 1
 
         # 创建 Agent 对象
         agent = Agent(self.client, name, class_name, transform, cam_id)
@@ -167,6 +163,71 @@ class AgentManager:
             del self.agents[name]
             return True
         return False
+
+    # ==================== Static Agent 生成 ====================
+
+    def spawn_static(
+        self,
+        name: str,
+        transform: Transform,
+        shape: str = "cube",
+        color: tuple = None,
+    ) -> Agent:
+        """
+        生成静态对象（Cube、Sphere 等）
+
+        Args:
+            name: 对象名称
+            transform: 变换信息
+            shape: 形状类型 ("cube", "sphere", "cylinder", "cone")
+            color: RGB 颜色 (0-255)，如 (255, 0, 0) 为红色
+
+        Returns:
+            Agent 对象
+
+        Example:
+            cube = agent_manager.spawn_static(
+                "obstacle_1",
+                Transform(location=Location(100, 200, 50), scale=Scale(2, 2, 2)),
+                shape="cube",
+                color=(255, 0, 0)
+            )
+        """
+        # 使用 UE 项目中可用的蓝图类
+        shape_blueprints = {
+            "cube": "BP_GrabbableObject_C",
+            "sphere": "BP_GrabbableObject_C",
+            "cylinder": "BP_GrabbableObject_C",
+            "object": "BP_GrabbableObject_C",
+        }
+        class_name = shape_blueprints.get(shape.lower(), "BP_GrabbableObject_C")
+        loc = transform.location
+        rot = transform.rotation
+        scale = transform.scale
+
+        # 直接发送命令（绕过 set_new_obj 的 numpy bug）
+        cmd = f"vset /objects/spawn {class_name} {name}"
+        res = self.client.client.request(cmd)
+        if "error" in str(res).lower():
+            print(f"   ⚠️ Failed to spawn {name}: {res}")
+            return None
+
+        # 设置位置、旋转、缩放
+        self.client.set_obj_location(name, [loc.x, loc.y, loc.z])
+        self.client.set_obj_rotation(name, [rot.pitch, rot.yaw, rot.roll])
+        self.client.set_obj_scale(name, [scale.x, scale.y, scale.z])
+
+        # 设置颜色
+        if color:
+            r, g, b = color
+            self.client.set_obj_color(name, [r, g, b])
+
+        # 创建 Agent 对象
+        agent = Agent(self.client, name, f"static.{shape}", transform, cam_id=-1)
+        self.agents[name] = agent
+
+        print(f"   🧊 Spawned static: {name} ({shape}) at {loc}")
+        return agent
 
     def destroy_all(self) -> None:
         """销毁所有 Agent"""
@@ -260,3 +321,72 @@ class AgentManager:
 
         print(f"   ✅ Scene cleanup: {destroyed_count} objects removed")
         return destroyed_count
+
+    # ==================== 发现场景中已存在的对象 ====================
+
+    def discover_agents(
+        self,
+        patterns: List[str] = None,
+        class_name: str = "static",
+    ) -> List[Agent]:
+        """
+        发现场景中已存在的对象并纳入管理（Static Agents）
+
+        Args:
+            patterns: 对象名称匹配模式列表，如 ["Cube", "SM_"]
+            class_name: 分配给这些对象的类名标识
+
+        Returns:
+            发现的 Agent 列表
+
+        Example:
+            # 发现所有 Cube 对象
+            cubes = agent_manager.discover_agents(patterns=["Cube"])
+
+            # 发现所有静态网格
+            statics = agent_manager.discover_agents(patterns=["SM_", "StaticMesh"])
+
+            # 之后可以像普通 agent 一样操作
+            for cube in cubes:
+                cube.get_location()
+                cube.set_location(Location(x=100, y=200, z=50))
+        """
+        if patterns is None:
+            patterns = ["Cube", "SM_"]
+
+        objects = self.client.get_objects()
+        discovered = []
+
+        for obj_name in objects:
+            # 跳过已管理的对象
+            if obj_name in self.agents:
+                continue
+
+            # 检查是否匹配
+            if any(p in obj_name for p in patterns):
+                # 获取对象当前位置
+                try:
+                    loc = self.client.get_obj_location(obj_name)
+                    rot = self.client.get_obj_rotation(obj_name)
+                    transform = Transform(
+                        location=Location.from_list(loc),
+                        rotation=Rotation.from_list(rot),
+                        scale=Scale(),
+                    )
+                except Exception:
+                    transform = Transform()
+
+                # 创建 Agent 对象（static agent 没有 camera）
+                agent = Agent(
+                    self.client,
+                    name=obj_name,
+                    class_name=class_name,
+                    transform=transform,
+                    cam_id=-1,
+                )
+                self.agents[obj_name] = agent
+                discovered.append(agent)
+                print(f"   🔍 Discovered: {obj_name}")
+
+        print(f"   ✅ Discovered {len(discovered)} static agents")
+        return discovered
