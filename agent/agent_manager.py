@@ -81,7 +81,7 @@ class AgentManager:
         for cmd in cmds:
             self.client.client.request(cmd)
 
-        # 自动检测新增的 camera
+        # 自动检测新增的 camera , todo 目前是任务一个agent最多一个camera, 如果有多个camera, 这里的逻辑会报错
         if auto_detect_camera and cam_id == -1:
             cam_num_after = self.client.get_camera_num()
             if cam_num_after > cam_num_before:
