@@ -95,6 +95,16 @@ class AgentManager:
         """
         从 JSON 配置中 spawn 所有 agents
 
+        配置格式:
+        {
+            "agents": {
+                "drone": [
+                    {"id": 0, "name": "drone_0", "class_name": "BP_drone01_C", "position": [...], ...},
+                    ...
+                ]
+            }
+        }
+
         Args:
             auto_detect_camera: 是否自动检测 camera（推荐 True）
 
@@ -104,25 +114,25 @@ class AgentManager:
         agents_config = self.env_config.get("agents", {})
         spawned_agents = []
 
-        for agent_type, config in agents_config.items():
-            names = config.get("name", [])
-            class_names = config.get("class_name", [])
-            scale_list = config.get("scale", [1, 1, 1])
-
-            for i, name in enumerate(names):
-                class_name = class_names[i] if i < len(class_names) else class_names[0]
+        for agent_type, agent_list in agents_config.items():
+            for agent_cfg in agent_list:
+                name = agent_cfg.get("name", f"{agent_type}_{agent_cfg.get('id', 0)}")
+                class_name = agent_cfg.get("class_name")
+                position = agent_cfg.get("position", [0, 0, 100])
+                rotation = agent_cfg.get("rotation", [0, 0, 0])
+                scale = agent_cfg.get("scale", [1, 1, 1])
+                disable_gravity = agent_cfg.get("disable_gravity", False)
 
                 # 判断是否需要物理
-                enable_physics = class_name not in ["bp_character_C", "target_C"]
-
-                # 获取出生点
-                spawn_loc = self._get_spawn_location(i)
+                enable_physics = not disable_gravity and class_name not in [
+                    "bp_character_C", "target_C", "BP_Character_C"
+                ]
 
                 # 构建 Transform
                 transform = Transform(
-                    location=Location.from_list(spawn_loc),
-                    rotation=Rotation(),
-                    scale=Scale.from_list(scale_list),
+                    location=Location.from_list(position),
+                    rotation=Rotation.from_list(rotation),
+                    scale=Scale.from_list(scale),
                 )
 
                 # Spawn agent（cam_id=-1 表示自动检测）

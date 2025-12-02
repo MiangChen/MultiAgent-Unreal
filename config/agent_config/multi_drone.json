@@ -10,65 +10,85 @@
     "height": -10039.938,
     "interval": 1000,
     "agents": {
-        "drone": {
-            "name": [
-                "drone_1",
-                "drone_2",
-                "drone_3",
-                "drone_4",
-                "drone_5",
-                "drone_6",
-                "drone_7",
-                "drone_8",
-                "drone_9",
-                "drone_10"
-            ],
-            "cam_id": [3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
-            "class_name": [
-                "BP_drone01_C",
-                "BP_drone01_C",
-                "BP_drone01_C",
-                "BP_drone01_C",
-                "BP_drone01_C",
-                "BP_drone01_C",
-                "BP_drone01_C",
-                "BP_drone01_C",
-                "BP_drone01_C",
-                "BP_drone01_C"
-            ],
-            "internal_nav": false,
-            "scale": [0.1, 0.1, 0.1],
-            "relative_location": [0, 0, 0],
-            "relative_rotation": [0, 0, 0],
-            "move_action": [
-                [0.5, 0, 0, 0],
-                [-0.5, 0, 0, 0],
-                [0, 0.5, 0, 0],
-                [0, -0.5, 0, 0],
-                [0, 0, 0.5, 0],
-                [0, 0, -0.5, 0],
-                [0, 0, 0, 1],
-                [0, 0, 0, -1],
-                [0, 0, 0, 0]
-            ],
-            "move_action_continuous": {
-                "high": [1, 1, 1, 1],
-                "low": [-1, -1, -1, -1]
+        "drone": [
+            {
+                "id": 0,
+                "name": "drone_0",
+                "class_name": "BP_drone01_C",
+                "position": [159090.307, 184023.897, -10054.549],
+                "rotation": [0, 0, 0],
+                "scale": [0.1, 0.1, 0.1],
+                "disable_gravity": false
+            },
+            {
+                "id": 1,
+                "name": "drone_1",
+                "class_name": "BP_drone01_C",
+                "position": [158937.322, 184021.759, -10051.141],
+                "rotation": [0, 0, 0],
+                "scale": [0.1, 0.1, 0.1],
+                "disable_gravity": false
+            },
+            {
+                "id": 2,
+                "name": "drone_2",
+                "class_name": "BP_drone01_C",
+                "position": [159755.601, 182343.782, -9826.984],
+                "rotation": [0, 0, 0],
+                "scale": [0.1, 0.1, 0.1],
+                "disable_gravity": false
+            },
+            {
+                "id": 3,
+                "name": "drone_3",
+                "class_name": "BP_drone01_C",
+                "position": [159765.841, 183682.696, -9888.906],
+                "rotation": [0, 0, 0],
+                "scale": [0.1, 0.1, 0.1],
+                "disable_gravity": false
+            },
+            {
+                "id": 4,
+                "name": "drone_4",
+                "class_name": "BP_drone01_C",
+                "position": [157709.401, 185187.893, -10191.141],
+                "rotation": [0, 0, 0],
+                "scale": [0.1, 0.1, 0.1],
+                "disable_gravity": false
             }
-        }
+        ],
+        "character": [
+            {
+                "id": 0,
+                "name": "player_1",
+                "class_name": "BP_Character_C",
+                "position": [159500, 183500, -10000],
+                "rotation": [0, 0, 0],
+                "scale": [1, 1, 1],
+                "disable_gravity": false
+            }
+        ]
     },
-    "safe_start": [
-        [159090.307, 184023.897, -10054.549],
-        [158937.322, 184021.759, -10051.141],
-        [159755.601, 182343.782, -9826.984],
-        [159765.841, 183682.696, -9888.906],
-        [157709.401, 185187.893, -10191.141],
-        [158015.475, 183692.0, -10130.0],
-        [160474.219, 183995.449, -9739.938],
-        [158724.136, 184682.901, -10139.159],
-        [159876.509, 184625.954, -9874.2],
-        [159286.606, 182988.116, -9926.275]
-    ],
+    "move_action": {
+        "drone": [
+            [0.5, 0, 0, 0],
+            [-0.5, 0, 0, 0],
+            [0, 0.5, 0, 0],
+            [0, -0.5, 0, 0],
+            [0, 0, 0.5, 0],
+            [0, 0, -0.5, 0],
+            [0, 0, 0, 1],
+            [0, 0, 0, -1],
+            [0, 0, 0, 0]
+        ],
+        "character": [
+            [1, 0],
+            [-1, 0],
+            [0, 1],
+            [0, -1],
+            [0, 0]
+        ]
+    },
     "reset_area": [
         157543.314,
         160474.219,
@@ -77,7 +97,7 @@
         -10529.509,
         -10039.938
     ],
-    "random_init": true,
+    "random_init": false,
     "env": {
         "interactive_door": [],
         "Extra_Vehicles": {},

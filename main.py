@@ -43,7 +43,9 @@ def main():
     print(f"   UE 地图: {config_manager.get_env_map()}")
     print(f"   UE Binary: {config_manager.get_ue_binary_path()}")
     print(f"   智能体类型: {list(config['agents'].keys())}")
-    print(f"   出生点数量: {len(config['safe_start'])}")
+    # 统计 agent 数量
+    agent_count = sum(len(v) if isinstance(v, list) else len(v.get('name', [])) for v in config['agents'].values())
+    print(f"   Agent 数量: {agent_count}")
 
     # 2. 从配置提取启动参数
     env_bin = config_manager.get_ue_binary_path()
@@ -158,33 +160,64 @@ def main():
             print(f"   Camera Location: {sensor.get_location()}")
             print(f"   Camera Rotation: {sensor.get_rotation()}")
 
-        # 12. 生成静态障碍物（Static Agents）
-        print(f"\n🧊 生成 Static Agents...")
-        # 在第一个 drone 附近生成几个障碍物
-        if spawned:
-            base_loc = spawned[0].get_location()
-            obstacles = []
-            for i in range(3):
-                obstacle = agent_manager.spawn_static(
-                    name=f"obstacle_{i}",
-                    transform=Transform(
-                        location=Location(
-                            x=base_loc.x + (i + 1) * 200,
-                            y=base_loc.y,
-                            z=base_loc.z,
-                        ),
-                        scale=Scale(x=1, y=1, z=1),
-                    ),
-                    shape="cube",
-                    color=(255, 0, 0) if i == 0 else None,  # 第一个红色
-                )
-                obstacles.append(obstacle)
+        # 12. 在角色附近生成可拾取物体
+        print(f"\n🧊 在角色附近生成可拾取物体...")
+        # 找到 character agent
+        character_agent = None
+        for agent in spawned:
+            if "player" in agent.name or "character" in agent.name.lower():
+                character_agent = agent
+                break
 
-        # 13. 发现场景中已有的静态对象
-        print(f"\n🔍 发现场景中的 Static Agents...")
-        static_agents = agent_manager.discover_agents(patterns=["Cube", "SM_"])
-        if static_agents:
-            print(f"   发现 {len(static_agents)} 个静态对象")
+        grabbable_obj = None
+        if character_agent:
+            char_loc = character_agent.get_location()
+            # 在角色前方 200 单位处生成物体
+            grabbable_obj = agent_manager.spawn_static(
+                name="grabbable_item",
+                transform=Transform(
+                    location=Location(
+                        x=char_loc.x + 200,
+                        y=char_loc.y,
+                        z=char_loc.z,
+                    ),
+                    scale=Scale(x=1, y=1, z=1),
+                ),
+                shape="object",
+            )
+            print(f"   在 {character_agent.name} 附近生成了 grabbable_item")
+
+        # 13. 等待 5 秒后让角色拾取物体
+        if character_agent and grabbable_obj:
+            import time
+            from agent.character import Character
+
+            print(f"\n⏳ 等待 5 秒...")
+            time.sleep(5)
+
+            print(f"\n🤚 让 {character_agent.name} 拾取物体...")
+            character = Character(client, character_agent)
+
+            # 先导航到物体附近
+            obj_loc = grabbable_obj.get_location()
+            print(f"   导航到物体位置: {obj_loc}")
+            character.nav_to(obj_loc.x, obj_loc.y, obj_loc.z)
+
+            time.sleep(2)  # 等待导航完成
+
+            # 拾取物体
+            print(f"   执行拾取...")
+            print(character.is_picked())
+            print(character.is_carrying())
+            character.carry()
+
+            time.sleep(1)
+
+            # 检查是否拾取成功
+            if character.is_carrying():
+                print(f"   ✅ 拾取成功!")
+            else:
+                print(f"   ❌ 拾取失败")
 
         # 14. 保持运行，等待用户输入
         print(f"\n" + "=" * 60)
