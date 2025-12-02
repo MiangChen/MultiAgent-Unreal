@@ -21,7 +21,12 @@ class SensorDepth(Sensor):
         """获取深度数据"""
         if not self._is_alive:
             return None
-        return self.client.get_depth(self.sensor_id)
+        try:
+            return self.client.get_depth(self.sensor_id)
+        except (TypeError, Exception) as e:
+            print(f"   ⚠️ get_depth failed for sensor {self.sensor_id}: {e}")
+            # 回退到 get_image 方式获取深度
+            return self.get_image(mode="depth", format="npy")
 
     def get_location(self):
         """获取传感器位置"""
