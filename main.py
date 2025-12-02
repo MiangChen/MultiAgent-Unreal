@@ -1,228 +1,220 @@
 """
-简单的 UE 启动脚本
-演示如何读取 JSON 配置并启动 Unreal Engine
+UE 多智能体环境启动脚本
+
+使用图论 (NetworkX) 管理多智能体
 
 使用方法:
     python main.py
-
-配置参数统一在 config/config_parameter.yaml 中设置
 """
-# Standard library imports
 import sys
+import time
 from pathlib import Path
 
-# Third-party library imports
 import cv2
 
-# 添加项目根目录到 Python 路径
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-# Third-party library imports
 from unrealcv.launcher import RunUnreal
 from unrealcv.api import UnrealCv_API
 
-# Local project imports
 from config.config_manager import config_manager
 from map.map_grid import MapGrid
 from agent.agent_manager import AgentManager
+from agent.entity_graph import EntityType, RelationType
 from agent.transform import Location, Scale, Transform
+from agent.character import Character
 
 
 def main():
     print("=" * 60)
-    print("🎮 简单 UE 启动脚本")
+    print("🎮 UE 多智能体环境 (图论管理)")
     print("=" * 60)
 
-
-    # 1. 加载 JSON 配置
+    # 1. 加载配置
     config = config_manager.load_env_config()
-
-    print(f"\n📋 配置信息:")
+    print(f"\n📋 配置:")
     print(f"   Agent 配置: {config_manager.get_agent_config_name()}")
     print(f"   UE 地图: {config_manager.get_env_map()}")
-    print(f"   UE Binary: {config_manager.get_ue_binary_path()}")
-    print(f"   智能体类型: {list(config['agents'].keys())}")
-    # 统计 agent 数量
-    agent_count = sum(len(v) if isinstance(v, list) else len(v.get('name', [])) for v in config['agents'].values())
-    print(f"   Agent 数量: {agent_count}")
 
-    # 2. 从配置提取启动参数
     env_bin = config_manager.get_ue_binary_path()
     env_map = config_manager.get_env_map()
     resolution = tuple(config_manager.get("rendering.resolution", [640, 480]))
 
-    # 3. 创建 RunUnreal 启动器
-    print(f"\n🚀 准备启动 Unreal Engine...")
-    print(f"   Binary: {env_bin}")
-    print(f"   Map: {env_map}")
-
+    # 2. 启动 UE
+    print(f"\n🚀 启动 Unreal Engine...")
     launcher = RunUnreal(ENV_BIN=env_bin, ENV_MAP=env_map)
 
     try:
-        # 4. 启动 UE
-        print(f"\n⏳ 启动中，请稍候...")
         ip, port = launcher.start(
             docker=False,
             resolution=resolution,
-            offscreen=False,  # 显示窗口
+            offscreen=False,
             sleep_time=10
         )
-        print(f"✅ UE 启动成功!")
-        print(f"   IP: {ip}, Port: {port}")
+        print(f"✅ UE 启动成功! IP={ip}, Port={port}")
 
-        # 5. 创建 UnrealCV Client 连接
-        print(f"\n🔌 连接 UnrealCV Server...")
+        # 3. 连接 UnrealCV
+        print(f"\n🔌 连接 UnrealCV...")
         client = UnrealCv_API(port, ip, resolution, mode='tcp')
         print(f"✅ 连接成功!")
 
-        # 6. 测试一些基本命令
-        print(f"\n📡 测试 UnrealCV 命令:")
+        # 4. 初始化 AgentManager (图论管理)
+        manager = AgentManager(client, config)
 
-        # 获取相机数量
-        cam_num = client.get_camera_num()
-        print(f"   相机数量: {cam_num}")
-
-        # 获取场景对象
-        objects = client.get_objects()
-        print(f"   场景对象数量: {len(objects)}")
-
-        # 显示智能体
-        agents_in_scene = [obj for obj in objects if 'BP_Character' in obj or 'BP_animal' in obj or 'BP_Drone' in obj]
-        print(f"   场景中的智能体: {agents_in_scene[:5]}...")  # 只显示前5个
-
-        # 获取第一个相机的图像
-        print(f"\n📷 获取相机图像...")
-        img = client.get_image(0, 'lit', 'bmp')
-        if img is not None:
-            print(f"   图像尺寸: {img.shape}")
-
-        # 7. 获取 NavMesh 信息并可视化
-        print(f"\n🗺️ 获取 NavMesh 信息...")
-        map_grid = MapGrid(config)
-        map_grid.load_from_client(client, objects)
-        if map_grid.navmesh_info:
-            map_grid.visualize()
-
-        # 8. 清理场景中已存在的 BP 对象
+        # 5. 清理场景
         print(f"\n🧹 清理场景...")
-        agent_manager = AgentManager(client, config)
-        agent_manager.cleanup_scene()  # 删除所有 BP_ 开头的Agent
+        manager.cleanup_scene()
 
-        # 9. Spawn agents from config
-        print(f"\n🤖 Spawn Agents...")
-        spawned = agent_manager.spawn_agents_from_config()
-        print(f"   已创建 {len(spawned)} 个 agents")
+        # 6. Spawn 所有实体
+        print(f"\n🤖 Spawn 实体...")
+        manager.spawn_from_config()
 
-        # 10. 为每个 drone 创建 camera sensor（CARLA 风格）
-        # 一半 RGB，一半 Depth
-        print(f"\n📷 为 Drones 绑定 Camera Sensors...")
+        # 7. 展示图论查询能力
+        print(f"\n📊 图论查询示例:")
+
+        # 按类型查询
+        drones = manager.get_by_type(EntityType.DRONE)
+        characters = manager.get_by_type(EntityType.CHARACTER)
+        print(f"   无人机: {[d.name for d in drones]}")
+        print(f"   角色: {[c.name for c in characters]}")
+
+        # 建立追踪关系: 所有无人机追踪第一个角色
+        if drones and characters:
+            target = characters[0]
+            print(f"\n🎯 建立追踪关系 -> {target.name}")
+            for drone in drones:
+                manager.add_relation(drone.name, target.name, RelationType.TRACKING)
+                print(f"   {drone.name} --[TRACKING]--> {target.name}")
+
+            # 查询谁在追踪 target
+            trackers = manager.get_sources(target.name, RelationType.TRACKING)
+            print(f"   追踪 {target.name} 的实体: {trackers}")
+
+        # 更新空间关系
+        print(f"\n🗺️ 更新空间关系 (阈值=2000)...")
+        edge_count = manager.update_spatial_relations(distance_threshold=2000)
+        print(f"   更新了 {edge_count} 条 NEAR 边")
+
+        # 查询邻居
+        if drones:
+            first_drone = drones[0]
+            neighbors = manager.get_neighbors(first_drone.name, RelationType.NEAR)
+            print(f"   {first_drone.name} 附近: {neighbors}")
+
+        # 导出图数据
+        graph_data = manager.export_graph()
+        print(f"\n📈 图数据:")
+        print(f"   节点: {len(graph_data['nodes'])}")
+        print(f"   边: {len(graph_data['edges'])}")
+
+        # 8. 为无人机绑定传感器并保存图像
+        print(f"\n📷 绑定传感器...")
         output_dir = Path("/home/ubuntu/Pictures")
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        agents_with_cam = [a for a in spawned if a.cam_id >= 0]
-        half = len(agents_with_cam) // 2
+        for i, drone in enumerate(drones):
+            if drone.cam_id < 0:
+                continue
 
-        for i, agent in enumerate(agents_with_cam):
-            # 前一半用 RGB，后一半用 Depth
-            if i < half:
-                sensor_type = "sensor.camera.rgb"
-                sensor = agent_manager.spawn_sensor(sensor_type, attach_to=agent)
-                if sensor is None:
-                    continue
+            sensor_type = "sensor.camera.rgb" if i % 2 == 0 else "sensor.camera.depth"
+            sensor = manager.spawn_sensor(sensor_type, attach_to=drone)
+
+            if sensor is None:
+                continue
+
+            if "rgb" in sensor_type:
                 img = sensor.get_image()
                 if img is not None:
-                    filename = output_dir / f"{agent.name}_rgb.png"
+                    filename = output_dir / f"{drone.name}_rgb.png"
                     cv2.imwrite(str(filename), cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
-                    print(f"   {agent.name}: RGB 已保存 {filename}")
+                    print(f"   {drone.name}: RGB -> {filename}")
             else:
-                sensor_type = "sensor.camera.depth"
-                sensor = agent_manager.spawn_sensor(sensor_type, attach_to=agent)
-                if sensor is None:
-                    continue
                 depth = sensor.get_depth()
                 if depth is not None and depth.max() > 0:
-                    # 深度图归一化后保存
-                    depth_normalized = (depth / depth.max() * 255).astype("uint8")
-                    filename = output_dir / f"{agent.name}_depth.png"
-                    cv2.imwrite(str(filename), depth_normalized)
-                    print(f"   {agent.name}: Depth 已保存 {filename}")
-                else:
-                    print(f"   {agent.name}: Depth 获取失败")
+                    depth_norm = (depth / depth.max() * 255).astype("uint8")
+                    filename = output_dir / f"{drone.name}_depth.png"
+                    cv2.imwrite(str(filename), depth_norm)
+                    print(f"   {drone.name}: Depth -> {filename}")
 
-        # 11. 演示 sensor 的使用
-        print(f"\n🎯 Sensor 使用示例:")
-        first_agent = spawned[0] if spawned else None
-        if first_agent and first_agent.has_sensor():
-            sensor = first_agent.get_sensor("camera.rgb")
-            print(f"   Agent: {first_agent.name}")
-            print(f"   Sensor: {sensor}")
-            print(f"   Camera Location: {sensor.get_location()}")
-            print(f"   Camera Rotation: {sensor.get_rotation()}")
+        # 9. 在角色附近生成物体
+        if characters:
+            char = characters[0]
+            char_loc = char.get_location()
+            print(f"\n🧊 在 {char.name} 附近生成物体...")
 
-        # 12. 在角色附近生成可拾取物体
-        print(f"\n🧊 在角色附近生成可拾取物体...")
-        # 找到 character agent
-        character_agent = None
-        for agent in spawned:
-            if "player" in agent.name or "character" in agent.name.lower():
-                character_agent = agent
-                break
-
-        grabbable_obj = None
-        if character_agent:
-            char_loc = character_agent.get_location()
-            # 在角色前方 200 单位处生成物体
-            grabbable_obj = agent_manager.spawn_static(
+            item = manager.spawn_static(
                 name="grabbable_item",
                 transform=Transform(
-                    location=Location(
-                        x=char_loc.x + 200,
-                        y=char_loc.y,
-                        z=char_loc.z,
-                    ),
-                    scale=Scale(x=1, y=1, z=1),
+                    location=Location(char_loc.x + 200, char_loc.y, char_loc.z),
+                    scale=Scale(1, 1, 1),
                 ),
                 shape="object",
             )
-            print(f"   在 {character_agent.name} 附近生成了 grabbable_item")
 
-        # 13. 等待 5 秒后让角色拾取物体
-        if character_agent and grabbable_obj:
-            import time
-            from agent.character import Character
+            if item:
+                # 建立 NEAR 关系
+                manager.add_relation(char.name, item.name, RelationType.NEAR, distance=200)
+                print(f"   {char.name} --[NEAR]--> {item.name}")
 
-            print(f"\n⏳ 等待 5 秒...")
-            time.sleep(5)
+        # 10. 角色拾取物体演示
+        if characters and "grabbable_item" in manager:
+            print(f"\n⏳ 等待 3 秒后拾取...")
+            time.sleep(3)
 
-            print(f"\n🤚 让 {character_agent.name} 拾取物体...")
-            character = Character(client, character_agent)
+            char = characters[0]
+            character = Character(client, char)
+            item = manager["grabbable_item"]
+            item_loc = item.get_location()
 
-            # 先导航到物体附近
-            obj_loc = grabbable_obj.get_location()
-            print(f"   导航到物体位置: {obj_loc}")
-            character.nav_to(obj_loc.x, obj_loc.y, obj_loc.z)
+            print(f"   导航到物体...")
+            character.nav_to(item_loc.x, item_loc.y, item_loc.z)
+            time.sleep(2)
 
-            time.sleep(2)  # 等待导航完成
-
-            # 拾取物体
             print(f"   执行拾取...")
-            print(character.is_picked())
-            print(character.is_carrying())
             character.carry()
-
             time.sleep(1)
 
-            # 检查是否拾取成功
             if character.is_carrying():
                 print(f"   ✅ 拾取成功!")
+                # 更新关系: 角色拥有物体
+                manager.add_relation(char.name, item.name, RelationType.OWNS)
             else:
                 print(f"   ❌ 拾取失败")
 
-        # 14. 保持运行，等待用户输入
+        # 11. 最终图状态
+        print(f"\n📊 最终图状态: {manager.graph}")
+        final_data = manager.export_graph()
+        print(f"   关系:")
+        for edge in final_data['edges'][:10]:  # 只显示前10条
+            print(f"     {edge['source']} --[{edge['relation']}]--> {edge['target']}")
+
+        # 12. 可视化图
+        print(f"\n📈 可视化实体图...")
+        vis_dir = Path("/home/ubuntu/Pictures")
+        
+        # 单视图
+        manager.graph.visualize(
+            save_path=str(vis_dir / "entity_graph.png"),
+            show=False,
+            title="Entity Graph"
+        )
+        
+        # 多视图
+        manager.graph.visualize_multi_view(
+            save_path=str(vis_dir / "entity_graph_multi.png"),
+            show=False
+        )
+        
+        # 空间视图 (基于实际 UE 坐标)
+        manager.graph.visualize_spatial(
+            save_path=str(vis_dir / "entity_graph_spatial.png"),
+            show=False
+        )
+
+        # 等待用户
         print(f"\n" + "=" * 60)
-        print("✅ UE 环境已就绪!")
-        print("   按 Enter 键关闭环境...")
+        print("✅ 环境就绪! 按 Enter 关闭...")
         print("=" * 60)
         input()
 
@@ -232,8 +224,7 @@ def main():
         traceback.print_exc()
 
     finally:
-        # 8. 清理
-        print(f"\n🛑 关闭 UE...")
+        print(f"\n🛑 关闭...")
         try:
             client.client.disconnect()
         except:

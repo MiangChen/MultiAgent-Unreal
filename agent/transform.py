@@ -22,6 +22,15 @@ class Location:
     def from_list(cls, data: List[float]) -> "Location":
         return cls(x=data[0], y=data[1], z=data[2])
 
+    def distance_to(self, other: "Location") -> float:
+        """计算到另一个位置的欧氏距离"""
+        import math
+        return math.sqrt(
+            (self.x - other.x) ** 2 +
+            (self.y - other.y) ** 2 +
+            (self.z - other.z) ** 2
+        )
+
 
 class Rotation:
     """旋转类 (pitch, yaw, roll)"""
