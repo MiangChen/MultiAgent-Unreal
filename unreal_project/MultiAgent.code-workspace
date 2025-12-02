@@ -1,0 +1,879 @@
+{
+	"folders": [
+		{
+			"name": "MultiAgent",
+			"path": "."
+		},
+		{
+			"name": "UE5",
+			"path": "/home/ubuntu/PycharmProjects/UnrealEngine"
+		}
+	],
+	"settings": {
+		"typescript.tsc.autoDetect": "off",
+		"npm.autoDetect": "off",
+		"terminal.integrated.env.linux": {
+			"PATH": "/home/ubuntu/PycharmProjects/UnrealEngine/Engine/Binaries/ThirdParty/DotNet/8.0.300/linux-x64:${env:PATH}",
+			"DOTNET_ROOT": "/home/ubuntu/PycharmProjects/UnrealEngine/Engine/Binaries/ThirdParty/DotNet/8.0.300/linux-x64",
+			"DOTNET_HOST_PATH": "/home/ubuntu/PycharmProjects/UnrealEngine/Engine/Binaries/ThirdParty/DotNet/8.0.300/linux-x64/dotnet",
+			"DOTNET_MULTILEVEL_LOOKUP": "0",
+			"DOTNET_ROLL_FORWARD": "LatestMajor"
+		}
+	},
+	"extensions": {
+		"recommendations": [
+			"ms-vscode.cpptools",
+			"ms-dotnettools.csharp"
+		]
+	},
+	"tasks": {
+		"version": "2.0.0",
+		"tasks": [
+			{
+				"label": "MultiAgent Linux Debug Build",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgent",
+					"Linux",
+					"Debug",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex"
+				],
+				"problemMatcher": "$msCompile",
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgent Linux Debug Rebuild",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgent",
+					"Linux",
+					"Debug",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex"
+				],
+				"problemMatcher": "$msCompile",
+				"dependsOn": [
+					"MultiAgent Linux Debug Clean"
+				],
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgent Linux Debug Clean",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgent",
+					"Linux",
+					"Debug",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex",
+					"-clean"
+				],
+				"problemMatcher": "$msCompile",
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgent Linux DebugGame Build",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgent",
+					"Linux",
+					"DebugGame",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex"
+				],
+				"problemMatcher": "$msCompile",
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgent Linux DebugGame Rebuild",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgent",
+					"Linux",
+					"DebugGame",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex"
+				],
+				"problemMatcher": "$msCompile",
+				"dependsOn": [
+					"MultiAgent Linux DebugGame Clean"
+				],
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgent Linux DebugGame Clean",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgent",
+					"Linux",
+					"DebugGame",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex",
+					"-clean"
+				],
+				"problemMatcher": "$msCompile",
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgent Linux Development Build",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgent",
+					"Linux",
+					"Development",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex"
+				],
+				"problemMatcher": "$msCompile",
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgent Linux Development Rebuild",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgent",
+					"Linux",
+					"Development",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex"
+				],
+				"problemMatcher": "$msCompile",
+				"dependsOn": [
+					"MultiAgent Linux Development Clean"
+				],
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgent Linux Development Clean",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgent",
+					"Linux",
+					"Development",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex",
+					"-clean"
+				],
+				"problemMatcher": "$msCompile",
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgent Linux Test Build",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgent",
+					"Linux",
+					"Test",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex"
+				],
+				"problemMatcher": "$msCompile",
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgent Linux Test Rebuild",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgent",
+					"Linux",
+					"Test",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex"
+				],
+				"problemMatcher": "$msCompile",
+				"dependsOn": [
+					"MultiAgent Linux Test Clean"
+				],
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgent Linux Test Clean",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgent",
+					"Linux",
+					"Test",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex",
+					"-clean"
+				],
+				"problemMatcher": "$msCompile",
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgent Linux Shipping Build",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgent",
+					"Linux",
+					"Shipping",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex"
+				],
+				"problemMatcher": "$msCompile",
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgent Linux Shipping Rebuild",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgent",
+					"Linux",
+					"Shipping",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex"
+				],
+				"problemMatcher": "$msCompile",
+				"dependsOn": [
+					"MultiAgent Linux Shipping Clean"
+				],
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgent Linux Shipping Clean",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgent",
+					"Linux",
+					"Shipping",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex",
+					"-clean"
+				],
+				"problemMatcher": "$msCompile",
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgent LinuxArm64 Debug Build",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgent",
+					"LinuxArm64",
+					"Debug",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex"
+				],
+				"problemMatcher": "$msCompile",
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgent LinuxArm64 Debug Rebuild",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgent",
+					"LinuxArm64",
+					"Debug",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex"
+				],
+				"problemMatcher": "$msCompile",
+				"dependsOn": [
+					"MultiAgent LinuxArm64 Debug Clean"
+				],
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgent LinuxArm64 Debug Clean",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgent",
+					"LinuxArm64",
+					"Debug",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex",
+					"-clean"
+				],
+				"problemMatcher": "$msCompile",
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgent LinuxArm64 DebugGame Build",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgent",
+					"LinuxArm64",
+					"DebugGame",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex"
+				],
+				"problemMatcher": "$msCompile",
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgent LinuxArm64 DebugGame Rebuild",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgent",
+					"LinuxArm64",
+					"DebugGame",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex"
+				],
+				"problemMatcher": "$msCompile",
+				"dependsOn": [
+					"MultiAgent LinuxArm64 DebugGame Clean"
+				],
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgent LinuxArm64 DebugGame Clean",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgent",
+					"LinuxArm64",
+					"DebugGame",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex",
+					"-clean"
+				],
+				"problemMatcher": "$msCompile",
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgent LinuxArm64 Development Build",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgent",
+					"LinuxArm64",
+					"Development",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex"
+				],
+				"problemMatcher": "$msCompile",
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgent LinuxArm64 Development Rebuild",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgent",
+					"LinuxArm64",
+					"Development",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex"
+				],
+				"problemMatcher": "$msCompile",
+				"dependsOn": [
+					"MultiAgent LinuxArm64 Development Clean"
+				],
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgent LinuxArm64 Development Clean",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgent",
+					"LinuxArm64",
+					"Development",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex",
+					"-clean"
+				],
+				"problemMatcher": "$msCompile",
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgent LinuxArm64 Test Build",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgent",
+					"LinuxArm64",
+					"Test",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex"
+				],
+				"problemMatcher": "$msCompile",
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgent LinuxArm64 Test Rebuild",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgent",
+					"LinuxArm64",
+					"Test",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex"
+				],
+				"problemMatcher": "$msCompile",
+				"dependsOn": [
+					"MultiAgent LinuxArm64 Test Clean"
+				],
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgent LinuxArm64 Test Clean",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgent",
+					"LinuxArm64",
+					"Test",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex",
+					"-clean"
+				],
+				"problemMatcher": "$msCompile",
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgent LinuxArm64 Shipping Build",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgent",
+					"LinuxArm64",
+					"Shipping",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex"
+				],
+				"problemMatcher": "$msCompile",
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgent LinuxArm64 Shipping Rebuild",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgent",
+					"LinuxArm64",
+					"Shipping",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex"
+				],
+				"problemMatcher": "$msCompile",
+				"dependsOn": [
+					"MultiAgent LinuxArm64 Shipping Clean"
+				],
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgent LinuxArm64 Shipping Clean",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgent",
+					"LinuxArm64",
+					"Shipping",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex",
+					"-clean"
+				],
+				"problemMatcher": "$msCompile",
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgentEditor Linux Debug Build",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgentEditor",
+					"Linux",
+					"Debug",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex"
+				],
+				"problemMatcher": "$msCompile",
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgentEditor Linux Debug Rebuild",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgentEditor",
+					"Linux",
+					"Debug",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex"
+				],
+				"problemMatcher": "$msCompile",
+				"dependsOn": [
+					"MultiAgentEditor Linux Debug Clean"
+				],
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgentEditor Linux Debug Clean",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgentEditor",
+					"Linux",
+					"Debug",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex",
+					"-clean"
+				],
+				"problemMatcher": "$msCompile",
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgentEditor Linux DebugGame Build",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgentEditor",
+					"Linux",
+					"DebugGame",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex"
+				],
+				"problemMatcher": "$msCompile",
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgentEditor Linux DebugGame Rebuild",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgentEditor",
+					"Linux",
+					"DebugGame",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex"
+				],
+				"problemMatcher": "$msCompile",
+				"dependsOn": [
+					"MultiAgentEditor Linux DebugGame Clean"
+				],
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgentEditor Linux DebugGame Clean",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgentEditor",
+					"Linux",
+					"DebugGame",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex",
+					"-clean"
+				],
+				"problemMatcher": "$msCompile",
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgentEditor Linux Development Build",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgentEditor",
+					"Linux",
+					"Development",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex"
+				],
+				"problemMatcher": "$msCompile",
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgentEditor Linux Development Rebuild",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgentEditor",
+					"Linux",
+					"Development",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex"
+				],
+				"problemMatcher": "$msCompile",
+				"dependsOn": [
+					"MultiAgentEditor Linux Development Clean"
+				],
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			},
+			{
+				"label": "MultiAgentEditor Linux Development Clean",
+				"group": "build",
+				"command": "Engine/Build/BatchFiles/Linux/Build.sh",
+				"args": [
+					"MultiAgentEditor",
+					"Linux",
+					"Development",
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-waitmutex",
+					"-clean"
+				],
+				"problemMatcher": "$msCompile",
+				"type": "shell",
+				"options": {
+					"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+				}
+			}
+		]
+	},
+	"launch": {
+		"version": "0.2.0",
+		"configurations": [
+			{
+				"name": "Launch MultiAgent (Debug)",
+				"request": "launch",
+				"program": "/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/Binaries/Linux/MultiAgent-Linux-Debug",
+				"preLaunchTask": "MultiAgent Linux Debug Build",
+				"args": [
+				],
+				"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine",
+				"type": "cppdbg",
+				"visualizerFile": "/home/ubuntu/PycharmProjects/UnrealEngine/Engine/Extras/VisualStudioDebugging/Unreal.natvis",
+				"showDisplayString": true
+			},
+			{
+				"name": "Launch MultiAgent (DebugGame)",
+				"request": "launch",
+				"program": "/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/Binaries/Linux/MultiAgent-Linux-DebugGame",
+				"preLaunchTask": "MultiAgent Linux DebugGame Build",
+				"args": [
+				],
+				"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine",
+				"type": "cppdbg",
+				"visualizerFile": "/home/ubuntu/PycharmProjects/UnrealEngine/Engine/Extras/VisualStudioDebugging/Unreal.natvis",
+				"showDisplayString": true
+			},
+			{
+				"name": "Launch MultiAgent (Development)",
+				"request": "launch",
+				"program": "/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/Binaries/Linux/MultiAgent",
+				"preLaunchTask": "MultiAgent Linux Development Build",
+				"args": [
+				],
+				"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine",
+				"type": "cppdbg",
+				"visualizerFile": "/home/ubuntu/PycharmProjects/UnrealEngine/Engine/Extras/VisualStudioDebugging/Unreal.natvis",
+				"showDisplayString": true
+			},
+			{
+				"name": "Launch MultiAgent (Test)",
+				"request": "launch",
+				"program": "/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/Binaries/Linux/MultiAgent-Linux-Test",
+				"preLaunchTask": "MultiAgent Linux Test Build",
+				"args": [
+				],
+				"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine",
+				"type": "cppdbg",
+				"visualizerFile": "/home/ubuntu/PycharmProjects/UnrealEngine/Engine/Extras/VisualStudioDebugging/Unreal.natvis",
+				"showDisplayString": true
+			},
+			{
+				"name": "Launch MultiAgent (Shipping)",
+				"request": "launch",
+				"program": "/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/Binaries/Linux/MultiAgent-Linux-Shipping",
+				"preLaunchTask": "MultiAgent Linux Shipping Build",
+				"args": [
+				],
+				"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine",
+				"type": "cppdbg",
+				"visualizerFile": "/home/ubuntu/PycharmProjects/UnrealEngine/Engine/Extras/VisualStudioDebugging/Unreal.natvis",
+				"showDisplayString": true
+			},
+			{
+				"name": "Launch MultiAgentEditor (Debug)",
+				"request": "launch",
+				"program": "/home/ubuntu/PycharmProjects/UnrealEngine/Engine/Binaries/Linux/UnrealEditor-Linux-Debug",
+				"preLaunchTask": "MultiAgentEditor Linux Debug Build",
+				"args": [
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject"
+				],
+				"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine",
+				"type": "cppdbg",
+				"visualizerFile": "/home/ubuntu/PycharmProjects/UnrealEngine/Engine/Extras/VisualStudioDebugging/Unreal.natvis",
+				"showDisplayString": true
+			},
+			{
+				"name": "Launch MultiAgentEditor (DebugGame)",
+				"request": "launch",
+				"program": "/home/ubuntu/PycharmProjects/UnrealEngine/Engine/Binaries/Linux/UnrealEditor-Linux-DebugGame",
+				"preLaunchTask": "MultiAgentEditor Linux DebugGame Build",
+				"args": [
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject"
+				],
+				"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine",
+				"type": "cppdbg",
+				"visualizerFile": "/home/ubuntu/PycharmProjects/UnrealEngine/Engine/Extras/VisualStudioDebugging/Unreal.natvis",
+				"showDisplayString": true
+			},
+			{
+				"name": "Launch MultiAgentEditor (Development)",
+				"request": "launch",
+				"program": "/home/ubuntu/PycharmProjects/UnrealEngine/Engine/Binaries/Linux/UnrealEditor",
+				"preLaunchTask": "MultiAgentEditor Linux Development Build",
+				"args": [
+					"/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject"
+				],
+				"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine",
+				"type": "cppdbg",
+				"visualizerFile": "/home/ubuntu/PycharmProjects/UnrealEngine/Engine/Extras/VisualStudioDebugging/Unreal.natvis",
+				"showDisplayString": true
+			},
+			{
+				"name": "Generate Project Files",
+				"type": "coreclr",
+				"request": "launch",
+				"preLaunchTask": "UnrealBuildTool Linux Development Build",
+				"program": "/home/ubuntu/PycharmProjects/UnrealEngine/Engine/Build/BatchFiles/RunUBT.bat",
+				"args": [
+					"-projectfiles",
+					"-vscode",
+					"-project=/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject",
+					"-game",
+					"-engine",
+					"-dotnet"
+				],
+				"env": {
+					"PATH": "/home/ubuntu/PycharmProjects/UnrealEngine/Engine/Binaries/ThirdParty/DotNet/8.0.300/linux-x64:${env:PATH}",
+					"DOTNET_ROOT": "/home/ubuntu/PycharmProjects/UnrealEngine/Engine/Binaries/ThirdParty/DotNet/8.0.300/linux-x64",
+					"DOTNET_HOST_PATH": "/home/ubuntu/PycharmProjects/UnrealEngine/Engine/Binaries/ThirdParty/DotNet/8.0.300/linux-x64/dotnet",
+					"DOTNET_MULTILEVEL_LOOKUP": "0",
+					"DOTNET_ROLL_FORWARD": "LatestMajor"
+				},
+				"console": "internalConsole",
+				"internalConsoleOptions": "openOnSessionStart",
+				"stopAtEntry": false,
+				"cwd": "/home/ubuntu/PycharmProjects/UnrealEngine"
+			}
+		]
+	}
+}

@@ -3,6 +3,13 @@
 	"EngineAssociation": "F79BA74A-4046-475A-8053-B4E28EB999A9",
 	"Category": "",
 	"Description": "",
+	"Modules": [
+		{
+			"Name": "MultiAgent",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	],
 	"Plugins": [
 		{
 			"Name": "ModelingToolsEditorMode",
