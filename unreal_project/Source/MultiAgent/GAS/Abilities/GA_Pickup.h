@@ -17,9 +17,9 @@ class MULTIAGENT_API UGA_Pickup : public UMAGameplayAbilityBase
 public:
     UGA_Pickup();
 
-    // 检测范围
+    // 检测范围 (应大于 MAPickupItem 的 CollisionComponent 半径 100)
     UPROPERTY(EditDefaultsOnly, Category = "Pickup")
-    float PickupRadius = 150.f;
+    float PickupRadius = 200.f;
 
     // 附着的骨骼 Socket 名称 (手部)
     UPROPERTY(EditDefaultsOnly, Category = "Pickup")

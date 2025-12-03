@@ -1,0 +1,17 @@
+{
+  "_meta": {
+    "source": "/home/ubuntu/UnrealEnv/UnrealZoo_UE5_5_Linux_v1.0.5/Linux/UnrealZoo_UE5_5/Content/Paks/UnrealZoo_UE5_5-Linux.utoc",
+    "description": "UnrealZoo \u8d44\u4ea7\u5206\u7c7b\u7d22\u5f15"
+  },
+  "summary": {
+    "maps": 160,
+    "blueprints": 497,
+    "static_meshes": 9081,
+    "skeletal_meshes": 175,
+    "materials": 6195,
+    "textures": 11976,
+    "animations": 65,
+    "other_uasset": 8755
+  },
+  "total": 36904
+}

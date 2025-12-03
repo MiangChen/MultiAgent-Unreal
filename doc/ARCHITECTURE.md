@@ -204,3 +204,27 @@ AActor (UE)
 - [ ] UMARelationSubsystem - 实体关系图
 - [ ] 关系类型枚举
 - [ ] 关系查询 API
+
+## 10. 重要设计原则
+
+### 10.1 物理组件层级规则
+
+对于有物理模拟的可拾取物品，**必须将物理组件设为 RootComponent**：
+
+```cpp
+// ✅ 正确：MeshComponent 作为 Root
+MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComponent"));
+RootComponent = MeshComponent;
+MeshComponent->SetSimulatePhysics(true);
+
+CollisionComponent = CreateDefaultSubobject<USphereComponent>(TEXT("CollisionComponent"));
+CollisionComponent->SetupAttachment(RootComponent);  // 检测球跟着 Mesh 走
+
+// ❌ 错误：检测球作为 Root，Mesh 作为子组件
+// 会导致 Mesh 掉落后检测球留在原地
+```
+
+**原因**：
+- `AttachToComponent()` 只移动 Actor 的 RootComponent
+- 有物理模拟的子组件会被物理引擎独立控制位置
+- 详见 `doc/bug.md` Bug #1

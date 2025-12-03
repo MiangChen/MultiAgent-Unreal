@@ -1,5 +1,5 @@
 // GA_Drop.cpp
-// UE 5.5 风格
+// 标准丢弃流程：Detach -> 恢复物理 -> 恢复碰撞
 
 #include "GA_Drop.h"
 #include "../MAGameplayTags.h"
@@ -9,12 +9,10 @@
 
 UGA_Drop::UGA_Drop()
 {
-    // UE 5.5: 使用 SetAssetTags 设置 Ability 标识
     FGameplayTagContainer AssetTags;
     AssetTags.AddTag(FMAGameplayTags::Get().Ability_Drop);
     SetAssetTags(AssetTags);
     
-    // 激活需要的 Tags (需要持有物品才能放下)
     ActivationRequiredTags.AddTag(FMAGameplayTags::Get().Status_Holding);
 }
 
@@ -29,7 +27,6 @@ bool UGA_Drop::CanActivateAbility(
     {
         return false;
     }
-
     return FindHeldItem() != nullptr;
 }
 
@@ -45,7 +42,6 @@ void UGA_Drop::ActivateAbility(
     {
         PerformDrop(Item);
         
-        // 移除 Holding Tag
         if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
         {
             ASC->RemoveLooseGameplayTag(FMAGameplayTags::Get().Status_Holding);
@@ -60,7 +56,6 @@ AMAPickupItem* UGA_Drop::FindHeldItem() const
     AMAAgent* Agent = GetOwningAgent();
     if (!Agent) return nullptr;
 
-    // 查找附着在 Agent 上的 PickupItem
     TArray<AActor*> AttachedActors;
     Agent->GetAttachedActors(AttachedActors);
 
@@ -71,7 +66,6 @@ AMAPickupItem* UGA_Drop::FindHeldItem() const
             return Item;
         }
     }
-
     return nullptr;
 }
 
@@ -80,15 +74,31 @@ void UGA_Drop::PerformDrop(AMAPickupItem* Item)
     AMAAgent* Agent = GetOwningAgent();
     if (!Agent || !Item) return;
 
-    // 计算放下位置 (角色前方)
+    // ========== 第一步：Detach，保持世界位置 ==========
+    FDetachmentTransformRules DetachRules(EDetachmentRule::KeepWorld, true);
+    Item->DetachFromActor(DetachRules);
+
+    // ========== 第二步：设置放下位置 ==========
     FVector DropLocation = Agent->GetActorLocation() + 
         Agent->GetActorForwardVector() * DropForwardOffset;
-    DropLocation.Z += 50.f; // 稍微抬高避免穿地
+    DropLocation.Z += 50.f;
+    Item->SetActorLocation(DropLocation);
 
-    // 执行放下
-    Item->OnDropped(DropLocation);
+    // ========== 第三步：恢复物理和碰撞 ==========
+    UStaticMeshComponent* MeshComp = Item->GetMeshComponent();
+    if (MeshComp)
+    {
+        // 重新开启碰撞
+        MeshComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+        // 重新开启物理模拟
+        MeshComp->SetSimulatePhysics(true);
+    }
+    
+    // 标记为可拾取
+    Item->bCanBePickedUp = true;
 
-    UE_LOG(LogTemp, Log, TEXT("%s dropped %s"), *Agent->AgentName, *Item->ItemName);
+    UE_LOG(LogTemp, Log, TEXT("[Drop] %s dropped %s at (%.0f, %.0f, %.0f)"), 
+        *Agent->AgentName, *Item->ItemName, DropLocation.X, DropLocation.Y, DropLocation.Z);
     
     if (GEngine)
     {

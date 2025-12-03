@@ -1,4 +1,5 @@
 // MAPickupItem.cpp
+// 可拾取物品 - 物理/碰撞处理由 GA_Pickup/GA_Drop 负责
 
 #include "MAPickupItem.h"
 #include "Components/SphereComponent.h"
@@ -15,16 +16,9 @@ AMAPickupItem::AMAPickupItem()
     ItemID = 0;
     bCanBePickedUp = true;
 
-    // 创建碰撞组件 (用于检测 Agent 进入范围)
-    CollisionComponent = CreateDefaultSubobject<USphereComponent>(TEXT("CollisionComponent"));
-    CollisionComponent->InitSphereRadius(100.f);
-    CollisionComponent->SetCollisionProfileName(TEXT("OverlapAllDynamic"));
-    CollisionComponent->SetGenerateOverlapEvents(true);
-    RootComponent = CollisionComponent;
-
-    // 创建网格组件 (可视化)
+    // 创建网格组件作为 Root (这样附着时整个物体会跟着移动)
     MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComponent"));
-    MeshComponent->SetupAttachment(RootComponent);
+    RootComponent = MeshComponent;
     
     // 使用引擎自带的 Cube
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeMesh(
@@ -32,13 +26,20 @@ AMAPickupItem::AMAPickupItem()
     if (CubeMesh.Succeeded())
     {
         MeshComponent->SetStaticMesh(CubeMesh.Object);
-        MeshComponent->SetRelativeScale3D(FVector(0.3f, 0.3f, 0.3f)); // 30cm 方块
+        MeshComponent->SetRelativeScale3D(FVector(0.5f, 0.5f, 0.5f)); // 50cm 方块
     }
 
     // 设置物理
     MeshComponent->SetSimulatePhysics(true);
     MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
     MeshComponent->SetCollisionProfileName(TEXT("PhysicsActor"));
+
+    // 创建碰撞组件 (用于检测 Agent 进入范围) - 附着到 Mesh
+    CollisionComponent = CreateDefaultSubobject<USphereComponent>(TEXT("CollisionComponent"));
+    CollisionComponent->SetupAttachment(RootComponent);
+    CollisionComponent->InitSphereRadius(100.f);
+    CollisionComponent->SetCollisionProfileName(TEXT("OverlapAllDynamic"));
+    CollisionComponent->SetGenerateOverlapEvents(true);
 }
 
 void AMAPickupItem::BeginPlay()
@@ -56,16 +57,12 @@ void AMAPickupItem::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* 
 {
     if (!bCanBePickedUp) return;
 
-    // 检查是否是 Agent
     if (AMAAgent* Agent = Cast<AMAAgent>(OtherActor))
     {
-        // 给 Agent 添加 CanPickup Tag
         if (UMAAbilitySystemComponent* ASC = Agent->FindComponentByClass<UMAAbilitySystemComponent>())
         {
             ASC->AddLooseGameplayTag(FMAGameplayTags::Get().Status_CanPickup);
-            
-            UE_LOG(LogTemp, Log, TEXT("%s entered pickup range of %s"), 
-                *Agent->AgentName, *ItemName);
+            UE_LOG(LogTemp, Log, TEXT("%s entered pickup range of %s"), *Agent->AgentName, *ItemName);
         }
     }
 }
@@ -75,7 +72,6 @@ void AMAPickupItem::OnOverlapEnd(UPrimitiveComponent* OverlappedComp, AActor* Ot
 {
     if (AMAAgent* Agent = Cast<AMAAgent>(OtherActor))
     {
-        // 移除 CanPickup Tag
         if (UMAAbilitySystemComponent* ASC = Agent->FindComponentByClass<UMAAbilitySystemComponent>())
         {
             ASC->RemoveLooseGameplayTag(FMAGameplayTags::Get().Status_CanPickup);
@@ -85,34 +81,25 @@ void AMAPickupItem::OnOverlapEnd(UPrimitiveComponent* OverlappedComp, AActor* Ot
 
 void AMAPickupItem::OnPickedUp(AActor* PickerActor)
 {
-    bCanBePickedUp = false;
-    SetPhysicsEnabled(false);
-    
-    // 隐藏碰撞检测
-    CollisionComponent->SetGenerateOverlapEvents(false);
-    
+    // 只做日志，物理/碰撞处理由 GA_Pickup 负责
     UE_LOG(LogTemp, Log, TEXT("%s picked up by %s"), *ItemName, *PickerActor->GetName());
 }
 
 void AMAPickupItem::OnDropped(FVector DropLocation)
 {
-    // 从父级分离
-    DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
-    
-    // 设置位置
-    SetActorLocation(DropLocation);
-    
-    // 恢复物理
-    SetPhysicsEnabled(true);
-    
-    // 恢复可拾取状态
-    bCanBePickedUp = true;
-    CollisionComponent->SetGenerateOverlapEvents(true);
-    
+    // 只做日志，物理/碰撞处理由 GA_Drop 负责
     UE_LOG(LogTemp, Log, TEXT("%s dropped at %s"), *ItemName, *DropLocation.ToString());
 }
 
 void AMAPickupItem::SetPhysicsEnabled(bool bEnabled)
 {
     MeshComponent->SetSimulatePhysics(bEnabled);
+    if (bEnabled)
+    {
+        MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+    }
+    else
+    {
+        MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    }
 }

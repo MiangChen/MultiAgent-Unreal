@@ -5,79 +5,45 @@
 
 FMAGameplayTags FMAGameplayTags::GameplayTags;
 
+// 静态初始化标记
+static bool bTagsInitialized = false;
+
 void FMAGameplayTags::InitializeNativeTags()
 {
-    UGameplayTagsManager& Manager = UGameplayTagsManager::Get();
+    // 防止重复初始化
+    if (bTagsInitialized)
+    {
+        return;
+    }
+    bTagsInitialized = true;
 
+    // 使用 RequestGameplayTag 而不是 AddNativeGameplayTag
+    // 这样更安全，不会在 Native Tags 阶段结束后报错
+    
     // State Tags
-    GameplayTags.State_Exploration = Manager.AddNativeGameplayTag(
-        FName("State.Exploration"), 
-        FString("Default exploration state"));
-    
-    GameplayTags.State_PhotoMode = Manager.AddNativeGameplayTag(
-        FName("State.PhotoMode"), 
-        FString("Photo mode state"));
-    
-    GameplayTags.State_Interaction = Manager.AddNativeGameplayTag(
-        FName("State.Interaction"), 
-        FString("Interaction state"));
-    
-    GameplayTags.State_Interaction_Pickup = Manager.AddNativeGameplayTag(
-        FName("State.Interaction.Pickup"), 
-        FString("Pickup sub-state"));
-    
-    GameplayTags.State_Interaction_Dialogue = Manager.AddNativeGameplayTag(
-        FName("State.Interaction.Dialogue"), 
-        FString("Dialogue sub-state"));
+    GameplayTags.State_Exploration = FGameplayTag::RequestGameplayTag(FName("State.Exploration"));
+    GameplayTags.State_PhotoMode = FGameplayTag::RequestGameplayTag(FName("State.PhotoMode"));
+    GameplayTags.State_Interaction = FGameplayTag::RequestGameplayTag(FName("State.Interaction"));
+    GameplayTags.State_Interaction_Pickup = FGameplayTag::RequestGameplayTag(FName("State.Interaction.Pickup"));
+    GameplayTags.State_Interaction_Dialogue = FGameplayTag::RequestGameplayTag(FName("State.Interaction.Dialogue"));
 
     // Ability Tags
-    GameplayTags.Ability_Pickup = Manager.AddNativeGameplayTag(
-        FName("Ability.Pickup"), 
-        FString("Pickup ability"));
-    
-    GameplayTags.Ability_Drop = Manager.AddNativeGameplayTag(
-        FName("Ability.Drop"), 
-        FString("Drop ability"));
-    
-    GameplayTags.Ability_TakePhoto = Manager.AddNativeGameplayTag(
-        FName("Ability.TakePhoto"), 
-        FString("Take photo ability"));
-    
-    GameplayTags.Ability_Navigate = Manager.AddNativeGameplayTag(
-        FName("Ability.Navigate"), 
-        FString("Navigate ability"));
-    
-    GameplayTags.Ability_Interact = Manager.AddNativeGameplayTag(
-        FName("Ability.Interact"), 
-        FString("Interact ability"));
+    GameplayTags.Ability_Pickup = FGameplayTag::RequestGameplayTag(FName("Ability.Pickup"));
+    GameplayTags.Ability_Drop = FGameplayTag::RequestGameplayTag(FName("Ability.Drop"));
+    GameplayTags.Ability_TakePhoto = FGameplayTag::RequestGameplayTag(FName("Ability.TakePhoto"));
+    GameplayTags.Ability_Navigate = FGameplayTag::RequestGameplayTag(FName("Ability.Navigate"));
+    GameplayTags.Ability_Interact = FGameplayTag::RequestGameplayTag(FName("Ability.Interact"));
 
     // Event Tags
-    GameplayTags.Event_Pickup_Start = Manager.AddNativeGameplayTag(
-        FName("Event.Pickup.Start"), 
-        FString("Pickup started event"));
-    
-    GameplayTags.Event_Pickup_End = Manager.AddNativeGameplayTag(
-        FName("Event.Pickup.End"), 
-        FString("Pickup ended event"));
-    
-    GameplayTags.Event_Photo_Start = Manager.AddNativeGameplayTag(
-        FName("Event.Photo.Start"), 
-        FString("Photo started event"));
-    
-    GameplayTags.Event_Photo_End = Manager.AddNativeGameplayTag(
-        FName("Event.Photo.End"), 
-        FString("Photo ended event"));
+    GameplayTags.Event_Pickup_Start = FGameplayTag::RequestGameplayTag(FName("Event.Pickup.Start"));
+    GameplayTags.Event_Pickup_End = FGameplayTag::RequestGameplayTag(FName("Event.Pickup.End"));
+    GameplayTags.Event_Photo_Start = FGameplayTag::RequestGameplayTag(FName("Event.Photo.Start"));
+    GameplayTags.Event_Photo_End = FGameplayTag::RequestGameplayTag(FName("Event.Photo.End"));
 
     // Status Tags
-    GameplayTags.Status_CanPickup = Manager.AddNativeGameplayTag(
-        FName("Status.CanPickup"), 
-        FString("Can pickup nearby item"));
+    GameplayTags.Status_CanPickup = FGameplayTag::RequestGameplayTag(FName("Status.CanPickup"));
+    GameplayTags.Status_Holding = FGameplayTag::RequestGameplayTag(FName("Status.Holding"));
+    GameplayTags.Status_Moving = FGameplayTag::RequestGameplayTag(FName("Status.Moving"));
     
-    GameplayTags.Status_Holding = Manager.AddNativeGameplayTag(
-        FName("Status.Holding"), 
-        FString("Currently holding an item"));
-    
-    GameplayTags.Status_Moving = Manager.AddNativeGameplayTag(
-        FName("Status.Moving"), 
-        FString("Currently moving"));
+    UE_LOG(LogTemp, Log, TEXT("MAGameplayTags initialized"));
 }
