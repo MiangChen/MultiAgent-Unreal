@@ -26,6 +26,14 @@ public:
     UFUNCTION(BlueprintCallable, Category = "GAS")
     bool TryActivateDrop();
 
+    // 直接激活 Navigate Ability (推荐使用)
+    UFUNCTION(BlueprintCallable, Category = "GAS")
+    bool TryActivateNavigate(FVector TargetLocation);
+
+    // 取消导航
+    UFUNCTION(BlueprintCallable, Category = "GAS")
+    void CancelNavigate();
+
     // 通过 Tag 激活 Ability (备用)
     UFUNCTION(BlueprintCallable, Category = "GAS")
     bool TryActivateAbilityByTag(FGameplayTag AbilityTag);
@@ -46,4 +54,5 @@ protected:
     // 保存的 Ability Handle，用于直接激活
     FGameplayAbilitySpecHandle PickupAbilityHandle;
     FGameplayAbilitySpecHandle DropAbilityHandle;
+    FGameplayAbilitySpecHandle NavigateAbilityHandle;
 };

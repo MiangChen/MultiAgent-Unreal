@@ -14,4 +14,7 @@ public:
 
 protected:
     virtual void BeginPlay() override;
+    
+    // 重写导航 Tick，为动画蓝图提供加速度输入
+    virtual void OnNavigationTick() override;
 };

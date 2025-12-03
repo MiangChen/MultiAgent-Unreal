@@ -14,7 +14,6 @@ AMAAgent::AMAAgent()
     AgentName = TEXT("Agent");
     AgentType = EAgentType::Human;
     bIsMoving = false;
-    TargetLocation = FVector::ZeroVector;
 
     GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
 
@@ -34,6 +33,7 @@ AMAAgent::AMAAgent()
     GetCharacterMovement()->AvoidanceConsiderationRadius = 150.f;
     GetCharacterMovement()->AvoidanceWeight = 0.5f;
 
+    // 司能组件 (ASC)
     AbilitySystemComponent = CreateDefaultSubobject<UMAAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
 }
 
@@ -62,58 +62,20 @@ void AMAAgent::PossessedBy(AController* NewController)
 void AMAAgent::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
-    UpdateAnimation();
     
+    // 导航期间调用虚函数，子类可重写
     if (bIsMoving)
     {
-        float Distance = FVector::Dist2D(GetActorLocation(), TargetLocation);
-        if (Distance < 100.f)
-        {
-            bIsMoving = false;
-            StopMovement();
-        }
+        OnNavigationTick();
     }
 }
 
-void AMAAgent::MoveToLocation(FVector Destination)
+void AMAAgent::OnNavigationTick()
 {
-    TargetLocation = Destination;
-    bIsMoving = true;
-    if (AAIController* AICtrl = Cast<AAIController>(GetController()))
-    {
-        AICtrl->MoveToLocation(Destination);
-    }
+    // 基类默认空实现，子类可重写
 }
 
-void AMAAgent::UpdateAnimation()
-{
-    if (!bIsMoving) return;
-    
-    FVector Velocity = GetCharacterMovement()->Velocity;
-    float Speed = Velocity.Size2D();
-    if (Speed > 3.0f)
-    {
-        FVector AccelDir = Velocity.GetSafeNormal2D();
-        GetCharacterMovement()->AddInputVector(AccelDir);
-    }
-}
-
-void AMAAgent::StopMovement()
-{
-    bIsMoving = false;
-    if (AAIController* AICtrl = Cast<AAIController>(GetController()))
-    {
-        AICtrl->StopMovement();
-    }
-    GetCharacterMovement()->StopMovementImmediately();
-}
-
-FVector AMAAgent::GetCurrentLocation() const
-{
-    return GetActorLocation();
-}
-
-// ========== GAS Abilities ==========
+// ========== 司能 (GAS ASC Abilities) ==========
 
 bool AMAAgent::TryPickup()
 {
@@ -131,6 +93,23 @@ bool AMAAgent::TryDrop()
         return AbilitySystemComponent->TryActivateDrop();
     }
     return false;
+}
+
+bool AMAAgent::TryNavigateTo(FVector Destination)
+{
+    if (AbilitySystemComponent)
+    {
+        return AbilitySystemComponent->TryActivateNavigate(Destination);
+    }
+    return false;
+}
+
+void AMAAgent::CancelNavigation()
+{
+    if (AbilitySystemComponent)
+    {
+        AbilitySystemComponent->CancelNavigate();
+    }
 }
 
 AMAPickupItem* AMAAgent::GetHeldItem() const

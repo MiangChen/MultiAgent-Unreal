@@ -83,7 +83,7 @@ void AMAPlayerController::OnLeftClick()
     FVector HitLocation;
     if (GetMouseHitLocation(HitLocation))
     {
-        // 左键：移动所有 Human Agent 到目标位置
+        // 左键：移动所有 Human Agent 到目标位置 (通过司能/GAS)
         if (UMAAgentSubsystem* AgentSubsystem = GetWorld()->GetSubsystem<UMAAgentSubsystem>())
         {
             TArray<AMAAgent*> Humans = AgentSubsystem->GetAgentsByType(EAgentType::Human);
@@ -91,7 +91,7 @@ void AMAPlayerController::OnLeftClick()
             {
                 if (Agent)
                 {
-                    Agent->MoveToLocation(HitLocation);
+                    Agent->TryNavigateTo(HitLocation);
                 }
             }
         }

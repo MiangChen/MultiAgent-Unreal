@@ -28,17 +28,7 @@ public:
     // ========== IAbilitySystemInterface ==========
     virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 
-    // ========== Movement ==========
-    UFUNCTION(BlueprintCallable, Category = "Movement")
-    void MoveToLocation(FVector Destination);
-
-    UFUNCTION(BlueprintCallable, Category = "Movement")
-    void StopMovement();
-
-    UFUNCTION(BlueprintCallable, Category = "Agent")
-    FVector GetCurrentLocation() const;
-
-    // ========== GAS Abilities ==========
+    // ========== 司能 (GAS Abilities) ==========
     // 尝试拾取物品
     UFUNCTION(BlueprintCallable, Category = "Abilities")
     bool TryPickup();
@@ -46,6 +36,14 @@ public:
     // 尝试放下物品
     UFUNCTION(BlueprintCallable, Category = "Abilities")
     bool TryDrop();
+
+    // 尝试导航到目标位置 (GAS 版本)
+    UFUNCTION(BlueprintCallable, Category = "Abilities")
+    bool TryNavigateTo(FVector Destination);
+
+    // 取消导航
+    UFUNCTION(BlueprintCallable, Category = "Abilities")
+    void CancelNavigation();
 
     // 获取当前持有的物品
     UFUNCTION(BlueprintCallable, Category = "Abilities")
@@ -65,6 +63,7 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Agent")
     EAgentType AgentType;
 
+    // 移动状态 (由 GA_Navigate 管理)
     UPROPERTY(BlueprintReadOnly, Category = "Movement")
     bool bIsMoving;
 
@@ -73,13 +72,10 @@ protected:
     virtual void Tick(float DeltaTime) override;
     virtual void PossessedBy(AController* NewController) override;
 
-    // GAS 组件
+    // 导航期间每帧调用，子类可重写以实现动画驱动等逻辑
+    virtual void OnNavigationTick();
+
+    // 司能组件 (ASC)
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GAS")
     UMAAbilitySystemComponent* AbilitySystemComponent;
-
-    // 更新动画（为动画蓝图提供加速度输入）
-    void UpdateAnimation();
-
-private:
-    FVector TargetLocation;
 };

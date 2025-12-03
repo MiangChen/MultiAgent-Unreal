@@ -107,7 +107,7 @@ void UMAAgentSubsystem::StopAllAgents()
     {
         if (Agent)
         {
-            Agent->StopMovement();
+            Agent->CancelNavigation();
         }
     }
 }
@@ -129,6 +129,7 @@ void UMAAgentSubsystem::MoveAllAgentsTo(FVector Destination, float Radius)
             0.f
         );
 
-        Agent->MoveToLocation(TargetLocation);
+        // 通过司能 (GAS) 导航
+        Agent->TryNavigateTo(TargetLocation);
     }
 }

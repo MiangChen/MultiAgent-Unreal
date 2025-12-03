@@ -50,3 +50,49 @@ CollisionComponent->SetupAttachment(RootComponent);
 **相关文件**:
 - `Source/MultiAgent/Interaction/MAPickupItem.cpp`
 - `Source/MultiAgent/GAS/Abilities/GA_Pickup.cpp`
+
+
+---
+
+## Bug #2: Human Agent 导航时不播放行走动画
+
+**日期**: 2025-12-03
+
+**现象**: 
+- Human Agent 使用 `AIController->MoveToLocation()` 导航时，角色滑行移动
+- 没有播放行走/跑步动画
+- 动画蓝图 (ABP_Manny) 需要加速度输入才能驱动动画
+
+**根本原因**: 
+UE 的动画蓝图 (ABP_Manny) 依赖 `CharacterMovementComponent` 的加速度来混合行走/跑步动画。
+`AIController->MoveToLocation()` 只设置目标位置，不会自动添加加速度输入。
+
+**调试过程**:
+1. 发现 `GetCharacterMovement()->Velocity` 有值，但动画不播放
+2. 检查动画蓝图，发现它读取的是加速度方向，不是速度
+3. 需要手动调用 `AddInputVector()` 来提供加速度输入
+
+**修复方案**:
+在导航期间每帧调用 `AddInputVector()` 提供加速度方向：
+
+```cpp
+// MAHumanAgent.cpp
+void AMAHumanAgent::OnNavigationTick()
+{
+    FVector Velocity = GetCharacterMovement()->Velocity;
+    if (Velocity.Size2D() > 3.0f)
+    {
+        FVector AccelDir = Velocity.GetSafeNormal2D();
+        GetCharacterMovement()->AddInputVector(AccelDir);
+    }
+}
+```
+
+**设计决策**:
+- 使用虚函数 `OnNavigationTick()` 让不同 Agent 类型可以有不同的动画驱动逻辑
+- Human 需要加速度输入，Drone 不需要
+- 基类提供空实现，子类按需重写
+
+**相关文件**:
+- `Source/MultiAgent/AgentManager/MAAgent.h/cpp` - 添加虚函数
+- `Source/MultiAgent/AgentManager/MAHumanAgent.h/cpp` - 重写实现

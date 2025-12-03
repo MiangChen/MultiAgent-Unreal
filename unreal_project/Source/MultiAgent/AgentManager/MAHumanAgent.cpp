@@ -41,3 +41,15 @@ void AMAHumanAgent::BeginPlay()
 {
     Super::BeginPlay();
 }
+
+void AMAHumanAgent::OnNavigationTick()
+{
+    // 为动画蓝图提供加速度输入，驱动行走/跑步动画
+    FVector Velocity = GetCharacterMovement()->Velocity;
+    float Speed = Velocity.Size2D();
+    if (Speed > 3.0f)
+    {
+        FVector AccelDir = Velocity.GetSafeNormal2D();
+        GetCharacterMovement()->AddInputVector(AccelDir);
+    }
+}

@@ -55,15 +55,93 @@ unreal_project/Source/MultiAgent/
 
 ## 4. Manager 子系统设计
 
-| Manager | 中文名 | 功能介绍 | UE/C++ 实现方案 | 状态 |
-|---------|-------|---------|----------------|------|
-| **AgentManager** | 司命 | 智能体生命周期管理 | `UMAAgentSubsystem` | ✅ 已实现 |
-| **GAS** | 司技 | 技能系统 | `UMAAbilitySystemComponent` + `GA_XXX` | ✅ 已实现 |
-| **StateTree** | 司脑 | 状态决策 | `UMAStateTreeComponent` | ✅ 已实现 |
-| **RelationManager** | 司缘 | 智能体关系管理 | `UMARelationSubsystem` | ❌ 待开发 |
-| **MapManager** | 司图 | 地图感知 | `UNavigationSystemV1` | ❌ 待开发 |
+### 4.1 全局 Manager vs Agent 组件
 
-## 5. GAS 模块详解
+本项目的"司XXX"分为两个层级：
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    全局 Manager 层                           │
+│                  UGameInstanceSubsystem                      │
+│                                                             │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
+│  │ 司命        │  │ 司缘        │  │ 司图        │         │
+│  │AgentManager │  │RelationMgr  │  │ MapManager  │         │
+│  │ 管理所有    │  │ 管理Agent   │  │ 管理地图    │         │
+│  │ Agent生命周期│  │ 之间的关系  │  │ 导航感知    │         │
+│  └─────────────┘  └─────────────┘  └─────────────┘         │
+└─────────────────────────────────────────────────────────────┘
+                            │
+                            │ 管理
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Agent 组件层                              │
+│                  每个 Agent 独立拥有                         │
+│                                                             │
+│     Agent #1              Agent #2              Agent #3    │
+│  ┌───────────┐         ┌───────────┐         ┌───────────┐ │
+│  │ 司脑      │         │ 司脑      │         │ 司脑      │ │
+│  │StateTree  │         │StateTree  │         │StateTree  │ │
+│  │ 决策      │         │ 决策      │         │ 决策      │ │
+│  ├───────────┤         ├───────────┤         ├───────────┤ │
+│  │ 司能      │         │ 司能      │         │ 司能      │ │
+│  │ ASC       │         │ ASC       │         │ ASC       │ │
+│  │ 技能执行  │         │ 技能执行  │         │ 技能执行  │ │
+│  └───────────┘         └───────────┘         └───────────┘ │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 4.2 Manager 列表
+
+| Manager | 中文名 | 层级 | 功能介绍 | UE/C++ 实现方案 | 状态 |
+|---------|-------|------|---------|----------------|------|
+| **AgentManager** | 司命 | 全局 | 智能体生命周期管理 | `UMAAgentSubsystem` | ✅ 已实现 |
+| **RelationManager** | 司缘 | 全局 | 智能体关系管理 | `UMARelationSubsystem` | ❌ 待开发 |
+| **MapManager** | 司图 | 全局 | 地图感知 | `UNavigationSystemV1` | ❌ 待开发 |
+| **StateTree** | 司脑 | Agent级 | 状态决策 | `UMAStateTreeComponent` | ✅ 已实现 |
+| **ASC** | 司能 | Agent级 | 技能执行 | `UMAAbilitySystemComponent` | ✅ 已实现 |
+
+### 4.3 司能 (ASC) 详解
+
+**司能** 是 UE GAS (Gameplay Ability System) 的核心组件 ASC (Ability System Component) 的中文名。
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    GAS 框架 (UE 内置)                        │
+│                 Gameplay Ability System                      │
+│                                                             │
+│  包含：UAbilitySystemComponent, UGameplayAbility,           │
+│        UGameplayEffect, FGameplayTag 等                     │
+└─────────────────────────────────────────────────────────────┘
+                         │
+                         │ 继承
+                         ▼
+┌─────────────────────────────────────────────────────────────┐
+│                 项目代码 (类定义)                             │
+│                                                             │
+│  • UMAAbilitySystemComponent (司能组件)                     │
+│  • UMAGameplayAbilityBase (技能基类)                        │
+│  • GA_Navigate, GA_Pickup, GA_Drop... (具体技能)            │
+└─────────────────────────────────────────────────────────────┘
+                         │
+                         │ 实例化
+                         ▼
+┌─────────────────────────────────────────────────────────────┐
+│                   运行时 (每个Agent一个实例)                  │
+│                                                             │
+│  Human Agent  ──► 司能实例 ──► [GA_Navigate, GA_Pickup...]  │
+│  Drone Agent  ──► 司能实例 ──► [GA_Navigate, GA_TakePhoto...│
+│  RobotDog     ──► 司能实例 ──► [GA_Navigate, GA_Patrol...]  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**关键概念：**
+- **GAS**: UE 引擎内置的技能框架，全局唯一
+- **ASC (司能)**: 挂载在每个 Agent 上的组件实例，管理该 Agent 的技能
+- **GA_XXX**: 技能类定义（代码），可被多个 Agent 共用
+- **技能实例**: 运行时创建，每个 Agent 的 ASC 中有自己的技能实例
+
+## 5. 司能 (GAS) 模块详解
 
 ### 5.1 Gameplay Tags 定义
 
@@ -95,8 +173,9 @@ Status.Moving              // 正在移动
 
 | Ability | 功能 | 激活条件 | 阻止条件 |
 |---------|------|---------|---------|
-| `GA_Pickup` | 拾取物品 | Status.CanPickup | Status.Holding |
+| `GA_Pickup` | 拾取物品 | 附近有可拾取物品 | Status.Holding |
 | `GA_Drop` | 放下物品 | Status.Holding | - |
+| `GA_Navigate` | 导航移动 | 有 AIController | - |
 
 ### 5.3 使用示例
 
@@ -192,7 +271,7 @@ AActor (UE)
 
 ### Phase 2: 扩展技能
 - [ ] GA_TakePhoto - 拍照技能
-- [ ] GA_Navigate - 导航技能
+- [x] GA_Navigate - 导航技能 ✅ 已实现
 - [ ] GA_Interact - 交互技能
 
 ### Phase 3: State Tree 完善
@@ -207,7 +286,45 @@ AActor (UE)
 
 ## 10. 重要设计原则
 
-### 10.1 物理组件层级规则
+### 10.1 虚函数多态设计
+
+不同类型的 Agent 可能需要不同的行为实现。使用 C++ 虚函数实现多态，避免类型判断：
+
+```cpp
+// MAAgent.h (基类)
+class AMAAgent
+{
+protected:
+    // 导航期间每帧调用，子类可重写
+    virtual void OnNavigationTick();
+};
+
+// MAHumanAgent.cpp (子类重写)
+void AMAHumanAgent::OnNavigationTick()
+{
+    // Human 特有：为动画蓝图提供加速度输入
+    FVector Velocity = GetCharacterMovement()->Velocity;
+    if (Velocity.Size2D() > 3.0f)
+    {
+        GetCharacterMovement()->AddInputVector(Velocity.GetSafeNormal2D());
+    }
+}
+
+// MADroneAgent (不重写，使用基类空实现)
+```
+
+**当前虚函数列表：**
+
+| 虚函数 | 基类行为 | Human 重写 | Drone 重写 |
+|-------|---------|-----------|-----------|
+| `OnNavigationTick()` | 空实现 | 添加加速度驱动动画 | 不重写 |
+
+**设计原则：**
+- 基类定义接口，提供默认空实现
+- 子类按需重写，实现特定行为
+- 避免在代码中写 `if (AgentType == Human)` 这种判断
+
+### 10.2 物理组件层级规则
 
 对于有物理模拟的可拾取物品，**必须将物理组件设为 RootComponent**：
 

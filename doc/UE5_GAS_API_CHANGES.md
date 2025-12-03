@@ -240,6 +240,41 @@
 
 ---
 
+---
+
+## 10. AI 模块相关 (PathFollowingComponent.h)
+
+### 5.5 变更
+
+| 变更 API | 旧签名 | 新签名 | 说明 |
+|---------|-------|-------|------|
+| `OnRequestFinished` | `void(FAIRequestID, EPathFollowingResult::Type)` | `void(FAIRequestID, const FPathFollowingResult&)` | 委托签名变更，使用结构体替代枚举 |
+
+**迁移示例：**
+
+```cpp
+// ❌ UE 5.4 及之前
+void OnMoveCompleted(FAIRequestID RequestID, EPathFollowingResult::Type Result)
+{
+    bool bSuccess = (Result == EPathFollowingResult::Success);
+}
+
+// ✅ UE 5.5
+void OnMoveCompleted(FAIRequestID RequestID, const FPathFollowingResult& Result)
+{
+    bool bSuccess = Result.IsSuccess();
+    EPathFollowingResult::Type Code = Result.Code;  // 如需访问枚举值
+}
+```
+
+**需要包含的头文件：**
+```cpp
+#include "AITypes.h"
+#include "Navigation/PathFollowingComponent.h"
+```
+
+---
+
 ## 推荐做法
 
 ```cpp
