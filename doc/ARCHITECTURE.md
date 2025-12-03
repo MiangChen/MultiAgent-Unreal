@@ -4,186 +4,203 @@
 
 MultiAgent-Unreal 是一个基于 Unreal Engine 5 的多智能体仿真框架，用于机器人、无人机、角色等异构智能体的协同仿真。
 
-## 2. 当前文件结构
+## 2. 核心架构：State Tree + GAS
+
+本项目采用 **State Tree + GAS** 黄金搭档架构：
+
+```
+State Tree (大脑 - 状态决策)          GAS (手脚 - 技能执行)
+┌─────────────────────────┐         ┌─────────────────────────┐
+│  Root                   │         │  Abilities              │
+│  ├── Exploration State  │◄───────►│  ├── GA_Pickup          │
+│  ├── PhotoMode State    │  Tags   │  ├── GA_Drop            │
+│  └── Interaction State  │◄───────►│  ├── GA_TakePhoto       │
+│      ├── Pickup         │         │  └── GA_Navigate        │
+│      └── Dialogue       │         │                         │
+└─────────────────────────┘         └─────────────────────────┘
+```
+
+- **State Tree**: 高层策略决策，管理 Agent 的主模式（探索/拍照/交互）
+- **GAS**: 具体技能执行，处理动画、冷却、消耗等
+- **Gameplay Tags**: 两者之间的通信桥梁
+
+## 3. 当前文件结构
 
 ```
 unreal_project/Source/MultiAgent/
 ├── AgentManager/                    # AgentManager 模块 (司命) ✅ 已实现
-│   ├── MAAgentSubsystem.h/cpp       # AgentManager 核心类 (UWorldSubsystem)
-│   ├── MAAgent.h/cpp                # Agent 基类
-│   ├── MAHumanAgent.h/cpp           # 人类 Agent (使用 ABP_Manny 动画蓝图)
+│   ├── MAAgentSubsystem.h/cpp       # Agent 管理子系统
+│   ├── MAAgent.h/cpp                # Agent 基类 (集成 GAS)
+│   ├── MAHumanAgent.h/cpp           # 人类 Agent
 │   ├── MARobotDogAgent.h/cpp        # 机器狗 Agent
-│   └── MACameraAgent.h/cpp          # 摄像头 Agent (上帝视角)
+│   └── MACameraAgent.h/cpp          # 摄像头 Agent
+├── GAS/                             # GAS 模块 ✅ 已实现
+│   ├── MAAbilitySystemComponent.h/cpp  # GAS 核心组件
+│   ├── MAGameplayTags.h/cpp         # Gameplay Tags 定义
+│   ├── MAGameplayAbilityBase.h/cpp  # Ability 基类
+│   └── Abilities/                   # 具体技能
+│       ├── GA_Pickup.h/cpp          # 拾取技能
+│       └── GA_Drop.h/cpp            # 放下技能
+├── StateTree/                       # State Tree 模块 ✅ 已实现
+│   ├── MAStateTreeComponent.h/cpp   # State Tree 组件
+│   └── Tasks/                       # State Tree Tasks
+│       └── MASTTask_ActivateAbility.h/cpp  # 激活 Ability 的 Task
+├── Interaction/                     # 交互模块 ✅ 已实现
+│   └── MAPickupItem.h/cpp           # 可拾取物品
 ├── Core/                            # 核心框架
-│   ├── MAGameMode.h/cpp             # 游戏模式 (协调各子系统)
+│   ├── MAGameMode.h/cpp             # 游戏模式
 │   └── MAPlayerController.h/cpp     # 玩家控制器
-├── RelationManager/                 # RelationManager 模块 (司缘) - 待开发
-├── MapManager/                      # MapManager 模块 (司图) - 待开发
 └── MultiAgent.h/cpp                 # 模块定义
 ```
 
-## 3. Manager 子系统设计
+## 4. Manager 子系统设计
 
-| Manager | 中文名 | 功能介绍 | UE/C++ 实现方案 | 优先级 | 状态 |
-|---------|-------|---------|----------------|-------|------|
-| **AgentManager** | 司命 | 智能体生命周期管理：spawn、destroy、查询、按类型分组 | `UMAAgentSubsystem` (UWorldSubsystem) | ⭐⭐⭐ P0 | ✅ 已实现 |
-| **RelationManager** | 司缘 | 智能体关系管理：追踪、跟随、视野、碰撞等关系图 | `UMARelationSubsystem` + 图数据结构 | ⭐⭐⭐ P0 | ❌ 待开发 |
-| **MapManager** | 司图 | 地图感知：区域划分、兴趣点、导航网格查询 | `UNavigationSystemV1` + 自定义感知层 | ⭐⭐ P1 | ❌ 待开发 |
-| **ConfigManager** | 司书 | 配置管理：Agent 配置、场景配置、运行时参数 | `UDataTable` + `UDataAsset` | ⭐⭐ P1 | ❌ 待开发 |
-| **CommunityManager** | 司通 | 智能体通信：消息传递、广播、组播 | `UGameplayMessageSubsystem` + Delegates | ⭐ P2 | ❌ 待开发 |
-| **ResourceManager** | 司廪 | 资源管理：能量、弹药、负载等属性 | `GAS` AttributeSet | ⭐ P2 | ❌ 待开发 |
-| **DisplayManager** | 司显 | 状态显示：HUD、调试可视化、状态面板 | `UMG` + `AHUD` | ⭐ P2 | ❌ 待开发 |
-| **AssetManager** | 司庾 | 资产加载：模型、动画、材质的异步加载 | 直接使用 `UAssetManager` | ❌ 不需要 | - |
+| Manager | 中文名 | 功能介绍 | UE/C++ 实现方案 | 状态 |
+|---------|-------|---------|----------------|------|
+| **AgentManager** | 司命 | 智能体生命周期管理 | `UMAAgentSubsystem` | ✅ 已实现 |
+| **GAS** | 司技 | 技能系统 | `UMAAbilitySystemComponent` + `GA_XXX` | ✅ 已实现 |
+| **StateTree** | 司脑 | 状态决策 | `UMAStateTreeComponent` | ✅ 已实现 |
+| **RelationManager** | 司缘 | 智能体关系管理 | `UMARelationSubsystem` | ❌ 待开发 |
+| **MapManager** | 司图 | 地图感知 | `UNavigationSystemV1` | ❌ 待开发 |
 
-## 4. 类一览表
+## 5. GAS 模块详解
 
-### 4.1 AgentManager 模块
-
-| 类名 | 文件位置 | 简介 |
-|-----|---------|-----|
-| `UMAAgentSubsystem` | AgentManager/MAAgentSubsystem.h | Agent 管理子系统，负责生命周期管理 |
-| `AMAAgent` | AgentManager/MAAgent.h | Agent 基类，提供移动、ID、类型等基础功能 |
-| `AMAHumanAgent` | AgentManager/MAHumanAgent.h | 人类 Agent，使用 SKM_Manny + ABP_Manny |
-| `AMARobotDogAgent` | AgentManager/MARobotDogAgent.h | 机器狗 Agent，带行走/待机动画切换 |
-| `AMACameraAgent` | AgentManager/MACameraAgent.h | 摄像头 Agent，上帝视角，继承 SpectatorPawn |
-| `EAgentType` | AgentManager/MAAgent.h | Agent 类型枚举 (Human, RobotDog, Drone) |
-
-### 4.2 Core 模块
-
-| 类名 | 文件位置 | 简介 |
-|-----|---------|-----|
-| `AMAGameMode` | Core/MAGameMode.h | 游戏模式，协调各子系统，初始化场景 |
-| `AMAPlayerController` | Core/MAPlayerController.h | 玩家控制器，处理鼠标点击移动逻辑 |
-
-## 5. 类继承关系
-
-```
-UWorldSubsystem (UE)
-    └── UMAAgentSubsystem (AgentManager 司命)
-
-ACharacter (UE)
-    └── AMAAgent (Agent 基类)
-            ├── AMAHumanAgent (人类，使用 NavMesh 导航 + ABP_Manny 动画)
-            └── AMARobotDogAgent (机器狗)
-
-ASpectatorPawn (UE)
-    └── AMACameraAgent (上帝视角摄像头)
-
-AGameModeBase (UE)
-    └── AMAGameMode (游戏模式)
-
-APlayerController (UE)
-    └── AMAPlayerController
-```
-
-## 5.1 动画系统说明
-
-### AMAHumanAgent 动画配置
-
-- **骨骼网格**: `/Game/Characters/Mannequins/Meshes/SKM_Manny`
-- **动画蓝图**: `/Game/Characters/Mannequins/Animations/ABP_Manny`
-
-### ABP_Manny 动画触发条件
-
-ABP_Manny 动画蓝图需要满足以下条件才会播放移动动画：
-1. `GroundSpeed > 3.0` (地面速度)
-2. `GetCurrentAcceleration().Length > 0` (加速度)
-
-### 关键实现：UpdateAnimation()
-
-`AIController::MoveToLocation()` 使用 PathFollowing 导航，直接设置 Velocity 而不设置 Acceleration。
-这会导致 ABP_Manny 的 `ShouldMove` 条件不满足，动画不播放。
-
-解决方案是在 `AMAAgent::Tick()` 中调用 `UpdateAnimation()`，手动添加输入向量：
+### 5.1 Gameplay Tags 定义
 
 ```cpp
-void AMAAgent::UpdateAnimation()
+// State Tags (State Tree 状态)
+State.Exploration          // 探索模式
+State.PhotoMode            // 拍照模式
+State.Interaction          // 交互模式
+State.Interaction.Pickup   // 拾取中
+State.Interaction.Dialogue // 对话中
+
+// Ability Tags (GAS 技能)
+Ability.Pickup             // 拾取技能
+Ability.Drop               // 放下技能
+Ability.TakePhoto          // 拍照技能
+Ability.Navigate           // 导航技能
+
+// Event Tags (ST <-> GAS 通信)
+Event.Pickup.Start         // 开始拾取
+Event.Pickup.End           // 拾取完成
+
+// Status Tags (状态标记)
+Status.CanPickup           // 可以拾取
+Status.Holding             // 正在持有物品
+Status.Moving              // 正在移动
+```
+
+### 5.2 Ability 列表
+
+| Ability | 功能 | 激活条件 | 阻止条件 |
+|---------|------|---------|---------|
+| `GA_Pickup` | 拾取物品 | Status.CanPickup | Status.Holding |
+| `GA_Drop` | 放下物品 | Status.Holding | - |
+
+### 5.3 使用示例
+
+```cpp
+// Agent 拾取物品
+AMAAgent* Agent = ...;
+Agent->TryPickup();  // 自动检测附近物品并拾取
+
+// Agent 放下物品
+Agent->TryDrop();
+
+// 检查是否持有物品
+if (Agent->IsHoldingItem())
 {
-    FVector Velocity = GetCharacterMovement()->Velocity;
-    float Speed = Velocity.Size2D();
-    
-    if (Speed > 3.0f)
-    {
-        FVector AccelDir = Velocity.GetSafeNormal2D();
-        GetCharacterMovement()->AddInputVector(AccelDir);
-    }
+    AMAPickupItem* Item = Agent->GetHeldItem();
 }
 ```
 
-## 6. UMAAgentSubsystem 功能列表
+## 6. State Tree 模块详解
 
-| 功能 | 方法 | 说明 | 状态 |
-|-----|------|-----|------|
-| **生成 Agent** | `SpawnAgent()` | 根据类型和位置生成 Agent | ✅ |
-| **销毁 Agent** | `DestroyAgent()` | 销毁指定 Agent | ✅ |
-| **获取所有 Agent** | `GetAllAgents()` | 返回所有 Agent 列表 | ✅ |
-| **按类型查询** | `GetAgentsByType()` | 按 EAgentType 筛选 | ✅ |
-| **按 ID 查询** | `GetAgentByID()` | 根据 AgentID 查找 | ✅ |
-| **按名称查询** | `GetAgentByName()` | 根据 AgentName 查找 | ✅ |
-| **获取 Agent 数量** | `GetAgentCount()` | 返回当前 Agent 总数 | ✅ |
-| **批量移动** | `MoveAllAgentsTo()` | 所有 Agent 移动到目标点 | ✅ |
-| **批量停止** | `StopAllAgents()` | 停止所有 Agent 移动 | ✅ |
-| **生成回调** | `OnAgentSpawned` | Agent 生成时的委托 | ✅ |
-| **销毁回调** | `OnAgentDestroyed` | Agent 销毁时的委托 | ✅ |
+### 6.1 State Tree 与 GAS 协作流程
 
-## 7. 使用示例
+```
+1. State Tree 进入 Pickup 状态
+   ↓
+2. MASTTask_ActivateAbility 激活 GA_Pickup
+   ↓
+3. GA_Pickup 执行拾取逻辑，发送 Event.Pickup.End
+   ↓
+4. State Tree 监听事件，切换回 Exploration 状态
+```
+
+### 6.2 自定义 State Tree Task
 
 ```cpp
-// 获取 AgentSubsystem
-UMAAgentSubsystem* AgentSubsystem = GetWorld()->GetSubsystem<UMAAgentSubsystem>();
+// 在 State Tree 中使用 MA Activate Ability Task
+USTRUCT(meta = (DisplayName = "MA Activate Ability"))
+struct FMASTTask_ActivateAbility : public FStateTreeTaskCommonBase
+{
+    UPROPERTY(EditAnywhere)
+    FGameplayTag AbilityTag;  // 要激活的 Ability
+    
+    UPROPERTY(EditAnywhere)
+    bool bWaitForAbilityEnd;  // 是否等待完成
+};
+```
 
-// 生成 Agent
-AMAAgent* Dog = AgentSubsystem->SpawnAgent(
-    AMARobotDogAgent::StaticClass(),
-    FVector(0, 0, 100),
-    FRotator::ZeroRotator,
-    -1,  // 自动分配 ID
-    EAgentType::RobotDog
-);
+## 7. 类继承关系
 
-// 查询 Agent
-TArray<AMAAgent*> AllAgents = AgentSubsystem->GetAllAgents();
-TArray<AMAAgent*> Dogs = AgentSubsystem->GetAgentsByType(EAgentType::RobotDog);
-AMAAgent* Agent = AgentSubsystem->GetAgentByID(0);
+```
+UAbilitySystemComponent (UE GAS)
+    └── UMAAbilitySystemComponent
 
-// 批量操作
-AgentSubsystem->MoveAllAgentsTo(FVector(1000, 1000, 0), 200.f);
-AgentSubsystem->StopAllAgents();
+UGameplayAbility (UE GAS)
+    └── UMAGameplayAbilityBase
+            ├── UGA_Pickup
+            └── UGA_Drop
 
-// 监听事件
-AgentSubsystem->OnAgentSpawned.AddDynamic(this, &AMyClass::HandleAgentSpawned);
+UStateTreeComponent (UE StateTree)
+    └── UMAStateTreeComponent
+
+ACharacter (UE) + IAbilitySystemInterface
+    └── AMAAgent (集成 GAS)
+            ├── AMAHumanAgent
+            └── AMARobotDogAgent
+
+AActor (UE)
+    └── AMAPickupItem (可拾取物品)
 ```
 
 ## 8. 测试按键
 
-运行游戏后可用以下按键测试：
-
 | 按键 | 功能 |
 |-----|------|
 | **T** | 生成一个机器狗 |
-| **Y** | 打印当前所有 Agent 信息（数量、类型、位置） |
+| **Y** | 打印当前所有 Agent 信息 |
 | **U** | 销毁最后一个 Agent |
-| **WASD** | 移动上帝视角摄像头 |
-| 左键 | 移动所有 Human Agent 到点击位置 |
-| 右键 | 移动所有 Agent 到点击位置 |
+| **I** | 在鼠标位置生成可拾取方块 |
+| **P** | 所有 Human Agent 尝试拾取 |
+| **O** | 所有 Human Agent 放下物品 |
+| 左键 | 移动所有 Human Agent |
+| 右键 | 移动所有 Agent |
 
 ## 9. 开发路线
 
-### Phase 1: 核心框架 (P0) ✅ 已完成
+### Phase 1: 核心框架 ✅ 已完成
 - [x] UMAAgentSubsystem - Agent 生命周期管理
 - [x] AMAAgent 及其子类
-- [x] AMAGameMode 集成
+- [x] GAS 集成 - AbilitySystemComponent
+- [x] GA_Pickup / GA_Drop - 拾取/放下技能
+- [x] AMAPickupItem - 可拾取物品
+- [x] State Tree 基础集成
 
-### Phase 2: 关系管理 (P0)
+### Phase 2: 扩展技能
+- [ ] GA_TakePhoto - 拍照技能
+- [ ] GA_Navigate - 导航技能
+- [ ] GA_Interact - 交互技能
+
+### Phase 3: State Tree 完善
+- [ ] 完整的状态机配置
+- [ ] 状态转换条件
+- [ ] AI 决策逻辑
+
+### Phase 4: 关系管理
 - [ ] UMARelationSubsystem - 实体关系图
-- [ ] 关系类型枚举 (Tracking, Following, Near, Visible)
+- [ ] 关系类型枚举
 - [ ] 关系查询 API
-
-### Phase 3: 扩展功能 (P1)
-- [ ] MapManager - 地图感知层
-- [ ] ConfigManager - 运行时配置
-
-### Phase 4: 增强功能 (P2)
-- [ ] CommunityManager - 智能体通信
-- [ ] ResourceManager - 资源属性
-- [ ] DisplayManager - 调试可视化

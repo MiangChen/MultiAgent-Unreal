@@ -2,6 +2,9 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "AIController.h"
+#include "../GAS/MAAbilitySystemComponent.h"
+#include "../GAS/MAGameplayTags.h"
+#include "../Interaction/MAPickupItem.h"
 
 AMAAgent::AMAAgent()
 {
@@ -32,12 +35,36 @@ AMAAgent::AMAAgent()
     
     // RVO 避障
     GetCharacterMovement()->bUseRVOAvoidance = true;
-    GetCharacterMovement()->AvoidanceConsiderationRadius = 200.f;
+    GetCharacterMovement()->AvoidanceConsiderationRadius = 150.f;
+    GetCharacterMovement()->AvoidanceWeight = 0.5f;
+
+    // 创建 GAS 组件
+    AbilitySystemComponent = CreateDefaultSubobject<UMAAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
+}
+
+UAbilitySystemComponent* AMAAgent::GetAbilitySystemComponent() const
+{
+    return AbilitySystemComponent;
 }
 
 void AMAAgent::BeginPlay()
 {
     Super::BeginPlay();
+
+    // 初始化 Gameplay Tags
+    FMAGameplayTags::InitializeNativeTags();
+}
+
+void AMAAgent::PossessedBy(AController* NewController)
+{
+    Super::PossessedBy(NewController);
+
+    // 初始化 GAS
+    if (AbilitySystemComponent)
+    {
+        AbilitySystemComponent->InitAbilityActorInfo(this, this);
+        AbilitySystemComponent->InitializeAbilities(this);
+    }
 }
 
 void AMAAgent::Tick(float DeltaTime)
@@ -51,9 +78,10 @@ void AMAAgent::Tick(float DeltaTime)
     if (bIsMoving)
     {
         float Distance = FVector::Dist2D(GetActorLocation(), TargetLocation);
-        if (Distance < 50.f)
+        if (Distance < 100.f)
         {
             bIsMoving = false;
+            StopMovement();
         }
     }
 }
@@ -71,9 +99,12 @@ void AMAAgent::MoveToLocation(FVector Destination)
 
 void AMAAgent::UpdateAnimation()
 {
-    // ABP_Manny 需要 Acceleration > 0 才会播放移动动画
-    // AIController::MoveToLocation 直接设置 Velocity，不设置 Acceleration
-    // 因此需要手动添加输入向量来触发动画
+    // 只有在移动状态时才添加输入向量
+    if (!bIsMoving)
+    {
+        return;
+    }
+    
     FVector Velocity = GetCharacterMovement()->Velocity;
     float Speed = Velocity.Size2D();
     
@@ -92,9 +123,55 @@ void AMAAgent::StopMovement()
     {
         AICtrl->StopMovement();
     }
+    
+    GetCharacterMovement()->StopMovementImmediately();
 }
 
 FVector AMAAgent::GetCurrentLocation() const
 {
     return GetActorLocation();
+}
+
+// ========== GAS Abilities ==========
+
+bool AMAAgent::TryPickup()
+{
+    if (AbilitySystemComponent)
+    {
+        return AbilitySystemComponent->TryActivateAbilityByTag(FMAGameplayTags::Get().Ability_Pickup);
+    }
+    return false;
+}
+
+bool AMAAgent::TryDrop()
+{
+    if (AbilitySystemComponent)
+    {
+        return AbilitySystemComponent->TryActivateAbilityByTag(FMAGameplayTags::Get().Ability_Drop);
+    }
+    return false;
+}
+
+AMAPickupItem* AMAAgent::GetHeldItem() const
+{
+    TArray<AActor*> AttachedActors;
+    GetAttachedActors(AttachedActors);
+
+    for (AActor* Actor : AttachedActors)
+    {
+        if (AMAPickupItem* Item = Cast<AMAPickupItem>(Actor))
+        {
+            return Item;
+        }
+    }
+    return nullptr;
+}
+
+bool AMAAgent::IsHoldingItem() const
+{
+    if (AbilitySystemComponent)
+    {
+        return AbilitySystemComponent->HasGameplayTagFromContainer(FMAGameplayTags::Get().Status_Holding);
+    }
+    return GetHeldItem() != nullptr;
 }

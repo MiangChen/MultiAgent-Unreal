@@ -3,6 +3,7 @@
 #include "../AgentManager/MAAgentSubsystem.h"
 #include "../AgentManager/MAAgent.h"
 #include "../AgentManager/MARobotDogAgent.h"
+#include "../Interaction/MAPickupItem.h"
 #include "AIController.h"
 
 AMAPlayerController::AMAPlayerController()
@@ -55,6 +56,25 @@ void AMAPlayerController::PlayerTick(float DeltaTime)
     if (WasInputKeyJustPressed(EKeys::U))
     {
         OnDestroyLastAgent();
+    }
+
+    // ===== GAS 测试按键 =====
+    // P - 拾取物品
+    if (WasInputKeyJustPressed(EKeys::P))
+    {
+        OnPickup();
+    }
+    
+    // O - 放下物品
+    if (WasInputKeyJustPressed(EKeys::O))
+    {
+        OnDrop();
+    }
+    
+    // I - 生成可拾取方块
+    if (WasInputKeyJustPressed(EKeys::I))
+    {
+        OnSpawnPickupItem();
     }
 }
 
@@ -149,8 +169,10 @@ void AMAPlayerController::OnPrintAgentInfo()
     {
         if (Agent)
         {
+            FString HoldingInfo = Agent->IsHoldingItem() ? TEXT(" [Holding Item]") : TEXT("");
             GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, 
-                FString::Printf(TEXT("  [%d] %s at %s"), Agent->AgentID, *Agent->AgentName, *Agent->GetActorLocation().ToString()));
+                FString::Printf(TEXT("  [%d] %s at %s%s"), 
+                    Agent->AgentID, *Agent->AgentName, *Agent->GetActorLocation().ToString(), *HoldingInfo));
         }
     }
 }
@@ -175,5 +197,78 @@ void AMAPlayerController::OnDestroyLastAgent()
     else
     {
         GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Orange, TEXT("No agents to destroy!"));
+    }
+}
+
+// ===== GAS 测试按键实现 =====
+
+void AMAPlayerController::OnPickup()
+{
+    UMAAgentSubsystem* AgentSubsystem = GetWorld()->GetSubsystem<UMAAgentSubsystem>();
+    if (!AgentSubsystem) return;
+
+    // 让所有 Human Agent 尝试拾取
+    TArray<AMAAgent*> Humans = AgentSubsystem->GetAgentsByType(EAgentType::Human);
+    for (AMAAgent* Agent : Humans)
+    {
+        if (Agent && !Agent->IsHoldingItem())
+        {
+            if (Agent->TryPickup())
+            {
+                GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green,
+                    FString::Printf(TEXT("%s trying to pickup..."), *Agent->AgentName));
+            }
+            else
+            {
+                GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange,
+                    FString::Printf(TEXT("%s: No item nearby to pickup"), *Agent->AgentName));
+            }
+        }
+    }
+}
+
+void AMAPlayerController::OnDrop()
+{
+    UMAAgentSubsystem* AgentSubsystem = GetWorld()->GetSubsystem<UMAAgentSubsystem>();
+    if (!AgentSubsystem) return;
+
+    // 让所有持有物品的 Human Agent 放下物品
+    TArray<AMAAgent*> Humans = AgentSubsystem->GetAgentsByType(EAgentType::Human);
+    for (AMAAgent* Agent : Humans)
+    {
+        if (Agent && Agent->IsHoldingItem())
+        {
+            Agent->TryDrop();
+        }
+    }
+}
+
+void AMAPlayerController::OnSpawnPickupItem()
+{
+    FVector HitLocation;
+    if (GetMouseHitLocation(HitLocation))
+    {
+        // 在鼠标位置生成可拾取方块
+        HitLocation.Z += 50.f; // 稍微抬高
+        
+        FActorSpawnParameters SpawnParams;
+        SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+        
+        AMAPickupItem* Item = GetWorld()->SpawnActor<AMAPickupItem>(
+            AMAPickupItem::StaticClass(),
+            HitLocation,
+            FRotator::ZeroRotator,
+            SpawnParams
+        );
+        
+        if (Item)
+        {
+            static int32 ItemCounter = 0;
+            Item->ItemName = FString::Printf(TEXT("Cube_%d"), ItemCounter++);
+            Item->ItemID = ItemCounter;
+            
+            GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan,
+                FString::Printf(TEXT("Spawned: %s at %s"), *Item->ItemName, *HitLocation.ToString()));
+        }
     }
 }

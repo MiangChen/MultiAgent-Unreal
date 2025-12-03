@@ -37,4 +37,14 @@ protected:
     
     // U - 销毁最后一个 Agent
     void OnDestroyLastAgent();
+
+    // ===== GAS 测试按键 =====
+    // P - 拾取物品
+    void OnPickup();
+    
+    // O - 放下物品
+    void OnDrop();
+    
+    // I - 生成可拾取方块
+    void OnSpawnPickupItem();
 };

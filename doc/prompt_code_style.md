@@ -382,14 +382,36 @@ make MultiAgentEditor -j$(nproc)
 6. 测试按键
 ==========
 
-运行游戏后可用以下按键测试 AgentManager 功能：
+运行游戏后可用以下按键测试：
 
 | 按键 | 功能 |
 |-----|------|
 | **T** | 在玩家前方生成一个机器狗 |
-| **Y** | 打印当前所有 Agent 信息（数量、类型、位置） |
+| **Y** | 打印当前所有 Agent 信息（数量、类型、位置、是否持有物品） |
 | **U** | 销毁最后一个 Agent |
-| 左键 | 移动玩家 |
+| **I** | 在鼠标位置生成可拾取方块 |
+| **P** | 所有 Human Agent 尝试拾取附近物品 |
+| **O** | 所有 Human Agent 放下持有的物品 |
+| 左键 | 移动所有 Human Agent 到点击位置 |
 | 右键 | 移动所有 Agent 到点击位置 |
 
-注意：所有 Agent（包括人类和机器狗）统一由 `UMAAgentSubsystem` 管理，不再使用蓝图 Agent。
+注意：所有 Agent 统一由 `UMAAgentSubsystem` 管理，拾取/放下功能通过 GAS 实现。
+
+
+7. GAS 使用示例
+==============
+
+```cpp
+// Agent 拾取物品
+AMAAgent* Agent = ...;
+Agent->TryPickup();  // 自动检测附近物品并拾取
+
+// Agent 放下物品
+Agent->TryDrop();
+
+// 检查是否持有物品
+if (Agent->IsHoldingItem())
+{
+    AMAPickupItem* Item = Agent->GetHeldItem();
+}
+```

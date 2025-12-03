@@ -14,7 +14,14 @@ public class MultiAgent : ModuleRules
             "InputCore",
             "EnhancedInput",
             "AIModule",
-            "NavigationSystem"
+            "NavigationSystem",
+            // GAS 模块
+            "GameplayAbilities",
+            "GameplayTags",
+            "GameplayTasks",
+            // State Tree 模块
+            "StateTreeModule",
+            "GameplayStateTreeModule"
         });
 
         PrivateDependencyModuleNames.AddRange(new string[] { });
@@ -22,7 +29,11 @@ public class MultiAgent : ModuleRules
         // 添加子文件夹的 include 路径
         PublicIncludePaths.AddRange(new string[] {
             Path.Combine(ModuleDirectory, "AgentManager"),
-            Path.Combine(ModuleDirectory, "Core")
+            Path.Combine(ModuleDirectory, "Core"),
+            Path.Combine(ModuleDirectory, "GAS"),
+            Path.Combine(ModuleDirectory, "GAS/Abilities"),
+            Path.Combine(ModuleDirectory, "Interaction"),
+            Path.Combine(ModuleDirectory, "StateTree")
         });
     }
 }
