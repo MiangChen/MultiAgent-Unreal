@@ -3,19 +3,15 @@
 #include "../AgentManager/MAAgentSubsystem.h"
 #include "../AgentManager/MAHumanAgent.h"
 #include "../AgentManager/MARobotDogAgent.h"
+#include "../AgentManager/MACameraAgent.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Kismet/GameplayStatics.h"
+#include "NavigationSystem.h"
 
 AMAGameMode::AMAGameMode()
 {
-    // 使用原来 TopDown 模板的角色蓝图作为玩家
-    static ConstructorHelpers::FClassFinder<APawn> PlayerPawnBPClass(
-        TEXT("/Game/TopDown/Blueprints/BP_TopDownCharacter"));
-    if (PlayerPawnBPClass.Succeeded())
-    {
-        DefaultPawnClass = PlayerPawnBPClass.Class;
-    }
-    
+    // 玩家使用 CameraAgent 作为上帝视角
+    DefaultPawnClass = AMACameraAgent::StaticClass();
     PlayerControllerClass = AMAPlayerController::StaticClass();
     
     // Agent 类型使用 C++ 类
@@ -48,13 +44,16 @@ void AMAGameMode::SpawnInitialAgents()
         return;
     }
 
-    // 获取玩家位置作为参考点
+    // 使用 PlayerStart 位置作为参考点
     FVector PlayerStart = FVector(0.f, 0.f, 100.f);
-    APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(GetWorld(), 0);
-    if (PlayerPawn)
+    AActor* PlayerStartActor = FindPlayerStart(nullptr);
+    if (PlayerStartActor)
     {
-        PlayerStart = PlayerPawn->GetActorLocation();
+        PlayerStart = PlayerStartActor->GetActorLocation();
     }
+    
+    // 获取导航系统
+    UNavigationSystemV1* NavSys = UNavigationSystemV1::GetCurrent(GetWorld());
     
     int32 TotalAgents = NumHumans + NumRobotDogs;
     int32 AgentIndex = 0;
@@ -71,6 +70,16 @@ void AMAGameMode::SpawnInitialAgents()
             0.f
         );
         
+        // 投影到 NavMesh 上确保位置有效
+        if (NavSys)
+        {
+            FNavLocation NavLocation;
+            if (NavSys->ProjectPointToNavigation(SpawnLocation, NavLocation, FVector(500.f, 500.f, 500.f)))
+            {
+                SpawnLocation = NavLocation.Location;
+            }
+        }
+        
         AgentSubsystem->SpawnAgent(HumanAgentClass, SpawnLocation, FRotator::ZeroRotator, AgentIndex, EAgentType::Human);
         AgentIndex++;
     }
@@ -86,6 +95,16 @@ void AMAGameMode::SpawnInitialAgents()
             FMath::Sin(FMath::DegreesToRadians(Angle)) * Radius,
             0.f
         );
+        
+        // 投影到 NavMesh 上确保位置有效
+        if (NavSys)
+        {
+            FNavLocation NavLocation;
+            if (NavSys->ProjectPointToNavigation(SpawnLocation, NavLocation, FVector(500.f, 500.f, 500.f)))
+            {
+                SpawnLocation = NavLocation.Location;
+            }
+        }
         
         AgentSubsystem->SpawnAgent(RobotDogAgentClass, SpawnLocation, FRotator::ZeroRotator, AgentIndex, EAgentType::RobotDog);
         AgentIndex++;

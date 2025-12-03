@@ -3,7 +3,6 @@
 #include "../AgentManager/MAAgentSubsystem.h"
 #include "../AgentManager/MAAgent.h"
 #include "../AgentManager/MARobotDogAgent.h"
-#include "Blueprint/AIBlueprintHelperLibrary.h"
 #include "AIController.h"
 
 AMAPlayerController::AMAPlayerController()
@@ -64,7 +63,18 @@ void AMAPlayerController::OnLeftClick()
     FVector HitLocation;
     if (GetMouseHitLocation(HitLocation))
     {
-        UAIBlueprintHelperLibrary::SimpleMoveToLocation(this, HitLocation);
+        // 左键：移动所有 Human Agent 到目标位置
+        if (UMAAgentSubsystem* AgentSubsystem = GetWorld()->GetSubsystem<UMAAgentSubsystem>())
+        {
+            TArray<AMAAgent*> Humans = AgentSubsystem->GetAgentsByType(EAgentType::Human);
+            for (AMAAgent* Agent : Humans)
+            {
+                if (Agent)
+                {
+                    Agent->MoveToLocation(HitLocation);
+                }
+            }
+        }
     }
 }
 

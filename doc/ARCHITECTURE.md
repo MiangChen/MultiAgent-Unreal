@@ -11,9 +11,9 @@ unreal_project/Source/MultiAgent/
 ├── AgentManager/                    # AgentManager 模块 (司命) ✅ 已实现
 │   ├── MAAgentSubsystem.h/cpp       # AgentManager 核心类 (UWorldSubsystem)
 │   ├── MAAgent.h/cpp                # Agent 基类
-│   ├── MAHumanAgent.h/cpp           # 人类 Agent
+│   ├── MAHumanAgent.h/cpp           # 人类 Agent (使用 ABP_Manny 动画蓝图)
 │   ├── MARobotDogAgent.h/cpp        # 机器狗 Agent
-│   └── MACharacter.h/cpp            # 带摄像机的角色
+│   └── MACameraAgent.h/cpp          # 摄像头 Agent (上帝视角)
 ├── Core/                            # 核心框架
 │   ├── MAGameMode.h/cpp             # 游戏模式 (协调各子系统)
 │   └── MAPlayerController.h/cpp     # 玩家控制器
@@ -43,9 +43,9 @@ unreal_project/Source/MultiAgent/
 |-----|---------|-----|
 | `UMAAgentSubsystem` | AgentManager/MAAgentSubsystem.h | Agent 管理子系统，负责生命周期管理 |
 | `AMAAgent` | AgentManager/MAAgent.h | Agent 基类，提供移动、ID、类型等基础功能 |
-| `AMAHumanAgent` | AgentManager/MAHumanAgent.h | 人类 Agent，使用 Manny 模型和动画蓝图 |
+| `AMAHumanAgent` | AgentManager/MAHumanAgent.h | 人类 Agent，使用 SKM_Manny + ABP_Manny |
 | `AMARobotDogAgent` | AgentManager/MARobotDogAgent.h | 机器狗 Agent，带行走/待机动画切换 |
-| `AMACharacter` | AgentManager/MACharacter.h | 带俯视摄像机的角色，用于玩家控制 |
+| `AMACameraAgent` | AgentManager/MACameraAgent.h | 摄像头 Agent，上帝视角，继承 SpectatorPawn |
 | `EAgentType` | AgentManager/MAAgent.h | Agent 类型枚举 (Human, RobotDog, Drone) |
 
 ### 4.2 Core 模块
@@ -63,9 +63,11 @@ UWorldSubsystem (UE)
 
 ACharacter (UE)
     └── AMAAgent (Agent 基类)
-            ├── AMAHumanAgent (人类)
+            ├── AMAHumanAgent (人类，使用 NavMesh 导航)
             └── AMARobotDogAgent (机器狗)
-    └── AMACharacter (带摄像机的角色)
+
+ASpectatorPawn (UE)
+    └── AMACameraAgent (上帝视角摄像头)
 
 AGameModeBase (UE)
     └── AMAGameMode (游戏模式)
@@ -124,10 +126,11 @@ AgentSubsystem->OnAgentSpawned.AddDynamic(this, &AMyClass::HandleAgentSpawned);
 
 | 按键 | 功能 |
 |-----|------|
-| **T** | 在玩家前方生成一个机器狗 |
+| **T** | 生成一个机器狗 |
 | **Y** | 打印当前所有 Agent 信息（数量、类型、位置） |
 | **U** | 销毁最后一个 Agent |
-| 左键 | 移动玩家 |
+| **WASD** | 移动上帝视角摄像头 |
+| 左键 | 移动所有 Human Agent 到点击位置 |
 | 右键 | 移动所有 Agent 到点击位置 |
 
 ## 9. 开发路线
