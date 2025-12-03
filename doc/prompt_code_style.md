@@ -338,3 +338,42 @@ AMANewClass::AMANewClass()
     // 构造函数
 }
 ```
+
+
+5. UE 项目编译指南
+=================
+
+5.1 环境要求
+-----------
+- Unreal Engine 5.5 源码版（从 GitHub 克隆编译）
+- Linux: clang 18+ (Ubuntu 22.04+)
+
+
+5.2 编译命令
+-----------
+```bash
+# 进入项目目录
+cd unreal_project
+
+# 编译 Editor 版本（开发用）
+make MultiAgentEditor -j$(nproc)
+
+# 或者直接用 UE 编辑器打开 .uproject 文件，会自动编译
+```
+
+5.3 清理重新编译
+---------------
+如果遇到编译问题，删除缓存后重新编译：
+```bash
+cd unreal_project
+rm -rf Binaries Intermediate DerivedDataCache
+make MultiAgentEditor -j$(nproc)
+```
+
+5.4 不需要提交到 Git 的文件夹
+---------------------------
+以下文件夹由编译/运行时自动生成，已在 .gitignore 中排除：
+- `Binaries/` - 编译产物
+- `Intermediate/` - 中间编译文件
+- `DerivedDataCache/` - 资产缓存
+- `Saved/` - 日志、配置、自动保存
