@@ -1,6 +1,7 @@
 #include "MAPlayerController.h"
-#include "MAAgent.h"
 #include "MAGameMode.h"
+#include "../AgentManager/MAAgentSubsystem.h"
+#include "../AgentManager/MAAgent.h"
 #include "Blueprint/AIBlueprintHelperLibrary.h"
 #include "AIController.h"
 
@@ -58,38 +59,41 @@ void AMAPlayerController::OnRightClick()
 
 void AMAPlayerController::MoveAllAgentsToLocation(FVector Destination)
 {
-    AMAGameMode* GameMode = Cast<AMAGameMode>(GetWorld()->GetAuthGameMode());
-    if (!GameMode)
+    // 使用 AgentSubsystem 移动所有 Agent
+    if (UMAAgentSubsystem* AgentSubsystem = GetWorld()->GetSubsystem<UMAAgentSubsystem>())
     {
-        return;
+        AgentSubsystem->MoveAllAgentsTo(Destination, 150.f);
     }
     
-    TArray<APawn*> AllPawns = GameMode->GetAllPawns();
-    int32 Count = AllPawns.Num();
-    
-    for (int32 i = 0; i < Count; i++)
+    // 同时移动蓝图人类 Agent
+    AMAGameMode* GameMode = Cast<AMAGameMode>(GetWorld()->GetAuthGameMode());
+    if (GameMode)
     {
-        APawn* Pawn = AllPawns[i];
-        if (!Pawn)
+        TArray<APawn*> AllPawns = GameMode->GetAllPawns();
+        int32 Count = AllPawns.Num();
+        
+        for (int32 i = 0; i < Count; i++)
         {
-            continue;
-        }
-        
-        // 计算每个 Agent 的目标位置（围绕点击点散开）
-        float Angle = (360.f / Count) * i;
-        float Radius = 150.f;
-        
-        FVector TargetLocation = Destination + FVector(
-            FMath::Cos(FMath::DegreesToRadians(Angle)) * Radius,
-            FMath::Sin(FMath::DegreesToRadians(Angle)) * Radius,
-            0.f
-        );
-        
-        // 让 Pawn 移动
-        AAIController* AIController = Cast<AAIController>(Pawn->GetController());
-        if (AIController)
-        {
-            AIController->MoveToLocation(TargetLocation);
+            APawn* Pawn = AllPawns[i];
+            if (!Pawn) continue;
+            
+            // 跳过已经由 AgentSubsystem 管理的 Agent
+            if (Cast<AMAAgent>(Pawn)) continue;
+            
+            float Angle = (360.f / Count) * i;
+            float Radius = 150.f;
+            
+            FVector TargetLocation = Destination + FVector(
+                FMath::Cos(FMath::DegreesToRadians(Angle)) * Radius,
+                FMath::Sin(FMath::DegreesToRadians(Angle)) * Radius,
+                0.f
+            );
+            
+            AAIController* AIController = Cast<AAIController>(Pawn->GetController());
+            if (AIController)
+            {
+                AIController->MoveToLocation(TargetLocation);
+            }
         }
     }
 }

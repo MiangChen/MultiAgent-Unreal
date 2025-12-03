@@ -2,11 +2,15 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
-#include "MAAgent.h"
+#include "../AgentManager/MAAgent.h"
 #include "MAGameMode.generated.h"
 
-class AMACharacter;
+class UMAAgentSubsystem;
 
+/**
+ * AMAGameMode - 游戏模式
+ * 负责初始化各个子系统，协调游戏流程
+ */
 UCLASS()
 class MULTIAGENT_API AMAGameMode : public AGameModeBase
 {
@@ -15,25 +19,17 @@ class MULTIAGENT_API AMAGameMode : public AGameModeBase
 public:
     AMAGameMode();
 
-    // 生成 MAAgent
-    UFUNCTION(BlueprintCallable, Category = "Agent")
-    AMAAgent* SpawnAgent(TSubclassOf<AMAAgent> AgentClass, FVector Location, FRotator Rotation, int32 AgentID, EAgentType Type);
+    // 获取 AgentSubsystem
+    UFUNCTION(BlueprintCallable, Category = "Subsystem")
+    UMAAgentSubsystem* GetAgentSubsystem() const;
 
-    // 生成人类 Agent（使用蓝图）
+    // 生成人类 Agent（使用蓝图，不通过 Subsystem）
     UFUNCTION(BlueprintCallable, Category = "Agent")
     APawn* SpawnHumanAgent(FVector Location, FRotator Rotation, int32 AgentID);
 
-    // 获取所有 MAAgent
-    UFUNCTION(BlueprintCallable, Category = "Agent")
-    TArray<AMAAgent*> GetAllAgents() const { return SpawnedAgents; }
-
-    // 获取所有 Pawn（包括人类和机器狗）
+    // 获取所有 Pawn（包括蓝图人类和 C++ Agent）
     UFUNCTION(BlueprintCallable, Category = "Agent")
     TArray<APawn*> GetAllPawns() const;
-
-    // 获取指定类型的 Agent
-    UFUNCTION(BlueprintCallable, Category = "Agent")
-    TArray<AMAAgent*> GetAgentsByType(EAgentType Type) const;
 
     // 人类 Agent 蓝图类
     UPROPERTY(EditDefaultsOnly, Category = "Agent")
@@ -56,9 +52,6 @@ protected:
     void SpawnInitialAgents();
 
 private:
-    UPROPERTY()
-    TArray<AMAAgent*> SpawnedAgents;
-
     UPROPERTY()
     TArray<APawn*> SpawnedHumanPawns;
 };

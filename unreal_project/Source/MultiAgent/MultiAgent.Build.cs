@@ -1,4 +1,5 @@
 using UnrealBuildTool;
+using System.IO;
 
 public class MultiAgent : ModuleRules
 {
@@ -17,5 +18,11 @@ public class MultiAgent : ModuleRules
         });
 
         PrivateDependencyModuleNames.AddRange(new string[] { });
+
+        // 添加子文件夹的 include 路径
+        PublicIncludePaths.AddRange(new string[] {
+            Path.Combine(ModuleDirectory, "AgentManager"),
+            Path.Combine(ModuleDirectory, "Core")
+        });
     }
 }
