@@ -10,6 +10,7 @@
 
 UGA_Navigate::UGA_Navigate()
 {
+    // AssetTags 用于资产分类
     FGameplayTagContainer AssetTags;
     AssetTags.AddTag(FMAGameplayTags::Get().Ability_Navigate);
     SetAssetTags(AssetTags);

@@ -6,6 +6,7 @@
 #include "MAGameMode.generated.h"
 
 class UMAAgentSubsystem;
+class AMACameraAgent;
 
 /**
  * AMAGameMode - 游戏模式
@@ -43,4 +44,7 @@ public:
 protected:
     virtual void BeginPlay() override;
     void SpawnInitialAgents();
+    
+    // 生成并附着摄像头到 Agent
+    void SpawnAndAttachCamera(UMAAgentSubsystem* AgentSubsystem, AMAAgent* ParentAgent, FVector RelativeLocation, FRotator RelativeRotation);
 };

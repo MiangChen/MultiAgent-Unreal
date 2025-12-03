@@ -34,11 +34,15 @@ public:
     UFUNCTION(BlueprintCallable, Category = "GAS")
     void CancelNavigate();
 
-    // 通过 Tag 激活 Ability (备用)
+    // 直接激活 TakePhoto Ability (Camera 使用)
+    UFUNCTION(BlueprintCallable, Category = "GAS")
+    bool TryActivateTakePhoto();
+
+    // 通过 Tag 激活 Ability (StateTree 使用)
     UFUNCTION(BlueprintCallable, Category = "GAS")
     bool TryActivateAbilityByTag(FGameplayTag AbilityTag);
 
-    // 通过 Tag 取消 Ability
+    // 通过 Tag 取消 Ability (StateTree 使用)
     UFUNCTION(BlueprintCallable, Category = "GAS")
     void CancelAbilityByTag(FGameplayTag AbilityTag);
 
@@ -55,4 +59,5 @@ protected:
     FGameplayAbilitySpecHandle PickupAbilityHandle;
     FGameplayAbilitySpecHandle DropAbilityHandle;
     FGameplayAbilitySpecHandle NavigateAbilityHandle;
+    FGameplayAbilitySpecHandle TakePhotoAbilityHandle;
 };

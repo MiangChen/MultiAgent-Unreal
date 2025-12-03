@@ -33,10 +33,15 @@ AMAAgent* UMAAgentSubsystem::SpawnAgent(TSubclassOf<AMAAgent> AgentClass, FVecto
     {
         NewAgent->AgentID = AgentID >= 0 ? AgentID : NextAgentID++;
         NewAgent->AgentType = Type;
-        NewAgent->AgentName = FString::Printf(TEXT("%s_%d"),
-            Type == EAgentType::Human ? TEXT("Human") :
-            Type == EAgentType::RobotDog ? TEXT("RobotDog") : TEXT("Drone"),
-            NewAgent->AgentID);
+        const TCHAR* TypeName = TEXT("Agent");
+        switch (Type)
+        {
+            case EAgentType::Human: TypeName = TEXT("Human"); break;
+            case EAgentType::RobotDog: TypeName = TEXT("RobotDog"); break;
+            case EAgentType::Drone: TypeName = TEXT("Drone"); break;
+            case EAgentType::Camera: TypeName = TEXT("Camera"); break;
+        }
+        NewAgent->AgentName = FString::Printf(TEXT("%s_%d"), TypeName, NewAgent->AgentID);
 
         NewAgent->SpawnDefaultController();
         SpawnedAgents.Add(NewAgent);

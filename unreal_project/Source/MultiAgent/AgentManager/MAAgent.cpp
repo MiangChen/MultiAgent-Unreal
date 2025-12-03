@@ -25,7 +25,7 @@ AMAAgent::AMAAgent()
     bUseControllerRotationRoll = false;
 
     GetCharacterMovement()->bOrientRotationToMovement = true;
-    GetCharacterMovement()->RotationRate = FRotator(0.0f, 640.0f, 0.0f);
+    GetCharacterMovement()->RotationRate = FRotator(0.0f, 160.0f, 0.0f);  // 降低自转速度（原 640）
     GetCharacterMovement()->bConstrainToPlane = true;
     GetCharacterMovement()->bSnapToPlaneAtStart = true;
     

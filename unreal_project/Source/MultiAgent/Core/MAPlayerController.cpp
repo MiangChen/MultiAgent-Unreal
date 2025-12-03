@@ -3,6 +3,7 @@
 #include "../AgentManager/MAAgentSubsystem.h"
 #include "../AgentManager/MAAgent.h"
 #include "../AgentManager/MARobotDogAgent.h"
+#include "../AgentManager/MACameraAgent.h"
 #include "../Interaction/MAPickupItem.h"
 #include "AIController.h"
 
@@ -75,6 +76,19 @@ void AMAPlayerController::PlayerTick(float DeltaTime)
     if (WasInputKeyJustPressed(EKeys::I))
     {
         OnSpawnPickupItem();
+    }
+    
+    // ===== 视角切换 =====
+    // Tab - 切换到下一个 Camera 视角
+    if (WasInputKeyJustPressed(EKeys::Tab))
+    {
+        OnSwitchCamera();
+    }
+    
+    // 0 - 返回上帝视角
+    if (WasInputKeyJustPressed(EKeys::Zero))
+    {
+        OnReturnToSpectator();
     }
 }
 
@@ -269,6 +283,68 @@ void AMAPlayerController::OnSpawnPickupItem()
             
             GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan,
                 FString::Printf(TEXT("Spawned: %s at %s"), *Item->ItemName, *HitLocation.ToString()));
+        }
+    }
+}
+
+// ===== 视角切换实现 =====
+
+void AMAPlayerController::OnSwitchCamera()
+{
+    UMAAgentSubsystem* AgentSubsystem = GetWorld()->GetSubsystem<UMAAgentSubsystem>();
+    if (!AgentSubsystem) return;
+    
+    // 获取所有 Camera Agent
+    TArray<AMAAgent*> Cameras = AgentSubsystem->GetAgentsByType(EAgentType::Camera);
+    if (Cameras.Num() == 0)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("No cameras available!"));
+        return;
+    }
+    
+    // 保存原始 Pawn（首次切换时）
+    if (!OriginalPawn && GetPawn())
+    {
+        OriginalPawn = GetPawn();
+    }
+    
+    // 切换到下一个 Camera
+    CurrentCameraIndex++;
+    if (CurrentCameraIndex >= Cameras.Num())
+    {
+        CurrentCameraIndex = 0;
+    }
+    
+    AMACameraAgent* Camera = Cast<AMACameraAgent>(Cameras[CurrentCameraIndex]);
+    if (Camera)
+    {
+        // 设置视角到 Camera
+        SetViewTargetWithBlend(Camera, 0.3f);
+        
+        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green,
+            FString::Printf(TEXT("Switched to: %s (%d/%d)"), 
+                *Camera->AgentName, CurrentCameraIndex + 1, Cameras.Num()));
+    }
+}
+
+void AMAPlayerController::OnReturnToSpectator()
+{
+    if (OriginalPawn)
+    {
+        // 返回上帝视角
+        SetViewTargetWithBlend(OriginalPawn, 0.3f);
+        CurrentCameraIndex = -1;
+        
+        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan, TEXT("Returned to Spectator view"));
+    }
+    else
+    {
+        // 如果没有保存的 OriginalPawn，尝试使用当前 Pawn
+        if (GetPawn())
+        {
+            SetViewTargetWithBlend(GetPawn(), 0.3f);
+            CurrentCameraIndex = -1;
+            GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan, TEXT("Returned to default view"));
         }
     }
 }

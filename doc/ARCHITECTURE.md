@@ -33,7 +33,8 @@ unreal_project/Source/MultiAgent/
 │   ├── MAAgent.h/cpp                # Agent 基类 (集成 GAS)
 │   ├── MAHumanAgent.h/cpp           # 人类 Agent
 │   ├── MARobotDogAgent.h/cpp        # 机器狗 Agent
-│   └── MACameraAgent.h/cpp          # 摄像头 Agent
+│   ├── MASensorAgent.h/cpp          # 传感器 Agent 基类
+│   └── MACameraAgent.h/cpp          # 摄像头 Agent（传感器）
 ├── GAS/                             # GAS 模块 ✅ 已实现
 │   ├── MAAbilitySystemComponent.h/cpp  # GAS 核心组件
 │   ├── MAGameplayTags.h/cpp         # Gameplay Tags 定义
@@ -80,7 +81,7 @@ unreal_project/Source/MultiAgent/
 │                                                             │
 │     Agent #1              Agent #2              Agent #3    │
 │  ┌───────────┐         ┌───────────┐         ┌───────────┐ │
-│  │ 司脑      │         │ 司脑      │         │ 司脑      │ │
+│  │ 司态      │         │ 司态      │         │ 司态      │ │
 │  │StateTree  │         │StateTree  │         │StateTree  │ │
 │  │ 决策      │         │ 决策      │         │ 决策      │ │
 │  ├───────────┤         ├───────────┤         ├───────────┤ │
@@ -98,7 +99,7 @@ unreal_project/Source/MultiAgent/
 | **AgentManager** | 司命 | 全局 | 智能体生命周期管理 | `UMAAgentSubsystem` | ✅ 已实现 |
 | **RelationManager** | 司缘 | 全局 | 智能体关系管理 | `UMARelationSubsystem` | ❌ 待开发 |
 | **MapManager** | 司图 | 全局 | 地图感知 | `UNavigationSystemV1` | ❌ 待开发 |
-| **StateTree** | 司脑 | Agent级 | 状态决策 | `UMAStateTreeComponent` | ✅ 已实现 |
+| **StateTree** | 司态 | Agent级 | 状态决策 | `UMAStateTreeComponent` | ✅ 已实现 |
 | **ASC** | 司能 | Agent级 | 技能执行 | `UMAAbilitySystemComponent` | ✅ 已实现 |
 
 ### 4.3 司能 (ASC) 详解
@@ -140,6 +141,39 @@ unreal_project/Source/MultiAgent/
 - **ASC (司能)**: 挂载在每个 Agent 上的组件实例，管理该 Agent 的技能
 - **GA_XXX**: 技能类定义（代码），可被多个 Agent 共用
 - **技能实例**: 运行时创建，每个 Agent 的 ASC 中有自己的技能实例
+
+### 4.4 技能激活方式：Handle vs Tag
+
+司能 (ASC) 支持两种技能激活/取消方式：
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    技能激活调用链                            │
+│                                                             │
+│  PlayerController ──► Agent ──► ASC ──► GA_XXX             │
+│       (Core)        (司命)    (司能)   (技能)               │
+│                                                             │
+│  方式1: Handle (直接激活)                                   │
+│  Agent.TryNavigateTo() → ASC.TryActivateAbility(Handle)    │
+│                                                             │
+│  方式2: Tag (通用激活)                                      │
+│  StateTree → ASC.TryActivateAbilityByTag(Tag)              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+| 调用者 | 方法 | 内部实现 | 说明 |
+|-------|------|---------|------|
+| Agent | `TryNavigateTo()` | Handle | 精确、直接 |
+| Agent | `TryPickup()` | Handle | 精确、直接 |
+| Agent | `TryDrop()` | Handle | 精确、直接 |
+| Agent | `CancelNavigation()` | Handle | 精确取消 |
+| StateTree | `TryActivateAbilityByTag()` | Tag | 通用，按 Tag 匹配 |
+| StateTree | `CancelAbilityByTag()` | Tag | 通用，按 Tag 匹配 |
+
+**设计原则：**
+- **Handle 是司能内部实现细节**，外部调用者不需要知道
+- **Agent 层提供语义化接口**（如 `TryNavigateTo`），内部使用 Handle
+- **StateTree 使用 Tag**，因为它不知道具体的 Handle，需要通过 Tag 匹配
 
 ## 5. 司能 (GAS) 模块详解
 
@@ -246,10 +280,38 @@ AActor (UE)
     └── AMAPickupItem (可拾取物品)
 ```
 
-## 8. 测试按键
+## 8. Camera 系统
+
+### 8.1 Camera Agent 继承体系
+
+```
+AMAAgent (基类)
+└── AMASensorAgent (传感器基类，支持 Attach)
+    └── AMACameraAgent (摄像头，支持拍照)
+```
+
+### 8.2 第三人称视角
+
+每个 Human/RobotDog 生成时会自动附着一个第三人称摄像头：
+
+| Agent | 摄像头位置 | 说明 |
+|-------|-----------|------|
+| Human | `(-200, 0, 100)` Pitch -10° | 后方 2m，高 1m，向下看 |
+| RobotDog | `(-150, 0, 80)` Pitch -15° | 后方 1.5m，高 0.8m |
+
+### 8.3 上帝视角
+
+玩家默认使用 UE 原生 `SpectatorPawn`，支持：
+- 鼠标右键/中键按住 + 拖动：旋转视角
+- WASD：移动
+- Q/E：上下飞行
+
+## 9. 测试按键
 
 | 按键 | 功能 |
 |-----|------|
+| **Tab** | 循环切换 Agent 的第三人称视角 |
+| **0** | 返回上帝视角 |
 | **T** | 生成一个机器狗 |
 | **Y** | 打印当前所有 Agent 信息 |
 | **U** | 销毁最后一个 Agent |
@@ -259,7 +321,7 @@ AActor (UE)
 | 左键 | 移动所有 Human Agent |
 | 右键 | 移动所有 Agent |
 
-## 9. 开发路线
+## 10. 开发路线
 
 ### Phase 1: 核心框架 ✅ 已完成
 - [x] UMAAgentSubsystem - Agent 生命周期管理
@@ -270,8 +332,9 @@ AActor (UE)
 - [x] State Tree 基础集成
 
 ### Phase 2: 扩展技能
-- [ ] GA_TakePhoto - 拍照技能
+- [x] GA_TakePhoto - 拍照技能 ✅ 已实现
 - [x] GA_Navigate - 导航技能 ✅ 已实现
+- [x] MACameraAgent - 传感器摄像头 ✅ 已实现
 - [ ] GA_Interact - 交互技能
 
 ### Phase 3: State Tree 完善
@@ -284,7 +347,7 @@ AActor (UE)
 - [ ] 关系类型枚举
 - [ ] 关系查询 API
 
-## 10. 重要设计原则
+## 11. 重要设计原则
 
 ### 10.1 虚函数多态设计
 

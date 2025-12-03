@@ -14,7 +14,8 @@ enum class EAgentType : uint8
 {
     Human,
     RobotDog,
-    Drone
+    Drone,
+    Camera
 };
 
 UCLASS()

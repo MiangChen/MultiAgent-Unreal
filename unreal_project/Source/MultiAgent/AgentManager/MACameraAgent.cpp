@@ -1,69 +1,139 @@
+// MACameraAgent.cpp
+// 传感器摄像头 - 用于附着到 Agent 上拍照
+
 #include "MACameraAgent.h"
 #include "Camera/CameraComponent.h"
-#include "GameFramework/FloatingPawnMovement.h"
+#include "Components/SceneCaptureComponent2D.h"
+#include "Components/CapsuleComponent.h"
+#include "Engine/TextureRenderTarget2D.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "ImageUtils.h"
+#include "Misc/FileHelper.h"
 
 AMACameraAgent::AMACameraAgent()
 {
-    PrimaryActorTick.bCanEverTick = true;
-    
-    AgentID = -1;
+    AgentType = EAgentType::Camera;
     AgentName = TEXT("Camera");
-    bIsMoving = false;
-    TargetLocation = FVector::ZeroVector;
-    MoveSpeed = 1000.f;
     
-    // 配置移动组件
-    if (UFloatingPawnMovement* Movement = Cast<UFloatingPawnMovement>(GetMovementComponent()))
+    // 禁用重力 - Camera 附着到其他 Agent 上
+    if (UCharacterMovementComponent* Movement = GetCharacterMovement())
     {
-        Movement->MaxSpeed = 2000.f;
-        Movement->Acceleration = 4000.f;
-        Movement->Deceleration = 8000.f;
+        Movement->GravityScale = 0.0f;
     }
+    
+    // 彻底禁用碰撞 - Camera 不需要碰撞体
+    if (UCapsuleComponent* Capsule = GetCapsuleComponent())
+    {
+        Capsule->SetCapsuleSize(1.0f, 1.0f);
+        Capsule->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        Capsule->SetCollisionResponseToAllChannels(ECR_Ignore);
+        Capsule->SetHiddenInGame(true);
+        Capsule->SetVisibility(false);
+    }
+    
+    // 创建摄像头组件
+    CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("CameraComponent"));
+    CameraComponent->SetupAttachment(RootComponent);
+    CameraComponent->SetRelativeLocation(FVector::ZeroVector);
+    CameraComponent->FieldOfView = FOV;
+    
+    // 创建场景捕获组件（用于截图）
+    SceneCaptureComponent = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("SceneCaptureComponent"));
+    SceneCaptureComponent->SetupAttachment(CameraComponent);
+    SceneCaptureComponent->bCaptureEveryFrame = false;
+    SceneCaptureComponent->bCaptureOnMovement = false;
 }
 
 void AMACameraAgent::BeginPlay()
 {
     Super::BeginPlay();
     
-    // 默认设置俯视角度
-    SetTopDownView();
+    // 更新 FOV
+    CameraComponent->FieldOfView = FOV;
+    SceneCaptureComponent->FOVAngle = FOV;
+    
+    // 初始化渲染目标
+    InitializeRenderTarget();
 }
 
-void AMACameraAgent::Tick(float DeltaTime)
+void AMACameraAgent::InitializeRenderTarget()
 {
-    Super::Tick(DeltaTime);
+    RenderTarget = NewObject<UTextureRenderTarget2D>(this);
+    RenderTarget->InitCustomFormat(Resolution.X, Resolution.Y, PF_B8G8R8A8, false);
+    RenderTarget->UpdateResourceImmediate();
     
-    // 平滑移动到目标位置
-    if (bIsMoving)
+    SceneCaptureComponent->TextureTarget = RenderTarget;
+    
+    UE_LOG(LogTemp, Log, TEXT("[Camera] %s initialized with resolution %dx%d, FOV %.0f"),
+        *AgentName, Resolution.X, Resolution.Y, FOV);
+}
+
+bool AMACameraAgent::TakePhoto(const FString& FilePath)
+{
+    if (!RenderTarget)
     {
-        FVector CurrentLocation = GetActorLocation();
-        FVector Direction = TargetLocation - CurrentLocation;
-        float Distance = Direction.Size();
-        
-        if (Distance < 10.f)
-        {
-            bIsMoving = false;
-        }
-        else
-        {
-            FVector NewLocation = CurrentLocation + Direction.GetSafeNormal() * MoveSpeed * DeltaTime;
-            SetActorLocation(NewLocation);
-        }
+        UE_LOG(LogTemp, Warning, TEXT("[Camera] TakePhoto failed: RenderTarget not initialized"));
+        return false;
     }
-}
-
-void AMACameraAgent::MoveToLocation(FVector Destination)
-{
-    // 保持当前高度
-    TargetLocation = FVector(Destination.X, Destination.Y, GetActorLocation().Z);
-    bIsMoving = true;
-}
-
-void AMACameraAgent::SetTopDownView(float Height, float Pitch)
-{
-    FVector Location = GetActorLocation();
-    Location.Z = Height;
-    SetActorLocation(Location);
     
-    SetActorRotation(FRotator(Pitch, 0.f, 0.f));
+    // 捕获当前帧
+    SceneCaptureComponent->CaptureScene();
+    
+    // 读取像素数据
+    TArray<FColor> Pixels = CaptureFrame();
+    if (Pixels.Num() == 0)
+    {
+        return false;
+    }
+    
+    // 生成文件路径
+    FString SavePath = FilePath;
+    if (SavePath.IsEmpty())
+    {
+        FString Timestamp = FDateTime::Now().ToString(TEXT("%Y%m%d_%H%M%S"));
+        SavePath = FPaths::ProjectSavedDir() / TEXT("Screenshots") / FString::Printf(TEXT("%s_%s.png"), *AgentName, *Timestamp);
+    }
+    
+    // 确保目录存在
+    FString Directory = FPaths::GetPath(SavePath);
+    IFileManager::Get().MakeDirectory(*Directory, true);
+    
+    // 保存为 PNG
+    TArray64<uint8> CompressedData;
+    FImageUtils::PNGCompressImageArray(Resolution.X, Resolution.Y, TArrayView64<const FColor>(Pixels), CompressedData);
+    
+    // 转换为普通 TArray 用于保存
+    TArray<uint8> SaveData;
+    SaveData.Append(CompressedData.GetData(), CompressedData.Num());
+    
+    if (FFileHelper::SaveArrayToFile(SaveData, *SavePath))
+    {
+        UE_LOG(LogTemp, Log, TEXT("[Camera] %s saved photo to %s"), *AgentName, *SavePath);
+        return true;
+    }
+    
+    UE_LOG(LogTemp, Warning, TEXT("[Camera] Failed to save photo to %s"), *SavePath);
+    return false;
+}
+
+TArray<FColor> AMACameraAgent::CaptureFrame()
+{
+    TArray<FColor> Pixels;
+    
+    if (!RenderTarget)
+    {
+        return Pixels;
+    }
+    
+    // 捕获场景
+    SceneCaptureComponent->CaptureScene();
+    
+    // 读取像素
+    FTextureRenderTargetResource* Resource = RenderTarget->GameThread_GetRenderTargetResource();
+    if (Resource)
+    {
+        Resource->ReadPixels(Pixels);
+    }
+    
+    return Pixels;
 }

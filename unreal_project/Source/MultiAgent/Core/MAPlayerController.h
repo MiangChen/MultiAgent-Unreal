@@ -47,4 +47,19 @@ protected:
     
     // I - 生成可拾取方块
     void OnSpawnPickupItem();
+
+    // ===== 视角切换 =====
+    // Tab - 切换 Camera 视角
+    void OnSwitchCamera();
+    
+    // 0 - 返回上帝视角
+    void OnReturnToSpectator();
+
+private:
+    // 当前查看的 Camera 索引（-1 表示上帝视角）
+    int32 CurrentCameraIndex = -1;
+    
+    // 保存原始观察者 Pawn
+    UPROPERTY()
+    APawn* OriginalPawn = nullptr;
 };

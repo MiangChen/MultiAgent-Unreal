@@ -242,7 +242,29 @@
 
 ---
 
-## 10. AI 模块相关 (PathFollowingComponent.h)
+## 10. Engine 模块相关 (ImageUtils.h)
+
+### 5.1 废弃
+
+| 废弃 API | 替代方案 | 说明 |
+|---------|---------|------|
+| `FImageUtils::CompressImageArray()` | `FImageUtils::PNGCompressImageArray()` 或 `ThumbnailCompressImageArray()` | 函数重命名，签名也变了 |
+
+**迁移示例：**
+
+```cpp
+// ❌ UE 5.0 及之前
+TArray<uint8> CompressedData;
+FImageUtils::CompressImageArray(Width, Height, Pixels, CompressedData);
+
+// ✅ UE 5.1+
+TArray64<uint8> CompressedData;
+FImageUtils::PNGCompressImageArray(Width, Height, TArrayView64<const FColor>(Pixels), CompressedData);
+```
+
+---
+
+## 11. AI 模块相关 (PathFollowingComponent.h)
 
 ### 5.5 变更
 

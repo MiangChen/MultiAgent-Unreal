@@ -5,6 +5,7 @@
 #include "Abilities/GA_Pickup.h"
 #include "Abilities/GA_Drop.h"
 #include "Abilities/GA_Navigate.h"
+#include "Abilities/GA_TakePhoto.h"
 #include "MAGameplayTags.h"
 
 UMAAbilitySystemComponent::UMAAbilitySystemComponent()
@@ -24,31 +25,25 @@ void UMAAbilitySystemComponent::InitializeAbilities(AActor* InOwnerActor)
         }
     }
 
-    // 始终授予 Pickup、Drop、Navigate Ability，并保存 Handle
+    // 始终授予 Pickup、Drop、Navigate、TakePhoto Ability，并保存 Handle
     PickupAbilityHandle = GiveAbility(FGameplayAbilitySpec(UGA_Pickup::StaticClass(), 1, INDEX_NONE, InOwnerActor));
     DropAbilityHandle = GiveAbility(FGameplayAbilitySpec(UGA_Drop::StaticClass(), 1, INDEX_NONE, InOwnerActor));
     NavigateAbilityHandle = GiveAbility(FGameplayAbilitySpec(UGA_Navigate::StaticClass(), 1, INDEX_NONE, InOwnerActor));
+    TakePhotoAbilityHandle = GiveAbility(FGameplayAbilitySpec(UGA_TakePhoto::StaticClass(), 1, INDEX_NONE, InOwnerActor));
     
-    UE_LOG(LogTemp, Log, TEXT("Initialized GAS abilities for %s (Pickup=%d, Drop=%d, Navigate=%d)"), 
-        *InOwnerActor->GetName(), PickupAbilityHandle.IsValid(), DropAbilityHandle.IsValid(), NavigateAbilityHandle.IsValid());
+    UE_LOG(LogTemp, Log, TEXT("Initialized GAS abilities for %s (Pickup=%d, Drop=%d, Navigate=%d, TakePhoto=%d)"), 
+        *InOwnerActor->GetName(), PickupAbilityHandle.IsValid(), DropAbilityHandle.IsValid(), NavigateAbilityHandle.IsValid(), TakePhotoAbilityHandle.IsValid());
 }
 
 bool UMAAbilitySystemComponent::TryActivatePickup()
 {
-    UE_LOG(LogTemp, Warning, TEXT("[ASC] TryActivatePickup: Handle valid=%d"), PickupAbilityHandle.IsValid() ? 1 : 0);
-    
     if (PickupAbilityHandle.IsValid())
     {
-        bool bResult = TryActivateAbility(PickupAbilityHandle);
-        UE_LOG(LogTemp, Warning, TEXT("[ASC] TryActivateAbility(Handle) result=%d"), bResult ? 1 : 0);
-        return bResult;
+        return TryActivateAbility(PickupAbilityHandle);
     }
     
     // Fallback: 尝试通过 Class 激活
-    UE_LOG(LogTemp, Warning, TEXT("[ASC] Fallback to TryActivateAbilityByClass"));
-    bool bResult = TryActivateAbilityByClass(UGA_Pickup::StaticClass());
-    UE_LOG(LogTemp, Warning, TEXT("[ASC] TryActivateAbilityByClass result=%d"), bResult ? 1 : 0);
-    return bResult;
+    return TryActivateAbilityByClass(UGA_Pickup::StaticClass());
 }
 
 bool UMAAbilitySystemComponent::TryActivateDrop()
@@ -95,7 +90,11 @@ bool UMAAbilitySystemComponent::TryActivateNavigate(FVector TargetLocation)
 
 void UMAAbilitySystemComponent::CancelNavigate()
 {
-    CancelAbilityByTag(FMAGameplayTags::Get().Ability_Navigate);
+    // 通过 Handle 直接取消，避免使用已废弃的 AbilityTags
+    if (NavigateAbilityHandle.IsValid())
+    {
+        CancelAbilityHandle(NavigateAbilityHandle);
+    }
 }
 
 bool UMAAbilitySystemComponent::TryActivateAbilityByTag(FGameplayTag AbilityTag)
@@ -110,6 +109,17 @@ void UMAAbilitySystemComponent::CancelAbilityByTag(FGameplayTag AbilityTag)
     FGameplayTagContainer TagContainer;
     TagContainer.AddTag(AbilityTag);
     CancelAbilities(&TagContainer);
+}
+
+bool UMAAbilitySystemComponent::TryActivateTakePhoto()
+{
+    if (TakePhotoAbilityHandle.IsValid())
+    {
+        return TryActivateAbility(TakePhotoAbilityHandle);
+    }
+    
+    // Fallback: 尝试通过 Class 激活
+    return TryActivateAbilityByClass(UGA_TakePhoto::StaticClass());
 }
 
 bool UMAAbilitySystemComponent::HasGameplayTagFromContainer(FGameplayTag TagToCheck) const
