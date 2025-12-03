@@ -197,21 +197,28 @@ UE 的 UHT (Unreal Header Tool) 强制要求特定前缀，否则编译报错：
 2. MA = MultiAgent，表明是本项目的类
 3. 文件名和类名一致，便于查找和维护
 
-文件结构:
+文件结构 (模块化):
 ```
 unreal_project/Source/MultiAgent/
-├── MAAgent.h/cpp           # AMAAgent - Agent 基类
-├── MAHumanAgent.h/cpp      # AMAHumanAgent - 人类 Agent
-├── MARobotDogAgent.h/cpp   # AMARobotDogAgent - 机器狗 Agent
-├── MACharacter.h/cpp       # AMACharacter - 带摄像机的角色
-├── MAGameMode.h/cpp        # AMAGameMode - 游戏模式
-├── MAPlayerController.h/cpp # AMAPlayerController - 玩家控制器
-├── MultiAgent.h/cpp        # 模块定义
-└── MultiAgent.Build.cs     # 构建配置
+├── AgentManager/                    # AgentManager 模块 (司命)
+│   ├── MAAgentSubsystem.h/cpp       # UMAAgentSubsystem - Agent 管理子系统
+│   ├── MAAgent.h/cpp                # AMAAgent - Agent 基类
+│   ├── MAHumanAgent.h/cpp           # AMAHumanAgent - 人类 Agent
+│   ├── MARobotDogAgent.h/cpp        # AMARobotDogAgent - 机器狗 Agent
+│   └── MACharacter.h/cpp            # AMACharacter - 带摄像机的角色
+├── Core/                            # 核心框架
+│   ├── MAGameMode.h/cpp             # AMAGameMode - 游戏模式
+│   └── MAPlayerController.h/cpp     # AMAPlayerController - 玩家控制器
+├── RelationManager/                 # RelationManager 模块 (司缘) - 待开发
+├── MapManager/                      # MapManager 模块 (司图) - 待开发
+└── MultiAgent.h/cpp                 # 模块定义
 ```
 
 类继承关系:
 ```
+UWorldSubsystem (UE)
+    └── UMAAgentSubsystem (AgentManager 司命)
+
 ACharacter (UE)
     └── AMAAgent (Agent 基类)
             ├── AMAHumanAgent (人类)
@@ -225,19 +232,55 @@ APlayerController (UE)
     └── AMAPlayerController
 ```
 
-当前 Agent 类一览表:
+当前类一览表:
 
-| 类名                | 文件名                  | 简介                                      |
-|--------------------|------------------------|------------------------------------------|
-| AMAAgent           | MAAgent.h/cpp          | Agent 基类，提供移动、ID、类型等基础功能      |
-| AMAHumanAgent      | MAHumanAgent.h/cpp     | 人类 Agent，使用 Manny 模型和动画蓝图       |
-| AMARobotDogAgent   | MARobotDogAgent.h/cpp  | 机器狗 Agent，带行走/待机动画切换           |
-| AMACharacter       | MACharacter.h/cpp      | 带俯视摄像机的角色，用于玩家控制             |
-| AMAGameMode        | MAGameMode.h/cpp       | 游戏模式，负责 spawn 和管理所有 Agent       |
-| AMAPlayerController| MAPlayerController.h/cpp| 玩家控制器，处理鼠标点击移动逻辑            |
-| EAgentType         | MAAgent.h              | Agent 类型枚举 (Human, RobotDog, Drone)   |
+AgentManager 模块:
 
-4.3 generated.h 规则
+| 类名                | 文件位置                          | 简介                                      |
+|--------------------|----------------------------------|------------------------------------------|
+| UMAAgentSubsystem  | AgentManager/MAAgentSubsystem.h  | Agent 管理子系统，负责生命周期管理           |
+| AMAAgent           | AgentManager/MAAgent.h           | Agent 基类，提供移动、ID、类型等基础功能      |
+| AMAHumanAgent      | AgentManager/MAHumanAgent.h      | 人类 Agent，使用 Manny 模型和动画蓝图       |
+| AMARobotDogAgent   | AgentManager/MARobotDogAgent.h   | 机器狗 Agent，带行走/待机动画切换           |
+| AMACharacter       | AgentManager/MACharacter.h       | 带俯视摄像机的角色，用于玩家控制             |
+| EAgentType         | AgentManager/MAAgent.h           | Agent 类型枚举 (Human, RobotDog, Drone)   |
+
+Core 模块:
+
+| 类名                | 文件位置                          | 简介                                      |
+|--------------------|----------------------------------|------------------------------------------|
+| AMAGameMode        | Core/MAGameMode.h                | 游戏模式，协调各子系统，初始化场景           |
+| AMAPlayerController| Core/MAPlayerController.h        | 玩家控制器，处理鼠标点击移动逻辑            |
+
+4.3 UMAAgentSubsystem 使用示例
+-----------------------------
+```cpp
+// 获取 AgentSubsystem
+UMAAgentSubsystem* AgentSubsystem = GetWorld()->GetSubsystem<UMAAgentSubsystem>();
+
+// 生成 Agent
+AMAAgent* Dog = AgentSubsystem->SpawnAgent(
+    AMARobotDogAgent::StaticClass(),
+    FVector(0, 0, 100),
+    FRotator::ZeroRotator,
+    -1,  // 自动分配 ID
+    EAgentType::RobotDog
+);
+
+// 查询 Agent
+TArray<AMAAgent*> AllAgents = AgentSubsystem->GetAllAgents();
+TArray<AMAAgent*> Dogs = AgentSubsystem->GetAgentsByType(EAgentType::RobotDog);
+AMAAgent* Agent = AgentSubsystem->GetAgentByID(0);
+
+// 批量操作
+AgentSubsystem->MoveAllAgentsTo(FVector(1000, 1000, 0), 200.f);
+AgentSubsystem->StopAllAgents();
+
+// 监听事件
+AgentSubsystem->OnAgentSpawned.AddDynamic(this, &AMyClass::HandleAgentSpawned);
+```
+
+4.4 generated.h 规则
 -------------------
 UHT 生成的头文件名必须与源文件名一致：
 
@@ -256,7 +299,7 @@ class MULTIAGENT_API AMAAgent : public ACharacter
 };
 ```
 
-4.4 禁止使用的文件名
+4.5 禁止使用的文件名
 ------------------
 以下文件名会与 UE 引擎冲突，禁止使用：
 - GameMode.h (冲突: Engine/.../GameFramework/GameMode.h)
@@ -266,7 +309,7 @@ class MULTIAGENT_API AMAAgent : public ACharacter
 - Pawn.h (冲突)
 - Agent.h (可能冲突，建议用 MAAgent.h)
 
-4.5 新增类的命名模板
+4.6 新增类的命名模板
 ------------------
 ```cpp
 // MANewClass.h
