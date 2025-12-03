@@ -1,4 +1,3 @@
-"""
 UnrealZoo 代码风格规范
 
 0. 架构设计
@@ -173,4 +172,126 @@ rendering:
 ```
 
 Agent 配置文件: config/agent_config/{agent_config}
-"""
+
+
+4. Unreal Engine C++ 命名规范
+============================
+
+4.1 UE 类名前缀规则 (强制)
+-------------------------
+UE 的 UHT (Unreal Header Tool) 强制要求特定前缀，否则编译报错：
+
+- A 前缀: 继承自 AActor 的类 (AMAAgent, AMAGameMode)
+- U 前缀: 继承自 UObject 的类 (UMyComponent)
+- F 前缀: 普通结构体 (FVector, FTransform)
+- E 前缀: 枚举类型 (EAgentType)
+- I 前缀: 接口类 (IMyInterface)
+- T 前缀: 模板类 (TArray, TMap)
+
+4.2 本项目命名约定
+-----------------
+核心原则: 文件名与类名保持一致，统一使用 MA 前缀
+
+为什么用 MA 前缀:
+1. 避免与 UE 引擎头文件冲突 (GameMode.h, Character.h 等已被 UE 占用)
+2. MA = MultiAgent，表明是本项目的类
+3. 文件名和类名一致，便于查找和维护
+
+文件结构:
+```
+unreal_project/Source/MultiAgent/
+├── MAAgent.h/cpp           # AMAAgent - Agent 基类
+├── MAHumanAgent.h/cpp      # AMAHumanAgent - 人类 Agent
+├── MARobotDogAgent.h/cpp   # AMARobotDogAgent - 机器狗 Agent
+├── MACharacter.h/cpp       # AMACharacter - 带摄像机的角色
+├── MAGameMode.h/cpp        # AMAGameMode - 游戏模式
+├── MAPlayerController.h/cpp # AMAPlayerController - 玩家控制器
+├── MultiAgent.h/cpp        # 模块定义
+└── MultiAgent.Build.cs     # 构建配置
+```
+
+类继承关系:
+```
+ACharacter (UE)
+    └── AMAAgent (Agent 基类)
+            ├── AMAHumanAgent (人类)
+            └── AMARobotDogAgent (机器狗)
+    └── AMACharacter (带摄像机的角色)
+
+AGameModeBase (UE)
+    └── AMAGameMode
+
+APlayerController (UE)
+    └── AMAPlayerController
+```
+
+当前 Agent 类一览表:
+
+| 类名                | 文件名                  | 简介                                      |
+|--------------------|------------------------|------------------------------------------|
+| AMAAgent           | MAAgent.h/cpp          | Agent 基类，提供移动、ID、类型等基础功能      |
+| AMAHumanAgent      | MAHumanAgent.h/cpp     | 人类 Agent，使用 Manny 模型和动画蓝图       |
+| AMARobotDogAgent   | MARobotDogAgent.h/cpp  | 机器狗 Agent，带行走/待机动画切换           |
+| AMACharacter       | MACharacter.h/cpp      | 带俯视摄像机的角色，用于玩家控制             |
+| AMAGameMode        | MAGameMode.h/cpp       | 游戏模式，负责 spawn 和管理所有 Agent       |
+| AMAPlayerController| MAPlayerController.h/cpp| 玩家控制器，处理鼠标点击移动逻辑            |
+| EAgentType         | MAAgent.h              | Agent 类型枚举 (Human, RobotDog, Drone)   |
+
+4.3 generated.h 规则
+-------------------
+UHT 生成的头文件名必须与源文件名一致：
+
+```cpp
+// MAAgent.h
+#pragma once
+#include "CoreMinimal.h"
+#include "GameFramework/Character.h"
+#include "MAAgent.generated.h"  // 必须与文件名一致
+
+UCLASS()
+class MULTIAGENT_API AMAAgent : public ACharacter
+{
+    GENERATED_BODY()
+    // ...
+};
+```
+
+4.4 禁止使用的文件名
+------------------
+以下文件名会与 UE 引擎冲突，禁止使用：
+- GameMode.h (冲突: Engine/.../GameFramework/GameMode.h)
+- PlayerController.h (冲突)
+- Character.h (冲突)
+- Actor.h (冲突)
+- Pawn.h (冲突)
+- Agent.h (可能冲突，建议用 MAAgent.h)
+
+4.5 新增类的命名模板
+------------------
+```cpp
+// MANewClass.h
+#pragma once
+
+#include "CoreMinimal.h"
+#include "MAAgent.h"  // 或其他父类
+#include "MANewClass.generated.h"
+
+UCLASS()
+class MULTIAGENT_API AMANewClass : public AMAAgent
+{
+    GENERATED_BODY()
+
+public:
+    AMANewClass();
+};
+```
+
+```cpp
+// MANewClass.cpp
+#include "MANewClass.h"
+
+AMANewClass::AMANewClass()
+{
+    // 构造函数
+}
+```

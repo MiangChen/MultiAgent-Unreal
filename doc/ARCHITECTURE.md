@@ -1,201 +1,147 @@
-# UnrealZoo-Gym 架构分析
+# MultiAgent-Unreal 架构设计
 
-## 整体架构图
+## 1. 系统概述
 
-```
-┌─────────────────────────────────────────────────────────────────────────────────────┐
-│                              用户代码 (tracking_demo.py)                              │
-├─────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                      │
-│   1. gym.make("UnrealTrack-Grass_Hills-ContinuousColor-v0")                         │
-│                              │                                                       │
-│                              ▼                                                       │
-│   ┌──────────────────────────────────────────────────────────────────────────────┐  │
-│   │                     Gym 环境注册系统 (__init__.py)                            │  │
-│   │  ┌────────────────────────────────────────────────────────────────────────┐  │  │
-│   │  │  register(                                                             │  │  │
-│   │  │      id='UnrealTrack-Grass_Hills-ContinuousColor-v0',                  │  │  │
-│   │  │      entry_point='gym_unrealcv.envs:Track',  ← 指向 Track 类           │  │  │
-│   │  │      kwargs={                                                          │  │  │
-│   │  │          'env_file': 'Track/Grass_Hills.json',  ← JSON 配置路径        │  │  │
-│   │  │          'action_type': 'Continuous',                                  │  │  │
-│   │  │          'observation_type': 'Color'                                   │  │  │
-│   │  │      }                                                                 │  │  │
-│   │  │  )                                                                     │  │  │
-│   │  └────────────────────────────────────────────────────────────────────────┘  │  │
-│   └──────────────────────────────────────────────────────────────────────────────┘  │
-│                              │                                                       │
-│                              ▼                                                       │
-└─────────────────────────────────────────────────────────────────────────────────────┘
+MultiAgent-Unreal 是一个基于 Unreal Engine 5 的多智能体仿真框架，用于机器人、无人机、角色等异构智能体的协同仿真。
 
-┌─────────────────────────────────────────────────────────────────────────────────────┐
-│                              环境类层次结构                                          │
-├─────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                      │
-│   ┌─────────────────────────────────────────────────────────────────────────────┐   │
-│   │                         Track (track.py)                                     │   │
-│   │  ├── 继承自 UnrealCv_base                                                    │   │
-│   │  ├── 定义追踪任务的奖励函数                                                   │   │
-│   │  ├── tracker_id, target_id 角色分配                                          │   │
-│   │  └── track_metrics() 计算追踪指标                                            │   │
-│   └─────────────────────────────────────────────────────────────────────────────┘   │
-│                              │ 继承                                                  │
-│                              ▼                                                       │
-│   ┌─────────────────────────────────────────────────────────────────────────────┐   │
-│   │                      UnrealCv_base (base_env.py)                             │   │
-│   │  ├── 读取 JSON 配置文件                                                       │   │
-│   │  ├── 启动 UE Binary                                                          │   │
-│   │  ├── 连接 UnrealCV Server                                                    │   │
-│   │  ├── 定义 action_space / observation_space                                   │   │
-│   │  ├── step() / reset() / render() 核心方法                                    │   │
-│   │  └── 智能体管理 (add_agent / remove_agent)                                   │   │
-│   └─────────────────────────────────────────────────────────────────────────────┘   │
-│                              │ 使用                                                  │
-│                              ▼                                                       │
-│   ┌─────────────────────────────────────────────────────────────────────────────┐   │
-│   │                      Character_API (character.py)                            │   │
-│   │  ├── 继承自 UnrealCv_API                                                     │   │
-│   │  ├── 角色控制命令 (移动/旋转/动画)                                            │   │
-│   │  ├── generate_nav_goal() 导航目标生成                                        │   │
-│   │  └── 批量命令执行                                                            │   │
-│   └─────────────────────────────────────────────────────────────────────────────┘   │
-│                                                                                      │
-└─────────────────────────────────────────────────────────────────────────────────────┘
+## 2. Manager 子系统设计
 
-┌─────────────────────────────────────────────────────────────────────────────────────┐
-│                              JSON 配置文件读取流程                                    │
-├─────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                      │
-│   gym.make("UnrealTrack-Grass_Hills-ContinuousColor-v0")                            │
-│                              │                                                       │
-│                              ▼                                                       │
-│   ┌─────────────────────────────────────────────────────────────────────────────┐   │
-│   │  Track.__init__(env_file='Track/Grass_Hills.json', ...)                      │   │
-│   │                              │                                               │   │
-│   │                              ▼                                               │   │
-│   │  UnrealCv_base.__init__(setting_file='Track/Grass_Hills.json')               │   │
-│   │                              │                                               │   │
-│   │                              ▼                                               │   │
-│   │  misc.load_env_setting('Track/Grass_Hills.json')                             │   │
-│   │                              │                                               │   │
-│   │                              ▼                                               │   │
-│   │  get_settingpath() → gym_unrealcv/envs/setting/Track/Grass_Hills.json        │   │
-│   │                              │                                               │   │
-│   │                              ▼                                               │   │
-│   │  json.load(f) → setting dict                                                 │   │
-│   └─────────────────────────────────────────────────────────────────────────────┘   │
-│                                                                                      │
-│   ┌─────────────────────────────────────────────────────────────────────────────┐   │
-│   │  setting dict 内容:                                                          │   │
-│   │  {                                                                           │   │
-│   │      "env_name": "Grass_Hills",                                              │   │
-│   │      "env_bin": "UnrealZoo.../UnrealZoo_UE5_5",  → 启动 UE Binary            │   │
-│   │      "env_map": "Grass_Hills",                   → 加载的地图                │   │
-│   │      "agents": {                                                             │   │
-│   │          "player": {                                                         │   │
-│   │              "name": ["BP_Character_C_1"],       → 场景中的实例              │   │
-│   │              "cam_id": [2],                      → 绑定的相机                │   │
-│   │              "move_action_continuous": {...}    → 动作空间定义              │   │
-│   │          },                                                                  │   │
-│   │          "animal": {...},                                                    │   │
-│   │          "drone": {...}                                                      │   │
-│   │      },                                                                       │   │
-│   │      "safe_start": [[x,y,z], ...],              → 出生点列表                │   │
-│   │      "reset_area": [x_min, x_max, ...]          → 重置区域                  │   │
-│   │  }                                                                           │   │
-│   └─────────────────────────────────────────────────────────────────────────────┘   │
-│                                                                                      │
-└─────────────────────────────────────────────────────────────────────────────────────┘
+| Manager | 中文名 | 功能介绍 | UE/C++ 实现方案 | 优先级 |
+|---------|-------|---------|----------------|-------|
+| **AgentManager** | 司命 | 智能体生命周期管理：spawn、destroy、查询、按类型分组 | 扩展 `AMAGameMode`，已有基础实现 | ⭐⭐⭐ P0 |
+| **RelationManager** | 司缘 | 智能体关系管理：追踪、跟随、视野、碰撞等关系图 | 自定义 `UMARelationSubsystem` + 图数据结构 | ⭐⭐⭐ P0 |
+| **MapManager** | 司图 | 地图感知：区域划分、兴趣点、导航网格查询 | `UNavigationSystemV1` + 自定义感知层 | ⭐⭐ P1 |
+| **ConfigManager** | 司书 | 配置管理：Agent 配置、场景配置、运行时参数 | `UDataTable` + `UDataAsset` + `UDeveloperSettings` | ⭐⭐ P1 |
+| **CommunityManager** | 司通 | 智能体通信：消息传递、广播、组播 | `UGameplayMessageSubsystem` + Delegates | ⭐ P2 |
+| **ResourceManager** | 司廪 | 资源管理：能量、弹药、负载等属性 | `UGameplayAbilitySystem (GAS)` AttributeSet | ⭐ P2 |
+| **DisplayManager** | 司显 | 状态显示：HUD、调试可视化、状态面板 | `UMG` + `AHUD` + Debug Draw | ⭐ P2 |
+| **AssetManager** | 司庾 | 资产加载：模型、动画、材质的异步加载 | 直接使用 `UAssetManager`，**无需开发** | ❌ 不需要 |
 
-┌─────────────────────────────────────────────────────────────────────────────────────┐
-│                              Wrapper 包装层                                          │
-├─────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                      │
-│   env = gym.make(...)                          ← 原始环境                           │
-│         │                                                                            │
-│         ▼                                                                            │
-│   env = ConfigUEWrapper(env, ...)              ← 配置 UE 参数 (分辨率/离屏)          │
-│         │                                                                            │
-│         ▼                                                                            │
-│   env = TimeDilationWrapper(env, 10)           ← 时间膨胀 (控制仿真速度)             │
-│         │                                                                            │
-│         ▼                                                                            │
-│   env = RandomPopulationWrapper(env, 8, 10)    ← 随机智能体数量 (8-10个)             │
-│         │                                                                            │
-│         ▼                                                                            │
-│   env = NavAgents(env, mask_agent=True)        ← 自动导航控制 (目标智能体)           │
-│                                                                                      │
-└─────────────────────────────────────────────────────────────────────────────────────┘
+## 3. 优先级说明
 
-┌─────────────────────────────────────────────────────────────────────────────────────┐
-│                              运行时交互流程                                          │
-├─────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                      │
-│   ┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐       │
-│   │  Python     │     │  UnrealCV   │     │  UnrealCV   │     │  Unreal     │       │
-│   │  Client     │────▶│  Client     │────▶│  Server     │────▶│  Engine     │       │
-│   │  (Gym Env)  │◀────│  (unrealcv) │◀────│  (Plugin)   │◀────│  (Binary)   │       │
-│   └─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘       │
-│         │                   │                   │                   │               │
-│         │                   │                   │                   │               │
-│   ┌─────▼─────────────────────────────────────────────────────────────────────┐     │
-│   │                          交互流程                                          │     │
-│   │                                                                            │     │
-│   │  1. env.reset()                                                            │     │
-│   │     ├── 启动 UE Binary (首次)                                              │     │
-│   │     ├── 连接 UnrealCV Server                                               │     │
-│   │     ├── 设置智能体初始位置 (从 safe_start 采样)                            │     │
-│   │     └── 返回初始观测 (图像/深度/位姿)                                      │     │
-│   │                                                                            │     │
-│   │  2. env.step(actions)                                                      │     │
-│   │     ├── 发送动作命令 (vset /action/move ...)                               │     │
-│   │     ├── UE 执行物理仿真                                                    │     │
-│   │     ├── 获取新状态 (vget /camera/image, /object/location)                  │     │
-│   │     ├── 计算奖励                                                           │     │
-│   │     └── 返回 (obs, reward, done, info)                                     │     │
-│   │                                                                            │     │
-│   │  3. env.close()                                                            │     │
-│   │     ├── 断开 UnrealCV 连接                                                 │     │
-│   │     └── 关闭 UE 进程                                                       │     │
-│   └────────────────────────────────────────────────────────────────────────────┘     │
-│                                                                                      │
-└─────────────────────────────────────────────────────────────────────────────────────┘
-```
+- **P0 (必须)**: 核心功能，系统运行的基础
+- **P1 (重要)**: 提升系统能力，建议尽早开发
+- **P2 (可选)**: 增强功能，按需开发
+- **不需要**: UE 自带功能完全满足需求
 
-## 环境 ID 命名规则
+## 4. 当前已实现的类
+
+| 类名 | 文件名 | 简介 |
+|-----|-------|-----|
+| AMAAgent | MAAgent.h/cpp | Agent 基类，提供移动、ID、类型等基础功能 |
+| AMAHumanAgent | MAHumanAgent.h/cpp | 人类 Agent，使用 Manny 模型和动画蓝图 |
+| AMARobotDogAgent | MARobotDogAgent.h/cpp | 机器狗 Agent，带行走/待机动画切换 |
+| AMACharacter | MACharacter.h/cpp | 带俯视摄像机的角色，用于玩家控制 |
+| AMAGameMode | MAGameMode.h/cpp | 游戏模式，负责 spawn 和管理所有 Agent |
+| AMAPlayerController | MAPlayerController.h/cpp | 玩家控制器，处理鼠标点击移动逻辑 |
+| EAgentType | MAAgent.h | Agent 类型枚举 (Human, RobotDog, Drone) |
+
+## 5. 类继承关系
 
 ```
-Unreal{Task}-{MapName}-{ActionType}{ObservationType}-v{Version}
+ACharacter (UE)
+    └── AMAAgent (Agent 基类)
+            ├── AMAHumanAgent (人类)
+            └── AMARobotDogAgent (机器狗)
+    └── AMACharacter (带摄像机的角色)
 
-示例: UnrealTrack-Grass_Hills-ContinuousColor-v0
+AGameModeBase (UE)
+    └── AMAGameMode (AgentManager 的载体)
 
-├── Task: Track, Navigation, Rescue, Rendezvous, NavigationMulti
-├── MapName: Grass_Hills, DowntownWest, Old_Town, ...
-├── ActionType: Discrete, Continuous, Mixed
-├── ObservationType: Color, Depth, Rgbd, Gray, Mask, Pose, ...
-└── Version: 0-6 (不同的重置类型)
+APlayerController (UE)
+    └── AMAPlayerController
 ```
 
-## 关键类职责
+## 6. 建议的开发路线
 
-| 类 | 文件 | 职责 |
-|---|---|---|
-| `Track` | track.py | 追踪任务逻辑、奖励计算 |
-| `UnrealCv_base` | base_env.py | 基础环境、UE 连接、智能体管理 |
-| `Character_API` | character.py | 角色控制 API |
-| `misc` | utils/misc.py | JSON 加载、工具函数 |
-| `ConfigUEWrapper` | wrappers/configUE.py | UE 配置包装器 |
-| `RandomPopulationWrapper` | wrappers/augmentation.py | 动态智能体数量 |
-| `NavAgents` | wrappers/agents.py | 自动导航控制 |
+### Phase 1: 核心框架 (P0)
+1. 完善 `AMAGameMode` 作为 AgentManager
+   - Agent 注册/注销
+   - 按类型/ID 查询
+   - 批量操作接口
 
-## 数据流
+2. 实现 `UMARelationSubsystem` 作为 RelationManager
+   - 关系类型枚举 (Tracking, Following, Near, Visible)
+   - 关系图数据结构
+   - 关系查询 API
+
+### Phase 2: 扩展功能 (P1)
+3. MapManager - 地图感知层
+4. ConfigManager - 运行时配置
+
+### Phase 3: 增强功能 (P2)
+5. CommunityManager - 智能体通信
+6. ResourceManager - 资源属性
+7. DisplayManager - 调试可视化
+
+## 7. 文件结构规划
 
 ```
-JSON Config ──▶ base_env ──▶ Track ──▶ Wrappers ──▶ User Code
-     │              │           │          │            │
-     │              │           │          │            │
-     ▼              ▼           ▼          ▼            ▼
-  智能体配置    UE连接/控制   任务奖励   环境增强    训练/测试
-  出生点        动作执行     done条件   智能体数量   RL算法
-  地图信息      观测获取     指标计算   导航控制
+unreal_project/Source/MultiAgent/
+├── AgentManager/                    # AgentManager 模块 (司命)
+│   ├── MAAgentManager.h/cpp         # AgentManager 核心类
+│   ├── MAAgent.h/cpp                # Agent 基类
+│   ├── MAHumanAgent.h/cpp           # 人类 Agent
+│   ├── MARobotDogAgent.h/cpp        # 机器狗 Agent
+│   └── MACharacter.h/cpp            # 带摄像机的角色
+├── Core/                            # 核心框架
+│   ├── MAGameMode.h/cpp             # 游戏模式 (持有 AgentManager)
+│   └── MAPlayerController.h/cpp     # 玩家控制器
+├── RelationManager/                 # RelationManager 模块 (司缘) - 待开发
+├── MapManager/                      # MapManager 模块 (司图) - 待开发
+└── MultiAgent.h/cpp                 # 模块定义
+```
+
+## 8. AgentManager 详细设计
+
+### 8.1 设计思路
+
+AgentManager 负责所有智能体的生命周期管理。
+
+**方案 A: 独立的 UMAAgentManager 类** (最终选定方案)
+- 作为 `UWorldSubsystem` 或 `UGameInstanceSubsystem`
+- GameMode 持有并初始化它
+- 优点：职责单一，可复用
+- 缺点：多一层间接调用
+
+
+
+### 8.2 AgentManager 功能列表
+
+| 功能 | 方法 | 说明 | 状态 |
+|-----|------|-----|------|
+| **生成 Agent** | `SpawnAgent()` | 根据类型和位置生成 Agent | ✅ 已实现 |
+| **销毁 Agent** | `DestroyAgent()` | 销毁指定 Agent | ❌ 待实现 |
+| **获取所有 Agent** | `GetAllAgents()` | 返回所有 Agent 列表 | ✅ 已实现 |
+| **按类型查询** | `GetAgentsByType()` | 按 EAgentType 筛选 | ✅ 已实现 |
+| **按 ID 查询** | `GetAgentByID()` | 根据 AgentID 查找 | ❌ 待实现 |
+| **按名称查询** | `GetAgentByName()` | 根据 AgentName 查找 | ❌ 待实现 |
+| **获取 Agent 数量** | `GetAgentCount()` | 返回当前 Agent 总数 | ❌ 待实现 |
+| **批量移动** | `MoveAllAgentsTo()` | 所有 Agent 移动到目标点 | ✅ 已实现 (在 PlayerController) |
+| **批量停止** | `StopAllAgents()` | 停止所有 Agent 移动 | ❌ 待实现 |
+| **注册回调** | `OnAgentSpawned` | Agent 生成时的委托 | ❌ 待实现 |
+| **注册回调** | `OnAgentDestroyed` | Agent 销毁时的委托 | ❌ 待实现 |
+
+### 8.3 Agent 类层次
+
+| 类 | 父类 | 用途 | 文件位置 |
+|---|------|-----|---------|
+| `AMAAgent` | ACharacter | Agent 基类，定义通用接口 | AgentManager/MAAgent.h |
+| `AMAHumanAgent` | AMAAgent | 人形角色，使用骨骼动画 | AgentManager/MAHumanAgent.h |
+| `AMARobotDogAgent` | AMAAgent | 四足机器人，自定义动画切换 | AgentManager/MARobotDogAgent.h |
+| `AMADroneAgent` | AMAAgent | 无人机 (待实现) | AgentManager/MADroneAgent.h |
+| `AMACharacter` | ACharacter | 玩家控制的角色，带摄像机 | AgentManager/MACharacter.h |
+
+### 8.4 EAgentType 枚举
+
+```cpp
+UENUM(BlueprintType)
+enum class EAgentType : uint8
+{
+    Human,      // 人类
+    RobotDog,   // 机器狗
+    Drone,      // 无人机
+    Vehicle,    // 车辆 (待扩展)
+    Animal      // 动物 (待扩展)
+};
 ```
