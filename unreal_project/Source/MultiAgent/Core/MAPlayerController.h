@@ -27,4 +27,14 @@ protected:
 
     // 获取鼠标点击位置
     bool GetMouseHitLocation(FVector& OutLocation);
+
+    // ===== 测试按键 =====
+    // T - 生成一个机器狗
+    void OnSpawnRobotDog();
+    
+    // Y - 打印当前 Agent 信息
+    void OnPrintAgentInfo();
+    
+    // U - 销毁最后一个 Agent
+    void OnDestroyLastAgent();
 };

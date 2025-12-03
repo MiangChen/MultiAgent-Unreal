@@ -2,6 +2,7 @@
 #include "MAGameMode.h"
 #include "../AgentManager/MAAgentSubsystem.h"
 #include "../AgentManager/MAAgent.h"
+#include "../AgentManager/MARobotDogAgent.h"
 #include "Blueprint/AIBlueprintHelperLibrary.h"
 #include "AIController.h"
 
@@ -37,6 +38,25 @@ void AMAPlayerController::PlayerTick(float DeltaTime)
     {
         OnRightClick();
     }
+    
+    // ===== 测试按键 =====
+    // T - 生成机器狗
+    if (WasInputKeyJustPressed(EKeys::T))
+    {
+        OnSpawnRobotDog();
+    }
+    
+    // Y - 打印 Agent 信息
+    if (WasInputKeyJustPressed(EKeys::Y))
+    {
+        OnPrintAgentInfo();
+    }
+    
+    // U - 销毁最后一个 Agent
+    if (WasInputKeyJustPressed(EKeys::U))
+    {
+        OnDestroyLastAgent();
+    }
 }
 
 void AMAPlayerController::OnLeftClick()
@@ -59,42 +79,10 @@ void AMAPlayerController::OnRightClick()
 
 void AMAPlayerController::MoveAllAgentsToLocation(FVector Destination)
 {
-    // 使用 AgentSubsystem 移动所有 Agent
+    // 所有 Agent 统一由 AgentSubsystem 管理
     if (UMAAgentSubsystem* AgentSubsystem = GetWorld()->GetSubsystem<UMAAgentSubsystem>())
     {
         AgentSubsystem->MoveAllAgentsTo(Destination, 150.f);
-    }
-    
-    // 同时移动蓝图人类 Agent
-    AMAGameMode* GameMode = Cast<AMAGameMode>(GetWorld()->GetAuthGameMode());
-    if (GameMode)
-    {
-        TArray<APawn*> AllPawns = GameMode->GetAllPawns();
-        int32 Count = AllPawns.Num();
-        
-        for (int32 i = 0; i < Count; i++)
-        {
-            APawn* Pawn = AllPawns[i];
-            if (!Pawn) continue;
-            
-            // 跳过已经由 AgentSubsystem 管理的 Agent
-            if (Cast<AMAAgent>(Pawn)) continue;
-            
-            float Angle = (360.f / Count) * i;
-            float Radius = 150.f;
-            
-            FVector TargetLocation = Destination + FVector(
-                FMath::Cos(FMath::DegreesToRadians(Angle)) * Radius,
-                FMath::Sin(FMath::DegreesToRadians(Angle)) * Radius,
-                0.f
-            );
-            
-            AAIController* AIController = Cast<AAIController>(Pawn->GetController());
-            if (AIController)
-            {
-                AIController->MoveToLocation(TargetLocation);
-            }
-        }
     }
 }
 
@@ -107,4 +95,75 @@ bool AMAPlayerController::GetMouseHitLocation(FVector& OutLocation)
         return true;
     }
     return false;
+}
+
+// ===== 测试按键实现 =====
+
+void AMAPlayerController::OnSpawnRobotDog()
+{
+    UMAAgentSubsystem* AgentSubsystem = GetWorld()->GetSubsystem<UMAAgentSubsystem>();
+    if (!AgentSubsystem) return;
+    
+    // 在玩家前方生成
+    FVector SpawnLocation = GetPawn()->GetActorLocation() + GetPawn()->GetActorForwardVector() * 300.f;
+    
+    AMAAgent* NewAgent = AgentSubsystem->SpawnAgent(
+        AMARobotDogAgent::StaticClass(),
+        SpawnLocation,
+        FRotator::ZeroRotator,
+        -1,  // 自动分配 ID
+        EAgentType::RobotDog
+    );
+    
+    if (NewAgent)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green, 
+            FString::Printf(TEXT("Spawned: %s at %s"), *NewAgent->AgentName, *SpawnLocation.ToString()));
+    }
+}
+
+void AMAPlayerController::OnPrintAgentInfo()
+{
+    UMAAgentSubsystem* AgentSubsystem = GetWorld()->GetSubsystem<UMAAgentSubsystem>();
+    if (!AgentSubsystem) return;
+    
+    int32 Total = AgentSubsystem->GetAgentCount();
+    int32 Dogs = AgentSubsystem->GetAgentsByType(EAgentType::RobotDog).Num();
+    int32 Humans = AgentSubsystem->GetAgentsByType(EAgentType::Human).Num();
+    
+    GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Cyan, 
+        FString::Printf(TEXT("=== Agent Info ===\nTotal: %d\nRobotDogs: %d\nHumans: %d"), Total, Dogs, Humans));
+    
+    // 打印每个 Agent 的详细信息
+    for (AMAAgent* Agent : AgentSubsystem->GetAllAgents())
+    {
+        if (Agent)
+        {
+            GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, 
+                FString::Printf(TEXT("  [%d] %s at %s"), Agent->AgentID, *Agent->AgentName, *Agent->GetActorLocation().ToString()));
+        }
+    }
+}
+
+void AMAPlayerController::OnDestroyLastAgent()
+{
+    UMAAgentSubsystem* AgentSubsystem = GetWorld()->GetSubsystem<UMAAgentSubsystem>();
+    if (!AgentSubsystem) return;
+    
+    TArray<AMAAgent*> AllAgents = AgentSubsystem->GetAllAgents();
+    if (AllAgents.Num() > 0)
+    {
+        AMAAgent* LastAgent = AllAgents.Last();
+        FString Name = LastAgent->AgentName;
+        
+        if (AgentSubsystem->DestroyAgent(LastAgent))
+        {
+            GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, 
+                FString::Printf(TEXT("Destroyed: %s"), *Name));
+        }
+    }
+    else
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Orange, TEXT("No agents to destroy!"));
+    }
 }

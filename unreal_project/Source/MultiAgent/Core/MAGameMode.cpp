@@ -1,6 +1,7 @@
 #include "MAGameMode.h"
 #include "MAPlayerController.h"
 #include "../AgentManager/MAAgentSubsystem.h"
+#include "../AgentManager/MAHumanAgent.h"
 #include "../AgentManager/MARobotDogAgent.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Kismet/GameplayStatics.h"
@@ -15,17 +16,10 @@ AMAGameMode::AMAGameMode()
         DefaultPawnClass = PlayerPawnBPClass.Class;
     }
     
-    // 人类 Agent 使用无摄像机的蓝图
-    static ConstructorHelpers::FClassFinder<APawn> HumanAgentBP(
-        TEXT("/Game/Characters/BP_HumanAgent"));
-    if (HumanAgentBP.Succeeded())
-    {
-        HumanAgentBPClass = HumanAgentBP.Class;
-    }
-    
     PlayerControllerClass = AMAPlayerController::StaticClass();
     
-    // 机器狗使用 C++ 类
+    // Agent 类型使用 C++ 类
+    HumanAgentClass = AMAHumanAgent::StaticClass();
     RobotDogAgentClass = AMARobotDogAgent::StaticClass();
 }
 
@@ -65,7 +59,7 @@ void AMAGameMode::SpawnInitialAgents()
     int32 TotalAgents = NumHumans + NumRobotDogs;
     int32 AgentIndex = 0;
     
-    // 生成人类 Agent（使用蓝图）
+    // 生成人类 Agent（通过 AgentSubsystem）
     for (int32 i = 0; i < NumHumans; i++)
     {
         float Angle = (360.f / TotalAgents) * AgentIndex;
@@ -77,7 +71,7 @@ void AMAGameMode::SpawnInitialAgents()
             0.f
         );
         
-        SpawnHumanAgent(SpawnLocation, FRotator::ZeroRotator, AgentIndex);
+        AgentSubsystem->SpawnAgent(HumanAgentClass, SpawnLocation, FRotator::ZeroRotator, AgentIndex, EAgentType::Human);
         AgentIndex++;
     }
     
@@ -97,42 +91,5 @@ void AMAGameMode::SpawnInitialAgents()
         AgentIndex++;
     }
     
-    UE_LOG(LogTemp, Log, TEXT("Spawned %d humans and %d robot dogs"), NumHumans, NumRobotDogs);
-}
-
-APawn* AMAGameMode::SpawnHumanAgent(FVector Location, FRotator Rotation, int32 AgentID)
-{
-    if (!HumanAgentBPClass)
-    {
-        return nullptr;
-    }
-
-    FActorSpawnParameters SpawnParams;
-    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-
-    APawn* NewAgent = GetWorld()->SpawnActor<APawn>(HumanAgentBPClass, Location, Rotation, SpawnParams);
-    if (NewAgent)
-    {
-        NewAgent->SpawnDefaultController();
-        SpawnedHumanPawns.Add(NewAgent);
-    }
-
-    return NewAgent;
-}
-
-TArray<APawn*> AMAGameMode::GetAllPawns() const
-{
-    TArray<APawn*> Result;
-    Result.Append(SpawnedHumanPawns);
-    
-    // 从 AgentSubsystem 获取所有 Agent
-    if (UMAAgentSubsystem* AgentSubsystem = GetWorld()->GetSubsystem<UMAAgentSubsystem>())
-    {
-        for (AMAAgent* Agent : AgentSubsystem->GetAllAgents())
-        {
-            Result.Add(Agent);
-        }
-    }
-    
-    return Result;
+    UE_LOG(LogTemp, Log, TEXT("Spawned %d humans and %d robot dogs via AgentSubsystem"), NumHumans, NumRobotDogs);
 }

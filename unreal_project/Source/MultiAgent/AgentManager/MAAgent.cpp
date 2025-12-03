@@ -57,6 +57,7 @@ void AMAAgent::MoveToLocation(FVector Destination)
     TargetLocation = Destination;
     bIsMoving = true;
     
+    // 使用 AIController 的 NavMesh 导航
     if (AAIController* AICtrl = Cast<AAIController>(GetController()))
     {
         AICtrl->MoveToLocation(Destination);

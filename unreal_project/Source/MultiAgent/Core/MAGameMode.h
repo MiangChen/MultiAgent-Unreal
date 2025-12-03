@@ -10,6 +10,7 @@ class UMAAgentSubsystem;
 /**
  * AMAGameMode - 游戏模式
  * 负责初始化各个子系统，协调游戏流程
+ * 所有 Agent 统一通过 UMAAgentSubsystem 管理
  */
 UCLASS()
 class MULTIAGENT_API AMAGameMode : public AGameModeBase
@@ -23,17 +24,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Subsystem")
     UMAAgentSubsystem* GetAgentSubsystem() const;
 
-    // 生成人类 Agent（使用蓝图，不通过 Subsystem）
-    UFUNCTION(BlueprintCallable, Category = "Agent")
-    APawn* SpawnHumanAgent(FVector Location, FRotator Rotation, int32 AgentID);
-
-    // 获取所有 Pawn（包括蓝图人类和 C++ Agent）
-    UFUNCTION(BlueprintCallable, Category = "Agent")
-    TArray<APawn*> GetAllPawns() const;
-
-    // 人类 Agent 蓝图类
+    // 人类 Agent C++ 类
     UPROPERTY(EditDefaultsOnly, Category = "Agent")
-    TSubclassOf<APawn> HumanAgentBPClass;
+    TSubclassOf<AMAAgent> HumanAgentClass;
 
     // 机器狗 Agent C++ 类
     UPROPERTY(EditDefaultsOnly, Category = "Agent")
@@ -50,8 +43,4 @@ public:
 protected:
     virtual void BeginPlay() override;
     void SpawnInitialAgents();
-
-private:
-    UPROPERTY()
-    TArray<APawn*> SpawnedHumanPawns;
 };
