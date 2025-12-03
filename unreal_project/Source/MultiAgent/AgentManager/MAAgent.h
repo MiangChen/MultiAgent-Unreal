@@ -33,6 +33,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Agent")
     FVector GetCurrentLocation() const;
 
+    // 更新动画（为动画蓝图提供加速度输入）
+    void UpdateAnimation();
+
     // Agent ID
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Agent")
     int32 AgentID;

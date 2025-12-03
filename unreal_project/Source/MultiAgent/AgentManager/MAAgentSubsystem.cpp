@@ -4,14 +4,12 @@
 void UMAAgentSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
-    UE_LOG(LogTemp, Log, TEXT("MAAgentSubsystem Initialized"));
 }
 
 void UMAAgentSubsystem::Deinitialize()
 {
     SpawnedAgents.Empty();
     Super::Deinitialize();
-    UE_LOG(LogTemp, Log, TEXT("MAAgentSubsystem Deinitialized"));
 }
 
 AMAAgent* UMAAgentSubsystem::SpawnAgent(TSubclassOf<AMAAgent> AgentClass, FVector Location, FRotator Rotation, int32 AgentID, EAgentType Type)
@@ -44,7 +42,6 @@ AMAAgent* UMAAgentSubsystem::SpawnAgent(TSubclassOf<AMAAgent> AgentClass, FVecto
         SpawnedAgents.Add(NewAgent);
 
         OnAgentSpawned.Broadcast(NewAgent);
-        UE_LOG(LogTemp, Log, TEXT("Spawned Agent: %s"), *NewAgent->AgentName);
     }
 
     return NewAgent;

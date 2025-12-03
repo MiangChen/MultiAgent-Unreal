@@ -13,21 +13,24 @@ AMAAgent::AMAAgent()
     bIsMoving = false;
     TargetLocation = FVector::ZeroVector;
 
-    // 设置胶囊体大小
     GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
 
-    // 不让控制器旋转角色
+    // AIController 配置 - NavMesh 导航必需
+    AIControllerClass = AAIController::StaticClass();
+    AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
+
+    // 角色旋转配置
     bUseControllerRotationPitch = false;
     bUseControllerRotationYaw = false;
     bUseControllerRotationRoll = false;
 
-    // 配置角色移动
+    // 移动组件配置
     GetCharacterMovement()->bOrientRotationToMovement = true;
     GetCharacterMovement()->RotationRate = FRotator(0.0f, 640.0f, 0.0f);
     GetCharacterMovement()->bConstrainToPlane = true;
     GetCharacterMovement()->bSnapToPlaneAtStart = true;
     
-    // 启用 RVO 避障
+    // RVO 避障
     GetCharacterMovement()->bUseRVOAvoidance = true;
     GetCharacterMovement()->AvoidanceConsiderationRadius = 200.f;
 }
@@ -40,6 +43,9 @@ void AMAAgent::BeginPlay()
 void AMAAgent::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
+    
+    // 为动画蓝图提供加速度输入
+    UpdateAnimation();
     
     // 检查是否到达目标
     if (bIsMoving)
@@ -57,10 +63,24 @@ void AMAAgent::MoveToLocation(FVector Destination)
     TargetLocation = Destination;
     bIsMoving = true;
     
-    // 使用 AIController 的 NavMesh 导航
     if (AAIController* AICtrl = Cast<AAIController>(GetController()))
     {
         AICtrl->MoveToLocation(Destination);
+    }
+}
+
+void AMAAgent::UpdateAnimation()
+{
+    // ABP_Manny 需要 Acceleration > 0 才会播放移动动画
+    // AIController::MoveToLocation 直接设置 Velocity，不设置 Acceleration
+    // 因此需要手动添加输入向量来触发动画
+    FVector Velocity = GetCharacterMovement()->Velocity;
+    float Speed = Velocity.Size2D();
+    
+    if (Speed > 3.0f)
+    {
+        FVector AccelDir = Velocity.GetSafeNormal2D();
+        GetCharacterMovement()->AddInputVector(AccelDir);
     }
 }
 

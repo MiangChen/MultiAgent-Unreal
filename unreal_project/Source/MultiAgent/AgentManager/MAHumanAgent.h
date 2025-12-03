@@ -11,4 +11,7 @@ class MULTIAGENT_API AMAHumanAgent : public AMAAgent
 
 public:
     AMAHumanAgent();
+
+protected:
+    virtual void BeginPlay() override;
 };

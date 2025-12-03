@@ -63,7 +63,7 @@ UWorldSubsystem (UE)
 
 ACharacter (UE)
     └── AMAAgent (Agent 基类)
-            ├── AMAHumanAgent (人类，使用 NavMesh 导航)
+            ├── AMAHumanAgent (人类，使用 NavMesh 导航 + ABP_Manny 动画)
             └── AMARobotDogAgent (机器狗)
 
 ASpectatorPawn (UE)
@@ -74,6 +74,40 @@ AGameModeBase (UE)
 
 APlayerController (UE)
     └── AMAPlayerController
+```
+
+## 5.1 动画系统说明
+
+### AMAHumanAgent 动画配置
+
+- **骨骼网格**: `/Game/Characters/Mannequins/Meshes/SKM_Manny`
+- **动画蓝图**: `/Game/Characters/Mannequins/Animations/ABP_Manny`
+
+### ABP_Manny 动画触发条件
+
+ABP_Manny 动画蓝图需要满足以下条件才会播放移动动画：
+1. `GroundSpeed > 3.0` (地面速度)
+2. `GetCurrentAcceleration().Length > 0` (加速度)
+
+### 关键实现：UpdateAnimation()
+
+`AIController::MoveToLocation()` 使用 PathFollowing 导航，直接设置 Velocity 而不设置 Acceleration。
+这会导致 ABP_Manny 的 `ShouldMove` 条件不满足，动画不播放。
+
+解决方案是在 `AMAAgent::Tick()` 中调用 `UpdateAnimation()`，手动添加输入向量：
+
+```cpp
+void AMAAgent::UpdateAnimation()
+{
+    FVector Velocity = GetCharacterMovement()->Velocity;
+    float Speed = Velocity.Size2D();
+    
+    if (Speed > 3.0f)
+    {
+        FVector AccelDir = Velocity.GetSafeNormal2D();
+        GetCharacterMovement()->AddInputVector(AccelDir);
+    }
+}
 ```
 
 ## 6. UMAAgentSubsystem 功能列表
