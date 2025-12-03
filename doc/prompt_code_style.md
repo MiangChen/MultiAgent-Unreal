@@ -377,3 +377,19 @@ make MultiAgentEditor -j$(nproc)
 - `Intermediate/` - 中间编译文件
 - `DerivedDataCache/` - 资产缓存
 - `Saved/` - 日志、配置、自动保存
+
+
+6. 测试按键
+==========
+
+运行游戏后可用以下按键测试 AgentManager 功能：
+
+| 按键 | 功能 |
+|-----|------|
+| **T** | 在玩家前方生成一个机器狗 |
+| **Y** | 打印当前所有 Agent 信息（数量、类型、位置） |
+| **U** | 销毁最后一个 Agent |
+| 左键 | 移动玩家 |
+| 右键 | 移动所有 Agent 到点击位置 |
+
+注意：所有 Agent（包括人类和机器狗）统一由 `UMAAgentSubsystem` 管理，不再使用蓝图 Agent。

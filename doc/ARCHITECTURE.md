@@ -118,7 +118,19 @@ AgentSubsystem->StopAllAgents();
 AgentSubsystem->OnAgentSpawned.AddDynamic(this, &AMyClass::HandleAgentSpawned);
 ```
 
-## 8. 开发路线
+## 8. 测试按键
+
+运行游戏后可用以下按键测试：
+
+| 按键 | 功能 |
+|-----|------|
+| **T** | 在玩家前方生成一个机器狗 |
+| **Y** | 打印当前所有 Agent 信息（数量、类型、位置） |
+| **U** | 销毁最后一个 Agent |
+| 左键 | 移动玩家 |
+| 右键 | 移动所有 Agent 到点击位置 |
+
+## 9. 开发路线
 
 ### Phase 1: 核心框架 (P0) ✅ 已完成
 - [x] UMAAgentSubsystem - Agent 生命周期管理
