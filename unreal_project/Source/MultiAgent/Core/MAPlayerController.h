@@ -1,8 +1,17 @@
+// MAPlayerController.h
+// 玩家控制器 - 使用 Enhanced Input System
+
 #pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "GameplayTagContainer.h"
 #include "MAPlayerController.generated.h"
+
+class UInputMappingContext;
+class UInputAction;
+class UMAInputConfig;
+struct FInputActionValue;
 
 UCLASS()
 class MULTIAGENT_API AMAPlayerController : public APlayerController
@@ -12,48 +21,63 @@ class MULTIAGENT_API AMAPlayerController : public APlayerController
 public:
     AMAPlayerController();
 
+    // 输入映射上下文
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputMappingContext> DefaultMappingContext;
+
+    // 输入配置
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UMAInputConfig> InputConfig;
+
+    // ========== Input Actions ==========
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_LeftClick;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_RightClick;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_Pickup;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_Drop;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_SpawnItem;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_SpawnRobotDog;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_PrintInfo;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_DestroyLast;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_SwitchCamera;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_ReturnSpectator;
+
 protected:
     virtual void BeginPlay() override;
-    virtual void PlayerTick(float DeltaTime) override;
+    virtual void SetupInputComponent() override;
 
-    // 左键点击 - 移动玩家
-    void OnLeftClick();
-    
-    // 右键点击 - 移动所有 Agent
-    void OnRightClick();
-    
-    // 移动所有 Agent 到指定位置
-    void MoveAllAgentsToLocation(FVector Destination);
+    // ========== Input Handlers ==========
+    void OnLeftClick(const FInputActionValue& Value);
+    void OnRightClick(const FInputActionValue& Value);
+    void OnPickup(const FInputActionValue& Value);
+    void OnDrop(const FInputActionValue& Value);
+    void OnSpawnPickupItem(const FInputActionValue& Value);
+    void OnSpawnRobotDog(const FInputActionValue& Value);
+    void OnPrintAgentInfo(const FInputActionValue& Value);
+    void OnDestroyLastAgent(const FInputActionValue& Value);
+    void OnSwitchCamera(const FInputActionValue& Value);
+    void OnReturnToSpectator(const FInputActionValue& Value);
 
     // 获取鼠标点击位置
     bool GetMouseHitLocation(FVector& OutLocation);
-
-    // ===== 测试按键 =====
-    // T - 生成一个机器狗
-    void OnSpawnRobotDog();
-    
-    // Y - 打印当前 Agent 信息
-    void OnPrintAgentInfo();
-    
-    // U - 销毁最后一个 Agent
-    void OnDestroyLastAgent();
-
-    // ===== GAS 测试按键 =====
-    // P - 拾取物品
-    void OnPickup();
-    
-    // O - 放下物品
-    void OnDrop();
-    
-    // I - 生成可拾取方块
-    void OnSpawnPickupItem();
-
-    // ===== 视角切换 =====
-    // Tab - 切换 Camera 视角
-    void OnSwitchCamera();
-    
-    // 0 - 返回上帝视角
-    void OnReturnToSpectator();
 
 private:
     // 当前查看的 Camera 索引（-1 表示上帝视角）

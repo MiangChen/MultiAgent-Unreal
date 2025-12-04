@@ -1,13 +1,15 @@
 // MAPlayerController.cpp
+// 使用 Enhanced Input System
 
 #include "MAPlayerController.h"
-#include "MAGameMode.h"
 #include "MAActorSubsystem.h"
 #include "../Characters/MACharacter.h"
 #include "../Characters/MARobotDogCharacter.h"
 #include "../Actors/MACameraSensor.h"
 #include "../Actors/MAPickupItem.h"
-#include "AIController.h"
+#include "EnhancedInputComponent.h"
+#include "EnhancedInputSubsystems.h"
+#include "InputActionValue.h"
 
 AMAPlayerController::AMAPlayerController()
 {
@@ -21,80 +23,83 @@ void AMAPlayerController::BeginPlay()
 {
     Super::BeginPlay();
     
+    // 设置输入模式
     FInputModeGameAndUI InputMode;
     InputMode.SetHideCursorDuringCapture(false);
     SetInputMode(InputMode);
+
+    // 添加输入映射上下文
+    if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
+    {
+        if (DefaultMappingContext)
+        {
+            Subsystem->AddMappingContext(DefaultMappingContext, 0);
+        }
+    }
 }
 
-void AMAPlayerController::PlayerTick(float DeltaTime)
+void AMAPlayerController::SetupInputComponent()
 {
-    Super::PlayerTick(DeltaTime);
-    
-    // 左键点击 - 移动玩家
-    if (WasInputKeyJustPressed(EKeys::LeftMouseButton))
-    {
-        OnLeftClick();
-    }
-    
-    // 右键点击 - 移动所有 Character
-    if (WasInputKeyJustPressed(EKeys::RightMouseButton))
-    {
-        OnRightClick();
-    }
-    
-    // ===== 测试按键 =====
-    // T - 生成机器狗
-    if (WasInputKeyJustPressed(EKeys::T))
-    {
-        OnSpawnRobotDog();
-    }
-    
-    // Y - 打印 Character 信息
-    if (WasInputKeyJustPressed(EKeys::Y))
-    {
-        OnPrintAgentInfo();
-    }
-    
-    // U - 销毁最后一个 Character
-    if (WasInputKeyJustPressed(EKeys::U))
-    {
-        OnDestroyLastAgent();
-    }
+    Super::SetupInputComponent();
 
-    // ===== GAS 测试按键 =====
-    // P - 拾取物品
-    if (WasInputKeyJustPressed(EKeys::P))
+    // 绑定 Enhanced Input
+    if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(InputComponent))
     {
-        OnPickup();
-    }
-    
-    // O - 放下物品
-    if (WasInputKeyJustPressed(EKeys::O))
-    {
-        OnDrop();
-    }
-    
-    // I - 生成可拾取方块
-    if (WasInputKeyJustPressed(EKeys::I))
-    {
-        OnSpawnPickupItem();
-    }
-    
-    // ===== 视角切换 =====
-    // Tab - 切换到下一个 Camera 视角
-    if (WasInputKeyJustPressed(EKeys::Tab))
-    {
-        OnSwitchCamera();
-    }
-    
-    // 0 - 返回上帝视角
-    if (WasInputKeyJustPressed(EKeys::Zero))
-    {
-        OnReturnToSpectator();
+        // 鼠标点击
+        if (IA_LeftClick)
+        {
+            EnhancedInputComponent->BindAction(IA_LeftClick, ETriggerEvent::Triggered, this, &AMAPlayerController::OnLeftClick);
+        }
+        if (IA_RightClick)
+        {
+            EnhancedInputComponent->BindAction(IA_RightClick, ETriggerEvent::Triggered, this, &AMAPlayerController::OnRightClick);
+        }
+
+        // GAS 技能
+        if (IA_Pickup)
+        {
+            EnhancedInputComponent->BindAction(IA_Pickup, ETriggerEvent::Triggered, this, &AMAPlayerController::OnPickup);
+        }
+        if (IA_Drop)
+        {
+            EnhancedInputComponent->BindAction(IA_Drop, ETriggerEvent::Triggered, this, &AMAPlayerController::OnDrop);
+        }
+
+        // 生成
+        if (IA_SpawnItem)
+        {
+            EnhancedInputComponent->BindAction(IA_SpawnItem, ETriggerEvent::Triggered, this, &AMAPlayerController::OnSpawnPickupItem);
+        }
+        if (IA_SpawnRobotDog)
+        {
+            EnhancedInputComponent->BindAction(IA_SpawnRobotDog, ETriggerEvent::Triggered, this, &AMAPlayerController::OnSpawnRobotDog);
+        }
+
+        // 调试
+        if (IA_PrintInfo)
+        {
+            EnhancedInputComponent->BindAction(IA_PrintInfo, ETriggerEvent::Triggered, this, &AMAPlayerController::OnPrintAgentInfo);
+        }
+        if (IA_DestroyLast)
+        {
+            EnhancedInputComponent->BindAction(IA_DestroyLast, ETriggerEvent::Triggered, this, &AMAPlayerController::OnDestroyLastAgent);
+        }
+
+        // 视角切换
+        if (IA_SwitchCamera)
+        {
+            EnhancedInputComponent->BindAction(IA_SwitchCamera, ETriggerEvent::Triggered, this, &AMAPlayerController::OnSwitchCamera);
+        }
+        if (IA_ReturnSpectator)
+        {
+            EnhancedInputComponent->BindAction(IA_ReturnSpectator, ETriggerEvent::Triggered, this, &AMAPlayerController::OnReturnToSpectator);
+        }
     }
 }
 
-void AMAPlayerController::OnLeftClick()
+// ========== Input Handlers ==========
+
+void AMAPlayerController::OnLeftClick(const FInputActionValue& Value)
 {
     FVector HitLocation;
     if (GetMouseHitLocation(HitLocation))
@@ -114,7 +119,7 @@ void AMAPlayerController::OnLeftClick()
     }
 }
 
-void AMAPlayerController::OnRightClick()
+void AMAPlayerController::OnRightClick(const FInputActionValue& Value)
 {
     FVector HitLocation;
     if (GetMouseHitLocation(HitLocation))
@@ -125,7 +130,6 @@ void AMAPlayerController::OnRightClick()
             TArray<AMACharacter*> RobotDogs = ActorSubsystem->GetCharactersByType(EMAActorType::RobotDog);
             for (AMACharacter* Character : RobotDogs)
             {
-                // 跳过追踪者（名字包含 "Tracker"）
                 if (Character && !Character->ActorName.Contains(TEXT("Tracker")))
                 {
                     Character->TryNavigateTo(HitLocation);
@@ -135,51 +139,97 @@ void AMAPlayerController::OnRightClick()
     }
 }
 
-void AMAPlayerController::MoveAllAgentsToLocation(FVector Destination)
+void AMAPlayerController::OnPickup(const FInputActionValue& Value)
 {
-    if (UMAActorSubsystem* ActorSubsystem = GetWorld()->GetSubsystem<UMAActorSubsystem>())
+    UMAActorSubsystem* ActorSubsystem = GetWorld()->GetSubsystem<UMAActorSubsystem>();
+    if (!ActorSubsystem) return;
+
+    TArray<AMACharacter*> Humans = ActorSubsystem->GetCharactersByType(EMAActorType::Human);
+    for (AMACharacter* Character : Humans)
     {
-        ActorSubsystem->MoveAllCharactersTo(Destination, 150.f);
+        if (Character && !Character->IsHoldingItem())
+        {
+            if (Character->TryPickup())
+            {
+                GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green,
+                    FString::Printf(TEXT("%s trying to pickup..."), *Character->ActorName));
+            }
+            else
+            {
+                GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange,
+                    FString::Printf(TEXT("%s: No item nearby"), *Character->ActorName));
+            }
+        }
     }
 }
 
-bool AMAPlayerController::GetMouseHitLocation(FVector& OutLocation)
+void AMAPlayerController::OnDrop(const FInputActionValue& Value)
 {
-    FHitResult HitResult;
-    if (GetHitResultUnderCursor(ECC_Visibility, false, HitResult))
+    UMAActorSubsystem* ActorSubsystem = GetWorld()->GetSubsystem<UMAActorSubsystem>();
+    if (!ActorSubsystem) return;
+
+    TArray<AMACharacter*> Humans = ActorSubsystem->GetCharactersByType(EMAActorType::Human);
+    for (AMACharacter* Character : Humans)
     {
-        OutLocation = HitResult.Location;
-        return true;
+        if (Character && Character->IsHoldingItem())
+        {
+            Character->TryDrop();
+        }
     }
-    return false;
 }
 
-// ===== 测试按键实现 =====
+void AMAPlayerController::OnSpawnPickupItem(const FInputActionValue& Value)
+{
+    FVector HitLocation;
+    if (GetMouseHitLocation(HitLocation))
+    {
+        HitLocation.Z += 50.f;
+        
+        FActorSpawnParameters SpawnParams;
+        SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+        
+        AMAPickupItem* Item = GetWorld()->SpawnActor<AMAPickupItem>(
+            AMAPickupItem::StaticClass(),
+            HitLocation,
+            FRotator::ZeroRotator,
+            SpawnParams
+        );
+        
+        if (Item)
+        {
+            static int32 ItemCounter = 0;
+            Item->ItemName = FString::Printf(TEXT("Cube_%d"), ItemCounter++);
+            Item->ItemID = ItemCounter;
+            
+            GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan,
+                FString::Printf(TEXT("Spawned: %s"), *Item->ItemName));
+        }
+    }
+}
 
-void AMAPlayerController::OnSpawnRobotDog()
+void AMAPlayerController::OnSpawnRobotDog(const FInputActionValue& Value)
 {
     UMAActorSubsystem* ActorSubsystem = GetWorld()->GetSubsystem<UMAActorSubsystem>();
     if (!ActorSubsystem) return;
     
-    // 在玩家前方生成
     FVector SpawnLocation = GetPawn()->GetActorLocation() + GetPawn()->GetActorForwardVector() * 300.f;
     
     AMACharacter* NewCharacter = ActorSubsystem->SpawnCharacter(
         AMARobotDogCharacter::StaticClass(),
         SpawnLocation,
         FRotator::ZeroRotator,
-        -1,  // 自动分配 ID
+        -1,
         EMAActorType::RobotDog
     );
     
     if (NewCharacter)
     {
         GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green, 
-            FString::Printf(TEXT("Spawned: %s at %s"), *NewCharacter->ActorName, *SpawnLocation.ToString()));
+            FString::Printf(TEXT("Spawned: %s"), *NewCharacter->ActorName));
     }
 }
 
-void AMAPlayerController::OnPrintAgentInfo()
+void AMAPlayerController::OnPrintAgentInfo(const FInputActionValue& Value)
 {
     UMAActorSubsystem* ActorSubsystem = GetWorld()->GetSubsystem<UMAActorSubsystem>();
     if (!ActorSubsystem) return;
@@ -190,22 +240,21 @@ void AMAPlayerController::OnPrintAgentInfo()
     int32 Sensors = ActorSubsystem->GetSensorCount();
     
     GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Cyan, 
-        FString::Printf(TEXT("=== Actor Info ===\nCharacters: %d\nRobotDogs: %d\nHumans: %d\nSensors: %d"), Total, Dogs, Humans, Sensors));
+        FString::Printf(TEXT("=== Actor Info ===\nCharacters: %d | Dogs: %d | Humans: %d | Sensors: %d"), 
+            Total, Dogs, Humans, Sensors));
     
-    // 打印每个 Character 的详细信息
     for (AMACharacter* Character : ActorSubsystem->GetAllCharacters())
     {
         if (Character)
         {
-            FString HoldingInfo = Character->IsHoldingItem() ? TEXT(" [Holding Item]") : TEXT("");
+            FString HoldingInfo = Character->IsHoldingItem() ? TEXT(" [Holding]") : TEXT("");
             GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, 
-                FString::Printf(TEXT("  [%d] %s at %s%s"), 
-                    Character->ActorID, *Character->ActorName, *Character->GetActorLocation().ToString(), *HoldingInfo));
+                FString::Printf(TEXT("  [%d] %s%s"), Character->ActorID, *Character->ActorName, *HoldingInfo));
         }
     }
 }
 
-void AMAPlayerController::OnDestroyLastAgent()
+void AMAPlayerController::OnDestroyLastAgent(const FInputActionValue& Value)
 {
     UMAActorSubsystem* ActorSubsystem = GetWorld()->GetSubsystem<UMAActorSubsystem>();
     if (!ActorSubsystem) return;
@@ -228,87 +277,11 @@ void AMAPlayerController::OnDestroyLastAgent()
     }
 }
 
-// ===== GAS 测试按键实现 =====
-
-void AMAPlayerController::OnPickup()
-{
-    UMAActorSubsystem* ActorSubsystem = GetWorld()->GetSubsystem<UMAActorSubsystem>();
-    if (!ActorSubsystem) return;
-
-    // 让所有 Human Character 尝试拾取
-    TArray<AMACharacter*> Humans = ActorSubsystem->GetCharactersByType(EMAActorType::Human);
-    for (AMACharacter* Character : Humans)
-    {
-        if (Character && !Character->IsHoldingItem())
-        {
-            if (Character->TryPickup())
-            {
-                GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green,
-                    FString::Printf(TEXT("%s trying to pickup..."), *Character->ActorName));
-            }
-            else
-            {
-                GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange,
-                    FString::Printf(TEXT("%s: No item nearby to pickup"), *Character->ActorName));
-            }
-        }
-    }
-}
-
-void AMAPlayerController::OnDrop()
-{
-    UMAActorSubsystem* ActorSubsystem = GetWorld()->GetSubsystem<UMAActorSubsystem>();
-    if (!ActorSubsystem) return;
-
-    // 让所有持有物品的 Human Character 放下物品
-    TArray<AMACharacter*> Humans = ActorSubsystem->GetCharactersByType(EMAActorType::Human);
-    for (AMACharacter* Character : Humans)
-    {
-        if (Character && Character->IsHoldingItem())
-        {
-            Character->TryDrop();
-        }
-    }
-}
-
-void AMAPlayerController::OnSpawnPickupItem()
-{
-    FVector HitLocation;
-    if (GetMouseHitLocation(HitLocation))
-    {
-        // 在鼠标位置生成可拾取方块
-        HitLocation.Z += 50.f; // 稍微抬高
-        
-        FActorSpawnParameters SpawnParams;
-        SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-        
-        AMAPickupItem* Item = GetWorld()->SpawnActor<AMAPickupItem>(
-            AMAPickupItem::StaticClass(),
-            HitLocation,
-            FRotator::ZeroRotator,
-            SpawnParams
-        );
-        
-        if (Item)
-        {
-            static int32 ItemCounter = 0;
-            Item->ItemName = FString::Printf(TEXT("Cube_%d"), ItemCounter++);
-            Item->ItemID = ItemCounter;
-            
-            GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan,
-                FString::Printf(TEXT("Spawned: %s at %s"), *Item->ItemName, *HitLocation.ToString()));
-        }
-    }
-}
-
-// ===== 视角切换实现 =====
-
-void AMAPlayerController::OnSwitchCamera()
+void AMAPlayerController::OnSwitchCamera(const FInputActionValue& Value)
 {
     UMAActorSubsystem* ActorSubsystem = GetWorld()->GetSubsystem<UMAActorSubsystem>();
     if (!ActorSubsystem) return;
     
-    // 获取所有 Camera Sensor
     TArray<AMASensor*> Sensors = ActorSubsystem->GetAllSensors();
     TArray<AMACameraSensor*> Cameras;
     for (AMASensor* Sensor : Sensors)
@@ -325,13 +298,11 @@ void AMAPlayerController::OnSwitchCamera()
         return;
     }
     
-    // 保存原始 Pawn（首次切换时）
     if (!OriginalPawn && GetPawn())
     {
         OriginalPawn = GetPawn();
     }
     
-    // 切换到下一个 Camera
     CurrentCameraIndex++;
     if (CurrentCameraIndex >= Cameras.Num())
     {
@@ -341,33 +312,35 @@ void AMAPlayerController::OnSwitchCamera()
     AMACameraSensor* Camera = Cameras[CurrentCameraIndex];
     if (Camera)
     {
-        // 设置视角到 Camera
         SetViewTargetWithBlend(Camera, 0.3f);
-        
         GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green,
-            FString::Printf(TEXT("Switched to: %s (%d/%d)"), 
-                *Camera->SensorName, CurrentCameraIndex + 1, Cameras.Num()));
+            FString::Printf(TEXT("Camera: %s (%d/%d)"), *Camera->SensorName, CurrentCameraIndex + 1, Cameras.Num()));
     }
 }
 
-void AMAPlayerController::OnReturnToSpectator()
+void AMAPlayerController::OnReturnToSpectator(const FInputActionValue& Value)
 {
     if (OriginalPawn)
     {
-        // 返回上帝视角
         SetViewTargetWithBlend(OriginalPawn, 0.3f);
         CurrentCameraIndex = -1;
-        
-        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan, TEXT("Returned to Spectator view"));
+        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan, TEXT("Returned to Spectator"));
     }
-    else
+    else if (GetPawn())
     {
-        // 如果没有保存的 OriginalPawn，尝试使用当前 Pawn
-        if (GetPawn())
-        {
-            SetViewTargetWithBlend(GetPawn(), 0.3f);
-            CurrentCameraIndex = -1;
-            GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan, TEXT("Returned to default view"));
-        }
+        SetViewTargetWithBlend(GetPawn(), 0.3f);
+        CurrentCameraIndex = -1;
+        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan, TEXT("Returned to default view"));
     }
+}
+
+bool AMAPlayerController::GetMouseHitLocation(FVector& OutLocation)
+{
+    FHitResult HitResult;
+    if (GetHitResultUnderCursor(ECC_Visibility, false, HitResult))
+    {
+        OutLocation = HitResult.Location;
+        return true;
+    }
+    return false;
 }

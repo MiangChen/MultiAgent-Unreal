@@ -264,20 +264,69 @@ Hunter->TryFollowActor(Target, 300.f);
 Hunter->StopFollowing();
 ```
 
-## 9. 测试按键
+## 9. 输入系统 (Enhanced Input)
 
-| 按键 | 功能 |
-|-----|------|
-| **Tab** | 循环切换 Camera 视角 |
-| **0** | 返回上帝视角 |
-| **T** | 生成一个机器狗 |
-| **Y** | 打印当前所有 Character/Sensor 信息 |
-| **U** | 销毁最后一个 Character |
-| **I** | 在鼠标位置生成可拾取方块 |
-| **P** | 所有 Human Character 尝试拾取 |
-| **O** | 所有 Human Character 放下物品 |
-| 左键 | 移动所有 Human Character |
-| 右键 | 移动所有 RobotDog（不包括 Tracker） |
+### 9.1 架构
+
+使用 UE5 Enhanced Input System，支持数据驱动的输入配置：
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                 Enhanced Input 架构                          │
+│                                                             │
+│  Input Mapping Context (IMC)                                │
+│  └── 定义按键到 InputAction 的映射                           │
+│                                                             │
+│  Input Actions (IA)                                         │
+│  └── 定义输入动作（点击、按键等）                             │
+│                                                             │
+│  MAInputConfig (Data Asset)                                 │
+│  └── 定义 InputAction 到 GameplayTag 的映射                  │
+│                                                             │
+│  MAPlayerController                                         │
+│  └── 绑定 InputAction 到具体函数                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 9.2 配置步骤
+
+1. **创建 Input Actions** (Content Browser → Input → Input Action)
+   - `IA_LeftClick` - 左键点击
+   - `IA_RightClick` - 右键点击
+   - `IA_Pickup` - 拾取 (P)
+   - `IA_Drop` - 放下 (O)
+   - 等等...
+
+2. **创建 Input Mapping Context** (Content Browser → Input → Input Mapping Context)
+   - 添加所有 Input Actions
+   - 配置按键映射
+
+3. **配置 PlayerController**
+   - 在 BP_MAPlayerController 中设置 DefaultMappingContext
+   - 设置各个 IA_XXX 引用
+
+### 9.3 默认按键映射
+
+| 按键 | Input Action | 功能 |
+|-----|--------------|------|
+| **左键** | IA_LeftClick | 移动所有 Human Character |
+| **右键** | IA_RightClick | 移动所有 RobotDog |
+| **P** | IA_Pickup | 所有 Human 尝试拾取 |
+| **O** | IA_Drop | 所有 Human 放下物品 |
+| **I** | IA_SpawnItem | 生成可拾取方块 |
+| **T** | IA_SpawnRobotDog | 生成机器狗 |
+| **Y** | IA_PrintInfo | 打印 Actor 信息 |
+| **U** | IA_DestroyLast | 销毁最后一个 Character |
+| **Tab** | IA_SwitchCamera | 切换 Camera 视角 |
+| **0** | IA_ReturnSpectator | 返回上帝视角 |
+
+### 9.4 相关文件
+
+```
+Input/
+├── MAInputConfig.h/cpp      # 输入配置数据资产
+└── MAInputComponent.h/cpp   # 增强输入组件（可选）
+```
 
 ## 10. 头顶状态显示
 
@@ -310,7 +359,8 @@ Character->ShowStatus(TEXT(""), 0.f);
 - [x] AMAPickupItem - 可拾取物品
 - [x] State Tree 基础集成
 
-### Phase 2: 扩展功能
+### Phase 2: 输入与交互 🔄 进行中
+- [ ] Enhanced Input System - 替换旧版输入系统
 - [ ] GA_Interact - 交互技能
 - [ ] 更多 Sensor 类型 (Lidar, Depth, IMU)
 - [ ] 完整的 State Tree 状态机配置
@@ -319,6 +369,19 @@ Character->ShowStatus(TEXT(""), 0.f);
 - [ ] UMARelationSubsystem - 实体关系图
 - [ ] 关系类型枚举
 - [ ] 关系查询 API
+
+### Phase 4: 持久化系统
+- [ ] UMAGameInstance - 跨关卡持久数据
+- [ ] SaveGame 系统 - 游戏存档/读档
+- [ ] 关卡切换与数据保持
+
+### 未来规划
+| 模块 | 说明 | 优先级 |
+|------|------|--------|
+| **Enhanced Input** | UE5 新输入系统，支持复杂输入映射 | 高 |
+| **GameInstance** | 跨关卡持久数据（玩家进度、设置等） | 中 |
+| **SaveGame** | 存档/读档系统 | 中 |
+| **UI/HUD** | 用户界面（队友负责，解耦设计） | 低 |
 
 ## 12. 重要设计原则
 
