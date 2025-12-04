@@ -117,21 +117,49 @@ void UGA_Follow::UpdateFollow()
     AAIController* AICtrl = Cast<AAIController>(Agent->GetController());
     if (AICtrl)
     {
-        Agent->bIsMoving = true;
-        AICtrl->MoveToLocation(
+        EPathFollowingRequestResult::Type Result = AICtrl->MoveToLocation(
             FollowLocation,
             50.f,   // AcceptanceRadius
             true,   // bStopOnOverlap
             true,   // bUsePathfinding
-            false,  // bProjectDestinationToNavigation
+            true,   // bProjectDestinationToNavigation - 自动投影到 NavMesh
             true    // bCanStrafe
         );
         
-        LastTargetLocation = CurrentTargetLocation;
+        // 根据结果设置移动状态 (0 = Failed)
+        if ((int32)Result == 0)
+        {
+            // 跟随位置导航失败，尝试直接导航到目标位置
+            Result = AICtrl->MoveToLocation(
+                CurrentTargetLocation,  // 直接去目标位置
+                FollowDistance,         // 用跟随距离作为接受半径
+                true,
+                true,
+                true,
+                true
+            );
+            
+            if ((int32)Result == 0)
+            {
+                // 还是失败，真的无法到达
+                Agent->bIsMoving = false;
+                Agent->ShowStatus(TEXT("[Follow] Cannot reach!"), 2.0f);
+                UE_LOG(LogTemp, Warning, TEXT("[Follow] %s cannot reach %s - path failed"), 
+                    *Agent->AgentName, *TargetAgent->AgentName);
+            }
+            else
+            {
+                // 直接导航到目标成功
+                Agent->bIsMoving = true;
+                LastTargetLocation = CurrentTargetLocation;
+            }
+        }
+        else
+        {
+            Agent->bIsMoving = true;
+            LastTargetLocation = CurrentTargetLocation;
+        }
         
-        UE_LOG(LogTemp, Verbose, TEXT("[Follow] %s updating path to %s (%.0f, %.0f, %.0f)"),
-            *Agent->AgentName, *TargetAgent->AgentName,
-            FollowLocation.X, FollowLocation.Y, FollowLocation.Z);
     }
 }
 
