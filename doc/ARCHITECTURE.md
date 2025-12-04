@@ -81,7 +81,7 @@ unreal_project/Source/MultiAgent/
 │                                                             │
 │     Agent #1              Agent #2              Agent #3    │
 │  ┌───────────┐         ┌───────────┐         ┌───────────┐ │
-│  │ 司态      │         │ 司态      │         │ 司态      │ │
+│  │ 司脑      │         │ 司脑      │         │ 司脑      │ │
 │  │StateTree  │         │StateTree  │         │StateTree  │ │
 │  │ 决策      │         │ 决策      │         │ 决策      │ │
 │  ├───────────┤         ├───────────┤         ├───────────┤ │
@@ -99,7 +99,7 @@ unreal_project/Source/MultiAgent/
 | **AgentManager** | 司命 | 全局 | 智能体生命周期管理 | `UMAAgentSubsystem` | ✅ 已实现 |
 | **RelationManager** | 司缘 | 全局 | 智能体关系管理 | `UMARelationSubsystem` | ❌ 待开发 |
 | **MapManager** | 司图 | 全局 | 地图感知 | `UNavigationSystemV1` | ❌ 待开发 |
-| **StateTree** | 司态 | Agent级 | 状态决策 | `UMAStateTreeComponent` | ✅ 已实现 |
+| **StateTree** | 司脑 | Agent级 | 状态决策 | `UMAStateTreeComponent` | ✅ 已实现 |
 | **ASC** | 司能 | Agent级 | 技能执行 | `UMAAbilitySystemComponent` | ✅ 已实现 |
 
 ### 4.3 司能 (ASC) 详解
@@ -321,7 +321,121 @@ AMAAgent (基类)
 | 左键 | 移动所有 Human Agent |
 | 右键 | 移动所有 Agent |
 
-## 10. 开发路线
+## 10. 追踪功能 (Ground Truth Tracking)
+
+### 10.1 概述
+
+本项目实现了基于 Ground Truth 的追踪功能，让一个 Agent 可以持续跟随另一个 Agent。
+
+**Ground Truth 追踪**：直接使用仿真环境中的真实位置数据，不需要视觉检测算法。
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    追踪工作原理                              │
+│                                                             │
+│  每 0.5 秒:                                                 │
+│    1. 获取目标位置 (Ground Truth)                           │
+│       TargetLocation = TargetAgent->GetActorLocation()     │
+│                                                             │
+│    2. 计算跟随位置 (保持距离)                                │
+│       FollowLocation = TargetLocation + Direction * Dist   │
+│                                                             │
+│    3. 导航过去                                              │
+│       AIController->MoveToLocation(FollowLocation)         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 10.2 GA_Follow 技能
+
+| 属性 | 默认值 | 说明 |
+|------|--------|------|
+| `FollowDistance` | 200.f | 与目标保持的距离 |
+| `UpdateInterval` | 0.5f | 位置更新频率（秒） |
+| `Repath_Threshold` | 100.f | 目标移动超过此距离才重新导航 |
+
+### 10.3 使用方式
+
+```cpp
+// 获取两个 Agent
+AMAAgent* Hunter = AgentSubsystem->GetAgentByID(0);
+AMAAgent* Target = AgentSubsystem->GetAgentByID(1);
+
+// Hunter 开始追踪 Target，保持 300 单位距离
+Hunter->TryFollowAgent(Target, 300.f);
+
+// 停止追踪
+Hunter->StopFollowing();
+```
+
+### 10.4 演示场景
+
+游戏启动后自动生成：
+- 2 个 Human（左键控制移动）
+- 3 个 RobotDog（右键控制移动）
+- 1 个 Tracker_Dog（自动追踪第一个 Human）
+
+| 操作 | 效果 |
+|------|------|
+| **左键** | 移动所有 Human Agent |
+| **右键** | 移动普通 RobotDog（不包括 Tracker_Dog） |
+| **自动** | Tracker_Dog 持续追踪 Human_0 |
+
+### 10.5 与视觉追踪的对比
+
+| 特性 | Ground Truth 追踪 | 视觉追踪 |
+|------|------------------|----------|
+| 准确性 | 100% | 取决于检测算法 |
+| 遮挡处理 | 无影响 | 会丢失目标 |
+| 计算开销 | 极低 | 高（需要 CV 算法） |
+| 真实性 | 低（作弊） | 高（模拟真实） |
+| 适用场景 | 仿真测试、数据采集 | 真实机器人部署 |
+
+### 10.6 扩展：视觉追踪
+
+如需更真实的追踪行为，可以扩展 GA_Follow 添加：
+- 视野检测（目标是否在视野内）
+- 遮挡检测（是否被墙挡住）
+- 丢失目标后的搜索行为
+
+## 11. 头顶状态显示
+
+### 11.1 概述
+
+每个 Agent 头顶可以显示当前正在执行的技能名称和参数，便于调试和观察。
+
+使用 `DrawDebugString` 实现，**仅在 Development/Debug 版本中显示，Shipping 版本自动剔除**。
+
+### 11.2 使用方式
+
+```cpp
+// 显示状态（持续指定时间）
+Agent->ShowStatus(TEXT("[Navigate] → (100, 200)"), 3.0f);
+
+// 显示技能状态（便捷方法）
+Agent->ShowAbilityStatus(TEXT("Navigate"), TEXT("→ (100, 200)"));
+
+// 清除显示
+Agent->ShowStatus(TEXT(""), 0.f);
+```
+
+### 11.3 各技能的显示行为
+
+| 技能 | 显示时机 | 清除时机 |
+|------|---------|---------|
+| **Navigate** | 开始移动时 | 到达目标后 |
+| **Follow** | 开始追踪/需要移动时 | 到达跟随距离内（1.1倍） |
+| **Pickup** | 拾取时 | 3秒后自动消失 |
+| **Drop** | 放下时 | 3秒后自动消失 |
+
+### 11.4 配置
+
+```cpp
+// MAAgent.h
+UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Status")
+bool bShowStatusAboveHead = true;  // 是否启用头顶状态显示
+```
+
+## 12. 开发路线
 
 ### Phase 1: 核心框架 ✅ 已完成
 - [x] UMAAgentSubsystem - Agent 生命周期管理
@@ -334,6 +448,7 @@ AMAAgent (基类)
 ### Phase 2: 扩展技能
 - [x] GA_TakePhoto - 拍照技能 ✅ 已实现
 - [x] GA_Navigate - 导航技能 ✅ 已实现
+- [x] GA_Follow - 追踪技能 ✅ 已实现
 - [x] MACameraAgent - 传感器摄像头 ✅ 已实现
 - [ ] GA_Interact - 交互技能
 
@@ -347,9 +462,9 @@ AMAAgent (基类)
 - [ ] 关系类型枚举
 - [ ] 关系查询 API
 
-## 11. 重要设计原则
+## 13. 重要设计原则
 
-### 10.1 虚函数多态设计
+### 13.1 虚函数多态设计
 
 不同类型的 Agent 可能需要不同的行为实现。使用 C++ 虚函数实现多态，避免类型判断：
 
@@ -387,7 +502,7 @@ void AMAHumanAgent::OnNavigationTick()
 - 子类按需重写，实现特定行为
 - 避免在代码中写 `if (AgentType == Human)` 这种判断
 
-### 10.2 物理组件层级规则
+### 13.2 物理组件层级规则
 
 对于有物理模拟的可拾取物品，**必须将物理组件设为 RootComponent**：
 

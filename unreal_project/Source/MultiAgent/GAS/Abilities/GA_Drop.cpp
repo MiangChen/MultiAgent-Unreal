@@ -40,6 +40,12 @@ void UGA_Drop::ActivateAbility(
 
     if (AMAPickupItem* Item = FindHeldItem())
     {
+        // 显示头顶状态
+        if (AMAAgent* Agent = GetOwningAgent())
+        {
+            Agent->ShowAbilityStatus(TEXT("Drop"), Item->ItemName);
+        }
+        
         PerformDrop(Item);
         
         if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())

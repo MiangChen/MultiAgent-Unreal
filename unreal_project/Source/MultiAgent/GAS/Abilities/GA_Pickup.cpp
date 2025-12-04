@@ -47,6 +47,12 @@ void UGA_Pickup::ActivateAbility(
     {
         PerformPickup(Item);
         
+        // 显示头顶状态
+        if (AMAAgent* Agent = GetOwningAgent())
+        {
+            Agent->ShowAbilityStatus(TEXT("Pickup"), Item->ItemName);
+        }
+        
         if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
         {
             ASC->AddLooseGameplayTag(FMAGameplayTags::Get().Status_Holding);

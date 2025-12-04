@@ -34,6 +34,14 @@ public:
     UFUNCTION(BlueprintCallable, Category = "GAS")
     void CancelNavigate();
 
+    // 直接激活 Follow Ability (追踪目标 Agent)
+    UFUNCTION(BlueprintCallable, Category = "GAS")
+    bool TryActivateFollow(class AMAAgent* TargetAgent, float FollowDistance = 200.f);
+
+    // 取消追踪
+    UFUNCTION(BlueprintCallable, Category = "GAS")
+    void CancelFollow();
+
     // 直接激活 TakePhoto Ability (Camera 使用)
     UFUNCTION(BlueprintCallable, Category = "GAS")
     bool TryActivateTakePhoto();
@@ -59,5 +67,6 @@ protected:
     FGameplayAbilitySpecHandle PickupAbilityHandle;
     FGameplayAbilitySpecHandle DropAbilityHandle;
     FGameplayAbilitySpecHandle NavigateAbilityHandle;
+    FGameplayAbilitySpecHandle FollowAbilityHandle;
     FGameplayAbilitySpecHandle TakePhotoAbilityHandle;
 };

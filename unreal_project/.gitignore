@@ -4,6 +4,8 @@ DerivedDataCache/
 Intermediate/
 Saved/
 
+./unrealcv
+
 # IDE
 .idea/
 .vs/

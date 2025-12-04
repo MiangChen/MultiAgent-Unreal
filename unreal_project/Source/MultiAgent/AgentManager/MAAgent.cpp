@@ -68,6 +68,9 @@ void AMAAgent::Tick(float DeltaTime)
     {
         OnNavigationTick();
     }
+    
+    // 绘制头顶状态文本
+    DrawStatusText();
 }
 
 void AMAAgent::OnNavigationTick()
@@ -129,4 +132,74 @@ AMAPickupItem* AMAAgent::GetHeldItem() const
 bool AMAAgent::IsHoldingItem() const
 {
     return GetHeldItem() != nullptr;
+}
+
+bool AMAAgent::TryFollowAgent(AMAAgent* TargetAgent, float FollowDistance)
+{
+    if (AbilitySystemComponent)
+    {
+        return AbilitySystemComponent->TryActivateFollow(TargetAgent, FollowDistance);
+    }
+    return false;
+}
+
+void AMAAgent::StopFollowing()
+{
+    if (AbilitySystemComponent)
+    {
+        AbilitySystemComponent->CancelFollow();
+    }
+}
+
+// ========== 头顶状态显示 ==========
+
+void AMAAgent::ShowStatus(const FString& Text, float Duration)
+{
+    if (!bShowStatusAboveHead) return;
+    
+    CurrentStatusText = Text;
+    StatusDisplayEndTime = GetWorld()->GetTimeSeconds() + Duration;
+}
+
+void AMAAgent::ShowAbilityStatus(const FString& AbilityName, const FString& Params)
+{
+    FString DisplayText;
+    if (Params.IsEmpty())
+    {
+        DisplayText = FString::Printf(TEXT("[%s]"), *AbilityName);
+    }
+    else
+    {
+        DisplayText = FString::Printf(TEXT("[%s] %s"), *AbilityName, *Params);
+    }
+    
+    ShowStatus(DisplayText, 3.0f);
+}
+
+void AMAAgent::DrawStatusText()
+{
+    if (!bShowStatusAboveHead) return;
+    if (CurrentStatusText.IsEmpty()) return;
+    
+    // 检查是否过期
+    if (GetWorld()->GetTimeSeconds() > StatusDisplayEndTime)
+    {
+        CurrentStatusText = TEXT("");
+        return;
+    }
+    
+    // 在头顶上方绘制文本
+    FVector TextLocation = GetActorLocation() + FVector(0.f, 0.f, 150.f);
+    
+    // 使用 DrawDebugString 绘制 3D 文本
+    DrawDebugString(
+        GetWorld(),
+        TextLocation,
+        CurrentStatusText,
+        nullptr,
+        FColor::Yellow,
+        0.f,  // Duration = 0 表示只绘制一帧
+        true, // bDrawShadow
+        1.2f  // FontScale
+    );
 }

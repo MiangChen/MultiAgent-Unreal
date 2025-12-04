@@ -128,6 +128,62 @@ void AMAGameMode::SpawnInitialAgents()
     }
     
     UE_LOG(LogTemp, Log, TEXT("Spawned %d humans and %d robot dogs with cameras via AgentSubsystem"), NumHumans, NumRobotDogs);
+    
+    // 生成一个追踪者 RobotDog，自动追踪第一个 Human
+    SpawnTrackerAgent(AgentSubsystem);
+}
+
+void AMAGameMode::SpawnTrackerAgent(UMAAgentSubsystem* AgentSubsystem)
+{
+    if (!AgentSubsystem) return;
+    
+    // 获取第一个 Human 作为追踪目标
+    TArray<AMAAgent*> Humans = AgentSubsystem->GetAgentsByType(EAgentType::Human);
+    if (Humans.Num() == 0)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[GameMode] No Human to track!"));
+        return;
+    }
+    
+    AMAAgent* TargetHuman = Humans[0];
+    
+    // 在目标后方生成追踪者
+    FVector SpawnLocation = TargetHuman->GetActorLocation() - TargetHuman->GetActorForwardVector() * 500.f;
+    
+    // 投影到 NavMesh
+    if (UNavigationSystemV1* NavSys = UNavigationSystemV1::GetCurrent(GetWorld()))
+    {
+        FNavLocation NavLocation;
+        if (NavSys->ProjectPointToNavigation(SpawnLocation, NavLocation, FVector(500.f, 500.f, 500.f)))
+        {
+            SpawnLocation = NavLocation.Location;
+        }
+    }
+    
+    // 生成追踪者
+    TrackerAgent = Cast<AMAAgent>(AgentSubsystem->SpawnAgent(
+        RobotDogAgentClass,
+        SpawnLocation,
+        FRotator::ZeroRotator,
+        100,  // 特殊 ID
+        EAgentType::RobotDog
+    ));
+    
+    if (TrackerAgent)
+    {
+        TrackerAgent->AgentName = TEXT("Tracker_Dog");
+        
+        // 开始追踪第一个 Human
+        TrackerAgent->TryFollowAgent(TargetHuman, 300.f);
+        
+        UE_LOG(LogTemp, Log, TEXT("[GameMode] Spawned Tracker_Dog, following %s"), *TargetHuman->AgentName);
+        
+        if (GEngine)
+        {
+            GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Magenta,
+                FString::Printf(TEXT("Tracker_Dog spawned, following %s"), *TargetHuman->AgentName));
+        }
+    }
 }
 
 void AMAGameMode::SpawnAndAttachCamera(UMAAgentSubsystem* AgentSubsystem, AMAAgent* ParentAgent, FVector RelativeLocation, FRotator RelativeRotation)

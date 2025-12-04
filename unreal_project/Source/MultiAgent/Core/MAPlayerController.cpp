@@ -117,7 +117,19 @@ void AMAPlayerController::OnRightClick()
     FVector HitLocation;
     if (GetMouseHitLocation(HitLocation))
     {
-        MoveAllAgentsToLocation(HitLocation);
+        // 右键：只移动 RobotDog（不包括追踪者）
+        if (UMAAgentSubsystem* AgentSubsystem = GetWorld()->GetSubsystem<UMAAgentSubsystem>())
+        {
+            TArray<AMAAgent*> RobotDogs = AgentSubsystem->GetAgentsByType(EAgentType::RobotDog);
+            for (AMAAgent* Agent : RobotDogs)
+            {
+                // 跳过追踪者（名字包含 "Tracker"）
+                if (Agent && !Agent->AgentName.Contains(TEXT("Tracker")))
+                {
+                    Agent->TryNavigateTo(HitLocation);
+                }
+            }
+        }
     }
 }
 

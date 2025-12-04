@@ -47,4 +47,11 @@ protected:
     
     // 生成并附着摄像头到 Agent
     void SpawnAndAttachCamera(UMAAgentSubsystem* AgentSubsystem, AMAAgent* ParentAgent, FVector RelativeLocation, FRotator RelativeRotation);
+    
+    // 生成追踪者 Agent
+    void SpawnTrackerAgent(UMAAgentSubsystem* AgentSubsystem);
+    
+    // 追踪者 Agent 引用
+    UPROPERTY()
+    AMAAgent* TrackerAgent = nullptr;
 };

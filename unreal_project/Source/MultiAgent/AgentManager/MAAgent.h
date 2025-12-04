@@ -46,6 +46,14 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Abilities")
     void CancelNavigation();
 
+    // 追踪另一个 Agent (使用 Ground Truth 位置)
+    UFUNCTION(BlueprintCallable, Category = "Abilities")
+    bool TryFollowAgent(AMAAgent* TargetAgent, float FollowDistance = 200.f);
+
+    // 停止追踪
+    UFUNCTION(BlueprintCallable, Category = "Abilities")
+    void StopFollowing();
+
     // 获取当前持有的物品
     UFUNCTION(BlueprintCallable, Category = "Abilities")
     AMAPickupItem* GetHeldItem() const;
@@ -68,6 +76,18 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "Movement")
     bool bIsMoving;
 
+    // ========== 头顶状态显示 ==========
+    // 显示技能激活信息
+    UFUNCTION(BlueprintCallable, Category = "Status")
+    void ShowStatus(const FString& Text, float Duration = 3.0f);
+
+    // 显示技能激活（带参数）
+    void ShowAbilityStatus(const FString& AbilityName, const FString& Params = TEXT(""));
+
+    // 是否启用头顶状态显示
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Status")
+    bool bShowStatusAboveHead = true;
+
 protected:
     virtual void BeginPlay() override;
     virtual void Tick(float DeltaTime) override;
@@ -79,4 +99,10 @@ protected:
     // 司能组件 (ASC)
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GAS")
     UMAAbilitySystemComponent* AbilitySystemComponent;
+
+private:
+    // 头顶状态显示
+    FString CurrentStatusText;
+    float StatusDisplayEndTime = 0.f;
+    void DrawStatusText();
 };

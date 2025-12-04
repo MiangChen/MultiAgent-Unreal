@@ -99,6 +99,10 @@ void UGA_Navigate::StartNavigation()
         PathComp->OnRequestFinished.AddUObject(this, &UGA_Navigate::OnMoveCompleted);
     }
     
+    // 显示头顶状态
+    Agent->ShowAbilityStatus(TEXT("Navigate"), 
+        FString::Printf(TEXT("→ (%.0f, %.0f)"), TargetLocation.X, TargetLocation.Y));
+    
     // 开始导航
     Agent->bIsMoving = true;
     EPathFollowingRequestResult::Type Result = AICtrl->MoveToLocation(
@@ -138,6 +142,12 @@ void UGA_Navigate::OnMoveCompleted(FAIRequestID RequestID, const FPathFollowingR
     
     UE_LOG(LogTemp, Log, TEXT("[Navigate] %s move completed, Code=%d, Cancelled=%d"), 
         *AgentName, (int32)Result.Code, bWasCancelled ? 1 : 0);
+    
+    // 到达目标后清除头顶状态
+    if (Agent)
+    {
+        Agent->ShowStatus(TEXT(""), 0.f);
+    }
     
     CleanupNavigation();
     EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, bWasCancelled);

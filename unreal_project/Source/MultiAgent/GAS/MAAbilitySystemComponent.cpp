@@ -5,6 +5,7 @@
 #include "Abilities/GA_Pickup.h"
 #include "Abilities/GA_Drop.h"
 #include "Abilities/GA_Navigate.h"
+#include "Abilities/GA_Follow.h"
 #include "Abilities/GA_TakePhoto.h"
 #include "MAGameplayTags.h"
 
@@ -29,10 +30,11 @@ void UMAAbilitySystemComponent::InitializeAbilities(AActor* InOwnerActor)
     PickupAbilityHandle = GiveAbility(FGameplayAbilitySpec(UGA_Pickup::StaticClass(), 1, INDEX_NONE, InOwnerActor));
     DropAbilityHandle = GiveAbility(FGameplayAbilitySpec(UGA_Drop::StaticClass(), 1, INDEX_NONE, InOwnerActor));
     NavigateAbilityHandle = GiveAbility(FGameplayAbilitySpec(UGA_Navigate::StaticClass(), 1, INDEX_NONE, InOwnerActor));
+    FollowAbilityHandle = GiveAbility(FGameplayAbilitySpec(UGA_Follow::StaticClass(), 1, INDEX_NONE, InOwnerActor));
     TakePhotoAbilityHandle = GiveAbility(FGameplayAbilitySpec(UGA_TakePhoto::StaticClass(), 1, INDEX_NONE, InOwnerActor));
     
-    UE_LOG(LogTemp, Log, TEXT("Initialized GAS abilities for %s (Pickup=%d, Drop=%d, Navigate=%d, TakePhoto=%d)"), 
-        *InOwnerActor->GetName(), PickupAbilityHandle.IsValid(), DropAbilityHandle.IsValid(), NavigateAbilityHandle.IsValid(), TakePhotoAbilityHandle.IsValid());
+    UE_LOG(LogTemp, Log, TEXT("Initialized GAS abilities for %s (Pickup=%d, Drop=%d, Navigate=%d, Follow=%d, TakePhoto=%d)"), 
+        *InOwnerActor->GetName(), PickupAbilityHandle.IsValid(), DropAbilityHandle.IsValid(), NavigateAbilityHandle.IsValid(), FollowAbilityHandle.IsValid(), TakePhotoAbilityHandle.IsValid());
 }
 
 bool UMAAbilitySystemComponent::TryActivatePickup()
@@ -127,4 +129,43 @@ bool UMAAbilitySystemComponent::HasGameplayTagFromContainer(FGameplayTag TagToCh
     FGameplayTagContainer OwnedTags;
     GetOwnedGameplayTags(OwnedTags);
     return OwnedTags.HasTag(TagToCheck);
+}
+
+bool UMAAbilitySystemComponent::TryActivateFollow(AMAAgent* TargetAgent, float FollowDistance)
+{
+    // 先取消正在进行的追踪和导航
+    CancelFollow();
+    CancelNavigate();
+    
+    if (!FollowAbilityHandle.IsValid() || !TargetAgent)
+    {
+        return false;
+    }
+    
+    // 设置目标到 Ability 实例
+    FGameplayAbilitySpec* Spec = FindAbilitySpecFromHandle(FollowAbilityHandle);
+    if (Spec)
+    {
+        UGameplayAbility* Instance = Spec->GetPrimaryInstance();
+        if (!Instance)
+        {
+            Instance = CreateNewInstanceOfAbility(*Spec, Spec->Ability);
+        }
+        
+        if (UGA_Follow* FollowAbility = Cast<UGA_Follow>(Instance))
+        {
+            FollowAbility->SetTargetAgent(TargetAgent);
+            FollowAbility->FollowDistance = FollowDistance;
+        }
+    }
+    
+    return TryActivateAbility(FollowAbilityHandle);
+}
+
+void UMAAbilitySystemComponent::CancelFollow()
+{
+    if (FollowAbilityHandle.IsValid())
+    {
+        CancelAbilityHandle(FollowAbilityHandle);
+    }
 }
