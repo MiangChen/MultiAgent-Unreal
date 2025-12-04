@@ -353,16 +353,17 @@ AMANewClass::AMANewClass()
 -----------
 - Unreal Engine 5.5 源码版（从 GitHub 克隆编译）
 - Linux: clang 18+ (Ubuntu 22.04+)
+- UE 源码路径: /home/ubuntu/PycharmProjects/UnrealEngine
 
 
 5.2 编译命令
 -----------
 ```bash
-# 进入项目目录
-cd unreal_project
-
-# 编译 Editor 版本（开发用）
-make MultiAgentEditor -j$(nproc)
+# 使用 UE 的 Build.sh 脚本编译 Editor 版本（推荐）
+/home/ubuntu/PycharmProjects/UnrealEngine/Engine/Build/BatchFiles/Linux/Build.sh \
+    MultiAgentEditor Linux Development \
+    -Project="/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject" \
+    -WaitMutex 2>&1 | tail -60
 
 # 或者直接用 UE 编辑器打开 .uproject 文件，会自动编译
 ```
@@ -373,7 +374,12 @@ make MultiAgentEditor -j$(nproc)
 ```bash
 cd unreal_project
 rm -rf Binaries Intermediate DerivedDataCache
-make MultiAgentEditor -j$(nproc)
+
+# 重新编译
+/home/ubuntu/PycharmProjects/UnrealEngine/Engine/Build/BatchFiles/Linux/Build.sh \
+    MultiAgentEditor Linux Development \
+    -Project="/home/ubuntu/PycharmProjects/MultiAgent-Unreal/unreal_project/MultiAgent.uproject" \
+    -WaitMutex
 ```
 
 5.4 不需要提交到 Git 的文件夹
@@ -398,8 +404,11 @@ make MultiAgentEditor -j$(nproc)
 | **I** | 在鼠标位置生成可拾取方块 |
 | **P** | 所有 Human Agent 尝试拾取附近物品 |
 | **O** | 所有 Human Agent 放下持有的物品 |
+| **G** | 所有 RobotDog 开始巡逻场景中的 PatrolPath |
+| **Tab** | 切换摄像机视角 |
+| **0** | 返回观察者视角 |
 | 左键 | 移动所有 Human Agent 到点击位置 |
-| 右键 | 移动所有 Agent 到点击位置 |
+| 右键 | 移动所有 RobotDog 到点击位置 |
 
 注意：所有 Agent 统一由 `UMAAgentSubsystem` 管理，拾取/放下功能通过 GAS 实现。
 

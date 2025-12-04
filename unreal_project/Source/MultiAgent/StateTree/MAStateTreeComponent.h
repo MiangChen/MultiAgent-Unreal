@@ -1,5 +1,5 @@
 // MAStateTreeComponent.h
-// State Tree 组件，挂载到 Agent 上管理状态机
+// 自定义 StateTreeComponent，支持在 C++ 中动态设置 StateTree Asset
 
 #pragma once
 
@@ -7,41 +7,26 @@
 #include "Components/StateTreeComponent.h"
 #include "MAStateTreeComponent.generated.h"
 
-class UMAAbilitySystemComponent;
+class UStateTree;
 
 /**
- * Agent 的 State Tree 组件
- * 
- * 职责：
- * - 管理 Agent 的高层状态 (Exploration, PhotoMode, Interaction)
- * - 监听 GAS 事件，触发状态转换
- * - 向 GAS 发送激活 Ability 的请求
+ * 自定义 StateTreeComponent
+ * 暴露 SetStateTree 方法，允许在 C++ 中动态设置 StateTree Asset
+ * 注意: StateTree Asset 需要使用 "StateTree Component" Schema (不是 AI Component)
  */
-UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
+UCLASS(ClassGroup=(AI), meta=(BlueprintSpawnableComponent))
 class MULTIAGENT_API UMAStateTreeComponent : public UStateTreeComponent
 {
     GENERATED_BODY()
 
 public:
-    UMAStateTreeComponent();
+    UMAStateTreeComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-    // 获取关联的 GAS 组件
+    // 设置 StateTree Asset
     UFUNCTION(BlueprintCallable, Category = "StateTree")
-    UMAAbilitySystemComponent* GetAbilitySystemComponent() const;
-
-    // 通过 Tag 请求激活 Ability
-    UFUNCTION(BlueprintCallable, Category = "StateTree")
-    bool RequestActivateAbility(FGameplayTag AbilityTag);
-
-    // 通过 Tag 请求取消 Ability
-    UFUNCTION(BlueprintCallable, Category = "StateTree")
-    void RequestCancelAbility(FGameplayTag AbilityTag);
-
-protected:
-    virtual void BeginPlay() override;
-
-private:
-    // 缓存的 GAS 组件引用
-    UPROPERTY()
-    TWeakObjectPtr<UMAAbilitySystemComponent> CachedASC;
+    void SetStateTreeAsset(UStateTree* InStateTree);
+    
+    // 检查是否已设置 StateTree
+    UFUNCTION(BlueprintPure, Category = "StateTree")
+    bool HasStateTree() const;
 };

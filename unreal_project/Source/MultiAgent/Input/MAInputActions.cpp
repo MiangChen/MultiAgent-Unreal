@@ -29,6 +29,8 @@ void UMAInputActions::Initialize()
     IA_DestroyLast = CreateInputAction(TEXT("IA_DestroyLast"));
     IA_SwitchCamera = CreateInputAction(TEXT("IA_SwitchCamera"));
     IA_ReturnSpectator = CreateInputAction(TEXT("IA_ReturnSpectator"));
+    IA_StartPatrol = CreateInputAction(TEXT("IA_StartPatrol"));
+    IA_StartCharge = CreateInputAction(TEXT("IA_StartCharge"));
 
     // 创建 Input Mapping Context
     DefaultMappingContext = NewObject<UInputMappingContext>(this, TEXT("IMC_Default"));
@@ -44,8 +46,10 @@ void UMAInputActions::Initialize()
     AddKeyMapping(DefaultMappingContext, IA_DestroyLast, EKeys::U);
     AddKeyMapping(DefaultMappingContext, IA_SwitchCamera, EKeys::Tab);
     AddKeyMapping(DefaultMappingContext, IA_ReturnSpectator, EKeys::Zero);
+    AddKeyMapping(DefaultMappingContext, IA_StartPatrol, EKeys::G);
+    AddKeyMapping(DefaultMappingContext, IA_StartCharge, EKeys::H);
 
-    UE_LOG(LogTemp, Log, TEXT("[Input] MAInputActions initialized with %d actions"), 10);
+    UE_LOG(LogTemp, Log, TEXT("[Input] MAInputActions initialized with %d actions"), 12);
 }
 
 UInputAction* UMAInputActions::CreateInputAction(const FName& Name, EInputActionValueType ValueType)

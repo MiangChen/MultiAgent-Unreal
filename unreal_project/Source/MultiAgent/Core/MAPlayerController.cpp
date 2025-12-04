@@ -7,10 +7,14 @@
 #include "../Character/MARobotDogCharacter.h"
 #include "../Actor/MACameraSensor.h"
 #include "../Actor/MAPickupItem.h"
+#include "../Actor/MAPatrolPath.h"
+#include "../GAS/MAAbilitySystemComponent.h"
 #include "../Input/MAInputActions.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
+#include "GameplayTagContainer.h"
+#include "Kismet/GameplayStatics.h"
 
 AMAPlayerController::AMAPlayerController()
 {
@@ -74,6 +78,12 @@ void AMAPlayerController::SetupInputComponent()
         // 视角切换
         EIC->BindAction(InputActions->IA_SwitchCamera, ETriggerEvent::Started, this, &AMAPlayerController::OnSwitchCamera);
         EIC->BindAction(InputActions->IA_ReturnSpectator, ETriggerEvent::Started, this, &AMAPlayerController::OnReturnToSpectator);
+
+        // 巡逻
+        EIC->BindAction(InputActions->IA_StartPatrol, ETriggerEvent::Started, this, &AMAPlayerController::OnStartPatrol);
+        
+        // 充电
+        EIC->BindAction(InputActions->IA_StartCharge, ETriggerEvent::Started, this, &AMAPlayerController::OnStartCharge);
 
         UE_LOG(LogTemp, Log, TEXT("[Input] Bound all input actions"));
     }
@@ -310,6 +320,98 @@ void AMAPlayerController::OnReturnToSpectator(const FInputActionValue& Value)
     {
         SetViewTargetWithBlend(GetPawn(), 0.3f);
         CurrentCameraIndex = -1;
+    }
+}
+
+void AMAPlayerController::OnStartPatrol(const FInputActionValue& Value)
+{
+    UE_LOG(LogTemp, Warning, TEXT("[PlayerController] OnStartPatrol called (G key) - Sending Command.Patrol to StateTree"));
+    
+    UMAActorSubsystem* ActorSubsystem = GetWorld()->GetSubsystem<UMAActorSubsystem>();
+    if (!ActorSubsystem)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] No ActorSubsystem!"));
+        return;
+    }
+    
+    // 获取所有 RobotDog，发送 Command.Patrol 命令
+    TArray<AMACharacter*> RobotDogs = ActorSubsystem->GetCharactersByType(EMAActorType::RobotDog);
+    UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Found %d RobotDogs"), RobotDogs.Num());
+    
+    int32 CommandCount = 0;
+    FGameplayTag PatrolCommand = FGameplayTag::RequestGameplayTag(FName("Command.Patrol"));
+    
+    for (AMACharacter* Character : RobotDogs)
+    {
+        if (!Character) continue;
+        
+        UMAAbilitySystemComponent* ASC = Cast<UMAAbilitySystemComponent>(Character->GetAbilitySystemComponent());
+        if (!ASC)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[PlayerController] %s has no ASC!"), *Character->ActorName);
+            continue;
+        }
+        
+        // 先清除其他命令，再添加 Patrol 命令
+        ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Idle")));
+        ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Charge")));
+        ASC->AddLooseGameplayTag(PatrolCommand);
+        
+        CommandCount++;
+        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Sent Command.Patrol to %s"), *Character->ActorName);
+        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green,
+            FString::Printf(TEXT("%s: Command.Patrol sent"), *Character->ActorName));
+    }
+    
+    if (CommandCount == 0)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Orange, TEXT("No RobotDog found!"));
+    }
+}
+
+void AMAPlayerController::OnStartCharge(const FInputActionValue& Value)
+{
+    UE_LOG(LogTemp, Warning, TEXT("[PlayerController] OnStartCharge called (H key) - Sending Command.Charge to StateTree"));
+    
+    UMAActorSubsystem* ActorSubsystem = GetWorld()->GetSubsystem<UMAActorSubsystem>();
+    if (!ActorSubsystem)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] No ActorSubsystem!"));
+        return;
+    }
+    
+    // 获取所有 RobotDog，发送 Command.Charge 命令
+    TArray<AMACharacter*> RobotDogs = ActorSubsystem->GetCharactersByType(EMAActorType::RobotDog);
+    UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Found %d RobotDogs"), RobotDogs.Num());
+    
+    int32 CommandCount = 0;
+    FGameplayTag ChargeCommand = FGameplayTag::RequestGameplayTag(FName("Command.Charge"));
+    
+    for (AMACharacter* Character : RobotDogs)
+    {
+        if (!Character) continue;
+        
+        UMAAbilitySystemComponent* ASC = Cast<UMAAbilitySystemComponent>(Character->GetAbilitySystemComponent());
+        if (!ASC)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[PlayerController] %s has no ASC!"), *Character->ActorName);
+            continue;
+        }
+        
+        // 先清除其他命令，再添加 Charge 命令
+        ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Idle")));
+        ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Patrol")));
+        ASC->AddLooseGameplayTag(ChargeCommand);
+        
+        CommandCount++;
+        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Sent Command.Charge to %s"), *Character->ActorName);
+        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Yellow,
+            FString::Printf(TEXT("%s: Command.Charge sent"), *Character->ActorName));
+    }
+    
+    if (CommandCount == 0)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Orange, TEXT("No RobotDog found!"));
     }
 }
 

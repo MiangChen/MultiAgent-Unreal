@@ -39,7 +39,9 @@ unreal_project/Source/MultiAgent/
 ├── Actor/                           # 通用 AActor 派生类 ✅ 已实现
 │   ├── MASensor.h/cpp               # 传感器基类 (继承 AActor)
 │   ├── MACameraSensor.h/cpp         # 摄像头传感器
-│   └── MAPickupItem.h/cpp           # 可拾取物品
+│   ├── MAPickupItem.h/cpp           # 可拾取物品
+│   ├── MAChargingStation.h/cpp      # 充电站
+│   └── MAPatrolPath.h/cpp           # 巡逻路径
 ├── GAS/                             # GAS 模块 ✅ 已实现
 │   ├── MAAbilitySystemComponent.h/cpp  # GAS 核心组件
 │   ├── MAGameplayTags.h/cpp         # Gameplay Tags 定义
@@ -49,15 +51,29 @@ unreal_project/Source/MultiAgent/
 │       ├── GA_Drop.h/cpp            # 放下技能
 │       ├── GA_Navigate.h/cpp        # 导航技能
 │       ├── GA_Follow.h/cpp          # 追踪技能
-│       └── GA_TakePhoto.h/cpp       # 拍照技能
+│       ├── GA_TakePhoto.h/cpp       # 拍照技能
+│       ├── GA_Patrol.h/cpp          # 巡逻技能
+│       ├── GA_Search.h/cpp          # 搜索技能
+│       ├── GA_Observe.h/cpp         # 观察技能
+│       ├── GA_Report.h/cpp          # 报告技能
+│       ├── GA_Charge.h/cpp          # 充电技能
+│       ├── GA_Formation.h/cpp       # 编队技能
+│       └── GA_Avoid.h/cpp           # 避障技能
 ├── Input/                           # 输入系统 ✅ 已实现
 │   ├── MAInputActions.h/cpp         # Input Actions 单例 (运行时创建)
 │   ├── MAInputConfig.h/cpp          # 输入配置数据资产
 │   └── MAInputComponent.h/cpp       # 增强输入组件
 ├── StateTree/                       # State Tree 模块 ✅ 已实现
 │   ├── MAStateTreeComponent.h/cpp   # State Tree 组件
-│   └── Task/                        # State Tree Task
-│       └── MASTTask_ActivateAbility.h/cpp  # 激活 Ability 的 Task
+│   ├── Task/                        # State Tree Task
+│   │   ├── MASTTask_ActivateAbility.h/cpp  # 激活 Ability 的 Task
+│   │   ├── MASTTask_Navigate.h/cpp  # 导航 Task
+│   │   └── MASTTask_Patrol.h/cpp    # 巡逻 Task
+│   └── Condition/                   # State Tree Condition
+│       ├── MASTCondition_HasCommand.h/cpp  # 检查命令 Tag
+│       ├── MASTCondition_LowEnergy.h/cpp   # 检查低电量
+│       ├── MASTCondition_FullEnergy.h/cpp  # 检查满电量
+│       └── MASTCondition_HasPatrolPath.h/cpp # 检查巡逻路径
 ├── MultiAgent.Build.cs              # 模块构建配置
 └── MultiAgent.h/cpp                 # 模块定义
 ```
@@ -73,7 +89,9 @@ ACharacter (UE) + IAbilitySystemInterface
 AActor (UE)
     ├── AMASensor (传感器基类)
     │       └── AMACameraSensor (摄像头传感器)
-    └── AMAPickupItem (可拾取物品)
+    ├── AMAPickupItem (可拾取物品)
+    ├── AMAChargingStation (充电站)
+    └── AMAPatrolPath (巡逻路径)
 
 UAbilitySystemComponent (UE GAS)
     └── UMAAbilitySystemComponent
@@ -84,7 +102,14 @@ UGameplayAbility (UE GAS)
             ├── UGA_Drop
             ├── UGA_Navigate
             ├── UGA_Follow
-            └── UGA_TakePhoto
+            ├── UGA_TakePhoto
+            ├── UGA_Patrol
+            ├── UGA_Search
+            ├── UGA_Observe
+            ├── UGA_Report
+            ├── UGA_Charge
+            ├── UGA_Formation
+            └── UGA_Avoid
 
 UWorldSubsystem (UE)
     └── UMAActorSubsystem (Character/Sensor 管理)
@@ -180,6 +205,28 @@ State.Interaction.Pickup   // 拾取中
 Ability.Pickup             // 拾取技能
 Ability.Drop               // 放下技能
 Ability.TakePhoto          // 拍照技能
+Ability.Patrol             // 巡逻技能
+Ability.Search             // 搜索技能
+Ability.Observe            // 观察技能
+Ability.Report             // 报告技能
+Ability.Charge             // 充电技能
+Ability.Formation          // 编队技能
+Ability.Avoid              // 避障技能
+
+// Event Tags (新增)
+Event.Target.Found         // 发现目标
+Event.Target.Lost          // 丢失目标
+Event.Charge.Complete      // 充电完成
+Event.Patrol.WaypointReached  // 到达巡逻点
+
+// Status Tags (新增)
+Status.Patrolling          // 正在巡逻
+Status.Searching           // 正在搜索
+Status.Observing           // 正在观察
+Status.Charging            // 正在充电
+Status.InFormation         // 编队中
+Status.Avoiding            // 避障中
+Status.LowEnergy           // 低电量
 Ability.Navigate           // 导航技能
 
 // Event Tags (ST <-> GAS 通信)
@@ -201,6 +248,13 @@ Status.Moving              // 正在移动
 | `GA_Navigate` | 导航移动 | 有 AIController | - |
 | `GA_Follow` | 追踪目标 | 有目标 Character | - |
 | `GA_TakePhoto` | 拍照 | 有附着的 CameraSensor | - |
+| `GA_Patrol` | 巡逻移动 | 有路径点数组 (>=2) | 无电量 |
+| `GA_Search` | 搜索 Human | 有附着的 CameraSensor | - |
+| `GA_Observe` | 观察目标 | - | - |
+| `GA_Report` | 报告信息 | - | - |
+| `GA_Charge` | 充电 | 在充电站范围内 | - |
+| `GA_Formation` | 编队移动 | 有 Leader | 无电量 |
+| `GA_Avoid` | 避障 | - | - |
 
 ### 7.3 使用示例
 
@@ -223,6 +277,23 @@ Character->TryNavigateTo(FVector(100, 200, 0));
 
 // 追踪另一个 Character
 Character->TryFollowActor(TargetCharacter, 300.f);
+
+// ========== 新增 Robot Abilities ==========
+
+// 巡逻 (RobotDog)
+AMARobotDogCharacter* Robot = ...;
+TArray<FVector> Waypoints = {FVector(0,0,0), FVector(500,0,0), FVector(500,500,0)};
+Robot->TryPatrol(Waypoints);
+
+// 搜索 Human (需要附着 CameraSensor)
+Robot->TrySearch();  // 发现 Human 时输出 "Find Target"
+
+// 充电 (需要在 ChargingStation 范围内)
+Robot->TryCharge();  // 恢复电量到 100%
+
+// 编队跟随
+AMACharacter* Leader = ...;
+Robot->GetAbilitySystemComponent()->TryActivateFormation(Leader, EFormationType::Wedge, 0);
 ```
 
 ## 8. 追踪功能 (Ground Truth Tracking)
@@ -269,7 +340,277 @@ Hunter->TryFollowActor(Target, 300.f);
 Hunter->StopFollowing();
 ```
 
-## 9. 输入系统 (Enhanced Input)
+## 8.4 Energy System (电量系统)
+
+RobotDog 拥有电量系统，移动时消耗电量，可在充电站充电。
+
+### 属性
+
+| 属性 | 默认值 | 说明 |
+|------|--------|------|
+| `Energy` | 100.f | 当前电量 (0-100) |
+| `MaxEnergy` | 100.f | 最大电量 |
+| `EnergyDrainRate` | 1.f | 每秒消耗电量 |
+
+### 头顶显示
+
+电量会实时显示在机器人头顶：
+- 绿色: Energy >= 50%
+- 黄色: 20% <= Energy < 50%
+- 红色: Energy < 20% (低电量警告)
+
+### 使用示例
+
+```cpp
+AMARobotDogCharacter* Robot = ...;
+
+// 检查电量
+if (Robot->HasEnergy())
+{
+    Robot->TryNavigateTo(Target);
+}
+
+// 获取电量百分比
+float Percent = Robot->GetEnergyPercent();
+
+// 恢复电量
+Robot->RestoreEnergy(50.f);
+```
+
+## 8.5 ChargingStation (充电站)
+
+充电站是一个可放置在关卡中的 Actor，机器人进入范围后可触发充电。
+
+### 属性
+
+| 属性 | 默认值 | 说明 |
+|------|--------|------|
+| `InteractionRadius` | 300.f | 交互范围 |
+
+### 使用示例
+
+```cpp
+// 在关卡中放置 ChargingStation
+// 机器人进入范围后:
+Robot->TryCharge();  // 电量恢复到 100%
+```
+
+## 8.6 PatrolPath (巡逻路径)
+
+巡逻路径定义了机器人巡逻的路径点序列。
+
+### 使用示例
+
+```cpp
+// 方式1: 直接使用路径点数组
+TArray<FVector> Waypoints = {
+    FVector(0, 0, 0),
+    FVector(500, 0, 0),
+    FVector(500, 500, 0),
+    FVector(0, 500, 0)
+};
+Robot->TryPatrol(Waypoints);
+
+// 方式2: 使用 PatrolPath Actor
+AMAPatrolPath* Path = ...;  // 在关卡中放置
+Robot->TryPatrolPath(Path);
+
+// 停止巡逻
+Robot->StopPatrol();
+```
+
+## 8.7 GA_Search (搜索技能)
+
+使用摄像头检测视野内的 Human 角色。
+
+### 属性
+
+| 属性 | 默认值 | 说明 |
+|------|--------|------|
+| `DetectionInterval` | 0.5f | 检测间隔（秒） |
+| `DetectionRange` | 1000.f | 检测范围 |
+| `DetectionFOV` | 90.f | 检测视野角度（度） |
+
+### 使用示例
+
+```cpp
+// 需要附着 CameraSensor
+Robot->TrySearch();
+
+// 发现 Human 时:
+// - 输出日志 "Find Target"
+// - 屏幕显示 "[RobotDog] Find Target: Human"
+// - 触发 Event.Target.Found 事件
+
+// 停止搜索
+Robot->StopSearch();
+```
+
+## 8.8 GA_Formation (编队技能)
+
+多机器人按阵型跟随 Leader 移动。
+
+### 编队类型
+
+| 类型 | 说明 |
+|------|------|
+| `Line` | 一字排开（左右展开） |
+| `Column` | 纵队（前后排列） |
+| `Wedge` | 楔形（V形阵型） |
+| `Diamond` | 菱形 |
+
+### 属性
+
+| 属性 | 默认值 | 说明 |
+|------|--------|------|
+| `FormationSpacing` | 200.f | 编队间距 |
+| `UpdateInterval` | 0.3f | 位置更新间隔 |
+
+### 使用示例
+
+```cpp
+AMACharacter* Leader = ...;
+AMARobotDogCharacter* Robot1 = ...;
+AMARobotDogCharacter* Robot2 = ...;
+
+// Robot1 加入楔形编队，位置 0
+Robot1->GetAbilitySystemComponent()->TryActivateFormation(Leader, EFormationType::Wedge, 0);
+
+// Robot2 加入楔形编队，位置 1
+Robot2->GetAbilitySystemComponent()->TryActivateFormation(Leader, EFormationType::Wedge, 1);
+
+// 取消编队
+Robot1->GetAbilitySystemComponent()->CancelFormation();
+```
+
+## 8.9 GA_Avoid (避障技能)
+
+检测障碍物并计算避障路径。
+
+### 属性
+
+| 属性 | 默认值 | 说明 |
+|------|--------|------|
+| `DetectionRadius` | 200.f | 障碍物检测半径 |
+| `AvoidanceStrength` | 1.f | 避障力度 |
+| `CheckInterval` | 0.1f | 检测间隔 |
+
+### 使用示例
+
+```cpp
+// 启动避障并设置目标
+Robot->GetAbilitySystemComponent()->TryActivateAvoid(TargetLocation);
+
+// 取消避障
+Robot->GetAbilitySystemComponent()->CancelAvoid();
+```
+
+## 8.10 GA_Report (报告技能)
+
+在屏幕上显示报告对话框。
+
+### 属性
+
+| 属性 | 默认值 | 说明 |
+|------|--------|------|
+| `DisplayDuration` | 5.f | 显示时长（秒） |
+
+### 使用示例
+
+```cpp
+// 发送报告
+Robot->GetAbilitySystemComponent()->TryActivateReport(TEXT("发现可疑目标"));
+
+// 屏幕显示:
+// [Report from RobotDog]
+// 发现可疑目标
+```
+
+## 8.11 GA_Observe (观察技能)
+
+Sensor 持续观察目标或区域。
+
+### 属性
+
+| 属性 | 默认值 | 说明 |
+|------|--------|------|
+| `ObserveRange` | 1500.f | 观察范围 |
+| `UpdateInterval` | 0.3f | 更新间隔 |
+
+### 使用示例
+
+```cpp
+// 观察特定目标
+Robot->GetAbilitySystemComponent()->TryActivateObserve(TargetActor);
+
+// 区域观察（无特定目标）
+Robot->GetAbilitySystemComponent()->TryActivateObserve(nullptr);
+
+// 目标离开范围时触发 Event.Target.Lost
+```
+
+## 9. State Tree 模块详解
+
+### 9.1 概述
+
+State Tree 是 UE5 的新一代行为树系统，用于管理 Character 的高层状态决策。本项目使用 State Tree + GAS 的组合架构：
+
+- **State Tree**: 决定"做什么"（状态切换）
+- **GAS**: 决定"怎么做"（技能执行）
+
+### 9.2 自定义 Task
+
+| Task | 功能 | 参数 |
+|------|------|------|
+| `MASTTask_Patrol` | 循环巡逻路径点 | PatrolPathTag, WaitTimeAtWaypoint, AcceptanceRadius |
+| `MASTTask_Navigate` | 导航到指定位置 | TargetLocation, AcceptanceRadius |
+| `MASTTask_ActivateAbility` | 激活 GAS Ability | AbilityTag, WaitForAbilityEnd |
+
+### 9.3 自定义 Condition
+
+| Condition | 功能 | 参数 |
+|-----------|------|------|
+| `MASTCondition_HasCommand` | 检查是否收到指定命令 | CommandTag |
+| `MASTCondition_LowEnergy` | 检查电量 < 阈值 | EnergyThreshold (默认 20%) |
+| `MASTCondition_FullEnergy` | 检查电量 >= 阈值 | FullThreshold (默认 100%) |
+| `MASTCondition_HasPatrolPath` | 检查是否有可用巡逻路径 | PatrolPathTag |
+
+### 9.4 命令系统
+
+通过 Gameplay Tags 发送命令，State Tree Condition 检测命令并触发状态转换：
+
+```cpp
+// 发送命令
+Robot->GetAbilitySystemComponent()->AddLooseGameplayTag(
+    FGameplayTag::RequestGameplayTag(FName("Command.Patrol")));
+
+// State Tree 中的 MASTCondition_HasCommand 会检测到命令
+// 触发状态转换到 Patrol 状态
+```
+
+### 9.5 状态转换示例
+
+```
+┌──────────────┐  Command.Patrol   ┌──────────────┐
+│     Idle     │ ────────────────► │    Patrol    │
+└──────────────┘                   └──────┬───────┘
+       ▲                                  │
+       │ Command.Idle                     │ LowEnergy (<20%)
+       │                                  ▼
+       │                           ┌──────────────┐
+       └────────────────────────── │    Charge    │
+              FullEnergy (100%)    └──────────────┘
+```
+
+### 9.6 配置要点
+
+1. **Schema**: 必须选择 `StateTree AI Component Schema`
+2. **AIController**: Character 必须有 AIController
+3. **Actor Tag**: 使用 Actor Tag 在运行时查找场景中的 Actor（如 PatrolPath）
+
+---
+
+## 10. 输入系统 (Enhanced Input)
 
 ### 9.1 架构
 
@@ -336,7 +677,7 @@ Input/
 └── MAInputComponent.h/cpp   # 增强输入组件（可选）
 ```
 
-## 10. 头顶状态显示
+## 11. 头顶状态显示
 
 每个 Character 头顶可以显示当前正在执行的技能名称和参数，便于调试和观察。
 
@@ -353,7 +694,7 @@ Character->ShowAbilityStatus(TEXT("Navigate"), TEXT("→ (100, 200)"));
 Character->ShowStatus(TEXT(""), 0.f);
 ```
 
-## 11. 开发路线
+## 12. 开发路线
 
 ### Phase 1: 核心框架 ✅ 已完成
 - [x] UMAActorSubsystem - Character/Sensor 生命周期管理
@@ -367,18 +708,39 @@ Character->ShowStatus(TEXT(""), 0.f);
 - [x] AMAPickupItem - 可拾取物品
 - [x] State Tree 基础集成
 
-### Phase 2: 输入与交互 🔄 进行中
+### Phase 2: 输入与交互 ✅ 已完成
 - [x] Enhanced Input System - 替换旧版输入系统
+- [x] Energy System - 机器人电量系统
+- [x] ChargingStation - 充电站
+- [x] PatrolPath - 巡逻路径
+- [x] GA_Patrol - 巡逻技能
+- [x] GA_Search - 搜索技能（检测 Human）
+- [x] GA_Observe - 观察技能
+- [x] GA_Report - 报告技能
+- [x] GA_Charge - 充电技能
+- [x] GA_Formation - 编队技能
+- [x] GA_Avoid - 避障技能
+
+### Phase 3: State Tree 集成 ✅ 已完成
+- [x] MAStateTreeComponent - State Tree 组件
+- [x] MASTTask_Patrol - 巡逻 Task
+- [x] MASTTask_Navigate - 导航 Task
+- [x] MASTTask_ActivateAbility - 激活 Ability Task
+- [x] MASTCondition_HasCommand - 命令检测 Condition
+- [x] MASTCondition_LowEnergy - 低电量检测 Condition
+- [x] MASTCondition_FullEnergy - 满电量检测 Condition
+- [x] MASTCondition_HasPatrolPath - 巡逻路径检测 Condition
+
+### Phase 4: 交互与感知 🔄 进行中
 - [ ] GA_Interact - 交互技能
 - [ ] 更多 Sensor 类型 (Lidar, Depth, IMU)
-- [ ] 完整的 State Tree 状态机配置
 
-### Phase 3: 关系管理
+### Phase 5: 关系管理
 - [ ] UMARelationSubsystem - 实体关系图
 - [ ] 关系类型枚举
 - [ ] 关系查询 API
 
-### Phase 4: 持久化系统
+### Phase 6: 持久化系统
 - [ ] UMAGameInstance - 跨关卡持久数据
 - [ ] SaveGame 系统 - 游戏存档/读档
 - [ ] 关卡切换与数据保持
@@ -391,7 +753,7 @@ Character->ShowStatus(TEXT(""), 0.f);
 | **SaveGame** | 存档/读档系统 | 中 |
 | **UI/HUD** | 用户界面（队友负责，解耦设计） | 低 |
 
-## 12. 重要设计原则
+## 13. 重要设计原则
 
 ### 12.1 虚函数多态设计
 
