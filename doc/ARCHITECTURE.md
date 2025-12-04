@@ -368,7 +368,7 @@ Character->ShowStatus(TEXT(""), 0.f);
 - [x] State Tree 基础集成
 
 ### Phase 2: 输入与交互 🔄 进行中
-- [ ] Enhanced Input System - 替换旧版输入系统
+- [x] Enhanced Input System - 替换旧版输入系统
 - [ ] GA_Interact - 交互技能
 - [ ] 更多 Sensor 类型 (Lidar, Depth, IMU)
 - [ ] 完整的 State Tree 状态机配置
@@ -386,7 +386,7 @@ Character->ShowStatus(TEXT(""), 0.f);
 ### 未来规划
 | 模块 | 说明 | 优先级 |
 |------|------|--------|
-| **Enhanced Input** | UE5 新输入系统，支持复杂输入映射 | 高 |
+| **Enhanced Input** 完成 | UE5 新输入系统，支持复杂输入映射 | 高 |
 | **GameInstance** | 跨关卡持久数据（玩家进度、设置等） | 中 |
 | **SaveGame** | 存档/读档系统 | 中 |
 | **UI/HUD** | 用户界面（队友负责，解耦设计） | 低 |
