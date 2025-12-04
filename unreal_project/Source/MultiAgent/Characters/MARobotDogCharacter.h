@@ -1,23 +1,23 @@
+// MARobotDogCharacter.h
+// 机器狗角色
+
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MAAgent.h"
-#include "MARobotDogAgent.generated.h"
+#include "MACharacter.h"
+#include "MARobotDogCharacter.generated.h"
 
 UCLASS()
-class MULTIAGENT_API AMARobotDogAgent : public AMAAgent
+class MULTIAGENT_API AMARobotDogCharacter : public AMACharacter
 {
     GENERATED_BODY()
 
 public:
-    AMARobotDogAgent();
+    AMARobotDogCharacter();
 
     virtual void Tick(float DeltaTime) override;
 
-    // 播放行走动画
     void PlayWalkAnimation();
-    
-    // 播放待机动画
     void PlayIdleAnimation();
 
 protected:

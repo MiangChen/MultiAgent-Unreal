@@ -1,9 +1,11 @@
+// MAGameMode.cpp
+
 #include "MAGameMode.h"
 #include "MAPlayerController.h"
-#include "../AgentManager/MAAgentSubsystem.h"
-#include "../AgentManager/MAHumanAgent.h"
-#include "../AgentManager/MARobotDogAgent.h"
-#include "../AgentManager/MACameraAgent.h"
+#include "MAActorSubsystem.h"
+#include "../Characters/MAHumanCharacter.h"
+#include "../Characters/MARobotDogCharacter.h"
+#include "../Actors/MACameraSensor.h"
 #include "GameFramework/SpectatorPawn.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Kismet/GameplayStatics.h"
@@ -15,33 +17,33 @@ AMAGameMode::AMAGameMode()
     DefaultPawnClass = ASpectatorPawn::StaticClass();
     PlayerControllerClass = AMAPlayerController::StaticClass();
     
-    // Agent 类型使用 C++ 类
-    HumanAgentClass = AMAHumanAgent::StaticClass();
-    RobotDogAgentClass = AMARobotDogAgent::StaticClass();
+    // Character 类型使用 C++ 类
+    HumanCharacterClass = AMAHumanCharacter::StaticClass();
+    RobotDogCharacterClass = AMARobotDogCharacter::StaticClass();
 }
 
 void AMAGameMode::BeginPlay()
 {
     Super::BeginPlay();
     
-    // 延迟一帧生成 Agent，确保玩家和子系统已经初始化
+    // 延迟一帧生成 Character，确保玩家和子系统已经初始化
     GetWorld()->GetTimerManager().SetTimerForNextTick([this]()
     {
-        SpawnInitialAgents();
+        SpawnInitialCharacters();
     });
 }
 
-UMAAgentSubsystem* AMAGameMode::GetAgentSubsystem() const
+UMAActorSubsystem* AMAGameMode::GetActorSubsystem() const
 {
-    return GetWorld()->GetSubsystem<UMAAgentSubsystem>();
+    return GetWorld()->GetSubsystem<UMAActorSubsystem>();
 }
 
-void AMAGameMode::SpawnInitialAgents()
+void AMAGameMode::SpawnInitialCharacters()
 {
-    UMAAgentSubsystem* AgentSubsystem = GetAgentSubsystem();
-    if (!AgentSubsystem)
+    UMAActorSubsystem* ActorSubsystem = GetActorSubsystem();
+    if (!ActorSubsystem)
     {
-        UE_LOG(LogTemp, Error, TEXT("AgentSubsystem not found!"));
+        UE_LOG(LogTemp, Error, TEXT("ActorSubsystem not found!"));
         return;
     }
 
@@ -56,13 +58,13 @@ void AMAGameMode::SpawnInitialAgents()
     // 获取导航系统
     UNavigationSystemV1* NavSys = UNavigationSystemV1::GetCurrent(GetWorld());
     
-    int32 TotalAgents = NumHumans + NumRobotDogs;
-    int32 AgentIndex = 0;
+    int32 TotalCharacters = NumHumans + NumRobotDogs;
+    int32 CharacterIndex = 0;
     
-    // 生成人类 Agent（通过 AgentSubsystem）
+    // 生成人类 Character
     for (int32 i = 0; i < NumHumans; i++)
     {
-        float Angle = (360.f / TotalAgents) * AgentIndex;
+        float Angle = (360.f / TotalCharacters) * CharacterIndex;
         float Radius = 400.f;
         
         FVector SpawnLocation = PlayerStart + FVector(
@@ -81,22 +83,21 @@ void AMAGameMode::SpawnInitialAgents()
             }
         }
         
-        AMAAgent* Human = AgentSubsystem->SpawnAgent(HumanAgentClass, SpawnLocation, FRotator::ZeroRotator, AgentIndex, EAgentType::Human);
+        AMACharacter* Human = ActorSubsystem->SpawnCharacter(HumanCharacterClass, SpawnLocation, FRotator::ZeroRotator, CharacterIndex, EMAActorType::Human);
         
-        // 为 Human 添加第三人称摄像头（后方、稍高、向下看，类似 GTA）
+        // 为 Human 添加第三人称摄像头
         if (Human)
         {
-            // X=-200 后方, Z=100 高于肩膀, Pitch=-10 向下看
-            SpawnAndAttachCamera(AgentSubsystem, Human, FVector(-200.f, 0.f, 100.f), FRotator(-10.f, 0.f, 0.f));
+            SpawnAndAttachCamera(ActorSubsystem, Human, FVector(-200.f, 0.f, 100.f), FRotator(-10.f, 0.f, 0.f));
         }
         
-        AgentIndex++;
+        CharacterIndex++;
     }
     
-    // 生成机器狗 Agent（通过 AgentSubsystem）
+    // 生成机器狗 Character
     for (int32 i = 0; i < NumRobotDogs; i++)
     {
-        float Angle = (360.f / TotalAgents) * AgentIndex;
+        float Angle = (360.f / TotalCharacters) * CharacterIndex;
         float Radius = 400.f;
         
         FVector SpawnLocation = PlayerStart + FVector(
@@ -115,37 +116,36 @@ void AMAGameMode::SpawnInitialAgents()
             }
         }
         
-        AMAAgent* RobotDog = AgentSubsystem->SpawnAgent(RobotDogAgentClass, SpawnLocation, FRotator::ZeroRotator, AgentIndex, EAgentType::RobotDog);
+        AMACharacter* RobotDog = ActorSubsystem->SpawnCharacter(RobotDogCharacterClass, SpawnLocation, FRotator::ZeroRotator, CharacterIndex, EMAActorType::RobotDog);
         
-        // 为 RobotDog 添加第三人称摄像头（后方、稍高、向下看）
+        // 为 RobotDog 添加第三人称摄像头
         if (RobotDog)
         {
-            // X=-150 后方, Z=80 高于背部, Pitch=-15 向下看
-            SpawnAndAttachCamera(AgentSubsystem, RobotDog, FVector(-150.f, 0.f, 80.f), FRotator(-15.f, 0.f, 0.f));
+            SpawnAndAttachCamera(ActorSubsystem, RobotDog, FVector(-150.f, 0.f, 80.f), FRotator(-15.f, 0.f, 0.f));
         }
         
-        AgentIndex++;
+        CharacterIndex++;
     }
     
-    UE_LOG(LogTemp, Log, TEXT("Spawned %d humans and %d robot dogs with cameras via AgentSubsystem"), NumHumans, NumRobotDogs);
+    UE_LOG(LogTemp, Log, TEXT("Spawned %d humans and %d robot dogs with cameras via ActorSubsystem"), NumHumans, NumRobotDogs);
     
     // 生成一个追踪者 RobotDog，自动追踪第一个 Human
-    SpawnTrackerAgent(AgentSubsystem);
+    SpawnTrackerCharacter(ActorSubsystem);
 }
 
-void AMAGameMode::SpawnTrackerAgent(UMAAgentSubsystem* AgentSubsystem)
+void AMAGameMode::SpawnTrackerCharacter(UMAActorSubsystem* ActorSubsystem)
 {
-    if (!AgentSubsystem) return;
+    if (!ActorSubsystem) return;
     
     // 获取第一个 Human 作为追踪目标
-    TArray<AMAAgent*> Humans = AgentSubsystem->GetAgentsByType(EAgentType::Human);
+    TArray<AMACharacter*> Humans = ActorSubsystem->GetCharactersByType(EMAActorType::Human);
     if (Humans.Num() == 0)
     {
         UE_LOG(LogTemp, Warning, TEXT("[GameMode] No Human to track!"));
         return;
     }
     
-    AMAAgent* TargetHuman = Humans[0];
+    AMACharacter* TargetHuman = Humans[0];
     
     // 在目标后方生成追踪者
     FVector SpawnLocation = TargetHuman->GetActorLocation() - TargetHuman->GetActorForwardVector() * 500.f;
@@ -161,49 +161,49 @@ void AMAGameMode::SpawnTrackerAgent(UMAAgentSubsystem* AgentSubsystem)
     }
     
     // 生成追踪者
-    TrackerAgent = Cast<AMAAgent>(AgentSubsystem->SpawnAgent(
-        RobotDogAgentClass,
+    TrackerCharacter = ActorSubsystem->SpawnCharacter(
+        RobotDogCharacterClass,
         SpawnLocation,
         FRotator::ZeroRotator,
         100,  // 特殊 ID
-        EAgentType::RobotDog
-    ));
+        EMAActorType::RobotDog
+    );
     
-    if (TrackerAgent)
+    if (TrackerCharacter)
     {
-        TrackerAgent->AgentName = TEXT("Tracker_Dog");
+        TrackerCharacter->ActorName = TEXT("Tracker_Dog");
         
         // 开始追踪第一个 Human
-        TrackerAgent->TryFollowAgent(TargetHuman, 300.f);
+        TrackerCharacter->TryFollowActor(TargetHuman, 300.f);
         
-        UE_LOG(LogTemp, Log, TEXT("[GameMode] Spawned Tracker_Dog, following %s"), *TargetHuman->AgentName);
+        UE_LOG(LogTemp, Log, TEXT("[GameMode] Spawned Tracker_Dog, following %s"), *TargetHuman->ActorName);
         
         if (GEngine)
         {
             GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Magenta,
-                FString::Printf(TEXT("Tracker_Dog spawned, following %s"), *TargetHuman->AgentName));
+                FString::Printf(TEXT("Tracker_Dog spawned, following %s"), *TargetHuman->ActorName));
         }
     }
 }
 
-void AMAGameMode::SpawnAndAttachCamera(UMAAgentSubsystem* AgentSubsystem, AMAAgent* ParentAgent, FVector RelativeLocation, FRotator RelativeRotation)
+void AMAGameMode::SpawnAndAttachCamera(UMAActorSubsystem* ActorSubsystem, AMACharacter* ParentCharacter, FVector RelativeLocation, FRotator RelativeRotation)
 {
-    if (!AgentSubsystem || !ParentAgent)
+    if (!ActorSubsystem || !ParentCharacter)
     {
         return;
     }
     
-    // 在父 Agent 位置生成摄像头
-    AMACameraAgent* Camera = Cast<AMACameraAgent>(
-        AgentSubsystem->SpawnAgent(AMACameraAgent::StaticClass(), ParentAgent->GetActorLocation(), ParentAgent->GetActorRotation(), -1, EAgentType::Camera)
+    // 在父 Character 位置生成摄像头
+    AMACameraSensor* Camera = Cast<AMACameraSensor>(
+        ActorSubsystem->SpawnSensor(AMACameraSensor::StaticClass(), ParentCharacter->GetActorLocation(), ParentCharacter->GetActorRotation(), -1)
     );
     
     if (Camera)
     {
-        // 附着到父 Agent
-        Camera->AttachToAgent(ParentAgent, RelativeLocation, RelativeRotation);
+        // 附着到父 Character
+        Camera->AttachToCharacter(ParentCharacter, RelativeLocation, RelativeRotation);
         
         UE_LOG(LogTemp, Log, TEXT("[GameMode] Attached camera %s to %s at offset (%.0f, %.0f, %.0f)"),
-            *Camera->AgentName, *ParentAgent->AgentName, RelativeLocation.X, RelativeLocation.Y, RelativeLocation.Z);
+            *Camera->SensorName, *ParentCharacter->ActorName, RelativeLocation.X, RelativeLocation.Y, RelativeLocation.Z);
     }
 }

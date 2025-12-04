@@ -1,10 +1,12 @@
+// MAPlayerController.cpp
+
 #include "MAPlayerController.h"
 #include "MAGameMode.h"
-#include "../AgentManager/MAAgentSubsystem.h"
-#include "../AgentManager/MAAgent.h"
-#include "../AgentManager/MARobotDogAgent.h"
-#include "../AgentManager/MACameraAgent.h"
-#include "../Interaction/MAPickupItem.h"
+#include "MAActorSubsystem.h"
+#include "../Characters/MACharacter.h"
+#include "../Characters/MARobotDogCharacter.h"
+#include "../Actors/MACameraSensor.h"
+#include "../Actors/MAPickupItem.h"
 #include "AIController.h"
 
 AMAPlayerController::AMAPlayerController()
@@ -34,7 +36,7 @@ void AMAPlayerController::PlayerTick(float DeltaTime)
         OnLeftClick();
     }
     
-    // 右键点击 - 移动所有 Agent
+    // 右键点击 - 移动所有 Character
     if (WasInputKeyJustPressed(EKeys::RightMouseButton))
     {
         OnRightClick();
@@ -47,13 +49,13 @@ void AMAPlayerController::PlayerTick(float DeltaTime)
         OnSpawnRobotDog();
     }
     
-    // Y - 打印 Agent 信息
+    // Y - 打印 Character 信息
     if (WasInputKeyJustPressed(EKeys::Y))
     {
         OnPrintAgentInfo();
     }
     
-    // U - 销毁最后一个 Agent
+    // U - 销毁最后一个 Character
     if (WasInputKeyJustPressed(EKeys::U))
     {
         OnDestroyLastAgent();
@@ -97,15 +99,15 @@ void AMAPlayerController::OnLeftClick()
     FVector HitLocation;
     if (GetMouseHitLocation(HitLocation))
     {
-        // 左键：移动所有 Human Agent 到目标位置 (通过司能/GAS)
-        if (UMAAgentSubsystem* AgentSubsystem = GetWorld()->GetSubsystem<UMAAgentSubsystem>())
+        // 左键：移动所有 Human Character 到目标位置
+        if (UMAActorSubsystem* ActorSubsystem = GetWorld()->GetSubsystem<UMAActorSubsystem>())
         {
-            TArray<AMAAgent*> Humans = AgentSubsystem->GetAgentsByType(EAgentType::Human);
-            for (AMAAgent* Agent : Humans)
+            TArray<AMACharacter*> Humans = ActorSubsystem->GetCharactersByType(EMAActorType::Human);
+            for (AMACharacter* Character : Humans)
             {
-                if (Agent)
+                if (Character)
                 {
-                    Agent->TryNavigateTo(HitLocation);
+                    Character->TryNavigateTo(HitLocation);
                 }
             }
         }
@@ -118,15 +120,15 @@ void AMAPlayerController::OnRightClick()
     if (GetMouseHitLocation(HitLocation))
     {
         // 右键：只移动 RobotDog（不包括追踪者）
-        if (UMAAgentSubsystem* AgentSubsystem = GetWorld()->GetSubsystem<UMAAgentSubsystem>())
+        if (UMAActorSubsystem* ActorSubsystem = GetWorld()->GetSubsystem<UMAActorSubsystem>())
         {
-            TArray<AMAAgent*> RobotDogs = AgentSubsystem->GetAgentsByType(EAgentType::RobotDog);
-            for (AMAAgent* Agent : RobotDogs)
+            TArray<AMACharacter*> RobotDogs = ActorSubsystem->GetCharactersByType(EMAActorType::RobotDog);
+            for (AMACharacter* Character : RobotDogs)
             {
                 // 跳过追踪者（名字包含 "Tracker"）
-                if (Agent && !Agent->AgentName.Contains(TEXT("Tracker")))
+                if (Character && !Character->ActorName.Contains(TEXT("Tracker")))
                 {
-                    Agent->TryNavigateTo(HitLocation);
+                    Character->TryNavigateTo(HitLocation);
                 }
             }
         }
@@ -135,10 +137,9 @@ void AMAPlayerController::OnRightClick()
 
 void AMAPlayerController::MoveAllAgentsToLocation(FVector Destination)
 {
-    // 所有 Agent 统一由 AgentSubsystem 管理
-    if (UMAAgentSubsystem* AgentSubsystem = GetWorld()->GetSubsystem<UMAAgentSubsystem>())
+    if (UMAActorSubsystem* ActorSubsystem = GetWorld()->GetSubsystem<UMAActorSubsystem>())
     {
-        AgentSubsystem->MoveAllAgentsTo(Destination, 150.f);
+        ActorSubsystem->MoveAllCharactersTo(Destination, 150.f);
     }
 }
 
@@ -157,64 +158,65 @@ bool AMAPlayerController::GetMouseHitLocation(FVector& OutLocation)
 
 void AMAPlayerController::OnSpawnRobotDog()
 {
-    UMAAgentSubsystem* AgentSubsystem = GetWorld()->GetSubsystem<UMAAgentSubsystem>();
-    if (!AgentSubsystem) return;
+    UMAActorSubsystem* ActorSubsystem = GetWorld()->GetSubsystem<UMAActorSubsystem>();
+    if (!ActorSubsystem) return;
     
     // 在玩家前方生成
     FVector SpawnLocation = GetPawn()->GetActorLocation() + GetPawn()->GetActorForwardVector() * 300.f;
     
-    AMAAgent* NewAgent = AgentSubsystem->SpawnAgent(
-        AMARobotDogAgent::StaticClass(),
+    AMACharacter* NewCharacter = ActorSubsystem->SpawnCharacter(
+        AMARobotDogCharacter::StaticClass(),
         SpawnLocation,
         FRotator::ZeroRotator,
         -1,  // 自动分配 ID
-        EAgentType::RobotDog
+        EMAActorType::RobotDog
     );
     
-    if (NewAgent)
+    if (NewCharacter)
     {
         GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green, 
-            FString::Printf(TEXT("Spawned: %s at %s"), *NewAgent->AgentName, *SpawnLocation.ToString()));
+            FString::Printf(TEXT("Spawned: %s at %s"), *NewCharacter->ActorName, *SpawnLocation.ToString()));
     }
 }
 
 void AMAPlayerController::OnPrintAgentInfo()
 {
-    UMAAgentSubsystem* AgentSubsystem = GetWorld()->GetSubsystem<UMAAgentSubsystem>();
-    if (!AgentSubsystem) return;
+    UMAActorSubsystem* ActorSubsystem = GetWorld()->GetSubsystem<UMAActorSubsystem>();
+    if (!ActorSubsystem) return;
     
-    int32 Total = AgentSubsystem->GetAgentCount();
-    int32 Dogs = AgentSubsystem->GetAgentsByType(EAgentType::RobotDog).Num();
-    int32 Humans = AgentSubsystem->GetAgentsByType(EAgentType::Human).Num();
+    int32 Total = ActorSubsystem->GetCharacterCount();
+    int32 Dogs = ActorSubsystem->GetCharactersByType(EMAActorType::RobotDog).Num();
+    int32 Humans = ActorSubsystem->GetCharactersByType(EMAActorType::Human).Num();
+    int32 Sensors = ActorSubsystem->GetSensorCount();
     
     GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Cyan, 
-        FString::Printf(TEXT("=== Agent Info ===\nTotal: %d\nRobotDogs: %d\nHumans: %d"), Total, Dogs, Humans));
+        FString::Printf(TEXT("=== Actor Info ===\nCharacters: %d\nRobotDogs: %d\nHumans: %d\nSensors: %d"), Total, Dogs, Humans, Sensors));
     
-    // 打印每个 Agent 的详细信息
-    for (AMAAgent* Agent : AgentSubsystem->GetAllAgents())
+    // 打印每个 Character 的详细信息
+    for (AMACharacter* Character : ActorSubsystem->GetAllCharacters())
     {
-        if (Agent)
+        if (Character)
         {
-            FString HoldingInfo = Agent->IsHoldingItem() ? TEXT(" [Holding Item]") : TEXT("");
+            FString HoldingInfo = Character->IsHoldingItem() ? TEXT(" [Holding Item]") : TEXT("");
             GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, 
                 FString::Printf(TEXT("  [%d] %s at %s%s"), 
-                    Agent->AgentID, *Agent->AgentName, *Agent->GetActorLocation().ToString(), *HoldingInfo));
+                    Character->ActorID, *Character->ActorName, *Character->GetActorLocation().ToString(), *HoldingInfo));
         }
     }
 }
 
 void AMAPlayerController::OnDestroyLastAgent()
 {
-    UMAAgentSubsystem* AgentSubsystem = GetWorld()->GetSubsystem<UMAAgentSubsystem>();
-    if (!AgentSubsystem) return;
+    UMAActorSubsystem* ActorSubsystem = GetWorld()->GetSubsystem<UMAActorSubsystem>();
+    if (!ActorSubsystem) return;
     
-    TArray<AMAAgent*> AllAgents = AgentSubsystem->GetAllAgents();
-    if (AllAgents.Num() > 0)
+    TArray<AMACharacter*> AllCharacters = ActorSubsystem->GetAllCharacters();
+    if (AllCharacters.Num() > 0)
     {
-        AMAAgent* LastAgent = AllAgents.Last();
-        FString Name = LastAgent->AgentName;
+        AMACharacter* LastCharacter = AllCharacters.Last();
+        FString Name = LastCharacter->ActorName;
         
-        if (AgentSubsystem->DestroyAgent(LastAgent))
+        if (ActorSubsystem->DestroyCharacter(LastCharacter))
         {
             GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, 
                 FString::Printf(TEXT("Destroyed: %s"), *Name));
@@ -222,7 +224,7 @@ void AMAPlayerController::OnDestroyLastAgent()
     }
     else
     {
-        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Orange, TEXT("No agents to destroy!"));
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Orange, TEXT("No characters to destroy!"));
     }
 }
 
@@ -230,24 +232,24 @@ void AMAPlayerController::OnDestroyLastAgent()
 
 void AMAPlayerController::OnPickup()
 {
-    UMAAgentSubsystem* AgentSubsystem = GetWorld()->GetSubsystem<UMAAgentSubsystem>();
-    if (!AgentSubsystem) return;
+    UMAActorSubsystem* ActorSubsystem = GetWorld()->GetSubsystem<UMAActorSubsystem>();
+    if (!ActorSubsystem) return;
 
-    // 让所有 Human Agent 尝试拾取
-    TArray<AMAAgent*> Humans = AgentSubsystem->GetAgentsByType(EAgentType::Human);
-    for (AMAAgent* Agent : Humans)
+    // 让所有 Human Character 尝试拾取
+    TArray<AMACharacter*> Humans = ActorSubsystem->GetCharactersByType(EMAActorType::Human);
+    for (AMACharacter* Character : Humans)
     {
-        if (Agent && !Agent->IsHoldingItem())
+        if (Character && !Character->IsHoldingItem())
         {
-            if (Agent->TryPickup())
+            if (Character->TryPickup())
             {
                 GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green,
-                    FString::Printf(TEXT("%s trying to pickup..."), *Agent->AgentName));
+                    FString::Printf(TEXT("%s trying to pickup..."), *Character->ActorName));
             }
             else
             {
                 GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange,
-                    FString::Printf(TEXT("%s: No item nearby to pickup"), *Agent->AgentName));
+                    FString::Printf(TEXT("%s: No item nearby to pickup"), *Character->ActorName));
             }
         }
     }
@@ -255,16 +257,16 @@ void AMAPlayerController::OnPickup()
 
 void AMAPlayerController::OnDrop()
 {
-    UMAAgentSubsystem* AgentSubsystem = GetWorld()->GetSubsystem<UMAAgentSubsystem>();
-    if (!AgentSubsystem) return;
+    UMAActorSubsystem* ActorSubsystem = GetWorld()->GetSubsystem<UMAActorSubsystem>();
+    if (!ActorSubsystem) return;
 
-    // 让所有持有物品的 Human Agent 放下物品
-    TArray<AMAAgent*> Humans = AgentSubsystem->GetAgentsByType(EAgentType::Human);
-    for (AMAAgent* Agent : Humans)
+    // 让所有持有物品的 Human Character 放下物品
+    TArray<AMACharacter*> Humans = ActorSubsystem->GetCharactersByType(EMAActorType::Human);
+    for (AMACharacter* Character : Humans)
     {
-        if (Agent && Agent->IsHoldingItem())
+        if (Character && Character->IsHoldingItem())
         {
-            Agent->TryDrop();
+            Character->TryDrop();
         }
     }
 }
@@ -303,11 +305,20 @@ void AMAPlayerController::OnSpawnPickupItem()
 
 void AMAPlayerController::OnSwitchCamera()
 {
-    UMAAgentSubsystem* AgentSubsystem = GetWorld()->GetSubsystem<UMAAgentSubsystem>();
-    if (!AgentSubsystem) return;
+    UMAActorSubsystem* ActorSubsystem = GetWorld()->GetSubsystem<UMAActorSubsystem>();
+    if (!ActorSubsystem) return;
     
-    // 获取所有 Camera Agent
-    TArray<AMAAgent*> Cameras = AgentSubsystem->GetAgentsByType(EAgentType::Camera);
+    // 获取所有 Camera Sensor
+    TArray<AMASensor*> Sensors = ActorSubsystem->GetAllSensors();
+    TArray<AMACameraSensor*> Cameras;
+    for (AMASensor* Sensor : Sensors)
+    {
+        if (AMACameraSensor* Camera = Cast<AMACameraSensor>(Sensor))
+        {
+            Cameras.Add(Camera);
+        }
+    }
+    
     if (Cameras.Num() == 0)
     {
         GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("No cameras available!"));
@@ -327,7 +338,7 @@ void AMAPlayerController::OnSwitchCamera()
         CurrentCameraIndex = 0;
     }
     
-    AMACameraAgent* Camera = Cast<AMACameraAgent>(Cameras[CurrentCameraIndex]);
+    AMACameraSensor* Camera = Cameras[CurrentCameraIndex];
     if (Camera)
     {
         // 设置视角到 Camera
@@ -335,7 +346,7 @@ void AMAPlayerController::OnSwitchCamera()
         
         GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green,
             FString::Printf(TEXT("Switched to: %s (%d/%d)"), 
-                *Camera->AgentName, CurrentCameraIndex + 1, Cameras.Num()));
+                *Camera->SensorName, CurrentCameraIndex + 1, Cameras.Num()));
     }
 }
 

@@ -1,18 +1,16 @@
+// MAGameMode.h
+// 游戏模式 - 负责初始化各个子系统，协调游戏流程
+
 #pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
-#include "../AgentManager/MAAgent.h"
+#include "../Characters/MACharacter.h"
 #include "MAGameMode.generated.h"
 
-class UMAAgentSubsystem;
-class AMACameraAgent;
+class UMAActorSubsystem;
+class AMACameraSensor;
 
-/**
- * AMAGameMode - 游戏模式
- * 负责初始化各个子系统，协调游戏流程
- * 所有 Agent 统一通过 UMAAgentSubsystem 管理
- */
 UCLASS()
 class MULTIAGENT_API AMAGameMode : public AGameModeBase
 {
@@ -21,37 +19,37 @@ class MULTIAGENT_API AMAGameMode : public AGameModeBase
 public:
     AMAGameMode();
 
-    // 获取 AgentSubsystem
+    // 获取 ActorSubsystem
     UFUNCTION(BlueprintCallable, Category = "Subsystem")
-    UMAAgentSubsystem* GetAgentSubsystem() const;
+    UMAActorSubsystem* GetActorSubsystem() const;
 
-    // 人类 Agent C++ 类
-    UPROPERTY(EditDefaultsOnly, Category = "Agent")
-    TSubclassOf<AMAAgent> HumanAgentClass;
+    // 人类 Character C++ 类
+    UPROPERTY(EditDefaultsOnly, Category = "Character")
+    TSubclassOf<AMACharacter> HumanCharacterClass;
 
-    // 机器狗 Agent C++ 类
-    UPROPERTY(EditDefaultsOnly, Category = "Agent")
-    TSubclassOf<AMAAgent> RobotDogAgentClass;
+    // 机器狗 Character C++ 类
+    UPROPERTY(EditDefaultsOnly, Category = "Character")
+    TSubclassOf<AMACharacter> RobotDogCharacterClass;
 
     // 生成的人类数量
-    UPROPERTY(EditDefaultsOnly, Category = "Agent")
+    UPROPERTY(EditDefaultsOnly, Category = "Character")
     int32 NumHumans = 2;
 
     // 生成的机器狗数量
-    UPROPERTY(EditDefaultsOnly, Category = "Agent")
+    UPROPERTY(EditDefaultsOnly, Category = "Character")
     int32 NumRobotDogs = 3;
 
 protected:
     virtual void BeginPlay() override;
-    void SpawnInitialAgents();
+    void SpawnInitialCharacters();
     
-    // 生成并附着摄像头到 Agent
-    void SpawnAndAttachCamera(UMAAgentSubsystem* AgentSubsystem, AMAAgent* ParentAgent, FVector RelativeLocation, FRotator RelativeRotation);
+    // 生成并附着摄像头到 Character
+    void SpawnAndAttachCamera(UMAActorSubsystem* ActorSubsystem, AMACharacter* ParentCharacter, FVector RelativeLocation, FRotator RelativeRotation);
     
-    // 生成追踪者 Agent
-    void SpawnTrackerAgent(UMAAgentSubsystem* AgentSubsystem);
+    // 生成追踪者 Character
+    void SpawnTrackerCharacter(UMAActorSubsystem* ActorSubsystem);
     
-    // 追踪者 Agent 引用
+    // 追踪者 Character 引用
     UPROPERTY()
-    AMAAgent* TrackerAgent = nullptr;
+    AMACharacter* TrackerCharacter = nullptr;
 };

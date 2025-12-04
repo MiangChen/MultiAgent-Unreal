@@ -131,13 +131,13 @@ bool UMAAbilitySystemComponent::HasGameplayTagFromContainer(FGameplayTag TagToCh
     return OwnedTags.HasTag(TagToCheck);
 }
 
-bool UMAAbilitySystemComponent::TryActivateFollow(AMAAgent* TargetAgent, float FollowDistance)
+bool UMAAbilitySystemComponent::TryActivateFollow(AMACharacter* TargetCharacter, float FollowDistance)
 {
     // 先取消正在进行的追踪和导航
     CancelFollow();
     CancelNavigate();
     
-    if (!FollowAbilityHandle.IsValid() || !TargetAgent)
+    if (!FollowAbilityHandle.IsValid() || !TargetCharacter)
     {
         return false;
     }
@@ -154,7 +154,7 @@ bool UMAAbilitySystemComponent::TryActivateFollow(AMAAgent* TargetAgent, float F
         
         if (UGA_Follow* FollowAbility = Cast<UGA_Follow>(Instance))
         {
-            FollowAbility->SetTargetAgent(TargetAgent);
+            FollowAbility->SetTargetCharacter(TargetCharacter);
             FollowAbility->FollowDistance = FollowDistance;
         }
     }

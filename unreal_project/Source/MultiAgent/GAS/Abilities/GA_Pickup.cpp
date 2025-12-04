@@ -4,8 +4,8 @@
 #include "GA_Pickup.h"
 #include "../MAGameplayTags.h"
 #include "../MAAbilitySystemComponent.h"
-#include "../../AgentManager/MAAgent.h"
-#include "../../Interaction/MAPickupItem.h"
+#include "../../Characters/MACharacter.h"
+#include "../../Actors/MAPickupItem.h"
 #include "Kismet/GameplayStatics.h"
 
 UGA_Pickup::UGA_Pickup()
@@ -48,9 +48,9 @@ void UGA_Pickup::ActivateAbility(
         PerformPickup(Item);
         
         // 显示头顶状态
-        if (AMAAgent* Agent = GetOwningAgent())
+        if (AMACharacter* Character = GetOwningCharacter())
         {
-            Agent->ShowAbilityStatus(TEXT("Pickup"), Item->ItemName);
+            Character->ShowAbilityStatus(TEXT("Pickup"), Item->ItemName);
         }
         
         if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
@@ -76,22 +76,22 @@ void UGA_Pickup::EndAbility(
 
 AMAPickupItem* UGA_Pickup::FindNearestPickupItem() const
 {
-    AMAAgent* Agent = GetOwningAgent();
-    if (!Agent) return nullptr;
+    AMACharacter* Character = GetOwningCharacter();
+    if (!Character) return nullptr;
 
-    FVector AgentLocation = Agent->GetActorLocation();
+    FVector CharacterLocation = Character->GetActorLocation();
     AMAPickupItem* NearestItem = nullptr;
     float NearestDistance = PickupRadius;
 
     TArray<AActor*> FoundItems;
-    UGameplayStatics::GetAllActorsOfClass(Agent->GetWorld(), AMAPickupItem::StaticClass(), FoundItems);
+    UGameplayStatics::GetAllActorsOfClass(Character->GetWorld(), AMAPickupItem::StaticClass(), FoundItems);
 
     for (AActor* Actor : FoundItems)
     {
         AMAPickupItem* Item = Cast<AMAPickupItem>(Actor);
         if (Item && Item->bCanBePickedUp)
         {
-            float Distance = FVector::Dist(AgentLocation, Item->GetActorLocation());
+            float Distance = FVector::Dist(CharacterLocation, Item->GetActorLocation());
             if (Distance < NearestDistance)
             {
                 NearestDistance = Distance;
@@ -105,11 +105,11 @@ AMAPickupItem* UGA_Pickup::FindNearestPickupItem() const
 
 void UGA_Pickup::PerformPickup(AMAPickupItem* Item)
 {
-    AMAAgent* Agent = GetOwningAgent();
-    if (!Agent || !Item) return;
+    AMACharacter* Character = GetOwningCharacter();
+    if (!Character || !Item) return;
 
     UStaticMeshComponent* MeshComp = Item->GetMeshComponent();
-    USkeletalMeshComponent* CharMesh = Agent->GetMesh();
+    USkeletalMeshComponent* CharMesh = Character->GetMesh();
     
     if (!MeshComp || !CharMesh) return;
     
@@ -133,5 +133,5 @@ void UGA_Pickup::PerformPickup(AMAPickupItem* Item)
     );
     Item->AttachToComponent(CharMesh, AttachRules, AttachSocketName);
     
-    UE_LOG(LogTemp, Log, TEXT("[Pickup] %s picked up %s"), *Agent->AgentName, *Item->ItemName);
+    UE_LOG(LogTemp, Log, TEXT("[Pickup] %s picked up %s"), *Character->ActorName, *Item->ItemName);
 }

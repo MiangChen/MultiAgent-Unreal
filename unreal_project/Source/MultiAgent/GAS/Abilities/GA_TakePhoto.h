@@ -1,5 +1,6 @@
 // GA_TakePhoto.h
 // 拍照技能 - 瞬时截取当前帧
+// 注意：此技能需要 Character 附着有 MACameraSensor
 
 #pragma once
 
@@ -7,7 +8,7 @@
 #include "../MAGameplayAbilityBase.h"
 #include "GA_TakePhoto.generated.h"
 
-class AMACameraAgent;
+class AMACameraSensor;
 
 UCLASS()
 class MULTIAGENT_API UGA_TakePhoto : public UMAGameplayAbilityBase
@@ -36,6 +37,6 @@ protected:
         OUT FGameplayTagContainer* OptionalRelevantTags = nullptr) const override;
 
 private:
-    // 获取 Camera Agent
-    AMACameraAgent* GetCameraAgent() const;
+    // 获取附着的 Camera Sensor
+    AMACameraSensor* GetAttachedCameraSensor() const;
 };

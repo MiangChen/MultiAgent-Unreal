@@ -96,3 +96,57 @@ void AMAHumanAgent::OnNavigationTick()
 **相关文件**:
 - `Source/MultiAgent/AgentManager/MAAgent.h/cpp` - 添加虚函数
 - `Source/MultiAgent/AgentManager/MAHumanAgent.h/cpp` - 重写实现
+
+
+---
+
+## Bug #3: NavMesh 导航目标位置不在 NavMesh 上时报错
+
+**日期**: 2025-12-04
+
+**现象**: 
+- 当导航目标位置不在 NavMesh 上时（如高台边缘、NavMesh 外的区域），`MoveToLocation()` 返回 `Failed`
+- 控制台输出警告：`[Navigate] MoveToLocation failed for XXX`
+- Character 停在原地不动
+
+**根本原因**: 
+UE 的 `AIController->MoveToLocation()` 默认要求目标位置必须在 NavMesh 上。如果目标位置不可达（不在 NavMesh 上），导航请求会直接失败。
+
+**影响范围**:
+- `GA_Navigate` - 直接导航到指定位置
+- `GA_Follow` - 追踪目标时计算的跟随位置可能不在 NavMesh 上
+
+**临时解决方案**:
+在 `GA_Follow` 中已实现 fallback 机制：
+
+```cpp
+// GA_Follow.cpp - UpdateFollow()
+EPathFollowingRequestResult::Type Result = AICtrl->MoveToLocation(
+    FollowLocation,
+    50.f,
+    true, true,
+    true,  // bProjectDestinationToNavigation - 自动投影到 NavMesh
+    true
+);
+
+if ((int32)Result == 0)  // Failed
+{
+    // Fallback: 直接导航到目标位置
+    Result = AICtrl->MoveToLocation(
+        CurrentTargetLocation,
+        FollowDistance,  // 用跟随距离作为接受半径
+        true, true, true, true
+    );
+}
+```
+
+**待优化方案**:
+1. 在 `GA_Navigate` 中也添加 `bProjectDestinationToNavigation = true` 参数
+2. 或者在导航前先用 `UNavigationSystemV1::ProjectPointToNavigation()` 预处理目标位置
+3. 添加更友好的错误提示和 fallback 行为
+
+**相关文件**:
+- `Source/MultiAgent/GAS/Abilities/GA_Navigate.cpp`
+- `Source/MultiAgent/GAS/Abilities/GA_Follow.cpp`
+
+**状态**: 🟡 部分解决（GA_Follow 有 fallback，GA_Navigate 待优化）

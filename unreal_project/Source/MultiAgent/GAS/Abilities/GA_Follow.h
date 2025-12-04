@@ -1,5 +1,5 @@
 // GA_Follow.h
-// 追踪技能 - 持续跟随目标 Agent (使用 Ground Truth 位置)
+// 追踪技能 - 持续跟随目标 Character (使用 Ground Truth 位置)
 
 #pragma once
 
@@ -7,7 +7,7 @@
 #include "../MAGameplayAbilityBase.h"
 #include "GA_Follow.generated.h"
 
-class AMAAgent;
+class AMACharacter;
 
 UCLASS()
 class MULTIAGENT_API UGA_Follow : public UMAGameplayAbilityBase
@@ -19,7 +19,7 @@ public:
 
     // 设置追踪目标
     UFUNCTION(BlueprintCallable, Category = "Follow")
-    void SetTargetAgent(AMAAgent* InTargetAgent);
+    void SetTargetCharacter(AMACharacter* InTargetCharacter);
 
     // 跟随距离 (与目标保持的距离)
     UPROPERTY(EditDefaultsOnly, Category = "Follow")
@@ -50,7 +50,7 @@ protected:
 private:
     // 追踪目标
     UPROPERTY()
-    TWeakObjectPtr<AMAAgent> TargetAgent;
+    TWeakObjectPtr<AMACharacter> TargetCharacter;
 
     // 上次导航的目标位置
     FVector LastTargetLocation;

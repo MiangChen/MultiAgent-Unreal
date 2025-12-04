@@ -7,7 +7,7 @@
 #include "Abilities/GameplayAbility.h"
 #include "MAGameplayAbilityBase.generated.h"
 
-class AMAAgent;
+class AMACharacter;
 
 UCLASS()
 class MULTIAGENT_API UMAGameplayAbilityBase : public UGameplayAbility
@@ -17,9 +17,9 @@ class MULTIAGENT_API UMAGameplayAbilityBase : public UGameplayAbility
 public:
     UMAGameplayAbilityBase();
 
-    // 获取拥有此 Ability 的 Agent
+    // 获取拥有此 Ability 的 Character
     UFUNCTION(BlueprintCallable, Category = "Ability")
-    AMAAgent* GetOwningAgent() const;
+    AMACharacter* GetOwningCharacter() const;
 
 protected:
     // 技能激活时

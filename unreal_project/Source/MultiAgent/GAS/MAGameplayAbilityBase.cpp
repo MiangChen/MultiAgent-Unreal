@@ -2,7 +2,7 @@
 
 #include "MAGameplayAbilityBase.h"
 #include "AbilitySystemComponent.h"
-#include "../AgentManager/MAAgent.h"
+#include "../Characters/MACharacter.h"
 
 UMAGameplayAbilityBase::UMAGameplayAbilityBase()
 {
@@ -10,12 +10,12 @@ UMAGameplayAbilityBase::UMAGameplayAbilityBase()
     InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 }
 
-AMAAgent* UMAGameplayAbilityBase::GetOwningAgent() const
+AMACharacter* UMAGameplayAbilityBase::GetOwningCharacter() const
 {
     const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
     if (ActorInfo && ActorInfo->AvatarActor.IsValid())
     {
-        return Cast<AMAAgent>(ActorInfo->AvatarActor.Get());
+        return Cast<AMACharacter>(ActorInfo->AvatarActor.Get());
     }
     return nullptr;
 }
@@ -44,7 +44,7 @@ void UMAGameplayAbilityBase::BroadcastGameplayEvent(FGameplayTag EventTag)
     if (UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo())
     {
         FGameplayEventData EventData;
-        EventData.Instigator = GetOwningAgent();
+        EventData.Instigator = GetOwningCharacter();
         ASC->HandleGameplayEvent(EventTag, &EventData);
     }
 }

@@ -1,17 +1,18 @@
-#include "MAHumanAgent.h"
+// MAHumanCharacter.cpp
+
+#include "MAHumanCharacter.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Animation/AnimInstance.h"
 #include "UObject/ConstructorHelpers.h"
 
-AMAHumanAgent::AMAHumanAgent()
+AMAHumanCharacter::AMAHumanCharacter()
 {
-    AgentType = EAgentType::Human;
+    ActorType = EMAActorType::Human;
     
     GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
     
-    // 设置骨骼网格 (SKM_Manny)
     static ConstructorHelpers::FObjectFinder<USkeletalMesh> MeshAsset(
         TEXT("/Game/Characters/Mannequins/Meshes/SKM_Manny.SKM_Manny"));
     if (MeshAsset.Succeeded())
@@ -22,7 +23,6 @@ AMAHumanAgent::AMAHumanAgent()
         GetMesh()->SetAnimationMode(EAnimationMode::AnimationBlueprint);
     }
     
-    // 设置动画蓝图 (ABP_Manny)
     static ConstructorHelpers::FClassFinder<UAnimInstance> AnimBPClass(
         TEXT("/Game/Characters/Mannequins/Animations/ABP_Manny"));
     if (AnimBPClass.Succeeded())
@@ -30,21 +30,19 @@ AMAHumanAgent::AMAHumanAgent()
         GetMesh()->SetAnimInstanceClass(AnimBPClass.Class);
     }
     
-    // 移动组件配置
     GetCharacterMovement()->bOrientRotationToMovement = true;
     GetCharacterMovement()->MaxWalkSpeed = 400.f;
     GetCharacterMovement()->MaxAcceleration = 2048.f;
     GetCharacterMovement()->BrakingDecelerationWalking = 2048.f;
 }
 
-void AMAHumanAgent::BeginPlay()
+void AMAHumanCharacter::BeginPlay()
 {
     Super::BeginPlay();
 }
 
-void AMAHumanAgent::OnNavigationTick()
+void AMAHumanCharacter::OnNavigationTick()
 {
-    // 为动画蓝图提供加速度输入，驱动行走/跑步动画
     FVector Velocity = GetCharacterMovement()->Velocity;
     float Speed = Velocity.Size2D();
     if (Speed > 3.0f)

@@ -4,7 +4,7 @@
 #include "MAPickupItem.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
-#include "../AgentManager/MAAgent.h"
+#include "../Characters/MACharacter.h"
 #include "../GAS/MAAbilitySystemComponent.h"
 #include "../GAS/MAGameplayTags.h"
 
@@ -34,7 +34,7 @@ AMAPickupItem::AMAPickupItem()
     MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
     MeshComponent->SetCollisionProfileName(TEXT("PhysicsActor"));
 
-    // 创建碰撞组件 (用于检测 Agent 进入范围) - 附着到 Mesh
+    // 创建碰撞组件 (用于检测 Character 进入范围) - 附着到 Mesh
     CollisionComponent = CreateDefaultSubobject<USphereComponent>(TEXT("CollisionComponent"));
     CollisionComponent->SetupAttachment(RootComponent);
     CollisionComponent->InitSphereRadius(100.f);
@@ -57,12 +57,12 @@ void AMAPickupItem::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* 
 {
     if (!bCanBePickedUp) return;
 
-    if (AMAAgent* Agent = Cast<AMAAgent>(OtherActor))
+    if (AMACharacter* Character = Cast<AMACharacter>(OtherActor))
     {
-        if (UMAAbilitySystemComponent* ASC = Agent->FindComponentByClass<UMAAbilitySystemComponent>())
+        if (UMAAbilitySystemComponent* ASC = Character->FindComponentByClass<UMAAbilitySystemComponent>())
         {
             ASC->AddLooseGameplayTag(FMAGameplayTags::Get().Status_CanPickup);
-            UE_LOG(LogTemp, Log, TEXT("%s entered pickup range of %s"), *Agent->AgentName, *ItemName);
+            UE_LOG(LogTemp, Log, TEXT("%s entered pickup range of %s"), *Character->ActorName, *ItemName);
         }
     }
 }
@@ -70,9 +70,9 @@ void AMAPickupItem::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* 
 void AMAPickupItem::OnOverlapEnd(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
     UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
-    if (AMAAgent* Agent = Cast<AMAAgent>(OtherActor))
+    if (AMACharacter* Character = Cast<AMACharacter>(OtherActor))
     {
-        if (UMAAbilitySystemComponent* ASC = Agent->FindComponentByClass<UMAAbilitySystemComponent>())
+        if (UMAAbilitySystemComponent* ASC = Character->FindComponentByClass<UMAAbilitySystemComponent>())
         {
             ASC->RemoveLooseGameplayTag(FMAGameplayTags::Get().Status_CanPickup);
         }

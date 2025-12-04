@@ -3,7 +3,8 @@
 
 #include "GA_TakePhoto.h"
 #include "../MAGameplayTags.h"
-#include "../../AgentManager/MACameraAgent.h"
+#include "../../Characters/MACharacter.h"
+#include "../../Actors/MACameraSensor.h"
 
 UGA_TakePhoto::UGA_TakePhoto()
 {
@@ -28,8 +29,8 @@ bool UGA_TakePhoto::CanActivateAbility(
         return false;
     }
     
-    // 检查是否是 Camera Agent
-    return GetCameraAgent() != nullptr;
+    // 检查是否有附着的 Camera Sensor
+    return GetAttachedCameraSensor() != nullptr;
 }
 
 void UGA_TakePhoto::ActivateAbility(
@@ -40,7 +41,9 @@ void UGA_TakePhoto::ActivateAbility(
 {
     Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
     
-    AMACameraAgent* Camera = GetCameraAgent();
+    AMACameraSensor* Camera = GetAttachedCameraSensor();
+    AMACharacter* Character = GetOwningCharacter();
+    
     if (Camera)
     {
         bool bSuccess = Camera->TakePhoto(SavePath);
@@ -48,22 +51,38 @@ void UGA_TakePhoto::ActivateAbility(
         if (bSuccess)
         {
             BroadcastGameplayEvent(FMAGameplayTags::Get().Event_Photo_End);
+            
+            if (Character)
+            {
+                Character->ShowAbilityStatus(TEXT("TakePhoto"), TEXT("OK"));
+            }
         }
         
-        UE_LOG(LogTemp, Log, TEXT("[TakePhoto] %s took photo, success=%d"), 
-            *Camera->AgentName, bSuccess ? 1 : 0);
+        UE_LOG(LogTemp, Log, TEXT("[TakePhoto] %s took photo via %s, success=%d"), 
+            Character ? *Character->ActorName : TEXT("Unknown"),
+            *Camera->SensorName, bSuccess ? 1 : 0);
     }
     
     // 瞬时技能，立即结束
     EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 }
 
-AMACameraAgent* UGA_TakePhoto::GetCameraAgent() const
+AMACameraSensor* UGA_TakePhoto::GetAttachedCameraSensor() const
 {
-    const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
-    if (ActorInfo && ActorInfo->AvatarActor.IsValid())
+    AMACharacter* Character = const_cast<UGA_TakePhoto*>(this)->GetOwningCharacter();
+    if (!Character) return nullptr;
+    
+    // 查找附着的 Camera Sensor
+    TArray<AActor*> AttachedActors;
+    Character->GetAttachedActors(AttachedActors);
+    
+    for (AActor* Actor : AttachedActors)
     {
-        return Cast<AMACameraAgent>(ActorInfo->AvatarActor.Get());
+        if (AMACameraSensor* Camera = Cast<AMACameraSensor>(Actor))
+        {
+            return Camera;
+        }
     }
+    
     return nullptr;
 }

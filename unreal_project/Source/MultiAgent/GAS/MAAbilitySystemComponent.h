@@ -34,9 +34,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "GAS")
     void CancelNavigate();
 
-    // 直接激活 Follow Ability (追踪目标 Agent)
+    // 直接激活 Follow Ability (追踪目标 Character)
     UFUNCTION(BlueprintCallable, Category = "GAS")
-    bool TryActivateFollow(class AMAAgent* TargetAgent, float FollowDistance = 200.f);
+    bool TryActivateFollow(class AMACharacter* TargetCharacter, float FollowDistance = 200.f);
 
     // 取消追踪
     UFUNCTION(BlueprintCallable, Category = "GAS")

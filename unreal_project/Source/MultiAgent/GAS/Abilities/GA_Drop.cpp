@@ -4,8 +4,8 @@
 #include "GA_Drop.h"
 #include "../MAGameplayTags.h"
 #include "../MAAbilitySystemComponent.h"
-#include "../../AgentManager/MAAgent.h"
-#include "../../Interaction/MAPickupItem.h"
+#include "../../Characters/MACharacter.h"
+#include "../../Actors/MAPickupItem.h"
 
 UGA_Drop::UGA_Drop()
 {
@@ -41,9 +41,9 @@ void UGA_Drop::ActivateAbility(
     if (AMAPickupItem* Item = FindHeldItem())
     {
         // 显示头顶状态
-        if (AMAAgent* Agent = GetOwningAgent())
+        if (AMACharacter* Character = GetOwningCharacter())
         {
-            Agent->ShowAbilityStatus(TEXT("Drop"), Item->ItemName);
+            Character->ShowAbilityStatus(TEXT("Drop"), Item->ItemName);
         }
         
         PerformDrop(Item);
@@ -59,11 +59,11 @@ void UGA_Drop::ActivateAbility(
 
 AMAPickupItem* UGA_Drop::FindHeldItem() const
 {
-    AMAAgent* Agent = GetOwningAgent();
-    if (!Agent) return nullptr;
+    AMACharacter* Character = GetOwningCharacter();
+    if (!Character) return nullptr;
 
     TArray<AActor*> AttachedActors;
-    Agent->GetAttachedActors(AttachedActors);
+    Character->GetAttachedActors(AttachedActors);
 
     for (AActor* Actor : AttachedActors)
     {
@@ -77,16 +77,16 @@ AMAPickupItem* UGA_Drop::FindHeldItem() const
 
 void UGA_Drop::PerformDrop(AMAPickupItem* Item)
 {
-    AMAAgent* Agent = GetOwningAgent();
-    if (!Agent || !Item) return;
+    AMACharacter* Character = GetOwningCharacter();
+    if (!Character || !Item) return;
 
     // ========== 第一步：Detach，保持世界位置 ==========
     FDetachmentTransformRules DetachRules(EDetachmentRule::KeepWorld, true);
     Item->DetachFromActor(DetachRules);
 
     // ========== 第二步：设置放下位置 ==========
-    FVector DropLocation = Agent->GetActorLocation() + 
-        Agent->GetActorForwardVector() * DropForwardOffset;
+    FVector DropLocation = Character->GetActorLocation() + 
+        Character->GetActorForwardVector() * DropForwardOffset;
     DropLocation.Z += 50.f;
     Item->SetActorLocation(DropLocation);
 
@@ -104,11 +104,11 @@ void UGA_Drop::PerformDrop(AMAPickupItem* Item)
     Item->bCanBePickedUp = true;
 
     UE_LOG(LogTemp, Log, TEXT("[Drop] %s dropped %s at (%.0f, %.0f, %.0f)"), 
-        *Agent->AgentName, *Item->ItemName, DropLocation.X, DropLocation.Y, DropLocation.Z);
+        *Character->ActorName, *Item->ItemName, DropLocation.X, DropLocation.Y, DropLocation.Z);
     
     if (GEngine)
     {
         GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Yellow,
-            FString::Printf(TEXT("%s dropped %s"), *Agent->AgentName, *Item->ItemName));
+            FString::Printf(TEXT("%s dropped %s"), *Character->ActorName, *Item->ItemName));
     }
 }

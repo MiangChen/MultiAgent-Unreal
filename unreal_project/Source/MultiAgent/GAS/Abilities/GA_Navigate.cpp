@@ -4,7 +4,7 @@
 #include "GA_Navigate.h"
 #include "../MAGameplayTags.h"
 #include "../MAAbilitySystemComponent.h"
-#include "../../AgentManager/MAAgent.h"
+#include "../../Characters/MACharacter.h"
 #include "AIController.h"
 #include "Navigation/PathFollowingComponent.h"
 
@@ -39,10 +39,10 @@ bool UGA_Navigate::CanActivateAbility(
     }
     
     // 检查是否有有效的 AI Controller
-    AMAAgent* Agent = const_cast<UGA_Navigate*>(this)->GetOwningAgent();
-    if (!Agent) return false;
+    AMACharacter* Character = const_cast<UGA_Navigate*>(this)->GetOwningCharacter();
+    if (!Character) return false;
     
-    AAIController* AICtrl = Cast<AAIController>(Agent->GetController());
+    AAIController* AICtrl = Cast<AAIController>(Character->GetController());
     return AICtrl != nullptr;
 }
 
@@ -77,17 +77,17 @@ void UGA_Navigate::ActivateAbility(
 
 void UGA_Navigate::StartNavigation()
 {
-    AMAAgent* Agent = GetOwningAgent();
-    if (!Agent)
+    AMACharacter* Character = GetOwningCharacter();
+    if (!Character)
     {
         EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
         return;
     }
     
-    AAIController* AICtrl = Cast<AAIController>(Agent->GetController());
+    AAIController* AICtrl = Cast<AAIController>(Character->GetController());
     if (!AICtrl)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[Navigate] No AIController for %s"), *Agent->AgentName);
+        UE_LOG(LogTemp, Warning, TEXT("[Navigate] No AIController for %s"), *Character->ActorName);
         EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
         return;
     }
@@ -100,11 +100,11 @@ void UGA_Navigate::StartNavigation()
     }
     
     // 显示头顶状态
-    Agent->ShowAbilityStatus(TEXT("Navigate"), 
+    Character->ShowAbilityStatus(TEXT("Navigate"), 
         FString::Printf(TEXT("→ (%.0f, %.0f)"), TargetLocation.X, TargetLocation.Y));
     
     // 开始导航
-    Agent->bIsMoving = true;
+    Character->bIsMoving = true;
     EPathFollowingRequestResult::Type Result = AICtrl->MoveToLocation(
         TargetLocation,
         AcceptanceRadius,
@@ -116,17 +116,17 @@ void UGA_Navigate::StartNavigation()
     );
     
     UE_LOG(LogTemp, Log, TEXT("[Navigate] %s moving to (%.0f, %.0f, %.0f), Result=%d"), 
-        *Agent->AgentName, TargetLocation.X, TargetLocation.Y, TargetLocation.Z, (int32)Result);
+        *Character->ActorName, TargetLocation.X, TargetLocation.Y, TargetLocation.Z, (int32)Result);
     
     if (Result == EPathFollowingRequestResult::Failed)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[Navigate] MoveToLocation failed for %s"), *Agent->AgentName);
+        UE_LOG(LogTemp, Warning, TEXT("[Navigate] MoveToLocation failed for %s"), *Character->ActorName);
         CleanupNavigation();
         EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
     }
     else if (Result == EPathFollowingRequestResult::AlreadyAtGoal)
     {
-        UE_LOG(LogTemp, Log, TEXT("[Navigate] %s already at goal"), *Agent->AgentName);
+        UE_LOG(LogTemp, Log, TEXT("[Navigate] %s already at goal"), *Character->ActorName);
         CleanupNavigation();
         EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, false);
     }
@@ -135,18 +135,18 @@ void UGA_Navigate::StartNavigation()
 
 void UGA_Navigate::OnMoveCompleted(FAIRequestID RequestID, const FPathFollowingResult& Result)
 {
-    AMAAgent* Agent = GetOwningAgent();
-    FString AgentName = Agent ? Agent->AgentName : TEXT("Unknown");
+    AMACharacter* Character = GetOwningCharacter();
+    FString CharacterName = Character ? Character->ActorName : TEXT("Unknown");
     
     bool bWasCancelled = !Result.IsSuccess();
     
     UE_LOG(LogTemp, Log, TEXT("[Navigate] %s move completed, Code=%d, Cancelled=%d"), 
-        *AgentName, (int32)Result.Code, bWasCancelled ? 1 : 0);
+        *CharacterName, (int32)Result.Code, bWasCancelled ? 1 : 0);
     
     // 到达目标后清除头顶状态
-    if (Agent)
+    if (Character)
     {
-        Agent->ShowStatus(TEXT(""), 0.f);
+        Character->ShowStatus(TEXT(""), 0.f);
     }
     
     CleanupNavigation();
@@ -155,13 +155,13 @@ void UGA_Navigate::OnMoveCompleted(FAIRequestID RequestID, const FPathFollowingR
 
 void UGA_Navigate::CleanupNavigation()
 {
-    AMAAgent* Agent = GetOwningAgent();
-    if (Agent)
+    AMACharacter* Character = GetOwningCharacter();
+    if (Character)
     {
-        Agent->bIsMoving = false;
+        Character->bIsMoving = false;
         
         // 解绑回调
-        if (AAIController* AICtrl = Cast<AAIController>(Agent->GetController()))
+        if (AAIController* AICtrl = Cast<AAIController>(Character->GetController()))
         {
             if (UPathFollowingComponent* PathComp = AICtrl->GetPathFollowingComponent())
             {
@@ -184,10 +184,10 @@ void UGA_Navigate::EndAbility(
     // 如果被取消，停止移动
     if (bWasCancelled)
     {
-        AMAAgent* Agent = GetOwningAgent();
-        if (Agent)
+        AMACharacter* Character = GetOwningCharacter();
+        if (Character)
         {
-            if (AAIController* AICtrl = Cast<AAIController>(Agent->GetController()))
+            if (AAIController* AICtrl = Cast<AAIController>(Character->GetController()))
             {
                 AICtrl->StopMovement();
             }
