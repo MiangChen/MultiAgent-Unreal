@@ -1,5 +1,5 @@
 // MAPlayerController.cpp
-// 使用 Enhanced Input System
+// 使用 Enhanced Input System - 自动配置，无需手动创建资产
 
 #include "MAPlayerController.h"
 #include "MAActorSubsystem.h"
@@ -7,6 +7,7 @@
 #include "../Characters/MARobotDogCharacter.h"
 #include "../Actors/MACameraSensor.h"
 #include "../Actors/MAPickupItem.h"
+#include "../Input/MAInputActions.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
@@ -28,12 +29,14 @@ void AMAPlayerController::BeginPlay()
     InputMode.SetHideCursorDuringCapture(false);
     SetInputMode(InputMode);
 
-    // 添加输入映射上下文
+    // 添加默认输入映射上下文
     if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
     {
-        if (DefaultMappingContext)
+        UMAInputActions* InputActions = UMAInputActions::Get();
+        if (InputActions && InputActions->DefaultMappingContext)
         {
-            Subsystem->AddMappingContext(DefaultMappingContext, 0);
+            Subsystem->AddMappingContext(InputActions->DefaultMappingContext, 0);
+            UE_LOG(LogTemp, Log, TEXT("[Input] Added DefaultMappingContext"));
         }
     }
 }
@@ -42,58 +45,37 @@ void AMAPlayerController::SetupInputComponent()
 {
     Super::SetupInputComponent();
 
+    UMAInputActions* InputActions = UMAInputActions::Get();
+    if (!InputActions)
+    {
+        UE_LOG(LogTemp, Error, TEXT("[Input] Failed to get MAInputActions!"));
+        return;
+    }
+
     // 绑定 Enhanced Input
-    if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(InputComponent))
+    if (UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(InputComponent))
     {
         // 鼠标点击
-        if (IA_LeftClick)
-        {
-            EnhancedInputComponent->BindAction(IA_LeftClick, ETriggerEvent::Triggered, this, &AMAPlayerController::OnLeftClick);
-        }
-        if (IA_RightClick)
-        {
-            EnhancedInputComponent->BindAction(IA_RightClick, ETriggerEvent::Triggered, this, &AMAPlayerController::OnRightClick);
-        }
+        EIC->BindAction(InputActions->IA_LeftClick, ETriggerEvent::Triggered, this, &AMAPlayerController::OnLeftClick);
+        EIC->BindAction(InputActions->IA_RightClick, ETriggerEvent::Triggered, this, &AMAPlayerController::OnRightClick);
 
         // GAS 技能
-        if (IA_Pickup)
-        {
-            EnhancedInputComponent->BindAction(IA_Pickup, ETriggerEvent::Triggered, this, &AMAPlayerController::OnPickup);
-        }
-        if (IA_Drop)
-        {
-            EnhancedInputComponent->BindAction(IA_Drop, ETriggerEvent::Triggered, this, &AMAPlayerController::OnDrop);
-        }
+        EIC->BindAction(InputActions->IA_Pickup, ETriggerEvent::Triggered, this, &AMAPlayerController::OnPickup);
+        EIC->BindAction(InputActions->IA_Drop, ETriggerEvent::Triggered, this, &AMAPlayerController::OnDrop);
 
         // 生成
-        if (IA_SpawnItem)
-        {
-            EnhancedInputComponent->BindAction(IA_SpawnItem, ETriggerEvent::Triggered, this, &AMAPlayerController::OnSpawnPickupItem);
-        }
-        if (IA_SpawnRobotDog)
-        {
-            EnhancedInputComponent->BindAction(IA_SpawnRobotDog, ETriggerEvent::Triggered, this, &AMAPlayerController::OnSpawnRobotDog);
-        }
+        EIC->BindAction(InputActions->IA_SpawnItem, ETriggerEvent::Triggered, this, &AMAPlayerController::OnSpawnPickupItem);
+        EIC->BindAction(InputActions->IA_SpawnRobotDog, ETriggerEvent::Triggered, this, &AMAPlayerController::OnSpawnRobotDog);
 
         // 调试
-        if (IA_PrintInfo)
-        {
-            EnhancedInputComponent->BindAction(IA_PrintInfo, ETriggerEvent::Triggered, this, &AMAPlayerController::OnPrintAgentInfo);
-        }
-        if (IA_DestroyLast)
-        {
-            EnhancedInputComponent->BindAction(IA_DestroyLast, ETriggerEvent::Triggered, this, &AMAPlayerController::OnDestroyLastAgent);
-        }
+        EIC->BindAction(InputActions->IA_PrintInfo, ETriggerEvent::Triggered, this, &AMAPlayerController::OnPrintAgentInfo);
+        EIC->BindAction(InputActions->IA_DestroyLast, ETriggerEvent::Triggered, this, &AMAPlayerController::OnDestroyLastAgent);
 
         // 视角切换
-        if (IA_SwitchCamera)
-        {
-            EnhancedInputComponent->BindAction(IA_SwitchCamera, ETriggerEvent::Triggered, this, &AMAPlayerController::OnSwitchCamera);
-        }
-        if (IA_ReturnSpectator)
-        {
-            EnhancedInputComponent->BindAction(IA_ReturnSpectator, ETriggerEvent::Triggered, this, &AMAPlayerController::OnReturnToSpectator);
-        }
+        EIC->BindAction(InputActions->IA_SwitchCamera, ETriggerEvent::Triggered, this, &AMAPlayerController::OnSwitchCamera);
+        EIC->BindAction(InputActions->IA_ReturnSpectator, ETriggerEvent::Triggered, this, &AMAPlayerController::OnReturnToSpectator);
+
+        UE_LOG(LogTemp, Log, TEXT("[Input] Bound all input actions"));
     }
 }
 
@@ -104,7 +86,6 @@ void AMAPlayerController::OnLeftClick(const FInputActionValue& Value)
     FVector HitLocation;
     if (GetMouseHitLocation(HitLocation))
     {
-        // 左键：移动所有 Human Character 到目标位置
         if (UMAActorSubsystem* ActorSubsystem = GetWorld()->GetSubsystem<UMAActorSubsystem>())
         {
             TArray<AMACharacter*> Humans = ActorSubsystem->GetCharactersByType(EMAActorType::Human);
@@ -124,7 +105,6 @@ void AMAPlayerController::OnRightClick(const FInputActionValue& Value)
     FVector HitLocation;
     if (GetMouseHitLocation(HitLocation))
     {
-        // 右键：只移动 RobotDog（不包括追踪者）
         if (UMAActorSubsystem* ActorSubsystem = GetWorld()->GetSubsystem<UMAActorSubsystem>())
         {
             TArray<AMACharacter*> RobotDogs = ActorSubsystem->GetCharactersByType(EMAActorType::RobotDog);
@@ -152,7 +132,7 @@ void AMAPlayerController::OnPickup(const FInputActionValue& Value)
             if (Character->TryPickup())
             {
                 GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green,
-                    FString::Printf(TEXT("%s trying to pickup..."), *Character->ActorName));
+                    FString::Printf(TEXT("%s picking up..."), *Character->ActorName));
             }
             else
             {
@@ -240,7 +220,7 @@ void AMAPlayerController::OnPrintAgentInfo(const FInputActionValue& Value)
     int32 Sensors = ActorSubsystem->GetSensorCount();
     
     GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Cyan, 
-        FString::Printf(TEXT("=== Actor Info ===\nCharacters: %d | Dogs: %d | Humans: %d | Sensors: %d"), 
+        FString::Printf(TEXT("=== Actors: %d | Dogs: %d | Humans: %d | Sensors: %d ==="), 
             Total, Dogs, Humans, Sensors));
     
     for (AMACharacter* Character : ActorSubsystem->GetAllCharacters())
@@ -294,7 +274,7 @@ void AMAPlayerController::OnSwitchCamera(const FInputActionValue& Value)
     
     if (Cameras.Num() == 0)
     {
-        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("No cameras available!"));
+        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("No cameras!"));
         return;
     }
     
@@ -324,13 +304,12 @@ void AMAPlayerController::OnReturnToSpectator(const FInputActionValue& Value)
     {
         SetViewTargetWithBlend(OriginalPawn, 0.3f);
         CurrentCameraIndex = -1;
-        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan, TEXT("Returned to Spectator"));
+        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan, TEXT("Spectator view"));
     }
     else if (GetPawn())
     {
         SetViewTargetWithBlend(GetPawn(), 0.3f);
         CurrentCameraIndex = -1;
-        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan, TEXT("Returned to default view"));
     }
 }
 

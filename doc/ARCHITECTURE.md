@@ -288,22 +288,25 @@ Hunter->StopFollowing();
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 9.2 配置步骤
+### 9.2 自动配置
 
-1. **创建 Input Actions** (Content Browser → Input → Input Action)
-   - `IA_LeftClick` - 左键点击
-   - `IA_RightClick` - 右键点击
-   - `IA_Pickup` - 拾取 (P)
-   - `IA_Drop` - 放下 (O)
-   - 等等...
+**无需手动创建资产！** 所有 Input Actions 和 Mapping Context 在 C++ 中自动创建：
 
-2. **创建 Input Mapping Context** (Content Browser → Input → Input Mapping Context)
-   - 添加所有 Input Actions
-   - 配置按键映射
+```cpp
+// MAInputActions.h - 单例模式，自动初始化
+UMAInputActions* InputActions = UMAInputActions::Get();
 
-3. **配置 PlayerController**
-   - 在 BP_MAPlayerController 中设置 DefaultMappingContext
-   - 设置各个 IA_XXX 引用
+// 包含所有预定义的 Input Actions:
+InputActions->IA_LeftClick
+InputActions->IA_RightClick
+InputActions->IA_Pickup
+// ...
+
+// 以及默认的 Mapping Context:
+InputActions->DefaultMappingContext
+```
+
+PlayerController 在 BeginPlay 时自动添加 Mapping Context，无需额外配置。
 
 ### 9.3 默认按键映射
 
