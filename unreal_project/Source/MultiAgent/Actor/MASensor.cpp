@@ -1,7 +1,7 @@
 // MASensor.cpp
 
 #include "MASensor.h"
-#include "../Characters/MACharacter.h"
+#include "../Character/MACharacter.h"
 
 AMASensor::AMASensor()
 {

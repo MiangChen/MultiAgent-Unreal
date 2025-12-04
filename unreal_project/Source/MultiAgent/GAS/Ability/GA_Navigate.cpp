@@ -4,7 +4,7 @@
 #include "GA_Navigate.h"
 #include "../MAGameplayTags.h"
 #include "../MAAbilitySystemComponent.h"
-#include "../../Characters/MACharacter.h"
+#include "../../Character/MACharacter.h"
 #include "AIController.h"
 #include "Navigation/PathFollowingComponent.h"
 

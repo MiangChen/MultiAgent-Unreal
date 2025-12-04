@@ -1,7 +1,7 @@
 // MAActorSubsystem.cpp
 
 #include "MAActorSubsystem.h"
-#include "../Actors/MASensor.h"
+#include "../Actor/MASensor.h"
 #include "AIController.h"
 
 void UMAActorSubsystem::Initialize(FSubsystemCollectionBase& Collection)

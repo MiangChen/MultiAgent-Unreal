@@ -28,11 +28,15 @@ State Tree (大脑 - 状态决策)          GAS (手脚 - 技能执行)
 
 ```
 unreal_project/Source/MultiAgent/
-├── Characters/                      # ACharacter 派生类 ✅ 已实现
+├── Core/                            # 核心框架 ✅ 已实现
+│   ├── MAActorSubsystem.h/cpp       # Actor 管理子系统 (UWorldSubsystem)
+│   ├── MAGameMode.h/cpp             # 游戏模式
+│   └── MAPlayerController.h/cpp     # 玩家控制器 (Enhanced Input)
+├── Character/                       # ACharacter 派生类 ✅ 已实现
 │   ├── MACharacter.h/cpp            # 角色基类 (继承 ACharacter, 集成 GAS)
 │   ├── MAHumanCharacter.h/cpp       # 人类角色
 │   └── MARobotDogCharacter.h/cpp    # 机器狗角色
-├── Actors/                          # 通用 AActor 派生类 ✅ 已实现
+├── Actor/                           # 通用 AActor 派生类 ✅ 已实现
 │   ├── MASensor.h/cpp               # 传感器基类 (继承 AActor)
 │   ├── MACameraSensor.h/cpp         # 摄像头传感器
 │   └── MAPickupItem.h/cpp           # 可拾取物品
@@ -40,20 +44,21 @@ unreal_project/Source/MultiAgent/
 │   ├── MAAbilitySystemComponent.h/cpp  # GAS 核心组件
 │   ├── MAGameplayTags.h/cpp         # Gameplay Tags 定义
 │   ├── MAGameplayAbilityBase.h/cpp  # Ability 基类
-│   └── Abilities/                   # 具体技能
+│   └── Ability/                     # 具体技能
 │       ├── GA_Pickup.h/cpp          # 拾取技能
 │       ├── GA_Drop.h/cpp            # 放下技能
 │       ├── GA_Navigate.h/cpp        # 导航技能
 │       ├── GA_Follow.h/cpp          # 追踪技能
 │       └── GA_TakePhoto.h/cpp       # 拍照技能
+├── Input/                           # 输入系统 ✅ 已实现
+│   ├── MAInputActions.h/cpp         # Input Actions 单例 (运行时创建)
+│   ├── MAInputConfig.h/cpp          # 输入配置数据资产
+│   └── MAInputComponent.h/cpp       # 增强输入组件
 ├── StateTree/                       # State Tree 模块 ✅ 已实现
 │   ├── MAStateTreeComponent.h/cpp   # State Tree 组件
-│   └── Tasks/                       # State Tree Tasks
+│   └── Task/                        # State Tree Task
 │       └── MASTTask_ActivateAbility.h/cpp  # 激活 Ability 的 Task
-├── Core/                            # 核心框架
-│   ├── MAActorSubsystem.h/cpp       # Actor 管理子系统
-│   ├── MAGameMode.h/cpp             # 游戏模式
-│   └── MAPlayerController.h/cpp     # 玩家控制器
+├── MultiAgent.Build.cs              # 模块构建配置
 └── MultiAgent.h/cpp                 # 模块定义
 ```
 

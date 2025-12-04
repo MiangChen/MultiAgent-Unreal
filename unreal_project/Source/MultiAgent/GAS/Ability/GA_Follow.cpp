@@ -3,7 +3,7 @@
 
 #include "GA_Follow.h"
 #include "../MAGameplayTags.h"
-#include "../../Characters/MACharacter.h"
+#include "../../Character/MACharacter.h"
 #include "AIController.h"
 #include "TimerManager.h"
 

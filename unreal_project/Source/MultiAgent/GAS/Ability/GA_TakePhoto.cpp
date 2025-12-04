@@ -3,8 +3,8 @@
 
 #include "GA_TakePhoto.h"
 #include "../MAGameplayTags.h"
-#include "../../Characters/MACharacter.h"
-#include "../../Actors/MACameraSensor.h"
+#include "../../Character/MACharacter.h"
+#include "../../Actor/MACameraSensor.h"
 
 UGA_TakePhoto::UGA_TakePhoto()
 {

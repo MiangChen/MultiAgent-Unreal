@@ -4,8 +4,8 @@
 #include "GA_Drop.h"
 #include "../MAGameplayTags.h"
 #include "../MAAbilitySystemComponent.h"
-#include "../../Characters/MACharacter.h"
-#include "../../Actors/MAPickupItem.h"
+#include "../../Character/MACharacter.h"
+#include "../../Actor/MAPickupItem.h"
 
 UGA_Drop::UGA_Drop()
 {

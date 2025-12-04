@@ -3,10 +3,10 @@
 
 #include "MAPlayerController.h"
 #include "MAActorSubsystem.h"
-#include "../Characters/MACharacter.h"
-#include "../Characters/MARobotDogCharacter.h"
-#include "../Actors/MACameraSensor.h"
-#include "../Actors/MAPickupItem.h"
+#include "../Character/MACharacter.h"
+#include "../Character/MARobotDogCharacter.h"
+#include "../Actor/MACameraSensor.h"
+#include "../Actor/MAPickupItem.h"
 #include "../Input/MAInputActions.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -55,25 +55,25 @@ void AMAPlayerController::SetupInputComponent()
     // 绑定 Enhanced Input
     if (UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(InputComponent))
     {
-        // 鼠标点击
-        EIC->BindAction(InputActions->IA_LeftClick, ETriggerEvent::Triggered, this, &AMAPlayerController::OnLeftClick);
-        EIC->BindAction(InputActions->IA_RightClick, ETriggerEvent::Triggered, this, &AMAPlayerController::OnRightClick);
+        // 鼠标点击 - Started 只触发一次
+        EIC->BindAction(InputActions->IA_LeftClick, ETriggerEvent::Started, this, &AMAPlayerController::OnLeftClick);
+        EIC->BindAction(InputActions->IA_RightClick, ETriggerEvent::Started, this, &AMAPlayerController::OnRightClick);
 
         // GAS 技能
-        EIC->BindAction(InputActions->IA_Pickup, ETriggerEvent::Triggered, this, &AMAPlayerController::OnPickup);
-        EIC->BindAction(InputActions->IA_Drop, ETriggerEvent::Triggered, this, &AMAPlayerController::OnDrop);
+        EIC->BindAction(InputActions->IA_Pickup, ETriggerEvent::Started, this, &AMAPlayerController::OnPickup);
+        EIC->BindAction(InputActions->IA_Drop, ETriggerEvent::Started, this, &AMAPlayerController::OnDrop);
 
         // 生成
-        EIC->BindAction(InputActions->IA_SpawnItem, ETriggerEvent::Triggered, this, &AMAPlayerController::OnSpawnPickupItem);
-        EIC->BindAction(InputActions->IA_SpawnRobotDog, ETriggerEvent::Triggered, this, &AMAPlayerController::OnSpawnRobotDog);
+        EIC->BindAction(InputActions->IA_SpawnItem, ETriggerEvent::Started, this, &AMAPlayerController::OnSpawnPickupItem);
+        EIC->BindAction(InputActions->IA_SpawnRobotDog, ETriggerEvent::Started, this, &AMAPlayerController::OnSpawnRobotDog);
 
         // 调试
-        EIC->BindAction(InputActions->IA_PrintInfo, ETriggerEvent::Triggered, this, &AMAPlayerController::OnPrintAgentInfo);
-        EIC->BindAction(InputActions->IA_DestroyLast, ETriggerEvent::Triggered, this, &AMAPlayerController::OnDestroyLastAgent);
+        EIC->BindAction(InputActions->IA_PrintInfo, ETriggerEvent::Started, this, &AMAPlayerController::OnPrintAgentInfo);
+        EIC->BindAction(InputActions->IA_DestroyLast, ETriggerEvent::Started, this, &AMAPlayerController::OnDestroyLastAgent);
 
         // 视角切换
-        EIC->BindAction(InputActions->IA_SwitchCamera, ETriggerEvent::Triggered, this, &AMAPlayerController::OnSwitchCamera);
-        EIC->BindAction(InputActions->IA_ReturnSpectator, ETriggerEvent::Triggered, this, &AMAPlayerController::OnReturnToSpectator);
+        EIC->BindAction(InputActions->IA_SwitchCamera, ETriggerEvent::Started, this, &AMAPlayerController::OnSwitchCamera);
+        EIC->BindAction(InputActions->IA_ReturnSpectator, ETriggerEvent::Started, this, &AMAPlayerController::OnReturnToSpectator);
 
         UE_LOG(LogTemp, Log, TEXT("[Input] Bound all input actions"));
     }

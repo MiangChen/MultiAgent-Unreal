@@ -2,11 +2,11 @@
 
 #include "MAAbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
-#include "Abilities/GA_Pickup.h"
-#include "Abilities/GA_Drop.h"
-#include "Abilities/GA_Navigate.h"
-#include "Abilities/GA_Follow.h"
-#include "Abilities/GA_TakePhoto.h"
+#include "Ability/GA_Pickup.h"
+#include "Ability/GA_Drop.h"
+#include "Ability/GA_Navigate.h"
+#include "Ability/GA_Follow.h"
+#include "Ability/GA_TakePhoto.h"
 #include "MAGameplayTags.h"
 
 UMAAbilitySystemComponent::UMAAbilitySystemComponent()

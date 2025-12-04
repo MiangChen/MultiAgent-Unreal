@@ -4,8 +4,8 @@
 #include "GA_Pickup.h"
 #include "../MAGameplayTags.h"
 #include "../MAAbilitySystemComponent.h"
-#include "../../Characters/MACharacter.h"
-#include "../../Actors/MAPickupItem.h"
+#include "../../Character/MACharacter.h"
+#include "../../Actor/MAPickupItem.h"
 #include "Kismet/GameplayStatics.h"
 
 UGA_Pickup::UGA_Pickup()

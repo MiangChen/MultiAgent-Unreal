@@ -6,7 +6,7 @@
 #include "AIController.h"
 #include "../GAS/MAAbilitySystemComponent.h"
 #include "../GAS/MAGameplayTags.h"
-#include "../Actors/MAPickupItem.h"
+#include "../Actor/MAPickupItem.h"
 
 AMACharacter::AMACharacter()
 {

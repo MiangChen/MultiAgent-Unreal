@@ -2,7 +2,7 @@
 
 #include "MAStateTreeComponent.h"
 #include "../GAS/MAAbilitySystemComponent.h"
-#include "../Characters/MACharacter.h"
+#include "../Character/MACharacter.h"
 
 UMAStateTreeComponent::UMAStateTreeComponent()
 {
