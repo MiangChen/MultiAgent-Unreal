@@ -1,7 +1,7 @@
 // MAGameMode.cpp
 
 #include "MAGameMode.h"
-#include "MAPlayerController.h"
+#include "../Input/MAPlayerController.h"
 #include "MAActorSubsystem.h"
 #include "../Character/MAHumanCharacter.h"
 #include "../Character/MARobotDogCharacter.h"

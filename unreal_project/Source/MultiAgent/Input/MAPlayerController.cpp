@@ -2,7 +2,8 @@
 // 使用 Enhanced Input System - 自动配置，无需手动创建资产
 
 #include "MAPlayerController.h"
-#include "MAActorSubsystem.h"
+#include "MAInputActions.h"
+#include "../Core/MAActorSubsystem.h"
 #include "../Character/MACharacter.h"
 #include "../Character/MARobotDogCharacter.h"
 #include "../Actor/MACameraSensor.h"
@@ -10,7 +11,6 @@
 #include "../Actor/MAPatrolPath.h"
 #include "../Actor/MACoverageArea.h"
 #include "../GAS/MAAbilitySystemComponent.h"
-#include "../Input/MAInputActions.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
@@ -98,6 +98,7 @@ void AMAPlayerController::SetupInputComponent()
         UE_LOG(LogTemp, Log, TEXT("[Input] Bound all input actions"));
     }
 }
+
 
 // ========== Input Handlers ==========
 
@@ -332,6 +333,7 @@ void AMAPlayerController::OnReturnToSpectator(const FInputActionValue& Value)
         CurrentCameraIndex = -1;
     }
 }
+
 
 void AMAPlayerController::OnStartPatrol(const FInputActionValue& Value)
 {
