@@ -22,8 +22,12 @@ public:
     void SetTargetCharacter(AMACharacter* InTargetCharacter);
 
     // 跟随距离 (与目标保持的距离)
+    // 注意: 运行时会从 Robot 的 ScanRadius 获取，这里只是默认值
     UPROPERTY(EditDefaultsOnly, Category = "Follow")
     float FollowDistance = 200.f;
+    
+    // 设置跟随距离
+    void SetFollowDistance(float InDistance) { FollowDistance = InDistance; }
 
     // 更新间隔 (秒)
     UPROPERTY(EditDefaultsOnly, Category = "Follow")

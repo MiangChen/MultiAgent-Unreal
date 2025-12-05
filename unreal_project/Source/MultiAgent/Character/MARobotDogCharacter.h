@@ -5,9 +5,9 @@
 
 #include "CoreMinimal.h"
 #include "MACharacter.h"
+#include "../Actor/MAPatrolPath.h"
 #include "MARobotDogCharacter.generated.h"
 
-class AMAPatrolPath;
 class AMAChargingStation;
 class UMAStateTreeComponent;
 
@@ -83,4 +83,52 @@ protected:
 private:
     // 低电量阈值
     static constexpr float LowEnergyThreshold = 20.f;
+
+public:
+    // ========== Coverage System ==========
+    // 机器人扫描半径（用于覆盖任务和跟随距离）
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Coverage")
+    float ScanRadius = 200.f;
+
+    // 覆盖区域引用（可动态设置）
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Coverage")
+    TWeakObjectPtr<AActor> CoverageArea;
+
+    // 设置覆盖区域
+    UFUNCTION(BlueprintCallable, Category = "Coverage")
+    void SetCoverageArea(AActor* Area) { CoverageArea = Area; }
+
+    // 获取覆盖区域
+    UFUNCTION(BlueprintCallable, Category = "Coverage")
+    AActor* GetCoverageArea() const { return CoverageArea.Get(); }
+
+    // ========== Follow System ==========
+    // 当前跟随目标（可动态设置）
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Follow")
+    TWeakObjectPtr<AMACharacter> FollowTarget;
+
+    // 设置跟随目标
+    UFUNCTION(BlueprintCallable, Category = "Follow")
+    void SetFollowTarget(AMACharacter* Target) { FollowTarget = Target; }
+
+    // 清除跟随目标
+    UFUNCTION(BlueprintCallable, Category = "Follow")
+    void ClearFollowTarget() { FollowTarget.Reset(); }
+
+    // 获取跟随目标
+    UFUNCTION(BlueprintCallable, Category = "Follow")
+    AMACharacter* GetFollowTarget() const { return FollowTarget.Get(); }
+
+    // ========== Patrol System ==========
+    // 巡逻路径引用（可动态设置）
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Patrol")
+    TWeakObjectPtr<AMAPatrolPath> PatrolPath;
+
+    // 设置巡逻路径
+    UFUNCTION(BlueprintCallable, Category = "Patrol")
+    void SetPatrolPath(AMAPatrolPath* Path) { PatrolPath = Path; }
+
+    // 获取巡逻路径
+    UFUNCTION(BlueprintCallable, Category = "Patrol")
+    AMAPatrolPath* GetPatrolPath() const { return PatrolPath.Get(); }
 };

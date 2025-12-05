@@ -7,6 +7,7 @@
 #include "../../Actor/MAChargingStation.h"
 #include "AbilitySystemComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "TimerManager.h"
 
 UGA_Charge::UGA_Charge()
 {
@@ -81,10 +82,30 @@ void UGA_Charge::ActivateAbility(
     CachedHandle = Handle;
     CachedActivationInfo = ActivationInfo;
     
-    PerformCharge();
+    // 保存当前充电站
+    CurrentChargingStation = FindNearbyChargingStation();
+    
+    AMACharacter* Character = GetOwningCharacter();
+    if (Character)
+    {
+        Character->ShowStatus(TEXT("[Charging...]"), 9999.f);
+        UE_LOG(LogTemp, Log, TEXT("[GA_Charge] %s started charging"), *Character->ActorName);
+        
+        // 启动定时器进行渐进式充电
+        if (UWorld* World = Character->GetWorld())
+        {
+            World->GetTimerManager().SetTimer(
+                ChargeTimerHandle,
+                this,
+                &UGA_Charge::UpdateCharge,
+                ChargeUpdateInterval,
+                true  // 循环
+            );
+        }
+    }
 }
 
-void UGA_Charge::PerformCharge()
+void UGA_Charge::UpdateCharge()
 {
     AMACharacter* Character = GetOwningCharacter();
     AMARobotDogCharacter* Robot = Cast<AMARobotDogCharacter>(Character);
@@ -95,22 +116,39 @@ void UGA_Charge::PerformCharge()
         return;
     }
     
-    // Restore energy to 100%
-    Robot->RestoreEnergy(Robot->MaxEnergy);
-    
-    // Show status
-    Robot->ShowAbilityStatus(TEXT("Charge"), TEXT("Complete!"));
-    
-    // Send gameplay event
-    if (UAbilitySystemComponent* ASC = Robot->GetAbilitySystemComponent())
+    // 检查是否还在充电站范围内
+    if (!CurrentChargingStation.IsValid() || !CurrentChargingStation->IsRobotInRange(Robot))
     {
-        FGameplayEventData EventData;
-        EventData.Instigator = Robot;
-        ASC->HandleGameplayEvent(FMAGameplayTags::Get().Event_Charge_Complete, &EventData);
+        UE_LOG(LogTemp, Warning, TEXT("[GA_Charge] %s left charging station range"), *Robot->ActorName);
+        Robot->ShowStatus(TEXT("[Charge interrupted]"), 2.f);
+        EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
+        return;
     }
     
-    // End ability
-    EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, false);
+    // 计算本次充电量
+    float ChargeAmount = (ChargeRatePerSecond / 100.f) * Robot->MaxEnergy * ChargeUpdateInterval;
+    Robot->RestoreEnergy(ChargeAmount);
+    
+    // 更新显示
+    float Percent = Robot->GetEnergyPercent();
+    Robot->ShowStatus(FString::Printf(TEXT("[Charging] %.0f%%"), Percent), 9999.f);
+    
+    // 检查是否充满
+    if (Percent >= 100.f)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[GA_Charge] %s fully charged!"), *Robot->ActorName);
+        Robot->ShowAbilityStatus(TEXT("Charge"), TEXT("Complete!"));
+        
+        // 发送充电完成事件
+        if (UAbilitySystemComponent* ASC = Robot->GetAbilitySystemComponent())
+        {
+            FGameplayEventData EventData;
+            EventData.Instigator = Robot;
+            ASC->HandleGameplayEvent(FMAGameplayTags::Get().Event_Charge_Complete, &EventData);
+        }
+        
+        EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, false);
+    }
 }
 
 void UGA_Charge::EndAbility(
@@ -120,5 +158,18 @@ void UGA_Charge::EndAbility(
     bool bReplicateEndAbility,
     bool bWasCancelled)
 {
+    // 清理定时器
+    AMACharacter* Character = GetOwningCharacter();
+    if (Character)
+    {
+        if (UWorld* World = Character->GetWorld())
+        {
+            World->GetTimerManager().ClearTimer(ChargeTimerHandle);
+        }
+        Character->ShowStatus(TEXT(""), 0.f);
+    }
+    
+    CurrentChargingStation.Reset();
+    
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }

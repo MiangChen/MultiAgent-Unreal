@@ -31,6 +31,9 @@ void UMAInputActions::Initialize()
     IA_ReturnSpectator = CreateInputAction(TEXT("IA_ReturnSpectator"));
     IA_StartPatrol = CreateInputAction(TEXT("IA_StartPatrol"));
     IA_StartCharge = CreateInputAction(TEXT("IA_StartCharge"));
+    IA_StopIdle = CreateInputAction(TEXT("IA_StopIdle"));
+    IA_StartCoverage = CreateInputAction(TEXT("IA_StartCoverage"));
+    IA_StartFollow = CreateInputAction(TEXT("IA_StartFollow"));
 
     // 创建 Input Mapping Context
     DefaultMappingContext = NewObject<UInputMappingContext>(this, TEXT("IMC_Default"));
@@ -48,8 +51,11 @@ void UMAInputActions::Initialize()
     AddKeyMapping(DefaultMappingContext, IA_ReturnSpectator, EKeys::Zero);
     AddKeyMapping(DefaultMappingContext, IA_StartPatrol, EKeys::G);
     AddKeyMapping(DefaultMappingContext, IA_StartCharge, EKeys::H);
+    AddKeyMapping(DefaultMappingContext, IA_StopIdle, EKeys::J);
+    AddKeyMapping(DefaultMappingContext, IA_StartCoverage, EKeys::K);
+    AddKeyMapping(DefaultMappingContext, IA_StartFollow, EKeys::F);
 
-    UE_LOG(LogTemp, Log, TEXT("[Input] MAInputActions initialized with %d actions"), 12);
+    UE_LOG(LogTemp, Log, TEXT("[Input] MAInputActions initialized with %d actions"), 15);
 }
 
 UInputAction* UMAInputActions::CreateInputAction(const FName& Name, EInputActionValueType ValueType)

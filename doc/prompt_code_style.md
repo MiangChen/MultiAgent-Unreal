@@ -9,63 +9,29 @@ UnrealZoo 代码风格规范
 0. 架构设计
 ==========
 
-0.1 图论管理 (NetworkX)
------------------------
-本项目使用 NetworkX 图论来统一管理多智能体及其关系：
+0.1 CARLA 风格架构
+------------------
+本项目采用 CARLA 风格架构：
 
-核心组件:
-- EntityGraph: 基于 NetworkX DiGraph 的实体图管理器
-- EntityType: 实体类型枚举 (DRONE, CHARACTER, ANIMAL, OBJECT, LANDMARK, VEHICLE)
-- RelationType: 关系类型枚举 (NEAR, TRACKING, VISIBLE, OWNS, COLLISION, FOLLOW)
-- AgentManager: 持有 EntityGraph，提供高层 API
+核心特点:
+- 参数存储在实体属性上（而非外部配置文件）
+- 行为由实体自身驱动
+- 支持运行时动态修改
 
-设计思路:
-- 节点 (Node): 每个 Agent 实体是图中的一个节点
-- 边 (Edge): 实体间的关系是有向边，带有关系类型和属性
-- 类型索引: 内部维护 _type_index 加速按类型查询
-
-这种设计的好处:
-1. 统一管理异构实体：人/动物/无人机/物品都是节点，只是类型不同
-2. 关系建模自然：追踪、跟随、碰撞、视野内等关系都是边
-3. 空间查询高效：邻居查询、路径规划、区域检测都是图操作
-4. 可视化友好：支持多种布局的图可视化
+CARLA 风格设计原则:
+1. 属性在实体上 - Robot 有 ScanRadius, FollowTarget 等属性，类似 CARLA Vehicle 的 max_speed
+2. 运行时可修改 - 可以随时 Robot->SetFollowTarget(Target)
+3. 行为由实体驱动 - 实体自身属性决定行为
 
 示例:
-```python
-from agent.agent_manager import AgentManager
-from agent.entity_graph import EntityType, RelationType
+```cpp
+// CARLA 风格：参数在实体上，运行时可修改
+Robot->ScanRadius = 300.f;
+Robot->SetFollowTarget(HumanCharacter);
 
-# 初始化
-manager = AgentManager(client, config)
-manager.spawn_from_config()
-
-# 按类型查询
-drones = manager.get_by_type(EntityType.DRONE)
-characters = manager.get_by_type(EntityType.CHARACTER)
-
-# 建立关系
-manager.add_relation("drone_0", "player_1", RelationType.TRACKING)
-manager.add_relation("drone_0", "drone_1", RelationType.NEAR, distance=100)
-
-# 查询关系
-targets = manager.get_targets("drone_0", RelationType.TRACKING)  # drone_0 追踪谁
-trackers = manager.get_sources("player_1", RelationType.TRACKING)  # 谁在追踪 player_1
-neighbors = manager.get_neighbors("drone_0", RelationType.NEAR)  # drone_0 附近有谁
-
-# 更新空间关系 (每帧调用)
-manager.update_spatial_relations(distance_threshold=1000)
-
-# 图算法
-path = manager.graph.shortest_path("drone_0", "player_1")
-components = manager.graph.get_connected_components()
-
-# 可视化
-manager.graph.visualize(save_path="graph.png")
-manager.graph.visualize_multi_view(save_path="graph_multi.png")
-manager.graph.visualize_spatial(save_path="graph_spatial.png")
-
-# 导出图数据 (可传给 Unreal 或其他系统)
-graph_data = manager.export_graph()
+// StateTree Task 从实体获取参数，而非自己存储
+AMACharacter* Target = Robot->GetFollowTarget();
+float Distance = Robot->ScanRadius;
 ```
 
 0.2 CARLA 风格 API
@@ -429,4 +395,93 @@ if (Agent->IsHoldingItem())
 {
     AMAPickupItem* Item = Agent->GetHeldItem();
 }
+```
+
+
+8. StateTree Task 设计规范
+=========================
+
+8.1 核心原则
+-----------
+StateTree Task 不应该有太多可配置参数，参数应该存储在 Agent (如 Robot) 身上，Task 从 Agent 获取。
+
+好处：
+- 参数集中管理，便于调整
+- 同一参数可被多个 Task/Ability 复用
+- 运行时可动态修改
+
+8.2 参数存储位置
+---------------
+```cpp
+// MARobotDogCharacter.h - 参数存储在 Robot 上
+UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Coverage")
+float ScanRadius = 200.f;  // 扫描半径，用于 Coverage 和 Follow
+
+UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Follow")
+TWeakObjectPtr<AMACharacter> FollowTarget;  // 跟随目标
+```
+
+8.3 Task 设计示例
+----------------
+```cpp
+// MASTTask_Follow.h - Task 不存储参数，只有注释说明
+USTRUCT(meta = (DisplayName = "MA Follow"))
+struct MULTIAGENT_API FMASTTask_Follow : public FStateTreeTaskCommonBase
+{
+    GENERATED_BODY()
+
+    // 注意: 跟随目标从 Robot 的 FollowTarget 获取
+    // 注意: 跟随距离从 Robot 的 ScanRadius 获取
+
+protected:
+    // ...
+};
+```
+
+```cpp
+// MASTTask_Follow.cpp - 从 Robot 获取参数
+EStateTreeRunStatus FMASTTask_Follow::EnterState(...) const
+{
+    AMARobotDogCharacter* Robot = Cast<AMARobotDogCharacter>(Owner);
+    
+    // 从 Robot 获取跟随目标
+    AMACharacter* Target = Robot->GetFollowTarget();
+    if (!Target)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[STTask_Follow] No FollowTarget set"));
+        return EStateTreeRunStatus::Failed;
+    }
+    
+    // GA_Follow 会从 Robot 获取 ScanRadius 作为跟随距离
+    ASC->TryActivateFollow(Target);
+    // ...
+}
+```
+
+8.4 Ability 获取参数示例
+-----------------------
+```cpp
+// GA_Follow.cpp - Ability 从 Robot 获取参数
+void UGA_Follow::ActivateAbility(...)
+{
+    AMACharacter* Character = GetOwningCharacter();
+    
+    // 从 RobotDog 获取 ScanRadius 作为跟随距离
+    if (AMARobotDogCharacter* Robot = Cast<AMARobotDogCharacter>(Character))
+    {
+        FollowDistance = Robot->ScanRadius;
+    }
+    // ...
+}
+```
+
+8.5 使用方式
+-----------
+```cpp
+// 设置参数后发送命令
+Robot->SetFollowTarget(HumanCharacter);  // 设置目标
+Robot->ScanRadius = 300.f;               // 可选：调整距离
+
+// 发送 Follow 命令，StateTree 会自动使用 Robot 上的参数
+ASC->AddLooseGameplayTag(FGameplayTag::RequestGameplayTag("Command.Follow"));
 ```

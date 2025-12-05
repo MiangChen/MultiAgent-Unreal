@@ -3,10 +3,12 @@
 #include "MAPatrolPath.h"
 #include "Components/SplineComponent.h"
 #include "Components/BillboardComponent.h"
+#include "DrawDebugHelpers.h"
 
 AMAPatrolPath::AMAPatrolPath()
 {
-    PrimaryActorTick.bCanEverTick = false;
+    PrimaryActorTick.bCanEverTick = true;
+    PrimaryActorTick.bStartWithTickEnabled = true;
 
     // 创建根组件 Billboard（编辑器中显示图标）
     Billboard = CreateDefaultSubobject<UBillboardComponent>(TEXT("Billboard"));
@@ -41,6 +43,61 @@ void AMAPatrolPath::BeginPlay()
 {
     Super::BeginPlay();
     UpdateWaypointsFromSpline();
+    
+    // 运行时不需要每帧 Tick，只在需要可视化时启用
+    SetActorTickEnabled(bShowPathAtRuntime);
+}
+
+void AMAPatrolPath::Tick(float DeltaTime)
+{
+    Super::Tick(DeltaTime);
+    
+    if (bShowPathAtRuntime)
+    {
+        DrawPathVisualization();
+    }
+}
+
+void AMAPatrolPath::DrawPathVisualization()
+{
+    UWorld* World = GetWorld();
+    if (!World || !PathSpline) return;
+    
+    int32 NumPoints = PathSpline->GetNumberOfSplinePoints();
+    if (NumPoints < 2) return;
+    
+    // 绘制路径点和连线
+    for (int32 i = 0; i < NumPoints; ++i)
+    {
+        FVector CurrentPoint = PathSpline->GetLocationAtSplinePoint(i, ESplineCoordinateSpace::World);
+        
+        // 绘制路径点（球体）
+        DrawDebugSphere(World, CurrentPoint, WaypointSize, 12, WaypointColor, false, -1.f, 0, 2.f);
+        
+        // 绘制路径点编号
+        if (bShowWaypointNumbers)
+        {
+            FString PointLabel = FString::Printf(TEXT("%d"), i + 1);
+            DrawDebugString(World, CurrentPoint + FVector(0, 0, WaypointSize + 20.f), PointLabel, nullptr, WaypointColor, 0.f, true, 1.2f);
+        }
+        
+        // 绘制到下一个点的连线
+        int32 NextIndex = (i + 1) % NumPoints;
+        if (NextIndex != 0 || bClosedLoop)
+        {
+            FVector NextPoint = PathSpline->GetLocationAtSplinePoint(NextIndex, ESplineCoordinateSpace::World);
+            DrawDebugLine(World, CurrentPoint, NextPoint, PathColor, false, -1.f, 0, PathThickness);
+            
+            // 绘制方向箭头（在线段中点）
+            FVector MidPoint = (CurrentPoint + NextPoint) * 0.5f;
+            FVector Direction = (NextPoint - CurrentPoint).GetSafeNormal();
+            DrawDebugDirectionalArrow(World, MidPoint - Direction * 30.f, MidPoint + Direction * 30.f, 40.f, PathColor, false, -1.f, 0, PathThickness);
+        }
+    }
+    
+    // 绘制起点标记（稍大一点的圆圈）
+    FVector StartPoint = PathSpline->GetLocationAtSplinePoint(0, ESplineCoordinateSpace::World);
+    DrawDebugCircle(World, StartPoint, WaypointSize * 1.5f, 24, FColor::Green, false, -1.f, 0, PathThickness, FVector(1, 0, 0), FVector(0, 1, 0), false);
 }
 
 void AMAPatrolPath::OnConstruction(const FTransform& Transform)

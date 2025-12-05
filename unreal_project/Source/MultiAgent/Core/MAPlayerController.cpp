@@ -8,6 +8,7 @@
 #include "../Actor/MACameraSensor.h"
 #include "../Actor/MAPickupItem.h"
 #include "../Actor/MAPatrolPath.h"
+#include "../Actor/MACoverageArea.h"
 #include "../GAS/MAAbilitySystemComponent.h"
 #include "../Input/MAInputActions.h"
 #include "EnhancedInputComponent.h"
@@ -84,6 +85,15 @@ void AMAPlayerController::SetupInputComponent()
         
         // 充电
         EIC->BindAction(InputActions->IA_StartCharge, ETriggerEvent::Started, this, &AMAPlayerController::OnStartCharge);
+
+        // 停止/空闲
+        EIC->BindAction(InputActions->IA_StopIdle, ETriggerEvent::Started, this, &AMAPlayerController::OnStopIdle);
+
+        // 区域覆盖
+        EIC->BindAction(InputActions->IA_StartCoverage, ETriggerEvent::Started, this, &AMAPlayerController::OnStartCoverage);
+
+        // 跟随
+        EIC->BindAction(InputActions->IA_StartFollow, ETriggerEvent::Started, this, &AMAPlayerController::OnStartFollow);
 
         UE_LOG(LogTemp, Log, TEXT("[Input] Bound all input actions"));
     }
@@ -325,7 +335,7 @@ void AMAPlayerController::OnReturnToSpectator(const FInputActionValue& Value)
 
 void AMAPlayerController::OnStartPatrol(const FInputActionValue& Value)
 {
-    UE_LOG(LogTemp, Warning, TEXT("[PlayerController] OnStartPatrol called (G key) - Sending Command.Patrol to StateTree"));
+    UE_LOG(LogTemp, Warning, TEXT("[PlayerController] OnStartPatrol called (G key)"));
     
     UMAActorSubsystem* ActorSubsystem = GetWorld()->GetSubsystem<UMAActorSubsystem>();
     if (!ActorSubsystem)
@@ -334,9 +344,19 @@ void AMAPlayerController::OnStartPatrol(const FInputActionValue& Value)
         return;
     }
     
-    // 获取所有 RobotDog，发送 Command.Patrol 命令
+    // 查找场景中的 PatrolPath
+    TArray<AActor*> PatrolPaths;
+    UGameplayStatics::GetAllActorsOfClass(GetWorld(), AMAPatrolPath::StaticClass(), PatrolPaths);
+    AMAPatrolPath* FirstPatrolPath = PatrolPaths.Num() > 0 ? Cast<AMAPatrolPath>(PatrolPaths[0]) : nullptr;
+    
+    if (!FirstPatrolPath)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, TEXT("No PatrolPath in scene!"));
+        return;
+    }
+    
+    // 获取所有 RobotDog
     TArray<AMACharacter*> RobotDogs = ActorSubsystem->GetCharactersByType(EMAActorType::RobotDog);
-    UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Found %d RobotDogs"), RobotDogs.Num());
     
     int32 CommandCount = 0;
     FGameplayTag PatrolCommand = FGameplayTag::RequestGameplayTag(FName("Command.Patrol"));
@@ -344,23 +364,29 @@ void AMAPlayerController::OnStartPatrol(const FInputActionValue& Value)
     for (AMACharacter* Character : RobotDogs)
     {
         if (!Character) continue;
+        if (Character->ActorName.Contains(TEXT("Tracker"))) continue;
+        
+        AMARobotDogCharacter* Robot = Cast<AMARobotDogCharacter>(Character);
+        if (!Robot) continue;
+        
+        // 设置 PatrolPath（CARLA 风格）
+        Robot->SetPatrolPath(FirstPatrolPath);
         
         UMAAbilitySystemComponent* ASC = Cast<UMAAbilitySystemComponent>(Character->GetAbilitySystemComponent());
-        if (!ASC)
-        {
-            UE_LOG(LogTemp, Warning, TEXT("[PlayerController] %s has no ASC!"), *Character->ActorName);
-            continue;
-        }
+        if (!ASC) continue;
         
-        // 先清除其他命令，再添加 Patrol 命令
+        // 清除其他命令，添加 Patrol 命令
         ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Idle")));
         ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Charge")));
+        ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Follow")));
+        ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Coverage")));
         ASC->AddLooseGameplayTag(PatrolCommand);
         
         CommandCount++;
-        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Sent Command.Patrol to %s"), *Character->ActorName);
+        UE_LOG(LogTemp, Log, TEXT("[PlayerController] %s: Command.Patrol set, PatrolPath=%s"),
+            *Character->ActorName, *FirstPatrolPath->GetName());
         GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green,
-            FString::Printf(TEXT("%s: Command.Patrol sent"), *Character->ActorName));
+            FString::Printf(TEXT("%s: Patrol started"), *Character->ActorName));
     }
     
     if (CommandCount == 0)
@@ -391,6 +417,9 @@ void AMAPlayerController::OnStartCharge(const FInputActionValue& Value)
     {
         if (!Character) continue;
         
+        // 排除 Tracker（Follow 机器人）
+        if (Character->ActorName.Contains(TEXT("Tracker"))) continue;
+        
         UMAAbilitySystemComponent* ASC = Cast<UMAAbilitySystemComponent>(Character->GetAbilitySystemComponent());
         if (!ASC)
         {
@@ -401,12 +430,180 @@ void AMAPlayerController::OnStartCharge(const FInputActionValue& Value)
         // 先清除其他命令，再添加 Charge 命令
         ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Idle")));
         ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Patrol")));
+        ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Follow")));
+        ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Coverage")));
         ASC->AddLooseGameplayTag(ChargeCommand);
         
         CommandCount++;
-        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Sent Command.Charge to %s"), *Character->ActorName);
         GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Yellow,
-            FString::Printf(TEXT("%s: Command.Charge sent"), *Character->ActorName));
+            FString::Printf(TEXT("%s: Charge started"), *Character->ActorName));
+    }
+    
+    if (CommandCount == 0)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Orange, TEXT("No RobotDog found!"));
+    }
+}
+
+void AMAPlayerController::OnStopIdle(const FInputActionValue& Value)
+{
+    UE_LOG(LogTemp, Warning, TEXT("[PlayerController] OnStopIdle called (J key) - Sending Command.Idle to StateTree"));
+    
+    UMAActorSubsystem* ActorSubsystem = GetWorld()->GetSubsystem<UMAActorSubsystem>();
+    if (!ActorSubsystem)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] No ActorSubsystem!"));
+        return;
+    }
+    
+    // 获取所有 RobotDog，发送 Command.Idle 命令
+    TArray<AMACharacter*> RobotDogs = ActorSubsystem->GetCharactersByType(EMAActorType::RobotDog);
+    UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Found %d RobotDogs"), RobotDogs.Num());
+    
+    int32 CommandCount = 0;
+    FGameplayTag IdleCommand = FGameplayTag::RequestGameplayTag(FName("Command.Idle"));
+    
+    for (AMACharacter* Character : RobotDogs)
+    {
+        if (!Character) continue;
+        
+        // 排除 Tracker（Follow 机器人）
+        if (Character->ActorName.Contains(TEXT("Tracker"))) continue;
+        
+        UMAAbilitySystemComponent* ASC = Cast<UMAAbilitySystemComponent>(Character->GetAbilitySystemComponent());
+        if (!ASC)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[PlayerController] %s has no ASC!"), *Character->ActorName);
+            continue;
+        }
+        
+        // 先清除其他命令，再添加 Idle 命令
+        ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Patrol")));
+        ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Charge")));
+        ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Follow")));
+        ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Coverage")));
+        ASC->AddLooseGameplayTag(IdleCommand);
+        
+        CommandCount++;
+        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::White,
+            FString::Printf(TEXT("%s: Idle"), *Character->ActorName));
+    }
+    
+    if (CommandCount == 0)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Orange, TEXT("No RobotDog found!"));
+    }
+}
+
+void AMAPlayerController::OnStartCoverage(const FInputActionValue& Value)
+{
+    UE_LOG(LogTemp, Warning, TEXT("[PlayerController] OnStartCoverage called (K key)"));
+    
+    UMAActorSubsystem* ActorSubsystem = GetWorld()->GetSubsystem<UMAActorSubsystem>();
+    if (!ActorSubsystem)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] No ActorSubsystem!"));
+        return;
+    }
+    
+    // 查找场景中的 CoverageArea
+    TArray<AActor*> CoverageAreas;
+    UGameplayStatics::GetAllActorsOfClass(GetWorld(), AMACoverageArea::StaticClass(), CoverageAreas);
+    AActor* FirstCoverageArea = CoverageAreas.Num() > 0 ? CoverageAreas[0] : nullptr;
+    
+    if (!FirstCoverageArea)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, TEXT("No CoverageArea in scene!"));
+        return;
+    }
+    
+    // 获取所有 RobotDog
+    TArray<AMACharacter*> RobotDogs = ActorSubsystem->GetCharactersByType(EMAActorType::RobotDog);
+    
+    int32 CommandCount = 0;
+    FGameplayTag CoverageCommand = FGameplayTag::RequestGameplayTag(FName("Command.Coverage"));
+    
+    for (AMACharacter* Character : RobotDogs)
+    {
+        if (!Character) continue;
+        if (Character->ActorName.Contains(TEXT("Tracker"))) continue;
+        
+        AMARobotDogCharacter* Robot = Cast<AMARobotDogCharacter>(Character);
+        if (!Robot) continue;
+        
+        // 设置 CoverageArea（CARLA 风格）
+        Robot->SetCoverageArea(FirstCoverageArea);
+        
+        UMAAbilitySystemComponent* ASC = Cast<UMAAbilitySystemComponent>(Character->GetAbilitySystemComponent());
+        if (!ASC) continue;
+        
+        // 清除其他命令，添加 Coverage 命令
+        ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Idle")));
+        ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Patrol")));
+        ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Charge")));
+        ASC->AddLooseGameplayTag(CoverageCommand);
+        
+        CommandCount++;
+        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Magenta,
+            FString::Printf(TEXT("%s: Coverage started"), *Character->ActorName));
+    }
+    
+    if (CommandCount == 0)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Orange, TEXT("No RobotDog found!"));
+    }
+}
+
+void AMAPlayerController::OnStartFollow(const FInputActionValue& Value)
+{
+    UE_LOG(LogTemp, Warning, TEXT("[PlayerController] OnStartFollow called (F key)"));
+    
+    UMAActorSubsystem* ActorSubsystem = GetWorld()->GetSubsystem<UMAActorSubsystem>();
+    if (!ActorSubsystem)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] No ActorSubsystem!"));
+        return;
+    }
+    
+    // 查找场景中的 Human 作为跟随目标
+    TArray<AMACharacter*> Humans = ActorSubsystem->GetCharactersByType(EMAActorType::Human);
+    AMACharacter* FirstHuman = Humans.Num() > 0 ? Humans[0] : nullptr;
+    
+    if (!FirstHuman)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, TEXT("No Human in scene to follow!"));
+        return;
+    }
+    
+    // 获取所有 RobotDog
+    TArray<AMACharacter*> RobotDogs = ActorSubsystem->GetCharactersByType(EMAActorType::RobotDog);
+    
+    int32 CommandCount = 0;
+    FGameplayTag FollowCommand = FGameplayTag::RequestGameplayTag(FName("Command.Follow"));
+    
+    for (AMACharacter* Character : RobotDogs)
+    {
+        if (!Character) continue;
+        
+        AMARobotDogCharacter* Robot = Cast<AMARobotDogCharacter>(Character);
+        if (!Robot) continue;
+        
+        // 设置 FollowTarget（CARLA 风格）
+        Robot->SetFollowTarget(FirstHuman);
+        
+        UMAAbilitySystemComponent* ASC = Cast<UMAAbilitySystemComponent>(Character->GetAbilitySystemComponent());
+        if (!ASC) continue;
+        
+        // 清除其他命令，添加 Follow 命令
+        ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Idle")));
+        ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Patrol")));
+        ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Charge")));
+        ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Coverage")));
+        ASC->AddLooseGameplayTag(FollowCommand);
+        
+        CommandCount++;
+        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan,
+            FString::Printf(TEXT("%s: Following %s"), *Character->ActorName, *FirstHuman->ActorName));
     }
     
     if (CommandCount == 0)

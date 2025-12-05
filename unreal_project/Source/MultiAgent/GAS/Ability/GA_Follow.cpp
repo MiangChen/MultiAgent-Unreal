@@ -4,6 +4,7 @@
 #include "GA_Follow.h"
 #include "../MAGameplayTags.h"
 #include "../../Character/MACharacter.h"
+#include "../../Character/MARobotDogCharacter.h"
 #include "AIController.h"
 #include "TimerManager.h"
 
@@ -49,6 +50,13 @@ void UGA_Follow::ActivateAbility(
     {
         EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
         return;
+    }
+    
+    // 从 RobotDog 获取 ScanRadius 作为跟随距离
+    if (AMARobotDogCharacter* Robot = Cast<AMARobotDogCharacter>(Character))
+    {
+        FollowDistance = Robot->ScanRadius;
+        UE_LOG(LogTemp, Log, TEXT("[Follow] Using Robot ScanRadius as FollowDistance: %.0f"), FollowDistance);
     }
     
     UE_LOG(LogTemp, Log, TEXT("[Follow] %s starts following %s"), 

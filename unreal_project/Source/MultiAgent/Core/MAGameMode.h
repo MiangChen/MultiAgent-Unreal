@@ -46,10 +46,6 @@ protected:
     // 生成并附着摄像头到 Character
     void SpawnAndAttachCamera(UMAActorSubsystem* ActorSubsystem, AMACharacter* ParentCharacter, FVector RelativeLocation, FRotator RelativeRotation);
     
-    // 生成追踪者 Character
-    void SpawnTrackerCharacter(UMAActorSubsystem* ActorSubsystem);
-    
-    // 追踪者 Character 引用
-    UPROPERTY()
-    AMACharacter* TrackerCharacter = nullptr;
+    // 生成充电站
+    void SpawnChargingStation();
 };

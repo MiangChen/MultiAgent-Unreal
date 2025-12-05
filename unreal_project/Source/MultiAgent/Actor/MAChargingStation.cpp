@@ -11,13 +11,40 @@ AMAChargingStation::AMAChargingStation()
 {
     PrimaryActorTick.bCanEverTick = false;
 
+    // 自动添加 Actor Tag，用于 StateTree Task 查找
+    Tags.Add(FName("ChargingStation"));
+
     // Create mesh component
     MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComponent"));
     RootComponent = MeshComponent;
     
+    // 让充电站不影响 NavMesh（机器人可以走到充电站位置）
+    MeshComponent->SetCanEverAffectNavigation(false);
+    
+    // 让充电站 Mesh 不阻挡移动（只做视觉显示）
+    // 机器人可以"穿过"充电站，由 InteractionSphere 负责检测
+    MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    
     // Set default soft references (can be changed in editor)
     StationMeshAsset = TSoftObjectPtr<UStaticMesh>(FSoftObjectPath(TEXT("/Game/charge/SM_StationRecharge.SM_StationRecharge")));
     StationMaterialAsset = TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(TEXT("/Game/charge/M_ChargingStation.M_ChargingStation")));
+
+    // 在构造函数中加载默认 Mesh（编辑器中可见）
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> DefaultMesh(TEXT("/Game/charge/SM_StationRecharge.SM_StationRecharge"));
+    if (DefaultMesh.Succeeded())
+    {
+        MeshComponent->SetStaticMesh(DefaultMesh.Object);
+    }
+    else
+    {
+        // Fallback: 使用引擎自带的 Cube
+        static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeMesh(TEXT("/Engine/BasicShapes/Cube.Cube"));
+        if (CubeMesh.Succeeded())
+        {
+            MeshComponent->SetStaticMesh(CubeMesh.Object);
+            MeshComponent->SetRelativeScale3D(FVector(1.f, 1.f, 2.f));
+        }
+    }
 
     // Create interaction sphere
     InteractionSphere = CreateDefaultSubobject<USphereComponent>(TEXT("InteractionSphere"));

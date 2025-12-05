@@ -34,24 +34,14 @@ struct FMASTTask_PatrolInstanceData
 /**
  * StateTree Task: 巡逻
  * 循环移动到 PatrolPath 的各个路径点
- * 通过 Actor Tag 在运行时查找 PatrolPath，避免直接引用关卡 Actor
+ * 
+ * 注意: PatrolPath 从 Robot->GetPatrolPath() 获取
+ * 注意: AcceptanceRadius 使用 Robot->ScanRadius
  */
 USTRUCT(meta = (DisplayName = "MA Patrol"))
 struct MULTIAGENT_API FMASTTask_Patrol : public FStateTreeTaskCommonBase
 {
     GENERATED_BODY()
-
-    // 巡逻路径的 Actor Tag (在场景中给 PatrolPath Actor 添加此 Tag)
-    UPROPERTY(EditAnywhere, Category = "Patrol")
-    FName PatrolPathTag = "PatrolPath";
-
-    // 到达路径点后的等待时间
-    UPROPERTY(EditAnywhere, Category = "Patrol")
-    float WaitTimeAtWaypoint = 0.5f;
-
-    // 到达判定距离
-    UPROPERTY(EditAnywhere, Category = "Patrol")
-    float AcceptanceRadius = 100.f;
 
 protected:
     virtual const UStruct* GetInstanceDataType() const override { return FMASTTask_PatrolInstanceData::StaticStruct(); }

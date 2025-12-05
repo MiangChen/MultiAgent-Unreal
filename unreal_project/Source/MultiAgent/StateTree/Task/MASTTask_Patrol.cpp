@@ -6,7 +6,6 @@
 #include "../../Character/MARobotDogCharacter.h"
 #include "../../Actor/MAPatrolPath.h"
 #include "StateTreeExecutionContext.h"
-#include "Kismet/GameplayStatics.h"
 
 EStateTreeRunStatus FMASTTask_Patrol::EnterState(
     FStateTreeExecutionContext& Context, 
@@ -21,30 +20,20 @@ EStateTreeRunStatus FMASTTask_Patrol::EnterState(
     Data.WaitTimer = 0.f;
     Data.Waypoints.Empty();
 
-    // 通过 Tag 查找 PatrolPath Actor
-    UWorld* World = Context.GetWorld();
-    if (!World)
+    // 获取 Robot
+    AActor* Owner = Cast<AActor>(Context.GetOwner());
+    AMARobotDogCharacter* Robot = Cast<AMARobotDogCharacter>(Owner);
+    if (!Robot)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[STTask_Patrol] No World!"));
+        UE_LOG(LogTemp, Warning, TEXT("[STTask_Patrol] Owner is not RobotDog"));
         return EStateTreeRunStatus::Failed;
     }
-    
-    TArray<AActor*> FoundActors;
-    UGameplayStatics::GetAllActorsWithTag(World, PatrolPathTag, FoundActors);
-    
-    AMAPatrolPath* FoundPatrolPath = nullptr;
-    for (AActor* Actor : FoundActors)
-    {
-        if (AMAPatrolPath* Path = Cast<AMAPatrolPath>(Actor))
-        {
-            FoundPatrolPath = Path;
-            break;
-        }
-    }
-    
+
+    // 从 Robot 获取 PatrolPath
+    AMAPatrolPath* FoundPatrolPath = Robot->GetPatrolPath();
     if (!FoundPatrolPath || !FoundPatrolPath->IsValidPath())
     {
-        UE_LOG(LogTemp, Warning, TEXT("[STTask_Patrol] No PatrolPath found with tag '%s'"), *PatrolPathTag.ToString());
+        UE_LOG(LogTemp, Warning, TEXT("[STTask_Patrol] %s: No PatrolPath set"), *Robot->ActorName);
         return EStateTreeRunStatus::Failed;
     }
 
@@ -128,6 +117,10 @@ EStateTreeRunStatus FMASTTask_Patrol::Tick(
         FVector TargetLocation = Data.Waypoints[Data.CurrentWaypointIndex];
         float Distance = FVector::Dist2D(CurrentLocation, TargetLocation);
 
+        // 从 Robot 获取 ScanRadius 作为到达判定
+        AMARobotDogCharacter* Robot = Cast<AMARobotDogCharacter>(Character);
+        float ActualAcceptRadius = Robot ? Robot->ScanRadius : 100.f;
+
         // 移动完成检测: Character->bIsMoving 由 GA_Navigate 在完成时设为 false
         // 当 GA_Navigate 成功完成 (包括 AlreadyAtGoal)，我们认为已到达
         if (!Character->bIsMoving)
@@ -138,12 +131,12 @@ EStateTreeRunStatus FMASTTask_Patrol::Tick(
             
             Data.bIsMoving = false;
             Data.bIsWaiting = true;
-            Data.WaitTimer = WaitTimeAtWaypoint;
+            Data.WaitTimer = 0.5f;  // 固定等待时间
             
             // 显示状态
             Character->ShowAbilityStatus(TEXT("Patrol"), TEXT("Waiting..."));
         }
-        else if (Distance <= AcceptanceRadius)
+        else if (Distance <= ActualAcceptRadius)
         {
             // 距离检查也通过 (备用检测)
             UE_LOG(LogTemp, Log, TEXT("[STTask_Patrol] %s reached WP[%d/%d] (Distance=%.1f)"), 
@@ -151,7 +144,7 @@ EStateTreeRunStatus FMASTTask_Patrol::Tick(
             
             Data.bIsMoving = false;
             Data.bIsWaiting = true;
-            Data.WaitTimer = WaitTimeAtWaypoint;
+            Data.WaitTimer = 0.5f;  // 固定等待时间
             
             Character->ShowAbilityStatus(TEXT("Patrol"), TEXT("Waiting..."));
         }

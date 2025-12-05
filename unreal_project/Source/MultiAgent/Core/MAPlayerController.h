@@ -34,6 +34,9 @@ protected:
     void OnReturnToSpectator(const FInputActionValue& Value);
     void OnStartPatrol(const FInputActionValue& Value);
     void OnStartCharge(const FInputActionValue& Value);
+    void OnStopIdle(const FInputActionValue& Value);
+    void OnStartCoverage(const FInputActionValue& Value);
+    void OnStartFollow(const FInputActionValue& Value);
 
     // 获取鼠标点击位置
     bool GetMouseHitLocation(FVector& OutLocation);

@@ -6,6 +6,7 @@
 #include "../Character/MAHumanCharacter.h"
 #include "../Character/MARobotDogCharacter.h"
 #include "../Actor/MACameraSensor.h"
+#include "../Actor/MAChargingStation.h"
 #include "GameFramework/SpectatorPawn.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Kismet/GameplayStatics.h"
@@ -129,61 +130,8 @@ void AMAGameMode::SpawnInitialCharacters()
     
     UE_LOG(LogTemp, Log, TEXT("Spawned %d humans and %d robot dogs with cameras via ActorSubsystem"), NumHumans, NumRobotDogs);
     
-    // 生成一个追踪者 RobotDog，自动追踪第一个 Human
-    SpawnTrackerCharacter(ActorSubsystem);
-}
-
-void AMAGameMode::SpawnTrackerCharacter(UMAActorSubsystem* ActorSubsystem)
-{
-    if (!ActorSubsystem) return;
-    
-    // 获取第一个 Human 作为追踪目标
-    TArray<AMACharacter*> Humans = ActorSubsystem->GetCharactersByType(EMAActorType::Human);
-    if (Humans.Num() == 0)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[GameMode] No Human to track!"));
-        return;
-    }
-    
-    AMACharacter* TargetHuman = Humans[0];
-    
-    // 在目标后方生成追踪者
-    FVector SpawnLocation = TargetHuman->GetActorLocation() - TargetHuman->GetActorForwardVector() * 500.f;
-    
-    // 投影到 NavMesh
-    if (UNavigationSystemV1* NavSys = UNavigationSystemV1::GetCurrent(GetWorld()))
-    {
-        FNavLocation NavLocation;
-        if (NavSys->ProjectPointToNavigation(SpawnLocation, NavLocation, FVector(500.f, 500.f, 500.f)))
-        {
-            SpawnLocation = NavLocation.Location;
-        }
-    }
-    
-    // 生成追踪者
-    TrackerCharacter = ActorSubsystem->SpawnCharacter(
-        RobotDogCharacterClass,
-        SpawnLocation,
-        FRotator::ZeroRotator,
-        100,  // 特殊 ID
-        EMAActorType::RobotDog
-    );
-    
-    if (TrackerCharacter)
-    {
-        TrackerCharacter->ActorName = TEXT("Tracker_Dog");
-        
-        // 开始追踪第一个 Human
-        TrackerCharacter->TryFollowActor(TargetHuman, 300.f);
-        
-        UE_LOG(LogTemp, Log, TEXT("[GameMode] Spawned Tracker_Dog, following %s"), *TargetHuman->ActorName);
-        
-        if (GEngine)
-        {
-            GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Magenta,
-                FString::Printf(TEXT("Tracker_Dog spawned, following %s"), *TargetHuman->ActorName));
-        }
-    }
+    // 生成充电站
+    SpawnChargingStation();
 }
 
 void AMAGameMode::SpawnAndAttachCamera(UMAActorSubsystem* ActorSubsystem, AMACharacter* ParentCharacter, FVector RelativeLocation, FRotator RelativeRotation)
@@ -205,5 +153,27 @@ void AMAGameMode::SpawnAndAttachCamera(UMAActorSubsystem* ActorSubsystem, AMACha
         
         UE_LOG(LogTemp, Log, TEXT("[GameMode] Attached camera %s to %s at offset (%.0f, %.0f, %.0f)"),
             *Camera->SensorName, *ParentCharacter->ActorName, RelativeLocation.X, RelativeLocation.Y, RelativeLocation.Z);
+    }
+}
+
+void AMAGameMode::SpawnChargingStation()
+{
+    // 在指定位置生成充电站
+    FVector StationLocation = FVector(1000.f, 500.f, 0.f);
+    
+    FActorSpawnParameters SpawnParams;
+    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+    
+    AMAChargingStation* Station = GetWorld()->SpawnActor<AMAChargingStation>(
+        AMAChargingStation::StaticClass(),
+        StationLocation,
+        FRotator::ZeroRotator,
+        SpawnParams
+    );
+    
+    if (Station)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[GameMode] Spawned ChargingStation at (%.0f, %.0f, %.0f)"),
+            StationLocation.X, StationLocation.Y, StationLocation.Z);
     }
 }
