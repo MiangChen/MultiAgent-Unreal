@@ -923,6 +923,8 @@ PlayerController 在 BeginPlay 时自动添加 Mapping Context，无需额外配
 | **J** | IA_StopIdle | 所有 RobotDog 停止并进入 Idle |
 | **K** | IA_StartCoverage | 所有 RobotDog 开始区域覆盖 |
 | **A** | IA_StartAvoid | 所有 RobotDog 启动避障导航到鼠标位置 |
+| **B** | IA_StartFormation | 所有 RobotDog 开始编队跟随 |
+| **L** | IA_TakePhoto | 所有 CameraSensor 拍照 |
 
 ### 9.4 相关文件
 

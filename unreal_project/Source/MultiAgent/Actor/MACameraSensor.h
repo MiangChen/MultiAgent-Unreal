@@ -32,6 +32,10 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera")
     float FOV = 90.0f;
+    
+    // 亮度调整倍数（用于匹配编辑器视图）
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera", meta = (ClampMin = "0.5", ClampMax = "5.0"))
+    float BrightnessMultiplier = 2.0f;
 
 protected:
     virtual void BeginPlay() override;

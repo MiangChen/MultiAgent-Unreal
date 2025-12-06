@@ -20,7 +20,7 @@
 |---|------|---------|----------------|------|
 | 1 | 搜索 | GA_Search | - | 使用摄像头检测视野内目标 |
 | 2 | 识别 | GA_Search | - | 与搜索合并，发现目标时输出 |
-| 3 | 拍照 | GA_TakePhoto | - | 使用附着的 CameraSensor 拍照 |
+| 3 | 拍照 | MACameraSensor::TakePhoto() | - | CARLA 风格直接调用 Sensor 拍照 |
 | 4 | 跟随 | GA_Follow | MASTTask_Follow | 持续跟随指定目标 |
 | 5 | 编队 | GA_Formation | - | 多机器人按阵型跟随 Leader |
 | 6 | 探索/巡逻 | GA_Navigate | MASTTask_Patrol | 循环巡逻路径点 |

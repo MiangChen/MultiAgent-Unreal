@@ -372,3 +372,89 @@ Warning: MultiAgent.uproject does not list plugin 'MassAI' as a dependency, but 
 ```
 
 **教训**: 使用 UE5 插件模块时，需要同时在 `Build.cs` 添加模块依赖和在 `.uproject` 中启用插件。
+
+
+---
+
+#### Bug 13: 编队跟随时机器人抖动 (已解决)
+
+**问题**: 机器人在编队跟随 Leader 时，到达目标位置后会不断抖动。
+
+**现象**: 机器人到达编队位置后，反复启动和停止移动，导致视觉上的抖动。
+
+**原因**: 没有迟滞机制 (Hysteresis)，机器人到达目标后立即检测到"需要移动"，然后又立即到达，形成循环。
+
+**解决**: 在 MAActorSubsystem 中实现迟滞机制：
+- `StartMoveThreshold = 150.f` - 距离超过此值才开始移动
+- `StopMoveThreshold = 80.f` - 距离小于此值才停止移动
+- 两个阈值的差值形成"死区"，防止抖动
+
+```cpp
+// 迟滞机制
+if (!bIsMoving && Distance > StartMoveThreshold)
+{
+    // 开始移动
+    bIsMoving = true;
+}
+else if (bIsMoving && Distance < StopMoveThreshold)
+{
+    // 停止移动
+    bIsMoving = false;
+}
+```
+
+**教训**: 实时跟随系统需要迟滞机制防止抖动，使用不同的启动/停止阈值。
+
+---
+
+#### Bug 14: 相机拍照图片过暗 (已解决)
+
+**问题**: MACameraSensor 拍照保存的图片非常暗，几乎全黑。
+
+**现象**: 调用 `TakePhoto()` 保存的图片亮度极低，无法看清内容。
+
+**原因**: SceneCaptureComponent2D 的默认配置不正确：
+1. CaptureSource 设置错误
+2. Gamma 校正未正确应用
+3. 后处理设置不当
+
+**解决**: 参考 UnrealCV 的 LitCamSensor 实现，应用正确的相机配置：
+```cpp
+// 使用 FinalColorLDR 作为捕获源
+CaptureComponent->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
+
+// 启用后处理
+CaptureComponent->bCaptureEveryFrame = false;
+CaptureComponent->bCaptureOnMovement = false;
+
+// 正确的 Gamma 设置
+RenderTarget->TargetGamma = 2.2f;
+```
+
+**教训**: UE5 的 SceneCaptureComponent2D 需要正确配置 CaptureSource 和 Gamma 才能获得正确的图像亮度。参考成熟项目（如 UnrealCV、CARLA）的实现。
+
+---
+
+#### Bug 15: GA_TakePhoto Ability 开销过大 (已解决)
+
+**问题**: 使用 GAS Ability 实现拍照功能增加了不必要的复杂性。
+
+**现象**: 拍照是一个简单的即时操作，但通过 GAS 实现需要：
+- 创建 Ability 类
+- 注册到 ASC
+- 通过 Tag 激活
+- 处理 Ability 生命周期
+
+**解决**: 采用 CARLA 风格，直接在 MACameraSensor 上实现 `TakePhoto()` 方法：
+```cpp
+// 直接调用，无需 GAS
+AMACameraSensor* Camera = ...;
+Camera->TakePhoto();  // 简单直接
+```
+
+**清理内容**:
+- 删除 GA_TakePhoto.h/cpp
+- 移除 MAAbilitySystemComponent 中的相关代码
+- 更新 PlayerController 直接调用 Sensor
+
+**教训**: 不是所有功能都需要通过 GAS 实现。简单的即时操作（如拍照）直接在 Actor 上实现更简洁。CARLA 风格：参数和简单操作放在实体上，复杂行为才用 Ability。
