@@ -17,11 +17,12 @@ UGA_Formation::UGA_Formation()
     ActivationOwnedTags.AddTag(FMAGameplayTags::Get().Status_Moving);
 }
 
-void UGA_Formation::SetFormation(AMACharacter* InLeader, EFormationType InType, int32 InPosition)
+void UGA_Formation::SetFormation(AMACharacter* InLeader, EFormationType InType, int32 InPosition, int32 InTotalCount)
 {
     Leader = InLeader;
     FormationType = InType;
     FormationPosition = InPosition;
+    TotalRobotCount = FMath::Max(1, InTotalCount);
 }
 
 bool UGA_Formation::CanActivateAbility(
@@ -87,7 +88,8 @@ void UGA_Formation::ActivateAbility(
             case EFormationType::Line: FormationName = TEXT("Line"); break;
             case EFormationType::Column: FormationName = TEXT("Column"); break;
             case EFormationType::Wedge: FormationName = TEXT("Wedge"); break;
-            case EFormationType::Diamond: FormationName = TEXT("Diamond"); break;
+            case EFormationType::Diamond: FormationName = TEXT("X"); break;
+            case EFormationType::Circle: FormationName = TEXT("Circle"); break;
         }
         
         UE_LOG(LogTemp, Log, TEXT("[Formation] %s joining %s formation, position %d"), 
@@ -143,7 +145,7 @@ FVector UGA_Formation::CalculateFormationOffset() const
             break;
             
         case EFormationType::Diamond:
-            // Diamond shape
+            // Diamond shape (X)
             switch (Pos % 4)
             {
                 case 0: Offset = FVector(-FormationSpacing, 0.f, 0.f); break;  // Behind
@@ -155,6 +157,21 @@ FVector UGA_Formation::CalculateFormationOffset() const
             if (Pos >= 4)
             {
                 Offset *= (Pos / 4) + 1;
+            }
+            break;
+            
+        case EFormationType::Circle:
+            // Circle: positions evenly distributed around leader
+            // 半径根据机器人数量动态计算，确保机器人之间有足够间距
+            {
+                // 计算合适的半径：周长 = 机器人数量 * 最小间距
+                // 半径 = 周长 / (2 * PI) = (数量 * 间距) / (2 * PI)
+                float MinSpacing = FormationSpacing * 0.8f;  // 机器人之间的最小间距
+                float Radius = FMath::Max(FormationSpacing, (TotalRobotCount * MinSpacing) / (2.f * PI));
+                
+                // 所有机器人均匀分布在圆上
+                float Angle = (static_cast<float>(Pos) / static_cast<float>(TotalRobotCount)) * 2.f * PI;
+                Offset = FVector(FMath::Cos(Angle) * Radius, FMath::Sin(Angle) * Radius, 0.f);
             }
             break;
     }

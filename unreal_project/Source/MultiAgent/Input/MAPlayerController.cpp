@@ -11,6 +11,7 @@
 #include "../Actor/MAPatrolPath.h"
 #include "../Actor/MACoverageArea.h"
 #include "../GAS/MAAbilitySystemComponent.h"
+#include "../GAS/Ability/GA_Formation.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
@@ -97,6 +98,9 @@ void AMAPlayerController::SetupInputComponent()
 
         // 避障
         EIC->BindAction(InputActions->IA_StartAvoid, ETriggerEvent::Started, this, &AMAPlayerController::OnStartAvoid);
+
+        // 编队
+        EIC->BindAction(InputActions->IA_StartFormation, ETriggerEvent::Started, this, &AMAPlayerController::OnStartFormation);
 
         UE_LOG(LogTemp, Log, TEXT("[Input] Bound all input actions"));
     }
@@ -666,6 +670,94 @@ void AMAPlayerController::OnStartAvoid(const FInputActionValue& Value)
     if (ActivatedCount == 0)
     {
         GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Orange, TEXT("No RobotDog found or Avoid failed!"));
+    }
+}
+
+void AMAPlayerController::OnStartFormation(const FInputActionValue& Value)
+{
+    UE_LOG(LogTemp, Warning, TEXT("[PlayerController] OnStartFormation called (B key)"));
+    
+    UMAActorSubsystem* ActorSubsystem = GetWorld()->GetSubsystem<UMAActorSubsystem>();
+    if (!ActorSubsystem)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] No ActorSubsystem!"));
+        return;
+    }
+    
+    // 查找 Human 作为 Leader
+    TArray<AMACharacter*> Humans = ActorSubsystem->GetCharactersByType(EMAActorType::Human);
+    AMACharacter* Leader = Humans.Num() > 0 ? Humans[0] : nullptr;
+    
+    if (!Leader)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, TEXT("No Human found as Leader!"));
+        return;
+    }
+    
+    // 获取所有 RobotDog
+    TArray<AMACharacter*> RobotDogs = ActorSubsystem->GetCharactersByType(EMAActorType::RobotDog);
+    
+    // 先统计有效的机器人数量（排除 Tracker）
+    int32 TotalValidRobots = 0;
+    for (AMACharacter* Character : RobotDogs)
+    {
+        if (Character && !Character->ActorName.Contains(TEXT("Tracker")))
+        {
+            TotalValidRobots++;
+        }
+    }
+    
+    // 循环切换编队类型 (5 种)
+    CurrentFormationIndex = (CurrentFormationIndex + 1) % 5;
+    EFormationType FormationType = static_cast<EFormationType>(CurrentFormationIndex);
+    
+    // 编队名称
+    FString FormationName;
+    switch (FormationType)
+    {
+        case EFormationType::Line: FormationName = TEXT("Line"); break;
+        case EFormationType::Column: FormationName = TEXT("Column"); break;
+        case EFormationType::Wedge: FormationName = TEXT("Wedge"); break;
+        case EFormationType::Diamond: FormationName = TEXT("X"); break;
+        case EFormationType::Circle: FormationName = TEXT("Circle"); break;
+    }
+    
+    int32 ActivatedCount = 0;
+    
+    for (int32 i = 0; i < RobotDogs.Num(); i++)
+    {
+        AMACharacter* Character = RobotDogs[i];
+        if (!Character) continue;
+        if (Character->ActorName.Contains(TEXT("Tracker"))) continue;
+        
+        UMAAbilitySystemComponent* ASC = Cast<UMAAbilitySystemComponent>(Character->GetAbilitySystemComponent());
+        if (!ASC) continue;
+        
+        // 先取消其他命令和当前编队
+        ASC->CancelFormation();
+        ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Patrol")));
+        ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Follow")));
+        ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Coverage")));
+        ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Charge")));
+        ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Idle")));
+        
+        // 激活 Formation 技能，传入总数量用于 Circle 半径计算
+        if (ASC->TryActivateFormation(Leader, FormationType, ActivatedCount, TotalValidRobots))
+        {
+            ActivatedCount++;
+            GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Blue,
+                FString::Printf(TEXT("%s: %s #%d"), *Character->ActorName, *FormationName, ActivatedCount - 1));
+        }
+    }
+    
+    if (ActivatedCount == 0)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Orange, TEXT("No RobotDog found or Formation failed!"));
+    }
+    else
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green,
+            FString::Printf(TEXT("%s Formation: %d robots following %s"), *FormationName, ActivatedCount, *Leader->ActorName));
     }
 }
 

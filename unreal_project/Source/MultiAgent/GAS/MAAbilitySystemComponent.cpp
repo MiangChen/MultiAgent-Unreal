@@ -280,7 +280,7 @@ bool UMAAbilitySystemComponent::TryActivateCharge()
     return TryActivateAbility(ChargeAbilityHandle);
 }
 
-bool UMAAbilitySystemComponent::TryActivateFormation(AMACharacter* Leader, EFormationType Type, int32 Position)
+bool UMAAbilitySystemComponent::TryActivateFormation(AMACharacter* Leader, EFormationType Type, int32 Position, int32 TotalCount)
 {
     CancelFormation();
     
@@ -300,7 +300,7 @@ bool UMAAbilitySystemComponent::TryActivateFormation(AMACharacter* Leader, EForm
         
         if (UGA_Formation* FormationAbility = Cast<UGA_Formation>(Instance))
         {
-            FormationAbility->SetFormation(Leader, Type, Position);
+            FormationAbility->SetFormation(Leader, Type, Position, TotalCount);
         }
     }
     

@@ -16,7 +16,8 @@ enum class EFormationType : uint8
     Line,       // 一字排开
     Column,     // 纵队
     Wedge,      // 楔形 (V形)
-    Diamond     // 菱形
+    Diamond,    // 菱形 (X)
+    Circle      // 圆形
 };
 
 UCLASS()
@@ -29,7 +30,7 @@ public:
 
     // 设置编队参数
     UFUNCTION(BlueprintCallable, Category = "Formation")
-    void SetFormation(AMACharacter* InLeader, EFormationType InType, int32 InPosition);
+    void SetFormation(AMACharacter* InLeader, EFormationType InType, int32 InPosition, int32 InTotalCount = 8);
 
     // 编队间距
     UPROPERTY(EditDefaultsOnly, Category = "Formation")
@@ -70,6 +71,9 @@ private:
     
     // 在编队中的位置索引
     int32 FormationPosition = 0;
+    
+    // 编队中的总机器人数量（用于 Circle 半径计算）
+    int32 TotalRobotCount = 8;
     
     // 定时器句柄
     FTimerHandle FormationTimerHandle;

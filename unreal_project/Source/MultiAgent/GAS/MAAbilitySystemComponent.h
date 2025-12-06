@@ -76,9 +76,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "GAS")
     bool TryActivateCharge();
     
-    // 编队
+    // 编队 (TotalCount 用于 Circle 编队动态计算半径)
     UFUNCTION(BlueprintCallable, Category = "GAS")
-    bool TryActivateFormation(AMACharacter* Leader, EFormationType Type, int32 Position);
+    bool TryActivateFormation(AMACharacter* Leader, EFormationType Type, int32 Position, int32 TotalCount = 8);
     
     // 取消编队
     UFUNCTION(BlueprintCallable, Category = "GAS")

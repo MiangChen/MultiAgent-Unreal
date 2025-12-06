@@ -38,6 +38,7 @@ protected:
     void OnStartCoverage(const FInputActionValue& Value);
     void OnStartFollow(const FInputActionValue& Value);
     void OnStartAvoid(const FInputActionValue& Value);
+    void OnStartFormation(const FInputActionValue& Value);
 
     // 获取鼠标点击位置
     bool GetMouseHitLocation(FVector& OutLocation);
@@ -49,4 +50,7 @@ private:
     // 保存原始观察者 Pawn
     UPROPERTY()
     APawn* OriginalPawn = nullptr;
+    
+    // 当前编队类型索引 (0=Line, 1=Column, 2=Wedge, 3=Diamond)
+    int32 CurrentFormationIndex = 2;  // 默认 Wedge
 };
