@@ -197,3 +197,178 @@ ASC->AddLooseGameplayTag(NewCommand);
 ```
 
 **教训**: 使用 Gameplay Tag 作为 StateTree 状态切换条件时，发送新命令必须清除所有其他命令 Tag，否则旧状态的 Enter Condition 可能仍然满足，导致状态不切换。
+
+
+---
+
+#### Bug 8: Mass AI 编译错误 - ProcessorGroupNames 不存在
+
+**问题**: Mass AI Processor 编译时报错 `no member named 'ProcessorGroupNames' in namespace 'UE::Mass'`。
+
+**现象**:
+```
+error: no member named 'ProcessorGroupNames' in namespace 'UE::Mass'; did you mean 'FProcessorGroupDesc'?
+ExecutionOrder.ExecuteInGroup = UE::Mass::ProcessorGroupNames::Movement;
+```
+
+**原因**: UE5 的 Mass Entity 框架中不存在 `UE::Mass::ProcessorGroupNames` 命名空间。`ExecutionOrder.ExecuteInGroup` 是一个 `FName` 类型，可以设置为任意名称。
+
+**错误代码**:
+```cpp
+ExecutionOrder.ExecuteInGroup = UE::Mass::ProcessorGroupNames::Movement;
+ExecutionOrder.ExecuteBefore.Add(UE::Mass::ProcessorGroupNames::Movement);
+```
+
+**解决**: 使用 `FName` 直接指定组名：
+```cpp
+ExecutionOrder.ExecuteInGroup = FName(TEXT("Movement"));
+ExecutionOrder.ExecuteBefore.Add(FName(TEXT("Movement")));
+```
+
+**影响文件**:
+- `MAMovementProcessor.cpp`
+- `MAEnergyDrainProcessor.cpp`
+- `MAPatrolProcessor.cpp`
+- `MAFollowProcessor.cpp`
+- `MAChargeProcessor.cpp`
+
+**教训**: Mass AI 的 Processor 执行顺序通过 `FName` 指定组名，不是使用预定义的命名空间常量。
+
+---
+
+#### Bug 9: Mass AI 编译错误 - FMassEntityTemplateID 类型不存在
+
+**问题**: `MAMassSubsystem.h` 编译时报错 `unknown type name 'FMassEntityTemplateID'`。
+
+**现象**:
+```
+error: unknown type name 'FMassEntityTemplateID'
+FMassEntityTemplateID RobotDogTemplateID;
+```
+
+**原因**: UE5 Mass Entity 框架中不存在 `FMassEntityTemplateID` 类型。创建 Entity 使用的是 `FMassArchetypeHandle`。
+
+**错误代码**:
+```cpp
+// MAMassSubsystem.h
+FMassEntityTemplateID RobotDogTemplateID;
+
+// MAMassSubsystem.cpp
+RobotDogTemplateID = EntityManager.CreateArchetype(CompositionDescriptor);
+FMassEntityHandle Entity = EntityManager.CreateEntity(RobotDogTemplateID);
+```
+
+**解决**: 使用 `FMassArchetypeHandle` 类型：
+```cpp
+// MAMassSubsystem.h
+#include "MassArchetypeTypes.h"
+FMassArchetypeHandle RobotDogArchetype;
+
+// MAMassSubsystem.cpp
+RobotDogArchetype = EntityManager.CreateArchetype(CompositionDescriptor);
+FMassEntityHandle Entity = EntityManager.CreateEntity(RobotDogArchetype);
+```
+
+**教训**: Mass Entity 使用 Archetype 模式管理 Entity 模板，`CreateArchetype()` 返回 `FMassArchetypeHandle`。
+
+---
+
+#### Bug 10: Mass AI 编译错误 - FMassEntityHandle 不支持 Blueprint
+
+**问题**: `MAMassSubsystem.h` 中使用 `FMassEntityHandle` 参数的函数标记为 `BlueprintCallable` 时报错。
+
+**现象**:
+```
+error: Type 'FMassEntityHandle' is not supported by blueprint. Function: SpawnRobotDog Parameter ReturnValue
+error: Type 'TArray<FMassEntityHandle>' is not supported by blueprint. Function: GetAllRobots Parameter ReturnValue
+```
+
+**原因**: `FMassEntityHandle` 是 Mass Entity 框架的内部类型，不支持 Blueprint 暴露。
+
+**错误代码**:
+```cpp
+UFUNCTION(BlueprintCallable, Category = "Mass|Spawn")
+FMassEntityHandle SpawnRobotDog(FVector Location);
+
+UFUNCTION(BlueprintCallable, Category = "Mass|Query")
+TArray<FMassEntityHandle> GetAllRobots() const;
+```
+
+**解决**: 移除这些函数的 `UFUNCTION(BlueprintCallable)` 标记，仅保留 C++ 接口：
+```cpp
+// C++ only - FMassEntityHandle 不支持 Blueprint
+FMassEntityHandle SpawnRobotDog(FVector Location);
+TArray<FMassEntityHandle> GetAllRobots() const;
+```
+
+**教训**: Mass Entity 的 Handle 类型不支持 Blueprint，需要在 C++ 层面使用。如需 Blueprint 支持，需要创建包装函数或使用其他方式（如 Actor 代理）。
+
+---
+
+#### Bug 11: Mass StateTree 编译错误 - 基类不存在
+
+**问题**: Mass StateTree Condition 使用 `FMassStateTreeConditionBase` 基类时报错。
+
+**现象**:
+```
+error: Unable to find parent struct type for 'FMAMassSTCondition_LowEnergy' named 'FMassStateTreeConditionBase'
+```
+
+**原因**: UE5 Mass AI 框架中只有 `FMassStateTreeTaskBase` 和 `FMassStateTreeEvaluatorBase`，没有 `FMassStateTreeConditionBase`。Mass StateTree 的 Condition 使用标准的 `FStateTreeConditionBase`。
+
+**错误代码**:
+```cpp
+#include "MassStateTreeTypes.h"
+
+USTRUCT(meta = (DisplayName = "MA Mass Low Energy"))
+struct FMAMassSTCondition_LowEnergy : public FMassStateTreeConditionBase  // 错误！
+```
+
+**解决**: 使用标准的 `FStateTreeConditionBase`：
+```cpp
+#include "StateTreeConditionBase.h"
+
+USTRUCT(meta = (DisplayName = "MA Mass Low Energy"))
+struct FMAMassSTCondition_LowEnergy : public FStateTreeConditionBase
+{
+    // 在 TestCondition 中将 Context 转换为 FMassStateTreeExecutionContext
+};
+```
+
+**教训**: Mass StateTree 的 Task 使用 `FMassStateTreeTaskBase`，但 Condition 使用标准的 `FStateTreeConditionBase`，在实现中通过 `static_cast` 转换为 `FMassStateTreeExecutionContext` 来访问 Mass Entity 数据。
+
+---
+
+#### Bug 12: Mass AI 插件未启用
+
+**问题**: 编译时警告 Mass AI 相关模块依赖未在 `.uproject` 中声明。
+
+**现象**:
+```
+Warning: MultiAgent.uproject does not list plugin 'MassGameplay' as a dependency, but module 'MultiAgent' depends on 'MassCommon'.
+Warning: MultiAgent.uproject does not list plugin 'MassAI' as a dependency, but module 'MultiAgent' depends on 'MassAIBehavior'.
+```
+
+**原因**: `Build.cs` 中添加了 Mass AI 模块依赖，但 `.uproject` 文件中没有启用对应的插件。
+
+**解决**: 在 `MultiAgent.uproject` 的 Plugins 数组中添加：
+```json
+{
+    "Name": "MassEntity",
+    "Enabled": true
+},
+{
+    "Name": "MassGameplay",
+    "Enabled": true
+},
+{
+    "Name": "MassAI",
+    "Enabled": true
+},
+{
+    "Name": "StructUtils",
+    "Enabled": true
+}
+```
+
+**教训**: 使用 UE5 插件模块时，需要同时在 `Build.cs` 添加模块依赖和在 `.uproject` 中启用插件。
