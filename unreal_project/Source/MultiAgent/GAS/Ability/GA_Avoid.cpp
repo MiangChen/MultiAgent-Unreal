@@ -3,6 +3,7 @@
 #include "GA_Avoid.h"
 #include "../MAGameplayTags.h"
 #include "../../Character/MACharacter.h"
+#include "../../Character/MARobotDogCharacter.h"
 #include "AIController.h"
 #include "TimerManager.h"
 #include "Kismet/KismetSystemLibrary.h"
@@ -35,6 +36,18 @@ void UGA_Avoid::ActivateAbility(
     AMACharacter* Character = GetOwningCharacter();
     if (Character)
     {
+        // 从 RobotDog 读取避障参数（CARLA 风格）
+        float ActualCheckInterval = CheckInterval;
+        if (AMARobotDogCharacter* Robot = Cast<AMARobotDogCharacter>(Character))
+        {
+            DetectionRadius = Robot->AvoidanceRadius;
+            AvoidanceStrength = Robot->AvoidanceStrength;
+            ActualCheckInterval = Robot->AvoidanceCheckInterval;
+            
+            UE_LOG(LogTemp, Log, TEXT("[Avoid] %s using Robot params: Radius=%.0f, Strength=%.1f, Interval=%.2f"), 
+                *Character->ActorName, DetectionRadius, AvoidanceStrength, ActualCheckInterval);
+        }
+        
         UE_LOG(LogTemp, Log, TEXT("[Avoid] %s starting obstacle avoidance"), *Character->ActorName);
         
         // Start periodic obstacle checking
@@ -44,7 +57,7 @@ void UGA_Avoid::ActivateAbility(
                 AvoidTimerHandle,
                 this,
                 &UGA_Avoid::CheckObstacles,
-                CheckInterval,
+                ActualCheckInterval,
                 true,
                 0.f
             );
@@ -186,8 +199,17 @@ void UGA_Avoid::CleanupAvoid()
     AMACharacter* Character = GetOwningCharacter();
     if (Character)
     {
+        // 重置移动状态
+        Character->bIsMoving = false;
         Character->ShowStatus(TEXT(""), 0.f);
         
+        // 停止 AI 移动
+        if (AAIController* AICtrl = Cast<AAIController>(Character->GetController()))
+        {
+            AICtrl->StopMovement();
+        }
+        
+        // 清除定时器
         if (UWorld* World = Character->GetWorld())
         {
             World->GetTimerManager().ClearTimer(AvoidTimerHandle);

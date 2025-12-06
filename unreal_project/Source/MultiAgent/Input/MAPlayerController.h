@@ -37,6 +37,7 @@ protected:
     void OnStopIdle(const FInputActionValue& Value);
     void OnStartCoverage(const FInputActionValue& Value);
     void OnStartFollow(const FInputActionValue& Value);
+    void OnStartAvoid(const FInputActionValue& Value);
 
     // 获取鼠标点击位置
     bool GetMouseHitLocation(FVector& OutLocation);

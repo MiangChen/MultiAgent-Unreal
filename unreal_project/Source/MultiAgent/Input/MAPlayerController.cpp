@@ -95,6 +95,9 @@ void AMAPlayerController::SetupInputComponent()
         // 跟随
         EIC->BindAction(InputActions->IA_StartFollow, ETriggerEvent::Started, this, &AMAPlayerController::OnStartFollow);
 
+        // 避障
+        EIC->BindAction(InputActions->IA_StartAvoid, ETriggerEvent::Started, this, &AMAPlayerController::OnStartAvoid);
+
         UE_LOG(LogTemp, Log, TEXT("[Input] Bound all input actions"));
     }
 }
@@ -486,6 +489,10 @@ void AMAPlayerController::OnStopIdle(const FInputActionValue& Value)
         ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Coverage")));
         ASC->AddLooseGameplayTag(IdleCommand);
         
+        // 取消所有直接激活的 Ability（不受 StateTree 控制的）
+        ASC->CancelAvoid();
+        ASC->CancelNavigate();
+        
         CommandCount++;
         GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::White,
             FString::Printf(TEXT("%s: Idle"), *Character->ActorName));
@@ -612,6 +619,53 @@ void AMAPlayerController::OnStartFollow(const FInputActionValue& Value)
     if (CommandCount == 0)
     {
         GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Orange, TEXT("No RobotDog found!"));
+    }
+}
+
+void AMAPlayerController::OnStartAvoid(const FInputActionValue& Value)
+{
+    UE_LOG(LogTemp, Warning, TEXT("[PlayerController] OnStartAvoid called (A key)"));
+    
+    UMAActorSubsystem* ActorSubsystem = GetWorld()->GetSubsystem<UMAActorSubsystem>();
+    if (!ActorSubsystem)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] No ActorSubsystem!"));
+        return;
+    }
+    
+    // 获取鼠标点击位置作为目标
+    FVector TargetLocation;
+    if (!GetMouseHitLocation(TargetLocation))
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, TEXT("Click on ground to set avoid target!"));
+        return;
+    }
+    
+    // 获取所有 RobotDog
+    TArray<AMACharacter*> RobotDogs = ActorSubsystem->GetCharactersByType(EMAActorType::RobotDog);
+    
+    int32 ActivatedCount = 0;
+    
+    for (AMACharacter* Character : RobotDogs)
+    {
+        if (!Character) continue;
+        if (Character->ActorName.Contains(TEXT("Tracker"))) continue;
+        
+        UMAAbilitySystemComponent* ASC = Cast<UMAAbilitySystemComponent>(Character->GetAbilitySystemComponent());
+        if (!ASC) continue;
+        
+        // 激活 Avoid 技能
+        if (ASC->TryActivateAvoid(TargetLocation))
+        {
+            ActivatedCount++;
+            GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Yellow,
+                FString::Printf(TEXT("%s: Avoid activated"), *Character->ActorName));
+        }
+    }
+    
+    if (ActivatedCount == 0)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Orange, TEXT("No RobotDog found or Avoid failed!"));
     }
 }
 

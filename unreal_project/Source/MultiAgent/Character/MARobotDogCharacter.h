@@ -131,4 +131,17 @@ public:
     // 获取巡逻路径
     UFUNCTION(BlueprintCallable, Category = "Patrol")
     AMAPatrolPath* GetPatrolPath() const { return PatrolPath.Get(); }
+
+    // ========== Avoidance System ==========
+    // 避障检测半径
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Avoidance")
+    float AvoidanceRadius = 100.f;
+
+    // 避障力度 (0-2, 1为正常)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Avoidance")
+    float AvoidanceStrength = 1.f;
+
+    // 避障检测间隔（秒）
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Avoidance")
+    float AvoidanceCheckInterval = 0.1f;
 };

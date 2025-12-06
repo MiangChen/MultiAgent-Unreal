@@ -552,24 +552,59 @@ Robot1->GetAbilitySystemComponent()->CancelFormation();
 
 ## 8.9 GA_Avoid (避障技能)
 
-检测障碍物并计算避障路径。
+使用**势场法 (Potential Field)** 检测障碍物并实时计算避障路径。
 
-### 属性
+### 工作原理
+
+```
+1. 定时检测 (每 0.1 秒)
+   - SphereOverlap 检测 AvoidanceRadius 范围内的障碍物
+
+2. 计算避障向量
+   - 对每个障碍物计算"远离方向"
+   - 距离越近，避障力越大
+   - 避障力 = (检测半径 - 距离) / 检测半径
+
+3. 混合方向
+   - 最终方向 = 目标方向 + 避障方向 × 2
+
+4. 移动到临时目标点
+   - 临时目标 = 当前位置 + 最终方向 × 200
+```
+
+### CARLA 风格参数 (存储在 Robot 上)
 
 | 属性 | 默认值 | 说明 |
 |------|--------|------|
-| `DetectionRadius` | 200.f | 障碍物检测半径 |
-| `AvoidanceStrength` | 1.f | 避障力度 |
-| `CheckInterval` | 0.1f | 检测间隔 |
+| `AvoidanceRadius` | 100.f | 障碍物检测半径 |
+| `AvoidanceStrength` | 1.f | 避障力度 (0-2) |
+| `AvoidanceCheckInterval` | 0.1f | 检测间隔（秒） |
+
+### 与 GA_Navigate 的区别
+
+| 特性 | GA_Navigate | GA_Avoid |
+|------|-------------|----------|
+| 路径规划 | NavMesh A* 算法 | 无，实时计算 |
+| 避障方式 | NavMesh 静态 + RVO 动态 | 势场法 |
+| 适用场景 | 正常导航 | 无 NavMesh 区域、自定义避障 |
+| 性能 | 高效（预计算路径） | 较低（每帧计算） |
+
+**注意**: UE 的 NavMesh + AIController 已有内置避障，GA_Avoid 适用于特殊场景。
 
 ### 使用示例
 
 ```cpp
+// 设置避障参数（可选）
+Robot->AvoidanceRadius = 80.f;
+Robot->AvoidanceStrength = 1.5f;
+
 // 启动避障并设置目标
 Robot->GetAbilitySystemComponent()->TryActivateAvoid(TargetLocation);
 
 // 取消避障
 Robot->GetAbilitySystemComponent()->CancelAvoid();
+
+// 或按 A 键激活，J 键停止
 ```
 
 ## 8.10 GA_Report (报告技能)
@@ -821,7 +856,7 @@ PlayerController 在 BeginPlay 时自动添加 Mapping Context，无需额外配
 | 按键 | Input Action | 功能 |
 |-----|--------------|------|
 | **左键** | IA_LeftClick | 移动所有 Human Character |
-| **右键** | IA_RightClick | 移动所有 RobotDog |
+| **右键** | IA_RightClick | 移动所有 RobotDog（临时导航，不改变状态） |
 | **P** | IA_Pickup | 所有 Human 尝试拾取 |
 | **O** | IA_Drop | 所有 Human 放下物品 |
 | **I** | IA_SpawnItem | 生成可拾取方块 |
@@ -830,6 +865,12 @@ PlayerController 在 BeginPlay 时自动添加 Mapping Context，无需额外配
 | **U** | IA_DestroyLast | 销毁最后一个 Character |
 | **Tab** | IA_SwitchCamera | 切换 Camera 视角 |
 | **0** | IA_ReturnSpectator | 返回上帝视角 |
+| **F** | IA_StartFollow | 所有 RobotDog 跟随 Human |
+| **G** | IA_StartPatrol | 所有 RobotDog 开始巡逻 |
+| **H** | IA_StartCharge | 所有 RobotDog 去充电 |
+| **J** | IA_StopIdle | 所有 RobotDog 停止并进入 Idle |
+| **K** | IA_StartCoverage | 所有 RobotDog 开始区域覆盖 |
+| **A** | IA_StartAvoid | 所有 RobotDog 启动避障导航到鼠标位置 |
 
 ### 9.4 相关文件
 
