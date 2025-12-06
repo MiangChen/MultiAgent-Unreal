@@ -39,6 +39,7 @@ protected:
     void OnStartFollow(const FInputActionValue& Value);
     void OnStartAvoid(const FInputActionValue& Value);
     void OnStartFormation(const FInputActionValue& Value);
+    void OnTakePhoto(const FInputActionValue& Value);
 
     // 获取鼠标点击位置
     bool GetMouseHitLocation(FVector& OutLocation);

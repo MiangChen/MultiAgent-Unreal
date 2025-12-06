@@ -36,6 +36,7 @@ void UMAInputActions::Initialize()
     IA_StartFollow = CreateInputAction(TEXT("IA_StartFollow"));
     IA_StartAvoid = CreateInputAction(TEXT("IA_StartAvoid"));
     IA_StartFormation = CreateInputAction(TEXT("IA_StartFormation"));
+    IA_TakePhoto = CreateInputAction(TEXT("IA_TakePhoto"));
 
     // 创建 Input Mapping Context
     DefaultMappingContext = NewObject<UInputMappingContext>(this, TEXT("IMC_Default"));
@@ -58,8 +59,9 @@ void UMAInputActions::Initialize()
     AddKeyMapping(DefaultMappingContext, IA_StartFollow, EKeys::F);
     // AddKeyMapping(DefaultMappingContext, IA_StartAvoid, EKeys::A);  // 暂时禁用
     AddKeyMapping(DefaultMappingContext, IA_StartFormation, EKeys::B);
+    AddKeyMapping(DefaultMappingContext, IA_TakePhoto, EKeys::L);  // L for Lens/Light
 
-    UE_LOG(LogTemp, Log, TEXT("[Input] MAInputActions initialized with %d actions"), 17);
+    UE_LOG(LogTemp, Log, TEXT("[Input] MAInputActions initialized with %d actions"), 18);
 }
 
 UInputAction* UMAInputActions::CreateInputAction(const FName& Name, EInputActionValueType ValueType)

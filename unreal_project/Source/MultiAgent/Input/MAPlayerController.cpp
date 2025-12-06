@@ -102,6 +102,9 @@ void AMAPlayerController::SetupInputComponent()
         // 编队
         EIC->BindAction(InputActions->IA_StartFormation, ETriggerEvent::Started, this, &AMAPlayerController::OnStartFormation);
 
+        // 拍照 (CARLA 风格 - 直接调用 Camera Sensor)
+        EIC->BindAction(InputActions->IA_TakePhoto, ETriggerEvent::Started, this, &AMAPlayerController::OnTakePhoto);
+
         UE_LOG(LogTemp, Log, TEXT("[Input] Bound all input actions"));
     }
 }
@@ -737,4 +740,43 @@ bool AMAPlayerController::GetMouseHitLocation(FVector& OutLocation)
         return true;
     }
     return false;
+}
+
+void AMAPlayerController::OnTakePhoto(const FInputActionValue& Value)
+{
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnTakePhoto called (L key)"));
+    
+    UMAActorSubsystem* ActorSubsystem = GetWorld()->GetSubsystem<UMAActorSubsystem>();
+    if (!ActorSubsystem)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] No ActorSubsystem!"));
+        return;
+    }
+    
+    // 获取所有 Camera Sensor 并拍照 (CARLA 风格)
+    int32 PhotoCount = 0;
+    TArray<AMASensor*> Sensors = ActorSubsystem->GetAllSensors();
+    
+    for (AMASensor* Sensor : Sensors)
+    {
+        if (AMACameraSensor* Camera = Cast<AMACameraSensor>(Sensor))
+        {
+            if (Camera->TakePhoto())
+            {
+                PhotoCount++;
+                GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan,
+                    FString::Printf(TEXT("%s: Photo saved"), *Camera->SensorName));
+            }
+        }
+    }
+    
+    if (PhotoCount == 0)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("No cameras found!"));
+    }
+    else
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green,
+            FString::Printf(TEXT("Took %d photos (saved to Saved/Screenshots/)"), PhotoCount));
+    }
 }

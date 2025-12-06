@@ -76,6 +76,9 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "Input")
     TObjectPtr<UInputAction> IA_StartFormation;
 
+    UPROPERTY(BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_TakePhoto;
+
     // ========== Input Mapping Context ==========
     UPROPERTY(BlueprintReadOnly, Category = "Input")
     TObjectPtr<UInputMappingContext> DefaultMappingContext;
