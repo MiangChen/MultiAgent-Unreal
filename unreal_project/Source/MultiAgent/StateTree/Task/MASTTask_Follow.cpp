@@ -107,12 +107,32 @@ void FMASTTask_Follow::ExitState(
     if (Owner)
     {
         UMAAbilitySystemComponent* ASC = Owner->FindComponentByClass<UMAAbilitySystemComponent>();
-        if (ASC && Data.bAbilityActivated)
+        if (ASC)
         {
-            ASC->CancelFollow();
+            if (Data.bAbilityActivated)
+            {
+                ASC->CancelFollow();
+            }
+            
+            // 如果没有其他命令，设置 Idle 命令以便 StateTree 能正确转换
+            FGameplayTag IdleTag = FGameplayTag::RequestGameplayTag(FName("Command.Idle"));
+            FGameplayTag FollowTag = FGameplayTag::RequestGameplayTag(FName("Command.Follow"));
+            FGameplayTag ChargeTag = FGameplayTag::RequestGameplayTag(FName("Command.Charge"));
+            FGameplayTag CoverageTag = FGameplayTag::RequestGameplayTag(FName("Command.Coverage"));
+            FGameplayTag PatrolTag = FGameplayTag::RequestGameplayTag(FName("Command.Patrol"));
+            
+            bool bHasOtherCommand = ASC->HasMatchingGameplayTag(FollowTag) ||
+                                    ASC->HasMatchingGameplayTag(ChargeTag) ||
+                                    ASC->HasMatchingGameplayTag(CoverageTag) ||
+                                    ASC->HasMatchingGameplayTag(PatrolTag);
+            
+            if (!bHasOtherCommand && !ASC->HasMatchingGameplayTag(IdleTag))
+            {
+                ASC->AddLooseGameplayTag(IdleTag);
+                UE_LOG(LogTemp, Log, TEXT("[STTask_Follow] Added Command.Idle for state transition"));
+            }
         }
     }
-
-    // 注意：不要在 ExitState 中设置新命令
-    // 命令切换由 PlayerController 控制，Task 只负责清理自己的状态
+    
+    UE_LOG(LogTemp, Log, TEXT("[STTask_Follow] Follow ended"));
 }

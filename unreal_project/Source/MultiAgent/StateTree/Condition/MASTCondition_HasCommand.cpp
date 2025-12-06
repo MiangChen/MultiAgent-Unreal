@@ -30,5 +30,12 @@ bool FMASTCondition_HasCommand::TestCondition(FStateTreeExecutionContext& Contex
         return false;
     }
 
-    return ASC->HasGameplayTagFromContainer(CommandTag);
+    // 使用 HasMatchingGameplayTag 与 Task 中的检查保持一致
+    bool bHasTag = ASC->HasMatchingGameplayTag(CommandTag);
+    
+    // 调试日志（可选，帮助排查问题）
+    // UE_LOG(LogTemp, Verbose, TEXT("[HasCommand] %s checking %s = %d"), 
+    //     *Character->ActorName, *CommandTag.ToString(), bHasTag ? 1 : 0);
+    
+    return bHasTag;
 }

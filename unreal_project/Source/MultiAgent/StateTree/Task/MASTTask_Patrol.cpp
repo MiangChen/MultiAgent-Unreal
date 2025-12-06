@@ -61,6 +61,21 @@ EStateTreeRunStatus FMASTTask_Patrol::Tick(
         return EStateTreeRunStatus::Failed;
     }
 
+    // 获取 ASC
+    UMAAbilitySystemComponent* ASC = Cast<UMAAbilitySystemComponent>(Character->GetAbilitySystemComponent());
+    if (!ASC)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[STTask_Patrol] %s has no ASC!"), *Character->ActorName);
+        return EStateTreeRunStatus::Failed;
+    }
+
+    // 检查 Command.Patrol Tag 是否还存在（命令可能被其他命令覆盖）
+    if (!ASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Patrol"))))
+    {
+        UE_LOG(LogTemp, Log, TEXT("[STTask_Patrol] %s: Command.Patrol removed, exiting patrol"), *Character->ActorName);
+        return EStateTreeRunStatus::Succeeded;
+    }
+
     // 检查能量 (RobotDog)
     if (AMARobotDogCharacter* Robot = Cast<AMARobotDogCharacter>(Character))
     {
@@ -69,14 +84,6 @@ EStateTreeRunStatus FMASTTask_Patrol::Tick(
             UE_LOG(LogTemp, Warning, TEXT("[STTask_Patrol] %s ran out of energy"), *Character->ActorName);
             return EStateTreeRunStatus::Failed;
         }
-    }
-
-    // 获取 ASC
-    UMAAbilitySystemComponent* ASC = Cast<UMAAbilitySystemComponent>(Character->GetAbilitySystemComponent());
-    if (!ASC)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[STTask_Patrol] %s has no ASC!"), *Character->ActorName);
-        return EStateTreeRunStatus::Failed;
     }
 
     // 调试：每秒输出一次状态
@@ -195,6 +202,24 @@ void FMASTTask_Patrol::ExitState(
         if (UMAAbilitySystemComponent* ASC = Owner->FindComponentByClass<UMAAbilitySystemComponent>())
         {
             ASC->CancelNavigate();
+            
+            // 如果没有其他命令，设置 Idle 命令以便 StateTree 能正确转换
+            FGameplayTag IdleTag = FGameplayTag::RequestGameplayTag(FName("Command.Idle"));
+            FGameplayTag FollowTag = FGameplayTag::RequestGameplayTag(FName("Command.Follow"));
+            FGameplayTag ChargeTag = FGameplayTag::RequestGameplayTag(FName("Command.Charge"));
+            FGameplayTag CoverageTag = FGameplayTag::RequestGameplayTag(FName("Command.Coverage"));
+            FGameplayTag PatrolTag = FGameplayTag::RequestGameplayTag(FName("Command.Patrol"));
+            
+            bool bHasOtherCommand = ASC->HasMatchingGameplayTag(FollowTag) ||
+                                    ASC->HasMatchingGameplayTag(ChargeTag) ||
+                                    ASC->HasMatchingGameplayTag(CoverageTag) ||
+                                    ASC->HasMatchingGameplayTag(PatrolTag);
+            
+            if (!bHasOtherCommand && !ASC->HasMatchingGameplayTag(IdleTag))
+            {
+                ASC->AddLooseGameplayTag(IdleTag);
+                UE_LOG(LogTemp, Log, TEXT("[STTask_Patrol] Added Command.Idle for state transition"));
+            }
         }
     }
     

@@ -672,7 +672,8 @@ UAbilitySystemComponent* ASC = Robot->GetAbilitySystemComponent();
 ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Patrol")));
 ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Follow")));
 ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Coverage")));
-// ... 清除其他命令
+ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Charge")));
+ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Idle")));
 
 // 添加新命令
 ASC->AddLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Patrol")));
@@ -683,7 +684,68 @@ ASC->AddLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Patrol"
 
 **重要**: 发送新命令时必须清除所有其他命令 Tag，否则旧状态的 Enter Condition 仍然满足，导致状态不切换。
 
-### 9.5 状态转换示例
+### 9.5 命令切换机制
+
+为了实现流畅的状态切换，每个 Task 都实现了以下机制：
+
+**1. Tick 中检查命令 Tag：**
+```cpp
+// 在 Tick 中检查自己的命令 Tag 是否还存在
+if (!ASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Patrol"))))
+{
+    // 命令被移除，退出当前状态
+    return EStateTreeRunStatus::Succeeded;
+}
+```
+
+**2. ExitState 中自动设置 Idle：**
+```cpp
+// 退出时检查是否有其他命令
+bool bHasOtherCommand = ASC->HasMatchingGameplayTag(FollowTag) ||
+                        ASC->HasMatchingGameplayTag(ChargeTag) ||
+                        ASC->HasMatchingGameplayTag(CoverageTag) ||
+                        ASC->HasMatchingGameplayTag(PatrolTag);
+
+// 如果没有其他命令，添加 Idle 以便 StateTree 正确转换
+if (!bHasOtherCommand && !ASC->HasMatchingGameplayTag(IdleTag))
+{
+    ASC->AddLooseGameplayTag(IdleTag);
+}
+```
+
+**工作流程：**
+```
+按 F 键 (从 Patrol 切换到 Follow)
+    │
+    ▼
+PlayerController:
+    1. 移除 Command.Patrol
+    2. 添加 Command.Follow
+    │
+    ▼
+Patrol Task Tick:
+    检测到 Command.Patrol 被移除
+    返回 Succeeded，退出状态
+    │
+    ▼
+Patrol Task ExitState:
+    检测到已有 Command.Follow
+    不添加 Command.Idle
+    │
+    ▼
+StateTree:
+    检测到 Command.Follow
+    转换到 Follow 状态
+```
+
+**两种退出场景：**
+
+| 场景 | 退出原因 | ExitState 行为 |
+|------|---------|---------------|
+| 命令切换 | 新命令覆盖旧命令 | 检测到新命令，不添加 Idle |
+| 任务完成 | 能量耗尽/任务结束 | 没有其他命令，添加 Idle |
+
+### 9.6 状态转换示例
 
 ```
 ┌──────────────┐  Command.Patrol   ┌──────────────┐
@@ -695,9 +757,14 @@ ASC->AddLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Patrol"
        │                           ┌──────────────┐
        └────────────────────────── │    Charge    │
               FullEnergy (100%)    └──────────────┘
+
+命令切换示例 (F/G 键):
+┌──────────────┐  F: Command.Follow  ┌──────────────┐
+│    Patrol    │ ◄─────────────────► │    Follow    │
+└──────────────┘  G: Command.Patrol  └──────────────┘
 ```
 
-### 9.6 配置要点
+### 9.7 配置要点
 
 1. **Schema**: 必须选择 `StateTree AI Component Schema`
 2. **AIController**: Character 必须有 AIController

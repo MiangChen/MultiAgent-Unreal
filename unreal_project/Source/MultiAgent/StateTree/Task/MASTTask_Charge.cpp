@@ -84,6 +84,14 @@ EStateTreeRunStatus FMASTTask_Charge::Tick(
         return EStateTreeRunStatus::Failed;
     }
 
+    // 检查 Command.Charge Tag 是否还存在（命令可能被其他命令覆盖）
+    UMAAbilitySystemComponent* ASC = Cast<UMAAbilitySystemComponent>(Robot->GetAbilitySystemComponent());
+    if (ASC && !ASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Charge"))))
+    {
+        UE_LOG(LogTemp, Log, TEXT("[STTask_Charge] %s: Command.Charge removed, exiting charge"), *Robot->ActorName);
+        return EStateTreeRunStatus::Succeeded;
+    }
+
     // 如果正在充电
     if (Data.bIsCharging)
     {
@@ -148,8 +156,28 @@ void FMASTTask_Charge::ExitState(
         if (UMAAbilitySystemComponent* ASC = Owner->FindComponentByClass<UMAAbilitySystemComponent>())
         {
             ASC->CancelNavigate();
+            
+            // 如果没有其他命令，设置 Idle 命令以便 StateTree 能正确转换
+            FGameplayTag IdleTag = FGameplayTag::RequestGameplayTag(FName("Command.Idle"));
+            FGameplayTag FollowTag = FGameplayTag::RequestGameplayTag(FName("Command.Follow"));
+            FGameplayTag ChargeTag = FGameplayTag::RequestGameplayTag(FName("Command.Charge"));
+            FGameplayTag CoverageTag = FGameplayTag::RequestGameplayTag(FName("Command.Coverage"));
+            FGameplayTag PatrolTag = FGameplayTag::RequestGameplayTag(FName("Command.Patrol"));
+            
+            bool bHasOtherCommand = ASC->HasMatchingGameplayTag(FollowTag) ||
+                                    ASC->HasMatchingGameplayTag(ChargeTag) ||
+                                    ASC->HasMatchingGameplayTag(CoverageTag) ||
+                                    ASC->HasMatchingGameplayTag(PatrolTag);
+            
+            if (!bHasOtherCommand && !ASC->HasMatchingGameplayTag(IdleTag))
+            {
+                ASC->AddLooseGameplayTag(IdleTag);
+                UE_LOG(LogTemp, Log, TEXT("[STTask_Charge] Added Command.Idle for state transition"));
+            }
         }
     }
+    
+    UE_LOG(LogTemp, Log, TEXT("[STTask_Charge] Charge ended"));
 }
 
 AMAChargingStation* FMASTTask_Charge::FindNearestChargingStation(UWorld* World, const FVector& FromLocation, FVector& OutStationLocation) const

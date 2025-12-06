@@ -250,8 +250,28 @@ void FMASTTask_Coverage::ExitState(
         if (UMAAbilitySystemComponent* ASC = Owner->FindComponentByClass<UMAAbilitySystemComponent>())
         {
             ASC->CancelNavigate();
+            
+            // 如果没有其他命令，设置 Idle 命令以便 StateTree 能正确转换
+            FGameplayTag IdleTag = FGameplayTag::RequestGameplayTag(FName("Command.Idle"));
+            FGameplayTag FollowTag = FGameplayTag::RequestGameplayTag(FName("Command.Follow"));
+            FGameplayTag ChargeTag = FGameplayTag::RequestGameplayTag(FName("Command.Charge"));
+            FGameplayTag CoverageTag = FGameplayTag::RequestGameplayTag(FName("Command.Coverage"));
+            FGameplayTag PatrolTag = FGameplayTag::RequestGameplayTag(FName("Command.Patrol"));
+            
+            bool bHasOtherCommand = ASC->HasMatchingGameplayTag(FollowTag) ||
+                                    ASC->HasMatchingGameplayTag(ChargeTag) ||
+                                    ASC->HasMatchingGameplayTag(CoverageTag) ||
+                                    ASC->HasMatchingGameplayTag(PatrolTag);
+            
+            if (!bHasOtherCommand && !ASC->HasMatchingGameplayTag(IdleTag))
+            {
+                ASC->AddLooseGameplayTag(IdleTag);
+                UE_LOG(LogTemp, Log, TEXT("[STTask_Coverage] Added Command.Idle for state transition"));
+            }
         }
     }
+    
+    UE_LOG(LogTemp, Log, TEXT("[STTask_Coverage] Coverage ended"));
 }
 
 bool FMASTTask_Coverage::MoveToNextPoint(

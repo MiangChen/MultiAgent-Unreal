@@ -543,6 +543,7 @@ void AMAPlayerController::OnStartCoverage(const FInputActionValue& Value)
         ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Idle")));
         ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Patrol")));
         ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Charge")));
+        ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Follow")));
         ASC->AddLooseGameplayTag(CoverageCommand);
         
         CommandCount++;
