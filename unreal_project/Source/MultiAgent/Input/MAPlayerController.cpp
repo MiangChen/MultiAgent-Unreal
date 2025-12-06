@@ -690,75 +690,42 @@ void AMAPlayerController::OnStartFormation(const FInputActionValue& Value)
     
     if (!Leader)
     {
+        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] No Human found as Leader!"));
         GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, TEXT("No Human found as Leader!"));
         return;
     }
     
-    // 获取所有 RobotDog
-    TArray<AMACharacter*> RobotDogs = ActorSubsystem->GetCharactersByType(EMAActorType::RobotDog);
+    // 循环切换编队类型 (5 种 + 停止)
+    CurrentFormationIndex = (CurrentFormationIndex + 1) % 6;
     
-    // 先统计有效的机器人数量（排除 Tracker）
-    int32 TotalValidRobots = 0;
-    for (AMACharacter* Character : RobotDogs)
+    // 如果是 0，停止编队
+    if (CurrentFormationIndex == 0)
     {
-        if (Character && !Character->ActorName.Contains(TEXT("Tracker")))
-        {
-            TotalValidRobots++;
-        }
+        ActorSubsystem->StopFormation();
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::White, TEXT("Formation stopped"));
+        return;
     }
     
-    // 循环切换编队类型 (5 种)
-    CurrentFormationIndex = (CurrentFormationIndex + 1) % 5;
-    EFormationType FormationType = static_cast<EFormationType>(CurrentFormationIndex);
+    // 转换为 EMAFormationType (1-5 对应 Line-Circle)
+    EMAFormationType FormationType = static_cast<EMAFormationType>(CurrentFormationIndex);
     
     // 编队名称
     FString FormationName;
     switch (FormationType)
     {
-        case EFormationType::Line: FormationName = TEXT("Line"); break;
-        case EFormationType::Column: FormationName = TEXT("Column"); break;
-        case EFormationType::Wedge: FormationName = TEXT("Wedge"); break;
-        case EFormationType::Diamond: FormationName = TEXT("X"); break;
-        case EFormationType::Circle: FormationName = TEXT("Circle"); break;
+        case EMAFormationType::Line: FormationName = TEXT("Line"); break;
+        case EMAFormationType::Column: FormationName = TEXT("Column"); break;
+        case EMAFormationType::Wedge: FormationName = TEXT("Wedge"); break;
+        case EMAFormationType::Diamond: FormationName = TEXT("Diamond"); break;
+        case EMAFormationType::Circle: FormationName = TEXT("Circle"); break;
+        default: FormationName = TEXT("Unknown"); break;
     }
     
-    int32 ActivatedCount = 0;
+    // 使用 Subsystem 统一管理编队
+    ActorSubsystem->StartFormation(Leader, FormationType);
     
-    for (int32 i = 0; i < RobotDogs.Num(); i++)
-    {
-        AMACharacter* Character = RobotDogs[i];
-        if (!Character) continue;
-        if (Character->ActorName.Contains(TEXT("Tracker"))) continue;
-        
-        UMAAbilitySystemComponent* ASC = Cast<UMAAbilitySystemComponent>(Character->GetAbilitySystemComponent());
-        if (!ASC) continue;
-        
-        // 先取消其他命令和当前编队
-        ASC->CancelFormation();
-        ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Patrol")));
-        ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Follow")));
-        ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Coverage")));
-        ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Charge")));
-        ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Idle")));
-        
-        // 激活 Formation 技能，传入总数量用于 Circle 半径计算
-        if (ASC->TryActivateFormation(Leader, FormationType, ActivatedCount, TotalValidRobots))
-        {
-            ActivatedCount++;
-            GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Blue,
-                FString::Printf(TEXT("%s: %s #%d"), *Character->ActorName, *FormationName, ActivatedCount - 1));
-        }
-    }
-    
-    if (ActivatedCount == 0)
-    {
-        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Orange, TEXT("No RobotDog found or Formation failed!"));
-    }
-    else
-    {
-        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green,
-            FString::Printf(TEXT("%s Formation: %d robots following %s"), *FormationName, ActivatedCount, *Leader->ActorName));
-    }
+    GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green,
+        FString::Printf(TEXT("%s Formation started, Leader: %s"), *FormationName, *Leader->ActorName));
 }
 
 bool AMAPlayerController::GetMouseHitLocation(FVector& OutLocation)

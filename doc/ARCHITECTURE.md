@@ -74,7 +74,7 @@ State Tree (大脑 - 状态决策)          GAS (手脚 - 技能执行)
 ```
 unreal_project/Source/MultiAgent/
 ├── Core/                            # 核心框架 ✅ 已实现
-│   ├── MAActorSubsystem.h/cpp       # Actor 管理子系统 (UWorldSubsystem)
+│   ├── MAActorSubsystem.h/cpp       # Actor 管理子系统 + 编队管理 (类似 CARLA TM)
 │   ├── MAGameMode.h/cpp             # 游戏模式
 │   └── MAPlayerController.h/cpp     # 玩家控制器 (Enhanced Input)
 ├── Character/                       # ACharacter 派生类 ✅ 已实现
@@ -200,11 +200,65 @@ UWorldSubsystem (UE)
 
 | Manager | 层级 | 功能介绍 | UE/C++ 实现方案 | 状态 |
 |---------|------|---------|----------------|------|
-| **ActorSubsystem** | 全局 | Character/Sensor 生命周期管理 | `UMAActorSubsystem` | ✅ 已实现 |
+| **ActorSubsystem** | 全局 | Character/Sensor 生命周期管理 + 编队管理 | `UMAActorSubsystem` | ✅ 已实现 |
 | **RelationManager** | 全局 | 实体关系管理 | `UMARelationSubsystem` | ❌ 待开发 |
 | **MapManager** | 全局 | 地图感知 | `UNavigationSystemV1` | ❌ 待开发 |
 | **StateTree** | Character级 | 状态决策 | `UMAStateTreeComponent` | ✅ 已实现 |
 | **ASC** | Character级 | 技能执行 | `UMAAbilitySystemComponent` | ✅ 已实现 |
+
+### 5.3 编队管理 (Formation Manager)
+
+MAActorSubsystem 同时作为集群管理器，类似 CARLA 的 TrafficManager：
+
+```
+┌─────────────────────────────────────────────────────┐
+│              MAActorSubsystem                       │
+│  ┌─────────────────┐  ┌─────────────────────────┐  │
+│  │  Actor Factory  │  │  Formation Manager      │  │
+│  │  - Spawn        │  │  - Leader               │  │
+│  │  - Destroy      │  │  - Members[]            │  │
+│  │  - Query        │  │  - Type                 │  │
+│  └─────────────────┘  │  - CalculatePositions() │  │
+│                       │  - UpdateFormation()    │  │
+│                       └─────────────────────────┘  │
+└─────────────────────────────────────────────────────┘
+                         │
+                         │ TryNavigateTo(Position)
+                         ▼
+        ┌────────────────┼────────────────┐
+        │                │                │
+   ┌────▼────┐     ┌────▼────┐     ┌────▼────┐
+   │ Robot_0 │     │ Robot_1 │     │ Robot_2 │
+   │Navigate │     │Navigate │     │Navigate │
+   └─────────┘     └─────────┘     └─────────┘
+```
+
+**编队类型 (EMAFormationType):**
+| 类型 | 说明 |
+|------|------|
+| None | 无编队 |
+| Line | 横向一字排开 |
+| Column | 纵队 |
+| Wedge | V形楔形 |
+| Diamond | 菱形 |
+| Circle | 圆形（半径根据数量动态计算） |
+
+**编队接口:**
+```cpp
+// 启动编队
+ActorSubsystem->StartFormation(Leader, EMAFormationType::Wedge);
+
+// 切换编队类型
+ActorSubsystem->SetFormationType(EMAFormationType::Circle);
+
+// 停止编队
+ActorSubsystem->StopFormation();
+```
+
+**设计优势:**
+- 机器人只需 Navigate 能力，不需要理解集群逻辑
+- Subsystem 统一计算位置，下发导航指令
+- 动态调整：机器人加入/离开时自动重新计算
 
 ## 6. Characters vs Actors 设计 (UE 标准规范)
 
