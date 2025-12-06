@@ -30,7 +30,7 @@
 | 10 | 充电 | GA_Charge | MASTTask_Charge | 自动充电 |
 | 11 | 观察 | GA_Observe | - | 持续观察目标或区域 |
 | 12 | 报告 | GA_Report | - | 屏幕显示报告信息 |
-| 13 | 避障 | GA_Avoid | - | 检测障碍物并避让 |
+| 13 |           |                             |                   |                                |
 
 ### 待实现 ❌
 
@@ -81,7 +81,7 @@
 | 2 | 充电站 | MAChargingStation | 机器人充电点 |
 | 3 | 巡逻路径 | MAPatrolPath | 定义巡逻路线 |
 | 4 | 覆盖区域 | MACoverageArea | 定义覆盖范围 |
-| 5 | 摄像头传感器 | MACameraSensor | 可附着的传感器 |
+| 5 |            |                   |                |
 
 ### 待实现 ❌
 

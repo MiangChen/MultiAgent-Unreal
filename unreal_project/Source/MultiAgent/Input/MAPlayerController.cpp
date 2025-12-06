@@ -105,6 +105,12 @@ void AMAPlayerController::SetupInputComponent()
         // 拍照 (CARLA 风格 - 直接调用 Camera Sensor)
         EIC->BindAction(InputActions->IA_TakePhoto, ETriggerEvent::Started, this, &AMAPlayerController::OnTakePhoto);
 
+        // 录像
+        EIC->BindAction(InputActions->IA_ToggleRecording, ETriggerEvent::Started, this, &AMAPlayerController::OnToggleRecording);
+
+        // TCP 流
+        EIC->BindAction(InputActions->IA_ToggleTCPStream, ETriggerEvent::Started, this, &AMAPlayerController::OnToggleTCPStream);
+
         UE_LOG(LogTemp, Log, TEXT("[Input] Bound all input actions"));
     }
 }
@@ -778,5 +784,105 @@ void AMAPlayerController::OnTakePhoto(const FInputActionValue& Value)
     {
         GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green,
             FString::Printf(TEXT("Took %d photos (saved to Saved/Screenshots/)"), PhotoCount));
+    }
+}
+
+void AMAPlayerController::OnToggleRecording(const FInputActionValue& Value)
+{
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnToggleRecording called (R key)"));
+    
+    UMAActorSubsystem* ActorSubsystem = GetWorld()->GetSubsystem<UMAActorSubsystem>();
+    if (!ActorSubsystem)
+    {
+        return;
+    }
+    
+    TArray<AMASensor*> Sensors = ActorSubsystem->GetAllSensors();
+    int32 RecordingCount = 0;
+    int32 StoppedCount = 0;
+    
+    for (AMASensor* Sensor : Sensors)
+    {
+        if (AMACameraSensor* Camera = Cast<AMACameraSensor>(Sensor))
+        {
+            if (Camera->bIsRecording)
+            {
+                Camera->StopRecording();
+                StoppedCount++;
+            }
+            else
+            {
+                Camera->StartRecording(30.f);
+                RecordingCount++;
+            }
+        }
+    }
+    
+    if (RecordingCount > 0)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red,
+            FString::Printf(TEXT("Recording started on %d cameras (Saved/Recordings/)"), RecordingCount));
+    }
+    else if (StoppedCount > 0)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green,
+            FString::Printf(TEXT("Recording stopped on %d cameras"), StoppedCount));
+    }
+    else
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("No cameras found!"));
+    }
+}
+
+void AMAPlayerController::OnToggleTCPStream(const FInputActionValue& Value)
+{
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnToggleTCPStream called (V key)"));
+    
+    UMAActorSubsystem* ActorSubsystem = GetWorld()->GetSubsystem<UMAActorSubsystem>();
+    if (!ActorSubsystem)
+    {
+        return;
+    }
+    
+    TArray<AMASensor*> Sensors = ActorSubsystem->GetAllSensors();
+    int32 StreamingCount = 0;
+    int32 StoppedCount = 0;
+    int32 BasePort = 9000;
+    
+    for (AMASensor* Sensor : Sensors)
+    {
+        if (AMACameraSensor* Camera = Cast<AMACameraSensor>(Sensor))
+        {
+            if (Camera->bIsStreaming)
+            {
+                Camera->StopTCPStream();
+                StoppedCount++;
+            }
+            else
+            {
+                int32 Port = BasePort + StreamingCount;
+                if (Camera->StartTCPStream(Port, 30.f))
+                {
+                    StreamingCount++;
+                    GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Cyan,
+                        FString::Printf(TEXT("%s streaming on port %d"), *Camera->SensorName, Port));
+                }
+            }
+        }
+    }
+    
+    if (StreamingCount > 0)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green,
+            FString::Printf(TEXT("TCP stream started on %d cameras"), StreamingCount));
+    }
+    else if (StoppedCount > 0)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Yellow,
+            FString::Printf(TEXT("TCP stream stopped on %d cameras"), StoppedCount));
+    }
+    else
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("No cameras found!"));
     }
 }

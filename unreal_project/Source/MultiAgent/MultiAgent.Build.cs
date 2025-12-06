@@ -21,7 +21,12 @@ public class MultiAgent : ModuleRules
             "GameplayTasks",
             // State Tree 模块
             "StateTreeModule",
-            "GameplayStateTreeModule"
+            "GameplayStateTreeModule",
+            // 网络和图像模块 (Camera TCP Stream)
+            "Sockets",
+            "Networking",
+            "ImageWrapper",
+            "RenderCore"
         });
 
         PrivateDependencyModuleNames.AddRange(new string[] { });

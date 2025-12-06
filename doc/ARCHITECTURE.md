@@ -348,6 +348,8 @@ Status.Moving              // 正在移动
 | `GA_Follow` | 追踪目标 | 有目标 Character | - |
 | `GA_Search` | 搜索 Human | 有附着的 CameraSensor | - |
 | `MACameraSensor::TakePhoto()` | 拍照 | - | CARLA 风格，直接调用 Sensor |
+| `MACameraSensor::StartRecording()` | 录像 | - | 序列帧保存到 Saved/Recordings/ |
+| `MACameraSensor::StartTCPStream()` | TCP 视频流 | - | 端口 9000+，Python/网页可接收 |
 | `GA_Observe` | 观察目标 | - | - |
 | `GA_Report` | 报告信息 | - | - |
 | `GA_Charge` | 充电 | 在充电站范围内 | - |
@@ -925,6 +927,8 @@ PlayerController 在 BeginPlay 时自动添加 Mapping Context，无需额外配
 | **A** | IA_StartAvoid | 所有 RobotDog 启动避障导航到鼠标位置 |
 | **B** | IA_StartFormation | 所有 RobotDog 开始编队跟随 |
 | **L** | IA_TakePhoto | 所有 CameraSensor 拍照 |
+| **R** | IA_ToggleRecording | 开始/停止录像 (序列帧保存到 Saved/Recordings/) |
+| **V** | IA_ToggleTCPStream | 开始/停止 TCP 视频流 (端口 9000+) |
 
 ### 9.4 相关文件
 

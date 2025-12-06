@@ -37,6 +37,8 @@ void UMAInputActions::Initialize()
     IA_StartAvoid = CreateInputAction(TEXT("IA_StartAvoid"));
     IA_StartFormation = CreateInputAction(TEXT("IA_StartFormation"));
     IA_TakePhoto = CreateInputAction(TEXT("IA_TakePhoto"));
+    IA_ToggleRecording = CreateInputAction(TEXT("IA_ToggleRecording"));
+    IA_ToggleTCPStream = CreateInputAction(TEXT("IA_ToggleTCPStream"));
 
     // 创建 Input Mapping Context
     DefaultMappingContext = NewObject<UInputMappingContext>(this, TEXT("IMC_Default"));
@@ -60,8 +62,10 @@ void UMAInputActions::Initialize()
     // AddKeyMapping(DefaultMappingContext, IA_StartAvoid, EKeys::A);  // 暂时禁用
     AddKeyMapping(DefaultMappingContext, IA_StartFormation, EKeys::B);
     AddKeyMapping(DefaultMappingContext, IA_TakePhoto, EKeys::L);  // L for Lens/Light
+    AddKeyMapping(DefaultMappingContext, IA_ToggleRecording, EKeys::R);  // R for Recording
+    AddKeyMapping(DefaultMappingContext, IA_ToggleTCPStream, EKeys::V);  // V for Video stream
 
-    UE_LOG(LogTemp, Log, TEXT("[Input] MAInputActions initialized with %d actions"), 18);
+    UE_LOG(LogTemp, Log, TEXT("[Input] MAInputActions initialized with %d actions"), 20);
 }
 
 UInputAction* UMAInputActions::CreateInputAction(const FName& Name, EInputActionValueType ValueType)

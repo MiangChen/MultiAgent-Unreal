@@ -79,6 +79,12 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "Input")
     TObjectPtr<UInputAction> IA_TakePhoto;
 
+    UPROPERTY(BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_ToggleRecording;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_ToggleTCPStream;
+
     // ========== Input Mapping Context ==========
     UPROPERTY(BlueprintReadOnly, Category = "Input")
     TObjectPtr<UInputMappingContext> DefaultMappingContext;
