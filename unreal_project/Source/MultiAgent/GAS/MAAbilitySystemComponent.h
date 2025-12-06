@@ -45,11 +45,8 @@ public:
     UFUNCTION(BlueprintCallable, Category = "GAS")
     void CancelFollow();
 
-    // 直接激活 TakePhoto Ability (Camera 使用)
-    UFUNCTION(BlueprintCallable, Category = "GAS")
-    bool TryActivateTakePhoto();
-
     // ========== 新增 Robot Abilities ==========
+    // 注意: TakePhoto 已移至 MACameraSensor，采用 CARLA 风格直接调用 Sensor
     // 注意: Patrol 已移至 StateTree，不再使用 GAS Ability
     
     // 搜索
@@ -128,9 +125,9 @@ protected:
     FGameplayAbilitySpecHandle DropAbilityHandle;
     FGameplayAbilitySpecHandle NavigateAbilityHandle;
     FGameplayAbilitySpecHandle FollowAbilityHandle;
-    FGameplayAbilitySpecHandle TakePhotoAbilityHandle;
     
     // 新增 Ability Handles
+    // 注意: TakePhotoAbilityHandle 已移除，TakePhoto 改用 CARLA 风格直接调用 MACameraSensor
     // 注意: PatrolAbilityHandle 已移除，Patrol 改用 StateTree
     FGameplayAbilitySpecHandle SearchAbilityHandle;
     FGameplayAbilitySpecHandle ObserveAbilityHandle;

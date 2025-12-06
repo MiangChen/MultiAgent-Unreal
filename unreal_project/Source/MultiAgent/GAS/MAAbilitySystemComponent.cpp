@@ -6,7 +6,7 @@
 #include "Ability/GA_Drop.h"
 #include "Ability/GA_Navigate.h"
 #include "Ability/GA_Follow.h"
-#include "Ability/GA_TakePhoto.h"
+// GA_TakePhoto 已移除，TakePhoto 改用 CARLA 风格直接调用 MACameraSensor
 // GA_Patrol 已移除，Patrol 改用 StateTree
 #include "Ability/GA_Search.h"
 #include "Ability/GA_Observe.h"
@@ -34,12 +34,12 @@ void UMAAbilitySystemComponent::InitializeAbilities(AActor* InOwnerActor)
         }
     }
 
-    // 始终授予 Pickup、Drop、Navigate、TakePhoto Ability，并保存 Handle
+    // 始终授予 Pickup、Drop、Navigate、Follow Ability，并保存 Handle
+    // 注意: TakePhoto 已移至 MACameraSensor，采用 CARLA 风格
     PickupAbilityHandle = GiveAbility(FGameplayAbilitySpec(UGA_Pickup::StaticClass(), 1, INDEX_NONE, InOwnerActor));
     DropAbilityHandle = GiveAbility(FGameplayAbilitySpec(UGA_Drop::StaticClass(), 1, INDEX_NONE, InOwnerActor));
     NavigateAbilityHandle = GiveAbility(FGameplayAbilitySpec(UGA_Navigate::StaticClass(), 1, INDEX_NONE, InOwnerActor));
     FollowAbilityHandle = GiveAbility(FGameplayAbilitySpec(UGA_Follow::StaticClass(), 1, INDEX_NONE, InOwnerActor));
-    TakePhotoAbilityHandle = GiveAbility(FGameplayAbilitySpec(UGA_TakePhoto::StaticClass(), 1, INDEX_NONE, InOwnerActor));
     
     // 新增 Robot Abilities
     // 注意: Patrol 已移至 StateTree，不再使用 GAS Ability
@@ -50,9 +50,9 @@ void UMAAbilitySystemComponent::InitializeAbilities(AActor* InOwnerActor)
     FormationAbilityHandle = GiveAbility(FGameplayAbilitySpec(UGA_Formation::StaticClass(), 1, INDEX_NONE, InOwnerActor));
     AvoidAbilityHandle = GiveAbility(FGameplayAbilitySpec(UGA_Avoid::StaticClass(), 1, INDEX_NONE, InOwnerActor));
     
-    UE_LOG(LogTemp, Log, TEXT("Initialized GAS abilities for %s (Pickup=%d, Drop=%d, Navigate=%d, Follow=%d, TakePhoto=%d, Search=%d, Charge=%d)"), 
+    UE_LOG(LogTemp, Log, TEXT("Initialized GAS abilities for %s (Pickup=%d, Drop=%d, Navigate=%d, Follow=%d, Search=%d, Charge=%d)"), 
         *InOwnerActor->GetName(), PickupAbilityHandle.IsValid(), DropAbilityHandle.IsValid(), NavigateAbilityHandle.IsValid(), 
-        FollowAbilityHandle.IsValid(), TakePhotoAbilityHandle.IsValid(), SearchAbilityHandle.IsValid(), ChargeAbilityHandle.IsValid());
+        FollowAbilityHandle.IsValid(), SearchAbilityHandle.IsValid(), ChargeAbilityHandle.IsValid());
 }
 
 bool UMAAbilitySystemComponent::TryActivatePickup()
@@ -131,16 +131,7 @@ void UMAAbilitySystemComponent::CancelAbilityByTag(FGameplayTag AbilityTag)
     CancelAbilities(&TagContainer);
 }
 
-bool UMAAbilitySystemComponent::TryActivateTakePhoto()
-{
-    if (TakePhotoAbilityHandle.IsValid())
-    {
-        return TryActivateAbility(TakePhotoAbilityHandle);
-    }
-    
-    // Fallback: 尝试通过 Class 激活
-    return TryActivateAbilityByClass(UGA_TakePhoto::StaticClass());
-}
+// TryActivateTakePhoto 已移除，TakePhoto 改用 CARLA 风格直接调用 MACameraSensor::TakePhoto()
 
 bool UMAAbilitySystemComponent::HasGameplayTagFromContainer(FGameplayTag TagToCheck) const
 {

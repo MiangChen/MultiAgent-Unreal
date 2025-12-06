@@ -59,8 +59,8 @@ State Tree (大脑 - 状态决策)          GAS (手脚 - 技能执行)
 │  Root                   │         │  Abilities              │
 │  ├── Exploration State  │◄───────►│  ├── GA_Pickup          │
 │  ├── PhotoMode State    │  Tags   │  ├── GA_Drop            │
-│  └── Interaction State  │◄───────►│  ├── GA_TakePhoto       │
-│      ├── Pickup         │         │  └── GA_Navigate        │
+│  └── Interaction State  │◄───────►│  ├── GA_Navigate        │
+│      ├── Pickup         │         │  └── GA_Follow          │
 │      └── Dialogue       │         │                         │
 └─────────────────────────┘         └─────────────────────────┘
 ```
@@ -97,8 +97,7 @@ unreal_project/Source/MultiAgent/
 │       ├── GA_Drop.h/cpp            # 放下技能
 │       ├── GA_Navigate.h/cpp        # 导航技能
 │       ├── GA_Follow.h/cpp          # 追踪技能
-│       ├── GA_TakePhoto.h/cpp       # 拍照技能
-│       ├── GA_Search.h/cpp          # 搜索技能
+│       ├── GA_Search.h/cpp          # 搜索技能 (TakePhoto 已移至 MACameraSensor)
 │       ├── GA_Observe.h/cpp         # 观察技能
 │       ├── GA_Report.h/cpp          # 报告技能
 │       ├── GA_Charge.h/cpp          # 充电技能
@@ -150,8 +149,7 @@ UGameplayAbility (UE GAS)
             ├── UGA_Drop
             ├── UGA_Navigate
             ├── UGA_Follow
-            ├── UGA_TakePhoto
-            ├── UGA_Search
+            ├── UGA_Search  // TakePhoto 已移至 MACameraSensor (CARLA 风格)
             ├── UGA_Observe
             ├── UGA_Report
             ├── UGA_Charge
@@ -305,8 +303,8 @@ State.Interaction.Pickup   // 拾取中
 // Ability Tags (GAS 技能)
 Ability.Pickup             // 拾取技能
 Ability.Drop               // 放下技能
-Ability.TakePhoto          // 拍照技能
 Ability.Patrol             // 巡逻技能
+// TakePhoto 已移至 MACameraSensor::TakePhoto() (CARLA 风格)
 Ability.Search             // 搜索技能
 Ability.Observe            // 观察技能
 Ability.Report             // 报告技能
@@ -348,8 +346,8 @@ Status.Moving              // 正在移动
 | `GA_Drop` | 放下物品 | Status.Holding | - |
 | `GA_Navigate` | 导航移动 | 有 AIController | - |
 | `GA_Follow` | 追踪目标 | 有目标 Character | - |
-| `GA_TakePhoto` | 拍照 | 有附着的 CameraSensor | - |
 | `GA_Search` | 搜索 Human | 有附着的 CameraSensor | - |
+| `MACameraSensor::TakePhoto()` | 拍照 | - | CARLA 风格，直接调用 Sensor |
 | `GA_Observe` | 观察目标 | - | - |
 | `GA_Report` | 报告信息 | - | - |
 | `GA_Charge` | 充电 | 在充电站范围内 | - |
@@ -961,7 +959,7 @@ Character->ShowStatus(TEXT(""), 0.f);
 - [x] GA_Pickup / GA_Drop - 拾取/放下技能
 - [x] GA_Navigate - 导航技能
 - [x] GA_Follow - 追踪技能
-- [x] GA_TakePhoto - 拍照技能
+- [x] MACameraSensor::TakePhoto() - 拍照功能 (CARLA 风格)
 - [x] AMAPickupItem - 可拾取物品
 - [x] State Tree 基础集成
 
