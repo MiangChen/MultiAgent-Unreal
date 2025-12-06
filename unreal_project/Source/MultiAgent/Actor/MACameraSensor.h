@@ -58,7 +58,7 @@ public:
 
     // ========== 属性 ==========
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera")
-    FIntPoint Resolution = FIntPoint(1920, 1080);
+    FIntPoint Resolution = FIntPoint(640, 480);  // 降低默认分辨率
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera")
     float FOV = 90.0f;
@@ -66,8 +66,12 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera", meta = (ClampMin = "0.5", ClampMax = "5.0"))
     float BrightnessMultiplier = 2.0f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Stream")
-    int32 JPEGQuality = 85;
+    // 流/录像参数
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Stream", meta = (ClampMin = "10", ClampMax = "100"))
+    int32 JPEGQuality = 50;  // 降低质量减少数据量
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Stream", meta = (ClampMin = "5", ClampMax = "30"))
+    float StreamFPS = 15.f;  // 降低帧率
 
 protected:
     virtual void BeginPlay() override;

@@ -10,6 +10,7 @@
 #include "IImageWrapperModule.h"
 #include "Modules/ModuleManager.h"
 #include "Common/TcpSocketBuilder.h"
+#include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "TimerManager.h"
 
 AMACameraSensor::AMACameraSensor()
@@ -179,24 +180,58 @@ void AMACameraSensor::OnRecordTick()
 // ========== TCP 流 ==========
 bool AMACameraSensor::StartTCPStream(int32 Port, float FPS)
 {
-    if (bIsStreaming) return false;
-    
-    StreamPort = Port;
-    
-    // 创建监听 Socket
-    ListenSocket = FTcpSocketBuilder(TEXT("CameraStreamListener"))
-        .AsReusable()
-        .BoundToPort(Port)
-        .Listening(8)
-        .Build();
-    
-    if (!ListenSocket)
+    if (bIsStreaming)
     {
-        UE_LOG(LogTemp, Error, TEXT("[Camera] %s failed to create TCP listener on port %d"), *SensorName, Port);
+        UE_LOG(LogTemp, Warning, TEXT("[Camera] %s already streaming"), *SensorName);
         return false;
     }
     
+    StreamPort = Port;
+    
+    UE_LOG(LogTemp, Log, TEXT("[Camera] %s attempting to create TCP listener on port %d..."), *SensorName, Port);
+    
+    // 使用底层 Socket API
+    ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
+    if (!SocketSubsystem)
+    {
+        UE_LOG(LogTemp, Error, TEXT("[Camera] %s failed to get socket subsystem"), *SensorName);
+        return false;
+    }
+    
+    // 创建 TCP Socket
+    ListenSocket = SocketSubsystem->CreateSocket(NAME_Stream, TEXT("CameraStreamListener"), false);
+    if (!ListenSocket)
+    {
+        UE_LOG(LogTemp, Error, TEXT("[Camera] %s failed to create socket"), *SensorName);
+        return false;
+    }
+    
+    // 设置 Socket 选项
+    ListenSocket->SetReuseAddr(true);
     ListenSocket->SetNonBlocking(true);
+    
+    // 绑定到端口
+    TSharedRef<FInternetAddr> Addr = SocketSubsystem->CreateInternetAddr();
+    Addr->SetAnyAddress();
+    Addr->SetPort(Port);
+    
+    if (!ListenSocket->Bind(*Addr))
+    {
+        UE_LOG(LogTemp, Error, TEXT("[Camera] %s failed to bind to port %d. Port may be in use."), *SensorName, Port);
+        SocketSubsystem->DestroySocket(ListenSocket);
+        ListenSocket = nullptr;
+        return false;
+    }
+    
+    // 开始监听
+    if (!ListenSocket->Listen(8))
+    {
+        UE_LOG(LogTemp, Error, TEXT("[Camera] %s failed to listen on port %d"), *SensorName, Port);
+        SocketSubsystem->DestroySocket(ListenSocket);
+        ListenSocket = nullptr;
+        return false;
+    }
+    
     bIsStreaming = true;
     
     float Interval = 1.0f / FPS;

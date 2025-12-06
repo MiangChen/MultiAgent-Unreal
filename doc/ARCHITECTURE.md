@@ -477,7 +477,46 @@ float Percent = Robot->GetEnergyPercent();
 Robot->RestoreEnergy(50.f);
 ```
 
-## 8.5 ChargingStation (充电站) & 渐进式充电
+## 8.5 MACameraSensor (摄像头传感器)
+
+摄像头传感器支持拍照、录像和 TCP 视频流功能。
+
+### 属性
+
+| 属性 | 默认值 | 说明 |
+|------|--------|------|
+| `Resolution` | 640x480 | 分辨率（降低可提升性能） |
+| `FOV` | 90.0 | 视野角度 |
+| `JPEGQuality` | 50 | JPEG 压缩质量 (10-100) |
+| `StreamFPS` | 15.0 | 流/录像帧率 (5-30) |
+
+### 功能接口
+
+| 方法 | 按键 | 说明 |
+|------|------|------|
+| `TakePhoto()` | L | 拍照保存到 Saved/Screenshots/ |
+| `StartRecording(FPS)` | R | 开始录像（序列帧） |
+| `StopRecording()` | R | 停止录像 |
+| `StartTCPStream(Port, FPS)` | V | 启动 TCP 视频流 |
+| `StopTCPStream()` | V | 停止 TCP 视频流 |
+| `GetFrameAsJPEG(Quality)` | - | 获取 JPEG 压缩帧数据 |
+
+### TCP 视频流
+
+帧格式: `[4字节长度][JPEG数据]`
+
+Python 接收示例:
+```python
+python scripts/tcp_stream_viewer.py 9000
+```
+
+### 性能优化
+
+- 只对当前激活的相机启动流（Tab 切换）
+- 降低分辨率和帧率可显著提升性能
+- 建议流参数：640x480, 15 FPS, Quality 50
+
+## 8.6 ChargingStation (充电站) & 渐进式充电
 
 充电站是一个可放置在关卡中的 Actor，机器人进入范围后可触发充电。
 

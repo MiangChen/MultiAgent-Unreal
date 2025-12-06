@@ -797,40 +797,53 @@ void AMAPlayerController::OnToggleRecording(const FInputActionValue& Value)
         return;
     }
     
+    // 只对当前激活的相机进行录像（基于 CurrentCameraIndex）
     TArray<AMASensor*> Sensors = ActorSubsystem->GetAllSensors();
-    int32 RecordingCount = 0;
-    int32 StoppedCount = 0;
-    
+    TArray<AMACameraSensor*> Cameras;
     for (AMASensor* Sensor : Sensors)
     {
         if (AMACameraSensor* Camera = Cast<AMACameraSensor>(Sensor))
         {
-            if (Camera->bIsRecording)
-            {
-                Camera->StopRecording();
-                StoppedCount++;
-            }
-            else
-            {
-                Camera->StartRecording(30.f);
-                RecordingCount++;
-            }
+            Cameras.Add(Camera);
         }
     }
     
-    if (RecordingCount > 0)
+    if (Cameras.Num() == 0)
     {
-        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red,
-            FString::Printf(TEXT("Recording started on %d cameras (Saved/Recordings/)"), RecordingCount));
+        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("No cameras found!"));
+        return;
     }
-    else if (StoppedCount > 0)
+    
+    // 根据 CurrentCameraIndex 选择相机
+    AMACameraSensor* TargetCamera = nullptr;
+    if (CurrentCameraIndex < 0 || CurrentCameraIndex >= Cameras.Num())
     {
-        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green,
-            FString::Printf(TEXT("Recording stopped on %d cameras"), StoppedCount));
+        TargetCamera = Cameras[0];
     }
     else
     {
-        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("No cameras found!"));
+        TargetCamera = Cameras[CurrentCameraIndex];
+    }
+    
+    if (!TargetCamera)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("No active camera!"));
+        return;
+    }
+    
+    // 切换当前相机的录像状态
+    if (TargetCamera->bIsRecording)
+    {
+        TargetCamera->StopRecording();
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green,
+            FString::Printf(TEXT("%s: Recording stopped"), *TargetCamera->SensorName));
+    }
+    else
+    {
+        // 使用相机自身的 StreamFPS 设置
+        TargetCamera->StartRecording(TargetCamera->StreamFPS);
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red,
+            FString::Printf(TEXT("%s: Recording started at %.0f FPS (Saved/Recordings/)"), *TargetCamera->SensorName, TargetCamera->StreamFPS));
     }
 }
 
@@ -844,45 +857,70 @@ void AMAPlayerController::OnToggleTCPStream(const FInputActionValue& Value)
         return;
     }
     
-    TArray<AMASensor*> Sensors = ActorSubsystem->GetAllSensors();
-    int32 StreamingCount = 0;
-    int32 StoppedCount = 0;
-    int32 BasePort = 9000;
+    // 只对当前激活的相机进行 TCP 流（基于 CurrentCameraIndex）
+    AMACameraSensor* TargetCamera = nullptr;
     
+    TArray<AMASensor*> Sensors = ActorSubsystem->GetAllSensors();
+    TArray<AMACameraSensor*> Cameras;
     for (AMASensor* Sensor : Sensors)
     {
         if (AMACameraSensor* Camera = Cast<AMACameraSensor>(Sensor))
         {
-            if (Camera->bIsStreaming)
-            {
-                Camera->StopTCPStream();
-                StoppedCount++;
-            }
-            else
-            {
-                int32 Port = BasePort + StreamingCount;
-                if (Camera->StartTCPStream(Port, 30.f))
-                {
-                    StreamingCount++;
-                    GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Cyan,
-                        FString::Printf(TEXT("%s streaming on port %d"), *Camera->SensorName, Port));
-                }
-            }
+            Cameras.Add(Camera);
         }
     }
     
-    if (StreamingCount > 0)
+    if (Cameras.Num() == 0)
     {
-        GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green,
-            FString::Printf(TEXT("TCP stream started on %d cameras"), StreamingCount));
+        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("No cameras found!"));
+        return;
     }
-    else if (StoppedCount > 0)
+    
+    // 根据 CurrentCameraIndex 选择相机
+    // -1 表示上帝视角，使用第一个相机
+    if (CurrentCameraIndex < 0 || CurrentCameraIndex >= Cameras.Num())
     {
-        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Yellow,
-            FString::Printf(TEXT("TCP stream stopped on %d cameras"), StoppedCount));
+        TargetCamera = Cameras[0];
     }
     else
     {
-        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("No cameras found!"));
+        TargetCamera = Cameras[CurrentCameraIndex];
+    }
+    
+    if (!TargetCamera)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("No active camera!"));
+        return;
+    }
+    
+    // 先停止所有其他相机的流
+    for (AMACameraSensor* Camera : Cameras)
+    {
+        if (Camera != TargetCamera && Camera->bIsStreaming)
+        {
+            Camera->StopTCPStream();
+        }
+    }
+    
+    // 切换当前相机的流状态
+    if (TargetCamera->bIsStreaming)
+    {
+        TargetCamera->StopTCPStream();
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Yellow,
+            FString::Printf(TEXT("%s: TCP stream stopped"), *TargetCamera->SensorName));
+    }
+    else
+    {
+        // 使用相机自身的 StreamFPS 设置
+        if (TargetCamera->StartTCPStream(9000, TargetCamera->StreamFPS))
+        {
+            GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green,
+                FString::Printf(TEXT("%s: TCP stream started on port 9000"), *TargetCamera->SensorName));
+        }
+        else
+        {
+            GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red,
+                FString::Printf(TEXT("%s: Failed to start TCP stream"), *TargetCamera->SensorName));
+        }
     }
 }

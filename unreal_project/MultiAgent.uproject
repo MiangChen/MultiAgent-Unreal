@@ -49,6 +49,10 @@
 		{
 			"Name": "MassCrowd",
 			"Enabled": true
+		},
+		{
+			"Name": "UnrealCV",
+			"Enabled": false
 		}
 	]
 }
