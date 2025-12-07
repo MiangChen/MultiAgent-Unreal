@@ -363,3 +363,91 @@ void UMACameraSensorComponent::CleanupSockets()
         ListenSocket = nullptr;
     }
 }
+
+// ========== Action 动态发现与执行 ==========
+
+TArray<FString> UMACameraSensorComponent::GetAvailableActions() const
+{
+    TArray<FString> Actions;
+    
+    // 拍照
+    Actions.Add(TEXT("Camera.TakePhoto"));
+    
+    // 录像
+    Actions.Add(TEXT("Camera.StartRecording"));
+    Actions.Add(TEXT("Camera.StopRecording"));
+    
+    // TCP 流
+    Actions.Add(TEXT("Camera.StartTCPStream"));
+    Actions.Add(TEXT("Camera.StopTCPStream"));
+    
+    // 获取帧
+    Actions.Add(TEXT("Camera.GetFrameAsJPEG"));
+    
+    return Actions;
+}
+
+bool UMACameraSensorComponent::ExecuteAction(const FString& ActionName, const TMap<FString, FString>& Params)
+{
+    if (ActionName == TEXT("Camera.TakePhoto"))
+    {
+        FString FilePath;
+        if (const FString* PathParam = Params.Find(TEXT("path")))
+        {
+            FilePath = *PathParam;
+        }
+        return TakePhoto(FilePath);
+    }
+    
+    if (ActionName == TEXT("Camera.StartRecording"))
+    {
+        float FPS = 30.f;
+        if (const FString* FPSParam = Params.Find(TEXT("fps")))
+        {
+            FPS = FCString::Atof(**FPSParam);
+        }
+        StartRecording(FPS);
+        return true;
+    }
+    
+    if (ActionName == TEXT("Camera.StopRecording"))
+    {
+        StopRecording();
+        return true;
+    }
+    
+    if (ActionName == TEXT("Camera.StartTCPStream"))
+    {
+        int32 Port = 9000;
+        float FPS = 30.f;
+        if (const FString* PortParam = Params.Find(TEXT("port")))
+        {
+            Port = FCString::Atoi(**PortParam);
+        }
+        if (const FString* FPSParam = Params.Find(TEXT("fps")))
+        {
+            FPS = FCString::Atof(**FPSParam);
+        }
+        return StartTCPStream(Port, FPS);
+    }
+    
+    if (ActionName == TEXT("Camera.StopTCPStream"))
+    {
+        StopTCPStream();
+        return true;
+    }
+    
+    if (ActionName == TEXT("Camera.GetFrameAsJPEG"))
+    {
+        int32 Quality = 85;
+        if (const FString* QualityParam = Params.Find(TEXT("quality")))
+        {
+            Quality = FCString::Atoi(**QualityParam);
+        }
+        TArray<uint8> Data = GetFrameAsJPEG(Quality);
+        return Data.Num() > 0;
+    }
+    
+    UE_LOG(LogTemp, Warning, TEXT("[Camera] Unknown action: %s"), *ActionName);
+    return false;
+}

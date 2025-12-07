@@ -14,6 +14,12 @@ AMACharacter::AMACharacter()
 {
     PrimaryActorTick.bCanEverTick = true;
     
+    // 新属性初始化
+    AgentID = TEXT("");
+    AgentName = TEXT("Agent");
+    AgentType = EMAAgentType::Human;
+    
+    // 旧属性初始化 (deprecated, 保持兼容)
     ActorID = 0;
     ActorName = TEXT("Character");
     ActorType = EMAActorType::Human;
@@ -256,4 +262,94 @@ int32 AMACharacter::GetSensorCount() const
     TArray<UMASensorComponent*> Sensors;
     GetComponents<UMASensorComponent>(Sensors);
     return Sensors.Num();
+}
+
+// ========== Action 动态发现与执行 ==========
+
+TArray<FString> AMACharacter::GetAvailableActions() const
+{
+    TArray<FString> Actions;
+    
+    // Agent 自身的 Actions (基于 GAS 技能)
+    Actions.Add(TEXT("Agent.NavigateTo"));
+    Actions.Add(TEXT("Agent.CancelNavigation"));
+    Actions.Add(TEXT("Agent.Pickup"));
+    Actions.Add(TEXT("Agent.Drop"));
+    Actions.Add(TEXT("Agent.FollowActor"));
+    Actions.Add(TEXT("Agent.StopFollowing"));
+    
+    // 收集所有 Sensor 的 Actions
+    TArray<UMASensorComponent*> Sensors = GetAllSensors();
+    for (UMASensorComponent* Sensor : Sensors)
+    {
+        if (Sensor)
+        {
+            TArray<FString> SensorActions = Sensor->GetAvailableActions();
+            Actions.Append(SensorActions);
+        }
+    }
+    
+    return Actions;
+}
+
+bool AMACharacter::ExecuteAction(const FString& ActionName, const TMap<FString, FString>& Params)
+{
+    // Agent 自身的 Actions
+    if (ActionName == TEXT("Agent.NavigateTo"))
+    {
+        FVector Destination = FVector::ZeroVector;
+        if (const FString* XParam = Params.Find(TEXT("x")))
+        {
+            Destination.X = FCString::Atof(**XParam);
+        }
+        if (const FString* YParam = Params.Find(TEXT("y")))
+        {
+            Destination.Y = FCString::Atof(**YParam);
+        }
+        if (const FString* ZParam = Params.Find(TEXT("z")))
+        {
+            Destination.Z = FCString::Atof(**ZParam);
+        }
+        return TryNavigateTo(Destination);
+    }
+    
+    if (ActionName == TEXT("Agent.CancelNavigation"))
+    {
+        CancelNavigation();
+        return true;
+    }
+    
+    if (ActionName == TEXT("Agent.Pickup"))
+    {
+        return TryPickup();
+    }
+    
+    if (ActionName == TEXT("Agent.Drop"))
+    {
+        return TryDrop();
+    }
+    
+    if (ActionName == TEXT("Agent.StopFollowing"))
+    {
+        StopFollowing();
+        return true;
+    }
+    
+    // 尝试在 Sensors 中执行
+    TArray<UMASensorComponent*> Sensors = GetAllSensors();
+    for (UMASensorComponent* Sensor : Sensors)
+    {
+        if (Sensor)
+        {
+            // 检查该 Sensor 是否支持此 Action
+            TArray<FString> SensorActions = Sensor->GetAvailableActions();
+            if (SensorActions.Contains(ActionName))
+            {
+                return Sensor->ExecuteAction(ActionName, Params);
+            }
+        }
+    }
+    
+    UE_LOG(LogTemp, Warning, TEXT("[Agent] %s: Unknown action '%s'"), *AgentName, *ActionName);
+    return false;
 }

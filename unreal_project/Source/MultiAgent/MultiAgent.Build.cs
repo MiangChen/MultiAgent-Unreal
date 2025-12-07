@@ -26,7 +26,10 @@ public class MultiAgent : ModuleRules
             "Sockets",
             "Networking",
             "ImageWrapper",
-            "RenderCore"
+            "RenderCore",
+            // JSON 解析 (Agent 配置)
+            "Json",
+            "JsonUtilities"
         });
 
         PrivateDependencyModuleNames.AddRange(new string[] { });
@@ -39,14 +42,13 @@ public class MultiAgent : ModuleRules
             // Agent 相关
             Path.Combine(ModuleDirectory, "Agent"),
             Path.Combine(ModuleDirectory, "Agent/Character"),
+            Path.Combine(ModuleDirectory, "Agent/Component"),
+            Path.Combine(ModuleDirectory, "Agent/Component/Sensor"),
             Path.Combine(ModuleDirectory, "Agent/GAS"),
             Path.Combine(ModuleDirectory, "Agent/GAS/Ability"),
             Path.Combine(ModuleDirectory, "Agent/StateTree"),
             Path.Combine(ModuleDirectory, "Agent/StateTree/Task"),
-            Path.Combine(ModuleDirectory, "Agent/StateTree/Condition"),
-            // Module 可组装组件
-            Path.Combine(ModuleDirectory, "Module"),
-            Path.Combine(ModuleDirectory, "Module/Sensor")
+            Path.Combine(ModuleDirectory, "Agent/StateTree/Condition")
         });
     }
 }

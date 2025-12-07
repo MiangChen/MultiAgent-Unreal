@@ -1,14 +1,14 @@
 // MAGameMode.h
 // 游戏模式 - 负责初始化各个子系统，协调游戏流程
+// 使用 JSON 配置驱动 Agent 创建
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
-#include "MACharacter.h"
 #include "MAGameMode.generated.h"
 
-class UMAActorSubsystem;
+class UMAAgentManager;
 
 UCLASS()
 class MULTIAGENT_API AMAGameMode : public AGameModeBase
@@ -18,30 +18,17 @@ class MULTIAGENT_API AMAGameMode : public AGameModeBase
 public:
     AMAGameMode();
 
-    // 获取 ActorSubsystem
+    // 获取 AgentManager
     UFUNCTION(BlueprintCallable, Category = "Subsystem")
-    UMAActorSubsystem* GetActorSubsystem() const;
+    UMAAgentManager* GetAgentManager() const;
 
-    // 人类 Character C++ 类
-    UPROPERTY(EditDefaultsOnly, Category = "Character")
-    TSubclassOf<AMACharacter> HumanCharacterClass;
-
-    // 机器狗 Character C++ 类
-    UPROPERTY(EditDefaultsOnly, Category = "Character")
-    TSubclassOf<AMACharacter> RobotDogCharacterClass;
-
-    // 生成的人类数量
-    UPROPERTY(EditDefaultsOnly, Category = "Character")
-    int32 NumHumans = 2;
-
-    // 生成的机器狗数量
-    UPROPERTY(EditDefaultsOnly, Category = "Character")
-    int32 NumRobotDogs = 3;
+    // Agent 配置文件路径（相对于项目根目录）
+    UPROPERTY(EditDefaultsOnly, Category = "Config")
+    FString AgentConfigPath = TEXT("../config/agents.json");
 
 protected:
     virtual void BeginPlay() override;
-    void SpawnInitialCharacters();
     
-    // 生成充电站
-    void SpawnChargingStation();
+    // 从配置文件加载并生成所有 Agent
+    void LoadAndSpawnAgents();
 };

@@ -1,0 +1,97 @@
+{
+    "version": "1.0",
+    "description": "MultiAgent 智能体配置文件",
+    
+    "spawn_settings": {
+        "use_player_start": true,
+        "fallback_origin": [0, 0, 100],
+        "spawn_radius": 400,
+        "project_to_navmesh": true
+    },
+    
+    "agents": [
+        {
+            "id": "human_0",
+            "type": "Human",
+            "class": "/Script/MultiAgent.MAHumanCharacter",
+            "position": "auto",
+            "rotation": [0, 0, 0],
+            "sensors": [
+                {
+                    "type": "Camera",
+                    "position": [-200, 0, 100],
+                    "rotation": [-10, 0, 0],
+                    "params": {
+                        "resolution": [640, 480],
+                        "fov": 90
+                    }
+                }
+            ]
+        },
+        {
+            "id": "human_1",
+            "type": "Human",
+            "class": "/Script/MultiAgent.MAHumanCharacter",
+            "position": "auto",
+            "rotation": [0, 0, 0],
+            "sensors": [
+                {
+                    "type": "Camera",
+                    "position": [-200, 0, 100],
+                    "rotation": [-10, 0, 0]
+                }
+            ]
+        },
+        {
+            "id": "robot_0",
+            "type": "RobotDog",
+            "class": "/Script/MultiAgent.MARobotDogCharacter",
+            "position": "auto",
+            "rotation": [0, 0, 0],
+            "sensors": [
+                {
+                    "type": "Camera",
+                    "position": [-150, 0, 80],
+                    "rotation": [-15, 0, 0]
+                }
+            ]
+        },
+        {
+            "id": "robot_1",
+            "type": "RobotDog",
+            "class": "/Script/MultiAgent.MARobotDogCharacter",
+            "position": "auto",
+            "rotation": [0, 0, 0],
+            "sensors": [
+                {
+                    "type": "Camera",
+                    "position": [-150, 0, 80],
+                    "rotation": [-15, 0, 0]
+                }
+            ]
+        },
+        {
+            "id": "robot_2",
+            "type": "RobotDog",
+            "class": "/Script/MultiAgent.MARobotDogCharacter",
+            "position": "auto",
+            "rotation": [0, 0, 0],
+            "sensors": [
+                {
+                    "type": "Camera",
+                    "position": [-150, 0, 80],
+                    "rotation": [-15, 0, 0]
+                }
+            ]
+        }
+    ],
+    
+    "environment": {
+        "charging_stations": [
+            {
+                "id": "station_0",
+                "position": [1000, 500, 0]
+            }
+        ]
+    }
+}

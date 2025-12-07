@@ -1,11 +1,13 @@
 // MACharacter.h
 // 可控角色基类 - 支持 GAS 技能系统
+// Agent = Character + Components (Sensors, GAS, StateTree)
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "AbilitySystemInterface.h"
+#include "../../Core/MATypes.h"
 #include "MACharacter.generated.h"
 
 class UMAAbilitySystemComponent;
@@ -13,7 +15,7 @@ class AMAPickupItem;
 class UMASensorComponent;
 class UMACameraSensorComponent;
 
-// Actor 类型枚举
+// 保留旧枚举作为别名，便于过渡 (deprecated)
 UENUM(BlueprintType)
 enum class EMAActorType : uint8
 {
@@ -59,14 +61,24 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Abilities")
     bool IsHoldingItem() const;
 
-    // ========== Properties ==========
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Actor")
+    // ========== Properties (Agent 命名) ==========
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Agent")
+    FString AgentID;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Agent")
+    FString AgentName;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Agent")
+    EMAAgentType AgentType;
+    
+    // 保留旧属性作为别名，便于过渡 (deprecated)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Actor", meta = (DeprecatedProperty, DeprecationMessage = "Use AgentID instead"))
     int32 ActorID;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Actor")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Actor", meta = (DeprecatedProperty, DeprecationMessage = "Use AgentName instead"))
     FString ActorName;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Actor")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Actor", meta = (DeprecatedProperty, DeprecationMessage = "Use AgentType instead"))
     EMAActorType ActorType;
 
     UPROPERTY(BlueprintReadOnly, Category = "Movement")
@@ -96,6 +108,16 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Sensor")
     int32 GetSensorCount() const;
+
+    // ========== Action 动态发现与执行 ==========
+    
+    // 获取该 Agent 所有可用的 Actions（包括自身和所有 Sensor 的）
+    UFUNCTION(BlueprintCallable, Category = "Actions")
+    TArray<FString> GetAvailableActions() const;
+    
+    // 执行指定的 Action
+    UFUNCTION(BlueprintCallable, Category = "Actions")
+    bool ExecuteAction(const FString& ActionName, const TMap<FString, FString>& Params);
 
 protected:
     virtual void BeginPlay() override;
