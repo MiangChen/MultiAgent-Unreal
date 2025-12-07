@@ -1,6 +1,7 @@
 // MAActorSubsystem.h
-// Actor 管理子系统 - 负责所有 Character 和 Sensor 的生命周期管理
+// Actor 管理子系统 - 负责所有 Character 的生命周期管理
 // 同时作为集群管理器，处理编队等集群行为（类似 CARLA TrafficManager）
+// 注意：Sensor 现在作为 Component 由 Character 自己管理
 
 #pragma once
 
@@ -10,7 +11,6 @@
 #include "MAActorSubsystem.generated.h"
 
 class AMACharacter;
-class AMASensor;
 
 // 编队类型
 UENUM(BlueprintType)
@@ -26,8 +26,6 @@ enum class EMAFormationType : uint8
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCharacterSpawned, AMACharacter*, Character);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCharacterDestroyed, AMACharacter*, Character);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSensorSpawned, AMASensor*, Sensor);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSensorDestroyed, AMASensor*, Sensor);
 
 UCLASS()
 class MULTIAGENT_API UMAActorSubsystem : public UWorldSubsystem
@@ -56,19 +54,6 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "ActorManager")
     int32 GetCharacterCount() const { return SpawnedCharacters.Num(); }
-
-    // ========== Sensor 管理 ==========
-    UFUNCTION(BlueprintCallable, Category = "ActorManager")
-    AMASensor* SpawnSensor(TSubclassOf<AMASensor> SensorClass, FVector Location, FRotator Rotation, int32 SensorID);
-
-    UFUNCTION(BlueprintCallable, Category = "ActorManager")
-    bool DestroySensor(AMASensor* Sensor);
-
-    UFUNCTION(BlueprintCallable, Category = "ActorManager")
-    TArray<AMASensor*> GetAllSensors() const { return SpawnedSensors; }
-
-    UFUNCTION(BlueprintCallable, Category = "ActorManager")
-    int32 GetSensorCount() const { return SpawnedSensors.Num(); }
 
     // ========== 批量操作 ==========
     UFUNCTION(BlueprintCallable, Category = "ActorManager")
@@ -120,12 +105,6 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "ActorManager")
     FOnCharacterDestroyed OnCharacterDestroyed;
 
-    UPROPERTY(BlueprintAssignable, Category = "ActorManager")
-    FOnSensorSpawned OnSensorSpawned;
-
-    UPROPERTY(BlueprintAssignable, Category = "ActorManager")
-    FOnSensorDestroyed OnSensorDestroyed;
-
 protected:
     virtual void Initialize(FSubsystemCollectionBase& Collection) override;
     virtual void Deinitialize() override;
@@ -135,11 +114,7 @@ private:
     UPROPERTY()
     TArray<AMACharacter*> SpawnedCharacters;
 
-    UPROPERTY()
-    TArray<AMASensor*> SpawnedSensors;
-
     int32 NextActorID = 0;
-    int32 NextSensorID = 0;
     
     // ========== 编队状态 ==========
     UPROPERTY()

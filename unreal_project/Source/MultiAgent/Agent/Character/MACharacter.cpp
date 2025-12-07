@@ -7,6 +7,8 @@
 #include "MAAbilitySystemComponent.h"
 #include "MAGameplayTags.h"
 #include "MAPickupItem.h"
+#include "../Component/Sensor/MASensorComponent.h"
+#include "../Component/Sensor/MACameraSensorComponent.h"
 
 AMACharacter::AMACharacter()
 {
@@ -196,4 +198,62 @@ void AMACharacter::DrawStatusText()
         true,
         1.2f
     );
+}
+
+// ========== Sensor 管理 ==========
+
+UMACameraSensorComponent* AMACharacter::AddCameraSensor(FVector RelativeLocation, FRotator RelativeRotation)
+{
+    static int32 SensorCounter = 0;
+    
+    FName ComponentName = *FString::Printf(TEXT("CameraSensor_%d"), SensorCounter++);
+    UMACameraSensorComponent* CameraSensor = NewObject<UMACameraSensorComponent>(this, ComponentName);
+    
+    if (CameraSensor)
+    {
+        CameraSensor->SetupAttachment(GetRootComponent());
+        CameraSensor->SetRelativeLocation(RelativeLocation);
+        CameraSensor->SetRelativeRotation(RelativeRotation);
+        CameraSensor->RegisterComponent();
+        
+        CameraSensor->SensorName = FString::Printf(TEXT("%s_Camera"), *ActorName);
+        
+        UE_LOG(LogTemp, Log, TEXT("[Character] %s added camera sensor at (%.0f, %.0f, %.0f)"),
+            *ActorName, RelativeLocation.X, RelativeLocation.Y, RelativeLocation.Z);
+    }
+    
+    return CameraSensor;
+}
+
+bool AMACharacter::RemoveSensor(UMASensorComponent* Sensor)
+{
+    if (!Sensor || Sensor->GetOwner() != this)
+    {
+        return false;
+    }
+    
+    FString SensorName = Sensor->SensorName;
+    Sensor->DestroyComponent();
+    
+    UE_LOG(LogTemp, Log, TEXT("[Character] %s removed sensor %s"), *ActorName, *SensorName);
+    return true;
+}
+
+TArray<UMASensorComponent*> AMACharacter::GetAllSensors() const
+{
+    TArray<UMASensorComponent*> Sensors;
+    GetComponents<UMASensorComponent>(Sensors);
+    return Sensors;
+}
+
+UMACameraSensorComponent* AMACharacter::GetCameraSensor() const
+{
+    return FindComponentByClass<UMACameraSensorComponent>();
+}
+
+int32 AMACharacter::GetSensorCount() const
+{
+    TArray<UMASensorComponent*> Sensors;
+    GetComponents<UMASensorComponent>(Sensors);
+    return Sensors.Num();
 }

@@ -4,7 +4,7 @@
 #include "../MAGameplayTags.h"
 #include "MACharacter.h"
 #include "MAHumanCharacter.h"
-#include "MACameraSensor.h"
+#include "../../Component/Sensor/MACameraSensorComponent.h"
 #include "AbilitySystemComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
@@ -18,23 +18,12 @@ UGA_Search::UGA_Search()
     ActivationOwnedTags.AddTag(FMAGameplayTags::Get().Status_Searching);
 }
 
-AMACameraSensor* UGA_Search::GetAttachedCamera() const
+UMACameraSensorComponent* UGA_Search::GetAttachedCamera() const
 {
     AMACharacter* Character = const_cast<UGA_Search*>(this)->GetOwningCharacter();
     if (!Character) return nullptr;
     
-    TArray<AActor*> AttachedActors;
-    Character->GetAttachedActors(AttachedActors);
-    
-    for (AActor* Actor : AttachedActors)
-    {
-        if (AMACameraSensor* Camera = Cast<AMACameraSensor>(Actor))
-        {
-            return Camera;
-        }
-    }
-    
-    return nullptr;
+    return Character->GetCameraSensor();
 }
 
 bool UGA_Search::CanActivateAbility(

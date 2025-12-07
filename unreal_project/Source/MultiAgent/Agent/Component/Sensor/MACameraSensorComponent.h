@@ -1,25 +1,25 @@
-// MACameraSensor.h
-// 摄像头传感器 - 支持拍照、录像、TCP流
+// MACameraSensorComponent.h
+// 摄像头传感器组件 - 支持拍照、录像、TCP流
 
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MASensor.h"
+#include "MASensorComponent.h"
 #include "Sockets.h"
 #include "SocketSubsystem.h"
-#include "MACameraSensor.generated.h"
+#include "MACameraSensorComponent.generated.h"
 
 class UCameraComponent;
 class USceneCaptureComponent2D;
 class UTextureRenderTarget2D;
 
-UCLASS()
-class MULTIAGENT_API AMACameraSensor : public AMASensor
+UCLASS(ClassGroup=(MultiAgent), meta=(BlueprintSpawnableComponent))
+class MULTIAGENT_API UMACameraSensorComponent : public UMASensorComponent
 {
     GENERATED_BODY()
 
 public:
-    AMACameraSensor();
+    UMACameraSensorComponent();
     virtual void BeginDestroy() override;
 
     // ========== 拍照功能 ==========
@@ -58,7 +58,7 @@ public:
 
     // ========== 属性 ==========
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera")
-    FIntPoint Resolution = FIntPoint(640, 480);  // 降低默认分辨率
+    FIntPoint Resolution = FIntPoint(640, 480);
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera")
     float FOV = 90.0f;
@@ -68,10 +68,17 @@ public:
 
     // 流/录像参数
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Stream", meta = (ClampMin = "10", ClampMax = "100"))
-    int32 JPEGQuality = 50;  // 降低质量减少数据量
+    int32 JPEGQuality = 50;
     
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Stream", meta = (ClampMin = "5", ClampMax = "30"))
-    float StreamFPS = 15.f;  // 降低帧率
+    float StreamFPS = 15.f;
+
+    // ========== 获取子组件 ==========
+    UFUNCTION(BlueprintCallable, Category = "Camera")
+    UCameraComponent* GetCameraComponent() const { return CameraComponent; }
+
+    UFUNCTION(BlueprintCallable, Category = "Camera")
+    USceneCaptureComponent2D* GetSceneCaptureComponent() const { return SceneCaptureComponent; }
 
 protected:
     virtual void BeginPlay() override;

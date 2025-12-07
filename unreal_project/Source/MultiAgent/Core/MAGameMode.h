@@ -9,7 +9,6 @@
 #include "MAGameMode.generated.h"
 
 class UMAActorSubsystem;
-class AMACameraSensor;
 
 UCLASS()
 class MULTIAGENT_API AMAGameMode : public AGameModeBase
@@ -42,9 +41,6 @@ public:
 protected:
     virtual void BeginPlay() override;
     void SpawnInitialCharacters();
-    
-    // 生成并附着摄像头到 Character
-    void SpawnAndAttachCamera(UMAActorSubsystem* ActorSubsystem, AMACharacter* ParentCharacter, FVector RelativeLocation, FRotator RelativeRotation);
     
     // 生成充电站
     void SpawnChargingStation();

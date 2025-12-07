@@ -10,6 +10,8 @@
 
 class UMAAbilitySystemComponent;
 class AMAPickupItem;
+class UMASensorComponent;
+class UMACameraSensorComponent;
 
 // Actor 类型枚举
 UENUM(BlueprintType)
@@ -78,6 +80,22 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Status")
     bool bShowStatusAboveHead = true;
+
+    // ========== Sensor 管理 ==========
+    UFUNCTION(BlueprintCallable, Category = "Sensor")
+    UMACameraSensorComponent* AddCameraSensor(FVector RelativeLocation, FRotator RelativeRotation = FRotator::ZeroRotator);
+
+    UFUNCTION(BlueprintCallable, Category = "Sensor")
+    bool RemoveSensor(UMASensorComponent* Sensor);
+
+    UFUNCTION(BlueprintCallable, Category = "Sensor")
+    TArray<UMASensorComponent*> GetAllSensors() const;
+
+    UFUNCTION(BlueprintCallable, Category = "Sensor")
+    UMACameraSensorComponent* GetCameraSensor() const;
+
+    UFUNCTION(BlueprintCallable, Category = "Sensor")
+    int32 GetSensorCount() const;
 
 protected:
     virtual void BeginPlay() override;

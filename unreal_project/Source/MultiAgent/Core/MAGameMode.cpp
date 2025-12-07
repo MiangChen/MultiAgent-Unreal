@@ -5,7 +5,6 @@
 #include "MAActorSubsystem.h"
 #include "MAHumanCharacter.h"
 #include "MARobotDogCharacter.h"
-#include "MACameraSensor.h"
 #include "MAChargingStation.h"
 #include "GameFramework/SpectatorPawn.h"
 #include "UObject/ConstructorHelpers.h"
@@ -86,10 +85,10 @@ void AMAGameMode::SpawnInitialCharacters()
         
         AMACharacter* Human = ActorSubsystem->SpawnCharacter(HumanCharacterClass, SpawnLocation, FRotator::ZeroRotator, CharacterIndex, EMAActorType::Human);
         
-        // 为 Human 添加第三人称摄像头
+        // 为 Human 添加第三人称摄像头 (使用 Component 方式)
         if (Human)
         {
-            SpawnAndAttachCamera(ActorSubsystem, Human, FVector(-200.f, 0.f, 100.f), FRotator(-10.f, 0.f, 0.f));
+            Human->AddCameraSensor(FVector(-200.f, 0.f, 100.f), FRotator(-10.f, 0.f, 0.f));
         }
         
         CharacterIndex++;
@@ -119,41 +118,19 @@ void AMAGameMode::SpawnInitialCharacters()
         
         AMACharacter* RobotDog = ActorSubsystem->SpawnCharacter(RobotDogCharacterClass, SpawnLocation, FRotator::ZeroRotator, CharacterIndex, EMAActorType::RobotDog);
         
-        // 为 RobotDog 添加第三人称摄像头
+        // 为 RobotDog 添加第三人称摄像头 (使用 Component 方式)
         if (RobotDog)
         {
-            SpawnAndAttachCamera(ActorSubsystem, RobotDog, FVector(-150.f, 0.f, 80.f), FRotator(-15.f, 0.f, 0.f));
+            RobotDog->AddCameraSensor(FVector(-150.f, 0.f, 80.f), FRotator(-15.f, 0.f, 0.f));
         }
         
         CharacterIndex++;
     }
     
-    UE_LOG(LogTemp, Log, TEXT("Spawned %d humans and %d robot dogs with cameras via ActorSubsystem"), NumHumans, NumRobotDogs);
+    UE_LOG(LogTemp, Log, TEXT("Spawned %d humans and %d robot dogs with camera components"), NumHumans, NumRobotDogs);
     
     // 生成充电站
     SpawnChargingStation();
-}
-
-void AMAGameMode::SpawnAndAttachCamera(UMAActorSubsystem* ActorSubsystem, AMACharacter* ParentCharacter, FVector RelativeLocation, FRotator RelativeRotation)
-{
-    if (!ActorSubsystem || !ParentCharacter)
-    {
-        return;
-    }
-    
-    // 在父 Character 位置生成摄像头
-    AMACameraSensor* Camera = Cast<AMACameraSensor>(
-        ActorSubsystem->SpawnSensor(AMACameraSensor::StaticClass(), ParentCharacter->GetActorLocation(), ParentCharacter->GetActorRotation(), -1)
-    );
-    
-    if (Camera)
-    {
-        // 附着到父 Character
-        Camera->AttachToCharacter(ParentCharacter, RelativeLocation, RelativeRotation);
-        
-        UE_LOG(LogTemp, Log, TEXT("[GameMode] Attached camera %s to %s at offset (%.0f, %.0f, %.0f)"),
-            *Camera->SensorName, *ParentCharacter->ActorName, RelativeLocation.X, RelativeLocation.Y, RelativeLocation.Z);
-    }
 }
 
 void AMAGameMode::SpawnChargingStation()

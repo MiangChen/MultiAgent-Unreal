@@ -1,6 +1,6 @@
-// MACameraSensor.cpp
+// MACameraSensorComponent.cpp
 
-#include "MACameraSensor.h"
+#include "MACameraSensorComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "Engine/TextureRenderTarget2D.h"
@@ -13,13 +13,14 @@
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "TimerManager.h"
 
-AMACameraSensor::AMACameraSensor()
+UMACameraSensorComponent::UMACameraSensorComponent()
 {
     SensorType = EMASensorType::Camera;
     SensorName = TEXT("Camera");
     
+    // 创建子组件
     CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("CameraComponent"));
-    CameraComponent->SetupAttachment(RootSceneComponent);
+    CameraComponent->SetupAttachment(this);
     CameraComponent->SetRelativeLocation(FVector::ZeroVector);
     CameraComponent->FieldOfView = FOV;
     
@@ -34,14 +35,14 @@ AMACameraSensor::AMACameraSensor()
     SceneCaptureComponent->ShowFlags.SetPostProcessing(true);
 }
 
-void AMACameraSensor::BeginDestroy()
+void UMACameraSensorComponent::BeginDestroy()
 {
     StopRecording();
     StopTCPStream();
     Super::BeginDestroy();
 }
 
-void AMACameraSensor::BeginPlay()
+void UMACameraSensorComponent::BeginPlay()
 {
     Super::BeginPlay();
     
@@ -51,7 +52,7 @@ void AMACameraSensor::BeginPlay()
     InitializeRenderTarget();
 }
 
-void AMACameraSensor::InitializeRenderTarget()
+void UMACameraSensorComponent::InitializeRenderTarget()
 {
     RenderTarget = NewObject<UTextureRenderTarget2D>(this);
     RenderTarget->InitAutoFormat(Resolution.X, Resolution.Y);
@@ -64,7 +65,7 @@ void AMACameraSensor::InitializeRenderTarget()
         *SensorName, Resolution.X, Resolution.Y, FOV);
 }
 
-bool AMACameraSensor::TakePhoto(const FString& FilePath)
+bool UMACameraSensorComponent::TakePhoto(const FString& FilePath)
 {
     FString SavePath = FilePath;
     if (SavePath.IsEmpty())
@@ -101,7 +102,7 @@ bool AMACameraSensor::TakePhoto(const FString& FilePath)
     return false;
 }
 
-TArray<FColor> AMACameraSensor::CaptureFrame()
+TArray<FColor> UMACameraSensorComponent::CaptureFrame()
 {
     TArray<FColor> Pixels;
     
@@ -117,7 +118,7 @@ TArray<FColor> AMACameraSensor::CaptureFrame()
 }
 
 // ========== 通用帧获取 ==========
-TArray<uint8> AMACameraSensor::GetFrameAsJPEG(int32 Quality)
+TArray<uint8> UMACameraSensorComponent::GetFrameAsJPEG(int32 Quality)
 {
     TArray<uint8> JPEGData;
     
@@ -139,7 +140,7 @@ TArray<uint8> AMACameraSensor::GetFrameAsJPEG(int32 Quality)
 }
 
 // ========== 录像功能 ==========
-void AMACameraSensor::StartRecording(float FPS)
+void UMACameraSensorComponent::StartRecording(float FPS)
 {
     if (bIsRecording) return;
     
@@ -151,12 +152,12 @@ void AMACameraSensor::StartRecording(float FPS)
     bIsRecording = true;
     
     float Interval = 1.0f / FPS;
-    GetWorld()->GetTimerManager().SetTimer(RecordTimerHandle, this, &AMACameraSensor::OnRecordTick, Interval, true);
+    GetWorld()->GetTimerManager().SetTimer(RecordTimerHandle, this, &UMACameraSensorComponent::OnRecordTick, Interval, true);
     
     UE_LOG(LogTemp, Log, TEXT("[Camera] %s started recording at %.0f FPS to %s"), *SensorName, FPS, *RecordingDirectory);
 }
 
-void AMACameraSensor::StopRecording()
+void UMACameraSensorComponent::StopRecording()
 {
     if (!bIsRecording) return;
     
@@ -166,7 +167,7 @@ void AMACameraSensor::StopRecording()
     UE_LOG(LogTemp, Log, TEXT("[Camera] %s stopped recording. %d frames saved to %s"), *SensorName, RecordingFrameIndex, *RecordingDirectory);
 }
 
-void AMACameraSensor::OnRecordTick()
+void UMACameraSensorComponent::OnRecordTick()
 {
     TArray<uint8> JPEGData = GetFrameAsJPEG(JPEGQuality);
     if (JPEGData.Num() > 0)
@@ -178,7 +179,7 @@ void AMACameraSensor::OnRecordTick()
 }
 
 // ========== TCP 流 ==========
-bool AMACameraSensor::StartTCPStream(int32 Port, float FPS)
+bool UMACameraSensorComponent::StartTCPStream(int32 Port, float FPS)
 {
     if (bIsStreaming)
     {
@@ -235,13 +236,13 @@ bool AMACameraSensor::StartTCPStream(int32 Port, float FPS)
     bIsStreaming = true;
     
     float Interval = 1.0f / FPS;
-    GetWorld()->GetTimerManager().SetTimer(StreamTimerHandle, this, &AMACameraSensor::OnStreamTick, Interval, true);
+    GetWorld()->GetTimerManager().SetTimer(StreamTimerHandle, this, &UMACameraSensorComponent::OnStreamTick, Interval, true);
     
     UE_LOG(LogTemp, Log, TEXT("[Camera] %s started TCP stream on port %d at %.0f FPS"), *SensorName, Port, FPS);
     return true;
 }
 
-void AMACameraSensor::StopTCPStream()
+void UMACameraSensorComponent::StopTCPStream()
 {
     if (!bIsStreaming) return;
     
@@ -252,7 +253,7 @@ void AMACameraSensor::StopTCPStream()
     UE_LOG(LogTemp, Log, TEXT("[Camera] %s stopped TCP stream"), *SensorName);
 }
 
-void AMACameraSensor::OnStreamTick()
+void UMACameraSensorComponent::OnStreamTick()
 {
     AcceptNewClients();
     
@@ -265,7 +266,7 @@ void AMACameraSensor::OnStreamTick()
     }
 }
 
-void AMACameraSensor::AcceptNewClients()
+void UMACameraSensorComponent::AcceptNewClients()
 {
     if (!ListenSocket) return;
     
@@ -282,7 +283,7 @@ void AMACameraSensor::AcceptNewClients()
     }
 }
 
-void AMACameraSensor::SendFrameToClients(const TArray<uint8>& JPEGData)
+void UMACameraSensorComponent::SendFrameToClients(const TArray<uint8>& JPEGData)
 {
     // 帧格式: [4字节长度][JPEG数据]
     int32 DataSize = JPEGData.Num();
@@ -319,7 +320,7 @@ void AMACameraSensor::SendFrameToClients(const TArray<uint8>& JPEGData)
     }
 }
 
-void AMACameraSensor::CleanupSockets()
+void UMACameraSensorComponent::CleanupSockets()
 {
     for (FSocket* Client : ClientSockets)
     {

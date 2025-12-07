@@ -7,7 +7,7 @@
 #include "../MAGameplayAbilityBase.h"
 #include "GA_Search.generated.h"
 
-class AMACameraSensor;
+class UMACameraSensorComponent;
 class AMAHumanCharacter;
 
 UCLASS()
@@ -68,8 +68,8 @@ private:
     // 发现目标时的处理
     void OnTargetFound(AMAHumanCharacter* Human);
     
-    // 获取附着的摄像头
-    AMACameraSensor* GetAttachedCamera() const;
+    // 获取附着的摄像头组件
+    UMACameraSensorComponent* GetAttachedCamera() const;
     
     // 清理
     void CleanupSearch();

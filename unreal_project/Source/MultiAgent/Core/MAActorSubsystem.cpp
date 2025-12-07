@@ -1,7 +1,6 @@
 // MAActorSubsystem.cpp
 
 #include "MAActorSubsystem.h"
-#include "MASensor.h"
 #include "MARobotDogCharacter.h"
 #include "AIController.h"
 #include "TimerManager.h"
@@ -15,7 +14,6 @@ void UMAActorSubsystem::Deinitialize()
 {
     StopFormation();
     SpawnedCharacters.Empty();
-    SpawnedSensors.Empty();
     Super::Deinitialize();
 }
 
@@ -114,54 +112,6 @@ AMACharacter* UMAActorSubsystem::GetCharacterByName(const FString& Name) const
         }
     }
     return nullptr;
-}
-
-// ========== Sensor 管理 ==========
-
-AMASensor* UMAActorSubsystem::SpawnSensor(TSubclassOf<AMASensor> SensorClass, FVector Location, FRotator Rotation, int32 SensorID)
-{
-    if (!SensorClass)
-    {
-        return nullptr;
-    }
-
-    UWorld* World = GetWorld();
-    if (!World)
-    {
-        return nullptr;
-    }
-
-    FActorSpawnParameters SpawnParams;
-    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-    AMASensor* NewSensor = World->SpawnActor<AMASensor>(SensorClass, Location, Rotation, SpawnParams);
-    if (NewSensor)
-    {
-        NewSensor->SensorID = SensorID >= 0 ? SensorID : NextSensorID++;
-        NewSensor->SensorName = FString::Printf(TEXT("Sensor_%d"), NewSensor->SensorID);
-
-        SpawnedSensors.Add(NewSensor);
-        OnSensorSpawned.Broadcast(NewSensor);
-    }
-
-    return NewSensor;
-}
-
-bool UMAActorSubsystem::DestroySensor(AMASensor* Sensor)
-{
-    if (!Sensor)
-    {
-        return false;
-    }
-
-    if (SpawnedSensors.Remove(Sensor) > 0)
-    {
-        OnSensorDestroyed.Broadcast(Sensor);
-        Sensor->Destroy();
-        return true;
-    }
-
-    return false;
 }
 
 // ========== 批量操作 ==========

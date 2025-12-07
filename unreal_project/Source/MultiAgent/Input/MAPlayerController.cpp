@@ -6,7 +6,7 @@
 #include "../Core/MAActorSubsystem.h"
 #include "MACharacter.h"
 #include "MARobotDogCharacter.h"
-#include "MACameraSensor.h"
+#include "../Agent/Component/Sensor/MACameraSensorComponent.h"
 #include "MAPickupItem.h"
 #include "MAPatrolPath.h"
 #include "MACoverageArea.h"
@@ -254,19 +254,29 @@ void AMAPlayerController::OnPrintAgentInfo(const FInputActionValue& Value)
     int32 Total = ActorSubsystem->GetCharacterCount();
     int32 Dogs = ActorSubsystem->GetCharactersByType(EMAActorType::RobotDog).Num();
     int32 Humans = ActorSubsystem->GetCharactersByType(EMAActorType::Human).Num();
-    int32 Sensors = ActorSubsystem->GetSensorCount();
+    
+    // 统计所有 Character 上的 Sensor 数量
+    int32 TotalSensors = 0;
+    for (AMACharacter* Character : ActorSubsystem->GetAllCharacters())
+    {
+        if (Character)
+        {
+            TotalSensors += Character->GetSensorCount();
+        }
+    }
     
     GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Cyan, 
         FString::Printf(TEXT("=== Actors: %d | Dogs: %d | Humans: %d | Sensors: %d ==="), 
-            Total, Dogs, Humans, Sensors));
+            Total, Dogs, Humans, TotalSensors));
     
     for (AMACharacter* Character : ActorSubsystem->GetAllCharacters())
     {
         if (Character)
         {
             FString HoldingInfo = Character->IsHoldingItem() ? TEXT(" [Holding]") : TEXT("");
+            FString SensorInfo = Character->GetSensorCount() > 0 ? FString::Printf(TEXT(" [%d sensors]"), Character->GetSensorCount()) : TEXT("");
             GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, 
-                FString::Printf(TEXT("  [%d] %s%s"), Character->ActorID, *Character->ActorName, *HoldingInfo));
+                FString::Printf(TEXT("  [%d] %s%s%s"), Character->ActorID, *Character->ActorName, *HoldingInfo, *SensorInfo));
         }
     }
 }
@@ -299,13 +309,18 @@ void AMAPlayerController::OnSwitchCamera(const FInputActionValue& Value)
     UMAActorSubsystem* ActorSubsystem = GetWorld()->GetSubsystem<UMAActorSubsystem>();
     if (!ActorSubsystem) return;
     
-    TArray<AMASensor*> Sensors = ActorSubsystem->GetAllSensors();
-    TArray<AMACameraSensor*> Cameras;
-    for (AMASensor* Sensor : Sensors)
+    // 收集所有 Character 上的 Camera Component
+    TArray<UMACameraSensorComponent*> Cameras;
+    TArray<AMACharacter*> CameraOwners;
+    for (AMACharacter* Character : ActorSubsystem->GetAllCharacters())
     {
-        if (AMACameraSensor* Camera = Cast<AMACameraSensor>(Sensor))
+        if (Character)
         {
-            Cameras.Add(Camera);
+            if (UMACameraSensorComponent* Camera = Character->GetCameraSensor())
+            {
+                Cameras.Add(Camera);
+                CameraOwners.Add(Character);
+            }
         }
     }
     
@@ -326,10 +341,12 @@ void AMAPlayerController::OnSwitchCamera(const FInputActionValue& Value)
         CurrentCameraIndex = 0;
     }
     
-    AMACameraSensor* Camera = Cameras[CurrentCameraIndex];
-    if (Camera)
+    // 切换到 Character 的视角（Camera Component 附着在 Character 上）
+    AMACharacter* TargetCharacter = CameraOwners[CurrentCameraIndex];
+    UMACameraSensorComponent* Camera = Cameras[CurrentCameraIndex];
+    if (TargetCharacter && Camera)
     {
-        SetViewTargetWithBlend(Camera, 0.3f);
+        SetViewTargetWithBlend(TargetCharacter, 0.3f);
         GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green,
             FString::Printf(TEXT("Camera: %s (%d/%d)"), *Camera->SensorName, CurrentCameraIndex + 1, Cameras.Num()));
     }
@@ -759,13 +776,13 @@ void AMAPlayerController::OnTakePhoto(const FInputActionValue& Value)
         return;
     }
     
-    // 获取所有 Camera Sensor 并拍照 (CARLA 风格)
+    // 获取所有 Character 上的 Camera Component 并拍照
     int32 PhotoCount = 0;
-    TArray<AMASensor*> Sensors = ActorSubsystem->GetAllSensors();
-    
-    for (AMASensor* Sensor : Sensors)
+    for (AMACharacter* Character : ActorSubsystem->GetAllCharacters())
     {
-        if (AMACameraSensor* Camera = Cast<AMACameraSensor>(Sensor))
+        if (!Character) continue;
+        
+        if (UMACameraSensorComponent* Camera = Character->GetCameraSensor())
         {
             if (Camera->TakePhoto())
             {
@@ -797,14 +814,16 @@ void AMAPlayerController::OnToggleRecording(const FInputActionValue& Value)
         return;
     }
     
-    // 只对当前激活的相机进行录像（基于 CurrentCameraIndex）
-    TArray<AMASensor*> Sensors = ActorSubsystem->GetAllSensors();
-    TArray<AMACameraSensor*> Cameras;
-    for (AMASensor* Sensor : Sensors)
+    // 收集所有 Character 上的 Camera Component
+    TArray<UMACameraSensorComponent*> Cameras;
+    for (AMACharacter* Character : ActorSubsystem->GetAllCharacters())
     {
-        if (AMACameraSensor* Camera = Cast<AMACameraSensor>(Sensor))
+        if (Character)
         {
-            Cameras.Add(Camera);
+            if (UMACameraSensorComponent* Camera = Character->GetCameraSensor())
+            {
+                Cameras.Add(Camera);
+            }
         }
     }
     
@@ -815,7 +834,7 @@ void AMAPlayerController::OnToggleRecording(const FInputActionValue& Value)
     }
     
     // 根据 CurrentCameraIndex 选择相机
-    AMACameraSensor* TargetCamera = nullptr;
+    UMACameraSensorComponent* TargetCamera = nullptr;
     if (CurrentCameraIndex < 0 || CurrentCameraIndex >= Cameras.Num())
     {
         TargetCamera = Cameras[0];
@@ -857,16 +876,16 @@ void AMAPlayerController::OnToggleTCPStream(const FInputActionValue& Value)
         return;
     }
     
-    // 只对当前激活的相机进行 TCP 流（基于 CurrentCameraIndex）
-    AMACameraSensor* TargetCamera = nullptr;
-    
-    TArray<AMASensor*> Sensors = ActorSubsystem->GetAllSensors();
-    TArray<AMACameraSensor*> Cameras;
-    for (AMASensor* Sensor : Sensors)
+    // 收集所有 Character 上的 Camera Component
+    TArray<UMACameraSensorComponent*> Cameras;
+    for (AMACharacter* Character : ActorSubsystem->GetAllCharacters())
     {
-        if (AMACameraSensor* Camera = Cast<AMACameraSensor>(Sensor))
+        if (Character)
         {
-            Cameras.Add(Camera);
+            if (UMACameraSensorComponent* Camera = Character->GetCameraSensor())
+            {
+                Cameras.Add(Camera);
+            }
         }
     }
     
@@ -878,6 +897,7 @@ void AMAPlayerController::OnToggleTCPStream(const FInputActionValue& Value)
     
     // 根据 CurrentCameraIndex 选择相机
     // -1 表示上帝视角，使用第一个相机
+    UMACameraSensorComponent* TargetCamera = nullptr;
     if (CurrentCameraIndex < 0 || CurrentCameraIndex >= Cameras.Num())
     {
         TargetCamera = Cameras[0];
@@ -894,7 +914,7 @@ void AMAPlayerController::OnToggleTCPStream(const FInputActionValue& Value)
     }
     
     // 先停止所有其他相机的流
-    for (AMACameraSensor* Camera : Cameras)
+    for (UMACameraSensorComponent* Camera : Cameras)
     {
         if (Camera != TargetCamera && Camera->bIsStreaming)
         {
