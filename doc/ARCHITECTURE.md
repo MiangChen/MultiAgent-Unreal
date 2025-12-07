@@ -63,81 +63,86 @@ State Tree (大脑 - 状态决策)          GAS (手脚 - 技能执行)
 ## 3. 当前文件结构
 
 ```
-unreal_project/Source/MultiAgent/
-├── Core/                            # 核心框架
-│   ├── MAActorSubsystem.h/cpp       # Actor 管理子系统 (仅管理 Character)
-│   ├── MAGameMode.h/cpp             # 游戏模式
-│   └── MAPlayerController.h/cpp     # 玩家控制器 (Enhanced Input)
+MultiAgent-Unreal/
+├── config/                          # 配置文件目录
+│   └── agents.json                  # Agent 配置 (JSON 驱动创建)
 │
-├── Agent/                           # 智能体模块
-│   ├── Character/                   # ACharacter 派生类
-│   │   ├── MACharacter.h/cpp        # 角色基类 (继承 ACharacter, 集成 GAS + Sensor 管理)
-│   │   ├── MAHumanCharacter.h/cpp   # 人类角色
-│   │   └── MARobotDogCharacter.h/cpp # 机器狗角色
+└── unreal_project/Source/MultiAgent/
+    ├── Core/                        # 核心框架
+    │   ├── MATypes.h                # 公共类型定义 (EMAAgentType, EMAFormationType)
+    │   ├── MAAgentManager.h/cpp     # Agent 管理器 (JSON 配置 + Action 动态发现)
+    │   ├── MAGameMode.h/cpp         # 游戏模式 (配置驱动)
+    │   └── MAPlayerController.h/cpp # 玩家控制器 (Enhanced Input)
+    │
+    ├── Agent/                       # 智能体模块
+    │   ├── Character/               # ACharacter 派生类
+    │   │   ├── MACharacter.h/cpp    # 角色基类 (GAS + Sensor + Action 聚合)
+    │   │   ├── MAHumanCharacter.h/cpp   # 人类角色
+    │   │   └── MARobotDogCharacter.h/cpp # 机器狗角色
+    │   │
+    │   ├── Component/               # 组件模块 (UE Component 模式)
+    │   │   └── Sensor/              # 传感器组件
+    │   │       ├── MASensorComponent.h/cpp       # 传感器基类 (Action 接口)
+    │   │       └── MACameraSensorComponent.h/cpp # 摄像头组件 (6 个 Actions)
 │   │
-│   ├── Component/                   # 组件模块 (UE Component 模式)
-│   │   └── Sensor/                  # 传感器组件
-│   │       ├── MASensorComponent.h/cpp       # 传感器基类 (继承 USceneComponent)
-│   │       └── MACameraSensorComponent.h/cpp # 摄像头组件 (拍照/录像/TCP流)
-│   │
-│   ├── GAS/                         # GAS 模块
-│   │   ├── MAAbilitySystemComponent.h/cpp  # GAS 核心组件
-│   │   ├── MAGameplayTags.h/cpp     # Gameplay Tags 定义
-│   │   ├── MAGameplayAbilityBase.h/cpp  # Ability 基类
-│   │   └── Ability/                 # 具体技能
-│   │       ├── GA_Pickup.h/cpp      # 拾取技能
-│   │       ├── GA_Drop.h/cpp        # 放下技能
-│   │       ├── GA_Navigate.h/cpp    # 导航技能
-│   │       ├── GA_Follow.h/cpp      # 追踪技能
-│   │       ├── GA_Search.h/cpp      # 搜索技能
-│   │       ├── GA_Observe.h/cpp     # 观察技能
-│   │       ├── GA_Report.h/cpp      # 报告技能
-│   │       ├── GA_Charge.h/cpp      # 充电技能
-│   │       ├── GA_Formation.h/cpp   # 编队技能
-│   │       └── GA_Avoid.h/cpp       # 避障技能
-│   │
-│   └── StateTree/                   # State Tree 模块
-│       ├── MAStateTreeComponent.h/cpp   # State Tree 组件
-│       ├── Task/                    # State Tree Task
-│       │   ├── MASTTask_ActivateAbility.h/cpp
-│       │   ├── MASTTask_Navigate.h/cpp
-│       │   ├── MASTTask_Patrol.h/cpp
-│       │   ├── MASTTask_Charge.h/cpp
-│       │   ├── MASTTask_Coverage.h/cpp
-│       │   └── MASTTask_Follow.h/cpp
-│       └── Condition/               # State Tree Condition
-│           ├── MASTCondition_HasCommand.h/cpp
-│           ├── MASTCondition_LowEnergy.h/cpp
-│           ├── MASTCondition_FullEnergy.h/cpp
-│           └── MASTCondition_HasPatrolPath.h/cpp
-│
-├── Actor/                           # 通用 AActor 派生类
-│   ├── MAPickupItem.h/cpp           # 可拾取物品
-│   ├── MAChargingStation.h/cpp      # 充电站
-│   ├── MAPatrolPath.h/cpp           # 巡逻路径
-│   └── MACoverageArea.h/cpp         # 覆盖区域
-│
-├── Input/                           # 输入系统
-│   ├── MAInputActions.h/cpp         # Input Actions 单例 (运行时创建)
-│   ├── MAInputConfig.h/cpp          # 输入配置数据资产
-│   ├── MAInputComponent.h/cpp       # 增强输入组件
-│   └── MAPlayerController.h/cpp     # 玩家控制器
-│
-├── MultiAgent.Build.cs              # 模块构建配置
-└── MultiAgent.h/cpp                 # 模块定义
+    │   ├── GAS/                     # GAS 模块
+    │   │   ├── MAAbilitySystemComponent.h/cpp  # GAS 核心组件
+    │   │   ├── MAGameplayTags.h/cpp # Gameplay Tags 定义
+    │   │   ├── MAGameplayAbilityBase.h/cpp  # Ability 基类
+    │   │   └── Ability/             # 具体技能
+    │   │       ├── GA_Pickup.h/cpp  # 拾取技能
+    │   │       ├── GA_Drop.h/cpp    # 放下技能
+    │   │       ├── GA_Navigate.h/cpp # 导航技能
+    │   │       ├── GA_Follow.h/cpp  # 追踪技能
+    │   │       ├── GA_Search.h/cpp  # 搜索技能
+    │   │       ├── GA_Observe.h/cpp # 观察技能
+    │   │       ├── GA_Report.h/cpp  # 报告技能
+    │   │       ├── GA_Charge.h/cpp  # 充电技能
+    │   │       ├── GA_Formation.h/cpp # 编队技能
+    │   │       └── GA_Avoid.h/cpp   # 避障技能
+    │   │
+    │   └── StateTree/               # State Tree 模块
+    │       ├── MAStateTreeComponent.h/cpp   # State Tree 组件
+    │       ├── Task/                # State Tree Task
+    │       │   ├── MASTTask_ActivateAbility.h/cpp
+    │       │   ├── MASTTask_Navigate.h/cpp
+    │       │   ├── MASTTask_Patrol.h/cpp
+    │       │   ├── MASTTask_Charge.h/cpp
+    │       │   ├── MASTTask_Coverage.h/cpp
+    │       │   └── MASTTask_Follow.h/cpp
+    │       └── Condition/           # State Tree Condition
+    │           ├── MASTCondition_HasCommand.h/cpp
+    │           ├── MASTCondition_LowEnergy.h/cpp
+    │           ├── MASTCondition_FullEnergy.h/cpp
+    │           └── MASTCondition_HasPatrolPath.h/cpp
+    │
+    ├── Environment/                 # 环境 Actor
+    │   ├── MAPickupItem.h/cpp       # 可拾取物品
+    │   ├── MAChargingStation.h/cpp  # 充电站
+    │   ├── MAPatrolPath.h/cpp       # 巡逻路径
+    │   └── MACoverageArea.h/cpp     # 覆盖区域
+    │
+    ├── Input/                       # 输入系统
+    │   ├── MAInputActions.h/cpp     # Input Actions 单例 (运行时创建)
+    │   ├── MAInputConfig.h/cpp      # 输入配置数据资产
+    │   ├── MAInputComponent.h/cpp   # 增强输入组件
+    │   └── MAPlayerController.h/cpp # 玩家控制器
+    │
+    ├── MultiAgent.Build.cs          # 模块构建配置 (含 Json 模块)
+    └── MultiAgent.h/cpp             # 模块定义
 ```
 
 ## 4. 类继承关系
 
 ```
 ACharacter (UE) + IAbilitySystemInterface
-    └── AMACharacter (角色基类，集成 GAS + Sensor 管理)
+    └── AMACharacter (角色基类，GAS + Sensor + Action 聚合)
             ├── AMAHumanCharacter (人类)
             └── AMARobotDogCharacter (机器狗)
 
 USceneComponent (UE)
-    └── UMASensorComponent (传感器基类组件)
-            └── UMACameraSensorComponent (摄像头组件)
+    └── UMASensorComponent (传感器基类，Action 接口)
+            └── UMACameraSensorComponent (摄像头组件，6 个 Actions)
 
 AActor (UE)
     ├── AMAPickupItem (可拾取物品)
@@ -161,7 +166,7 @@ UGameplayAbility (UE GAS)
             └── UGA_Avoid
 
 UWorldSubsystem (UE)
-    └── UMAActorSubsystem (仅管理 Character)
+    └── UMAAgentManager (Agent 管理 + JSON 配置 + Action 路由)
 ```
 
 ## 5. Sensor Component 设计
@@ -238,9 +243,173 @@ int32 Count = Character->GetSensorCount();
 | `JPEGQuality` | 50 | JPEG 压缩质量 (10-100) |
 | `StreamFPS` | 15.0 | 流/录像帧率 (5-30) |
 
-## 6. Manager 子系统设计
+## 6. JSON 配置驱动系统
 
-### 6.1 全局 Manager vs Character 组件
+### 6.1 配置文件结构
+
+Agent 创建由 `config/agents.json` 驱动，无需修改 C++ 代码：
+
+```json
+{
+  "version": "1.0",
+  "spawn_settings": {
+    "default_spacing": 150.0,
+    "auto_position_enabled": true
+  },
+  "agents": [
+    {
+      "id": "human_01",
+      "type": "Human",
+      "class": "/Game/Blueprints/BP_MAHumanCharacter.BP_MAHumanCharacter_C",
+      "position": "auto",
+      "rotation": { "pitch": 0, "yaw": 0, "roll": 0 },
+      "sensors": [
+        {
+          "type": "Camera",
+          "position": { "x": -200, "y": 0, "z": 100 },
+          "rotation": { "pitch": -10, "yaw": 0, "roll": 0 },
+          "params": { "resolution": { "x": 640, "y": 480 }, "fov": 90 }
+        }
+      ]
+    },
+    {
+      "id": "dog_01",
+      "type": "RobotDog",
+      "class": "/Game/Blueprints/BP_MARobotDogCharacter.BP_MARobotDogCharacter_C",
+      "position": { "x": 500, "y": 200, "z": 100 }
+    }
+  ]
+}
+```
+
+### 6.2 配置字段说明
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | string | Agent 唯一标识 (FString) |
+| `type` | string | Agent 类型: Human, RobotDog, Drone, Camera |
+| `class` | string | Blueprint 类路径 |
+| `position` | object/"auto" | 生成位置，"auto" 自动计算 |
+| `rotation` | object | 生成旋转 (pitch/yaw/roll) |
+| `sensors` | array | 传感器配置列表 |
+
+### 6.3 加载流程
+
+```
+MAGameMode::BeginPlay()
+    │
+    ▼
+MAAgentManager::LoadAndSpawnFromConfig(path)
+    │
+    ├── 解析 JSON 配置
+    ├── 遍历 agents[]
+    │   ├── 加载 Blueprint 类
+    │   ├── 计算生成位置 (auto 或指定)
+    │   ├── SpawnAgent()
+    │   └── 添加 Sensors
+    └── 返回成功/失败
+```
+
+## 7. Action 动态发现机制
+
+### 7.1 设计目标
+
+- **可扩展**: 新增 Sensor 自动暴露 Actions，无需修改上层代码
+- **统一接口**: 所有 Action 通过 `ExecuteAction(name, params)` 执行
+- **自描述**: `GetAvailableActions()` 返回所有可用 Actions
+
+### 7.2 Action 命名规范
+
+```
+<Category>.<ActionName>
+
+Agent.NavigateTo       # Agent 自身 Action
+Agent.Pickup
+Camera.TakePhoto       # Camera Sensor Action
+Camera.StartRecording
+Lidar.StartScan        # 未来 Lidar Sensor Action
+```
+
+### 7.3 接口定义
+
+**MASensorComponent (基类):**
+```cpp
+// 返回该 Sensor 支持的所有 Actions
+virtual TArray<FString> GetAvailableActions() const;
+
+// 执行指定 Action
+virtual bool ExecuteAction(const FString& ActionName, const TMap<FString, FString>& Params);
+```
+
+**MACharacter (聚合层):**
+```cpp
+// 聚合自身 + 所有 Sensor 的 Actions
+TArray<FString> GetAvailableActions() const;
+
+// 路由到正确的执行者
+bool ExecuteAction(const FString& ActionName, const TMap<FString, FString>& Params);
+```
+
+**MAAgentManager (管理层):**
+```cpp
+// 获取指定 Agent 的所有 Actions
+TArray<FString> GetAgentAvailableActions(AMACharacter* Agent) const;
+
+// 执行指定 Agent 的 Action
+bool ExecuteAgentAction(AMACharacter* Agent, const FString& ActionName, const TMap<FString, FString>& Params);
+
+// 获取所有 Agent 的 Actions 汇总 (C++ only)
+TMap<FString, TArray<FString>> GetAllAgentsActions() const;
+```
+
+### 7.4 已实现的 Actions
+
+**Agent Actions (MACharacter):**
+| Action | 参数 | 说明 |
+|--------|------|------|
+| `Agent.NavigateTo` | x, y, z | 导航到指定位置 |
+| `Agent.CancelNavigation` | - | 取消当前导航 |
+| `Agent.Pickup` | - | 拾取附近物品 |
+| `Agent.Drop` | - | 放下持有物品 |
+| `Agent.FollowActor` | target_id | 跟随指定 Agent |
+| `Agent.StopFollowing` | - | 停止跟随 |
+
+**Camera Actions (MACameraSensorComponent):**
+| Action | 参数 | 说明 |
+|--------|------|------|
+| `Camera.TakePhoto` | filename (可选) | 拍照保存 |
+| `Camera.StartRecording` | fps (可选) | 开始录像 |
+| `Camera.StopRecording` | - | 停止录像 |
+| `Camera.StartTCPStream` | port, fps | 启动 TCP 流 |
+| `Camera.StopTCPStream` | - | 停止 TCP 流 |
+| `Camera.GetFrameAsJPEG` | - | 获取当前帧 JPEG |
+
+### 7.5 扩展示例
+
+添加新 Sensor 只需：
+
+```cpp
+// MALidarSensorComponent.h
+class UMALidarSensorComponent : public UMASensorComponent
+{
+    virtual TArray<FString> GetAvailableActions() const override
+    {
+        return { TEXT("Lidar.StartScan"), TEXT("Lidar.StopScan"), TEXT("Lidar.GetPointCloud") };
+    }
+    
+    virtual bool ExecuteAction(const FString& ActionName, const TMap<FString, FString>& Params) override
+    {
+        if (ActionName == TEXT("Lidar.StartScan")) { StartScan(); return true; }
+        // ...
+    }
+};
+```
+
+Character 自动聚合新 Sensor 的 Actions，无需修改任何代码。
+
+## 8. Manager 子系统设计
+
+### 8.1 全局 Manager vs Character 组件
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -248,9 +417,9 @@ int32 Count = Character->GetSensorCount();
 │                  UWorldSubsystem                             │
 │                                                             │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
-│  │ActorSubsys  │  │RelationMgr  │  │ MapManager  │         │
-│  │ 仅管理      │  │ 管理关系    │  │ 管理地图    │         │
-│  │ Character   │  │ 之间的关系  │  │ 导航感知    │         │
+│  │AgentManager │  │RelationMgr  │  │ MapManager  │         │
+│  │ JSON 配置   │  │ 管理关系    │  │ 管理地图    │         │
+│  │ Action 路由 │  │ 之间的关系  │  │ 导航感知    │         │
 │  └─────────────┘  └─────────────┘  └─────────────┘         │
 └─────────────────────────────────────────────────────────────┘
                             │
@@ -274,32 +443,34 @@ int32 Count = Character->GetSensorCount();
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 6.2 Manager 列表
+### 8.2 Manager 列表
 
 | Manager | 层级 | 功能介绍 | 状态 |
 |---------|------|---------|------|
-| **ActorSubsystem** | 全局 | Character 生命周期管理 + 编队管理 | ✅ 已实现 |
+| **MAAgentManager** | 全局 | JSON 配置加载 + Agent 生命周期 + Action 路由 + 编队管理 | ✅ 已实现 |
 | **RelationManager** | 全局 | 实体关系管理 | ❌ 待开发 |
 | **MapManager** | 全局 | 地图感知 | ❌ 待开发 |
 | **StateTree** | Character级 | 状态决策 | ✅ 已实现 |
 | **ASC** | Character级 | 技能执行 | ✅ 已实现 |
-| **Sensors** | Character级 | 传感器组件 (Component 模式) | ✅ 已实现 |
+| **Sensors** | Character级 | 传感器组件 (Action 接口) | ✅ 已实现 |
 
-### 6.3 编队管理 (Formation Manager)
+### 8.3 编队管理 (Formation Manager)
 
-MAActorSubsystem 同时作为集群管理器，类似 CARLA 的 TrafficManager：
+MAAgentManager 同时作为集群管理器，类似 CARLA 的 TrafficManager：
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│              MAActorSubsystem                       │
+│              MAAgentManager                         │
 │  ┌─────────────────┐  ┌─────────────────────────┐  │
-│  │  Actor Factory  │  │  Formation Manager      │  │
-│  │  - Spawn        │  │  - Leader               │  │
-│  │  - Destroy      │  │  - Members[]            │  │
+│  │  Agent Factory  │  │  Formation Manager      │  │
+│  │  - LoadConfig   │  │  - Leader               │  │
+│  │  - SpawnAgent   │  │  - Members[]            │  │
 │  │  - Query        │  │  - Type                 │  │
-│  └─────────────────┘  │  - CalculatePositions() │  │
-│                       │  - UpdateFormation()    │  │
-│                       └─────────────────────────┘  │
+│  ├─────────────────┤  │  - CalculatePositions() │  │
+│  │  Action Router  │  │  - UpdateFormation()    │  │
+│  │  - GetActions   │  └─────────────────────────┘  │
+│  │  - ExecuteAction│                               │
+│  └─────────────────┘                               │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -420,7 +591,7 @@ Task 不存储可配置参数，而是从 Robot 获取：
               FullEnergy (100%)    └──────────────┘
 ```
 
-## 10. 开发路线
+## 12. 开发路线
 
 ### Phase 1: 核心框架 ✅ 已完成
 - [x] UMAActorSubsystem - Character 生命周期管理
@@ -436,14 +607,27 @@ Task 不存储可配置参数，而是从 Robot 获取：
 - [x] MACharacter Sensor 管理 API
 - [x] MAActorSubsystem 移除 Sensor 管理代码
 
-### Phase 3: 待开发
+### Phase 3: AgentManager + Action 动态发现 ✅ 已完成
+- [x] MAActorSubsystem → MAAgentManager 重命名
+- [x] MATypes.h 公共类型定义 (避免循环依赖)
+- [x] JSON 配置驱动 Agent 创建 (config/agents.json)
+- [x] Action 动态发现机制 (GetAvailableActions + ExecuteAction)
+- [x] MASensorComponent Action 接口
+- [x] MACameraSensorComponent 6 个 Actions
+- [x] MACharacter Action 聚合 + 6 个 Agent Actions
+- [x] 属性重命名: ActorID/Name/Type → AgentID/Name/Type (FString)
+
+### Phase 4: 待开发
+- [ ] 配置热重载 - 运行时修改 JSON 自动刷新
+- [ ] 可视化编辑器 - UE Editor 内编辑 Agent 配置
 - [ ] 更多 Sensor 类型 (Lidar, Depth, IMU)
+- [ ] 更多 Agent 类型 (Drone)
 - [ ] UMARelationSubsystem - 实体关系图
 - [ ] SaveGame 系统 - 游戏存档/读档
 
-## 11. 重要设计原则
+## 13. 重要设计原则
 
-### 11.1 Component 优于 Actor
+### 13.1 Component 优于 Actor
 
 对于附属于 Character 的功能模块（如 Sensor），优先使用 UE Component 模式：
 
@@ -456,7 +640,7 @@ AMACameraSensor* Camera = World->SpawnActor<AMACameraSensor>();
 Camera->AttachToActor(Character, ...);
 ```
 
-### 11.2 CARLA 风格参数管理
+### 13.2 CARLA 风格参数管理
 
 参数存储在实体上，行为从实体获取参数：
 
@@ -469,7 +653,7 @@ AMACharacter* Target = Robot->GetFollowTarget();
 float Distance = 200.f;  // 硬编码
 ```
 
-### 11.3 虚函数多态设计
+### 13.3 虚函数多态设计
 
 不同类型的 Character 可能需要不同的行为实现：
 
@@ -482,4 +666,33 @@ void AMAHumanCharacter::OnNavigationTick()
 {
     // Human 特有行为
 }
+```
+
+### 13.4 配置驱动优于硬编码
+
+Agent 创建应通过配置文件驱动，而非 C++ 硬编码：
+
+```cpp
+// ✅ 推荐：配置驱动
+AgentManager->LoadAndSpawnFromConfig("config/agents.json");
+
+// ❌ 不推荐：硬编码
+for (int i = 0; i < 3; i++) {
+    World->SpawnActor<AMARobotDogCharacter>(...);
+}
+```
+
+### 13.5 Action 自描述原则
+
+每个 Sensor/Component 应自描述其支持的 Actions：
+
+```cpp
+// ✅ 推荐：自描述 Actions
+TArray<FString> GetAvailableActions() const override
+{
+    return { TEXT("Camera.TakePhoto"), TEXT("Camera.StartRecording") };
+}
+
+// ❌ 不推荐：外部维护 Action 列表
+// 在某个全局配置中硬编码所有 Actions
 ```
