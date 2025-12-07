@@ -4,8 +4,8 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "AIController.h"
-#include "../GAS/MAAbilitySystemComponent.h"
-#include "../GAS/MAGameplayTags.h"
+#include "MAAbilitySystemComponent.h"
+#include "MAGameplayTags.h"
 #include "MAPickupItem.h"
 
 AMACharacter::AMACharacter()

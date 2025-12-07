@@ -5,7 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
-#include "../Character/MACharacter.h"
+#include "MACharacter.h"
 #include "MAGameMode.generated.h"
 
 class UMAActorSubsystem;

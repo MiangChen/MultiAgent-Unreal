@@ -1,8 +1,8 @@
 // MASTCondition_HasCommand.cpp
 
 #include "MASTCondition_HasCommand.h"
-#include "../../Character/MACharacter.h"
-#include "../../GAS/MAAbilitySystemComponent.h"
+#include "MACharacter.h"
+#include "MAAbilitySystemComponent.h"
 #include "StateTreeExecutionContext.h"
 
 bool FMASTCondition_HasCommand::TestCondition(FStateTreeExecutionContext& Context) const

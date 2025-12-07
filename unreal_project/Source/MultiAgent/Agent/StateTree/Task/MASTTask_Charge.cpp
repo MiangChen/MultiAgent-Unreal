@@ -1,8 +1,8 @@
 // MASTTask_Charge.cpp
 
 #include "MASTTask_Charge.h"
-#include "../../Character/MARobotDogCharacter.h"
-#include "../../GAS/MAAbilitySystemComponent.h"
+#include "MARobotDogCharacter.h"
+#include "MAAbilitySystemComponent.h"
 #include "MAChargingStation.h"
 #include "StateTreeExecutionContext.h"
 #include "Kismet/GameplayStatics.h"

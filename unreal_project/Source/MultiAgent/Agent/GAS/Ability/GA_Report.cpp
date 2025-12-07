@@ -2,7 +2,7 @@
 
 #include "GA_Report.h"
 #include "../MAGameplayTags.h"
-#include "../../Character/MACharacter.h"
+#include "MACharacter.h"
 #include "TimerManager.h"
 
 // Static members

@@ -1,8 +1,8 @@
 // MASTTask_Coverage.cpp
 
 #include "MASTTask_Coverage.h"
-#include "../../Character/MARobotDogCharacter.h"
-#include "../../GAS/MAAbilitySystemComponent.h"
+#include "MARobotDogCharacter.h"
+#include "MAAbilitySystemComponent.h"
 #include "MACoverageArea.h"
 #include "StateTreeExecutionContext.h"
 #include "GameplayTagContainer.h"

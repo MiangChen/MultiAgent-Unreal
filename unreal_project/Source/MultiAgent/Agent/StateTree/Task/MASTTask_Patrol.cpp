@@ -1,9 +1,9 @@
 // MASTTask_Patrol.cpp
 
 #include "MASTTask_Patrol.h"
-#include "../../GAS/MAAbilitySystemComponent.h"
-#include "../../Character/MACharacter.h"
-#include "../../Character/MARobotDogCharacter.h"
+#include "MAAbilitySystemComponent.h"
+#include "MACharacter.h"
+#include "MARobotDogCharacter.h"
 #include "MAPatrolPath.h"
 #include "StateTreeExecutionContext.h"
 

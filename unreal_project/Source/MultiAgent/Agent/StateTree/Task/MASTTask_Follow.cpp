@@ -1,9 +1,9 @@
 // MASTTask_Follow.cpp
 
 #include "MASTTask_Follow.h"
-#include "../../Character/MARobotDogCharacter.h"
-#include "../../Character/MACharacter.h"
-#include "../../GAS/MAAbilitySystemComponent.h"
+#include "MARobotDogCharacter.h"
+#include "MACharacter.h"
+#include "MAAbilitySystemComponent.h"
 #include "StateTreeExecutionContext.h"
 #include "GameplayTagContainer.h"
 

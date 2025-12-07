@@ -4,9 +4,9 @@
 #include "MAPickupItem.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
-#include "../Character/MACharacter.h"
-#include "../GAS/MAAbilitySystemComponent.h"
-#include "../GAS/MAGameplayTags.h"
+#include "MACharacter.h"
+#include "MAAbilitySystemComponent.h"
+#include "MAGameplayTags.h"
 
 AMAPickupItem::AMAPickupItem()
 {

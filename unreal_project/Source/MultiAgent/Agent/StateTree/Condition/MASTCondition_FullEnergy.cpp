@@ -1,7 +1,7 @@
 // MASTCondition_FullEnergy.cpp
 
 #include "MASTCondition_FullEnergy.h"
-#include "../../Character/MARobotDogCharacter.h"
+#include "MARobotDogCharacter.h"
 #include "StateTreeExecutionContext.h"
 
 bool FMASTCondition_FullEnergy::TestCondition(FStateTreeExecutionContext& Context) const

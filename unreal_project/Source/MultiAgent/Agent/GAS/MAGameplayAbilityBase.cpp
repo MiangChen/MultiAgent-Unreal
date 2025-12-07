@@ -2,7 +2,7 @@
 
 #include "MAGameplayAbilityBase.h"
 #include "AbilitySystemComponent.h"
-#include "../Character/MACharacter.h"
+#include "MACharacter.h"
 
 UMAGameplayAbilityBase::UMAGameplayAbilityBase()
 {

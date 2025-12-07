@@ -2,8 +2,8 @@
 
 #include "GA_Formation.h"
 #include "../MAGameplayTags.h"
-#include "../../Character/MACharacter.h"
-#include "../../Character/MARobotDogCharacter.h"
+#include "MACharacter.h"
+#include "MARobotDogCharacter.h"
 #include "AIController.h"
 #include "TimerManager.h"
 

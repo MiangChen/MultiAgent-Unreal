@@ -7,9 +7,9 @@
 #include "AIController.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "UObject/ConstructorHelpers.h"
-#include "../GAS/MAAbilitySystemComponent.h"
-#include "../GAS/MAGameplayTags.h"
-#include "../StateTree/MAStateTreeComponent.h"
+#include "MAAbilitySystemComponent.h"
+#include "MAGameplayTags.h"
+#include "MAStateTreeComponent.h"
 
 AMARobotDogCharacter::AMARobotDogCharacter()
 {

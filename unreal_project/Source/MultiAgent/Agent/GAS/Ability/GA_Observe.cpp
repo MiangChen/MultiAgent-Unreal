@@ -2,7 +2,7 @@
 
 #include "GA_Observe.h"
 #include "../MAGameplayTags.h"
-#include "../../Character/MACharacter.h"
+#include "MACharacter.h"
 #include "AbilitySystemComponent.h"
 #include "TimerManager.h"
 

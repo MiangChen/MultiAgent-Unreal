@@ -2,7 +2,7 @@
 
 #include "MASTTask_ActivateAbility.h"
 #include "../MAStateTreeComponent.h"
-#include "../../GAS/MAAbilitySystemComponent.h"
+#include "MAAbilitySystemComponent.h"
 #include "StateTreeExecutionContext.h"
 
 EStateTreeRunStatus FMASTTask_ActivateAbility::EnterState(

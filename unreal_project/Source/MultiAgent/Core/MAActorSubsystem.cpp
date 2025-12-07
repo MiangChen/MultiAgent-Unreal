@@ -1,8 +1,8 @@
 // MAActorSubsystem.cpp
 
 #include "MAActorSubsystem.h"
-#include "../Actor/MASensor.h"
-#include "../Character/MARobotDogCharacter.h"
+#include "MASensor.h"
+#include "MARobotDogCharacter.h"
 #include "AIController.h"
 #include "TimerManager.h"
 

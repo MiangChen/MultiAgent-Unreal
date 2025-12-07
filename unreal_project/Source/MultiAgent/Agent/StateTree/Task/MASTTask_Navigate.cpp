@@ -1,8 +1,8 @@
 // MASTTask_Navigate.cpp
 
 #include "MASTTask_Navigate.h"
-#include "../../GAS/MAAbilitySystemComponent.h"
-#include "../../Character/MACharacter.h"
+#include "MAAbilitySystemComponent.h"
+#include "MACharacter.h"
 #include "StateTreeExecutionContext.h"
 #include "AIController.h"
 #include "Navigation/PathFollowingComponent.h"

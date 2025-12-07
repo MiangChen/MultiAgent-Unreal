@@ -2,9 +2,9 @@
 
 #include "GA_Search.h"
 #include "../MAGameplayTags.h"
-#include "../../Character/MACharacter.h"
-#include "../../Character/MAHumanCharacter.h"
-#include "../../Actor/MACameraSensor.h"
+#include "MACharacter.h"
+#include "MAHumanCharacter.h"
+#include "MACameraSensor.h"
 #include "AbilitySystemComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"

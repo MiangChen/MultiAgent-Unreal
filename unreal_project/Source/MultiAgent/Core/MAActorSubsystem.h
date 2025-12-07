@@ -6,7 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
-#include "../Character/MACharacter.h"
+#include "MACharacter.h"
 #include "MAActorSubsystem.generated.h"
 
 class AMACharacter;

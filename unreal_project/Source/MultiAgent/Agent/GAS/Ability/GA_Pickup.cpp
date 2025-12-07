@@ -4,7 +4,7 @@
 #include "GA_Pickup.h"
 #include "../MAGameplayTags.h"
 #include "../MAAbilitySystemComponent.h"
-#include "../../Character/MACharacter.h"
+#include "MACharacter.h"
 #include "MAPickupItem.h"
 #include "Kismet/GameplayStatics.h"
 
