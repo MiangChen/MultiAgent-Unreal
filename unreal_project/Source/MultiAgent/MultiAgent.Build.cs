@@ -33,18 +33,20 @@ public class MultiAgent : ModuleRules
 
         // 添加子文件夹的 include 路径
         PublicIncludePaths.AddRange(new string[] {
-            Path.Combine(ModuleDirectory, "Sensor"),
             Path.Combine(ModuleDirectory, "Core"),
             Path.Combine(ModuleDirectory, "Input"),
             Path.Combine(ModuleDirectory, "Environment"),
-            // Agent 相关模块
+            // Agent 相关
             Path.Combine(ModuleDirectory, "Agent"),
             Path.Combine(ModuleDirectory, "Agent/Character"),
             Path.Combine(ModuleDirectory, "Agent/GAS"),
             Path.Combine(ModuleDirectory, "Agent/GAS/Ability"),
             Path.Combine(ModuleDirectory, "Agent/StateTree"),
             Path.Combine(ModuleDirectory, "Agent/StateTree/Task"),
-            Path.Combine(ModuleDirectory, "Agent/StateTree/Condition")
+            Path.Combine(ModuleDirectory, "Agent/StateTree/Condition"),
+            // Module 可组装组件
+            Path.Combine(ModuleDirectory, "Module"),
+            Path.Combine(ModuleDirectory, "Module/Sensor")
         });
     }
 }
