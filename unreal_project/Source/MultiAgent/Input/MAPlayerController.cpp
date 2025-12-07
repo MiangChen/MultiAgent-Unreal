@@ -776,31 +776,45 @@ void AMAPlayerController::OnTakePhoto(const FInputActionValue& Value)
         return;
     }
     
-    // 获取所有 Character 上的 Camera Component 并拍照
-    int32 PhotoCount = 0;
+    // 收集所有 Character 上的 Camera Component
+    TArray<UMACameraSensorComponent*> Cameras;
     for (AMACharacter* Character : ActorSubsystem->GetAllCharacters())
     {
-        if (!Character) continue;
-        
-        if (UMACameraSensorComponent* Camera = Character->GetCameraSensor())
+        if (Character)
         {
-            if (Camera->TakePhoto())
+            if (UMACameraSensorComponent* Camera = Character->GetCameraSensor())
             {
-                PhotoCount++;
-                GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan,
-                    FString::Printf(TEXT("%s: Photo saved"), *Camera->SensorName));
+                Cameras.Add(Camera);
             }
         }
     }
     
-    if (PhotoCount == 0)
+    if (Cameras.Num() == 0)
     {
         GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("No cameras found!"));
+        return;
+    }
+    
+    // 根据 CurrentCameraIndex 选择相机 (与 Tab 切换一致)
+    UMACameraSensorComponent* TargetCamera = nullptr;
+    if (CurrentCameraIndex < 0 || CurrentCameraIndex >= Cameras.Num())
+    {
+        // 未选择相机时，使用第一个
+        TargetCamera = Cameras[0];
     }
     else
     {
-        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green,
-            FString::Printf(TEXT("Took %d photos (saved to Saved/Screenshots/)"), PhotoCount));
+        TargetCamera = Cameras[CurrentCameraIndex];
+    }
+    
+    if (TargetCamera && TargetCamera->TakePhoto())
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green,
+            FString::Printf(TEXT("%s: Photo saved"), *TargetCamera->SensorName));
+    }
+    else
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, TEXT("Failed to take photo!"));
     }
 }
 

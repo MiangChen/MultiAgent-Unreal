@@ -458,3 +458,72 @@ Camera->TakePhoto();  // 简单直接
 - 更新 PlayerController 直接调用 Sensor
 
 **教训**: 不是所有功能都需要通过 GAS 实现。简单的即时操作（如拍照）直接在 Actor 上实现更简洁。CARLA 风格：参数和简单操作放在实体上，复杂行为才用 Ability。
+
+---
+
+#### Bug 16: 相机拍照全黑 - CreateDefaultSubobject 运行时失效 (已解决)
+
+**问题**: 相机组件拍照输出全黑图片，调试日志显示相机位置为 (0,0,0)。
+
+**现象**:
+```
+[Camera] Human_0_Camera CaptureFrame: Location=(X=0.000 Y=0.000 Z=0.000), Rotation=(P=0.000000 Y=0.000000 R=0.000000)
+[Camera] Human_0_Camera CaptureFrame: 307200 pixels, 307200 non-black (100.0%)
+```
+虽然日志显示 100% 非黑像素，但图片实际是纯色（相机在世界原点看到的内容）。
+
+**原因**: `CreateDefaultSubobject` **只能在 CDO（Class Default Object）构造函数中使用**。当运行时通过 `NewObject<UMACameraSensorComponent>` 动态创建组件时，构造函数中的 `CreateDefaultSubobject` 不会正确创建子组件（CameraComponent 和 SceneCaptureComponent），导致它们没有正确附加到父组件，位置停留在世界原点 (0,0,0)。
+
+**错误代码**:
+```cpp
+// 构造函数中使用 CreateDefaultSubobject - 只对 CDO 有效
+UMACameraSensorComponent::UMACameraSensorComponent()
+{
+    CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("CameraComponent"));
+    CameraComponent->SetupAttachment(this);
+    
+    SceneCaptureComponent = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("SceneCaptureComponent"));
+    SceneCaptureComponent->SetupAttachment(CameraComponent);
+}
+
+// 运行时动态创建 - CreateDefaultSubobject 失效！
+UMACameraSensorComponent* CameraSensor = NewObject<UMACameraSensorComponent>(this, ComponentName);
+```
+
+**解决**: 将子组件创建移到 `OnRegister()` 中，使用 `NewObject` 动态创建并手动 `RegisterComponent()`：
+```cpp
+UMACameraSensorComponent::UMACameraSensorComponent()
+{
+    // 构造函数只设置默认值，不创建子组件
+    SensorType = EMASensorType::Camera;
+    SensorName = TEXT("Camera");
+}
+
+void UMACameraSensorComponent::OnRegister()
+{
+    Super::OnRegister();
+    
+    // 动态创建子组件（支持运行时 NewObject 创建）
+    if (!CameraComponent)
+    {
+        CameraComponent = NewObject<UCameraComponent>(GetOwner(), NAME_None, RF_Transactional);
+        CameraComponent->SetupAttachment(this);
+        CameraComponent->SetRelativeLocation(FVector::ZeroVector);
+        CameraComponent->FieldOfView = FOV;
+        CameraComponent->RegisterComponent();
+    }
+    
+    if (!SceneCaptureComponent)
+    {
+        SceneCaptureComponent = NewObject<USceneCaptureComponent2D>(GetOwner(), NAME_None, RF_Transactional);
+        SceneCaptureComponent->SetupAttachment(CameraComponent);
+        // ... 其他配置
+        SceneCaptureComponent->RegisterComponent();
+    }
+}
+```
+
+**教训**: 
+- `CreateDefaultSubobject` 只能在构造函数中用于 CDO 创建，运行时动态创建的对象不会执行这些调用
+- 需要支持运行时动态创建的组件，应在 `OnRegister()` 中使用 `NewObject` + `RegisterComponent()`
+- 调试时检查组件的世界坐标是否正确，(0,0,0) 通常意味着附加关系有问题

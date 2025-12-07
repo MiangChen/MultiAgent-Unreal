@@ -12,27 +12,43 @@
 #include "Common/TcpSocketBuilder.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "TimerManager.h"
+#include "RenderingThread.h"
 
 UMACameraSensorComponent::UMACameraSensorComponent()
 {
     SensorType = EMASensorType::Camera;
     SensorName = TEXT("Camera");
     
-    // 创建子组件
-    CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("CameraComponent"));
-    CameraComponent->SetupAttachment(this);
-    CameraComponent->SetRelativeLocation(FVector::ZeroVector);
-    CameraComponent->FieldOfView = FOV;
+    // 子组件将在 OnRegister 中创建，因为 CreateDefaultSubobject 只能在 CDO 构造时使用
+    // 运行时通过 NewObject 创建的组件需要在 OnRegister 中动态创建子组件
+}
+
+void UMACameraSensorComponent::OnRegister()
+{
+    Super::OnRegister();
     
-    SceneCaptureComponent = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("SceneCaptureComponent"));
-    SceneCaptureComponent->SetupAttachment(CameraComponent);
-    SceneCaptureComponent->bCaptureEveryFrame = false;
-    SceneCaptureComponent->bCaptureOnMovement = false;
+    // 动态创建子组件（支持运行时 NewObject 创建）
+    if (!CameraComponent)
+    {
+        CameraComponent = NewObject<UCameraComponent>(GetOwner(), NAME_None, RF_Transactional);
+        CameraComponent->SetupAttachment(this);
+        CameraComponent->SetRelativeLocation(FVector::ZeroVector);
+        CameraComponent->FieldOfView = FOV;
+        CameraComponent->RegisterComponent();
+    }
     
-    SceneCaptureComponent->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
-    SceneCaptureComponent->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_RenderScenePrimitives;
-    SceneCaptureComponent->bAlwaysPersistRenderingState = true;
-    SceneCaptureComponent->ShowFlags.SetPostProcessing(true);
+    if (!SceneCaptureComponent)
+    {
+        SceneCaptureComponent = NewObject<USceneCaptureComponent2D>(GetOwner(), NAME_None, RF_Transactional);
+        SceneCaptureComponent->SetupAttachment(CameraComponent);
+        SceneCaptureComponent->bCaptureEveryFrame = false;
+        SceneCaptureComponent->bCaptureOnMovement = false;
+        SceneCaptureComponent->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
+        SceneCaptureComponent->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_RenderScenePrimitives;
+        SceneCaptureComponent->bAlwaysPersistRenderingState = true;
+        SceneCaptureComponent->ShowFlags.SetPostProcessing(true);
+        SceneCaptureComponent->RegisterComponent();
+    }
 }
 
 void UMACameraSensorComponent::BeginDestroy()
@@ -46,8 +62,14 @@ void UMACameraSensorComponent::BeginPlay()
 {
     Super::BeginPlay();
     
-    CameraComponent->FieldOfView = FOV;
-    SceneCaptureComponent->FOVAngle = FOV;
+    if (CameraComponent)
+    {
+        CameraComponent->FieldOfView = FOV;
+    }
+    if (SceneCaptureComponent)
+    {
+        SceneCaptureComponent->FOVAngle = FOV;
+    }
     
     InitializeRenderTarget();
 }
@@ -61,9 +83,7 @@ void UMACameraSensorComponent::InitializeRenderTarget()
     
     SceneCaptureComponent->TextureTarget = RenderTarget;
     
-    UE_LOG(LogTemp, Log, TEXT("[Camera] %s initialized %dx%d, FOV %.0f"),
-        *SensorName, Resolution.X, Resolution.Y, FOV);
-}
+    }
 
 bool UMACameraSensorComponent::TakePhoto(const FString& FilePath)
 {
@@ -79,8 +99,6 @@ bool UMACameraSensorComponent::TakePhoto(const FString& FilePath)
     
     if (RenderTarget)
     {
-        SceneCaptureComponent->CaptureScene();
-        
         TArray<FColor> Pixels = CaptureFrame();
         if (Pixels.Num() > 0)
         {
@@ -106,13 +124,21 @@ TArray<FColor> UMACameraSensorComponent::CaptureFrame()
 {
     TArray<FColor> Pixels;
     
-    if (!RenderTarget) return Pixels;
+    if (!RenderTarget || !SceneCaptureComponent || !SceneCaptureComponent->TextureTarget)
+    {
+        return Pixels;
+    }
     
     SceneCaptureComponent->CaptureScene();
+    FlushRenderingCommands();
     
-    FReadSurfaceDataFlags ReadSurfaceDataFlags;
-    ReadSurfaceDataFlags.SetLinearToGamma(false);
-    RenderTarget->GameThread_GetRenderTargetResource()->ReadPixels(Pixels, ReadSurfaceDataFlags);
+    FTextureRenderTargetResource* RenderTargetResource = RenderTarget->GameThread_GetRenderTargetResource();
+    if (RenderTargetResource)
+    {
+        FReadSurfaceDataFlags ReadSurfaceDataFlags;
+        ReadSurfaceDataFlags.SetLinearToGamma(false);
+        RenderTargetResource->ReadPixels(Pixels, ReadSurfaceDataFlags);
+    }
     
     return Pixels;
 }

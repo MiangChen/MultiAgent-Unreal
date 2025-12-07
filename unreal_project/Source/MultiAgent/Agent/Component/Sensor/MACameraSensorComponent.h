@@ -20,6 +20,7 @@ class MULTIAGENT_API UMACameraSensorComponent : public UMASensorComponent
 
 public:
     UMACameraSensorComponent();
+    virtual void OnRegister() override;
     virtual void BeginDestroy() override;
 
     // ========== 拍照功能 ==========
