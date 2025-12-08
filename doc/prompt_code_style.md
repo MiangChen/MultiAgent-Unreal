@@ -6,97 +6,6 @@ UnrealZoo 代码风格规范
 ========
 在开始编码前，请先阅读 UE5 API 变更文档：doc/UE5_API_CHANGES.md
 
-0. 架构设计
-==========
-
-0.1 CARLA 风格架构
-------------------
-本项目采用 CARLA 风格架构：
-
-核心特点:
-- 参数存储在实体属性上（而非外部配置文件）
-- 行为由实体自身驱动
-- 支持运行时动态修改
-
-CARLA 风格设计原则:
-1. 属性在实体上 - Robot 有 ScanRadius, FollowTarget 等属性，类似 CARLA Vehicle 的 max_speed
-2. 运行时可修改 - 可以随时 Robot->SetFollowTarget(Target)
-3. 行为由实体驱动 - 实体自身属性决定行为
-
-示例:
-```cpp
-// CARLA 风格：参数在实体上，运行时可修改
-Robot->ScanRadius = 300.f;
-Robot->SetFollowTarget(HumanCharacter);
-
-// StateTree Task 从实体获取参数，而非自己存储
-AMACharacter* Target = Robot->GetFollowTarget();
-float Distance = Robot->ScanRadius;
-```
-
-0.2 CARLA 风格 API
-------------------
-本项目参考 CARLA 的 API 设计风格：
-
-- Transform: 封装 Location, Rotation, Scale
-- Agent: 封装 UE 中的智能体，提供 get/set 方法
-- Sensor: 封装传感器（Camera, Depth 等），可绑定到 Agent
-- AgentManager: 类似 CARLA 的 World，负责 spawn 和管理
-
-核心概念 - Agent 统一抽象:
-在本项目中，Agent 是一个广义概念，代表场景中任何可交互的实体：
-- Robot/Drone: 可移动的机器人或无人机
-- Camera: 固定或移动的摄像头
-- Sensor: 各类传感器（深度、激光雷达等）
-- Vehicle: 车辆
-- Character: 角色
-
-命名约定:
-- 使用 Agent（智能体）而非 Actor
-- Agent 强调"有自主决策能力的实体"，更适合多智能体仿真场景
-
-示例:
-```python
-from agent.agent_manager import AgentManager
-from agent.transform import Transform, Location, Rotation, Scale
-
-# 手动 spawn
-transform = Transform(
-    location=Location(x=1000, y=2000, z=100),
-    rotation=Rotation(pitch=0, yaw=0, roll=0),
-    scale=Scale(x=0.1, y=0.1, z=0.1)
-)
-drone = manager.spawn("BP_drone01_C", "drone_1", transform)
-
-# Agent 操作
-drone.set_location(Location(x=1500, y=2500, z=200))
-drone.get_location()
-drone.destroy()
-
-# 从 JSON 配置批量 spawn
-agents = manager.spawn_from_config()
-
-# Sensor 绑定
-camera = manager.spawn_sensor("sensor.camera.rgb", attach_to=drone)
-depth = manager.spawn_sensor("sensor.camera.depth", attach_to=drone)
-
-# Sensor 操作
-image = camera.get_image()
-
-# 通过 Agent 访问 Sensor
-drone.get_sensors()
-drone.get_sensor("camera.rgb")
-drone.has_sensor()
-
-# 字典式访问
-agent = manager["drone_0"]
-if "drone_0" in manager:
-    ...
-for agent in manager:
-    ...
-```
-
-
 1. Import 顺序 (PEP 8)
 ======================
 # Standard library imports
@@ -484,4 +393,86 @@ Robot->ScanRadius = 300.f;               // 可选：调整距离
 
 // 发送 Follow 命令，StateTree 会自动使用 Robot 上的参数
 ASC->AddLooseGameplayTag(FGameplayTag::RequestGameplayTag("Command.Follow"));
+```
+
+
+9. 重要设计原则
+==============
+
+9.1 Component 优于 Actor
+------------------------
+对于附属于 Character 的功能模块（如 Sensor），优先使用 UE Component 模式：
+
+```cpp
+// ✅ 推荐：Component 模式
+UMACameraSensorComponent* Camera = Character->AddCameraSensor(Location, Rotation);
+
+// ❌ 不推荐：Actor 模式
+AMACameraSensor* Camera = World->SpawnActor<AMACameraSensor>();
+Camera->AttachToActor(Character, ...);
+```
+
+9.2 Interface 模式参数管理
+-------------------------
+通过 Interface 获取参数，支持多种 Agent 类型：
+
+```cpp
+// ✅ 推荐：通过 Interface 获取参数
+if (IMAPatrollable* Patrollable = Cast<IMAPatrollable>(Owner))
+{
+    AMAPatrolPath* Path = Patrollable->GetPatrolPath();
+    float Radius = Patrollable->GetScanRadius();
+}
+
+if (IMAFollowable* Followable = Cast<IMAFollowable>(Owner))
+{
+    AMACharacter* Target = Followable->GetFollowTarget();
+}
+
+// ❌ 不推荐：硬编码类型
+AMARobotDogCharacter* Robot = Cast<AMARobotDogCharacter>(Owner);  // 只支持 RobotDog
+```
+
+9.3 虚函数多态设计
+-----------------
+不同类型的 Character 可能需要不同的行为实现：
+
+```cpp
+// MACharacter.h (基类)
+virtual void OnNavigationTick();
+
+// MAHumanCharacter.cpp (子类重写)
+void AMAHumanCharacter::OnNavigationTick()
+{
+    // Human 特有行为
+}
+```
+
+9.4 配置驱动优于硬编码
+--------------------
+Agent 创建应通过配置文件驱动，而非 C++ 硬编码：
+
+```cpp
+// ✅ 推荐：配置驱动
+AgentManager->LoadAndSpawnFromConfig("config/agents.json");
+
+// ❌ 不推荐：硬编码
+for (int i = 0; i < 3; i++) {
+    World->SpawnActor<AMARobotDogCharacter>(...);
+}
+```
+
+9.5 Action 自描述原则
+--------------------
+每个 Sensor/Component 应自描述其支持的 Actions：
+
+```cpp
+// ✅ 推荐：自描述 Actions
+TArray<FString> GetAvailableActions() const override
+{
+    return { TEXT("Camera.TakePhoto"), TEXT("Camera.StartRecording") };
+}
+
+// ❌ 不推荐：外部维护 Action 列表
+// 在某个全局配置中硬编码所有 Actions
 ```

@@ -2,6 +2,7 @@
 
 #include "MAGameMode.h"
 #include "../Input/MAPlayerController.h"
+#include "../UI/MASelectionHUD.h"
 #include "MAAgentManager.h"
 #include "GameFramework/SpectatorPawn.h"
 #include "Misc/Paths.h"
@@ -11,6 +12,9 @@ AMAGameMode::AMAGameMode()
     // 玩家使用 SpectatorPawn 作为上帝视角（原生飞行控制）
     DefaultPawnClass = ASpectatorPawn::StaticClass();
     PlayerControllerClass = AMAPlayerController::StaticClass();
+    
+    // 设置 HUD 类用于绘制选择框
+    HUDClass = AMASelectionHUD::StaticClass();
 }
 
 void AMAGameMode::BeginPlay()

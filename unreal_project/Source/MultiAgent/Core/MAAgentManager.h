@@ -1,7 +1,10 @@
 // MAAgentManager.h
-// Agent 管理器 - 负责所有 Agent 的生命周期管理和集群行为
+// Agent 管理器 - 负责所有 Agent 的生命周期管理
 // 支持 JSON 配置驱动的 Agent 创建
-// 同时作为集群管理器，处理编队等集群行为（类似 CARLA TrafficManager）
+// 
+// 注意: 编队功能已移至 UMASquad (Squad 的技能)
+// 注意: Squad 管理已移至 MASquadManager
+// 注意: 命令分发已移至 MACommandManager
 
 #pragma once
 
@@ -164,36 +167,6 @@ public:
     UFUNCTION(BlueprintCallable, Category = "AgentManager")
     void MoveAllAgentsTo(FVector Destination, float Radius = 150.f);
 
-    // ========== 编队管理 (Formation Manager) ==========
-    
-    UFUNCTION(BlueprintCallable, Category = "Formation")
-    void StartFormation(AMACharacter* Leader, EMAFormationType Type);
-    
-    UFUNCTION(BlueprintCallable, Category = "Formation")
-    void StopFormation();
-    
-    UFUNCTION(BlueprintCallable, Category = "Formation")
-    void SetFormationType(EMAFormationType Type);
-    
-    UFUNCTION(BlueprintCallable, Category = "Formation")
-    EMAFormationType GetFormationType() const { return CurrentFormationType; }
-    
-    UFUNCTION(BlueprintCallable, Category = "Formation")
-    bool IsInFormation() const { return CurrentFormationType != EMAFormationType::None; }
-    
-    // 编队参数
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Formation")
-    float FormationSpacing = 200.f;
-    
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Formation")
-    float FormationUpdateInterval = 0.3f;
-    
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Formation")
-    float FormationStartMoveThreshold = 150.f;
-    
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Formation")
-    float FormationStopMoveThreshold = 80.f;
-
     // ========== 委托 ==========
     UPROPERTY(BlueprintAssignable, Category = "AgentManager")
     FOnAgentSpawned OnAgentSpawned;
@@ -232,21 +205,6 @@ private:
     
     // 生成充电站
     void SpawnChargingStations();
-    
-    // ========== 编队状态 ==========
-    UPROPERTY()
-    TWeakObjectPtr<AMACharacter> FormationLeader;
-    
-    UPROPERTY()
-    TArray<AMACharacter*> FormationMembers;
-    
-    EMAFormationType CurrentFormationType = EMAFormationType::None;
-    
-    FTimerHandle FormationTimerHandle;
-    
-    void UpdateFormation();
-    TArray<FVector> CalculateFormationPositions(const FVector& LeaderLocation, const FRotator& LeaderRotation) const;
-    FVector CalculateFormationOffset(int32 Position, int32 TotalCount) const;
     
     // ========== 辅助函数 ==========
     EMAAgentType StringToAgentType(const FString& TypeString) const;

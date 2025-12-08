@@ -40,6 +40,16 @@ void UMAInputActions::Initialize()
     IA_ToggleRecording = CreateInputAction(TEXT("IA_ToggleRecording"));
     IA_ToggleTCPStream = CreateInputAction(TEXT("IA_ToggleTCPStream"));
 
+    // 编组快捷键
+    IA_ControlGroup1 = CreateInputAction(TEXT("IA_ControlGroup1"));
+    IA_ControlGroup2 = CreateInputAction(TEXT("IA_ControlGroup2"));
+    IA_ControlGroup3 = CreateInputAction(TEXT("IA_ControlGroup3"));
+    IA_ControlGroup4 = CreateInputAction(TEXT("IA_ControlGroup4"));
+    IA_ControlGroup5 = CreateInputAction(TEXT("IA_ControlGroup5"));
+    IA_CreateSquad = CreateInputAction(TEXT("IA_CreateSquad"));
+    IA_DisbandSquad = CreateInputAction(TEXT("IA_DisbandSquad"));
+    IA_ToggleMouseMode = CreateInputAction(TEXT("IA_ToggleMouseMode"));
+
     // 创建 Input Mapping Context
     DefaultMappingContext = NewObject<UInputMappingContext>(this, TEXT("IMC_Default"));
 
@@ -65,7 +75,17 @@ void UMAInputActions::Initialize()
     AddKeyMapping(DefaultMappingContext, IA_ToggleRecording, EKeys::R);  // R for Recording
     AddKeyMapping(DefaultMappingContext, IA_ToggleTCPStream, EKeys::V);  // V for Video stream
 
-    UE_LOG(LogTemp, Log, TEXT("[Input] MAInputActions initialized with %d actions"), 20);
+    // 编组快捷键 (1~5, Ctrl+1~5 由代码检测)
+    AddKeyMapping(DefaultMappingContext, IA_ControlGroup1, EKeys::One);
+    AddKeyMapping(DefaultMappingContext, IA_ControlGroup2, EKeys::Two);
+    AddKeyMapping(DefaultMappingContext, IA_ControlGroup3, EKeys::Three);
+    AddKeyMapping(DefaultMappingContext, IA_ControlGroup4, EKeys::Four);
+    AddKeyMapping(DefaultMappingContext, IA_ControlGroup5, EKeys::Five);
+    AddKeyMapping(DefaultMappingContext, IA_CreateSquad, EKeys::Q);  // Q for sQuad
+    AddKeyMapping(DefaultMappingContext, IA_DisbandSquad, EKeys::Q);  // Shift+Q 解散 (Shift 在代码中检测)
+    AddKeyMapping(DefaultMappingContext, IA_ToggleMouseMode, EKeys::M);  // M for Mode
+
+    UE_LOG(LogTemp, Log, TEXT("[Input] MAInputActions initialized with %d actions"), 28);
 }
 
 UInputAction* UMAInputActions::CreateInputAction(const FName& Name, EInputActionValueType ValueType)

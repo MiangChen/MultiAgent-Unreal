@@ -85,6 +85,31 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "Input")
     TObjectPtr<UInputAction> IA_ToggleTCPStream;
 
+    // ========== 编组快捷键 (星际争霸风格) ==========
+    UPROPERTY(BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_ControlGroup1;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_ControlGroup2;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_ControlGroup3;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_ControlGroup4;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_ControlGroup5;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_CreateSquad;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_DisbandSquad;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_ToggleMouseMode;
+
     // ========== Input Mapping Context ==========
     UPROPERTY(BlueprintReadOnly, Category = "Input")
     TObjectPtr<UInputMappingContext> DefaultMappingContext;

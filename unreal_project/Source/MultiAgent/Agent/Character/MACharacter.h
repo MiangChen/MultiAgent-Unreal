@@ -14,6 +14,7 @@ class UMAAbilitySystemComponent;
 class AMAPickupItem;
 class UMASensorComponent;
 class UMACameraSensorComponent;
+class UMASquad;
 
 // 保留旧枚举作为别名，便于过渡 (deprecated)
 UENUM(BlueprintType)
@@ -83,6 +84,11 @@ public:
 
     UPROPERTY(BlueprintReadOnly, Category = "Movement")
     bool bIsMoving;
+
+    // ========== Squad 关联 ==========
+    // 当前所属 Squad (nullptr 表示独立行动)
+    UPROPERTY(BlueprintReadOnly, Category = "Squad")
+    UMASquad* CurrentSquad = nullptr;
 
     // ========== 头顶状态显示 ==========
     UFUNCTION(BlueprintCallable, Category = "Status")
