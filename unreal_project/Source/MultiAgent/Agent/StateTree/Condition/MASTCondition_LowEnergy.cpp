@@ -24,7 +24,7 @@ bool FMASTCondition_LowEnergy::TestCondition(FStateTreeExecutionContext& Context
     if (bIsLowEnergy)
     {
         UE_LOG(LogTemp, Log, TEXT("[STCondition] %s low energy: %.1f%% < %.1f%%"), 
-            *Robot->ActorName, EnergyPercent, EnergyThreshold);
+            *Robot->AgentName, EnergyPercent, EnergyThreshold);
     }
     
     return bIsLowEnergy;

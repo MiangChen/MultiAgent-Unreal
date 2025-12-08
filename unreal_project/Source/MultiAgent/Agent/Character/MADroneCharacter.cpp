@@ -12,7 +12,6 @@
 
 AMADroneCharacter::AMADroneCharacter()
 {
-    ActorType = EMAActorType::Drone;
     AgentType = EMAAgentType::Drone;
     
     // Energy defaults (无人机耗电较慢)
@@ -45,53 +44,53 @@ void AMADroneCharacter::BeginPlay()
 {
     Super::BeginPlay();
     
-    UE_LOG(LogTemp, Warning, TEXT("[%s] ========== Drone BeginPlay START =========="), *ActorName);
+    UE_LOG(LogTemp, Warning, TEXT("[%s] ========== Drone BeginPlay START =========="), *AgentName);
     
     // 检查 StateTreeComponent
     if (!StateTreeComponent)
     {
-        UE_LOG(LogTemp, Error, TEXT("[%s] StateTreeComponent is NULL!"), *ActorName);
+        UE_LOG(LogTemp, Error, TEXT("[%s] StateTreeComponent is NULL!"), *AgentName);
         return;
     }
     
-    UE_LOG(LogTemp, Warning, TEXT("[%s] StateTreeComponent exists"), *ActorName);
-    UE_LOG(LogTemp, Warning, TEXT("[%s] HasStateTree: %s"), *ActorName, StateTreeComponent->HasStateTree() ? TEXT("YES") : TEXT("NO"));
+    UE_LOG(LogTemp, Warning, TEXT("[%s] StateTreeComponent exists"), *AgentName);
+    UE_LOG(LogTemp, Warning, TEXT("[%s] HasStateTree: %s"), *AgentName, StateTreeComponent->HasStateTree() ? TEXT("YES") : TEXT("NO"));
     
     // 动态加载 StateTree Asset
     if (!StateTreeComponent->HasStateTree())
     {
-        UE_LOG(LogTemp, Warning, TEXT("[%s] Loading StateTree from /Game/StateTree/ST_Drone..."), *ActorName);
+        UE_LOG(LogTemp, Warning, TEXT("[%s] Loading StateTree from /Game/StateTree/ST_Drone..."), *AgentName);
         
         UStateTree* ST = LoadObject<UStateTree>(nullptr, 
             TEXT("/Game/StateTree/ST_Drone.ST_Drone"));
         
         if (ST)
         {
-            UE_LOG(LogTemp, Warning, TEXT("[%s] StateTree loaded successfully: %s"), *ActorName, *ST->GetName());
+            UE_LOG(LogTemp, Warning, TEXT("[%s] StateTree loaded successfully: %s"), *AgentName, *ST->GetName());
             StateTreeComponent->SetStateTreeAsset(ST);
             
             UE_LOG(LogTemp, Warning, TEXT("[%s] After SetStateTreeAsset - HasStateTree: %s"), 
-                *ActorName, StateTreeComponent->HasStateTree() ? TEXT("YES") : TEXT("NO"));
+                *AgentName, StateTreeComponent->HasStateTree() ? TEXT("YES") : TEXT("NO"));
         }
         else
         {
-            UE_LOG(LogTemp, Error, TEXT("[%s] Failed to load StateTree from /Game/StateTree/ST_Drone.ST_Drone"), *ActorName);
+            UE_LOG(LogTemp, Error, TEXT("[%s] Failed to load StateTree from /Game/StateTree/ST_Drone.ST_Drone"), *AgentName);
         }
     }
     else
     {
-        UE_LOG(LogTemp, Warning, TEXT("[%s] StateTree already set"), *ActorName);
+        UE_LOG(LogTemp, Warning, TEXT("[%s] StateTree already set"), *AgentName);
     }
     
     // 检查 AIController
     AAIController* AIC = Cast<AAIController>(GetController());
     if (AIC)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[%s] AIController: %s"), *ActorName, *AIC->GetName());
+        UE_LOG(LogTemp, Warning, TEXT("[%s] AIController: %s"), *AgentName, *AIC->GetName());
     }
     else
     {
-        UE_LOG(LogTemp, Warning, TEXT("[%s] No AIController (may be spawned later)"), *ActorName);
+        UE_LOG(LogTemp, Warning, TEXT("[%s] No AIController (may be spawned later)"), *AgentName);
     }
     
     // 设置初始飞行高度
@@ -111,14 +110,14 @@ void AMADroneCharacter::BeginPlay()
         GetMesh()->SetAnimation(PropellerAnim);
         GetMesh()->SetPlayRate(1.0f);
         GetMesh()->Play(true);
-        UE_LOG(LogTemp, Warning, TEXT("[%s] PropellerAnim started in BeginPlay"), *ActorName);
+        UE_LOG(LogTemp, Warning, TEXT("[%s] PropellerAnim started in BeginPlay"), *AgentName);
     }
     else
     {
-        UE_LOG(LogTemp, Error, TEXT("[%s] PropellerAnim is NULL in BeginPlay!"), *ActorName);
+        UE_LOG(LogTemp, Error, TEXT("[%s] PropellerAnim is NULL in BeginPlay!"), *AgentName);
     }
     
-    UE_LOG(LogTemp, Warning, TEXT("[%s] ========== Drone BeginPlay END =========="), *ActorName);
+    UE_LOG(LogTemp, Warning, TEXT("[%s] ========== Drone BeginPlay END =========="), *AgentName);
 }
 
 void AMADroneCharacter::Tick(float DeltaTime)
@@ -162,7 +161,7 @@ void AMADroneCharacter::DrainEnergy(float DeltaTime)
     if (Energy <= 0.f)
     {
         Land();
-        UE_LOG(LogTemp, Warning, TEXT("[%s] Energy depleted! Emergency landing."), *ActorName);
+        UE_LOG(LogTemp, Warning, TEXT("[%s] Energy depleted! Emergency landing."), *AgentName);
     }
 }
 
@@ -178,7 +177,7 @@ void AMADroneCharacter::RestoreEnergy(float Amount)
         Energy = FMath::Min(MaxEnergy, Energy + Amount);
     }
     UE_LOG(LogTemp, Warning, TEXT("[%s] Energy restored: %.1f -> %.1f (Amount: %.1f)"), 
-        *ActorName, OldEnergy, Energy, Amount);
+        *AgentName, OldEnergy, Energy, Amount);
 }
 
 void AMADroneCharacter::UpdateEnergyDisplay()
@@ -218,7 +217,7 @@ void AMADroneCharacter::CheckLowEnergyStatus()
     if (Energy < LowEnergyThreshold && !bHasLowEnergyTag)
     {
         AbilitySystemComponent->AddLooseGameplayTag(Tags.Status_LowEnergy);
-        UE_LOG(LogTemp, Warning, TEXT("[%s] Low energy warning! %.0f%%"), *ActorName, GetEnergyPercent());
+        UE_LOG(LogTemp, Warning, TEXT("[%s] Low energy warning! %.0f%%"), *AgentName, GetEnergyPercent());
     }
     else if (Energy >= LowEnergyThreshold && bHasLowEnergyTag)
     {
@@ -247,7 +246,7 @@ void AMADroneCharacter::TakeOff(float TargetAltitude)
     // 飞往目标高度
     FlyTo(TargetLocation);
     
-    UE_LOG(LogTemp, Warning, TEXT("[%s] Taking off to altitude %.1f"), *ActorName, TargetAltitude);
+    UE_LOG(LogTemp, Warning, TEXT("[%s] Taking off to altitude %.1f"), *AgentName, TargetAltitude);
 }
 
 void AMADroneCharacter::Land()
@@ -262,7 +261,7 @@ void AMADroneCharacter::Land()
     // 飞往地面
     FlyTo(GroundLocation);
     
-    UE_LOG(LogTemp, Warning, TEXT("[%s] Landing..."), *ActorName);
+    UE_LOG(LogTemp, Warning, TEXT("[%s] Landing..."), *AgentName);
 }
 
 void AMADroneCharacter::Hover()
@@ -273,14 +272,14 @@ void AMADroneCharacter::Hover()
     bIsHovering = true;
     bIsMoving = false;
     
-    UE_LOG(LogTemp, Warning, TEXT("[%s] Hovering at %.1f"), *ActorName, GetActorLocation().Z);
+    UE_LOG(LogTemp, Warning, TEXT("[%s] Hovering at %.1f"), *AgentName, GetActorLocation().Z);
 }
 
 bool AMADroneCharacter::FlyTo(FVector Destination)
 {
     if (!HasEnergy())
     {
-        UE_LOG(LogTemp, Warning, TEXT("[%s] Cannot fly - no energy!"), *ActorName);
+        UE_LOG(LogTemp, Warning, TEXT("[%s] Cannot fly - no energy!"), *AgentName);
         return false;
     }
     
@@ -294,11 +293,11 @@ bool AMADroneCharacter::FlyTo(FVector Destination)
     {
         AIC->MoveToLocation(Destination, 50.f);  // 50 单位的接受半径
         UE_LOG(LogTemp, Warning, TEXT("[%s] Flying to (%.1f, %.1f, %.1f)"), 
-            *ActorName, Destination.X, Destination.Y, Destination.Z);
+            *AgentName, Destination.X, Destination.Y, Destination.Z);
         return true;
     }
     
-    UE_LOG(LogTemp, Warning, TEXT("[%s] No AIController for navigation"), *ActorName);
+    UE_LOG(LogTemp, Warning, TEXT("[%s] No AIController for navigation"), *AgentName);
     return false;
 }
 

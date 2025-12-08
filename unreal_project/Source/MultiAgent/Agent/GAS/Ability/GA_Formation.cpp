@@ -93,7 +93,7 @@ void UGA_Formation::ActivateAbility(
         }
         
         UE_LOG(LogTemp, Log, TEXT("[Formation] %s joining %s formation, position %d"), 
-            *Character->ActorName, *FormationName, FormationPosition);
+            *Character->AgentName, *FormationName, FormationPosition);
         
         Character->ShowAbilityStatus(TEXT("Formation"), 
             FString::Printf(TEXT("%s #%d"), *FormationName, FormationPosition));
@@ -192,7 +192,7 @@ void UGA_Formation::UpdateFormationPosition()
     // Check if leader is still valid
     if (!Leader.IsValid())
     {
-        UE_LOG(LogTemp, Warning, TEXT("[Formation] %s: Leader lost!"), *Character->ActorName);
+        UE_LOG(LogTemp, Warning, TEXT("[Formation] %s: Leader lost!"), *Character->AgentName);
         CleanupFormation();
         EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
         return;
@@ -203,7 +203,7 @@ void UGA_Formation::UpdateFormationPosition()
     {
         if (!Robot->HasEnergy())
         {
-            UE_LOG(LogTemp, Warning, TEXT("[Formation] %s ran out of energy"), *Character->ActorName);
+            UE_LOG(LogTemp, Warning, TEXT("[Formation] %s ran out of energy"), *Character->AgentName);
             CleanupFormation();
             EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
             return;
@@ -260,7 +260,7 @@ void UGA_Formation::EndAbility(
     AMACharacter* Character = GetOwningCharacter();
     if (Character)
     {
-        UE_LOG(LogTemp, Log, TEXT("[Formation] %s left formation"), *Character->ActorName);
+        UE_LOG(LogTemp, Log, TEXT("[Formation] %s left formation"), *Character->AgentName);
     }
     
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);

@@ -45,7 +45,7 @@ EStateTreeRunStatus FMASTTask_Navigate::EnterState(
     AdjustedTarget.Z = Character->GetActorLocation().Z;
 
     UE_LOG(LogTemp, Log, TEXT("[STTask_Navigate] %s navigating to (%.0f, %.0f, %.0f)"),
-        *Character->ActorName, AdjustedTarget.X, AdjustedTarget.Y, AdjustedTarget.Z);
+        *Character->AgentName, AdjustedTarget.X, AdjustedTarget.Y, AdjustedTarget.Z);
 
     // 激活导航
     if (ASC->TryActivateNavigate(AdjustedTarget))
@@ -91,7 +91,7 @@ EStateTreeRunStatus FMASTTask_Navigate::Tick(
     if (Distance <= AcceptanceRadius)
     {
         UE_LOG(LogTemp, Log, TEXT("[STTask_Navigate] %s reached destination, Distance=%.1f"),
-            *Character->ActorName, Distance);
+            *Character->AgentName, Distance);
         InstanceData.bNavigationCompleted = true;
         InstanceData.bNavigationSucceeded = true;
         return EStateTreeRunStatus::Succeeded;
@@ -106,7 +106,7 @@ EStateTreeRunStatus FMASTTask_Navigate::Tick(
         {
             // 移动已停止但未到达目标，可能是路径失败
             UE_LOG(LogTemp, Warning, TEXT("[STTask_Navigate] %s stopped moving but not at destination"),
-                *Character->ActorName);
+                *Character->AgentName);
             InstanceData.bNavigationCompleted = true;
             InstanceData.bNavigationSucceeded = false;
             return EStateTreeRunStatus::Failed;

@@ -16,16 +16,6 @@ class UMASensorComponent;
 class UMACameraSensorComponent;
 class UMASquad;
 
-// 保留旧枚举作为别名，便于过渡 (deprecated)
-UENUM(BlueprintType)
-enum class EMAActorType : uint8
-{
-    Human,
-    RobotDog,
-    Drone,
-    Camera
-};
-
 UCLASS()
 class MULTIAGENT_API AMACharacter : public ACharacter, public IAbilitySystemInterface
 {
@@ -71,16 +61,6 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Agent")
     EMAAgentType AgentType;
-    
-    // 保留旧属性作为别名，便于过渡 (deprecated)
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Actor", meta = (DeprecatedProperty, DeprecationMessage = "Use AgentID instead"))
-    int32 ActorID;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Actor", meta = (DeprecatedProperty, DeprecationMessage = "Use AgentName instead"))
-    FString ActorName;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Actor", meta = (DeprecatedProperty, DeprecationMessage = "Use AgentType instead"))
-    EMAActorType ActorType;
 
     UPROPERTY(BlueprintReadOnly, Category = "Movement")
     bool bIsMoving;

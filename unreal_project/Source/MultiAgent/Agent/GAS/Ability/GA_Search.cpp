@@ -62,7 +62,7 @@ void UGA_Search::ActivateAbility(
     AMACharacter* Character = GetOwningCharacter();
     if (Character)
     {
-        UE_LOG(LogTemp, Log, TEXT("[Search] %s starting search"), *Character->ActorName);
+        UE_LOG(LogTemp, Log, TEXT("[Search] %s starting search"), *Character->AgentName);
         Character->ShowAbilityStatus(TEXT("Search"), TEXT("Scanning..."));
         
         // Start periodic detection
@@ -154,7 +154,7 @@ void UGA_Search::OnTargetFound(AMAHumanCharacter* Human)
     
     // Output "Find Target"
     UE_LOG(LogTemp, Warning, TEXT("[Search] %s: Find Target! Detected %s"), 
-        *Character->ActorName, *Human->ActorName);
+        *Character->AgentName, *Human->AgentName);
     
     // Show on screen
     if (GEngine)
@@ -163,13 +163,13 @@ void UGA_Search::OnTargetFound(AMAHumanCharacter* Human)
             -1,
             3.f,
             FColor::Red,
-            FString::Printf(TEXT("[%s] Find Target: %s"), *Character->ActorName, *Human->ActorName)
+            FString::Printf(TEXT("[%s] Find Target: %s"), *Character->AgentName, *Human->AgentName)
         );
     }
     
     // Update status display
     Character->ShowAbilityStatus(TEXT("Search"), 
-        FString::Printf(TEXT("Found: %s"), *Human->ActorName));
+        FString::Printf(TEXT("Found: %s"), *Human->AgentName));
     
     // Send gameplay event
     if (UAbilitySystemComponent* ASC = Character->GetAbilitySystemComponent())
@@ -207,7 +207,7 @@ void UGA_Search::EndAbility(
     AMACharacter* Character = GetOwningCharacter();
     if (Character)
     {
-        UE_LOG(LogTemp, Log, TEXT("[Search] %s search ended"), *Character->ActorName);
+        UE_LOG(LogTemp, Log, TEXT("[Search] %s search ended"), *Character->AgentName);
     }
     
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);

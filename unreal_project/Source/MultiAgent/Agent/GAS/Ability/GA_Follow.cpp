@@ -60,12 +60,12 @@ void UGA_Follow::ActivateAbility(
     }
     
     UE_LOG(LogTemp, Log, TEXT("[Follow] %s starts following %s"), 
-        *Character->ActorName, *TargetCharacter->ActorName);
+        *Character->AgentName, *TargetCharacter->AgentName);
     
     // 显示头顶状态（持续显示，设置很长的时间）
     Character->ShowAbilityStatus(TEXT("Following"), 
-        FString::Printf(TEXT("→ %s"), *TargetCharacter->ActorName));
-    Character->ShowStatus(FString::Printf(TEXT("[Following] → %s"), *TargetCharacter->ActorName), 9999.f);
+        FString::Printf(TEXT("→ %s"), *TargetCharacter->AgentName));
+    Character->ShowStatus(FString::Printf(TEXT("[Following] → %s"), *TargetCharacter->AgentName), 9999.f);
     
     // 立即执行一次
     UpdateFollow();
@@ -119,7 +119,7 @@ void UGA_Follow::UpdateFollow()
     }
     
     // 需要移动，显示追踪状态
-    Character->ShowStatus(FString::Printf(TEXT("[Following] → %s"), *TargetCharacter->ActorName), 9999.f);
+    Character->ShowStatus(FString::Printf(TEXT("[Following] → %s"), *TargetCharacter->AgentName), 9999.f);
     
     // 导航到跟随位置
     AAIController* AICtrl = Cast<AAIController>(Character->GetController());
@@ -153,7 +153,7 @@ void UGA_Follow::UpdateFollow()
                 Character->bIsMoving = false;
                 Character->ShowStatus(TEXT("[Follow] Cannot reach!"), 2.0f);
                 UE_LOG(LogTemp, Warning, TEXT("[Follow] %s cannot reach %s - path failed"), 
-                    *Character->ActorName, *TargetCharacter->ActorName);
+                    *Character->AgentName, *TargetCharacter->AgentName);
             }
             else
             {
@@ -226,7 +226,7 @@ void UGA_Follow::EndAbility(
             AICtrl->StopMovement();
         }
         
-        UE_LOG(LogTemp, Log, TEXT("[Follow] %s stopped following"), *Character->ActorName);
+        UE_LOG(LogTemp, Log, TEXT("[Follow] %s stopped following"), *Character->AgentName);
         
         // 清除头顶状态
         Character->ShowStatus(TEXT(""), 0.f);

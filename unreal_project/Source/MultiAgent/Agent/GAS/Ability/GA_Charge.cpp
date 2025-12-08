@@ -89,7 +89,7 @@ void UGA_Charge::ActivateAbility(
     if (Character)
     {
         Character->ShowStatus(TEXT("[Charging...]"), 9999.f);
-        UE_LOG(LogTemp, Log, TEXT("[GA_Charge] %s started charging"), *Character->ActorName);
+        UE_LOG(LogTemp, Log, TEXT("[GA_Charge] %s started charging"), *Character->AgentName);
         
         // 启动定时器进行渐进式充电
         if (UWorld* World = Character->GetWorld())
@@ -119,7 +119,7 @@ void UGA_Charge::UpdateCharge()
     // 检查是否还在充电站范围内
     if (!CurrentChargingStation.IsValid() || !CurrentChargingStation->IsRobotInRange(Robot))
     {
-        UE_LOG(LogTemp, Warning, TEXT("[GA_Charge] %s left charging station range"), *Robot->ActorName);
+        UE_LOG(LogTemp, Warning, TEXT("[GA_Charge] %s left charging station range"), *Robot->AgentName);
         Robot->ShowStatus(TEXT("[Charge interrupted]"), 2.f);
         EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
         return;
@@ -136,7 +136,7 @@ void UGA_Charge::UpdateCharge()
     // 检查是否充满
     if (Percent >= 100.f)
     {
-        UE_LOG(LogTemp, Log, TEXT("[GA_Charge] %s fully charged!"), *Robot->ActorName);
+        UE_LOG(LogTemp, Log, TEXT("[GA_Charge] %s fully charged!"), *Robot->AgentName);
         Robot->ShowAbilityStatus(TEXT("Charge"), TEXT("Complete!"));
         
         // 发送充电完成事件

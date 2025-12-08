@@ -36,7 +36,7 @@ void UGA_Observe::ActivateAbility(
     {
         FString TargetName = ObserveTarget.IsValid() ? ObserveTarget->GetName() : TEXT("Area");
         UE_LOG(LogTemp, Log, TEXT("[Observe] %s starting observation of %s"), 
-            *Character->ActorName, *TargetName);
+            *Character->AgentName, *TargetName);
         
         Character->ShowAbilityStatus(TEXT("Observe"), TargetName);
         
@@ -92,7 +92,7 @@ void UGA_Observe::OnTargetLost()
     AMACharacter* Character = GetOwningCharacter();
     if (!Character) return;
     
-    UE_LOG(LogTemp, Warning, TEXT("[Observe] %s: Target Lost!"), *Character->ActorName);
+    UE_LOG(LogTemp, Warning, TEXT("[Observe] %s: Target Lost!"), *Character->AgentName);
     
     // Show on screen
     if (GEngine)
@@ -101,7 +101,7 @@ void UGA_Observe::OnTargetLost()
             -1,
             3.f,
             FColor::Yellow,
-            FString::Printf(TEXT("[%s] Target Lost"), *Character->ActorName)
+            FString::Printf(TEXT("[%s] Target Lost"), *Character->AgentName)
         );
     }
     
@@ -144,7 +144,7 @@ void UGA_Observe::EndAbility(
     AMACharacter* Character = GetOwningCharacter();
     if (Character)
     {
-        UE_LOG(LogTemp, Log, TEXT("[Observe] %s observation ended"), *Character->ActorName);
+        UE_LOG(LogTemp, Log, TEXT("[Observe] %s observation ended"), *Character->AgentName);
     }
     
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);

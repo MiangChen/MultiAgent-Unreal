@@ -62,7 +62,7 @@ void AMAPickupItem::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* 
         if (UMAAbilitySystemComponent* ASC = Character->FindComponentByClass<UMAAbilitySystemComponent>())
         {
             ASC->AddLooseGameplayTag(FMAGameplayTags::Get().Status_CanPickup);
-            UE_LOG(LogTemp, Log, TEXT("%s entered pickup range of %s"), *Character->ActorName, *ItemName);
+            UE_LOG(LogTemp, Log, TEXT("%s entered pickup range of %s"), *Character->AgentName, *ItemName);
         }
     }
 }

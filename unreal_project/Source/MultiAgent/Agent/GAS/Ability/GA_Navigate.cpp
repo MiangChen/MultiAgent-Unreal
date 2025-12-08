@@ -87,7 +87,7 @@ void UGA_Navigate::StartNavigation()
     AAIController* AICtrl = Cast<AAIController>(Character->GetController());
     if (!AICtrl)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[Navigate] No AIController for %s"), *Character->ActorName);
+        UE_LOG(LogTemp, Warning, TEXT("[Navigate] No AIController for %s"), *Character->AgentName);
         EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
         return;
     }
@@ -116,17 +116,17 @@ void UGA_Navigate::StartNavigation()
     );
     
     UE_LOG(LogTemp, Log, TEXT("[Navigate] %s moving to (%.0f, %.0f, %.0f), Result=%d"), 
-        *Character->ActorName, TargetLocation.X, TargetLocation.Y, TargetLocation.Z, (int32)Result);
+        *Character->AgentName, TargetLocation.X, TargetLocation.Y, TargetLocation.Z, (int32)Result);
     
     if (Result == EPathFollowingRequestResult::Failed)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[Navigate] MoveToLocation failed for %s"), *Character->ActorName);
+        UE_LOG(LogTemp, Warning, TEXT("[Navigate] MoveToLocation failed for %s"), *Character->AgentName);
         CleanupNavigation();
         EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
     }
     else if (Result == EPathFollowingRequestResult::AlreadyAtGoal)
     {
-        UE_LOG(LogTemp, Log, TEXT("[Navigate] %s already at goal"), *Character->ActorName);
+        UE_LOG(LogTemp, Log, TEXT("[Navigate] %s already at goal"), *Character->AgentName);
         CleanupNavigation();
         EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, false);
     }
@@ -136,7 +136,7 @@ void UGA_Navigate::StartNavigation()
 void UGA_Navigate::OnMoveCompleted(FAIRequestID RequestID, const FPathFollowingResult& Result)
 {
     AMACharacter* Character = GetOwningCharacter();
-    FString CharacterName = Character ? Character->ActorName : TEXT("Unknown");
+    FString CharacterName = Character ? Character->AgentName : TEXT("Unknown");
     
     bool bWasCancelled = !Result.IsSuccess();
     

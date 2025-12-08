@@ -110,8 +110,36 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Selection")
     FVector GetSelectionCenter() const;
 
-    // ========== 框选辅助 ==========
+    // ========== 框选状态 ==========
     
+    // 开始框选
+    UFUNCTION(BlueprintCallable, Category = "Selection|BoxSelect")
+    void BeginBoxSelect(const FVector2D& ScreenPos);
+
+    // 更新框选终点
+    UFUNCTION(BlueprintCallable, Category = "Selection|BoxSelect")
+    void UpdateBoxSelect(const FVector2D& ScreenPos);
+
+    // 结束框选并选中框内 Agent
+    UFUNCTION(BlueprintCallable, Category = "Selection|BoxSelect")
+    void EndBoxSelect(APlayerController* PC, bool bAddToSelection = false);
+
+    // 取消框选
+    UFUNCTION(BlueprintCallable, Category = "Selection|BoxSelect")
+    void CancelBoxSelect();
+
+    // 是否正在框选
+    UFUNCTION(BlueprintCallable, Category = "Selection|BoxSelect")
+    bool IsBoxSelecting() const { return bIsBoxSelecting; }
+
+    // 获取框选起点
+    UFUNCTION(BlueprintCallable, Category = "Selection|BoxSelect")
+    FVector2D GetBoxSelectStart() const { return BoxSelectStart; }
+
+    // 获取框选终点
+    UFUNCTION(BlueprintCallable, Category = "Selection|BoxSelect")
+    FVector2D GetBoxSelectEnd() const { return BoxSelectEnd; }
+
     // 获取屏幕矩形内的所有 Agent
     UFUNCTION(BlueprintCallable, Category = "Selection|BoxSelect")
     TArray<AMACharacter*> GetAgentsInScreenRect(const FVector2D& StartPos, const FVector2D& EndPos, APlayerController* PC) const;
@@ -135,6 +163,11 @@ private:
 
     // 编组 0~9 (不使用 UPROPERTY，因为 UE 不支持嵌套容器的反射)
     TMap<int32, TArray<AMACharacter*>> ControlGroupsMap;
+
+    // 框选状态
+    bool bIsBoxSelecting = false;
+    FVector2D BoxSelectStart;
+    FVector2D BoxSelectEnd;
 
     // 清理无效引用
     void CleanupInvalidAgents(TArray<AMACharacter*>& Agents);

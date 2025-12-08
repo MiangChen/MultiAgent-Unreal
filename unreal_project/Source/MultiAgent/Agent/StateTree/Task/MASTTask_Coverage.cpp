@@ -44,7 +44,7 @@ EStateTreeRunStatus FMASTTask_Coverage::EnterState(
     AMACoverageArea* CoverageArea = Cast<AMACoverageArea>(Coverable->GetCoverageArea());
     if (!CoverageArea)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[STTask_Coverage] %s: No CoverageArea set"), *Character->ActorName);
+        UE_LOG(LogTemp, Warning, TEXT("[STTask_Coverage] %s: No CoverageArea set"), *Character->AgentName);
         return EStateTreeRunStatus::Failed;
     }
 
@@ -123,7 +123,7 @@ EStateTreeRunStatus FMASTTask_Coverage::EnterState(
     Data.TotalPathPoints = Data.CoveragePath.Num();
 
     UE_LOG(LogTemp, Log, TEXT("[Coverage] %s: Generated %d navigable points (skipped %d), ScanRadius=%.0f"),
-        *Character->ActorName, Data.TotalPathPoints, SkippedCount, ScanRadius);
+        *Character->AgentName, Data.TotalPathPoints, SkippedCount, ScanRadius);
 
     if (Data.TotalPathPoints < 2)
     {
@@ -169,7 +169,7 @@ EStateTreeRunStatus FMASTTask_Coverage::Tick(
     // 检查是否已完成所有点
     if (Data.bIsCompleted)
     {
-        UE_LOG(LogTemp, Log, TEXT("[STTask_Coverage] %s completed coverage!"), *Character->ActorName);
+        UE_LOG(LogTemp, Log, TEXT("[STTask_Coverage] %s completed coverage!"), *Character->AgentName);
         
         if (UMAAbilitySystemComponent* ASC = Cast<UMAAbilitySystemComponent>(Character->GetAbilitySystemComponent()))
         {
@@ -203,7 +203,7 @@ EStateTreeRunStatus FMASTTask_Coverage::Tick(
     if (++DebugCounter % 30 == 0)
     {
         UE_LOG(LogTemp, Warning, TEXT("[Coverage DEBUG] %s: Index=%d, Pos=(%.0f,%.0f), Target=(%.0f,%.0f), Dist=%.0f, Accept=%.0f"),
-            *Character->ActorName, Data.CurrentPathIndex,
+            *Character->AgentName, Data.CurrentPathIndex,
             CharacterLoc.X, CharacterLoc.Y, CurrentTarget.X, CurrentTarget.Y, Distance, ActualAcceptRadius);
     }
 
@@ -214,7 +214,7 @@ EStateTreeRunStatus FMASTTask_Coverage::Tick(
         Data.bIsMoving = false;
 
         UE_LOG(LogTemp, Warning, TEXT("[Coverage DEBUG] %s REACHED point [%d/%d], moving to next"),
-            *Character->ActorName, Data.CurrentPathIndex, Data.TotalPathPoints);
+            *Character->AgentName, Data.CurrentPathIndex, Data.TotalPathPoints);
 
         if (Data.CurrentPathIndex >= Data.TotalPathPoints)
         {
@@ -229,7 +229,7 @@ EStateTreeRunStatus FMASTTask_Coverage::Tick(
         if (!MoveToNextPoint(Context, Data))
         {
             UE_LOG(LogTemp, Warning, TEXT("[Coverage] %s: No more reachable points, completing"),
-                *Character->ActorName);
+                *Character->AgentName);
             Data.bIsCompleted = true;
         }
     }
@@ -310,7 +310,7 @@ bool FMASTTask_Coverage::MoveToNextPoint(
         }
         
         UE_LOG(LogTemp, Warning, TEXT("[Coverage] %s: Point %d unreachable, skipping"),
-            *Character->ActorName, Data.CurrentPathIndex);
+            *Character->AgentName, Data.CurrentPathIndex);
         Data.CurrentPathIndex++;
     }
 

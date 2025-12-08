@@ -272,6 +272,56 @@ FVector UMASelectionManager::GetSelectionCenter() const
     return Count > 0 ? Center / Count : FVector::ZeroVector;
 }
 
+// ========== 框选状态 ==========
+
+void UMASelectionManager::BeginBoxSelect(const FVector2D& ScreenPos)
+{
+    bIsBoxSelecting = true;
+    BoxSelectStart = ScreenPos;
+    BoxSelectEnd = ScreenPos;
+}
+
+void UMASelectionManager::UpdateBoxSelect(const FVector2D& ScreenPos)
+{
+    if (bIsBoxSelecting)
+    {
+        BoxSelectEnd = ScreenPos;
+    }
+}
+
+void UMASelectionManager::EndBoxSelect(APlayerController* PC, bool bAddToSelection)
+{
+    if (!bIsBoxSelecting) return;
+    bIsBoxSelecting = false;
+
+    // 计算框选大小
+    float BoxWidth = FMath::Abs(BoxSelectEnd.X - BoxSelectStart.X);
+    float BoxHeight = FMath::Abs(BoxSelectEnd.Y - BoxSelectStart.Y);
+
+    // 太小的框选视为点击
+    if (BoxWidth < 10.f && BoxHeight < 10.f)
+    {
+        return;  // 点击逻辑由 PlayerController 处理
+    }
+
+    // 获取框内 Agent
+    TArray<AMACharacter*> AgentsInBox = GetAgentsInScreenRect(BoxSelectStart, BoxSelectEnd, PC);
+
+    if (bAddToSelection)
+    {
+        AddAgentsToSelection(AgentsInBox);
+    }
+    else
+    {
+        SelectAgents(AgentsInBox);
+    }
+}
+
+void UMASelectionManager::CancelBoxSelect()
+{
+    bIsBoxSelecting = false;
+}
+
 // ========== 框选辅助 ==========
 
 TArray<AMACharacter*> UMASelectionManager::GetAgentsInScreenRect(

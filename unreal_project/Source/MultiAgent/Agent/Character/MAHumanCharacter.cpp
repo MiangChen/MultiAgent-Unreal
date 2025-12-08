@@ -9,7 +9,7 @@
 
 AMAHumanCharacter::AMAHumanCharacter()
 {
-    ActorType = EMAActorType::Human;
+    AgentType = EMAAgentType::Human;
     
     GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
     

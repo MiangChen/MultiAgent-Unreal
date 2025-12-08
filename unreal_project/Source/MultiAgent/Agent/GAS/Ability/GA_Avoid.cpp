@@ -45,10 +45,10 @@ void UGA_Avoid::ActivateAbility(
             ActualCheckInterval = Robot->AvoidanceCheckInterval;
             
             UE_LOG(LogTemp, Log, TEXT("[Avoid] %s using Robot params: Radius=%.0f, Strength=%.1f, Interval=%.2f"), 
-                *Character->ActorName, DetectionRadius, AvoidanceStrength, ActualCheckInterval);
+                *Character->AgentName, DetectionRadius, AvoidanceStrength, ActualCheckInterval);
         }
         
-        UE_LOG(LogTemp, Log, TEXT("[Avoid] %s starting obstacle avoidance"), *Character->ActorName);
+        UE_LOG(LogTemp, Log, TEXT("[Avoid] %s starting obstacle avoidance"), *Character->AgentName);
         
         // Start periodic obstacle checking
         if (UWorld* World = Character->GetWorld())
@@ -229,7 +229,7 @@ void UGA_Avoid::EndAbility(
     AMACharacter* Character = GetOwningCharacter();
     if (Character)
     {
-        UE_LOG(LogTemp, Log, TEXT("[Avoid] %s avoidance ended"), *Character->ActorName);
+        UE_LOG(LogTemp, Log, TEXT("[Avoid] %s avoidance ended"), *Character->AgentName);
     }
     
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);

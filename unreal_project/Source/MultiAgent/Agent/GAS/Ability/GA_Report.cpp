@@ -38,7 +38,7 @@ void UGA_Report::ActivateAbility(
 void UGA_Report::ShowReportDialog()
 {
     AMACharacter* Character = GetOwningCharacter();
-    FString SenderName = Character ? Character->ActorName : TEXT("Unknown");
+    FString SenderName = Character ? Character->AgentName : TEXT("Unknown");
     
     // Format the message
     FString FormattedMessage = FString::Printf(TEXT("[Report from %s]\n%s"), *SenderName, *ReportMessage);

@@ -14,15 +14,9 @@ AMACharacter::AMACharacter()
 {
     PrimaryActorTick.bCanEverTick = true;
     
-    // 新属性初始化
     AgentID = TEXT("");
     AgentName = TEXT("Agent");
     AgentType = EMAAgentType::Human;
-    
-    // 旧属性初始化 (deprecated, 保持兼容)
-    ActorID = 0;
-    ActorName = TEXT("Character");
-    ActorType = EMAActorType::Human;
     bIsMoving = false;
 
     GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
@@ -222,10 +216,10 @@ UMACameraSensorComponent* AMACharacter::AddCameraSensor(FVector RelativeLocation
         CameraSensor->SetRelativeRotation(RelativeRotation);
         CameraSensor->RegisterComponent();
         
-        CameraSensor->SensorName = FString::Printf(TEXT("%s_Camera"), *ActorName);
+        CameraSensor->SensorName = FString::Printf(TEXT("%s_Camera"), *AgentName);
         
         UE_LOG(LogTemp, Log, TEXT("[Character] %s added camera sensor at (%.0f, %.0f, %.0f)"),
-            *ActorName, RelativeLocation.X, RelativeLocation.Y, RelativeLocation.Z);
+            *AgentName, RelativeLocation.X, RelativeLocation.Y, RelativeLocation.Z);
     }
     
     return CameraSensor;
@@ -241,7 +235,7 @@ bool AMACharacter::RemoveSensor(UMASensorComponent* Sensor)
     FString SensorName = Sensor->SensorName;
     Sensor->DestroyComponent();
     
-    UE_LOG(LogTemp, Log, TEXT("[Character] %s removed sensor %s"), *ActorName, *SensorName);
+    UE_LOG(LogTemp, Log, TEXT("[Character] %s removed sensor %s"), *AgentName, *SensorName);
     return true;
 }
 

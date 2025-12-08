@@ -24,7 +24,7 @@ bool FMASTCondition_FullEnergy::TestCondition(FStateTreeExecutionContext& Contex
     if (bIsFull)
     {
         UE_LOG(LogTemp, Log, TEXT("[STCondition] %s full energy: %.1f%% >= %.1f%%"), 
-            *Robot->ActorName, EnergyPercent, FullThreshold);
+            *Robot->AgentName, EnergyPercent, FullThreshold);
     }
     
     return bIsFull;

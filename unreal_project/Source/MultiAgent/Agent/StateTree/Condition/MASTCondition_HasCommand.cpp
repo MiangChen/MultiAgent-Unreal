@@ -35,7 +35,7 @@ bool FMASTCondition_HasCommand::TestCondition(FStateTreeExecutionContext& Contex
     
     // 调试日志（可选，帮助排查问题）
     // UE_LOG(LogTemp, Verbose, TEXT("[HasCommand] %s checking %s = %d"), 
-    //     *Character->ActorName, *CommandTag.ToString(), bHasTag ? 1 : 0);
+    //     *Character->AgentName, *CommandTag.ToString(), bHasTag ? 1 : 0);
     
     return bHasTag;
 }

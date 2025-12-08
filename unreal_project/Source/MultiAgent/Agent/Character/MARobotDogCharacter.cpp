@@ -13,7 +13,7 @@
 
 AMARobotDogCharacter::AMARobotDogCharacter()
 {
-    ActorType = EMAActorType::RobotDog;
+    AgentType = EMAAgentType::RobotDog;
     bIsPlayingWalk = false;
     
     // Energy defaults
@@ -69,34 +69,34 @@ void AMARobotDogCharacter::BeginPlay()
 {
     Super::BeginPlay();
     
-    UE_LOG(LogTemp, Warning, TEXT("[%s] ========== BeginPlay START =========="), *ActorName);
+    UE_LOG(LogTemp, Warning, TEXT("[%s] ========== BeginPlay START =========="), *AgentName);
     
     // 检查 StateTreeComponent
     if (!StateTreeComponent)
     {
-        UE_LOG(LogTemp, Error, TEXT("[%s] StateTreeComponent is NULL!"), *ActorName);
+        UE_LOG(LogTemp, Error, TEXT("[%s] StateTreeComponent is NULL!"), *AgentName);
         return;
     }
     
-    UE_LOG(LogTemp, Warning, TEXT("[%s] StateTreeComponent exists"), *ActorName);
-    UE_LOG(LogTemp, Warning, TEXT("[%s] HasStateTree: %s"), *ActorName, StateTreeComponent->HasStateTree() ? TEXT("YES") : TEXT("NO"));
+    UE_LOG(LogTemp, Warning, TEXT("[%s] StateTreeComponent exists"), *AgentName);
+    UE_LOG(LogTemp, Warning, TEXT("[%s] HasStateTree: %s"), *AgentName, StateTreeComponent->HasStateTree() ? TEXT("YES") : TEXT("NO"));
     
     // 动态加载 StateTree Asset
     if (!StateTreeComponent->HasStateTree())
     {
-        UE_LOG(LogTemp, Warning, TEXT("[%s] Loading StateTree from /Game/StateTree/ST_RobotDog..."), *ActorName);
+        UE_LOG(LogTemp, Warning, TEXT("[%s] Loading StateTree from /Game/StateTree/ST_RobotDog..."), *AgentName);
         
         UStateTree* ST = LoadObject<UStateTree>(nullptr, 
             TEXT("/Game/StateTree/ST_RobotDog.ST_RobotDog"));
         
         if (ST)
         {
-            UE_LOG(LogTemp, Warning, TEXT("[%s] StateTree loaded successfully: %s"), *ActorName, *ST->GetName());
+            UE_LOG(LogTemp, Warning, TEXT("[%s] StateTree loaded successfully: %s"), *AgentName, *ST->GetName());
             StateTreeComponent->SetStateTreeAsset(ST);
             
             // 验证设置后的状态
             UE_LOG(LogTemp, Warning, TEXT("[%s] After SetStateTreeAsset - HasStateTree: %s"), 
-                *ActorName, StateTreeComponent->HasStateTree() ? TEXT("YES") : TEXT("NO"));
+                *AgentName, StateTreeComponent->HasStateTree() ? TEXT("YES") : TEXT("NO"));
             
             // 检查运行状态
             EStateTreeRunStatus RunStatus = StateTreeComponent->GetStateTreeRunStatus();
@@ -109,30 +109,30 @@ void AMARobotDogCharacter::BeginPlay()
                 case EStateTreeRunStatus::Stopped: StatusStr = TEXT("Stopped"); break;
                 default: StatusStr = TEXT("Unknown"); break;
             }
-            UE_LOG(LogTemp, Warning, TEXT("[%s] StateTree RunStatus: %s"), *ActorName, *StatusStr);
+            UE_LOG(LogTemp, Warning, TEXT("[%s] StateTree RunStatus: %s"), *AgentName, *StatusStr);
         }
         else
         {
-            UE_LOG(LogTemp, Error, TEXT("[%s] Failed to load StateTree from /Game/StateTree/ST_RobotDog.ST_RobotDog"), *ActorName);
+            UE_LOG(LogTemp, Error, TEXT("[%s] Failed to load StateTree from /Game/StateTree/ST_RobotDog.ST_RobotDog"), *AgentName);
         }
     }
     else
     {
-        UE_LOG(LogTemp, Warning, TEXT("[%s] StateTree already set"), *ActorName);
+        UE_LOG(LogTemp, Warning, TEXT("[%s] StateTree already set"), *AgentName);
     }
     
     // 检查 AIController
     AAIController* AIC = Cast<AAIController>(GetController());
     if (AIC)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[%s] AIController: %s"), *ActorName, *AIC->GetName());
+        UE_LOG(LogTemp, Warning, TEXT("[%s] AIController: %s"), *AgentName, *AIC->GetName());
     }
     else
     {
-        UE_LOG(LogTemp, Error, TEXT("[%s] NO AIController! StateTree needs AIController to work!"), *ActorName);
+        UE_LOG(LogTemp, Error, TEXT("[%s] NO AIController! StateTree needs AIController to work!"), *AgentName);
     }
     
-    UE_LOG(LogTemp, Warning, TEXT("[%s] ========== BeginPlay END =========="), *ActorName);
+    UE_LOG(LogTemp, Warning, TEXT("[%s] ========== BeginPlay END =========="), *AgentName);
 }
 
 void AMARobotDogCharacter::Tick(float DeltaTime)
@@ -194,7 +194,7 @@ void AMARobotDogCharacter::DrainEnergy(float DeltaTime)
     {
         CancelNavigation();
         StopFollowing();
-        UE_LOG(LogTemp, Warning, TEXT("[%s] Energy depleted! Stopping movement."), *ActorName);
+        UE_LOG(LogTemp, Warning, TEXT("[%s] Energy depleted! Stopping movement."), *AgentName);
     }
 }
 
@@ -211,7 +211,7 @@ void AMARobotDogCharacter::RestoreEnergy(float Amount)
         Energy = FMath::Min(MaxEnergy, Energy + Amount);
     }
     UE_LOG(LogTemp, Warning, TEXT("[%s] Energy restored: %.1f -> %.1f (Amount: %.1f)"), 
-        *ActorName, OldEnergy, Energy, Amount);
+        *AgentName, OldEnergy, Energy, Amount);
 }
 
 void AMARobotDogCharacter::UpdateEnergyDisplay()
@@ -252,7 +252,7 @@ void AMARobotDogCharacter::CheckLowEnergyStatus()
     if (Energy < LowEnergyThreshold && !bHasLowEnergyTag)
     {
         AbilitySystemComponent->AddLooseGameplayTag(Tags.Status_LowEnergy);
-        UE_LOG(LogTemp, Warning, TEXT("[%s] Low energy warning! %.0f%%"), *ActorName, GetEnergyPercent());
+        UE_LOG(LogTemp, Warning, TEXT("[%s] Low energy warning! %.0f%%"), *AgentName, GetEnergyPercent());
     }
     else if (Energy >= LowEnergyThreshold && bHasLowEnergyTag)
     {

@@ -82,21 +82,6 @@ protected:
     // ========== 框选 ==========
     void DrawSelectionBox();
 
-private:
-    // 当前查看的 Camera 索引（-1 表示上帝视角）
-    int32 CurrentCameraIndex = -1;
-    
-    // 保存原始观察者 Pawn
-    UPROPERTY()
-    APawn* OriginalPawn = nullptr;
-    
-
-    
-    // ========== 框选状态 ==========
-    bool bIsBoxSelecting = false;
-    FVector2D BoxSelectStart;
-    FVector2D BoxSelectEnd;
-    
 public:
     // ========== 鼠标模式 ==========
     UPROPERTY(BlueprintReadOnly, Category = "Input")
@@ -107,7 +92,22 @@ public:
     static FString MouseModeToString(EMAMouseMode Mode);
 
 private:
-    
     // 处理编组快捷键
     void HandleControlGroup(int32 GroupIndex);
+
+    // ========== 缓存的 Subsystem 引用 ==========
+    UPROPERTY()
+    class UMAAgentManager* AgentManager;
+
+    UPROPERTY()
+    class UMACommandManager* CommandManager;
+
+    UPROPERTY()
+    class UMASelectionManager* SelectionManager;
+
+    UPROPERTY()
+    class UMASquadManager* SquadManager;
+
+    UPROPERTY()
+    class UMAViewportManager* ViewportManager;
 };

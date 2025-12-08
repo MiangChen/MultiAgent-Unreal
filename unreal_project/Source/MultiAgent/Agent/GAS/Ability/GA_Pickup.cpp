@@ -133,5 +133,5 @@ void UGA_Pickup::PerformPickup(AMAPickupItem* Item)
     );
     Item->AttachToComponent(CharMesh, AttachRules, AttachSocketName);
     
-    UE_LOG(LogTemp, Log, TEXT("[Pickup] %s picked up %s"), *Character->ActorName, *Item->ItemName);
+    UE_LOG(LogTemp, Log, TEXT("[Pickup] %s picked up %s"), *Character->AgentName, *Item->ItemName);
 }

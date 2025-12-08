@@ -46,7 +46,7 @@ EStateTreeRunStatus FMASTTask_Charge::EnterState(
     AMAChargingStation* Station = FindNearestChargingStation(Owner->GetWorld(), Character->GetActorLocation(), Data.StationLocation);
     if (!Station)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[STTask_Charge] %s: No ChargingStation found"), *Character->ActorName);
+        UE_LOG(LogTemp, Warning, TEXT("[STTask_Charge] %s: No ChargingStation found"), *Character->AgentName);
         return EStateTreeRunStatus::Failed;
     }
 
@@ -55,13 +55,13 @@ EStateTreeRunStatus FMASTTask_Charge::EnterState(
     Data.InteractionRadius = Station->InteractionRadius;
     
     UE_LOG(LogTemp, Log, TEXT("[STTask_Charge] %s found charging station at (%.0f, %.0f, %.0f), radius=%.0f"),
-        *Character->ActorName, Data.StationLocation.X, Data.StationLocation.Y, Data.StationLocation.Z, Data.InteractionRadius);
+        *Character->AgentName, Data.StationLocation.X, Data.StationLocation.Y, Data.StationLocation.Z, Data.InteractionRadius);
 
     // 检查是否已经在充电站范围内
     float Distance = FVector::Dist(Character->GetActorLocation(), Data.StationLocation);
     if (Distance <= Data.InteractionRadius)
     {
-        UE_LOG(LogTemp, Log, TEXT("[STTask_Charge] %s already at charging station, starting charge"), *Character->ActorName);
+        UE_LOG(LogTemp, Log, TEXT("[STTask_Charge] %s already at charging station, starting charge"), *Character->AgentName);
         Data.bIsCharging = true;
         
         // 调用 Character 的 TryCharge (如果有)
@@ -77,7 +77,7 @@ EStateTreeRunStatus FMASTTask_Charge::EnterState(
     if (ASC && ASC->TryActivateNavigate(Data.StationLocation))
     {
         Data.bIsMoving = true;
-        UE_LOG(LogTemp, Log, TEXT("[STTask_Charge] %s navigating to charging station"), *Character->ActorName);
+        UE_LOG(LogTemp, Log, TEXT("[STTask_Charge] %s navigating to charging station"), *Character->AgentName);
         return EStateTreeRunStatus::Running;
     }
 
@@ -108,7 +108,7 @@ EStateTreeRunStatus FMASTTask_Charge::Tick(
     UMAAbilitySystemComponent* ASC = Cast<UMAAbilitySystemComponent>(Character->GetAbilitySystemComponent());
     if (ASC && !ASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Charge"))))
     {
-        UE_LOG(LogTemp, Log, TEXT("[STTask_Charge] %s: Command.Charge removed, exiting charge"), *Character->ActorName);
+        UE_LOG(LogTemp, Log, TEXT("[STTask_Charge] %s: Command.Charge removed, exiting charge"), *Character->AgentName);
         return EStateTreeRunStatus::Succeeded;
     }
 
@@ -118,7 +118,7 @@ EStateTreeRunStatus FMASTTask_Charge::Tick(
         // 检查是否充满
         if (Chargeable->GetEnergyPercent() >= 100.f)
         {
-            UE_LOG(LogTemp, Log, TEXT("[STTask_Charge] %s fully charged!"), *Character->ActorName);
+            UE_LOG(LogTemp, Log, TEXT("[STTask_Charge] %s fully charged!"), *Character->AgentName);
             
             if (ASC)
             {
@@ -139,7 +139,7 @@ EStateTreeRunStatus FMASTTask_Charge::Tick(
         // 到达充电站
         if (Distance <= Data.InteractionRadius)
         {
-            UE_LOG(LogTemp, Log, TEXT("[STTask_Charge] %s arrived at charging station, starting charge"), *Character->ActorName);
+            UE_LOG(LogTemp, Log, TEXT("[STTask_Charge] %s arrived at charging station, starting charge"), *Character->AgentName);
             Data.bIsMoving = false;
             Data.bIsCharging = true;
             
@@ -154,7 +154,7 @@ EStateTreeRunStatus FMASTTask_Charge::Tick(
         if (!Character->bIsMoving)
         {
             UE_LOG(LogTemp, Warning, TEXT("[STTask_Charge] %s stopped moving but not at station (dist=%.0f)"), 
-                *Character->ActorName, Distance);
+                *Character->AgentName, Distance);
             
             // 重试导航
             if (ASC)

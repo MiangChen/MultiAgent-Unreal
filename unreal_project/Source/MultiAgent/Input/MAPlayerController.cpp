@@ -9,6 +9,7 @@
 #include "../Core/MASquadManager.h"
 #include "../Core/MASquad.h"
 #include "../Core/MASelectionManager.h"
+#include "../Core/MAViewportManager.h"
 #include "../UI/MASelectionHUD.h"
 #include "MACharacter.h"
 #include "MARobotDogCharacter.h"
@@ -31,6 +32,13 @@ AMAPlayerController::AMAPlayerController()
 void AMAPlayerController::BeginPlay()
 {
     Super::BeginPlay();
+    
+    // 缓存 Subsystem 引用
+    AgentManager = GetWorld()->GetSubsystem<UMAAgentManager>();
+    CommandManager = GetWorld()->GetSubsystem<UMACommandManager>();
+    SelectionManager = GetWorld()->GetSubsystem<UMASelectionManager>();
+    SquadManager = GetWorld()->GetSubsystem<UMASquadManager>();
+    ViewportManager = GetWorld()->GetSubsystem<UMAViewportManager>();
     
     // 初始为 Select 模式，禁用视角控制
     FInputModeGameAndUI InputMode;
@@ -128,27 +136,24 @@ void AMAPlayerController::OnLeftClick(const FInputActionValue& Value)
     if (CurrentMouseMode == EMAMouseMode::Select)
     {
         // Select 模式：开始框选
-        float MouseX, MouseY;
-        if (GetMousePosition(MouseX, MouseY))
+        if (SelectionManager)
         {
-            bIsBoxSelecting = true;
-            BoxSelectStart = FVector2D(MouseX, MouseY);
-            BoxSelectEnd = BoxSelectStart;
+            float MouseX, MouseY;
+            if (GetMousePosition(MouseX, MouseY))
+            {
+                SelectionManager->BeginBoxSelect(FVector2D(MouseX, MouseY));
+            }
         }
     }
     else // Navigate 模式
     {
         // Human 导航到点击位置
         FVector HitLocation;
-        if (GetMouseHitLocation(HitLocation))
+        if (GetMouseHitLocation(HitLocation) && AgentManager)
         {
-            UMAAgentManager* AgentManager = GetWorld()->GetSubsystem<UMAAgentManager>();
-            if (AgentManager)
+            for (AMACharacter* Agent : AgentManager->GetAgentsByType(EMAAgentType::Human))
             {
-                for (AMACharacter* Agent : AgentManager->GetAgentsByType(EMAAgentType::Human))
-                {
-                    if (Agent) Agent->TryNavigateTo(HitLocation);
-                }
+                if (Agent) Agent->TryNavigateTo(HitLocation);
             }
         }
     }
@@ -156,32 +161,34 @@ void AMAPlayerController::OnLeftClick(const FInputActionValue& Value)
 
 void AMAPlayerController::OnLeftClickReleased(const FInputActionValue& Value)
 {
-    if (!bIsBoxSelecting) return;
-    bIsBoxSelecting = false;
+    if (!SelectionManager || !SelectionManager->IsBoxSelecting()) return;
 
-    UMASelectionManager* SelectionManager = GetWorld()->GetSubsystem<UMASelectionManager>();
-    if (!SelectionManager) return;
-
+    // 更新终点
     float MouseX, MouseY;
     if (GetMousePosition(MouseX, MouseY))
     {
-        BoxSelectEnd = FVector2D(MouseX, MouseY);
+        SelectionManager->UpdateBoxSelect(FVector2D(MouseX, MouseY));
     }
 
     // 计算框选大小
-    float BoxWidth = FMath::Abs(BoxSelectEnd.X - BoxSelectStart.X);
-    float BoxHeight = FMath::Abs(BoxSelectEnd.Y - BoxSelectStart.Y);
+    FVector2D Start = SelectionManager->GetBoxSelectStart();
+    FVector2D End = SelectionManager->GetBoxSelectEnd();
+    float BoxWidth = FMath::Abs(End.X - Start.X);
+    float BoxHeight = FMath::Abs(End.Y - Start.Y);
+
+    bool bCtrlPressed = IsInputKeyDown(EKeys::LeftControl) || IsInputKeyDown(EKeys::RightControl);
 
     if (BoxWidth < 10.f && BoxHeight < 10.f)
     {
         // 点击选择：检查是否点击了 Agent
+        SelectionManager->CancelBoxSelect();
+        
         FHitResult HitResult;
         if (GetHitResultUnderCursor(ECC_Pawn, false, HitResult))
         {
             if (AMACharacter* Agent = Cast<AMACharacter>(HitResult.GetActor()))
             {
-                // Ctrl 按住时添加到选择，否则单选
-                if (IsInputKeyDown(EKeys::LeftControl) || IsInputKeyDown(EKeys::RightControl))
+                if (bCtrlPressed)
                 {
                     SelectionManager->ToggleSelection(Agent);
                 }
@@ -194,7 +201,7 @@ void AMAPlayerController::OnLeftClickReleased(const FInputActionValue& Value)
         }
         
         // 点击空地，清除选择
-        if (!IsInputKeyDown(EKeys::LeftControl) && !IsInputKeyDown(EKeys::RightControl))
+        if (!bCtrlPressed)
         {
             SelectionManager->ClearSelection();
         }
@@ -202,17 +209,7 @@ void AMAPlayerController::OnLeftClickReleased(const FInputActionValue& Value)
     else
     {
         // 框选
-        TArray<AMACharacter*> AgentsInBox = SelectionManager->GetAgentsInScreenRect(
-            BoxSelectStart, BoxSelectEnd, this);
-
-        if (IsInputKeyDown(EKeys::LeftControl) || IsInputKeyDown(EKeys::RightControl))
-        {
-            SelectionManager->AddAgentsToSelection(AgentsInBox);
-        }
-        else
-        {
-            SelectionManager->SelectAgents(AgentsInBox);
-        }
+        SelectionManager->EndBoxSelect(this, bCtrlPressed);
     }
 }
 
@@ -221,31 +218,31 @@ void AMAPlayerController::Tick(float DeltaTime)
     Super::Tick(DeltaTime);
 
     // 更新框选终点
-    if (bIsBoxSelecting)
+    if (SelectionManager && SelectionManager->IsBoxSelecting())
     {
         float MouseX, MouseY;
         if (GetMousePosition(MouseX, MouseY))
         {
-            BoxSelectEnd = FVector2D(MouseX, MouseY);
+            SelectionManager->UpdateBoxSelect(FVector2D(MouseX, MouseY));
         }
     }
 
     // 更新 HUD 的框选状态
     if (AMASelectionHUD* SelectionHUD = Cast<AMASelectionHUD>(GetHUD()))
     {
-        SelectionHUD->bIsBoxSelecting = bIsBoxSelecting;
-        SelectionHUD->BoxStart = BoxSelectStart;
-        SelectionHUD->BoxEnd = BoxSelectEnd;
+        if (SelectionManager)
+        {
+            SelectionHUD->bIsBoxSelecting = SelectionManager->IsBoxSelecting();
+            SelectionHUD->BoxStart = SelectionManager->GetBoxSelectStart();
+            SelectionHUD->BoxEnd = SelectionManager->GetBoxSelectEnd();
+        }
     }
 }
 
 void AMAPlayerController::OnRightClick(const FInputActionValue& Value)
 {
     FVector HitLocation;
-    if (!GetMouseHitLocation(HitLocation)) return;
-
-    UMACommandManager* CommandManager = GetWorld()->GetSubsystem<UMACommandManager>();
-    if (!CommandManager) return;
+    if (!GetMouseHitLocation(HitLocation) || !CommandManager) return;
 
     FMACommandParams Params;
     Params.TargetLocation = HitLocation;
@@ -270,7 +267,6 @@ void AMAPlayerController::OnRightClick(const FInputActionValue& Value)
 
 void AMAPlayerController::OnPickup(const FInputActionValue& Value)
 {
-    UMAAgentManager* AgentManager = GetWorld()->GetSubsystem<UMAAgentManager>();
     if (!AgentManager) return;
 
     for (AMACharacter* Agent : AgentManager->GetAgentsByType(EMAAgentType::Human))
@@ -288,7 +284,6 @@ void AMAPlayerController::OnPickup(const FInputActionValue& Value)
 
 void AMAPlayerController::OnDrop(const FInputActionValue& Value)
 {
-    UMAAgentManager* AgentManager = GetWorld()->GetSubsystem<UMAAgentManager>();
     if (!AgentManager) return;
 
     for (AMACharacter* Agent : AgentManager->GetAgentsByType(EMAAgentType::Human))
@@ -326,7 +321,6 @@ void AMAPlayerController::OnSpawnPickupItem(const FInputActionValue& Value)
 
 void AMAPlayerController::OnSpawnRobotDog(const FInputActionValue& Value)
 {
-    UMAAgentManager* AgentManager = GetWorld()->GetSubsystem<UMAAgentManager>();
     if (!AgentManager) return;
     
     FVector SpawnLocation = GetPawn()->GetActorLocation() + GetPawn()->GetActorForwardVector() * 300.f;
@@ -348,7 +342,6 @@ void AMAPlayerController::OnSpawnRobotDog(const FInputActionValue& Value)
 
 void AMAPlayerController::OnPrintAgentInfo(const FInputActionValue& Value)
 {
-    UMAAgentManager* AgentManager = GetWorld()->GetSubsystem<UMAAgentManager>();
     if (!AgentManager) return;
     
     int32 Total = AgentManager->GetAgentCount();
@@ -378,7 +371,6 @@ void AMAPlayerController::OnPrintAgentInfo(const FInputActionValue& Value)
 
 void AMAPlayerController::OnDestroyLastAgent(const FInputActionValue& Value)
 {
-    UMAAgentManager* AgentManager = GetWorld()->GetSubsystem<UMAAgentManager>();
     if (!AgentManager) return;
     
     TArray<AMACharacter*> AllAgents = AgentManager->GetAllAgents();
@@ -397,98 +389,43 @@ void AMAPlayerController::OnDestroyLastAgent(const FInputActionValue& Value)
 
 void AMAPlayerController::OnSwitchCamera(const FInputActionValue& Value)
 {
-    UMAAgentManager* AgentManager = GetWorld()->GetSubsystem<UMAAgentManager>();
-    if (!AgentManager) return;
-    
-    TArray<UMACameraSensorComponent*> Cameras;
-    TArray<AMACharacter*> CameraOwners;
-    for (AMACharacter* Agent : AgentManager->GetAllAgents())
-    {
-        if (Agent)
-        {
-            if (UMACameraSensorComponent* Camera = Agent->GetCameraSensor())
-            {
-                Cameras.Add(Camera);
-                CameraOwners.Add(Agent);
-            }
-        }
-    }
-    
-    if (Cameras.Num() == 0) return;
-    
-    if (!OriginalPawn && GetPawn()) OriginalPawn = GetPawn();
-    
-    CurrentCameraIndex = (CurrentCameraIndex + 1) % Cameras.Num();
-    
-    AMACharacter* TargetAgent = CameraOwners[CurrentCameraIndex];
-    if (TargetAgent)
-    {
-        SetViewTargetWithBlend(TargetAgent, 0.3f);
-        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green,
-            FString::Printf(TEXT("Camera: %s (%d/%d)"), *Cameras[CurrentCameraIndex]->SensorName, CurrentCameraIndex + 1, Cameras.Num()));
-    }
+    if (ViewportManager) ViewportManager->SwitchToNextCamera(this);
 }
 
 void AMAPlayerController::OnReturnToSpectator(const FInputActionValue& Value)
 {
-    if (OriginalPawn)
-    {
-        SetViewTargetWithBlend(OriginalPawn, 0.3f);
-        CurrentCameraIndex = -1;
-        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan, TEXT("Spectator view"));
-    }
+    if (ViewportManager) ViewportManager->ReturnToSpectator(this);
 }
 
 // ========== 命令 (通过 CommandManager) ==========
 
 void AMAPlayerController::OnStartPatrol(const FInputActionValue& Value)
 {
-    UMACommandManager* CommandManager = GetWorld()->GetSubsystem<UMACommandManager>();
-    if (CommandManager)
-    {
-        CommandManager->SendCommand(EMACommand::Patrol);
-    }
+    if (CommandManager) CommandManager->SendCommand(EMACommand::Patrol);
 }
 
 void AMAPlayerController::OnStartCharge(const FInputActionValue& Value)
 {
-    UMACommandManager* CommandManager = GetWorld()->GetSubsystem<UMACommandManager>();
-    if (CommandManager)
-    {
-        CommandManager->SendCommand(EMACommand::Charge);
-    }
+    if (CommandManager) CommandManager->SendCommand(EMACommand::Charge);
 }
 
 void AMAPlayerController::OnStopIdle(const FInputActionValue& Value)
 {
-    UMACommandManager* CommandManager = GetWorld()->GetSubsystem<UMACommandManager>();
-    if (CommandManager)
-    {
-        CommandManager->SendCommand(EMACommand::Idle);
-    }
+    if (CommandManager) CommandManager->SendCommand(EMACommand::Idle);
 }
 
 void AMAPlayerController::OnStartCoverage(const FInputActionValue& Value)
 {
-    UMACommandManager* CommandManager = GetWorld()->GetSubsystem<UMACommandManager>();
-    if (CommandManager)
-    {
-        CommandManager->SendCommand(EMACommand::Coverage);
-    }
+    if (CommandManager) CommandManager->SendCommand(EMACommand::Coverage);
 }
 
 void AMAPlayerController::OnStartFollow(const FInputActionValue& Value)
 {
-    UMACommandManager* CommandManager = GetWorld()->GetSubsystem<UMACommandManager>();
-    if (CommandManager)
-    {
-        CommandManager->SendCommand(EMACommand::Follow);
-    }
+    if (CommandManager) CommandManager->SendCommand(EMACommand::Follow);
 }
 
 void AMAPlayerController::OnStartAvoid(const FInputActionValue& Value)
 {
-    UMACommandManager* CommandManager = GetWorld()->GetSubsystem<UMACommandManager>();
     if (!CommandManager) return;
 
     FVector TargetLocation;
@@ -505,14 +442,10 @@ void AMAPlayerController::OnStartAvoid(const FInputActionValue& Value)
 
 void AMAPlayerController::OnStartFormation(const FInputActionValue& Value)
 {
-    UMASquadManager* SquadManager = GetWorld()->GetSubsystem<UMASquadManager>();
     if (!SquadManager) return;
 
     UMASquad* Squad = SquadManager->GetOrCreateDefaultSquad();
-    if (Squad)
-    {
-        SquadManager->CycleFormation(Squad);
-    }
+    if (Squad) SquadManager->CycleFormation(Squad);
 }
 
 // ========== 相机操作 ==========
@@ -549,7 +482,6 @@ void AMAPlayerController::OnToggleTCPStream(const FInputActionValue& Value)
     if (!Camera) return;
 
     // 停止其他相机的流
-    UMAAgentManager* AgentManager = GetWorld()->GetSubsystem<UMAAgentManager>();
     if (AgentManager)
     {
         for (AMACharacter* Agent : AgentManager->GetAllAgents())
@@ -585,32 +517,13 @@ void AMAPlayerController::OnToggleTCPStream(const FInputActionValue& Value)
 
 UMACameraSensorComponent* AMAPlayerController::GetCurrentCamera()
 {
-    UMAAgentManager* AgentManager = GetWorld()->GetSubsystem<UMAAgentManager>();
-    if (!AgentManager) return nullptr;
-
-    TArray<UMACameraSensorComponent*> Cameras;
-    for (AMACharacter* Agent : AgentManager->GetAllAgents())
-    {
-        if (Agent)
-        {
-            if (UMACameraSensorComponent* Camera = Agent->GetCameraSensor())
-            {
-                Cameras.Add(Camera);
-            }
-        }
-    }
-
-    if (Cameras.Num() == 0) return nullptr;
-
-    int32 Index = (CurrentCameraIndex >= 0 && CurrentCameraIndex < Cameras.Num()) ? CurrentCameraIndex : 0;
-    return Cameras[Index];
+    return ViewportManager ? ViewportManager->GetCurrentCamera() : nullptr;
 }
 
 // ========== 编组快捷键 (星际争霸风格) ==========
 
 void AMAPlayerController::HandleControlGroup(int32 GroupIndex)
 {
-    UMASelectionManager* SelectionManager = GetWorld()->GetSubsystem<UMASelectionManager>();
     if (!SelectionManager) return;
 
     bool bCtrlPressed = IsInputKeyDown(EKeys::LeftControl) || IsInputKeyDown(EKeys::RightControl);
@@ -643,13 +556,7 @@ void AMAPlayerController::OnControlGroup9(const FInputActionValue& Value) { Hand
 void AMAPlayerController::OnCreateSquad(const FInputActionValue& Value)
 {
     // Shift+Q 由 OnDisbandSquad 处理
-    if (IsInputKeyDown(EKeys::LeftShift) || IsInputKeyDown(EKeys::RightShift))
-    {
-        return;
-    }
-
-    UMASelectionManager* SelectionManager = GetWorld()->GetSubsystem<UMASelectionManager>();
-    UMASquadManager* SquadManager = GetWorld()->GetSubsystem<UMASquadManager>();
+    if (IsInputKeyDown(EKeys::LeftShift) || IsInputKeyDown(EKeys::RightShift)) return;
     if (!SelectionManager || !SquadManager) return;
 
     TArray<AMACharacter*> Selected = SelectionManager->GetSelectedAgents();
@@ -674,13 +581,7 @@ void AMAPlayerController::OnCreateSquad(const FInputActionValue& Value)
 void AMAPlayerController::OnDisbandSquad(const FInputActionValue& Value)
 {
     // 只有 Shift+Q 才解散
-    if (!IsInputKeyDown(EKeys::LeftShift) && !IsInputKeyDown(EKeys::RightShift))
-    {
-        return;
-    }
-
-    UMASelectionManager* SelectionManager = GetWorld()->GetSubsystem<UMASelectionManager>();
-    UMASquadManager* SquadManager = GetWorld()->GetSubsystem<UMASquadManager>();
+    if (!IsInputKeyDown(EKeys::LeftShift) && !IsInputKeyDown(EKeys::RightShift)) return;
     if (!SelectionManager || !SquadManager) return;
 
     TArray<AMACharacter*> Selected = SelectionManager->GetSelectedAgents();

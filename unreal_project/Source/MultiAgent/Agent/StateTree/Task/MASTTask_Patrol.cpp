@@ -41,7 +41,7 @@ EStateTreeRunStatus FMASTTask_Patrol::EnterState(
     {
         AMACharacter* Character = Cast<AMACharacter>(Owner);
         UE_LOG(LogTemp, Warning, TEXT("[STTask_Patrol] %s: No PatrolPath set"), 
-            Character ? *Character->ActorName : TEXT("Unknown"));
+            Character ? *Character->AgentName : TEXT("Unknown"));
         return EStateTreeRunStatus::Failed;
     }
 
@@ -73,14 +73,14 @@ EStateTreeRunStatus FMASTTask_Patrol::Tick(
     UMAAbilitySystemComponent* ASC = Cast<UMAAbilitySystemComponent>(Character->GetAbilitySystemComponent());
     if (!ASC)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[STTask_Patrol] %s has no ASC!"), *Character->ActorName);
+        UE_LOG(LogTemp, Warning, TEXT("[STTask_Patrol] %s has no ASC!"), *Character->AgentName);
         return EStateTreeRunStatus::Failed;
     }
 
     // 检查 Command.Patrol Tag 是否还存在（命令可能被其他命令覆盖）
     if (!ASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Patrol"))))
     {
-        UE_LOG(LogTemp, Log, TEXT("[STTask_Patrol] %s: Command.Patrol removed, exiting patrol"), *Character->ActorName);
+        UE_LOG(LogTemp, Log, TEXT("[STTask_Patrol] %s: Command.Patrol removed, exiting patrol"), *Character->AgentName);
         return EStateTreeRunStatus::Succeeded;
     }
 
@@ -89,7 +89,7 @@ EStateTreeRunStatus FMASTTask_Patrol::Tick(
     {
         if (!Chargeable->HasEnergy())
         {
-            UE_LOG(LogTemp, Warning, TEXT("[STTask_Patrol] %s ran out of energy"), *Character->ActorName);
+            UE_LOG(LogTemp, Warning, TEXT("[STTask_Patrol] %s ran out of energy"), *Character->AgentName);
             return EStateTreeRunStatus::Failed;
         }
     }
@@ -101,7 +101,7 @@ EStateTreeRunStatus FMASTTask_Patrol::Tick(
     {
         DebugTimer = 0.f;
         UE_LOG(LogTemp, Warning, TEXT("[STTask_Patrol] %s - WP[%d/%d], bIsMoving=%d, bIsWaiting=%d, CharMoving=%d"), 
-            *Character->ActorName, 
+            *Character->AgentName, 
             Data.CurrentWaypointIndex + 1, Data.Waypoints.Num(),
             Data.bIsMoving ? 1 : 0, 
             Data.bIsWaiting ? 1 : 0,
@@ -143,7 +143,7 @@ EStateTreeRunStatus FMASTTask_Patrol::Tick(
         if (!Character->bIsMoving)
         {
             UE_LOG(LogTemp, Log, TEXT("[STTask_Patrol] %s reached WP[%d/%d] (Distance=%.1f, move stopped)"), 
-                *Character->ActorName, Data.CurrentWaypointIndex + 1, Data.Waypoints.Num(), Distance);
+                *Character->AgentName, Data.CurrentWaypointIndex + 1, Data.Waypoints.Num(), Distance);
             
             Data.bIsMoving = false;
             Data.bIsWaiting = true;
@@ -154,7 +154,7 @@ EStateTreeRunStatus FMASTTask_Patrol::Tick(
         else if (Distance <= ActualAcceptRadius)
         {
             UE_LOG(LogTemp, Log, TEXT("[STTask_Patrol] %s reached WP[%d/%d] (Distance=%.1f)"), 
-                *Character->ActorName, Data.CurrentWaypointIndex + 1, Data.Waypoints.Num(), Distance);
+                *Character->AgentName, Data.CurrentWaypointIndex + 1, Data.Waypoints.Num(), Distance);
             
             Data.bIsMoving = false;
             Data.bIsWaiting = true;
@@ -173,7 +173,7 @@ EStateTreeRunStatus FMASTTask_Patrol::Tick(
         TargetLocation.Z = Character->GetActorLocation().Z;  // 保持当前高度
 
         UE_LOG(LogTemp, Log, TEXT("[STTask_Patrol] %s moving to WP[%d/%d] (%.0f, %.0f)"), 
-            *Character->ActorName, Data.CurrentWaypointIndex + 1, Data.Waypoints.Num(),
+            *Character->AgentName, Data.CurrentWaypointIndex + 1, Data.Waypoints.Num(),
             TargetLocation.X, TargetLocation.Y);
 
         Character->ShowAbilityStatus(TEXT("Patrol"), 

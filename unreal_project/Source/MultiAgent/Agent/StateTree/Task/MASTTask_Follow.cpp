@@ -41,12 +41,12 @@ EStateTreeRunStatus FMASTTask_Follow::EnterState(
     if (!TargetCharacter)
     {
         UE_LOG(LogTemp, Warning, TEXT("[STTask_Follow] %s: No FollowTarget set, cannot follow"),
-            *Character->ActorName);
+            *Character->AgentName);
         return EStateTreeRunStatus::Failed;
     }
     
     UE_LOG(LogTemp, Log, TEXT("[STTask_Follow] %s: Following target: %s"),
-        *Character->ActorName, *TargetCharacter->ActorName);
+        *Character->AgentName, *TargetCharacter->AgentName);
 
     Data.TargetCharacter = TargetCharacter;
 
@@ -54,19 +54,19 @@ EStateTreeRunStatus FMASTTask_Follow::EnterState(
     UMAAbilitySystemComponent* ASC = Cast<UMAAbilitySystemComponent>(Character->GetAbilitySystemComponent());
     if (!ASC)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[STTask_Follow] %s: No ASC found"), *Character->ActorName);
+        UE_LOG(LogTemp, Warning, TEXT("[STTask_Follow] %s: No ASC found"), *Character->AgentName);
         return EStateTreeRunStatus::Failed;
     }
     
     if (!ASC->TryActivateFollow(TargetCharacter))
     {
-        UE_LOG(LogTemp, Warning, TEXT("[STTask_Follow] %s: GA_Follow activation failed"), *Character->ActorName);
+        UE_LOG(LogTemp, Warning, TEXT("[STTask_Follow] %s: GA_Follow activation failed"), *Character->AgentName);
         return EStateTreeRunStatus::Failed;
     }
     
     Data.bAbilityActivated = true;
     UE_LOG(LogTemp, Log, TEXT("[STTask_Follow] %s: GA_Follow activated for %s"),
-        *Character->ActorName, *TargetCharacter->ActorName);
+        *Character->AgentName, *TargetCharacter->AgentName);
 
     return EStateTreeRunStatus::Running;
 }

@@ -104,11 +104,11 @@ void UGA_Drop::PerformDrop(AMAPickupItem* Item)
     Item->bCanBePickedUp = true;
 
     UE_LOG(LogTemp, Log, TEXT("[Drop] %s dropped %s at (%.0f, %.0f, %.0f)"), 
-        *Character->ActorName, *Item->ItemName, DropLocation.X, DropLocation.Y, DropLocation.Z);
+        *Character->AgentName, *Item->ItemName, DropLocation.X, DropLocation.Y, DropLocation.Z);
     
     if (GEngine)
     {
         GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Yellow,
-            FString::Printf(TEXT("%s dropped %s"), *Character->ActorName, *Item->ItemName));
+            FString::Printf(TEXT("%s dropped %s"), *Character->AgentName, *Item->ItemName));
     }
 }
