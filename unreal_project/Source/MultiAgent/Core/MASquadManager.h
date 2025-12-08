@@ -70,6 +70,15 @@ public:
     UFUNCTION(BlueprintCallable, Category = "SquadManager")
     bool LeaveSquad(AMACharacter* Agent);
 
+    // 获取或创建默认 Squad (Human 为 Leader + 所有 RobotDog)
+    // 用于快速编队，如果已存在则返回现有 Squad
+    UFUNCTION(BlueprintCallable, Category = "SquadManager")
+    UMASquad* GetOrCreateDefaultSquad();
+
+    // 循环切换编队类型 (None -> Line -> Column -> Wedge -> Diamond -> Circle -> None)
+    UFUNCTION(BlueprintCallable, Category = "SquadManager")
+    void CycleFormation(UMASquad* Squad);
+
     // ========== 委托 ==========
     
     UPROPERTY(BlueprintAssignable, Category = "SquadManager")

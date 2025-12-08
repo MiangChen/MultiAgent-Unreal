@@ -3,6 +3,7 @@
 
 #include "MASquadManager.h"
 #include "MASquad.h"
+#include "MAAgentManager.h"
 #include "../Agent/Character/MACharacter.h"
 #include "Engine/Engine.h"
 
@@ -189,6 +190,83 @@ bool UMASquadManager::LeaveSquad(AMACharacter* Agent)
     }
 
     return bRemoved;
+}
+
+UMASquad* UMASquadManager::GetOrCreateDefaultSquad()
+{
+    // 查找已存在的 MainSquad
+    UMASquad* ExistingSquad = GetSquadByName(TEXT("MainSquad"));
+    if (ExistingSquad)
+    {
+        return ExistingSquad;
+    }
+
+    // 需要 AgentManager 来获取 Agent
+    UMAAgentManager* AgentManager = GetWorld()->GetSubsystem<UMAAgentManager>();
+    if (!AgentManager)
+    {
+        return nullptr;
+    }
+
+    // 查找 Human 作为 Leader
+    TArray<AMACharacter*> Humans = AgentManager->GetAgentsByType(EMAAgentType::Human);
+    if (Humans.Num() == 0)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, TEXT("No Human as Leader!"));
+        return nullptr;
+    }
+
+    AMACharacter* Leader = Humans[0];
+
+    // 检查 Leader 是否已有 Squad
+    if (Leader->CurrentSquad)
+    {
+        return Leader->CurrentSquad;
+    }
+
+    // 创建新 Squad: Leader + 所有 RobotDog (排除 Tracker)
+    TArray<AMACharacter*> Members;
+    Members.Add(Leader);
+
+    for (AMACharacter* Robot : AgentManager->GetAgentsByType(EMAAgentType::RobotDog))
+    {
+        if (Robot && !Robot->AgentName.Contains(TEXT("Tracker")))
+        {
+            Members.Add(Robot);
+        }
+    }
+
+    if (Members.Num() < 2)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Orange, TEXT("Need at least 2 agents for squad!"));
+        return nullptr;
+    }
+
+    return CreateSquad(Members, Leader, TEXT("MainSquad"));
+}
+
+void UMASquadManager::CycleFormation(UMASquad* Squad)
+{
+    if (!Squad)
+    {
+        return;
+    }
+
+    // 获取当前编队类型，循环到下一个
+    EMAFormationType CurrentType = Squad->GetFormationType();
+    int32 CurrentIndex = static_cast<int32>(CurrentType);
+    int32 NextIndex = (CurrentIndex + 1) % 6;  // 0=None, 1=Line, 2=Column, 3=Wedge, 4=Diamond, 5=Circle
+
+    if (NextIndex == 0)
+    {
+        Squad->StopFormation();
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::White, TEXT("Formation stopped"));
+    }
+    else
+    {
+        EMAFormationType NextType = static_cast<EMAFormationType>(NextIndex);
+        Squad->StartFormation(NextType);
+    }
 }
 
 // ========== 内部方法 ==========

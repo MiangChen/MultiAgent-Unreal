@@ -90,8 +90,7 @@ private:
     UPROPERTY()
     APawn* OriginalPawn = nullptr;
     
-    // 当前编队类型索引 (0=None/Stop, 1=Line, 2=Column, 3=Wedge, 4=Diamond, 5=Circle)
-    int32 CurrentFormationIndex = 0;
+
     
     // ========== 框选状态 ==========
     bool bIsBoxSelecting = false;

@@ -14,14 +14,11 @@
 #include "MARobotDogCharacter.h"
 #include "../Agent/Component/Sensor/MACameraSensorComponent.h"
 #include "MAPickupItem.h"
-#include "MAPatrolPath.h"
-#include "MACoverageArea.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/Canvas.h"
-#include "Blueprint/WidgetLayoutLibrary.h"
 
 AMAPlayerController::AMAPlayerController()
 {
@@ -447,21 +444,10 @@ void AMAPlayerController::OnReturnToSpectator(const FInputActionValue& Value)
 void AMAPlayerController::OnStartPatrol(const FInputActionValue& Value)
 {
     UMACommandManager* CommandManager = GetWorld()->GetSubsystem<UMACommandManager>();
-    if (!CommandManager) return;
-
-    // 查找 PatrolPath
-    TArray<AActor*> PatrolPaths;
-    UGameplayStatics::GetAllActorsOfClass(GetWorld(), AMAPatrolPath::StaticClass(), PatrolPaths);
-    
-    if (PatrolPaths.Num() == 0)
+    if (CommandManager)
     {
-        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, TEXT("No PatrolPath in scene!"));
-        return;
+        CommandManager->SendCommand(EMACommand::Patrol);
     }
-
-    FMACommandParams Params;
-    Params.PatrolPath = Cast<AMAPatrolPath>(PatrolPaths[0]);
-    CommandManager->SendCommand(EMACommand::Patrol, Params);
 }
 
 void AMAPlayerController::OnStartCharge(const FInputActionValue& Value)
@@ -485,38 +471,19 @@ void AMAPlayerController::OnStopIdle(const FInputActionValue& Value)
 void AMAPlayerController::OnStartCoverage(const FInputActionValue& Value)
 {
     UMACommandManager* CommandManager = GetWorld()->GetSubsystem<UMACommandManager>();
-    if (!CommandManager) return;
-
-    TArray<AActor*> CoverageAreas;
-    UGameplayStatics::GetAllActorsOfClass(GetWorld(), AMACoverageArea::StaticClass(), CoverageAreas);
-    
-    if (CoverageAreas.Num() == 0)
+    if (CommandManager)
     {
-        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, TEXT("No CoverageArea in scene!"));
-        return;
+        CommandManager->SendCommand(EMACommand::Coverage);
     }
-
-    FMACommandParams Params;
-    Params.CoverageArea = CoverageAreas[0];
-    CommandManager->SendCommand(EMACommand::Coverage, Params);
 }
 
 void AMAPlayerController::OnStartFollow(const FInputActionValue& Value)
 {
     UMACommandManager* CommandManager = GetWorld()->GetSubsystem<UMACommandManager>();
-    UMAAgentManager* AgentManager = GetWorld()->GetSubsystem<UMAAgentManager>();
-    if (!CommandManager || !AgentManager) return;
-
-    TArray<AMACharacter*> Humans = AgentManager->GetAgentsByType(EMAAgentType::Human);
-    if (Humans.Num() == 0)
+    if (CommandManager)
     {
-        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, TEXT("No Human to follow!"));
-        return;
+        CommandManager->SendCommand(EMACommand::Follow);
     }
-
-    FMACommandParams Params;
-    Params.FollowTarget = Humans[0];
-    CommandManager->SendCommand(EMACommand::Follow, Params);
 }
 
 void AMAPlayerController::OnStartAvoid(const FInputActionValue& Value)
@@ -539,57 +506,13 @@ void AMAPlayerController::OnStartAvoid(const FInputActionValue& Value)
 void AMAPlayerController::OnStartFormation(const FInputActionValue& Value)
 {
     UMASquadManager* SquadManager = GetWorld()->GetSubsystem<UMASquadManager>();
-    UMAAgentManager* AgentManager = GetWorld()->GetSubsystem<UMAAgentManager>();
-    if (!SquadManager || !AgentManager) return;
+    if (!SquadManager) return;
 
-    // 查找 Human 作为 Leader
-    TArray<AMACharacter*> Humans = AgentManager->GetAgentsByType(EMAAgentType::Human);
-    if (Humans.Num() == 0)
+    UMASquad* Squad = SquadManager->GetOrCreateDefaultSquad();
+    if (Squad)
     {
-        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, TEXT("No Human as Leader!"));
-        return;
+        SquadManager->CycleFormation(Squad);
     }
-
-    AMACharacter* Leader = Humans[0];
-
-    // 检查 Leader 是否已有 Squad
-    UMASquad* Squad = Leader->CurrentSquad;
-
-    if (!Squad)
-    {
-        // 没有 Squad，创建一个（Leader + 所有 RobotDog）
-        TArray<AMACharacter*> Members;
-        Members.Add(Leader);
-        
-        for (AMACharacter* Robot : AgentManager->GetAgentsByType(EMAAgentType::RobotDog))
-        {
-            if (Robot && !Robot->AgentName.Contains(TEXT("Tracker")))
-            {
-                Members.Add(Robot);
-            }
-        }
-
-        if (Members.Num() < 2)
-        {
-            GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Orange, TEXT("Need at least 2 agents for squad!"));
-            return;
-        }
-
-        Squad = SquadManager->CreateSquad(Members, Leader, TEXT("MainSquad"));
-    }
-
-    // 循环切换编队类型
-    CurrentFormationIndex = (CurrentFormationIndex + 1) % 6;
-
-    if (CurrentFormationIndex == 0)
-    {
-        Squad->StopFormation();
-        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::White, TEXT("Formation stopped"));
-        return;
-    }
-
-    EMAFormationType FormationType = static_cast<EMAFormationType>(CurrentFormationIndex);
-    Squad->StartFormation(FormationType);
 }
 
 // ========== 相机操作 ==========

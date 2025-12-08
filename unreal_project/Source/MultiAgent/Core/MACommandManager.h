@@ -151,6 +151,9 @@ private:
     // 检查 Agent 是否应该被排除
     bool ShouldExcludeAgent(AMACharacter* Agent, const FMACommandParams& Params) const;
 
+    // 自动填充命令参数 (查找 PatrolPath, CoverageArea, FollowTarget 等)
+    void AutoFillCommandParams(EMACommand Command, FMACommandParams& Params);
+
     // 所有命令 Tag (缓存，避免重复创建)
     TMap<EMACommand, FGameplayTag> CommandTagCache;
     

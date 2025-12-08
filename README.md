@@ -25,7 +25,11 @@
 
 ### 运行
 
-使用 UE5 编辑器打开 `unreal_project/MultiAgent.uproject`
+```
+./start.sh
+```
+
+
 
 ## 文档
 
@@ -44,5 +48,6 @@ MultiAgent-Unreal/
 ├── unreal_project/         # UE5 项目
 │   └── Source/MultiAgent/  # C++ 源码
 ├── doc/                    # 文档
+├── start.sh                # 启动脚本
 └── compile.sh              # 编译脚本
 ```

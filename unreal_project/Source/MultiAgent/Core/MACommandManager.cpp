@@ -10,6 +10,7 @@
 #include "../Environment/MAPatrolPath.h"
 #include "../Environment/MACoverageArea.h"
 #include "Engine/Engine.h"
+#include "Kismet/GameplayStatics.h"
 
 void UMACommandManager::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -51,8 +52,12 @@ bool UMACommandManager::SendCommandToAgent(AMACharacter* Agent, EMACommand Comma
 
 // ========== 批量命令 ==========
 
-FMACommandResult UMACommandManager::SendCommand(EMACommand Command, const FMACommandParams& Params)
+FMACommandResult UMACommandManager::SendCommand(EMACommand Command, const FMACommandParams& InParams)
 {
+    // 自动填充缺失的参数
+    FMACommandParams Params = InParams;
+    AutoFillCommandParams(Command, Params);
+    
     TArray<AMACharacter*> Agents = GetControllableAgents(Params.bExcludeTracker);
     return SendCommandToAgents(Agents, Command, Params);
 }
@@ -368,4 +373,72 @@ bool UMACommandManager::ShouldExcludeAgent(AMACharacter* Agent, const FMACommand
     }
 
     return false;
+}
+
+// ========== 自动参数填充 ==========
+
+void UMACommandManager::AutoFillCommandParams(EMACommand Command, FMACommandParams& Params)
+{
+    UWorld* World = GetWorld();
+    if (!World) return;
+
+    switch (Command)
+    {
+        case EMACommand::Patrol:
+            // 自动查找 PatrolPath
+            if (!Params.PatrolPath.IsValid())
+            {
+                TArray<AActor*> PatrolPaths;
+                UGameplayStatics::GetAllActorsOfClass(World, AMAPatrolPath::StaticClass(), PatrolPaths);
+                if (PatrolPaths.Num() > 0)
+                {
+                    Params.PatrolPath = Cast<AMAPatrolPath>(PatrolPaths[0]);
+                }
+                else if (Params.bShowMessage)
+                {
+                    GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, TEXT("No PatrolPath in scene!"));
+                }
+            }
+            break;
+
+        case EMACommand::Coverage:
+            // 自动查找 CoverageArea
+            if (!Params.CoverageArea.IsValid())
+            {
+                TArray<AActor*> CoverageAreas;
+                UGameplayStatics::GetAllActorsOfClass(World, AMACoverageArea::StaticClass(), CoverageAreas);
+                if (CoverageAreas.Num() > 0)
+                {
+                    Params.CoverageArea = CoverageAreas[0];
+                }
+                else if (Params.bShowMessage)
+                {
+                    GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, TEXT("No CoverageArea in scene!"));
+                }
+            }
+            break;
+
+        case EMACommand::Follow:
+            // 自动查找第一个 Human 作为跟随目标
+            if (!Params.FollowTarget.IsValid())
+            {
+                UMAAgentManager* AgentManager = World->GetSubsystem<UMAAgentManager>();
+                if (AgentManager)
+                {
+                    TArray<AMACharacter*> Humans = AgentManager->GetAgentsByType(EMAAgentType::Human);
+                    if (Humans.Num() > 0)
+                    {
+                        Params.FollowTarget = Humans[0];
+                    }
+                    else if (Params.bShowMessage)
+                    {
+                        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, TEXT("No Human to follow!"));
+                    }
+                }
+            }
+            break;
+
+        default:
+            break;
+    }
 }
