@@ -1,9 +1,10 @@
 // MASTTask_Coverage.cpp
 
 #include "MASTTask_Coverage.h"
-#include "MARobotDogCharacter.h"
+#include "MACharacter.h"
 #include "MAAbilitySystemComponent.h"
 #include "MACoverageArea.h"
+#include "../Interface/MAAgentInterfaces.h"
 #include "StateTreeExecutionContext.h"
 #include "GameplayTagContainer.h"
 #include "NavigationSystem.h"
@@ -25,23 +26,32 @@ EStateTreeRunStatus FMASTTask_Coverage::EnterState(
         return EStateTreeRunStatus::Failed;
     }
 
-    AMARobotDogCharacter* Robot = Cast<AMARobotDogCharacter>(Owner);
-    if (!Robot)
+    AMACharacter* Character = Cast<AMACharacter>(Owner);
+    if (!Character)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[STTask_Coverage] Owner is not RobotDog"));
+        UE_LOG(LogTemp, Warning, TEXT("[STTask_Coverage] Owner is not AMACharacter"));
         return EStateTreeRunStatus::Failed;
     }
 
-    // 从 Robot 获取覆盖区域
-    AMACoverageArea* CoverageArea = Cast<AMACoverageArea>(Robot->GetCoverageArea());
+    // 使用 Interface 获取 CoverageArea 和 ScanRadius
+    IMACoverable* Coverable = Cast<IMACoverable>(Owner);
+    if (!Coverable)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[STTask_Coverage] Owner does not implement IMACoverable"));
+        return EStateTreeRunStatus::Failed;
+    }
+
+    AMACoverageArea* CoverageArea = Cast<AMACoverageArea>(Coverable->GetCoverageArea());
     if (!CoverageArea)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[STTask_Coverage] %s: No CoverageArea set"), *Robot->ActorName);
+        UE_LOG(LogTemp, Warning, TEXT("[STTask_Coverage] %s: No CoverageArea set"), *Character->ActorName);
         return EStateTreeRunStatus::Failed;
     }
 
+    float ScanRadius = Coverable->GetScanRadius();
+
     // 从 Area 获取原始路径点
-    TArray<FVector> RawPath = CoverageArea->GenerateCoveragePath(Robot->ScanRadius);
+    TArray<FVector> RawPath = CoverageArea->GenerateCoveragePath(ScanRadius);
     
     if (RawPath.Num() < 2)
     {
@@ -57,16 +67,16 @@ EStateTreeRunStatus FMASTTask_Coverage::EnterState(
         return EStateTreeRunStatus::Failed;
     }
 
-    const float ProjectionRadius = Robot->ScanRadius;
-    const FVector ProjectionExtent(ProjectionRadius, ProjectionRadius, 500.f);  // Z轴大范围，适应高低地形
+    const float ProjectionRadius = ScanRadius;
+    const FVector ProjectionExtent(ProjectionRadius, ProjectionRadius, 500.f);
     int32 SkippedCount = 0;
 
     // 4个方向偏移（前后左右）
     const FVector Directions[4] = {
-        FVector(1.f, 0.f, 0.f),   // +X
-        FVector(-1.f, 0.f, 0.f),  // -X
-        FVector(0.f, 1.f, 0.f),   // +Y
-        FVector(0.f, -1.f, 0.f)   // -Y
+        FVector(1.f, 0.f, 0.f),
+        FVector(-1.f, 0.f, 0.f),
+        FVector(0.f, 1.f, 0.f),
+        FVector(0.f, -1.f, 0.f)
     };
 
     for (const FVector& RawPoint : RawPath)
@@ -74,7 +84,6 @@ EStateTreeRunStatus FMASTTask_Coverage::EnterState(
         FNavLocation NavLoc;
         bool bFound = false;
 
-        // 多轮尝试，逐步扩大搜索半径
         const float RadiusMultipliers[] = { 1.0f, 2.0f, 3.0f };
         
         for (float Multiplier : RadiusMultipliers)
@@ -84,7 +93,6 @@ EStateTreeRunStatus FMASTTask_Coverage::EnterState(
             float CurrentRadius = ProjectionRadius * Multiplier;
             FVector CurrentExtent(CurrentRadius, CurrentRadius, 500.f);
 
-            // 首先尝试直接投影
             if (NavSys->ProjectPointToNavigation(RawPoint, NavLoc, CurrentExtent))
             {
                 Data.CoveragePath.Add(NavLoc.Location);
@@ -92,7 +100,6 @@ EStateTreeRunStatus FMASTTask_Coverage::EnterState(
                 break;
             }
 
-            // 投影失败，尝试4个方向偏移
             for (const FVector& Dir : Directions)
             {
                 FVector OffsetPoint = RawPoint + Dir * CurrentRadius;
@@ -116,7 +123,7 @@ EStateTreeRunStatus FMASTTask_Coverage::EnterState(
     Data.TotalPathPoints = Data.CoveragePath.Num();
 
     UE_LOG(LogTemp, Log, TEXT("[Coverage] %s: Generated %d navigable points (skipped %d), ScanRadius=%.0f"),
-        *Robot->ActorName, Data.TotalPathPoints, SkippedCount, Robot->ScanRadius);
+        *Character->ActorName, Data.TotalPathPoints, SkippedCount, ScanRadius);
 
     if (Data.TotalPathPoints < 2)
     {
@@ -144,14 +151,14 @@ EStateTreeRunStatus FMASTTask_Coverage::Tick(
     FMASTTask_CoverageInstanceData& Data = Context.GetInstanceData<FMASTTask_CoverageInstanceData>(*this);
 
     AActor* Owner = Cast<AActor>(Context.GetOwner());
-    AMARobotDogCharacter* Robot = Cast<AMARobotDogCharacter>(Owner);
-    if (!Robot)
+    AMACharacter* Character = Cast<AMACharacter>(Owner);
+    if (!Character)
     {
         return EStateTreeRunStatus::Failed;
     }
 
-    // 先检查 Command Tag，如果没有 Coverage 命令则退出
-    if (UMAAbilitySystemComponent* ASC = Cast<UMAAbilitySystemComponent>(Robot->GetAbilitySystemComponent()))
+    // 先检查 Command Tag
+    if (UMAAbilitySystemComponent* ASC = Cast<UMAAbilitySystemComponent>(Character->GetAbilitySystemComponent()))
     {
         if (!ASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Coverage"))))
         {
@@ -162,10 +169,9 @@ EStateTreeRunStatus FMASTTask_Coverage::Tick(
     // 检查是否已完成所有点
     if (Data.bIsCompleted)
     {
-        UE_LOG(LogTemp, Log, TEXT("[STTask_Coverage] %s completed coverage!"), *Robot->ActorName);
+        UE_LOG(LogTemp, Log, TEXT("[STTask_Coverage] %s completed coverage!"), *Character->ActorName);
         
-        // 清除命令 Tag
-        if (UMAAbilitySystemComponent* ASC = Cast<UMAAbilitySystemComponent>(Robot->GetAbilitySystemComponent()))
+        if (UMAAbilitySystemComponent* ASC = Cast<UMAAbilitySystemComponent>(Character->GetAbilitySystemComponent()))
         {
             ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Coverage")));
             ASC->AddLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Idle")));
@@ -182,49 +188,48 @@ EStateTreeRunStatus FMASTTask_Coverage::Tick(
     }
 
     FVector CurrentTarget = Data.CoveragePath[Data.CurrentPathIndex];
-    FVector RobotLoc = Robot->GetActorLocation();
-    float Distance = FVector::Dist2D(RobotLoc, CurrentTarget);
+    FVector CharacterLoc = Character->GetActorLocation();
+    float Distance = FVector::Dist2D(CharacterLoc, CurrentTarget);
+
+    // 使用 Interface 获取 ScanRadius
+    float ActualAcceptRadius = 100.f;
+    if (IMACoverable* Coverable = Cast<IMACoverable>(Owner))
+    {
+        ActualAcceptRadius = Coverable->GetScanRadius();
+    }
 
     // 调试日志（减少频率）
     static int32 DebugCounter = 0;
-    if (++DebugCounter % 30 == 0)  // 每30帧打印一次
+    if (++DebugCounter % 30 == 0)
     {
         UE_LOG(LogTemp, Warning, TEXT("[Coverage DEBUG] %s: Index=%d, Pos=(%.0f,%.0f), Target=(%.0f,%.0f), Dist=%.0f, Accept=%.0f"),
-            *Robot->ActorName, Data.CurrentPathIndex,
-            RobotLoc.X, RobotLoc.Y, CurrentTarget.X, CurrentTarget.Y, Distance, Robot->ScanRadius);
+            *Character->ActorName, Data.CurrentPathIndex,
+            CharacterLoc.X, CharacterLoc.Y, CurrentTarget.X, CurrentTarget.Y, Distance, ActualAcceptRadius);
     }
 
-    // 使用机器人的 ScanRadius 作为到达判定（进入扫描范围即可）
-    float ActualAcceptRadius = Robot->ScanRadius;
-    
     // 检查是否到达当前目标点
     if (Distance <= ActualAcceptRadius)
     {
-        // 到达当前点，推进到下一个
         Data.CurrentPathIndex++;
         Data.bIsMoving = false;
 
         UE_LOG(LogTemp, Warning, TEXT("[Coverage DEBUG] %s REACHED point [%d/%d], moving to next"),
-            *Robot->ActorName, Data.CurrentPathIndex, Data.TotalPathPoints);
+            *Character->ActorName, Data.CurrentPathIndex, Data.TotalPathPoints);
 
-        // 检查是否完成
         if (Data.CurrentPathIndex >= Data.TotalPathPoints)
         {
             Data.bIsCompleted = true;
             return EStateTreeRunStatus::Running;
         }
 
-        // 移动到下一个点
         MoveToNextPoint(Context, Data);
     }
-    else if (!Data.bIsMoving || !Robot->bIsMoving)
+    else if (!Data.bIsMoving || !Character->bIsMoving)
     {
-        // 未在移动状态，启动移动
         if (!MoveToNextPoint(Context, Data))
         {
-            // 所有剩余点都无法到达，完成任务
             UE_LOG(LogTemp, Warning, TEXT("[Coverage] %s: No more reachable points, completing"),
-                *Robot->ActorName);
+                *Character->ActorName);
             Data.bIsCompleted = true;
         }
     }
@@ -251,7 +256,6 @@ void FMASTTask_Coverage::ExitState(
         {
             ASC->CancelNavigate();
             
-            // 如果没有其他命令，设置 Idle 命令以便 StateTree 能正确转换
             FGameplayTag IdleTag = FGameplayTag::RequestGameplayTag(FName("Command.Idle"));
             FGameplayTag FollowTag = FGameplayTag::RequestGameplayTag(FName("Command.Follow"));
             FGameplayTag ChargeTag = FGameplayTag::RequestGameplayTag(FName("Command.Charge"));
@@ -279,13 +283,13 @@ bool FMASTTask_Coverage::MoveToNextPoint(
     FMASTTask_CoverageInstanceData& Data) const
 {
     AActor* Owner = Cast<AActor>(Context.GetOwner());
-    AMARobotDogCharacter* Robot = Cast<AMARobotDogCharacter>(Owner);
-    if (!Robot)
+    AMACharacter* Character = Cast<AMACharacter>(Owner);
+    if (!Character)
     {
         return false;
     }
 
-    UMAAbilitySystemComponent* ASC = Cast<UMAAbilitySystemComponent>(Robot->GetAbilitySystemComponent());
+    UMAAbilitySystemComponent* ASC = Cast<UMAAbilitySystemComponent>(Character->GetAbilitySystemComponent());
     if (!ASC)
     {
         return false;
@@ -296,18 +300,19 @@ bool FMASTTask_Coverage::MoveToNextPoint(
     {
         FVector TargetLocation = Data.CoveragePath[Data.CurrentPathIndex];
         
+        // 保持当前高度 (对 Drone 很重要)
+        TargetLocation.Z = Character->GetActorLocation().Z;
+        
         if (ASC->TryActivateNavigate(TargetLocation))
         {
             Data.bIsMoving = true;
             return true;
         }
         
-        // 导航失败，跳过这个点
         UE_LOG(LogTemp, Warning, TEXT("[Coverage] %s: Point %d unreachable, skipping"),
-            *Robot->ActorName, Data.CurrentPathIndex);
+            *Character->ActorName, Data.CurrentPathIndex);
         Data.CurrentPathIndex++;
     }
 
-    // 所有点都无法到达
     return false;
 }

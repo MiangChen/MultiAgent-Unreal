@@ -2,6 +2,7 @@
 
 #include "MAAgentManager.h"
 #include "../Agent/Character/MARobotDogCharacter.h"
+#include "../Agent/Character/MADroneCharacter.h"
 #include "../Environment/MAChargingStation.h"
 #include "../Agent/Component/Sensor/MACameraSensorComponent.h"
 #include "../Agent/Character/MACharacter.h"
@@ -268,15 +269,25 @@ AMACharacter* UMAAgentManager::SpawnAgentFromConfig(const FMAAgentConfig& Config
     // 计算位置
     FVector SpawnLocation = Config.bAutoPosition ? CalculateAutoPosition(Index, TotalCount) : Config.Position;
     
-    // 投影到 NavMesh
-    if (SpawnSettings.bProjectToNavMesh)
+    // 无人机特殊处理：在地面位置上方生成
+    if (Config.Type == EMAAgentType::Drone)
     {
-        if (UNavigationSystemV1* NavSys = UNavigationSystemV1::GetCurrent(GetWorld()))
+        // 无人机默认飞行高度
+        constexpr float DroneFlightAltitude = 75.f;
+        SpawnLocation.Z += DroneFlightAltitude;
+    }
+    else
+    {
+        // 地面 Agent 投影到 NavMesh
+        if (SpawnSettings.bProjectToNavMesh)
         {
-            FNavLocation NavLocation;
-            if (NavSys->ProjectPointToNavigation(SpawnLocation, NavLocation, FVector(500.f, 500.f, 500.f)))
+            if (UNavigationSystemV1* NavSys = UNavigationSystemV1::GetCurrent(GetWorld()))
             {
-                SpawnLocation = NavLocation.Location;
+                FNavLocation NavLocation;
+                if (NavSys->ProjectPointToNavigation(SpawnLocation, NavLocation, FVector(500.f, 500.f, 500.f)))
+                {
+                    SpawnLocation = NavLocation.Location;
+                }
             }
         }
     }

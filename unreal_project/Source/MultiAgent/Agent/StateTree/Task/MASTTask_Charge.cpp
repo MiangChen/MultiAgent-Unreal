@@ -1,9 +1,10 @@
 // MASTTask_Charge.cpp
 
 #include "MASTTask_Charge.h"
-#include "MARobotDogCharacter.h"
+#include "MACharacter.h"
 #include "MAAbilitySystemComponent.h"
 #include "MAChargingStation.h"
+#include "../Interface/MAAgentInterfaces.h"
 #include "StateTreeExecutionContext.h"
 #include "Kismet/GameplayStatics.h"
 #include "AIController.h"
@@ -26,18 +27,26 @@ EStateTreeRunStatus FMASTTask_Charge::EnterState(
         return EStateTreeRunStatus::Failed;
     }
 
-    AMARobotDogCharacter* Robot = Cast<AMARobotDogCharacter>(Owner);
-    if (!Robot)
+    AMACharacter* Character = Cast<AMACharacter>(Owner);
+    if (!Character)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[STTask_Charge] Owner is not RobotDog"));
+        UE_LOG(LogTemp, Warning, TEXT("[STTask_Charge] Owner is not AMACharacter"));
+        return EStateTreeRunStatus::Failed;
+    }
+
+    // 使用 Interface 检查是否支持充电
+    IMAChargeable* Chargeable = Cast<IMAChargeable>(Owner);
+    if (!Chargeable)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[STTask_Charge] Owner does not implement IMAChargeable"));
         return EStateTreeRunStatus::Failed;
     }
 
     // 查找最近的充电站
-    AMAChargingStation* Station = FindNearestChargingStation(Owner->GetWorld(), Robot->GetActorLocation(), Data.StationLocation);
+    AMAChargingStation* Station = FindNearestChargingStation(Owner->GetWorld(), Character->GetActorLocation(), Data.StationLocation);
     if (!Station)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[STTask_Charge] %s: No ChargingStation found"), *Robot->ActorName);
+        UE_LOG(LogTemp, Warning, TEXT("[STTask_Charge] %s: No ChargingStation found"), *Character->ActorName);
         return EStateTreeRunStatus::Failed;
     }
 
@@ -46,24 +55,29 @@ EStateTreeRunStatus FMASTTask_Charge::EnterState(
     Data.InteractionRadius = Station->InteractionRadius;
     
     UE_LOG(LogTemp, Log, TEXT("[STTask_Charge] %s found charging station at (%.0f, %.0f, %.0f), radius=%.0f"),
-        *Robot->ActorName, Data.StationLocation.X, Data.StationLocation.Y, Data.StationLocation.Z, Data.InteractionRadius);
+        *Character->ActorName, Data.StationLocation.X, Data.StationLocation.Y, Data.StationLocation.Z, Data.InteractionRadius);
 
     // 检查是否已经在充电站范围内
-    float Distance = FVector::Dist(Robot->GetActorLocation(), Data.StationLocation);
+    float Distance = FVector::Dist(Character->GetActorLocation(), Data.StationLocation);
     if (Distance <= Data.InteractionRadius)
     {
-        UE_LOG(LogTemp, Log, TEXT("[STTask_Charge] %s already at charging station, starting charge"), *Robot->ActorName);
+        UE_LOG(LogTemp, Log, TEXT("[STTask_Charge] %s already at charging station, starting charge"), *Character->ActorName);
         Data.bIsCharging = true;
-        Robot->TryCharge();
+        
+        // 调用 Character 的 TryCharge (如果有)
+        if (UMAAbilitySystemComponent* ASC = Cast<UMAAbilitySystemComponent>(Character->GetAbilitySystemComponent()))
+        {
+            ASC->TryActivateCharge();
+        }
         return EStateTreeRunStatus::Running;
     }
 
     // 导航到充电站
-    UMAAbilitySystemComponent* ASC = Cast<UMAAbilitySystemComponent>(Robot->GetAbilitySystemComponent());
+    UMAAbilitySystemComponent* ASC = Cast<UMAAbilitySystemComponent>(Character->GetAbilitySystemComponent());
     if (ASC && ASC->TryActivateNavigate(Data.StationLocation))
     {
         Data.bIsMoving = true;
-        UE_LOG(LogTemp, Log, TEXT("[STTask_Charge] %s navigating to charging station"), *Robot->ActorName);
+        UE_LOG(LogTemp, Log, TEXT("[STTask_Charge] %s navigating to charging station"), *Character->ActorName);
         return EStateTreeRunStatus::Running;
     }
 
@@ -78,17 +92,23 @@ EStateTreeRunStatus FMASTTask_Charge::Tick(
     FMASTTask_ChargeInstanceData& Data = Context.GetInstanceData<FMASTTask_ChargeInstanceData>(*this);
 
     AActor* Owner = Cast<AActor>(Context.GetOwner());
-    AMARobotDogCharacter* Robot = Cast<AMARobotDogCharacter>(Owner);
-    if (!Robot)
+    AMACharacter* Character = Cast<AMACharacter>(Owner);
+    if (!Character)
     {
         return EStateTreeRunStatus::Failed;
     }
 
-    // 检查 Command.Charge Tag 是否还存在（命令可能被其他命令覆盖）
-    UMAAbilitySystemComponent* ASC = Cast<UMAAbilitySystemComponent>(Robot->GetAbilitySystemComponent());
+    IMAChargeable* Chargeable = Cast<IMAChargeable>(Owner);
+    if (!Chargeable)
+    {
+        return EStateTreeRunStatus::Failed;
+    }
+
+    // 检查 Command.Charge Tag 是否还存在
+    UMAAbilitySystemComponent* ASC = Cast<UMAAbilitySystemComponent>(Character->GetAbilitySystemComponent());
     if (ASC && !ASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Charge"))))
     {
-        UE_LOG(LogTemp, Log, TEXT("[STTask_Charge] %s: Command.Charge removed, exiting charge"), *Robot->ActorName);
+        UE_LOG(LogTemp, Log, TEXT("[STTask_Charge] %s: Command.Charge removed, exiting charge"), *Character->ActorName);
         return EStateTreeRunStatus::Succeeded;
     }
 
@@ -96,15 +116,13 @@ EStateTreeRunStatus FMASTTask_Charge::Tick(
     if (Data.bIsCharging)
     {
         // 检查是否充满
-        if (Robot->GetEnergyPercent() >= 1.0f)
+        if (Chargeable->GetEnergyPercent() >= 100.f)
         {
-            UE_LOG(LogTemp, Log, TEXT("[STTask_Charge] %s fully charged!"), *Robot->ActorName);
+            UE_LOG(LogTemp, Log, TEXT("[STTask_Charge] %s fully charged!"), *Character->ActorName);
             
-            // 清除 Command.Charge Tag，防止重复进入 Charge 状态
-            if (UMAAbilitySystemComponent* ASC = Cast<UMAAbilitySystemComponent>(Robot->GetAbilitySystemComponent()))
+            if (ASC)
             {
                 ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Charge")));
-                // 添加 Idle 命令，让机器人回到 Idle 状态
                 ASC->AddLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Idle")));
             }
             
@@ -116,26 +134,29 @@ EStateTreeRunStatus FMASTTask_Charge::Tick(
     // 如果正在移动
     if (Data.bIsMoving)
     {
-        float Distance = FVector::Dist(Robot->GetActorLocation(), Data.StationLocation);
+        float Distance = FVector::Dist(Character->GetActorLocation(), Data.StationLocation);
         
         // 到达充电站
         if (Distance <= Data.InteractionRadius)
         {
-            UE_LOG(LogTemp, Log, TEXT("[STTask_Charge] %s arrived at charging station, starting charge"), *Robot->ActorName);
+            UE_LOG(LogTemp, Log, TEXT("[STTask_Charge] %s arrived at charging station, starting charge"), *Character->ActorName);
             Data.bIsMoving = false;
             Data.bIsCharging = true;
-            Robot->TryCharge();
+            
+            if (ASC)
+            {
+                ASC->TryActivateCharge();
+            }
             return EStateTreeRunStatus::Running;
         }
 
         // 检查移动是否失败
-        if (!Robot->bIsMoving)
+        if (!Character->bIsMoving)
         {
             UE_LOG(LogTemp, Warning, TEXT("[STTask_Charge] %s stopped moving but not at station (dist=%.0f)"), 
-                *Robot->ActorName, Distance);
+                *Character->ActorName, Distance);
             
             // 重试导航
-            UMAAbilitySystemComponent* ASC = Cast<UMAAbilitySystemComponent>(Robot->GetAbilitySystemComponent());
             if (ASC)
             {
                 ASC->TryActivateNavigate(Data.StationLocation);
@@ -157,7 +178,6 @@ void FMASTTask_Charge::ExitState(
         {
             ASC->CancelNavigate();
             
-            // 如果没有其他命令，设置 Idle 命令以便 StateTree 能正确转换
             FGameplayTag IdleTag = FGameplayTag::RequestGameplayTag(FName("Command.Idle"));
             FGameplayTag FollowTag = FGameplayTag::RequestGameplayTag(FName("Command.Follow"));
             FGameplayTag ChargeTag = FGameplayTag::RequestGameplayTag(FName("Command.Charge"));
@@ -184,7 +204,6 @@ AMAChargingStation* FMASTTask_Charge::FindNearestChargingStation(UWorld* World, 
 {
     if (!World) return nullptr;
 
-    // 直接查找 ChargingStation 类
     TArray<AActor*> FoundActors;
     UGameplayStatics::GetAllActorsOfClass(World, AMAChargingStation::StaticClass(), FoundActors);
 
@@ -193,7 +212,6 @@ AMAChargingStation* FMASTTask_Charge::FindNearestChargingStation(UWorld* World, 
         return nullptr;
     }
 
-    // 找最近的
     float MinDistance = FLT_MAX;
     AMAChargingStation* NearestStation = nullptr;
 
@@ -214,12 +232,10 @@ AMAChargingStation* FMASTTask_Charge::FindNearestChargingStation(UWorld* World, 
     {
         FVector StationLoc = NearestStation->GetActorLocation();
         
-        // 将目标位置投影到 NavMesh 上
         UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
         if (NavSys)
         {
             FNavLocation NavLocation;
-            // 在充电站周围 500 单位范围内查找可导航点
             if (NavSys->ProjectPointToNavigation(StationLoc, NavLocation, FVector(500.f, 500.f, 200.f)))
             {
                 OutStationLocation = NavLocation.Location;
@@ -227,7 +243,6 @@ AMAChargingStation* FMASTTask_Charge::FindNearestChargingStation(UWorld* World, 
             }
         }
         
-        // 如果投影失败，使用原始位置
         OutStationLocation = StationLoc;
         return NearestStation;
     }

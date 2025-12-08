@@ -6,6 +6,7 @@
 #include "../Core/MAAgentManager.h"
 #include "MACharacter.h"
 #include "MARobotDogCharacter.h"
+#include "MADroneCharacter.h"
 #include "../Agent/Component/Sensor/MACameraSensorComponent.h"
 #include "MAPickupItem.h"
 #include "MAPatrolPath.h"
@@ -144,12 +145,25 @@ void AMAPlayerController::OnRightClick(const FInputActionValue& Value)
     {
         if (UMAAgentManager* AgentManager = GetWorld()->GetSubsystem<UMAAgentManager>())
         {
+            // RobotDog 导航
             TArray<AMACharacter*> RobotDogs = AgentManager->GetAgentsByType(EMAAgentType::RobotDog);
             for (AMACharacter* Agent : RobotDogs)
             {
                 if (Agent && !Agent->AgentName.Contains(TEXT("Tracker")))
                 {
                     Agent->TryNavigateTo(HitLocation);
+                }
+            }
+            
+            // Drone 导航 (保持当前高度，只改变 XY)
+            TArray<AMACharacter*> Drones = AgentManager->GetAgentsByType(EMAAgentType::Drone);
+            for (AMACharacter* Agent : Drones)
+            {
+                if (Agent)
+                {
+                    FVector DroneTarget = HitLocation;
+                    DroneTarget.Z = Agent->GetActorLocation().Z;  // 保持当前高度
+                    Agent->TryNavigateTo(DroneTarget);
                 }
             }
         }
@@ -401,22 +415,25 @@ void AMAPlayerController::OnStartPatrol(const FInputActionValue& Value)
         return;
     }
     
-    // 获取所有 RobotDog
-    TArray<AMACharacter*> RobotDogs = AgentManager->GetAgentsByType(EMAAgentType::RobotDog);
+    // 收集所有 RobotDog 和 Drone
+    TArray<AMACharacter*> Agents;
+    Agents.Append(AgentManager->GetAgentsByType(EMAAgentType::RobotDog));
+    Agents.Append(AgentManager->GetAgentsByType(EMAAgentType::Drone));
     
     int32 CommandCount = 0;
     FGameplayTag PatrolCommand = FGameplayTag::RequestGameplayTag(FName("Command.Patrol"));
     
-    for (AMACharacter* Agent : RobotDogs)
+    for (AMACharacter* Agent : Agents)
     {
         if (!Agent) continue;
         if (Agent->AgentName.Contains(TEXT("Tracker"))) continue;
         
-        AMARobotDogCharacter* Robot = Cast<AMARobotDogCharacter>(Agent);
-        if (!Robot) continue;
-        
-        // 设置 PatrolPath（CARLA 风格）
-        Robot->SetPatrolPath(FirstPatrolPath);
+        // 设置 PatrolPath - 支持 RobotDog 和 Drone
+        if (AMARobotDogCharacter* Robot = Cast<AMARobotDogCharacter>(Agent))
+        {
+            Robot->SetPatrolPath(FirstPatrolPath);
+        }
+        // Drone 暂不支持 PatrolPath，但可以接收 Command
         
         UMAAbilitySystemComponent* ASC = Cast<UMAAbilitySystemComponent>(Agent->GetAbilitySystemComponent());
         if (!ASC) continue;
@@ -437,7 +454,7 @@ void AMAPlayerController::OnStartPatrol(const FInputActionValue& Value)
     
     if (CommandCount == 0)
     {
-        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Orange, TEXT("No RobotDog found!"));
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Orange, TEXT("No RobotDog/Drone found!"));
     }
 }
 
@@ -452,14 +469,16 @@ void AMAPlayerController::OnStartCharge(const FInputActionValue& Value)
         return;
     }
     
-    // 获取所有 RobotDog，发送 Command.Charge 命令
-    TArray<AMACharacter*> RobotDogs = AgentManager->GetAgentsByType(EMAAgentType::RobotDog);
-    UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Found %d RobotDogs"), RobotDogs.Num());
+    // 收集所有 RobotDog 和 Drone
+    TArray<AMACharacter*> Agents;
+    Agents.Append(AgentManager->GetAgentsByType(EMAAgentType::RobotDog));
+    Agents.Append(AgentManager->GetAgentsByType(EMAAgentType::Drone));
+    UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Found %d RobotDogs/Drones"), Agents.Num());
     
     int32 CommandCount = 0;
     FGameplayTag ChargeCommand = FGameplayTag::RequestGameplayTag(FName("Command.Charge"));
     
-    for (AMACharacter* Agent : RobotDogs)
+    for (AMACharacter* Agent : Agents)
     {
         if (!Agent) continue;
         
@@ -487,7 +506,7 @@ void AMAPlayerController::OnStartCharge(const FInputActionValue& Value)
     
     if (CommandCount == 0)
     {
-        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Orange, TEXT("No RobotDog found!"));
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Orange, TEXT("No RobotDog/Drone found!"));
     }
 }
 
@@ -502,14 +521,16 @@ void AMAPlayerController::OnStopIdle(const FInputActionValue& Value)
         return;
     }
     
-    // 获取所有 RobotDog，发送 Command.Idle 命令
-    TArray<AMACharacter*> RobotDogs = AgentManager->GetAgentsByType(EMAAgentType::RobotDog);
-    UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Found %d RobotDogs"), RobotDogs.Num());
+    // 收集所有 RobotDog 和 Drone
+    TArray<AMACharacter*> Agents;
+    Agents.Append(AgentManager->GetAgentsByType(EMAAgentType::RobotDog));
+    Agents.Append(AgentManager->GetAgentsByType(EMAAgentType::Drone));
+    UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Found %d RobotDogs/Drones"), Agents.Num());
     
     int32 CommandCount = 0;
     FGameplayTag IdleCommand = FGameplayTag::RequestGameplayTag(FName("Command.Idle"));
     
-    for (AMACharacter* Agent : RobotDogs)
+    for (AMACharacter* Agent : Agents)
     {
         if (!Agent) continue;
         
@@ -541,7 +562,7 @@ void AMAPlayerController::OnStopIdle(const FInputActionValue& Value)
     
     if (CommandCount == 0)
     {
-        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Orange, TEXT("No RobotDog found!"));
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Orange, TEXT("No RobotDog/Drone found!"));
     }
 }
 
@@ -567,22 +588,24 @@ void AMAPlayerController::OnStartCoverage(const FInputActionValue& Value)
         return;
     }
     
-    // 获取所有 RobotDog
-    TArray<AMACharacter*> RobotDogs = AgentManager->GetAgentsByType(EMAAgentType::RobotDog);
+    // 收集所有 RobotDog 和 Drone
+    TArray<AMACharacter*> Agents;
+    Agents.Append(AgentManager->GetAgentsByType(EMAAgentType::RobotDog));
+    Agents.Append(AgentManager->GetAgentsByType(EMAAgentType::Drone));
     
     int32 CommandCount = 0;
     FGameplayTag CoverageCommand = FGameplayTag::RequestGameplayTag(FName("Command.Coverage"));
     
-    for (AMACharacter* Agent : RobotDogs)
+    for (AMACharacter* Agent : Agents)
     {
         if (!Agent) continue;
         if (Agent->AgentName.Contains(TEXT("Tracker"))) continue;
         
-        AMARobotDogCharacter* Robot = Cast<AMARobotDogCharacter>(Agent);
-        if (!Robot) continue;
-        
-        // 设置 CoverageArea（CARLA 风格）
-        Robot->SetCoverageArea(FirstCoverageArea);
+        // 设置 CoverageArea - 支持 RobotDog (Drone 暂不支持 CoverageArea 属性)
+        if (AMARobotDogCharacter* Robot = Cast<AMARobotDogCharacter>(Agent))
+        {
+            Robot->SetCoverageArea(FirstCoverageArea);
+        }
         
         UMAAbilitySystemComponent* ASC = Cast<UMAAbilitySystemComponent>(Agent->GetAbilitySystemComponent());
         if (!ASC) continue;
@@ -601,7 +624,7 @@ void AMAPlayerController::OnStartCoverage(const FInputActionValue& Value)
     
     if (CommandCount == 0)
     {
-        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Orange, TEXT("No RobotDog found!"));
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Orange, TEXT("No RobotDog/Drone found!"));
     }
 }
 
@@ -626,21 +649,27 @@ void AMAPlayerController::OnStartFollow(const FInputActionValue& Value)
         return;
     }
     
-    // 获取所有 RobotDog
-    TArray<AMACharacter*> RobotDogs = AgentManager->GetAgentsByType(EMAAgentType::RobotDog);
+    // 收集所有 RobotDog 和 Drone
+    TArray<AMACharacter*> Agents;
+    Agents.Append(AgentManager->GetAgentsByType(EMAAgentType::RobotDog));
+    Agents.Append(AgentManager->GetAgentsByType(EMAAgentType::Drone));
     
     int32 CommandCount = 0;
     FGameplayTag FollowCommand = FGameplayTag::RequestGameplayTag(FName("Command.Follow"));
     
-    for (AMACharacter* Agent : RobotDogs)
+    for (AMACharacter* Agent : Agents)
     {
         if (!Agent) continue;
         
-        AMARobotDogCharacter* Robot = Cast<AMARobotDogCharacter>(Agent);
-        if (!Robot) continue;
-        
-        // 设置 FollowTarget（CARLA 风格）
-        Robot->SetFollowTarget(FirstHuman);
+        // 设置 FollowTarget - 支持 RobotDog 和 Drone
+        if (AMARobotDogCharacter* Robot = Cast<AMARobotDogCharacter>(Agent))
+        {
+            Robot->SetFollowTarget(FirstHuman);
+        }
+        else if (AMADroneCharacter* Drone = Cast<AMADroneCharacter>(Agent))
+        {
+            Drone->SetFollowTarget(FirstHuman);
+        }
         
         UMAAbilitySystemComponent* ASC = Cast<UMAAbilitySystemComponent>(Agent->GetAbilitySystemComponent());
         if (!ASC) continue;
@@ -659,7 +688,7 @@ void AMAPlayerController::OnStartFollow(const FInputActionValue& Value)
     
     if (CommandCount == 0)
     {
-        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Orange, TEXT("No RobotDog found!"));
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Orange, TEXT("No RobotDog/Drone found!"));
     }
 }
 
@@ -682,12 +711,14 @@ void AMAPlayerController::OnStartAvoid(const FInputActionValue& Value)
         return;
     }
     
-    // 获取所有 RobotDog
-    TArray<AMACharacter*> RobotDogs = AgentManager->GetAgentsByType(EMAAgentType::RobotDog);
+    // 收集所有 RobotDog 和 Drone
+    TArray<AMACharacter*> Agents;
+    Agents.Append(AgentManager->GetAgentsByType(EMAAgentType::RobotDog));
+    Agents.Append(AgentManager->GetAgentsByType(EMAAgentType::Drone));
     
     int32 ActivatedCount = 0;
     
-    for (AMACharacter* Agent : RobotDogs)
+    for (AMACharacter* Agent : Agents)
     {
         if (!Agent) continue;
         if (Agent->AgentName.Contains(TEXT("Tracker"))) continue;
@@ -695,8 +726,15 @@ void AMAPlayerController::OnStartAvoid(const FInputActionValue& Value)
         UMAAbilitySystemComponent* ASC = Cast<UMAAbilitySystemComponent>(Agent->GetAbilitySystemComponent());
         if (!ASC) continue;
         
+        // Drone 保持高度
+        FVector FinalTarget = TargetLocation;
+        if (Agent->AgentType == EMAAgentType::Drone)
+        {
+            FinalTarget.Z = Agent->GetActorLocation().Z;
+        }
+        
         // 激活 Avoid 技能
-        if (ASC->TryActivateAvoid(TargetLocation))
+        if (ASC->TryActivateAvoid(FinalTarget))
         {
             ActivatedCount++;
             GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Yellow,
@@ -706,7 +744,7 @@ void AMAPlayerController::OnStartAvoid(const FInputActionValue& Value)
     
     if (ActivatedCount == 0)
     {
-        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Orange, TEXT("No RobotDog found or Avoid failed!"));
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Orange, TEXT("No RobotDog/Drone found or Avoid failed!"));
     }
 }
 

@@ -3,8 +3,8 @@
 #include "MASTTask_Patrol.h"
 #include "MAAbilitySystemComponent.h"
 #include "MACharacter.h"
-#include "MARobotDogCharacter.h"
 #include "MAPatrolPath.h"
+#include "../Interface/MAAgentInterfaces.h"
 #include "StateTreeExecutionContext.h"
 
 EStateTreeRunStatus FMASTTask_Patrol::EnterState(
@@ -20,20 +20,28 @@ EStateTreeRunStatus FMASTTask_Patrol::EnterState(
     Data.WaitTimer = 0.f;
     Data.Waypoints.Empty();
 
-    // 获取 Robot
+    // 获取 Owner
     AActor* Owner = Cast<AActor>(Context.GetOwner());
-    AMARobotDogCharacter* Robot = Cast<AMARobotDogCharacter>(Owner);
-    if (!Robot)
+    if (!Owner)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[STTask_Patrol] Owner is not RobotDog"));
+        UE_LOG(LogTemp, Warning, TEXT("[STTask_Patrol] No owner actor"));
         return EStateTreeRunStatus::Failed;
     }
 
-    // 从 Robot 获取 PatrolPath
-    AMAPatrolPath* FoundPatrolPath = Robot->GetPatrolPath();
+    // 使用 Interface 获取 PatrolPath
+    IMAPatrollable* Patrollable = Cast<IMAPatrollable>(Owner);
+    if (!Patrollable)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[STTask_Patrol] Owner does not implement IMAPatrollable"));
+        return EStateTreeRunStatus::Failed;
+    }
+
+    AMAPatrolPath* FoundPatrolPath = Patrollable->GetPatrolPath();
     if (!FoundPatrolPath || !FoundPatrolPath->IsValidPath())
     {
-        UE_LOG(LogTemp, Warning, TEXT("[STTask_Patrol] %s: No PatrolPath set"), *Robot->ActorName);
+        AMACharacter* Character = Cast<AMACharacter>(Owner);
+        UE_LOG(LogTemp, Warning, TEXT("[STTask_Patrol] %s: No PatrolPath set"), 
+            Character ? *Character->ActorName : TEXT("Unknown"));
         return EStateTreeRunStatus::Failed;
     }
 
@@ -76,10 +84,10 @@ EStateTreeRunStatus FMASTTask_Patrol::Tick(
         return EStateTreeRunStatus::Succeeded;
     }
 
-    // 检查能量 (RobotDog)
-    if (AMARobotDogCharacter* Robot = Cast<AMARobotDogCharacter>(Character))
+    // 检查能量 (使用 Interface)
+    if (IMAChargeable* Chargeable = Cast<IMAChargeable>(Owner))
     {
-        if (!Robot->HasEnergy())
+        if (!Chargeable->HasEnergy())
         {
             UE_LOG(LogTemp, Warning, TEXT("[STTask_Patrol] %s ran out of energy"), *Character->ActorName);
             return EStateTreeRunStatus::Failed;
@@ -124,34 +132,33 @@ EStateTreeRunStatus FMASTTask_Patrol::Tick(
         FVector TargetLocation = Data.Waypoints[Data.CurrentWaypointIndex];
         float Distance = FVector::Dist2D(CurrentLocation, TargetLocation);
 
-        // 从 Robot 获取 ScanRadius 作为到达判定
-        AMARobotDogCharacter* Robot = Cast<AMARobotDogCharacter>(Character);
-        float ActualAcceptRadius = Robot ? Robot->ScanRadius : 100.f;
+        // 使用 Interface 获取 ScanRadius 作为到达判定
+        float ActualAcceptRadius = 100.f;
+        if (IMAPatrollable* Patrollable = Cast<IMAPatrollable>(Owner))
+        {
+            ActualAcceptRadius = Patrollable->GetScanRadius();
+        }
 
         // 移动完成检测: Character->bIsMoving 由 GA_Navigate 在完成时设为 false
-        // 当 GA_Navigate 成功完成 (包括 AlreadyAtGoal)，我们认为已到达
         if (!Character->bIsMoving)
         {
-            // 移动已停止，认为到达了目标点
             UE_LOG(LogTemp, Log, TEXT("[STTask_Patrol] %s reached WP[%d/%d] (Distance=%.1f, move stopped)"), 
                 *Character->ActorName, Data.CurrentWaypointIndex + 1, Data.Waypoints.Num(), Distance);
             
             Data.bIsMoving = false;
             Data.bIsWaiting = true;
-            Data.WaitTimer = 0.5f;  // 固定等待时间
+            Data.WaitTimer = 0.5f;
             
-            // 显示状态
             Character->ShowAbilityStatus(TEXT("Patrol"), TEXT("Waiting..."));
         }
         else if (Distance <= ActualAcceptRadius)
         {
-            // 距离检查也通过 (备用检测)
             UE_LOG(LogTemp, Log, TEXT("[STTask_Patrol] %s reached WP[%d/%d] (Distance=%.1f)"), 
                 *Character->ActorName, Data.CurrentWaypointIndex + 1, Data.Waypoints.Num(), Distance);
             
             Data.bIsMoving = false;
             Data.bIsWaiting = true;
-            Data.WaitTimer = 0.5f;  // 固定等待时间
+            Data.WaitTimer = 0.5f;
             
             Character->ShowAbilityStatus(TEXT("Patrol"), TEXT("Waiting..."));
         }
@@ -163,13 +170,12 @@ EStateTreeRunStatus FMASTTask_Patrol::Tick(
     if (Data.CurrentWaypointIndex < Data.Waypoints.Num())
     {
         FVector TargetLocation = Data.Waypoints[Data.CurrentWaypointIndex];
-        TargetLocation.Z = Character->GetActorLocation().Z;
+        TargetLocation.Z = Character->GetActorLocation().Z;  // 保持当前高度
 
         UE_LOG(LogTemp, Log, TEXT("[STTask_Patrol] %s moving to WP[%d/%d] (%.0f, %.0f)"), 
             *Character->ActorName, Data.CurrentWaypointIndex + 1, Data.Waypoints.Num(),
             TargetLocation.X, TargetLocation.Y);
 
-        // 显示状态
         Character->ShowAbilityStatus(TEXT("Patrol"), 
             FString::Printf(TEXT("WP %d/%d"), Data.CurrentWaypointIndex + 1, Data.Waypoints.Num()));
 
@@ -203,7 +209,7 @@ void FMASTTask_Patrol::ExitState(
         {
             ASC->CancelNavigate();
             
-            // 如果没有其他命令，设置 Idle 命令以便 StateTree 能正确转换
+            // 如果没有其他命令，设置 Idle 命令
             FGameplayTag IdleTag = FGameplayTag::RequestGameplayTag(FName("Command.Idle"));
             FGameplayTag FollowTag = FGameplayTag::RequestGameplayTag(FName("Command.Follow"));
             FGameplayTag ChargeTag = FGameplayTag::RequestGameplayTag(FName("Command.Charge"));

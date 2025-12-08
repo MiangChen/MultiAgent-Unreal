@@ -6,13 +6,18 @@
 #include "CoreMinimal.h"
 #include "MACharacter.h"
 #include "MAPatrolPath.h"
+#include "../Interface/MAAgentInterfaces.h"
 #include "MARobotDogCharacter.generated.h"
 
 class AMAChargingStation;
 class UMAStateTreeComponent;
 
 UCLASS()
-class MULTIAGENT_API AMARobotDogCharacter : public AMACharacter
+class MULTIAGENT_API AMARobotDogCharacter : public AMACharacter,
+    public IMAPatrollable,
+    public IMAFollowable,
+    public IMACoverable,
+    public IMAChargeable
 {
     GENERATED_BODY()
 
@@ -24,7 +29,7 @@ public:
     void PlayWalkAnimation();
     void PlayIdleAnimation();
 
-    // ========== Energy System ==========
+    // ========== IMAChargeable Interface ==========
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Energy")
     float Energy = 100.f;
     
@@ -34,17 +39,12 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Energy")
     float EnergyDrainRate = 1.f;  // 每秒消耗
     
-    UFUNCTION(BlueprintCallable, Category = "Energy")
-    void DrainEnergy(float DeltaTime);
-    
-    UFUNCTION(BlueprintCallable, Category = "Energy")
-    void RestoreEnergy(float Amount);
-    
-    UFUNCTION(BlueprintCallable, Category = "Energy")
-    bool HasEnergy() const { return Energy > 0.f; }
-    
-    UFUNCTION(BlueprintCallable, Category = "Energy")
-    float GetEnergyPercent() const { return (MaxEnergy > 0.f) ? (Energy / MaxEnergy * 100.f) : 0.f; }
+    virtual void DrainEnergy(float DeltaTime) override;
+    virtual void RestoreEnergy(float Amount) override;
+    virtual bool HasEnergy() const override { return Energy > 0.f; }
+    virtual float GetEnergy() const override { return Energy; }
+    virtual float GetMaxEnergy() const override { return MaxEnergy; }
+    virtual float GetEnergyPercent() const override { return (MaxEnergy > 0.f) ? (Energy / MaxEnergy * 100.f) : 0.f; }
 
     // ========== Robot Abilities ==========
     // 注意: TryPatrol/TryPatrolPath/StopPatrol 已移除，Patrol 改用 StateTree
@@ -85,52 +85,31 @@ private:
     static constexpr float LowEnergyThreshold = 20.f;
 
 public:
-    // ========== Coverage System ==========
-    // 机器人扫描半径（用于覆盖任务和跟随距离）
+    // ========== IMACoverable Interface ==========
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Coverage")
     float ScanRadius = 200.f;
 
-    // 覆盖区域引用（可动态设置）
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Coverage")
-    TWeakObjectPtr<AActor> CoverageArea;
+    TWeakObjectPtr<AActor> CoverageAreaRef;
 
-    // 设置覆盖区域
-    UFUNCTION(BlueprintCallable, Category = "Coverage")
-    void SetCoverageArea(AActor* Area) { CoverageArea = Area; }
+    virtual void SetCoverageArea(AActor* Area) override { CoverageAreaRef = Area; }
+    virtual AActor* GetCoverageArea() const override { return CoverageAreaRef.Get(); }
+    virtual float GetScanRadius() const override { return ScanRadius; }
 
-    // 获取覆盖区域
-    UFUNCTION(BlueprintCallable, Category = "Coverage")
-    AActor* GetCoverageArea() const { return CoverageArea.Get(); }
-
-    // ========== Follow System ==========
-    // 当前跟随目标（可动态设置）
+    // ========== IMAFollowable Interface ==========
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Follow")
     TWeakObjectPtr<AMACharacter> FollowTarget;
 
-    // 设置跟随目标
-    UFUNCTION(BlueprintCallable, Category = "Follow")
-    void SetFollowTarget(AMACharacter* Target) { FollowTarget = Target; }
+    virtual void SetFollowTarget(AMACharacter* Target) override { FollowTarget = Target; }
+    virtual void ClearFollowTarget() override { FollowTarget.Reset(); }
+    virtual AMACharacter* GetFollowTarget() const override { return FollowTarget.Get(); }
 
-    // 清除跟随目标
-    UFUNCTION(BlueprintCallable, Category = "Follow")
-    void ClearFollowTarget() { FollowTarget.Reset(); }
-
-    // 获取跟随目标
-    UFUNCTION(BlueprintCallable, Category = "Follow")
-    AMACharacter* GetFollowTarget() const { return FollowTarget.Get(); }
-
-    // ========== Patrol System ==========
-    // 巡逻路径引用（可动态设置）
+    // ========== IMAPatrollable Interface ==========
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Patrol")
     TWeakObjectPtr<AMAPatrolPath> PatrolPath;
 
-    // 设置巡逻路径
-    UFUNCTION(BlueprintCallable, Category = "Patrol")
-    void SetPatrolPath(AMAPatrolPath* Path) { PatrolPath = Path; }
-
-    // 获取巡逻路径
-    UFUNCTION(BlueprintCallable, Category = "Patrol")
-    AMAPatrolPath* GetPatrolPath() const { return PatrolPath.Get(); }
+    virtual void SetPatrolPath(AMAPatrolPath* Path) override { PatrolPath = Path; }
+    virtual AMAPatrolPath* GetPatrolPath() const override { return PatrolPath.Get(); }
 
     // ========== Avoidance System ==========
     // 避障检测半径
