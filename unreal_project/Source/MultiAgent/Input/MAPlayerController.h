@@ -6,6 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "../Core/MACommandManager.h"
 #include "MAPlayerController.generated.h"
 
 struct FInputActionValue;
@@ -43,28 +44,25 @@ protected:
     void OnDestroyLastAgent(const FInputActionValue& Value);
     void OnSwitchCamera(const FInputActionValue& Value);
     void OnReturnToSpectator(const FInputActionValue& Value);
-    void OnStartPatrol(const FInputActionValue& Value);
-    void OnStartCharge(const FInputActionValue& Value);
-    void OnStopIdle(const FInputActionValue& Value);
-    void OnStartCoverage(const FInputActionValue& Value);
-    void OnStartFollow(const FInputActionValue& Value);
     void OnStartAvoid(const FInputActionValue& Value);
     void OnStartFormation(const FInputActionValue& Value);
     void OnTakePhoto(const FInputActionValue& Value);
     void OnToggleRecording(const FInputActionValue& Value);
     void OnToggleTCPStream(const FInputActionValue& Value);
     
-    // ========== 编组快捷键 (Ctrl+0~9 / 0~9) ==========
-    void OnControlGroup0(const FInputActionValue& Value);
+    // ========== 编组快捷键 (Ctrl+1~5 / 1~5) ==========
     void OnControlGroup1(const FInputActionValue& Value);
     void OnControlGroup2(const FInputActionValue& Value);
     void OnControlGroup3(const FInputActionValue& Value);
     void OnControlGroup4(const FInputActionValue& Value);
     void OnControlGroup5(const FInputActionValue& Value);
-    void OnControlGroup6(const FInputActionValue& Value);
-    void OnControlGroup7(const FInputActionValue& Value);
-    void OnControlGroup8(const FInputActionValue& Value);
-    void OnControlGroup9(const FInputActionValue& Value);
+    
+    // ========== 通用命令处理 ==========
+    void OnStartPatrol(const FInputActionValue& Value);
+    void OnStartCharge(const FInputActionValue& Value);
+    void OnStopIdle(const FInputActionValue& Value);
+    void OnStartCoverage(const FInputActionValue& Value);
+    void OnStartFollow(const FInputActionValue& Value);
     
     // 创建/解散 Squad 快捷键
     void OnCreateSquad(const FInputActionValue& Value);
@@ -92,8 +90,14 @@ public:
     static FString MouseModeToString(EMAMouseMode Mode);
 
 private:
+    // 初始化 Subsystem 缓存
+    bool InitializeSubsystems();
+    
     // 处理编组快捷键
     void HandleControlGroup(int32 GroupIndex);
+    
+    // 发送命令
+    void SendCommand(EMACommand Command);
 
     // ========== 缓存的 Subsystem 引用 ==========
     UPROPERTY()

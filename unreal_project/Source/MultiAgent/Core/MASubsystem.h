@@ -44,5 +44,13 @@ struct MULTIAGENT_API FMASubsystem
  * 使用示例:
  *   MA_SUBS.CommandManager->SendCommand(EMACommand::Patrol);
  *   MA_SUBS.AgentManager->GetAllAgents();
+ * 
+ * 性能提示: 每次调用都会获取所有 Subsystem
+ * 如果需要多次访问，建议先缓存:
+ *   auto Subs = MA_SUBS;
+ *   if (Subs.IsValid()) {
+ *       Subs.CommandManager->SendCommand(...);
+ *       Subs.AgentManager->GetAllAgents();
+ *   }
  */
 #define MA_SUBS FMASubsystem::Get(GetWorld())

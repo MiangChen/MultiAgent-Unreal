@@ -34,11 +34,10 @@ void AMAPlayerController::BeginPlay()
     Super::BeginPlay();
     
     // 缓存 Subsystem 引用
-    AgentManager = GetWorld()->GetSubsystem<UMAAgentManager>();
-    CommandManager = GetWorld()->GetSubsystem<UMACommandManager>();
-    SelectionManager = GetWorld()->GetSubsystem<UMASelectionManager>();
-    SquadManager = GetWorld()->GetSubsystem<UMASquadManager>();
-    ViewportManager = GetWorld()->GetSubsystem<UMAViewportManager>();
+    if (!InitializeSubsystems())
+    {
+        UE_LOG(LogTemp, Error, TEXT("[PlayerController] Failed to initialize subsystems!"));
+    }
     
     // 初始为 Select 模式，禁用视角控制
     FInputModeGameAndUI InputMode;
@@ -54,6 +53,20 @@ void AMAPlayerController::BeginPlay()
             Subsystem->AddMappingContext(InputActions->DefaultMappingContext, 0);
         }
     }
+}
+
+bool AMAPlayerController::InitializeSubsystems()
+{
+    UWorld* World = GetWorld();
+    if (!World) return false;
+    
+    AgentManager = World->GetSubsystem<UMAAgentManager>();
+    CommandManager = World->GetSubsystem<UMACommandManager>();
+    SelectionManager = World->GetSubsystem<UMASelectionManager>();
+    SquadManager = World->GetSubsystem<UMASquadManager>();
+    ViewportManager = World->GetSubsystem<UMAViewportManager>();
+    
+    return AgentManager && CommandManager && SelectionManager && SquadManager && ViewportManager;
 }
 
 void AMAPlayerController::SetupInputComponent()
@@ -399,30 +412,16 @@ void AMAPlayerController::OnReturnToSpectator(const FInputActionValue& Value)
 
 // ========== 命令 (通过 CommandManager) ==========
 
-void AMAPlayerController::OnStartPatrol(const FInputActionValue& Value)
+void AMAPlayerController::SendCommand(EMACommand Command)
 {
-    if (CommandManager) CommandManager->SendCommand(EMACommand::Patrol);
+    if (CommandManager) CommandManager->SendCommand(Command);
 }
 
-void AMAPlayerController::OnStartCharge(const FInputActionValue& Value)
-{
-    if (CommandManager) CommandManager->SendCommand(EMACommand::Charge);
-}
-
-void AMAPlayerController::OnStopIdle(const FInputActionValue& Value)
-{
-    if (CommandManager) CommandManager->SendCommand(EMACommand::Idle);
-}
-
-void AMAPlayerController::OnStartCoverage(const FInputActionValue& Value)
-{
-    if (CommandManager) CommandManager->SendCommand(EMACommand::Coverage);
-}
-
-void AMAPlayerController::OnStartFollow(const FInputActionValue& Value)
-{
-    if (CommandManager) CommandManager->SendCommand(EMACommand::Follow);
-}
+void AMAPlayerController::OnStartPatrol(const FInputActionValue& Value) { SendCommand(EMACommand::Patrol); }
+void AMAPlayerController::OnStartCharge(const FInputActionValue& Value) { SendCommand(EMACommand::Charge); }
+void AMAPlayerController::OnStopIdle(const FInputActionValue& Value) { SendCommand(EMACommand::Idle); }
+void AMAPlayerController::OnStartCoverage(const FInputActionValue& Value) { SendCommand(EMACommand::Coverage); }
+void AMAPlayerController::OnStartFollow(const FInputActionValue& Value) { SendCommand(EMACommand::Follow); }
 
 void AMAPlayerController::OnStartAvoid(const FInputActionValue& Value)
 {
@@ -540,16 +539,11 @@ void AMAPlayerController::HandleControlGroup(int32 GroupIndex)
     }
 }
 
-void AMAPlayerController::OnControlGroup0(const FInputActionValue& Value) { HandleControlGroup(0); }
 void AMAPlayerController::OnControlGroup1(const FInputActionValue& Value) { HandleControlGroup(1); }
 void AMAPlayerController::OnControlGroup2(const FInputActionValue& Value) { HandleControlGroup(2); }
 void AMAPlayerController::OnControlGroup3(const FInputActionValue& Value) { HandleControlGroup(3); }
 void AMAPlayerController::OnControlGroup4(const FInputActionValue& Value) { HandleControlGroup(4); }
 void AMAPlayerController::OnControlGroup5(const FInputActionValue& Value) { HandleControlGroup(5); }
-void AMAPlayerController::OnControlGroup6(const FInputActionValue& Value) { HandleControlGroup(6); }
-void AMAPlayerController::OnControlGroup7(const FInputActionValue& Value) { HandleControlGroup(7); }
-void AMAPlayerController::OnControlGroup8(const FInputActionValue& Value) { HandleControlGroup(8); }
-void AMAPlayerController::OnControlGroup9(const FInputActionValue& Value) { HandleControlGroup(9); }
 
 // ========== 创建 Squad ==========
 
