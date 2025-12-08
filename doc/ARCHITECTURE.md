@@ -95,9 +95,14 @@ State Tree (大脑 - 状态决策)          GAS (手脚 - 技能执行)
 │  │ - 快捷键绑定      │                                                      │
 │  └────────┬─────────┘                                                       │
 │           │                                                                 │
-│           │ 调用                                                            │
+│           │ MA_SUBS 宏访问                                                  │
 │           ▼                                                                 │
 │  ┌────────────────────────────────────────────────────────────────────┐    │
+│  │  FMASubsystem (统一访问层)                                          │    │
+│  │  ┌─────────────────────────────────────────────────────────────┐   │    │
+│  │  │ MA_SUBS.AgentManager / CommandManager / SelectionManager... │   │    │
+│  │  └─────────────────────────────────────────────────────────────┘   │    │
+│  │                                                                     │    │
 │  │                    Manager 层 (UWorldSubsystem)                     │    │
 │  │                                                                     │    │
 │  │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐    │    │
@@ -160,6 +165,38 @@ State Tree (大脑 - 状态决策)          GAS (手脚 - 技能执行)
 | **CommandManager** | 命令分发、参数自动填充 | Agent 生命周期 |
 | **SquadManager** | Squad 创建/解散、编队切换 | 单个 Agent 控制 |
 | **AgentManager** | Agent 生命周期、JSON 配置 | 命令分发 |
+| **ViewportManager** | 视角切换、相机管理 | Agent 控制 |
+
+### 2.4 FMASubsystem 统一访问层
+
+类似 Python 的依赖注入容器，提供全局单点访问所有 Manager Subsystem：
+
+```cpp
+// 传统方式 (繁琐)
+UMACommandManager* CommandManager = GetWorld()->GetSubsystem<UMACommandManager>();
+if (CommandManager) CommandManager->SendCommand(EMACommand::Patrol);
+
+// 使用 MA_SUBS 宏 (简洁)
+MA_SUBS.CommandManager->SendCommand(EMACommand::Patrol);
+MA_SUBS.AgentManager->GetAllAgents();
+MA_SUBS.SelectionManager->GetSelectedAgents();
+```
+
+**FMASubsystem 结构:**
+```cpp
+struct FMASubsystem
+{
+    UMAAgentManager* AgentManager;
+    UMACommandManager* CommandManager;
+    UMASelectionManager* SelectionManager;
+    UMASquadManager* SquadManager;
+    UMAViewportManager* ViewportManager;
+
+    static FMASubsystem Get(UWorld* World);
+};
+
+#define MA_SUBS FMASubsystem::Get(GetWorld())
+```
 
 ## 3. 当前文件结构
 
@@ -171,7 +208,12 @@ MultiAgent-Unreal/
 └── unreal_project/Source/MultiAgent/
     ├── Core/                        # 核心框架
     │   ├── MATypes.h                # 公共类型定义 (EMAAgentType, EMAFormationType)
+    │   ├── MASubsystem.h/cpp        # Subsystem 统一访问层 (MA_SUBS 宏)
     │   ├── MAAgentManager.h/cpp     # Agent 管理器 (JSON 配置 + Action 动态发现)
+    │   ├── MACommandManager.h/cpp   # 命令管理器 (RTS 风格命令分发)
+    │   ├── MASelectionManager.h/cpp # 选择管理器 (框选、编组)
+    │   ├── MASquadManager.h/cpp     # 编队管理器
+    │   ├── MAViewportManager.h/cpp  # 视角管理器
     │   ├── MAGameMode.h/cpp         # 游戏模式 (配置驱动)
     │   └── MAPlayerController.h/cpp # 玩家控制器 (Enhanced Input)
     │
