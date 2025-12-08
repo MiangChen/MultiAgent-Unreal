@@ -35,10 +35,10 @@ public:
     bool TryDrop();
 
     UFUNCTION(BlueprintCallable, Category = "Abilities")
-    bool TryNavigateTo(FVector Destination);
+    virtual bool TryNavigateTo(FVector Destination);
 
     UFUNCTION(BlueprintCallable, Category = "Abilities")
-    void CancelNavigation();
+    virtual void CancelNavigation();
 
     UFUNCTION(BlueprintCallable, Category = "Abilities")
     bool TryFollowActor(AMACharacter* TargetActor, float FollowDistance = 200.f);

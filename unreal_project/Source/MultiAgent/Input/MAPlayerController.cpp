@@ -13,6 +13,7 @@
 #include "../UI/MASelectionHUD.h"
 #include "MACharacter.h"
 #include "MARobotDogCharacter.h"
+#include "MADroneCharacter.h"
 #include "../Agent/Component/Sensor/MACameraSensorComponent.h"
 #include "MAPickupItem.h"
 #include "EnhancedInputComponent.h"
@@ -265,12 +266,19 @@ void AMAPlayerController::OnRightClick(const FInputActionValue& Value)
     for (AMACharacter* Agent : CommandManager->GetControllableAgents())
     {
         FVector Target = HitLocation;
-        // Drone 保持高度
+        // Drone: 如果在空中则保持高度，如果在地面则让 TryNavigateTo 处理起飞
         if (Agent->AgentType == EMAAgentType::Drone ||
             Agent->AgentType == EMAAgentType::DronePhantom4 ||
             Agent->AgentType == EMAAgentType::DroneInspire2)
         {
-            Target.Z = Agent->GetActorLocation().Z;
+            if (AMADroneCharacter* Drone = Cast<AMADroneCharacter>(Agent))
+            {
+                if (Drone->IsInAir())
+                {
+                    Target.Z = Agent->GetActorLocation().Z;  // 在空中，保持高度
+                }
+                // 在地面时不修改 Target.Z，让 TryNavigateTo 使用 DefaultFlightAltitude
+            }
         }
         Agent->TryNavigateTo(Target);
     }

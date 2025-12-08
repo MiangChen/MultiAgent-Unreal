@@ -271,14 +271,26 @@ AMACharacter* UMAAgentManager::SpawnAgentFromConfig(const FMAAgentConfig& Config
     // 计算位置
     FVector SpawnLocation = Config.bAutoPosition ? CalculateAutoPosition(Index, TotalCount) : Config.Position;
     
-    // 无人机特殊处理：在地面位置上方生成
-    if (Config.Type == EMAAgentType::Drone || 
-        Config.Type == EMAAgentType::DronePhantom4 || 
-        Config.Type == EMAAgentType::DroneInspire2)
+    // 地面 Agent 投影到 NavMesh (Drone 不需要，会从地面起飞)
+    bool bIsDrone = (Config.Type == EMAAgentType::Drone || 
+                     Config.Type == EMAAgentType::DronePhantom4 || 
+                     Config.Type == EMAAgentType::DroneInspire2);
+    
+    if (bIsDrone)
     {
-        // 无人机默认飞行高度
-        constexpr float DroneFlightAltitude = 75.f;
-        SpawnLocation.Z += DroneFlightAltitude;
+        // Drone 从地面开始，需要找到地面高度
+        FHitResult HitResult;
+        FVector TraceStart = SpawnLocation + FVector(0.f, 0.f, 1000.f);
+        FVector TraceEnd = SpawnLocation - FVector(0.f, 0.f, 10000.f);
+        
+        if (GetWorld()->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, ECC_Visibility))
+        {
+            SpawnLocation.Z = HitResult.Location.Z + 50.f;  // 地面上方 50 单位
+        }
+        else
+        {
+            SpawnLocation.Z = 0.f;  // 找不到地面，默认 0
+        }
     }
     else
     {
@@ -297,6 +309,8 @@ AMACharacter* UMAAgentManager::SpawnAgentFromConfig(const FMAAgentConfig& Config
     }
     
     // 生成 Agent
+    UE_LOG(LogTemp, Log, TEXT("[AgentManager] Spawning %s at (%.0f, %.0f, %.0f), IsDrone=%d"), 
+        *Config.ID, SpawnLocation.X, SpawnLocation.Y, SpawnLocation.Z, bIsDrone ? 1 : 0);
     AMACharacter* Agent = SpawnAgent(AgentClass, SpawnLocation, Config.Rotation, Config.ID, Config.Type);
     
     // 添加 Sensors
@@ -330,8 +344,8 @@ void UMAAgentManager::AddSensorsToAgent(AMACharacter* Agent, const TArray<FMASen
 
 FVector UMAAgentManager::CalculateAutoPosition(int32 Index, int32 TotalCount) const
 {
-    // 获取基准位置
-    FVector Origin = SpawnSettings.FallbackOrigin;
+    // 获取基准位置 (只使用 XY，Z 由后续逻辑决定)
+    FVector Origin = FVector(SpawnSettings.FallbackOrigin.X, SpawnSettings.FallbackOrigin.Y, 0.f);
     
     if (SpawnSettings.bUsePlayerStart)
     {
@@ -339,12 +353,13 @@ FVector UMAAgentManager::CalculateAutoPosition(int32 Index, int32 TotalCount) co
         {
             if (AActor* PlayerStart = UGameplayStatics::GetActorOfClass(World, APlayerStart::StaticClass()))
             {
-                Origin = PlayerStart->GetActorLocation();
+                FVector PlayerStartLoc = PlayerStart->GetActorLocation();
+                Origin = FVector(PlayerStartLoc.X, PlayerStartLoc.Y, 0.f);  // 只取 XY
             }
         }
     }
     
-    // 圆形分布
+    // 圆形分布 (Z = 0，后续会投影到地面或 NavMesh)
     float Angle = (360.f / TotalCount) * Index;
     return Origin + FVector(
         FMath::Cos(FMath::DegreesToRadians(Angle)) * SpawnSettings.SpawnRadius,

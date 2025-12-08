@@ -23,7 +23,7 @@ void AMADroneInspire2Character::SetupDroneAssets()
     {
         GetMesh()->SetSkeletalMesh(MeshAsset.Object);
         GetMesh()->SetRelativeLocation(FVector(0.f, 0.f, -75.f));
-        GetMesh()->SetRelativeRotation(FRotator(0.f, 0.f, 0.f));
+        GetMesh()->SetRelativeRotation(FRotator(0.f, -90.f, 0.f));  // 修正模型朝向
         GetMesh()->SetRelativeScale3D(FVector(1.f, 1.f, 1.f));
     }
 

@@ -1,6 +1,11 @@
 // MADroneCharacter.h
 // 无人机角色基类 - 支持 3D 飞行、悬停、StateTree AI
 // 子类: MADronePhantom4Character, MADroneInspire2Character
+//
+// 飞行系统说明:
+// - 不使用 NavMesh，采用直接位置控制
+// - 支持碰撞检测，便于未来开发避障算法
+// - 状态机: Landed → TakeOff → Hovering ↔ Flying → Land → Landed
 
 #pragma once
 
@@ -11,6 +16,21 @@
 #include "MADroneCharacter.generated.h"
 
 class UMAStateTreeComponent;
+
+// 无人机飞行状态
+UENUM(BlueprintType)
+enum class EMADroneFlightState : uint8
+{
+    Landed      UMETA(DisplayName = "Landed"),      // 停在地面
+    TakingOff   UMETA(DisplayName = "TakingOff"),   // 正在起飞
+    Hovering    UMETA(DisplayName = "Hovering"),    // 悬停中
+    Flying      UMETA(DisplayName = "Flying"),      // 飞行中
+    Landing     UMETA(DisplayName = "Landing")      // 正在降落
+};
+
+// 飞行完成委托
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnFlightCompleted, bool, bSuccess, FVector, FinalLocation);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCollisionDetected, FHitResult, HitResult);
 
 UCLASS(Abstract)
 class MULTIAGENT_API AMADroneCharacter : public AMACharacter,
@@ -34,7 +54,7 @@ public:
     float MaxEnergy = 100.f;
     
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Energy")
-    float EnergyDrainRate = 0.5f;  // 每秒消耗 0.5%
+    float EnergyDrainRate = 0.5f;  // 每秒消耗
     
     virtual void DrainEnergy(float DeltaTime) override;
     virtual void RestoreEnergy(float Amount) override;
@@ -44,26 +64,97 @@ public:
     virtual float GetEnergyPercent() const override { return (MaxEnergy > 0.f) ? (Energy / MaxEnergy * 100.f) : 0.f; }
 
     // ========== Flight System ==========
+    
+    // 飞行参数
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Flight")
-    float FlightAltitude = 75.f;
+    float DefaultFlightAltitude = 500.f;
     
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Flight")
-    float MaxFlightSpeed = 100.f;
+    float MaxFlightSpeed = 400.f;
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Flight")
+    float FlightAcceleration = 200.f;
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Flight")
+    float AcceptanceRadius = 100.f;
+    
+    // 碰撞检测参数
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Flight|Collision")
+    float CollisionCheckDistance = 300.f;
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Flight|Collision")
+    float CollisionCheckRadius = 50.f;
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Flight|Collision")
+    bool bEnableCollisionCheck = true;
+    
+    // 当前状态
+    UPROPERTY(BlueprintReadOnly, Category = "Flight")
+    EMADroneFlightState FlightState = EMADroneFlightState::Landed;
     
     UPROPERTY(BlueprintReadOnly, Category = "Flight")
-    bool bIsHovering = false;
+    FVector CurrentFlightTarget;
     
+    UPROPERTY(BlueprintReadOnly, Category = "Flight")
+    float CurrentSpeed = 0.f;
+    
+    // ========== 飞行控制函数 ==========
+    
+    // 起飞到指定高度 (默认使用 DefaultFlightAltitude)
     UFUNCTION(BlueprintCallable, Category = "Flight")
-    void TakeOff(float TargetAltitude = -1.f);
+    bool TakeOff(float TargetAltitude = -1.f);
     
+    // 降落到地面
     UFUNCTION(BlueprintCallable, Category = "Flight")
-    void Land();
+    bool Land();
     
+    // 悬停在当前位置
     UFUNCTION(BlueprintCallable, Category = "Flight")
     void Hover();
     
+    // 飞向目标位置 (不使用 NavMesh，直接飞行)
     UFUNCTION(BlueprintCallable, Category = "Flight")
     bool FlyTo(FVector Destination);
+    
+    // 取消当前飞行任务
+    UFUNCTION(BlueprintCallable, Category = "Flight")
+    void CancelFlight();
+    
+    // 查询函数
+    UFUNCTION(BlueprintCallable, Category = "Flight")
+    bool IsFlying() const { return FlightState == EMADroneFlightState::Flying; }
+    
+    UFUNCTION(BlueprintCallable, Category = "Flight")
+    bool IsHovering() const { return FlightState == EMADroneFlightState::Hovering; }
+    
+    UFUNCTION(BlueprintCallable, Category = "Flight")
+    bool IsLanded() const { return FlightState == EMADroneFlightState::Landed; }
+    
+    UFUNCTION(BlueprintCallable, Category = "Flight")
+    bool IsInAir() const { return FlightState != EMADroneFlightState::Landed; }
+    
+    // ========== 碰撞检测 ==========
+    
+    // 检测前方是否有障碍物
+    UFUNCTION(BlueprintCallable, Category = "Flight|Collision")
+    bool CheckForwardCollision(FHitResult& OutHit) const;
+    
+    // 检测指定方向是否有障碍物
+    UFUNCTION(BlueprintCallable, Category = "Flight|Collision")
+    bool CheckCollisionInDirection(FVector Direction, float Distance, FHitResult& OutHit) const;
+    
+    // ========== 委托 ==========
+    
+    UPROPERTY(BlueprintAssignable, Category = "Flight")
+    FOnFlightCompleted OnFlightCompleted;
+    
+    UPROPERTY(BlueprintAssignable, Category = "Flight")
+    FOnCollisionDetected OnCollisionDetected;
+
+    // ========== 重写基类导航 ==========
+    // 统一接口：自动处理起飞，然后飞向目标
+    virtual bool TryNavigateTo(FVector Destination) override;
+    virtual void CancelNavigation() override;
 
     // ========== Drone Abilities ==========
     UFUNCTION(BlueprintCallable, Category = "Abilities")
@@ -89,7 +180,7 @@ public:
 
     // ========== IMACoverable Interface ==========
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Coverage")
-    float ScanRadius = 300.f;  // 无人机扫描范围更大
+    float ScanRadius = 300.f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Coverage")
     TWeakObjectPtr<AActor> CoverageAreaRef;
@@ -106,22 +197,28 @@ public:
     virtual AMAPatrolPath* GetPatrolPath() const override { return PatrolPath.Get(); }
 
 protected:
-    // 子类实现：设置 Mesh、动画、碰撞体大小
     virtual void SetupDroneAssets() PURE_VIRTUAL(AMADroneCharacter::SetupDroneAssets, );
-
     virtual void BeginPlay() override;
     
+    // 能量系统
     void UpdateEnergyDisplay();
     void CheckLowEnergyStatus();
+    
+    // 动画
     void UpdatePropellerAnimation();
-
+    
     UPROPERTY()
     UAnimSequence* PropellerAnim;
     
 private:
     static constexpr float LowEnergyThreshold = 20.f;
     
-    // 飞行状态
-    bool bIsFlying = false;
-    FVector TargetFlightLocation;
+    // 飞行系统内部
+    void UpdateFlight(float DeltaTime);
+    void SetFlightState(EMADroneFlightState NewState);
+    float GetGroundHeight() const;
+    
+    // 起飞后待执行的飞行目标
+    bool bHasPendingFlyTarget = false;
+    FVector PendingFlyTarget;
 };
