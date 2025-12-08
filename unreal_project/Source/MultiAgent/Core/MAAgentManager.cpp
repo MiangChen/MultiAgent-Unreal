@@ -3,6 +3,8 @@
 #include "MAAgentManager.h"
 #include "../Agent/Character/MARobotDogCharacter.h"
 #include "../Agent/Character/MADroneCharacter.h"
+#include "../Agent/Character/MADronePhantom4Character.h"
+#include "../Agent/Character/MADroneInspire2Character.h"
 #include "../Environment/MAChargingStation.h"
 #include "../Agent/Component/Sensor/MACameraSensorComponent.h"
 #include "../Agent/Character/MACharacter.h"
@@ -270,7 +272,9 @@ AMACharacter* UMAAgentManager::SpawnAgentFromConfig(const FMAAgentConfig& Config
     FVector SpawnLocation = Config.bAutoPosition ? CalculateAutoPosition(Index, TotalCount) : Config.Position;
     
     // 无人机特殊处理：在地面位置上方生成
-    if (Config.Type == EMAAgentType::Drone)
+    if (Config.Type == EMAAgentType::Drone || 
+        Config.Type == EMAAgentType::DronePhantom4 || 
+        Config.Type == EMAAgentType::DroneInspire2)
     {
         // 无人机默认飞行高度
         constexpr float DroneFlightAltitude = 75.f;
@@ -435,6 +439,21 @@ TArray<AMACharacter*> UMAAgentManager::GetAgentsByType(EMAAgentType Type) const
     for (AMACharacter* Agent : SpawnedAgents)
     {
         if (Agent && Agent->AgentType == Type)
+        {
+            Result.Add(Agent);
+        }
+    }
+    return Result;
+}
+
+TArray<AMACharacter*> UMAAgentManager::GetAllDrones() const
+{
+    TArray<AMACharacter*> Result;
+    for (AMACharacter* Agent : SpawnedAgents)
+    {
+        if (Agent && (Agent->AgentType == EMAAgentType::Drone ||
+                      Agent->AgentType == EMAAgentType::DronePhantom4 ||
+                      Agent->AgentType == EMAAgentType::DroneInspire2))
         {
             Result.Add(Agent);
         }
@@ -755,7 +774,9 @@ EMAAgentType UMAAgentManager::StringToAgentType(const FString& TypeString) const
 {
     if (TypeString == TEXT("Human")) return EMAAgentType::Human;
     if (TypeString == TEXT("RobotDog")) return EMAAgentType::RobotDog;
-    if (TypeString == TEXT("Drone")) return EMAAgentType::Drone;
+    if (TypeString == TEXT("Drone")) return EMAAgentType::DronePhantom4;  // 默认 Phantom4
+    if (TypeString == TEXT("DronePhantom4")) return EMAAgentType::DronePhantom4;
+    if (TypeString == TEXT("DroneInspire2")) return EMAAgentType::DroneInspire2;
     if (TypeString == TEXT("Camera")) return EMAAgentType::Camera;
     return EMAAgentType::Human;
 }
@@ -767,6 +788,8 @@ FString UMAAgentManager::AgentTypeToString(EMAAgentType Type) const
         case EMAAgentType::Human: return TEXT("Human");
         case EMAAgentType::RobotDog: return TEXT("RobotDog");
         case EMAAgentType::Drone: return TEXT("Drone");
+        case EMAAgentType::DronePhantom4: return TEXT("DronePhantom4");
+        case EMAAgentType::DroneInspire2: return TEXT("DroneInspire2");
         case EMAAgentType::Camera: return TEXT("Camera");
         default: return TEXT("Unknown");
     }

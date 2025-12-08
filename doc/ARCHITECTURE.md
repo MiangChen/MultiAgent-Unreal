@@ -6,31 +6,53 @@ MultiAgent-Unreal 是一个基于 Unreal Engine 5 的多智能体仿真框架，
 
 ## 2. 核心架构：CARLA 风格 + State Tree + GAS
 
-### 2.1 CARLA 风格设计
+### 2.1 CARLA 风格设计 + Interface 架构
 
-本项目采用 **CARLA 风格架构**，参数存储在实体上而非外部配置：
+本项目采用 **CARLA 风格架构 + UE Interface 模式**，参数存储在实体上，通过 Interface 实现多态：
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    CARLA 风格参数管理                        │
+│                    Interface 架构                            │
 │                                                             │
-│  Robot (实体)                    Task/Ability (行为)         │
 │  ┌─────────────────┐            ┌─────────────────┐        │
-│  │ ScanRadius=200  │◄──────────│ MA Follow       │        │
-│  │ FollowTarget    │  获取参数  │ MA Coverage     │        │
-│  │ CoverageArea    │◄──────────│ MA Patrol       │        │
-│  │ PatrolPath      │            └─────────────────┘        │
-│  └─────────────────┘                                       │
+│  │ RobotDog        │            │ Drone           │        │
+│  │ implements:     │            │ implements:     │        │
+│  │ - IMAPatrollable│            │ - IMAPatrollable│        │
+│  │ - IMAFollowable │            │ - IMAFollowable │        │
+│  │ - IMACoverable  │            │ - IMACoverable  │        │
+│  │ - IMAChargeable │            │ - IMAChargeable │        │
+│  └────────┬────────┘            └────────┬────────┘        │
+│           │                              │                  │
+│           └──────────┬───────────────────┘                  │
+│                      ▼                                      │
+│           ┌─────────────────────┐                          │
+│           │  StateTree Tasks    │                          │
+│           │  (使用 Interface)    │                          │
+│           │  - MASTTask_Patrol  │                          │
+│           │  - MASTTask_Follow  │                          │
+│           │  - MASTTask_Coverage│                          │
+│           │  - MASTTask_Charge  │                          │
+│           └─────────────────────┘                          │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 **核心原则：**
-- 参数存储在 Robot 上（如 `ScanRadius`, `FollowTarget`）
-- Task/Ability 从 Robot 获取参数，不自己存储
+- 参数存储在 Agent 上（如 `ScanRadius`, `FollowTarget`）
+- Task/Ability 通过 Interface 获取参数，不硬编码类型
 - 同一参数可被多个 Task/Ability 复用
 - 运行时可动态修改
+- 新增 Agent 类型只需实现对应 Interface
 
-**Robot 共用参数：**
+**Agent Interface 定义 (MAAgentInterfaces.h):**
+
+| Interface | 方法 | 用途 |
+|-----------|------|------|
+| `IMAPatrollable` | `GetPatrolPath()`, `SetPatrolPath()`, `GetScanRadius()` | 巡逻能力 |
+| `IMAFollowable` | `GetFollowTarget()`, `SetFollowTarget()`, `ClearFollowTarget()` | 跟随能力 |
+| `IMACoverable` | `GetCoverageArea()`, `SetCoverageArea()`, `GetScanRadius()` | 覆盖扫描能力 |
+| `IMAChargeable` | `GetEnergy()`, `RestoreEnergy()`, `DrainEnergy()`, `HasEnergy()` | 充电能力 |
+
+**Agent 共用参数：**
 
 | 属性 | 类型 | 用途 |
 |------|------|------|
@@ -38,7 +60,7 @@ MultiAgent-Unreal 是一个基于 Unreal Engine 5 的多智能体仿真框架，
 | `FollowTarget` | AMACharacter* | 跟随目标 |
 | `CoverageArea` | AActor* | 覆盖区域 |
 | `PatrolPath` | AMAPatrolPath* | 巡逻路径 |
-| `ChargeRate` | float | 充电速率（每秒恢复百分比，默认 20%） |
+| `Energy/MaxEnergy` | float | 能量系统 |
 
 ### 2.2 State Tree + GAS 黄金搭档
 
@@ -78,7 +100,13 @@ MultiAgent-Unreal/
     │   ├── Character/               # ACharacter 派生类
     │   │   ├── MACharacter.h/cpp    # 角色基类 (GAS + Sensor + Action 聚合)
     │   │   ├── MAHumanCharacter.h/cpp   # 人类角色
-    │   │   └── MARobotDogCharacter.h/cpp # 机器狗角色
+    │   │   ├── MARobotDogCharacter.h/cpp # 机器狗角色 (实现 4 个 Interface)
+    │   │   ├── MADroneCharacter.h/cpp   # 无人机基类 (Abstract, 实现 4 个 Interface)
+    │   │   ├── MADronePhantom4Character.h/cpp  # DJI Phantom 4 (小型)
+    │   │   └── MADroneInspire2Character.h/cpp  # DJI Inspire 2 (大型, 边长3倍)
+    │   │
+    │   ├── Interface/               # Agent 能力接口
+    │   │   └── MAAgentInterfaces.h  # IMAPatrollable, IMAFollowable, IMACoverable, IMAChargeable
     │   │
     │   ├── Component/               # 组件模块 (UE Component 模式)
     │   │   └── Sensor/              # 传感器组件
@@ -138,7 +166,10 @@ MultiAgent-Unreal/
 ACharacter (UE) + IAbilitySystemInterface
     └── AMACharacter (角色基类，GAS + Sensor + Action 聚合)
             ├── AMAHumanCharacter (人类)
-            └── AMARobotDogCharacter (机器狗)
+            ├── AMARobotDogCharacter (机器狗) + IMAPatrollable + IMAFollowable + IMACoverable + IMAChargeable
+            └── AMADroneCharacter (无人机基类, Abstract) + IMAPatrollable + IMAFollowable + IMACoverable + IMAChargeable
+                    ├── AMADronePhantom4Character (DJI Phantom 4, 小型)
+                    └── AMADroneInspire2Character (DJI Inspire 2, 大型, 边长3倍)
 
 USceneComponent (UE)
     └── UMASensorComponent (传感器基类，Action 接口)
@@ -556,17 +587,17 @@ Status.LowEnergy           // 低电量
 
 ## 9. State Tree 模块详解
 
-### 9.1 自定义 Task (CARLA 风格)
+### 9.1 自定义 Task (Interface 模式)
 
-Task 不存储可配置参数，而是从 Robot 获取：
+Task 通过 Interface 获取参数，支持多种 Agent 类型：
 
-| Task | 功能 | 从 Robot 获取的参数 |
-|------|------|---------------------|
-| `MASTTask_Patrol` | 循环巡逻路径点 | `PatrolPath`, `ScanRadius` |
+| Task | 功能 | 使用的 Interface |
+|------|------|------------------|
+| `MASTTask_Patrol` | 循环巡逻路径点 | `IMAPatrollable`, `IMAChargeable` |
 | `MASTTask_Navigate` | 导航到指定位置 | - |
-| `MASTTask_Charge` | 自动充电 | `ChargeRate` |
-| `MASTTask_Coverage` | 区域覆盖扫描 | `CoverageArea`, `ScanRadius` |
-| `MASTTask_Follow` | 跟随目标 | `FollowTarget`, `ScanRadius` |
+| `MASTTask_Charge` | 自动充电 | `IMAChargeable` |
+| `MASTTask_Coverage` | 区域覆盖扫描 | `IMACoverable` |
+| `MASTTask_Follow` | 跟随目标 | `IMAFollowable` |
 
 ### 9.2 自定义 Condition
 
@@ -617,11 +648,18 @@ Task 不存储可配置参数，而是从 Robot 获取：
 - [x] MACharacter Action 聚合 + 6 个 Agent Actions
 - [x] 属性重命名: ActorID/Name/Type → AgentID/Name/Type (FString)
 
-### Phase 4: 待开发
+### Phase 4: Interface 架构重构 ✅ 已完成
+- [x] 创建 MAAgentInterfaces.h 定义 4 个 Interface
+- [x] MARobotDogCharacter 实现 IMAPatrollable, IMAFollowable, IMACoverable, IMAChargeable
+- [x] MADroneCharacter 实现 IMAPatrollable, IMAFollowable, IMACoverable, IMAChargeable
+- [x] StateTree Tasks 使用 Interface 而非硬编码类型 (Patrol, Follow, Coverage, Charge)
+- [x] MAPlayerController 支持 Drone 所有技能 (导航、巡逻、充电、覆盖、跟随、避障)
+
+### Phase 5: 待开发
 - [ ] 配置热重载 - 运行时修改 JSON 自动刷新
 - [ ] 可视化编辑器 - UE Editor 内编辑 Agent 配置
 - [ ] 更多 Sensor 类型 (Lidar, Depth, IMU)
-- [ ] 更多 Agent 类型 (Drone)
+- [ ] 更多 Drone 变体 (Small, Medium, Large)
 - [ ] UMARelationSubsystem - 实体关系图
 - [ ] SaveGame 系统 - 游戏存档/读档
 
@@ -640,17 +678,25 @@ AMACameraSensor* Camera = World->SpawnActor<AMACameraSensor>();
 Camera->AttachToActor(Character, ...);
 ```
 
-### 13.2 CARLA 风格参数管理
+### 13.2 Interface 模式参数管理
 
-参数存储在实体上，行为从实体获取参数：
+通过 Interface 获取参数，支持多种 Agent 类型：
 
 ```cpp
-// ✅ 推荐：从 Robot 获取参数
-float Distance = Robot->ScanRadius;
-AMACharacter* Target = Robot->GetFollowTarget();
+// ✅ 推荐：通过 Interface 获取参数
+if (IMAPatrollable* Patrollable = Cast<IMAPatrollable>(Owner))
+{
+    AMAPatrolPath* Path = Patrollable->GetPatrolPath();
+    float Radius = Patrollable->GetScanRadius();
+}
 
-// ❌ 不推荐：在 Task/Ability 中硬编码参数
-float Distance = 200.f;  // 硬编码
+if (IMAFollowable* Followable = Cast<IMAFollowable>(Owner))
+{
+    AMACharacter* Target = Followable->GetFollowTarget();
+}
+
+// ❌ 不推荐：硬编码类型
+AMARobotDogCharacter* Robot = Cast<AMARobotDogCharacter>(Owner);  // 只支持 RobotDog
 ```
 
 ### 13.3 虚函数多态设计

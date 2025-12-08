@@ -156,7 +156,7 @@ void AMAPlayerController::OnRightClick(const FInputActionValue& Value)
             }
             
             // Drone 导航 (保持当前高度，只改变 XY)
-            TArray<AMACharacter*> Drones = AgentManager->GetAgentsByType(EMAAgentType::Drone);
+            TArray<AMACharacter*> Drones = AgentManager->GetAllDrones();
             for (AMACharacter* Agent : Drones)
             {
                 if (Agent)
@@ -418,7 +418,7 @@ void AMAPlayerController::OnStartPatrol(const FInputActionValue& Value)
     // 收集所有 RobotDog 和 Drone
     TArray<AMACharacter*> Agents;
     Agents.Append(AgentManager->GetAgentsByType(EMAAgentType::RobotDog));
-    Agents.Append(AgentManager->GetAgentsByType(EMAAgentType::Drone));
+    Agents.Append(AgentManager->GetAllDrones());
     
     int32 CommandCount = 0;
     FGameplayTag PatrolCommand = FGameplayTag::RequestGameplayTag(FName("Command.Patrol"));
@@ -472,7 +472,7 @@ void AMAPlayerController::OnStartCharge(const FInputActionValue& Value)
     // 收集所有 RobotDog 和 Drone
     TArray<AMACharacter*> Agents;
     Agents.Append(AgentManager->GetAgentsByType(EMAAgentType::RobotDog));
-    Agents.Append(AgentManager->GetAgentsByType(EMAAgentType::Drone));
+    Agents.Append(AgentManager->GetAllDrones());
     UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Found %d RobotDogs/Drones"), Agents.Num());
     
     int32 CommandCount = 0;
@@ -524,7 +524,7 @@ void AMAPlayerController::OnStopIdle(const FInputActionValue& Value)
     // 收集所有 RobotDog 和 Drone
     TArray<AMACharacter*> Agents;
     Agents.Append(AgentManager->GetAgentsByType(EMAAgentType::RobotDog));
-    Agents.Append(AgentManager->GetAgentsByType(EMAAgentType::Drone));
+    Agents.Append(AgentManager->GetAllDrones());
     UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Found %d RobotDogs/Drones"), Agents.Num());
     
     int32 CommandCount = 0;
@@ -591,7 +591,7 @@ void AMAPlayerController::OnStartCoverage(const FInputActionValue& Value)
     // 收集所有 RobotDog 和 Drone
     TArray<AMACharacter*> Agents;
     Agents.Append(AgentManager->GetAgentsByType(EMAAgentType::RobotDog));
-    Agents.Append(AgentManager->GetAgentsByType(EMAAgentType::Drone));
+    Agents.Append(AgentManager->GetAllDrones());
     
     int32 CommandCount = 0;
     FGameplayTag CoverageCommand = FGameplayTag::RequestGameplayTag(FName("Command.Coverage"));
@@ -652,7 +652,7 @@ void AMAPlayerController::OnStartFollow(const FInputActionValue& Value)
     // 收集所有 RobotDog 和 Drone
     TArray<AMACharacter*> Agents;
     Agents.Append(AgentManager->GetAgentsByType(EMAAgentType::RobotDog));
-    Agents.Append(AgentManager->GetAgentsByType(EMAAgentType::Drone));
+    Agents.Append(AgentManager->GetAllDrones());
     
     int32 CommandCount = 0;
     FGameplayTag FollowCommand = FGameplayTag::RequestGameplayTag(FName("Command.Follow"));
@@ -714,7 +714,7 @@ void AMAPlayerController::OnStartAvoid(const FInputActionValue& Value)
     // 收集所有 RobotDog 和 Drone
     TArray<AMACharacter*> Agents;
     Agents.Append(AgentManager->GetAgentsByType(EMAAgentType::RobotDog));
-    Agents.Append(AgentManager->GetAgentsByType(EMAAgentType::Drone));
+    Agents.Append(AgentManager->GetAllDrones());
     
     int32 ActivatedCount = 0;
     
@@ -728,7 +728,9 @@ void AMAPlayerController::OnStartAvoid(const FInputActionValue& Value)
         
         // Drone 保持高度
         FVector FinalTarget = TargetLocation;
-        if (Agent->AgentType == EMAAgentType::Drone)
+        if (Agent->AgentType == EMAAgentType::Drone ||
+            Agent->AgentType == EMAAgentType::DronePhantom4 ||
+            Agent->AgentType == EMAAgentType::DroneInspire2)
         {
             FinalTarget.Z = Agent->GetActorLocation().Z;
         }

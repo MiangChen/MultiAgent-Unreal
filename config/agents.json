@@ -83,6 +83,42 @@
                     "rotation": [-15, 0, 0]
                 }
             ]
+        },
+        {
+            "id": "drone_0",
+            "type": "DronePhantom4",
+            "class": "/Script/MultiAgent.MADronePhantom4Character",
+            "position": "auto",
+            "rotation": [0, 0, 0],
+            "sensors": [
+                {
+                    "type": "Camera",
+                    "position": [0, 0, -30],
+                    "rotation": [-90, 0, 0],
+                    "params": {
+                        "resolution": [1280, 720],
+                        "fov": 90
+                    }
+                }
+            ]
+        },
+        {
+            "id": "drone_1",
+            "type": "DroneInspire2",
+            "class": "/Script/MultiAgent.MADroneInspire2Character",
+            "position": "auto",
+            "rotation": [0, 0, 0],
+            "sensors": [
+                {
+                    "type": "Camera",
+                    "position": [0, 0, -60],
+                    "rotation": [-90, 0, 0],
+                    "params": {
+                        "resolution": [1920, 1080],
+                        "fov": 90
+                    }
+                }
+            ]
         }
     ],
     

@@ -131,6 +131,10 @@ public:
     UFUNCTION(BlueprintCallable, Category = "AgentManager")
     TArray<AMACharacter*> GetAgentsByType(EMAAgentType Type) const;
 
+    // 获取所有无人机 (包括 Phantom4, Inspire2 等所有子类型)
+    UFUNCTION(BlueprintCallable, Category = "AgentManager")
+    TArray<AMACharacter*> GetAllDrones() const;
+
     UFUNCTION(BlueprintCallable, Category = "AgentManager")
     AMACharacter* GetAgentByID(const FString& AgentID) const;
 

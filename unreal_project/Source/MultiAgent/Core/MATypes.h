@@ -12,7 +12,9 @@ enum class EMAAgentType : uint8
 {
     Human,
     RobotDog,
-    Drone,
+    Drone,           // 通用无人机 (基类，不直接使用)
+    DronePhantom4,   // DJI Phantom 4
+    DroneInspire2,   // DJI Inspire 2
     Camera
 };
 

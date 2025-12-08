@@ -3,10 +3,11 @@
 ## 高优先级
 
 ### 智能体类型扩展
-- [ ] 实现无人机基类 `MADroneCharacter`
-- [ ] 实现小型无人机 `MASmallDrone`
-- [ ] 实现中型无人机 `MAMediumDrone`
-- [ ] 实现大型无人机 `MALargeDrone`
+- [x] 实现无人机基类 `MADroneCharacter`
+- [x] 为 Drone 添加与 RobotDog 相同的技能支持 (Interface 重构)
+- [x] 实现 DJI Phantom 4 无人机 `MADronePhantom4Character`
+- [x] 实现 DJI Inspire 2 无人机 `MADroneInspire2Character`
+- [ ] 实现更多无人机型号（按需添加）
 
 ## 中优先级
 
@@ -31,4 +32,4 @@
 
 ---
 
-*最后更新: 2025-12-07*
+*最后更新: 2025-12-08*
