@@ -67,22 +67,45 @@ void AMACharacter::AutoFitCapsuleToMesh()
         return;
     }
     
-    // 获取 Mesh 的边界
-    FBoxSphereBounds Bounds = MeshComp->Bounds;
+    // 获取 SkeletalMesh 资产的本地边界（不受世界变换影响）
+    FBoxSphereBounds LocalBounds = MeshComp->GetSkeletalMeshAsset()->GetBounds();
+    float ExtentX = LocalBounds.BoxExtent.X;  // 前后
+    float ExtentY = LocalBounds.BoxExtent.Y;  // 左右  
+    float ExtentZ = LocalBounds.BoxExtent.Z;  // 上下
     
-    // 计算 Capsule 大小（取 XY 最大值作为半径，Z 作为半高）
-    float Radius = FMath::Max(Bounds.BoxExtent.X, Bounds.BoxExtent.Y);
-    float HalfHeight = Bounds.BoxExtent.Z;
+    // 地面角色的 Capsule 计算：
+    // - 半径：XY 均值（水平方向覆盖）
+    // - 半高：Z 高度
+    float Radius = (ExtentX + ExtentY) * 0.5f;
+    float HalfHeight = ExtentZ;
     
-    // 确保最小值
+    // Capsule 约束：HalfHeight 必须 >= Radius
+    if (HalfHeight < Radius)
+    {
+        HalfHeight = Radius;
+    }
+    
+    // 稍微缩小避免碰撞体过大
+    Radius *= 0.8f;
+    HalfHeight *= 0.85f;
+    
+    // 确保最小值和约束
     Radius = FMath::Max(Radius, 10.f);
-    HalfHeight = FMath::Max(HalfHeight, 10.f);
+    HalfHeight = FMath::Max(HalfHeight, Radius);
     
-    // 设置 Capsule 大小
     GetCapsuleComponent()->SetCapsuleSize(Radius, HalfHeight);
     
-    UE_LOG(LogTemp, Log, TEXT("[%s] AutoFit Capsule: Radius=%.1f, HalfHeight=%.1f"), 
-        *AgentName, Radius, HalfHeight);
+    // 调整 Mesh 位置，使 Mesh 底部与 Capsule 底部对齐
+    // Capsule 底部在 Z = -HalfHeight
+    // Mesh 本地边界底部在 LocalBounds.Origin.Z - ExtentZ
+    float MeshLocalBottomZ = LocalBounds.Origin.Z - ExtentZ;
+    float MeshOffsetZ = -HalfHeight - MeshLocalBottomZ;
+    
+    FVector CurrentOffset = MeshComp->GetRelativeLocation();
+    MeshComp->SetRelativeLocation(FVector(CurrentOffset.X, CurrentOffset.Y, MeshOffsetZ));
+    
+    UE_LOG(LogTemp, Log, TEXT("[%s] AutoFit Capsule: Extent=(%.1f, %.1f, %.1f) -> R=%.1f, H=%.1f, MeshZ=%.1f"), 
+        *GetName(), ExtentX, ExtentY, ExtentZ, Radius, HalfHeight, MeshOffsetZ);
 }
 
 void AMACharacter::PossessedBy(AController* NewController)
