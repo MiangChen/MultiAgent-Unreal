@@ -1,7 +1,6 @@
 // MAHumanCharacter.cpp
 
 #include "MAHumanCharacter.h"
-#include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Animation/AnimInstance.h"
@@ -11,7 +10,7 @@ AMAHumanCharacter::AMAHumanCharacter()
 {
     AgentType = EMAAgentType::Human;
     
-    GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
+    // CapsuleComponent 大小由基类 BeginPlay 中 AutoFitCapsuleToMesh() 自动计算
     
     static ConstructorHelpers::FObjectFinder<USkeletalMesh> MeshAsset(
         TEXT("/Game/Characters/Mannequins/Meshes/SKM_Manny.SKM_Manny"));

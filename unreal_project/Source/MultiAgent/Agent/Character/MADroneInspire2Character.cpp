@@ -1,7 +1,6 @@
 // MADroneInspire2Character.cpp
 
 #include "MADroneInspire2Character.h"
-#include "Components/CapsuleComponent.h"
 #include "UObject/ConstructorHelpers.h"
 
 AMADroneInspire2Character::AMADroneInspire2Character()
@@ -13,8 +12,7 @@ AMADroneInspire2Character::AMADroneInspire2Character()
 
 void AMADroneInspire2Character::SetupDroneAssets()
 {
-    // 设置碰撞胶囊体 (边长 3 倍于 Phantom4)
-    GetCapsuleComponent()->InitCapsuleSize(75.f, 75.f);
+    // CapsuleComponent 大小由基类 BeginPlay 中 AutoFitCapsuleToMesh() 自动计算
     
     // 加载 Inspire 2 模型
     static ConstructorHelpers::FObjectFinder<USkeletalMesh> MeshAsset(

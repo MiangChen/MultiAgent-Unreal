@@ -28,7 +28,7 @@ AMARobotDogCharacter::AMARobotDogCharacter()
     // 注意: StateTree Asset 需要在蓝图中设置，或者在编辑器中选择 RobotDog 后设置
     // 路径: /Game/StateTree/ST_RobotDog.ST_RobotDog
     
-    GetCapsuleComponent()->InitCapsuleSize(30.f, 40.0f);
+    // CapsuleComponent 大小由基类 BeginPlay 中 AutoFitCapsuleToMesh() 自动计算
     
     static ConstructorHelpers::FObjectFinder<USkeletalMesh> MeshAsset(
         TEXT("/Game/Robot/go1/go1.go1"));
@@ -69,70 +69,15 @@ void AMARobotDogCharacter::BeginPlay()
 {
     Super::BeginPlay();
     
-    UE_LOG(LogTemp, Warning, TEXT("[%s] ========== BeginPlay START =========="), *AgentName);
-    
-    // 检查 StateTreeComponent
-    if (!StateTreeComponent)
-    {
-        UE_LOG(LogTemp, Error, TEXT("[%s] StateTreeComponent is NULL!"), *AgentName);
-        return;
-    }
-    
-    UE_LOG(LogTemp, Warning, TEXT("[%s] StateTreeComponent exists"), *AgentName);
-    UE_LOG(LogTemp, Warning, TEXT("[%s] HasStateTree: %s"), *AgentName, StateTreeComponent->HasStateTree() ? TEXT("YES") : TEXT("NO"));
-    
     // 动态加载 StateTree Asset
-    if (!StateTreeComponent->HasStateTree())
+    if (StateTreeComponent && !StateTreeComponent->HasStateTree())
     {
-        UE_LOG(LogTemp, Warning, TEXT("[%s] Loading StateTree from /Game/StateTree/ST_RobotDog..."), *AgentName);
-        
-        UStateTree* ST = LoadObject<UStateTree>(nullptr, 
-            TEXT("/Game/StateTree/ST_RobotDog.ST_RobotDog"));
-        
+        UStateTree* ST = LoadObject<UStateTree>(nullptr, TEXT("/Game/StateTree/ST_RobotDog.ST_RobotDog"));
         if (ST)
         {
-            UE_LOG(LogTemp, Warning, TEXT("[%s] StateTree loaded successfully: %s"), *AgentName, *ST->GetName());
             StateTreeComponent->SetStateTreeAsset(ST);
-            
-            // 验证设置后的状态
-            UE_LOG(LogTemp, Warning, TEXT("[%s] After SetStateTreeAsset - HasStateTree: %s"), 
-                *AgentName, StateTreeComponent->HasStateTree() ? TEXT("YES") : TEXT("NO"));
-            
-            // 检查运行状态
-            EStateTreeRunStatus RunStatus = StateTreeComponent->GetStateTreeRunStatus();
-            FString StatusStr;
-            switch(RunStatus)
-            {
-                case EStateTreeRunStatus::Running: StatusStr = TEXT("Running"); break;
-                case EStateTreeRunStatus::Failed: StatusStr = TEXT("Failed"); break;
-                case EStateTreeRunStatus::Succeeded: StatusStr = TEXT("Succeeded"); break;
-                case EStateTreeRunStatus::Stopped: StatusStr = TEXT("Stopped"); break;
-                default: StatusStr = TEXT("Unknown"); break;
-            }
-            UE_LOG(LogTemp, Warning, TEXT("[%s] StateTree RunStatus: %s"), *AgentName, *StatusStr);
-        }
-        else
-        {
-            UE_LOG(LogTemp, Error, TEXT("[%s] Failed to load StateTree from /Game/StateTree/ST_RobotDog.ST_RobotDog"), *AgentName);
         }
     }
-    else
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[%s] StateTree already set"), *AgentName);
-    }
-    
-    // 检查 AIController
-    AAIController* AIC = Cast<AAIController>(GetController());
-    if (AIC)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[%s] AIController: %s"), *AgentName, *AIC->GetName());
-    }
-    else
-    {
-        UE_LOG(LogTemp, Error, TEXT("[%s] NO AIController! StateTree needs AIController to work!"), *AgentName);
-    }
-    
-    UE_LOG(LogTemp, Warning, TEXT("[%s] ========== BeginPlay END =========="), *AgentName);
 }
 
 void AMARobotDogCharacter::Tick(float DeltaTime)
@@ -261,7 +206,6 @@ void AMARobotDogCharacter::CheckLowEnergyStatus()
 }
 
 // ========== Robot Abilities ==========
-// 注意: TryPatrol/TryPatrolPath/StopPatrol 已移除，Patrol 改用 StateTree
 
 bool AMARobotDogCharacter::TrySearch()
 {

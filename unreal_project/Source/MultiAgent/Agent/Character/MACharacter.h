@@ -112,6 +112,9 @@ protected:
 
     // 导航期间每帧调用，子类可重写
     virtual void OnNavigationTick();
+    
+    // 根据 SkeletalMesh 自动计算 CapsuleComponent 大小
+    void AutoFitCapsuleToMesh();
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GAS")
     UMAAbilitySystemComponent* AbilitySystemComponent;

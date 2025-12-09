@@ -1,7 +1,6 @@
 // MADronePhantom4Character.cpp
 
 #include "MADronePhantom4Character.h"
-#include "Components/CapsuleComponent.h"
 #include "UObject/ConstructorHelpers.h"
 
 AMADronePhantom4Character::AMADronePhantom4Character()
@@ -13,8 +12,7 @@ AMADronePhantom4Character::AMADronePhantom4Character()
 
 void AMADronePhantom4Character::SetupDroneAssets()
 {
-    // 设置碰撞胶囊体
-    GetCapsuleComponent()->InitCapsuleSize(25.f, 25.f);
+    // CapsuleComponent 大小由基类 BeginPlay 中 AutoFitCapsuleToMesh() 自动计算
     
     // 加载 Phantom 4 模型
     static ConstructorHelpers::FObjectFinder<USkeletalMesh> MeshAsset(

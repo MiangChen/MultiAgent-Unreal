@@ -610,6 +610,70 @@ Status.Patrolling, Status.Searching, Status.Charging, Status.InFormation, Status
 | `MASTCondition_FullEnergy` | 检查电量 >= 阈值 |
 | `MASTCondition_HasPatrolPath` | 检查是否有可用巡逻路径 |
 
-## 11. 输入系统 (Enhanced Input)
+## 11. 碰撞系统
+
+### 11.1 Agent 间碰撞策略
+
+项目统一使用 **CapsuleComponent** 实现 Agent 间碰撞：
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    碰撞系统架构                              │
+│                                                             │
+│  CapsuleComponent (ACharacter 默认)                         │
+│  ├── 用途: 地面检测、移动系统、Agent 间碰撞                  │
+│  ├── 对 Pawn 通道: ECR_Block (阻挡)                         │
+│  └── 统一用于所有 Agent 的碰撞检测                          │
+│                                                             │
+│  SkeletalMesh                                               │
+│  ├── 用途: 仅渲染                                           │
+│  └── CollisionEnabled: NoCollision                          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 11.2 设计优势
+
+| 方面 | 说明 |
+|------|------|
+| 简单 | 统一使用 CapsuleComponent，无需配置 Physics Asset |
+| 可靠 | 不依赖模型配置，始终生效 |
+| 性能 | 单一简单形状，计算快速 |
+
+### 11.3 配置方式
+
+碰撞在 `MACharacter` 基类中统一配置：
+
+```cpp
+// MACharacter.cpp - 构造函数中配置碰撞响应
+GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
+GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+// MACharacter.cpp - BeginPlay 中自动计算 Capsule 大小
+void AMACharacter::AutoFitCapsuleToMesh()
+{
+    FBoxSphereBounds Bounds = GetMesh()->Bounds;
+    float Radius = FMath::Max(Bounds.BoxExtent.X, Bounds.BoxExtent.Y);
+    float HalfHeight = Bounds.BoxExtent.Z;
+    GetCapsuleComponent()->SetCapsuleSize(Radius, HalfHeight);
+}
+```
+
+子类无需手动设置 Capsule 大小，基类会根据 SkeletalMesh 边界自动计算。
+
+### 11.4 Drone 移动碰撞检测
+
+Drone 使用 `SetActorLocation()` 移动时启用 Sweep 检测：
+
+```cpp
+// MADroneCharacter::UpdateFlight()
+FHitResult SweepHit;
+SetActorLocation(NewLocation, true, &SweepHit);  // true = sweep
+if (SweepHit.bBlockingHit)
+{
+    Hover();  // 碰撞时悬停
+}
+```
+
+## 12. 输入系统 (Enhanced Input)
 
 按键说明详见 [KEYBINDINGS.md](KEYBINDINGS.md)

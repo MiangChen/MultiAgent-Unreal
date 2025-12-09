@@ -19,7 +19,9 @@ AMACharacter::AMACharacter()
     AgentType = EMAAgentType::Human;
     bIsMoving = false;
 
+    // CapsuleComponent 用于 Agent 间碰撞（统一使用 Capsule 碰撞）
     GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
+    GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
 
     AIControllerClass = AAIController::StaticClass();
     AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
@@ -38,6 +40,9 @@ AMACharacter::AMACharacter()
     GetCharacterMovement()->AvoidanceWeight = 0.5f;
 
     AbilitySystemComponent = CreateDefaultSubobject<UMAAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
+    
+    // SkeletalMesh 不参与碰撞（统一使用 CapsuleComponent）
+    GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
 UAbilitySystemComponent* AMACharacter::GetAbilitySystemComponent() const
@@ -49,6 +54,35 @@ void AMACharacter::BeginPlay()
 {
     Super::BeginPlay();
     FMAGameplayTags::InitializeNativeTags();
+    
+    // 根据 SkeletalMesh 自动计算 CapsuleComponent 大小
+    AutoFitCapsuleToMesh();
+}
+
+void AMACharacter::AutoFitCapsuleToMesh()
+{
+    USkeletalMeshComponent* MeshComp = GetMesh();
+    if (!MeshComp || !MeshComp->GetSkeletalMeshAsset())
+    {
+        return;
+    }
+    
+    // 获取 Mesh 的边界
+    FBoxSphereBounds Bounds = MeshComp->Bounds;
+    
+    // 计算 Capsule 大小（取 XY 最大值作为半径，Z 作为半高）
+    float Radius = FMath::Max(Bounds.BoxExtent.X, Bounds.BoxExtent.Y);
+    float HalfHeight = Bounds.BoxExtent.Z;
+    
+    // 确保最小值
+    Radius = FMath::Max(Radius, 10.f);
+    HalfHeight = FMath::Max(HalfHeight, 10.f);
+    
+    // 设置 Capsule 大小
+    GetCapsuleComponent()->SetCapsuleSize(Radius, HalfHeight);
+    
+    UE_LOG(LogTemp, Log, TEXT("[%s] AutoFit Capsule: Radius=%.1f, HalfHeight=%.1f"), 
+        *AgentName, Radius, HalfHeight);
 }
 
 void AMACharacter::PossessedBy(AController* NewController)

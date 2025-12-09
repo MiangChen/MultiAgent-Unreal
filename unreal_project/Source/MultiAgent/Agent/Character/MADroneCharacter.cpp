@@ -160,10 +160,21 @@ void AMADroneCharacter::UpdateFlight(float DeltaTime)
     // 平滑加速
     CurrentSpeed = FMath::FInterpTo(CurrentSpeed, TargetSpeed, DeltaTime, FlightAcceleration / 100.f);
     
-    // 移动
+    // 移动 (使用 Sweep 检测碰撞)
     FVector Direction = ToTarget.GetSafeNormal();
     FVector NewLocation = CurrentLocation + Direction * CurrentSpeed * DeltaTime;
-    SetActorLocation(NewLocation);
+    FHitResult SweepHit;
+    SetActorLocation(NewLocation, true, &SweepHit);  // true = sweep, 会检测碰撞
+    
+    // 如果 Sweep 检测到碰撞，停止并悬停
+    if (SweepHit.bBlockingHit)
+    {
+        Hover();
+        OnCollisionDetected.Broadcast(SweepHit);
+        UE_LOG(LogTemp, Warning, TEXT("[%s] Sweep collision with %s! Hovering."), 
+            *AgentName, *GetNameSafe(SweepHit.GetActor()));
+        return;
+    }
     
     // 朝向飞行方向 (只旋转 Yaw)
     if (!Direction.IsNearlyZero())
