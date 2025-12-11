@@ -1,0 +1,477 @@
+[
+  {
+    "meta": {
+      "description": "派遣无人机侦察火灾区域，机器狗前往灭火，人形机器人疏散人员。",
+      "shared_skill_groups": [
+        ["T1.0", "T4.0"],
+        ["T2.0", "T5.0"],
+        ["T3.0", "T6.0"]
+      ]
+    },
+    "task_graph": {
+      "nodes": [
+        {
+          "task_id": "T1",
+          "description": "无人机飞往火灾区域进行空中侦察",
+          "location": "building_A_roof",
+          "required_skills": [
+            {
+              "skill_name": "navigate_to(building_A_roof)",
+              "assigned_robot_type": ["DronePhantom4", "DroneInspire2"],
+              "assigned_robot_count": 1
+            }
+          ],
+          "produces": ["drone_at_fire_zone"]
+        },
+        {
+          "task_id": "T2",
+          "description": "无人机扫描火灾区域获取热成像数据",
+          "location": "building_A_roof",
+          "required_skills": [
+            {
+              "skill_name": "perceive(thermal_scan)",
+              "assigned_robot_type": ["DronePhantom4", "DroneInspire2"],
+              "assigned_robot_count": 1
+            }
+          ],
+          "produces": ["fire_location_data", "victim_locations"]
+        },
+        {
+          "task_id": "T3",
+          "description": "机器狗导航至火灾现场入口",
+          "location": "building_A_entrance",
+          "required_skills": [
+            {
+              "skill_name": "navigate_to(building_A_entrance)",
+              "assigned_robot_type": ["RobotDog"],
+              "assigned_robot_count": 2
+            }
+          ],
+          "produces": ["dogs_at_entrance"]
+        },
+        {
+          "task_id": "T4",
+          "description": "无人机广播火灾位置给地面机器人",
+          "location": "building_A_roof",
+          "required_skills": [
+            {
+              "skill_name": "broadcast(fire_location_data)",
+              "assigned_robot_type": ["DronePhantom4", "DroneInspire2"],
+              "assigned_robot_count": 1
+            }
+          ],
+          "produces": ["fire_info_shared"]
+        },
+        {
+          "task_id": "T5",
+          "description": "机器狗执行灭火操作",
+          "location": "tbd:fire_point",
+          "required_skills": [
+            {
+              "skill_name": "manipulate(fire_extinguisher)",
+              "assigned_robot_type": ["RobotDog"],
+              "assigned_robot_count": 2
+            }
+          ],
+          "produces": ["fire_suppressed"]
+        },
+        {
+          "task_id": "T6",
+          "description": "人形机器人疏散被困人员",
+          "location": "tbd:victim_location",
+          "required_skills": [
+            {
+              "skill_name": "navigate_to(victim_location)",
+              "assigned_robot_type": ["Human"],
+              "assigned_robot_count": 1
+            },
+            {
+              "skill_name": "manipulate(assist_evacuation)",
+              "assigned_robot_type": ["Human"],
+              "assigned_robot_count": 1
+            }
+          ],
+          "produces": ["victims_evacuated"]
+        }
+      ],
+      "edges": [
+        {"from": "T1", "to": "T2", "type": "sequential"},
+        {"from": "T2", "to": "T4", "type": "sequential"},
+        {"from": "T2", "to": "T3", "type": "parallel"},
+        {"from": "T4", "to": "T5", "type": "conditional", "condition": "fire_info_shared != null"},
+        {"from": "T3", "to": "T5", "type": "sequential"},
+        {"from": "T2", "to": "T6", "type": "conditional", "condition": "victim_locations != null"}
+      ]
+    }
+  },
+  {
+    "meta": {
+      "description": "多机器人协同搜索失踪人员并进行救援。",
+      "shared_skill_groups": [
+        ["T1.0", "T3.0"],
+        ["T2.0", "T4.0", "T6.0"]
+      ]
+    },
+    "task_graph": {
+      "nodes": [
+        {
+          "task_id": "T1",
+          "description": "无人机在搜索区域进行高空巡逻",
+          "location": "search_zone_alpha",
+          "required_skills": [
+            {
+              "skill_name": "navigate_to(search_zone_alpha)",
+              "assigned_robot_type": ["DroneInspire2"],
+              "assigned_robot_count": 1
+            }
+          ],
+          "produces": ["drone_in_position"]
+        },
+        {
+          "task_id": "T2",
+          "description": "无人机执行区域扫描识别目标",
+          "location": "search_zone_alpha",
+          "required_skills": [
+            {
+              "skill_name": "perceive(visual_search)",
+              "assigned_robot_type": ["DroneInspire2"],
+              "assigned_robot_count": 1
+            }
+          ],
+          "produces": ["target_detected", "target_coordinates"]
+        },
+        {
+          "task_id": "T3",
+          "description": "无人机广播目标位置",
+          "location": "search_zone_alpha",
+          "required_skills": [
+            {
+              "skill_name": "broadcast(target_coordinates)",
+              "assigned_robot_type": ["DroneInspire2"],
+              "assigned_robot_count": 1
+            }
+          ],
+          "produces": ["coordinates_shared"]
+        },
+        {
+          "task_id": "T4",
+          "description": "机器狗导航至目标位置",
+          "location": "tbd:target_location",
+          "required_skills": [
+            {
+              "skill_name": "navigate_to(target_location)",
+              "assigned_robot_type": ["RobotDog"],
+              "assigned_robot_count": 2
+            }
+          ],
+          "produces": ["dogs_at_target"]
+        },
+        {
+          "task_id": "T5",
+          "description": "机器狗近距离确认目标身份",
+          "location": "tbd:target_location",
+          "required_skills": [
+            {
+              "skill_name": "perceive(face_recognition)",
+              "assigned_robot_type": ["RobotDog"],
+              "assigned_robot_count": 1
+            }
+          ],
+          "produces": ["identity_confirmed"]
+        },
+        {
+          "task_id": "T6",
+          "description": "机器狗广播确认结果并请求人形机器人支援",
+          "location": "tbd:target_location",
+          "required_skills": [
+            {
+              "skill_name": "broadcast(rescue_request)",
+              "assigned_robot_type": ["RobotDog"],
+              "assigned_robot_count": 1
+            }
+          ],
+          "produces": ["rescue_requested"]
+        },
+        {
+          "task_id": "T7",
+          "description": "人形机器人前往救援并协助转移",
+          "location": "tbd:target_location",
+          "required_skills": [
+            {
+              "skill_name": "navigate_to(target_location)",
+              "assigned_robot_type": ["Human"],
+              "assigned_robot_count": 2
+            },
+            {
+              "skill_name": "manipulate(carry_person)",
+              "assigned_robot_type": ["Human"],
+              "assigned_robot_count": 2
+            }
+          ],
+          "produces": ["person_rescued"]
+        }
+      ],
+      "edges": [
+        {"from": "T1", "to": "T2", "type": "sequential"},
+        {"from": "T2", "to": "T3", "type": "conditional", "condition": "target_detected != null"},
+        {"from": "T3", "to": "T4", "type": "sequential"},
+        {"from": "T4", "to": "T5", "type": "sequential"},
+        {"from": "T5", "to": "T6", "type": "conditional", "condition": "identity_confirmed != null"},
+        {"from": "T6", "to": "T7", "type": "sequential"}
+      ]
+    }
+  },
+  {
+    "meta": {
+      "description": "机器人编队巡逻并处理可疑物品。",
+      "shared_skill_groups": [
+        ["T1.0", "T2.0", "T5.0"],
+        ["T3.0", "T4.0"]
+      ]
+    },
+    "task_graph": {
+      "nodes": [
+        {
+          "task_id": "T1",
+          "description": "机器狗沿巡逻路线移动",
+          "location": "patrol_route_1",
+          "required_skills": [
+            {
+              "skill_name": "navigate_to(patrol_waypoint_1)",
+              "assigned_robot_type": ["RobotDog"],
+              "assigned_robot_count": 3
+            }
+          ],
+          "produces": ["patrol_started"]
+        },
+        {
+          "task_id": "T2",
+          "description": "机器狗持续环境感知",
+          "location": "patrol_route_1",
+          "required_skills": [
+            {
+              "skill_name": "perceive(anomaly_detection)",
+              "assigned_robot_type": ["RobotDog"],
+              "assigned_robot_count": 3
+            }
+          ],
+          "produces": ["suspicious_object_detected", "object_location"]
+        },
+        {
+          "task_id": "T3",
+          "description": "发现可疑物品后无人机前往确认",
+          "location": "tbd:object_location",
+          "required_skills": [
+            {
+              "skill_name": "navigate_to(object_location)",
+              "assigned_robot_type": ["DronePhantom4"],
+              "assigned_robot_count": 1
+            }
+          ],
+          "produces": ["drone_at_object"]
+        },
+        {
+          "task_id": "T4",
+          "description": "无人机高清拍摄可疑物品",
+          "location": "tbd:object_location",
+          "required_skills": [
+            {
+              "skill_name": "perceive(high_res_capture)",
+              "assigned_robot_type": ["DronePhantom4"],
+              "assigned_robot_count": 1
+            }
+          ],
+          "produces": ["object_image", "threat_assessment"]
+        },
+        {
+          "task_id": "T5",
+          "description": "机器狗广播警报并建立安全区",
+          "location": "tbd:object_location",
+          "required_skills": [
+            {
+              "skill_name": "broadcast(security_alert)",
+              "assigned_robot_type": ["RobotDog"],
+              "assigned_robot_count": 1
+            }
+          ],
+          "produces": ["alert_broadcasted"]
+        }
+      ],
+      "edges": [
+        {"from": "T1", "to": "T2", "type": "parallel"},
+        {"from": "T2", "to": "T3", "type": "conditional", "condition": "suspicious_object_detected != null"},
+        {"from": "T3", "to": "T4", "type": "sequential"},
+        {"from": "T4", "to": "T5", "type": "conditional", "condition": "threat_assessment == 'high'"}
+      ]
+    }
+  },
+  {
+    "meta": {
+      "description": "物资配送任务：无人机侦察路线，机器狗运送物资。",
+      "shared_skill_groups": [
+        ["T1.0", "T2.0"],
+        ["T3.0", "T4.0", "T5.0"]
+      ]
+    },
+    "task_graph": {
+      "nodes": [
+        {
+          "task_id": "T1",
+          "description": "无人机侦察配送路线",
+          "location": "delivery_route",
+          "required_skills": [
+            {
+              "skill_name": "navigate_to(route_checkpoint_1)",
+              "assigned_robot_type": ["DronePhantom4"],
+              "assigned_robot_count": 1
+            }
+          ],
+          "produces": ["route_scouted"]
+        },
+        {
+          "task_id": "T2",
+          "description": "无人机检测路线障碍物",
+          "location": "delivery_route",
+          "required_skills": [
+            {
+              "skill_name": "perceive(obstacle_detection)",
+              "assigned_robot_type": ["DronePhantom4"],
+              "assigned_robot_count": 1
+            }
+          ],
+          "produces": ["route_clear", "obstacle_map"]
+        },
+        {
+          "task_id": "T3",
+          "description": "机器狗在仓库装载物资",
+          "location": "warehouse_A",
+          "required_skills": [
+            {
+              "skill_name": "manipulate(load_cargo)",
+              "assigned_robot_type": ["RobotDog"],
+              "assigned_robot_count": 2
+            }
+          ],
+          "produces": ["cargo_loaded"]
+        },
+        {
+          "task_id": "T4",
+          "description": "机器狗沿安全路线配送物资",
+          "location": "destination_B",
+          "required_skills": [
+            {
+              "skill_name": "navigate_to(destination_B)",
+              "assigned_robot_type": ["RobotDog"],
+              "assigned_robot_count": 2
+            }
+          ],
+          "produces": ["arrived_at_destination"]
+        },
+        {
+          "task_id": "T5",
+          "description": "机器狗卸载物资",
+          "location": "destination_B",
+          "required_skills": [
+            {
+              "skill_name": "manipulate(unload_cargo)",
+              "assigned_robot_type": ["RobotDog"],
+              "assigned_robot_count": 2
+            }
+          ],
+          "produces": ["delivery_complete"]
+        }
+      ],
+      "edges": [
+        {"from": "T1", "to": "T2", "type": "sequential"},
+        {"from": "T2", "to": "T4", "type": "conditional", "condition": "route_clear != null"},
+        {"from": "T3", "to": "T4", "type": "sequential"},
+        {"from": "T4", "to": "T5", "type": "sequential"}
+      ]
+    }
+  },
+  {
+    "meta": {
+      "description": "建筑物检查任务：无人机外部检查，机器狗内部巡检。",
+      "shared_skill_groups": [
+        ["T1.0", "T2.0", "T5.0"],
+        ["T3.0", "T4.0"]
+      ]
+    },
+    "task_graph": {
+      "nodes": [
+        {
+          "task_id": "T1",
+          "description": "无人机飞往建筑物外围",
+          "location": "building_C_exterior",
+          "required_skills": [
+            {
+              "skill_name": "navigate_to(building_C_exterior)",
+              "assigned_robot_type": ["DroneInspire2"],
+              "assigned_robot_count": 1
+            }
+          ],
+          "produces": ["drone_at_building"]
+        },
+        {
+          "task_id": "T2",
+          "description": "无人机扫描建筑外墙",
+          "location": "building_C_exterior",
+          "required_skills": [
+            {
+              "skill_name": "perceive(structural_scan)",
+              "assigned_robot_type": ["DroneInspire2"],
+              "assigned_robot_count": 1
+            }
+          ],
+          "produces": ["exterior_scan_complete", "damage_report"]
+        },
+        {
+          "task_id": "T3",
+          "description": "机器狗进入建筑内部",
+          "location": "building_C_interior",
+          "required_skills": [
+            {
+              "skill_name": "navigate_to(building_C_floor_1)",
+              "assigned_robot_type": ["RobotDog"],
+              "assigned_robot_count": 2
+            }
+          ],
+          "produces": ["dogs_inside_building"]
+        },
+        {
+          "task_id": "T4",
+          "description": "机器狗检查内部结构",
+          "location": "building_C_interior",
+          "required_skills": [
+            {
+              "skill_name": "perceive(interior_inspection)",
+              "assigned_robot_type": ["RobotDog"],
+              "assigned_robot_count": 2
+            }
+          ],
+          "produces": ["interior_scan_complete", "hazard_detected"]
+        },
+        {
+          "task_id": "T5",
+          "description": "无人机广播综合检查报告",
+          "location": "building_C_exterior",
+          "required_skills": [
+            {
+              "skill_name": "broadcast(inspection_report)",
+              "assigned_robot_type": ["DroneInspire2"],
+              "assigned_robot_count": 1
+            }
+          ],
+          "produces": ["report_sent"]
+        }
+      ],
+      "edges": [
+        {"from": "T1", "to": "T2", "type": "sequential"},
+        {"from": "T1", "to": "T3", "type": "parallel"},
+        {"from": "T3", "to": "T4", "type": "sequential"},
+        {"from": "T2", "to": "T5", "type": "sequential"},
+        {"from": "T4", "to": "T5", "type": "sequential"}
+      ]
+    }
+  }
+]

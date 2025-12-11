@@ -70,6 +70,32 @@ protected:
 
     // 切换鼠标模式
     void OnToggleMouseMode(const FInputActionValue& Value);
+    
+    // 切换主 UI 显示/隐藏 (Z 键)
+    void OnToggleMainUI(const FInputActionValue& Value);
+
+    // ========== 突发事件系统 ==========
+    // 触发/结束突发事件 ("-" 键)
+    void OnTriggerEmergency(const FInputActionValue& Value);
+    
+    // 切换突发事件详情界面 ("X" 键)
+    void OnToggleEmergencyUI(const FInputActionValue& Value);
+
+    // ========== Agent View Mode 移动和视角控制 ==========
+    // WASD 移动输入
+    void OnMoveInput(const FInputActionValue& Value);
+    
+    // 鼠标视角输入
+    void OnLookInput(const FInputActionValue& Value);
+    
+    // 垂直移动输入 (Space 上升)
+    void OnMoveUp(const FInputActionValue& Value);
+    
+    // 垂直移动输入 (Ctrl 下降)
+    void OnMoveDown(const FInputActionValue& Value);
+    
+    // 方向键视角输入
+    void OnLookArrowInput(const FInputActionValue& Value);
 
     // 获取鼠标点击位置
     bool GetMouseHitLocation(FVector& OutLocation);
@@ -114,4 +140,7 @@ private:
 
     UPROPERTY()
     class UMAViewportManager* ViewportManager;
+
+    UPROPERTY()
+    class UMAEmergencyManager* EmergencyManager;
 };

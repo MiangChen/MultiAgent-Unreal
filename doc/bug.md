@@ -527,3 +527,93 @@ void UMACameraSensorComponent::OnRegister()
 - `CreateDefaultSubobject` 只能在构造函数中用于 CDO 创建，运行时动态创建的对象不会执行这些调用
 - 需要支持运行时动态创建的组件，应在 `OnRegister()` 中使用 `NewObject` + `RegisterComponent()`
 - 调试时检查组件的世界坐标是否正确，(0,0,0) 通常意味着附加关系有问题
+
+
+---
+
+#### Bug 17: UI 切换按键冲突 (已解决)
+
+**问题**: 用户按 C 键时角色下降，没有显示 UI。
+
+**现象**: 游戏中按 C 键触发角色下降动作，而不是切换 UI 显示。
+
+**原因**: C 键在项目中被其他功能占用（可能是角色移动控制）。
+
+**解决**: 将 UI 切换键改为 Z 键：
+```cpp
+// MAInputActions.cpp
+AddKeyMapping(DefaultMappingContext, IA_ToggleMainUI, EKeys::Z);
+```
+
+**教训**: 选择输入按键时需要避免与现有功能冲突，Z 键通常较少被占用。
+
+---
+
+#### Bug 18: MainWidget 为 null - 缺少输入绑定 (已解决)
+
+**问题**: 按 Z 键后日志显示 `MainWidget is null`，UI 无法显示。
+
+**现象**:
+```
+LogMAHUD: Warning: ShowMainUI: MainWidget is null
+LogTemp: [PlayerController] ToggleMainUI called
+```
+
+**原因**: 
+1. `MAPlayerController` 中没有绑定 UI 切换的输入
+2. `MAGameMode` 使用的是 `MASelectionHUD` 而不是 `MAHUD`
+3. `MainWidgetClass` 未设置且没有 `WBP_MAMainWidget` 蓝图
+
+**解决**: 
+1. 添加 `IA_ToggleMainUI` Input Action 并绑定到 Z 键
+2. 修改 `MAGameMode` 使用 `AMAHUD::StaticClass()`
+3. 创建 `MASimpleMainWidget` 作为纯 C++ 实现的备选方案
+4. 让 `MAHUD` 继承自 `MASelectionHUD` 保留选择框功能
+
+**教训**: UI 系统需要完整的输入绑定链：Input Action → PlayerController → HUD → Widget。
+
+---
+
+#### Bug 19: SetRootWidget 编译错误 (已解决)
+
+**问题**: `MASimpleMainWidget.cpp` 编译时报错 `use of undeclared identifier 'SetRootWidget'`。
+
+**现象**:
+```
+error: use of undeclared identifier 'SetRootWidget'
+SetRootWidget(RootBox);
+```
+
+**原因**: UE5 的 `UUserWidget` 没有 `SetRootWidget` 方法。正确的方式是使用 `WidgetTree->RootWidget`。
+
+**解决**: 使用 UE5 正确的 Widget 创建方式：
+```cpp
+// 错误方式
+SetRootWidget(RootBox);
+
+// 正确方式
+WidgetTree->RootWidget = RootCanvas;
+```
+
+**教训**: 动态创建 UMG Widget 需要使用 `WidgetTree->ConstructWidget<>()` 和 `WidgetTree->RootWidget`。
+
+---
+
+#### Bug 20: Widget 创建但不可见 - 锚点问题 (已解决)
+
+**问题**: Widget 创建成功但在游戏中不可见。
+
+**现象**: 日志显示 `MainUI shown` 但屏幕上看不到 UI。
+
+**原因**: Widget 的锚点和位置设置不正确，可能显示在屏幕外。
+
+**解决**: 使用固定位置和大小：
+```cpp
+// 使用 CanvasPanel 和固定坐标
+BorderSlot->SetAnchors(FAnchors(0.0f, 0.0f, 0.0f, 0.0f));
+BorderSlot->SetPosition(FVector2D(20, 20));
+BorderSlot->SetSize(FVector2D(450, 350));
+BorderSlot->SetAutoSize(false);
+```
+
+**教训**: 动态创建的 Widget 需要明确设置位置和大小，避免使用相对锚点导致位置计算错误。

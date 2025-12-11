@@ -4,6 +4,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "AIController.h"
+#include "Navigation/PathFollowingComponent.h"
 #include "MAAbilitySystemComponent.h"
 #include "MAGameplayTags.h"
 #include "MAPickupItem.h"
@@ -313,6 +314,96 @@ int32 AMACharacter::GetSensorCount() const
     TArray<UMASensorComponent*> Sensors;
     GetComponents<UMASensorComponent>(Sensors);
     return Sensors.Num();
+}
+
+// ========== Direct Control (WASD 直接控制) ==========
+
+void AMACharacter::SetDirectControl(bool bEnabled)
+{
+    if (bIsUnderDirectControl == bEnabled)
+    {
+        return;
+    }
+    
+    bIsUnderDirectControl = bEnabled;
+    
+    UCharacterMovementComponent* MovementComp = GetCharacterMovement();
+    
+    if (bEnabled)
+    {
+        // 进入直接控制模式：取消所有 AI 移动
+        CancelAIMovement();
+        
+        // 禁用自动朝向移动方向（防止后退时振荡）
+        if (MovementComp)
+        {
+            MovementComp->bOrientRotationToMovement = false;
+        }
+        
+        UE_LOG(LogTemp, Log, TEXT("[%s] Direct Control ENABLED"), *AgentName);
+    }
+    else
+    {
+        // 退出直接控制模式：恢复自动朝向
+        if (MovementComp)
+        {
+            MovementComp->bOrientRotationToMovement = true;
+        }
+        
+        UE_LOG(LogTemp, Log, TEXT("[%s] Direct Control DISABLED"), *AgentName);
+    }
+}
+
+void AMACharacter::CancelAIMovement()
+{
+    // 1. 停止 AIController 的导航
+    AAIController* AIController = Cast<AAIController>(GetController());
+    if (AIController)
+    {
+        AIController->StopMovement();
+        
+        // 清除路径跟随
+        UPathFollowingComponent* PathFollowing = AIController->GetPathFollowingComponent();
+        if (PathFollowing)
+        {
+            PathFollowing->AbortMove(*this, FPathFollowingResultFlags::UserAbort);
+        }
+    }
+    
+    // 2. 清除 GAS 导航相关状态
+    if (AbilitySystemComponent)
+    {
+        AbilitySystemComponent->CancelNavigate();
+        AbilitySystemComponent->CancelFollow();
+    }
+    
+    // 3. 重置移动状态
+    bIsMoving = false;
+    
+    UE_LOG(LogTemp, Log, TEXT("[%s] AI Movement cancelled"), *AgentName);
+}
+
+void AMACharacter::ApplyDirectMovement(FVector WorldDirection)
+{
+    if (!bIsUnderDirectControl)
+    {
+        return;
+    }
+    
+    // 如果有移动输入，先取消任何残留的 AI 移动
+    if (!WorldDirection.IsNearlyZero())
+    {
+        // 确保 AI 不会干扰
+        AAIController* AIController = Cast<AAIController>(GetController());
+        if (AIController && AIController->GetMoveStatus() != EPathFollowingStatus::Idle)
+        {
+            AIController->StopMovement();
+        }
+    }
+    
+    // 使用 AddMovementInput 应用移动
+    // 这会使用 CharacterMovementComponent 的 MaxWalkSpeed
+    AddMovementInput(WorldDirection, 1.0f, false);
 }
 
 // ========== Action 动态发现与执行 ==========

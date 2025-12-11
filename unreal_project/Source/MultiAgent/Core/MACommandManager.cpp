@@ -367,6 +367,14 @@ bool UMACommandManager::ShouldExcludeAgent(AMACharacter* Agent, const FMACommand
         return true;
     }
 
+    // 跳过处于 Direct Control 状态的 Agent (Requirements 2.4)
+    // 当用户在 Agent View Mode 下直接控制 Agent 时，RTS 命令不应影响该 Agent
+    if (Agent->IsUnderDirectControl())
+    {
+        UE_LOG(LogTemp, Log, TEXT("[CommandManager] Skipping %s - under direct control"), *Agent->AgentName);
+        return true;
+    }
+
     if (Params.bExcludeTracker && Agent->AgentName.Contains(TEXT("Tracker")))
     {
         return true;

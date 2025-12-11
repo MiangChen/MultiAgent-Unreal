@@ -110,6 +110,40 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "Input")
     TObjectPtr<UInputAction> IA_ToggleMouseMode;
 
+    /** 切换主 UI 显示/隐藏 (Z 键) */
+    UPROPERTY(BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_ToggleMainUI;
+
+    // ========== 突发事件系统 ==========
+    /** 触发/结束突发事件 ("-" 键) */
+    UPROPERTY(BlueprintReadOnly, Category = "Input|Emergency")
+    TObjectPtr<UInputAction> IA_TriggerEmergency;
+
+    /** 切换突发事件详情界面 ("X" 键) */
+    UPROPERTY(BlueprintReadOnly, Category = "Input|Emergency")
+    TObjectPtr<UInputAction> IA_ToggleEmergencyUI;
+
+    // ========== Agent View Mode 移动和视角控制 ==========
+    /** WASD 移动输入 (Axis2D: X=左右, Y=前后) */
+    UPROPERTY(BlueprintReadOnly, Category = "Input|AgentControl")
+    TObjectPtr<UInputAction> IA_Move;
+
+    /** 鼠标视角输入 (Axis2D: X=Yaw, Y=Pitch) */
+    UPROPERTY(BlueprintReadOnly, Category = "Input|AgentControl")
+    TObjectPtr<UInputAction> IA_Look;
+
+    /** 上升输入 (Space 键，用于 Drone) */
+    UPROPERTY(BlueprintReadOnly, Category = "Input|AgentControl")
+    TObjectPtr<UInputAction> IA_MoveUp;
+
+    /** 下降输入 (Left Ctrl 键，用于 Drone) */
+    UPROPERTY(BlueprintReadOnly, Category = "Input|AgentControl")
+    TObjectPtr<UInputAction> IA_MoveDown;
+
+    /** 方向键视角输入 (Axis2D: X=Yaw, Y=Pitch) */
+    UPROPERTY(BlueprintReadOnly, Category = "Input|AgentControl")
+    TObjectPtr<UInputAction> IA_LookArrow;
+
     // ========== Input Mapping Context ==========
     UPROPERTY(BlueprintReadOnly, Category = "Input")
     TObjectPtr<UInputMappingContext> DefaultMappingContext;
@@ -122,4 +156,13 @@ private:
 
     // 添加按键映射
     void AddKeyMapping(UInputMappingContext* Context, UInputAction* Action, FKey Key);
+
+    // 添加 WASD 移动映射 (Axis2D)
+    void AddWASDMapping(UInputMappingContext* Context, UInputAction* Action);
+
+    // 添加鼠标视角映射 (Axis2D)
+    void AddMouseLookMapping(UInputMappingContext* Context, UInputAction* Action);
+
+    // 添加方向键视角映射 (Axis2D)
+    void AddArrowLookMapping(UInputMappingContext* Context, UInputAction* Action);
 };

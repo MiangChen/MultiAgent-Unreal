@@ -22,6 +22,10 @@ public class MultiAgent : ModuleRules
             // State Tree 模块
             "StateTreeModule",
             "GameplayStateTreeModule",
+            // UMG (UI) - 可能需要
+            "UMG",
+            "Slate",
+            "SlateCore",
             // 网络和图像模块 (Camera TCP Stream)
             "Sockets",
             "Networking",
@@ -29,7 +33,9 @@ public class MultiAgent : ModuleRules
             "RenderCore",
             // JSON 解析 (Agent 配置)
             "Json",
-            "JsonUtilities"
+            "JsonUtilities",
+            // Niagara (特效系统)
+            "Niagara"
         });
 
         PrivateDependencyModuleNames.AddRange(new string[] { });
@@ -39,6 +45,7 @@ public class MultiAgent : ModuleRules
             Path.Combine(ModuleDirectory, "Core"),
             Path.Combine(ModuleDirectory, "Input"),
             Path.Combine(ModuleDirectory, "Environment"),
+            Path.Combine(ModuleDirectory, "UI"),
             // Agent 相关
             Path.Combine(ModuleDirectory, "Agent"),
             Path.Combine(ModuleDirectory, "Agent/Character"),

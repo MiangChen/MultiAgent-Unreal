@@ -196,6 +196,23 @@ public:
     virtual void SetPatrolPath(AMAPatrolPath* Path) override { PatrolPath = Path; }
     virtual AMAPatrolPath* GetPatrolPath() const override { return PatrolPath.Get(); }
 
+    // ========== Direct Control - Vertical Movement ==========
+    // 垂直移动速度 (单位/秒)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Flight|DirectControl")
+    float VerticalMoveSpeed = 300.f;
+    
+    // 最小飞行高度 (相对于地面)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Flight|DirectControl")
+    float MinFlightAltitude = 100.f;
+    
+    // 最大飞行高度 (相对于地面)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Flight|DirectControl")
+    float MaxFlightAltitude = 2000.f;
+    
+    // 应用垂直移动输入 (Direction: 1.0 = 上升, -1.0 = 下降)
+    UFUNCTION(BlueprintCallable, Category = "Control")
+    void ApplyVerticalMovement(float Direction);
+
 protected:
     virtual void SetupDroneAssets() PURE_VIRTUAL(AMADroneCharacter::SetupDroneAssets, );
     virtual void BeginPlay() override;

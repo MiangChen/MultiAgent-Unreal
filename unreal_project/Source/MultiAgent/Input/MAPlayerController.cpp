@@ -5,11 +5,13 @@
 #include "MAPlayerController.h"
 #include "MAInputActions.h"
 #include "../Core/MAAgentManager.h"
+#include "../UI/MAHUD.h"
 #include "../Core/MACommandManager.h"
 #include "../Core/MASquadManager.h"
 #include "../Core/MASquad.h"
 #include "../Core/MASelectionManager.h"
 #include "../Core/MAViewportManager.h"
+#include "../Core/MAEmergencyManager.h"
 #include "../UI/MASelectionHUD.h"
 #include "MACharacter.h"
 #include "MARobotDogCharacter.h"
@@ -66,8 +68,9 @@ bool AMAPlayerController::InitializeSubsystems()
     SelectionManager = World->GetSubsystem<UMASelectionManager>();
     SquadManager = World->GetSubsystem<UMASquadManager>();
     ViewportManager = World->GetSubsystem<UMAViewportManager>();
+    EmergencyManager = World->GetSubsystem<UMAEmergencyManager>();
     
-    return AgentManager && CommandManager && SelectionManager && SquadManager && ViewportManager;
+    return AgentManager && CommandManager && SelectionManager && SquadManager && ViewportManager && EmergencyManager;
 }
 
 void AMAPlayerController::SetupInputComponent()
@@ -127,6 +130,27 @@ void AMAPlayerController::SetupInputComponent()
 
         // 鼠标模式切换
         EIC->BindAction(InputActions->IA_ToggleMouseMode, ETriggerEvent::Started, this, &AMAPlayerController::OnToggleMouseMode);
+        
+        // UI 切换 (Z 键)
+        EIC->BindAction(InputActions->IA_ToggleMainUI, ETriggerEvent::Started, this, &AMAPlayerController::OnToggleMainUI);
+
+        // 突发事件系统
+        EIC->BindAction(InputActions->IA_TriggerEmergency, ETriggerEvent::Started, this, &AMAPlayerController::OnTriggerEmergency);
+        EIC->BindAction(InputActions->IA_ToggleEmergencyUI, ETriggerEvent::Started, this, &AMAPlayerController::OnToggleEmergencyUI);
+
+        // ========== Agent View Mode 移动和视角控制 ==========
+        // WASD 移动 (持续触发)
+        EIC->BindAction(InputActions->IA_Move, ETriggerEvent::Triggered, this, &AMAPlayerController::OnMoveInput);
+        
+        // 鼠标视角 (持续触发)
+        EIC->BindAction(InputActions->IA_Look, ETriggerEvent::Triggered, this, &AMAPlayerController::OnLookInput);
+        
+        // 垂直移动 (持续触发)
+        EIC->BindAction(InputActions->IA_MoveUp, ETriggerEvent::Triggered, this, &AMAPlayerController::OnMoveUp);
+        EIC->BindAction(InputActions->IA_MoveDown, ETriggerEvent::Triggered, this, &AMAPlayerController::OnMoveDown);
+        
+        // 方向键视角 (持续触发)
+        EIC->BindAction(InputActions->IA_LookArrow, ETriggerEvent::Triggered, this, &AMAPlayerController::OnLookArrowInput);
     }
 }
 
@@ -241,7 +265,7 @@ void AMAPlayerController::Tick(float DeltaTime)
         }
     }
 
-    // 更新 HUD 的框选状态
+    // 更新 HUD 的框选状态 (MAHUD 继承自 MASelectionHUD)
     if (AMASelectionHUD* SelectionHUD = Cast<AMASelectionHUD>(GetHUD()))
     {
         if (SelectionManager)
@@ -667,5 +691,111 @@ FString AMAPlayerController::MouseModeToString(EMAMouseMode Mode)
         case EMAMouseMode::Select: return TEXT("Select");
         case EMAMouseMode::Navigate: return TEXT("Navigate");
         default: return TEXT("Unknown");
+    }
+}
+
+// ========== UI 切换 (Z 键) ==========
+
+void AMAPlayerController::OnToggleMainUI(const FInputActionValue& Value)
+{
+    if (AMAHUD* HUD = Cast<AMAHUD>(GetHUD()))
+    {
+        HUD->ToggleMainUI();
+        UE_LOG(LogTemp, Log, TEXT("[PlayerController] ToggleMainUI called"));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] MAHUD not found!"));
+    }
+}
+
+// ========== Agent View Mode 移动和视角控制 ==========
+
+void AMAPlayerController::OnMoveInput(const FInputActionValue& Value)
+{
+    // 只在 Agent View Mode 下处理移动输入
+    if (!ViewportManager || !ViewportManager->IsInAgentViewMode()) return;
+    
+    FVector2D MoveInput = Value.Get<FVector2D>();
+    ViewportManager->ApplyMovementInput(MoveInput);
+}
+
+void AMAPlayerController::OnLookInput(const FInputActionValue& Value)
+{
+    // 只在 Agent View Mode 下处理视角输入
+    if (!ViewportManager || !ViewportManager->IsInAgentViewMode()) return;
+    
+    FVector2D LookInput = Value.Get<FVector2D>();
+    ViewportManager->ApplyLookInput(LookInput);
+}
+
+void AMAPlayerController::OnMoveUp(const FInputActionValue& Value)
+{
+    // 只在 Agent View Mode 下处理垂直移动输入
+    if (!ViewportManager || !ViewportManager->IsInAgentViewMode()) return;
+    
+    // Space 键上升，传入正值
+    ViewportManager->ApplyVerticalInput(1.0f);
+}
+
+void AMAPlayerController::OnMoveDown(const FInputActionValue& Value)
+{
+    // 只在 Agent View Mode 下处理垂直移动输入
+    if (!ViewportManager || !ViewportManager->IsInAgentViewMode()) return;
+    
+    // Ctrl 键下降，传入负值
+    ViewportManager->ApplyVerticalInput(-1.0f);
+}
+
+void AMAPlayerController::OnLookArrowInput(const FInputActionValue& Value)
+{
+    // 只在 Agent View Mode 下处理方向键视角输入
+    if (!ViewportManager || !ViewportManager->IsInAgentViewMode()) return;
+    
+    FVector2D LookInput = Value.Get<FVector2D>();
+    // 方向键灵敏度降低为鼠标的 0.125 倍
+    LookInput *= 0.125f;
+    ViewportManager->ApplyLookInput(LookInput);
+}
+
+// ========== 突发事件系统 ==========
+
+void AMAPlayerController::OnTriggerEmergency(const FInputActionValue& Value)
+{
+    if (!EmergencyManager)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] EmergencyManager not found!"));
+        return;
+    }
+    
+    // 切换事件状态（触发或结束）
+    EmergencyManager->ToggleEvent();
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnTriggerEmergency called, event active: %s"), 
+        EmergencyManager->IsEventActive() ? TEXT("true") : TEXT("false"));
+}
+
+void AMAPlayerController::OnToggleEmergencyUI(const FInputActionValue& Value)
+{
+    if (!EmergencyManager)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] EmergencyManager not found!"));
+        return;
+    }
+    
+    // 只有在事件激活时才能切换详情界面
+    if (!EmergencyManager->IsEventActive())
+    {
+        UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnToggleEmergencyUI: No active emergency event"));
+        return;
+    }
+    
+    if (AMAHUD* HUD = Cast<AMAHUD>(GetHUD()))
+    {
+        HUD->ToggleEmergencyWidget();
+        UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnToggleEmergencyUI called"));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] MAHUD not found!"));
     }
 }
