@@ -2,7 +2,7 @@
 
 #include "MAGameMode.h"
 #include "../Input/MAPlayerController.h"
-#include "../UI/MASelectionHUD.h"
+#include "../UI/MAHUD.h"
 #include "MAAgentManager.h"
 #include "GameFramework/SpectatorPawn.h"
 #include "Misc/Paths.h"
@@ -13,8 +13,8 @@ AMAGameMode::AMAGameMode()
     DefaultPawnClass = ASpectatorPawn::StaticClass();
     PlayerControllerClass = AMAPlayerController::StaticClass();
     
-    // 设置 HUD 类用于绘制选择框
-    HUDClass = AMASelectionHUD::StaticClass();
+    // 设置 HUD 类 - MAHUD 继承自 MASelectionHUD，同时支持框选绘制和 UI Widget 管理
+    HUDClass = AMAHUD::StaticClass();
 }
 
 void AMAGameMode::BeginPlay()

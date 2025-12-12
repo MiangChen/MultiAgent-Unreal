@@ -4,15 +4,6 @@
 
 ## 快速开始
 
-### 配置 UE5 路径
-
-首次使用前，需要修改脚本中的 UE5 引擎路径：
-
-```bash
-# 编辑 compile.sh 和 start.sh，修改 UE_ROOT 为你的 UE5 安装路径
-UE_ROOT="/your/path/to/UnrealEngine"
-```
-
 ### 编译
 
 ```bash

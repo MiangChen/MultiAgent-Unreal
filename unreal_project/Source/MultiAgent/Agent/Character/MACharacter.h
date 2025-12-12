@@ -70,6 +70,23 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "Squad")
     UMASquad* CurrentSquad = nullptr;
 
+    // ========== Direct Control (WASD 直接控制) ==========
+    // 设置直接控制状态
+    UFUNCTION(BlueprintCallable, Category = "Control")
+    void SetDirectControl(bool bEnabled);
+
+    // 获取直接控制状态
+    UFUNCTION(BlueprintCallable, Category = "Control")
+    bool IsUnderDirectControl() const { return bIsUnderDirectControl; }
+
+    // 取消 AI 移动（停止导航和 StateTree 移动命令）
+    UFUNCTION(BlueprintCallable, Category = "Control")
+    void CancelAIMovement();
+
+    // 应用直接移动输入（基于世界方向）
+    UFUNCTION(BlueprintCallable, Category = "Control")
+    void ApplyDirectMovement(FVector WorldDirection);
+
     // ========== 头顶状态显示 ==========
     UFUNCTION(BlueprintCallable, Category = "Status")
     void ShowStatus(const FString& Text, float Duration = 3.0f);
@@ -106,6 +123,10 @@ public:
     bool ExecuteAction(const FString& ActionName, const TMap<FString, FString>& Params);
 
 protected:
+    // 直接控制状态标志
+    UPROPERTY(BlueprintReadOnly, Category = "Control")
+    bool bIsUnderDirectControl = false;
+
     virtual void BeginPlay() override;
     virtual void Tick(float DeltaTime) override;
     virtual void PossessedBy(AController* NewController) override;

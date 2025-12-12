@@ -503,3 +503,55 @@ bool AMADroneCharacter::TryCharge()
     }
     return false;
 }
+
+// ========== Direct Control - Vertical Movement ==========
+
+void AMADroneCharacter::ApplyVerticalMovement(float Direction)
+{
+    // 只有在空中时才能垂直移动
+    if (FlightState == EMADroneFlightState::Landed)
+    {
+        return;
+    }
+    
+    // 忽略接近零的输入
+    if (FMath::Abs(Direction) < 0.1f)
+    {
+        return;
+    }
+    
+    // 获取当前位置和地面高度
+    FVector CurrentLocation = GetActorLocation();
+    float GroundZ = GetGroundHeight();
+    float CurrentAltitude = CurrentLocation.Z - GroundZ;
+    
+    // 计算目标高度变化
+    float DeltaTime = GetWorld()->GetDeltaSeconds();
+    float DeltaZ = Direction * VerticalMoveSpeed * DeltaTime;
+    float NewAltitude = CurrentAltitude + DeltaZ;
+    
+    // 限制在最小/最大高度范围内
+    NewAltitude = FMath::Clamp(NewAltitude, MinFlightAltitude, MaxFlightAltitude);
+    
+    // 计算新的 Z 坐标
+    float NewZ = GroundZ + NewAltitude;
+    
+    // 应用新位置 (使用 Sweep 检测碰撞)
+    FVector NewLocation = FVector(CurrentLocation.X, CurrentLocation.Y, NewZ);
+    FHitResult SweepHit;
+    SetActorLocation(NewLocation, true, &SweepHit);
+    
+    // 如果碰撞，不移动
+    if (SweepHit.bBlockingHit)
+    {
+        UE_LOG(LogTemp, Verbose, TEXT("[%s] Vertical movement blocked by %s"), 
+            *AgentName, *GetNameSafe(SweepHit.GetActor()));
+        return;
+    }
+    
+    // 更新飞行目标为当前位置（保持悬停状态）
+    if (FlightState == EMADroneFlightState::Hovering)
+    {
+        CurrentFlightTarget = NewLocation;
+    }
+}

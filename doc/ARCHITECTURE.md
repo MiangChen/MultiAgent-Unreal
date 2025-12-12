@@ -323,7 +323,7 @@ State Tree (大脑 - 状态决策)          GAS (手脚 - 技能执行)
 | **CommandManager** | 命令分发、参数自动填充 | Agent 生命周期 |
 | **SquadManager** | Squad 创建/解散、编队切换 | 单个 Agent 控制 |
 | **AgentManager** | Agent 生命周期、JSON 配置 | 命令分发 |
-| **ViewportManager** | 视角切换、相机管理 | Agent 控制 |
+| **ViewportManager** | 视角切换、相机管理、Agent View Mode (Direct Control) | - |
 
 ### 2.4 FMASubsystem 统一访问层
 
@@ -349,6 +349,7 @@ struct FMASubsystem
     UMASelectionManager* SelectionManager;
     UMASquadManager* SquadManager;
     UMAViewportManager* ViewportManager;
+    UMAEmergencyManager* EmergencyManager;  // 突发事件管理
 
     static FMASubsystem Get(UWorld* World);
 };
@@ -587,13 +588,62 @@ MAAgentManager::LoadAndSpawnFromConfig(path)
 | Manager | 层级 | 功能介绍 | 状态 |
 |---------|------|---------|------|
 | **MAAgentManager** | 全局 | JSON 配置加载 + Agent 生命周期 + Action 路由 + 编队管理 | ✅ 已实现 |
+| **MAEmergencyManager** | 全局 | 突发事件触发/结束 + 状态管理 + SourceAgent 追踪 | ✅ 已实现 |
 | **RelationManager** | 全局 | 实体关系管理 | ❌ 待开发 |
 | **MapManager** | 全局 | 地图感知 | ❌ 待开发 |
 | **StateTree** | Character级 | 状态决策 | ✅ 已实现 |
 | **ASC** | Character级 | 技能执行 | ✅ 已实现 |
 | **Sensors** | Character级 | 传感器组件 (Action 接口) | ✅ 已实现 |
+| **ViewportManager** | 全局 | 视角切换 + Agent View Mode (Direct Control) | ✅ 已实现 |
 
-### 6.3 Squad 系统
+### 6.3 ViewportManager 与 Direct Control
+
+ViewportManager 负责管理相机视角切换和 Agent View Mode (Direct Control 模式)。
+
+**核心功能:**
+- 视角切换：Tab 键在不同 Agent 相机之间切换
+- Agent View Mode：进入 Agent 视角后可直接控制该 Agent
+- Direct Control：WASD 移动、鼠标/方向键旋转视角
+
+**Agent View Mode 数据流:**
+```
+用户按 Tab → ViewportManager::SwitchToNextCamera()
+                    │
+                    ├── EnterAgentViewMode(Agent)
+                    │   ├── bIsInAgentViewMode = true
+                    │   ├── Agent->SetDirectControl(true)
+                    │   └── HUD->ShowDirectControlIndicator(Agent)
+                    │
+用户按 WASD → PlayerController::OnMoveInput()
+                    │
+                    └── ViewportManager->ApplyMovementInput()
+                        └── Agent->ApplyDirectMovement(Direction)
+
+用户按 0 → ViewportManager::ReturnToSpectator()
+                    │
+                    ├── ExitAgentViewMode()
+                    │   ├── Agent->SetDirectControl(false)
+                    │   └── HUD->HideDirectControlIndicator()
+                    └── 移动 Spectator 到 (790, 1810, 502)
+```
+
+**ViewportManager 属性:**
+| 属性 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| bIsInAgentViewMode | bool | false | 是否处于 Agent 视角模式 |
+| ControlledAgent | TWeakObjectPtr | null | 当前控制的 Agent |
+| LookSensitivityYaw | float | 14.0 | 水平旋转灵敏度 |
+| LookSensitivityPitch | float | 14.0 | 垂直俯仰灵敏度 |
+| MinCameraPitch | float | -60.0 | 最小俯仰角 |
+| MaxCameraPitch | float | 30.0 | 最大俯仰角 |
+
+**Direct Control 特性:**
+- 进入 Direct Control 后，Agent 的 `bOrientRotationToMovement` 被禁用，防止后退时振荡
+- RTS 命令 (Patrol, Follow, Coverage) 不会影响处于 Direct Control 的 Agent
+- Drone 支持 Space/Ctrl 垂直移动
+- 方向键灵敏度为鼠标的 0.125 倍，适合精细调整
+
+### 6.4 Squad 系统
 
 参考 Company of Heroes 的 Squad 系统，Squad 是一组 Agent 的组合，拥有自己的技能（编队、协同攻击等）。
 
@@ -835,3 +885,112 @@ if (SweepHit.bBlockingHit)
 ## 12. 输入系统 (Enhanced Input)
 
 按键说明详见 [KEYBINDINGS.md](KEYBINDINGS.md)
+
+## 13. UI 系统架构
+
+### 13.1 UI 集成设计
+
+本项目集成了 UIRef 项目的 UI 系统，实现了 TopDown 视角下的指令输入界面：
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           UI 系统架构                                        │
+│                                                                             │
+│  ┌─────────────────┐                                                        │
+│  │ MAPlayerController │  ◄── Z 键切换 UI                                    │
+│  │ (Input 层)        │                                                      │
+│  │ - OnToggleMainUI  │                                                      │
+│  └────────┬─────────┘                                                       │
+│           │                                                                 │
+│           ▼                                                                 │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                    MAHUD (继承 MASelectionHUD)                       │   │
+│  │  ┌─────────────────┐  ┌─────────────────┐                           │   │
+│  │  │ SimpleMainWidget│  │ SemanticMapWidget│                           │   │
+│  │  │ (纯 C++ UI)    │  │ (后续阶段)      │                           │   │
+│  │  └─────────────────┘  └─────────────────┘                           │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                    │                                        │
+│                                    ▼                                        │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                    MACommSubsystem                                   │   │
+│  │  - SendNaturalLanguageCommand()                                      │   │
+│  │  - GenerateMockPlanResponse()                                        │   │
+│  │  - OnPlannerResponse 委托                                            │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 13.2 UI 组件说明
+
+| 组件 | 功能 | 实现方式 |
+|------|------|----------|
+| **MASimpleMainWidget** | 主界面 UI (输入框 + 结果显示) | 纯 C++ 动态创建 |
+| **MAEmergencyWidget** | 突发事件详情界面 (相机画面 + 操作按钮) | 纯 C++ 动态创建 |
+| **MACommSubsystem** | 通信子系统，处理指令和响应 | GameInstanceSubsystem |
+| **MAHUD** | HUD 管理器，继承选择框绘制功能 | 继承自 MASelectionHUD |
+| **MAGameInstance** | 全局配置管理 | 存储服务器地址等配置 |
+
+### 13.4 突发事件系统
+
+突发事件系统用于处理 Agent 在执行任务过程中发现的异常情况：
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        突发事件系统架构                                       │
+│                                                                             │
+│  触发方式:                                                                   │
+│  ├── 键盘模拟: "-" 键 → ToggleEvent() → 默认使用 0 号机器狗                  │
+│  └── Agent 自动: Agent → TriggerEventFromAgent(this) → 使用报告的 Agent      │
+│                                                                             │
+│  ┌─────────────────┐                                                        │
+│  │ EmergencyManager│  ◄── 事件状态管理                                       │
+│  │ (WorldSubsystem)│                                                        │
+│  │ - SourceAgent   │  ← 触发事件的 Agent (任意 Agent)                        │
+│  │ - bIsEventActive│  ← 事件激活状态                                         │
+│  └────────┬────────┘                                                        │
+│           │ OnEmergencyStateChanged 委托                                     │
+│           ▼                                                                 │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                    MAHUD                                             │   │
+│  │  ┌─────────────────┐  ┌─────────────────┐                           │   │
+│  │  │ EmergencyIndicator│ │ EmergencyWidget │                           │   │
+│  │  │ (红色"突发事件") │ │ (详情界面)      │                           │   │
+│  │  │ DrawHUD() 绘制   │ │ - 相机画面      │                           │   │
+│  │  └─────────────────┘  │ - 操作按钮      │                           │   │
+│  │                       │ - 输入框        │                           │   │
+│  │                       └─────────────────┘                           │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**API 设计 (解耦):**
+- `EmergencyWidget.SetCameraSource(Camera)` - 只接收相机，不关心 Agent
+- `EmergencyManager.GetSourceAgent()` - 返回触发事件的 Agent
+- 视频流与 Agent 编号完全解耦，支持任意 Agent 触发事件
+
+### 13.3 数据流程
+
+```
+用户按 Z 键 → PlayerController::OnToggleMainUI() → MAHUD::ToggleMainUI()
+                                                        │
+                                                        ▼
+用户输入指令 → SimpleMainWidget::SubmitCommand() → OnCommandSubmitted 委托
+                                                        │
+                                                        ▼
+HUD::OnSimpleCommandSubmitted() → CommSubsystem::SendNaturalLanguageCommand()
+                                                        │
+                                                        ▼
+CommSubsystem::GenerateMockPlanResponse() → OnPlannerResponse 委托
+                                                        │
+                                                        ▼
+HUD::OnPlannerResponse() → SimpleMainWidget::SetResultText() → 显示结果
+```
+
+### 13.4 UI 特性
+
+- **Z 键切换**: 显示/隐藏主界面
+- **自动聚焦**: UI 显示时自动聚焦到输入框
+- **回车提交**: 输入框支持回车键提交指令
+- **模拟响应**: 开发阶段使用模拟数据测试
+- **兼容 RTS**: UI 显示时仍支持 RTS 命令快捷键
