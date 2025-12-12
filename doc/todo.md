@@ -45,6 +45,13 @@
 
 ### 高优先级
 
+#### Squad 系统重构
+- [ ] Formation Control 迁移到 Squad 层级
+  - 当前: Formation 由单个 Agent 的 GA_Formation 技能控制
+  - 目标: Formation 作为 Squad 级别的技能，由 UMASquad 统一管理
+  - 原因: 编队是群体行为，不应该是单个 Agent 的能力
+  - 涉及: 移除 GA_Formation，在 UMASquad 中实现 Squad-level Abilities
+
 #### 智能体类型扩展
 - [ ] 实现更多无人机型号（按需添加）
 
@@ -83,4 +90,4 @@
 
 ---
 
-*最后更新: 2025-12-08*
+*最后更新: 2025-12-10*

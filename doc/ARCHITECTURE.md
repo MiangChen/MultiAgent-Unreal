@@ -1,5 +1,163 @@
 # MultiAgent-Unreal 架构设计
 
+## 0. System Architecture (Science Robotics / TRO Style)
+
+### Fig. 1: Unified Multi-Agent Simulation Framework
+
+```
+╔══════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                                                                                              ║
+║   COMMAND FLOW                              SYSTEM LAYERS                              DATA FLOW             ║
+║   ════════════                              ═════════════                              ═════════             ║
+║                                                                                                              ║
+║   ┌──────────┐      ╔════════════════════════════════════════════════════════════════════════╗              ║
+║   │ Operator │      ║  L5: HUMAN-ROBOT INTERFACE                                             ║              ║
+║   │ [G] [F]  │─────▶║  ┌────────────────┐  ┌────────────────┐  ┌────────────────────────┐   ║◀──┐          ║
+║   │ [H] [K]  │      ║  │ RTS Commands   │  │ Box Selection  │  │ TCP Video Feedback     │   ║   │          ║
+║   └──────────┘      ║  │ Patrol/Follow/ │  │ Ctrl+1~5 Group │  │ Real-time Streaming    │   ║   │          ║
+║                     ║  │ Charge/Cover   │  │ Squad Create   │  │                        │   ║   │          ║
+║        │            ║  └───────┬────────┘  └───────┬────────┘  └────────────────────────┘   ║   │          ║
+║        │            ╚══════════╪══════════════════╪═════════════════════════════════════════╝   │          ║
+║        │                       │                  │                                             │          ║
+║        ▼                       ▼                  ▼                                             │          ║
+║   ┌──────────┐      ╔════════════════════════════════════════════════════════════════════════╗  │          ║
+║   │ Allocate │      ║  L4: TASK ALLOCATION & COORDINATION                                    ║  │          ║
+║   │ Command  │─────▶║  ┌────────────────┐  ┌────────────────┐  ┌────────────────────────┐   ║  │          ║
+║   │          │      ║  │ Task Allocator │  │ Formation Ctrl │  │ Squad Coordinator      │   ║  │          ║
+║   └──────────┘      ║  │ AutoFillParams │  │ Line/Wedge/... │  │ Leader + Members       │   ║  │          ║
+║                     ║  └───────┬────────┘  └───────┬────────┘  └───────────┬────────────┘   ║  │          ║
+║        │            ╚══════════╪══════════════════╪════════════════════════╪════════════════╝  │          ║
+║        │                       │                  │                        │                   │          ║
+║        │                       └──────────────────┴────────────────────────┘                   │          ║
+║        │                                          │                                            │          ║
+║        │                                          │ SetTag("Command.Patrol")                   │          ║
+║        │                                          ▼                                            │          ║
+║        │            ╔════════════════════════════════════════════════════════════════════════╗ │          ║
+║        │            ║  L3: HETEROGENEOUS AGENTS                                              ║ │          ║
+║        │            ║  ┌──────────────────┐ ┌──────────────────┐ ┌──────────────────────┐   ║ │          ║
+║        │            ║  │       UGV        │ │       UAV        │ │    Human Avatar      │   ║ │          ║
+║        │            ║  │ ┌──────────────┐ │ │ ┌──────────────┐ │ │ ┌──────────────────┐ │   ║ │          ║
+║   ┌──────────┐      ║  │ │  StateTree   │ │ │ │  StateTree   │ │ │ │    StateTree     │ │   ║ │          ║
+║   │ State    │      ║  │ │ ┌──────────┐ │ │ │ │ ┌──────────┐ │ │ │ │  ┌──────────┐   │ │   ║ │          ║
+║   │ Machine  │─────▶║  │ │ │Idle│Patrol│ │ │ │ │ │Idle│Patrol│ │ │ │ │  │Idle│Patrol│   │ │   ║ │          ║
+║   │ Response │      ║  │ │ └──────────┘ │ │ │ │ └──────────┘ │ │ │ │  └──────────┘   │ │   ║ │          ║
+║   └──────────┘      ║  │ │      ↓       │ │ │ │      ↓       │ │ │ │       ↓         │ │   ║ │          ║
+║        │            ║  │ │  GAS Skills  │ │ │ │  GAS Skills  │ │ │ │   GAS Skills    │ │   ║ │          ║
+║        │            ║  │ │ Navigate/... │ │ │ │ Navigate/... │ │ │ │  Navigate/...   │ │   ║ │          ║
+║        │            ║  │ └──────────────┘ │ │ └──────────────┘ │ │ └──────────────────┘ │   ║ │          ║
+║        │            ║  │ ─────────────────│ │ ─────────────────│ │ ─────────────────────│   ║ │          ║
+║   ┌──────────┐      ║  │ CAPABILITY:      │ │ CAPABILITY:      │ │ CAPABILITY:          │   ║ │          ║
+║   │ Query    │      ║  │ ✓Pat ✓Fol ✓Cov ✓Ch│ │ ✓Pat ✓Fol ✓Cov ✓Ch│ │ ✓Pat ✓Fol ✗Cov ✗Ch  │   ║ │          ║
+║   │Interface │─────▶║  │ PatrolPath=...   │ │ PatrolPath=...   │ │ PatrolPath=...      │   ║ │          ║
+║   └──────────┘      ║  │ Energy=100       │ │ Energy=100       │ │                      │   ║ │          ║
+║        │            ║  └────────┬─────────┘ └────────┬─────────┘ └──────────┬───────────┘   ║ │          ║
+║        │            ║           │ Sensor             │ Sensor               │ Sensor        ║ │          ║
+║        │            ║           ▼                    ▼                      ▼               ║ │          ║
+║        │            ║  ┌──────────────────────────────────────────────────────────────────┐ ║ │          ║
+║   ┌──────────┐      ║  │  PERCEPTION: RGB Camera │ Depth │ LiDAR (per agent)              │ ║ │          ║
+║   │ Sensor   │─────▶║  └──────────────────────────────────────────────────────────────────┘ ║─┘          ║
+║   │ Capture  │      ╚═══════════════════════════════╤════════════════════════════════════════╝            ║
+║   └──────────┘                                      │                                                     ║
+║        │                                            │ Physical Interaction                                ║
+║        ▼                                            ▼                                                     ║
+║   ┌──────────┐      ╔════════════════════════════════════════════════════════════════════════╗           ║
+║   │ Physical │      ║  L2: PHYSICS-BASED ENVIRONMENT                                         ║           ║
+║   │ Interact │─────▶║  ┌────────────────┐  ┌────────────────┐  ┌────────────────────────┐   ║           ║
+║   └──────────┘      ║  │   Collision    │  │   Navigation   │  │   Semantic Entities    │   ║           ║
+║                     ║  │   Detection    │  │      Mesh      │  │ PatrolPath/ChargeStn/  │   ║           ║
+║        │            ║  │   (Capsule)    │  │   (NavMesh)    │  │ CoverageArea/Pickup    │   ║           ║
+║        │            ║  └────────────────┘  └────────────────┘  └────────────────────────┘   ║           ║
+║        │            ╚═══════════════════════════════╤════════════════════════════════════════╝           ║
+║        │                                            │                                                     ║
+║        ▼                                            ▼                                                     ║
+║   ┌──────────┐      ╔════════════════════════════════════════════════════════════════════════╗           ║
+║   │ Render   │      ║  L1: SIMULATION CORE (Unreal Engine 5)                                 ║           ║
+║   │ Physics  │─────▶║  ┌──────────────────────────────┐  ┌────────────────────────────────┐ ║           ║
+║   └──────────┘      ║  │    Real-time Rendering       │  │       PhysX Engine             │ ║           ║
+║                     ║  │    (Nanite, Lumen)           │  │    (Rigid Body, Collision)     │ ║           ║
+║                     ║  └──────────────────────────────┘  └────────────────────────────────┘ ║           ║
+║                     ╚════════════════════════════════════════════════════════════════════════╝           ║
+║                                                                                                           ║
+╚═══════════════════════════════════════════════════════════════════════════════════════════════════════════╝
+```
+
+### Layer Summary
+
+| Layer | Function | Key Components | I/O |
+|:-----:|:---------|:---------------|:----|
+| **L5** | Human-Robot Interface | RTS Commands, Selection, Video Feedback | Cmd↓ Feedback↑ |
+| **L4** | Task Allocation | Allocator, Formation, Squad | Tag↓ to Agent |
+| **L3** | Heterogeneous Agents | Agent = StateTree + GAS + Capability + Sensor | Tag→State→Skill |
+| **L2** | Environment | Collision, NavMesh, Semantic Entities | Physics |
+| **L1** | Simulation Core | UE5 Rendering, PhysX | Ground Truth |
+
+### Agent Internal Architecture (L3 Detail)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         AGENT (UGV/UAV/Human)                   │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │  StateTree Component (Strategic Layer)                    │  │
+│  │  ┌──────┐ ┌────────┐ ┌────────┐ ┌──────────┐ ┌────────┐  │  │
+│  │  │ Idle │◀┼▶Patrol │◀┼▶Follow │◀┼▶Coverage │◀┼▶Charge │  │  │
+│  │  └──────┘ └────────┘ └────────┘ └──────────┘ └────────┘  │  │
+│  │                         │ activate                        │  │
+│  │                         ▼                                 │  │
+│  │  GAS Component (Tactical Layer)                           │  │
+│  │  ┌────────────┐ ┌────────────┐ ┌────────────────────┐    │  │
+│  │  │ Navigation │ │   Motion   │ │ Collision Avoidance│    │  │
+│  │  └────────────┘ └────────────┘ └────────────────────┘    │  │
+│  └───────────────────────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │  Capability Interfaces (Parameters)                       │  │
+│  │  IPatrollable: PatrolPath, ScanRadius                     │  │
+│  │  IFollowable:  FollowTarget                               │  │
+│  │  ICoverable:   CoverageArea                               │  │
+│  │  IChargeable:  Energy, MaxEnergy                          │  │
+│  └───────────────────────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │  Sensor Components: Camera, Depth, LiDAR                  │  │
+│  └───────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Capability Matrix
+
+|        | IPatrollable | IFollowable | ICoverable | IChargeable |
+|:------:|:------------:|:-----------:|:----------:|:-----------:|
+| **UGV** | ✓ | ✓ | ✓ | ✓ |
+| **UAV** | ✓ | ✓ | ✓ | ✓ |
+| **Human** | ✓ | ✓ | ✗ | ✗ |
+
+### Key Design Principles
+
+| Principle | Description | Benefit |
+|-----------|-------------|---------|
+| **Hierarchical Decomposition** | Strategic (what) vs Tactical (how) separation | Modular behavior design, easier debugging |
+| **Capability Abstraction** | Interface-based polymorphism for agent types | Same task code works for UGV/UAV/Human |
+| **Configuration-Driven** | JSON-based agent spawning, no code changes | Rapid scenario prototyping |
+| **Real-time Feedback** | TCP video streaming, sensor data export | Human-in-the-loop supervision |
+
+---
+
+<details>
+<summary>📋 Implementation Details (Click to expand)</summary>
+
+### 架构亮点 (Technical Innovations)
+
+| 层级 | 创新点 | 技术优势 |
+|------|--------|----------|
+| **Human-Robot Interface** | JSON 配置驱动 + Action 动态发现 | 零代码扩展新 Agent 类型，运行时热配置 |
+| **Task Allocation** | RTS 风格命令系统 + Subsystem 统一访问 | 类 StarCraft 操控体验，MA_SUBS 宏简化访问 |
+| **Behavior Architecture** | State Tree + GAS 黄金搭档 | 高层策略与底层技能解耦，Gameplay Tags 桥接 |
+| **Agent Abstraction** | Interface 多态 + 异构 Agent | 同一 Task 支持 RobotDog/Drone，参数存储在实体 |
+| **Perception** | Component 模式 + TCP 实时流 | 传感器即插即用，支持远程监控 |
+| **Environment** | 语义化环境实体 | PatrolPath/CoverageArea 等可视化编辑 |
+
+</details>
+
+---
+
 ## 1. 系统概述
 
 MultiAgent-Unreal 是一个基于 Unreal Engine 5 的多智能体仿真框架，用于机器人、无人机、角色等异构智能体的协同仿真。
