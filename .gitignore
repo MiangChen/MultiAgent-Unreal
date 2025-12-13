@@ -49,3 +49,7 @@ Thumbs.db
 *.utoc
 *.pak
 unrealcv/
+
+# UE5 大文件 (可本地重新生成)
+*_BuiltData.uasset
+*.code-workspace
