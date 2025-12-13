@@ -16,6 +16,8 @@ class UMACommSubsystem;
  * 
  * 职责:
  * - 管理全局配置 (服务器地址、调试模式等)
+ * - 从 JSON 配置文件加载设置
+ * - 支持 JSON 指定启动地图
  * - 提供 CommSubsystem 的便捷访问
  * - 保持跨关卡的全局状态
  * 
@@ -45,6 +47,26 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config|Debug")
     bool bDebugMode = true;
 
+    /** JSON 配置中指定的默认地图路径 */
+    UPROPERTY(BlueprintReadOnly, Category = "Config|Map")
+    FString ConfiguredMapPath;
+
+    /** 是否已加载配置地图 */
+    UPROPERTY(BlueprintReadOnly, Category = "Config|Map")
+    bool bHasLoadedConfiguredMap = false;
+
+    //=========================================================================
+    // Spectator 配置
+    //=========================================================================
+
+    /** Spectator 初始位置 */
+    UPROPERTY(BlueprintReadOnly, Category = "Config|Spectator")
+    FVector SpectatorStartPosition = FVector(0, 0, 500);
+
+    /** Spectator 初始旋转 */
+    UPROPERTY(BlueprintReadOnly, Category = "Config|Spectator")
+    FRotator SpectatorStartRotation = FRotator(-45, 0, 0);
+
     //=========================================================================
     // Subsystem 访问
     //=========================================================================
@@ -68,6 +90,17 @@ public:
     UFUNCTION(BlueprintPure, Category = "Game Instance", meta = (WorldContext = "WorldContextObject"))
     static UMAGameInstance* GetMAGameInstance(const UObject* WorldContextObject);
 
+    //=========================================================================
+    // 地图加载
+    //=========================================================================
+
+    /**
+     * 加载 JSON 配置中指定的地图
+     * 在首次进入游戏时调用
+     */
+    UFUNCTION(BlueprintCallable, Category = "Map")
+    void LoadConfiguredMap();
+
 protected:
     //=========================================================================
     // 生命周期
@@ -78,4 +111,7 @@ protected:
 
     /** 关闭 */
     virtual void Shutdown() override;
+
+    /** 从 JSON 文件加载配置 */
+    void LoadConfigFromJSON();
 };

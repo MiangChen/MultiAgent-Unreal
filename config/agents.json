@@ -3,10 +3,10 @@
     "description": "MultiAgent 智能体配置文件",
     
     "spawn_settings": {
-        "use_player_start": true,
-        "fallback_origin": [0, 0, 0],
-        "spawn_radius": 400,
-        "project_to_navmesh": true
+        "use_player_start": false,
+        "fallback_origin": [0, 0, 200],
+        "spawn_radius": 300,
+        "project_to_navmesh": false
     },
     
     "agents": [
