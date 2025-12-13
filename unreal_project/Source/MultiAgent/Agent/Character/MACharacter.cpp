@@ -39,6 +39,9 @@ AMACharacter::AMACharacter()
     GetCharacterMovement()->bUseRVOAvoidance = true;
     GetCharacterMovement()->AvoidanceConsiderationRadius = 150.f;
     GetCharacterMovement()->AvoidanceWeight = 0.5f;
+    
+    // 增大可跨越的台阶高度（默认 45，改为 100 以适应城市地图的台阶）
+    GetCharacterMovement()->MaxStepHeight = 100.f;
 
     AbilitySystemComponent = CreateDefaultSubobject<UMAAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
     
@@ -95,6 +98,18 @@ void AMACharacter::AutoFitCapsuleToMesh()
     HalfHeight = FMath::Max(HalfHeight, Radius);
     
     GetCapsuleComponent()->SetCapsuleSize(Radius, HalfHeight);
+    
+    // MaxStepHeight 设置为 Capsule 高度（允许跨越与身高相当的台阶）
+    float MaxAllowedStepHeight = HalfHeight * 2.f;
+    float CurrentMaxStepHeight = GetCharacterMovement()->MaxStepHeight;
+    if (CurrentMaxStepHeight > MaxAllowedStepHeight)
+    {
+        GetCharacterMovement()->MaxStepHeight = MaxAllowedStepHeight;
+    }
+    
+    // 打印 Capsule 和 Movement 参数
+    UE_LOG(LogTemp, Warning, TEXT("[%s] Capsule: Radius=%.1f, HalfHeight=%.1f, MaxStepHeight=%.1f"), 
+        *AgentName, Radius, HalfHeight, GetCharacterMovement()->MaxStepHeight);
     
     // 调整 Mesh 位置，使 Mesh 底部与 Capsule 底部对齐
     // Capsule 底部在 Z = -HalfHeight

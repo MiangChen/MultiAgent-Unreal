@@ -123,4 +123,18 @@ public:
     // 避障检测间隔（秒）
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Avoidance")
     float AvoidanceCheckInterval = 0.1f;
+
+    // ========== 卡住自动跳跃 ==========
+private:
+    // 卡住计时器
+    float StuckTime = 0.f;
+    
+    // 卡住检测阈值（秒）
+    float StuckThreshold = 0.5f;
+    
+    // 跳跃冷却
+    float JumpCooldown = 0.f;
+    
+    // 检测是否被静态障碍物卡住并尝试跳跃
+    void CheckStuckAndJump(float DeltaTime);
 };

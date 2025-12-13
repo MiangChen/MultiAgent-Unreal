@@ -63,6 +63,11 @@ AMARobotDogCharacter::AMARobotDogCharacter()
     
     GetCharacterMovement()->MaxWalkSpeed = 150.f;
     GetCharacterMovement()->MaxAcceleration = 512.f;
+    
+    // 配置跳跃参数
+    GetCharacterMovement()->JumpZVelocity = 300.f;
+    GetCharacterMovement()->AirControl = 0.2f;
+    GetCharacterMovement()->NavAgentProps.bCanJump = true;
 }
 
 void AMARobotDogCharacter::BeginPlay()
@@ -95,6 +100,9 @@ void AMARobotDogCharacter::Tick(float DeltaTime)
     {
         PlayIdleAnimation();
     }
+    
+    // 检测卡住并自动跳跃
+    CheckStuckAndJump(DeltaTime);
     
     // Energy drain while moving
     if (bIsMoving && HasEnergy())
@@ -231,4 +239,64 @@ bool AMARobotDogCharacter::TryCharge()
         return AbilitySystemComponent->TryActivateCharge();
     }
     return false;
+}
+
+// ========== 卡住自动跳跃 ==========
+
+void AMARobotDogCharacter::CheckStuckAndJump(float DeltaTime)
+{
+    // 更新跳跃冷却
+    if (JumpCooldown > 0.f)
+    {
+        JumpCooldown -= DeltaTime;
+        return;
+    }
+    
+    // 只有在移动中才检测卡住
+    if (!bIsMoving)
+    {
+        StuckTime = 0.f;
+        return;
+    }
+    
+    // 如果速度很低，可能被卡住了
+    float Speed = GetVelocity().Size();
+    if (Speed < 10.f)
+    {
+        StuckTime += DeltaTime;
+        
+        if (StuckTime > StuckThreshold)
+        {
+            // 射线检测前方是否有静态障碍物
+            FHitResult Hit;
+            FVector Start = GetActorLocation();
+            FVector End = Start + GetActorForwardVector() * 80.f;
+            
+            FCollisionQueryParams Params;
+            Params.AddIgnoredActor(this);
+            
+            // 只检测静态物体 (ECC_WorldStatic)
+            if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_WorldStatic, Params))
+            {
+                // 前方是静态障碍物，执行向前跳跃
+                // 给一个向前+向上的冲量
+                FVector JumpDirection = GetActorForwardVector() * 200.f + FVector(0.f, 0.f, 600.f);
+                LaunchCharacter(JumpDirection, false, true);
+                
+                JumpCooldown = 1.0f;  // 1 秒冷却
+                StuckTime = 0.f;
+                
+                UE_LOG(LogTemp, Log, TEXT("[%s] Stuck detected, jumping forward over obstacle"), *AgentName);
+            }
+            else
+            {
+                // 可能是被其他 Agent 挡住，重置计时但不跳
+                StuckTime = 0.f;
+            }
+        }
+    }
+    else
+    {
+        StuckTime = 0.f;
+    }
 }
