@@ -1,0 +1,10 @@
+{
+    "DefaultMap": "/Game/LS_Scifi_ModernCity/Maps/Scifi_ModernCity",
+    "PlannerServerURL": "http://localhost:8080",
+    "bUseMockData": true,
+    "bDebugMode": true,
+    "SpectatorStart": {
+        "Position": [0, 0, 800],
+        "Rotation": [-45, 0, 0]
+    }
+}
