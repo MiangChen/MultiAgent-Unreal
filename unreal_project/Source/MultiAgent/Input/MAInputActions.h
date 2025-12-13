@@ -144,7 +144,17 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "Input|AgentControl")
     TObjectPtr<UInputAction> IA_LookArrow;
 
-    // ========== Input Mapping Context ==========
+    // ========== Input Mapping Contexts ==========
+    
+    /** RTS 模式输入 (优先级 0, 始终激活) - 框选、编组、生成等 */
+    UPROPERTY(BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputMappingContext> IMC_RTS;
+    
+    /** Agent Control 模式输入 (优先级 1, 仅 Agent View 时激活) - WASD、视角 */
+    UPROPERTY(BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputMappingContext> IMC_AgentControl;
+    
+    /** 兼容旧代码：返回 IMC_RTS */
     UPROPERTY(BlueprintReadOnly, Category = "Input")
     TObjectPtr<UInputMappingContext> DefaultMappingContext;
 

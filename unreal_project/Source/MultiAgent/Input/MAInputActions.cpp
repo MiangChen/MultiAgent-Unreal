@@ -65,61 +65,67 @@ void UMAInputActions::Initialize()
     IA_MoveUp = CreateInputAction(TEXT("IA_MoveUp"));
     IA_MoveDown = CreateInputAction(TEXT("IA_MoveDown"));
 
-    // 创建 Input Mapping Context
-    DefaultMappingContext = NewObject<UInputMappingContext>(this, TEXT("IMC_Default"));
+    // 创建 Input Mapping Contexts
+    IMC_RTS = NewObject<UInputMappingContext>(this, TEXT("IMC_RTS"));
+    IMC_AgentControl = NewObject<UInputMappingContext>(this, TEXT("IMC_AgentControl"));
+    
+    // 兼容旧代码
+    DefaultMappingContext = IMC_RTS;
 
-    // 添加按键映射
-    AddKeyMapping(DefaultMappingContext, IA_LeftClick, EKeys::LeftMouseButton);
-    AddKeyMapping(DefaultMappingContext, IA_RightClick, EKeys::RightMouseButton);
-    AddKeyMapping(DefaultMappingContext, IA_Pickup, EKeys::P);
-    AddKeyMapping(DefaultMappingContext, IA_Drop, EKeys::O);
-    AddKeyMapping(DefaultMappingContext, IA_SpawnItem, EKeys::I);
-    AddKeyMapping(DefaultMappingContext, IA_SpawnRobotDog, EKeys::T);
-    AddKeyMapping(DefaultMappingContext, IA_PrintInfo, EKeys::Y);
-    AddKeyMapping(DefaultMappingContext, IA_DestroyLast, EKeys::U);
-    AddKeyMapping(DefaultMappingContext, IA_SwitchCamera, EKeys::Tab);
-    AddKeyMapping(DefaultMappingContext, IA_ReturnSpectator, EKeys::Zero);
-    AddKeyMapping(DefaultMappingContext, IA_StartPatrol, EKeys::G);
-    AddKeyMapping(DefaultMappingContext, IA_StartCharge, EKeys::H);
-    AddKeyMapping(DefaultMappingContext, IA_StopIdle, EKeys::J);
-    AddKeyMapping(DefaultMappingContext, IA_StartCoverage, EKeys::K);
-    AddKeyMapping(DefaultMappingContext, IA_StartFollow, EKeys::F);
-    // AddKeyMapping(DefaultMappingContext, IA_StartAvoid, EKeys::A);  // 暂时禁用
-    AddKeyMapping(DefaultMappingContext, IA_StartFormation, EKeys::B);
-    AddKeyMapping(DefaultMappingContext, IA_TakePhoto, EKeys::L);  // L for Lens/Light
-    AddKeyMapping(DefaultMappingContext, IA_ToggleRecording, EKeys::R);  // R for Recording
-    AddKeyMapping(DefaultMappingContext, IA_ToggleTCPStream, EKeys::V);  // V for Video stream
+    // ========== IMC_RTS 按键映射 (框选、编组、生成等) ==========
+    AddKeyMapping(IMC_RTS, IA_LeftClick, EKeys::LeftMouseButton);
+    AddKeyMapping(IMC_RTS, IA_RightClick, EKeys::RightMouseButton);
+    AddKeyMapping(IMC_RTS, IA_Pickup, EKeys::P);
+    AddKeyMapping(IMC_RTS, IA_Drop, EKeys::O);
+    AddKeyMapping(IMC_RTS, IA_SpawnItem, EKeys::I);
+    AddKeyMapping(IMC_RTS, IA_SpawnRobotDog, EKeys::T);
+    AddKeyMapping(IMC_RTS, IA_PrintInfo, EKeys::Y);
+    AddKeyMapping(IMC_RTS, IA_DestroyLast, EKeys::U);
+    AddKeyMapping(IMC_RTS, IA_SwitchCamera, EKeys::Tab);
+    AddKeyMapping(IMC_RTS, IA_ReturnSpectator, EKeys::Zero);
+    AddKeyMapping(IMC_RTS, IA_StartPatrol, EKeys::G);
+    AddKeyMapping(IMC_RTS, IA_StartCharge, EKeys::H);
+    AddKeyMapping(IMC_RTS, IA_StopIdle, EKeys::J);
+    AddKeyMapping(IMC_RTS, IA_StartCoverage, EKeys::K);
+    AddKeyMapping(IMC_RTS, IA_StartFollow, EKeys::F);
+    // AddKeyMapping(IMC_RTS, IA_StartAvoid, EKeys::A);  // 暂时禁用
+    AddKeyMapping(IMC_RTS, IA_StartFormation, EKeys::B);
+    AddKeyMapping(IMC_RTS, IA_TakePhoto, EKeys::L);  // L for Lens/Light
+    AddKeyMapping(IMC_RTS, IA_ToggleRecording, EKeys::R);  // R for Recording
+    AddKeyMapping(IMC_RTS, IA_ToggleTCPStream, EKeys::V);  // V for Video stream
 
     // 编组快捷键 (1~5, Ctrl+1~5 由代码检测)
-    AddKeyMapping(DefaultMappingContext, IA_ControlGroup1, EKeys::One);
-    AddKeyMapping(DefaultMappingContext, IA_ControlGroup2, EKeys::Two);
-    AddKeyMapping(DefaultMappingContext, IA_ControlGroup3, EKeys::Three);
-    AddKeyMapping(DefaultMappingContext, IA_ControlGroup4, EKeys::Four);
-    AddKeyMapping(DefaultMappingContext, IA_ControlGroup5, EKeys::Five);
-    AddKeyMapping(DefaultMappingContext, IA_CreateSquad, EKeys::Q);  // Q for sQuad
-    AddKeyMapping(DefaultMappingContext, IA_DisbandSquad, EKeys::Q);  // Shift+Q 解散 (Shift 在代码中检测)
-    AddKeyMapping(DefaultMappingContext, IA_ToggleMouseMode, EKeys::M);  // M for Mode
-    AddKeyMapping(DefaultMappingContext, IA_ToggleMainUI, EKeys::Z);  // Z for UI toggle
+    AddKeyMapping(IMC_RTS, IA_ControlGroup1, EKeys::One);
+    AddKeyMapping(IMC_RTS, IA_ControlGroup2, EKeys::Two);
+    AddKeyMapping(IMC_RTS, IA_ControlGroup3, EKeys::Three);
+    AddKeyMapping(IMC_RTS, IA_ControlGroup4, EKeys::Four);
+    AddKeyMapping(IMC_RTS, IA_ControlGroup5, EKeys::Five);
+    AddKeyMapping(IMC_RTS, IA_CreateSquad, EKeys::Q);  // Q for sQuad
+    AddKeyMapping(IMC_RTS, IA_DisbandSquad, EKeys::Q);  // Shift+Q 解散 (Shift 在代码中检测)
+    AddKeyMapping(IMC_RTS, IA_ToggleMouseMode, EKeys::M);  // M for Mode
+    AddKeyMapping(IMC_RTS, IA_ToggleMainUI, EKeys::Z);  // Z for UI toggle
 
     // 突发事件系统
-    AddKeyMapping(DefaultMappingContext, IA_TriggerEmergency, EKeys::Hyphen);  // "-" 键触发/结束事件
-    AddKeyMapping(DefaultMappingContext, IA_ToggleEmergencyUI, EKeys::X);  // "X" 键切换详情界面
+    AddKeyMapping(IMC_RTS, IA_TriggerEmergency, EKeys::Hyphen);  // "-" 键触发/结束事件
+    AddKeyMapping(IMC_RTS, IA_ToggleEmergencyUI, EKeys::X);  // "X" 键切换详情界面
 
-    // Agent View Mode 移动控制 (WASD)
-    // W = 前进 (Y+), S = 后退 (Y-), A = 左移 (X-), D = 右移 (X+)
-    AddWASDMapping(DefaultMappingContext, IA_Move);
+    // ========== IMC_AgentControl 按键映射 (WASD、视角) ==========
+    // 仅在 Agent View Mode 时由 MAAgentInputComponent 添加
+    
+    // WASD 移动
+    AddWASDMapping(IMC_AgentControl, IA_Move);
 
-    // Agent View Mode 视角控制 (鼠标)
-    AddMouseLookMapping(DefaultMappingContext, IA_Look);
+    // 鼠标视角
+    AddMouseLookMapping(IMC_AgentControl, IA_Look);
 
-    // Agent View Mode 视角控制 (方向键)
-    AddArrowLookMapping(DefaultMappingContext, IA_LookArrow);
+    // 方向键视角
+    AddArrowLookMapping(IMC_AgentControl, IA_LookArrow);
 
-    // Agent View Mode 垂直移动 (Space/Ctrl)
-    AddKeyMapping(DefaultMappingContext, IA_MoveUp, EKeys::SpaceBar);
-    AddKeyMapping(DefaultMappingContext, IA_MoveDown, EKeys::LeftControl);
+    // 垂直移动 (Space/Ctrl)
+    AddKeyMapping(IMC_AgentControl, IA_MoveUp, EKeys::SpaceBar);
+    AddKeyMapping(IMC_AgentControl, IA_MoveDown, EKeys::LeftControl);
 
-    UE_LOG(LogTemp, Log, TEXT("[Input] MAInputActions initialized with %d actions"), 35);
+    UE_LOG(LogTemp, Log, TEXT("[Input] MAInputActions initialized - IMC_RTS + IMC_AgentControl"));
 }
 
 UInputAction* UMAInputActions::CreateInputAction(const FName& Name, EInputActionValueType ValueType)
