@@ -11,6 +11,7 @@
 
 class AMACharacter;
 class UMACameraSensorComponent;
+class UMAAgentInputComponent;
 
 UCLASS()
 class MULTIAGENT_API UMAViewportManager : public UWorldSubsystem
@@ -51,18 +52,6 @@ public:
     // 获取当前控制的 Agent
     UFUNCTION(BlueprintCallable, Category = "Viewport")
     AMACharacter* GetControlledAgent() const { return ControlledAgent.Get(); }
-    
-    // 应用移动输入 (WASD)
-    UFUNCTION(BlueprintCallable, Category = "Viewport")
-    void ApplyMovementInput(FVector2D Input);
-    
-    // 应用垂直移动输入 (Space/Ctrl for Drone)
-    UFUNCTION(BlueprintCallable, Category = "Viewport")
-    void ApplyVerticalInput(float Input);
-    
-    // 应用视角输入 (鼠标)
-    UFUNCTION(BlueprintCallable, Category = "Viewport")
-    void ApplyLookInput(FVector2D Input);
 
 protected:
     virtual void Initialize(FSubsystemCollectionBase& Collection) override;
@@ -91,13 +80,11 @@ private:
     UPROPERTY()
     TWeakObjectPtr<AMACharacter> ControlledAgent;
     
-    // 相机俯仰角参数
-    float DefaultCameraPitch = -15.f;
-    float CurrentCameraPitch = -15.f;
-    float MinCameraPitch = -60.f;
-    float MaxCameraPitch = 30.f;
+    // Agent 输入组件 (仅在 Agent View Mode 时存在)
+    UPROPERTY()
+    UMAAgentInputComponent* AgentInputComponent = nullptr;
     
-    // 鼠标视角灵敏度
-    float LookSensitivityYaw = 14.0f;   // 水平旋转灵敏度
-    float LookSensitivityPitch = 14.0f; // 垂直俯仰灵敏度
+    // 创建/销毁输入组件
+    void CreateAgentInputComponent(APlayerController* PC, AMACharacter* Agent);
+    void DestroyAgentInputComponent();
 };

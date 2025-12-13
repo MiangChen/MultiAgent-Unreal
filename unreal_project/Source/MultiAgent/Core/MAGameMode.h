@@ -29,6 +29,9 @@ public:
 protected:
     virtual void BeginPlay() override;
     
+    // 设置 Spectator 初始位置（从 SimConfig.json 读取）
+    void SetupSpectatorStart();
+    
     // 从配置文件加载并生成所有 Agent
     void LoadAndSpawnAgents();
 };

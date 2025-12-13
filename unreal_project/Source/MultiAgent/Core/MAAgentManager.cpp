@@ -271,41 +271,27 @@ AMACharacter* UMAAgentManager::SpawnAgentFromConfig(const FMAAgentConfig& Config
     // 计算位置
     FVector SpawnLocation = Config.bAutoPosition ? CalculateAutoPosition(Index, TotalCount) : Config.Position;
     
-    // 地面 Agent 投影到 NavMesh (Drone 不需要，会从地面起飞)
+    // 判断是否为 Drone
     bool bIsDrone = (Config.Type == EMAAgentType::Drone || 
                      Config.Type == EMAAgentType::DronePhantom4 || 
                      Config.Type == EMAAgentType::DroneInspire2);
     
-    if (bIsDrone)
+    // 地面检测：从上方向下射线找地面
+    FHitResult HitResult;
+    FVector TraceStart = SpawnLocation + FVector(0.f, 0.f, 2000.f);
+    FVector TraceEnd = SpawnLocation - FVector(0.f, 0.f, 10000.f);
+    
+    if (GetWorld()->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, ECC_Visibility))
     {
-        // Drone 从地面开始，需要找到地面高度
-        FHitResult HitResult;
-        FVector TraceStart = SpawnLocation + FVector(0.f, 0.f, 1000.f);
-        FVector TraceEnd = SpawnLocation - FVector(0.f, 0.f, 10000.f);
-        
-        if (GetWorld()->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, ECC_Visibility))
-        {
-            SpawnLocation.Z = HitResult.Location.Z + 50.f;  // 地面上方 50 单位
-        }
-        else
-        {
-            SpawnLocation.Z = 0.f;  // 找不到地面，默认 0
-        }
+        // 地面 Agent 需要加上 Capsule 半高，Drone 只需要一点偏移
+        float HeightOffset = bIsDrone ? 50.f : 100.f;  // Human/RobotDog 需要更高的偏移
+        SpawnLocation.Z = HitResult.Location.Z + HeightOffset;
+        UE_LOG(LogTemp, Log, TEXT("[AgentManager] %s: Ground at Z=%.0f, spawn at Z=%.0f"), 
+            *Config.ID, HitResult.Location.Z, SpawnLocation.Z);
     }
     else
     {
-        // 地面 Agent 投影到 NavMesh
-        if (SpawnSettings.bProjectToNavMesh)
-        {
-            if (UNavigationSystemV1* NavSys = UNavigationSystemV1::GetCurrent(GetWorld()))
-            {
-                FNavLocation NavLocation;
-                if (NavSys->ProjectPointToNavigation(SpawnLocation, NavLocation, FVector(500.f, 500.f, 500.f)))
-                {
-                    SpawnLocation = NavLocation.Location;
-                }
-            }
-        }
+        UE_LOG(LogTemp, Warning, TEXT("[AgentManager] No ground detected for %s"), *Config.ID);
     }
     
     // 生成 Agent

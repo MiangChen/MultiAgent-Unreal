@@ -5,6 +5,7 @@
 #include "../Agent/Character/MACharacter.h"
 #include "../Agent/Character/MADroneCharacter.h"
 #include "../Agent/Component/Sensor/MACameraSensorComponent.h"
+#include "../Input/MAAgentInputComponent.h"
 #include "../UI/MAHUD.h"
 #include "Engine/Engine.h"
 #include "Camera/CameraComponent.h"
@@ -169,14 +170,14 @@ void UMAViewportManager::EnterAgentViewMode(AMACharacter* Agent)
     // 启用 Agent 的直接控制模式
     Agent->SetDirectControl(true);
     
-    // 重置相机俯仰角
-    CurrentCameraPitch = DefaultCameraPitch;
-    
-    // 显示 Direct Control 指示器 (Requirements: 3.3)
+    // 创建 Agent 输入组件，添加 IMC_AgentControl
     if (UWorld* World = GetWorld())
     {
         if (APlayerController* PC = World->GetFirstPlayerController())
         {
+            CreateAgentInputComponent(PC, Agent);
+            
+            // 显示 Direct Control 指示器 (Requirements: 3.3)
             if (AMAHUD* HUD = Cast<AMAHUD>(PC->GetHUD()))
             {
                 HUD->ShowDirectControlIndicator(Agent);
@@ -204,8 +205,8 @@ void UMAViewportManager::ExitAgentViewMode()
     bIsInAgentViewMode = false;
     ControlledAgent.Reset();
     
-    // 重置相机俯仰角
-    CurrentCameraPitch = DefaultCameraPitch;
+    // 销毁 Agent 输入组件，移除 IMC_AgentControl
+    DestroyAgentInputComponent();
     
     // 隐藏 Direct Control 指示器 (Requirements: 3.3)
     if (UWorld* World = GetWorld())
@@ -220,97 +221,29 @@ void UMAViewportManager::ExitAgentViewMode()
     }
 }
 
-void UMAViewportManager::ApplyMovementInput(FVector2D Input)
+void UMAViewportManager::CreateAgentInputComponent(APlayerController* PC, AMACharacter* Agent)
 {
-    if (!bIsInAgentViewMode || !ControlledAgent.IsValid())
-    {
-        return;
-    }
+    // 先销毁旧的
+    DestroyAgentInputComponent();
     
-    AMACharacter* Agent = ControlledAgent.Get();
+    // 创建新的输入组件
+    AgentInputComponent = NewObject<UMAAgentInputComponent>(PC);
+    AgentInputComponent->RegisterComponent();
+    AgentInputComponent->Initialize(PC, Agent);
     
-    // 如果输入为零，不需要处理
-    if (Input.IsNearlyZero())
-    {
-        return;
-    }
-    
-    // 获取 Agent 的朝向
-    FRotator AgentRotation = Agent->GetActorRotation();
-    
-    // 计算基于 Agent 朝向的移动方向
-    // Input.Y = 前后 (W/S), Input.X = 左右 (A/D)
-    FVector ForwardDirection = FRotationMatrix(AgentRotation).GetUnitAxis(EAxis::X);
-    FVector RightDirection = FRotationMatrix(AgentRotation).GetUnitAxis(EAxis::Y);
-    
-    // 组合移动方向
-    FVector WorldDirection = ForwardDirection * Input.Y + RightDirection * Input.X;
-    WorldDirection.Z = 0.f;  // 保持水平移动
-    
-    if (!WorldDirection.IsNearlyZero())
-    {
-        WorldDirection.Normalize();
-    }
-    
-    // 应用移动
-    Agent->ApplyDirectMovement(WorldDirection);
+    UE_LOG(LogTemp, Log, TEXT("[ViewportManager] Created AgentInputComponent for %s"), *Agent->AgentName);
 }
 
-void UMAViewportManager::ApplyVerticalInput(float Input)
+void UMAViewportManager::DestroyAgentInputComponent()
 {
-    if (!bIsInAgentViewMode || !ControlledAgent.IsValid())
+    if (AgentInputComponent)
     {
-        return;
-    }
-    
-    // 检查是否为 Drone
-    AMADroneCharacter* Drone = Cast<AMADroneCharacter>(ControlledAgent.Get());
-    if (Drone)
-    {
-        // Drone 支持垂直移动
-        Drone->ApplyVerticalMovement(Input);
-    }
-    // 非 Drone Agent 忽略垂直输入
-}
-
-void UMAViewportManager::ApplyLookInput(FVector2D Input)
-{
-    if (!bIsInAgentViewMode || !ControlledAgent.IsValid())
-    {
-        return;
-    }
-    
-    AMACharacter* Agent = ControlledAgent.Get();
-    
-    // 水平输入旋转 Agent Yaw（应用灵敏度）
-    if (!FMath::IsNearlyZero(Input.X))
-    {
-        FRotator CurrentRotation = Agent->GetActorRotation();
-        CurrentRotation.Yaw += Input.X * LookSensitivityYaw;
-        Agent->SetActorRotation(CurrentRotation);
-    }
-    
-    // 垂直输入调整相机 Pitch（限制范围，应用灵敏度）
-    if (!FMath::IsNearlyZero(Input.Y))
-    {
-        CurrentCameraPitch = FMath::Clamp(
-            CurrentCameraPitch + Input.Y * LookSensitivityPitch,
-            MinCameraPitch,
-            MaxCameraPitch
-        );
+        AgentInputComponent->Cleanup();
+        AgentInputComponent->DestroyComponent();
+        AgentInputComponent = nullptr;
         
-        // 更新相机组件的俯仰角
-        UMACameraSensorComponent* CameraSensor = Agent->GetCameraSensor();
-        if (CameraSensor)
-        {
-            // 获取相机组件并调整俯仰角
-            UCameraComponent* CameraComp = CameraSensor->GetCameraComponent();
-            if (CameraComp)
-            {
-                FRotator CameraRotation = CameraComp->GetRelativeRotation();
-                CameraRotation.Pitch = CurrentCameraPitch;
-                CameraComp->SetRelativeRotation(CameraRotation);
-            }
-        }
+        UE_LOG(LogTemp, Log, TEXT("[ViewportManager] Destroyed AgentInputComponent"));
     }
 }
+
+
