@@ -41,7 +41,7 @@ bool UMACommandManager::SendCommandToAgent(AMACharacter* Agent, EMACommand Comma
     }
 
     bool bSuccess = ApplyCommand(Agent, Command, Params);
-    
+
     if (bSuccess && Params.bShowMessage)
     {
         GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green,
@@ -58,7 +58,7 @@ FMACommandResult UMACommandManager::SendCommand(EMACommand Command, const FMACom
     // 自动填充缺失的参数
     FMACommandParams Params = InParams;
     AutoFillCommandParams(Command, Params);
-    
+
     TArray<AMACharacter*> Agents = GetControllableAgents(Params.bExcludeTracker);
     return SendCommandToAgents(Agents, Command, Params);
 }
@@ -66,7 +66,7 @@ FMACommandResult UMACommandManager::SendCommand(EMACommand Command, const FMACom
 FMACommandResult UMACommandManager::SendCommandToType(EMAAgentType Type, EMACommand Command, const FMACommandParams& Params)
 {
     FMACommandResult Result;
-    
+
     UMAAgentManager* AgentManager = GetWorld()->GetSubsystem<UMAAgentManager>();
     if (!AgentManager)
     {
@@ -100,7 +100,7 @@ FMACommandResult UMACommandManager::SendCommandToAgents(const TArray<AMACharacte
         if (ApplyCommand(Agent, Command, Params))
         {
             Result.AffectedCount++;
-            
+
             if (Params.bShowMessage)
             {
                 FColor MessageColor = FColor::Green;
@@ -114,7 +114,7 @@ FMACommandResult UMACommandManager::SendCommandToAgents(const TArray<AMACharacte
                     case EMACommand::Avoid: MessageColor = FColor::Orange; break;
                     default: break;
                 }
-                
+
                 GEngine->AddOnScreenDebugMessage(-1, 2.f, MessageColor,
                     FString::Printf(TEXT("%s: %s"), *Agent->AgentName, *CommandToString(Command)));
             }
@@ -146,7 +146,7 @@ TArray<AMACharacter*> UMACommandManager::GetControllableAgents(bool bExcludeTrac
 
     // 收集 RobotDog
     Result.Append(AgentManager->GetAgentsByType(EMAAgentType::RobotDog));
-    
+
     // 收集所有 Drone 类型
     Result.Append(AgentManager->GetAllDrones());
 
@@ -226,20 +226,20 @@ bool UMACommandManager::ApplyCommand(AMACharacter* Agent, EMACommand Command, co
     }
 
     UMAAbilitySystemComponent* ASC = Cast<UMAAbilitySystemComponent>(Agent->GetAbilitySystemComponent());
-    
+
     // Navigate 和 Avoid 是直接操作，不需要 ASC Tag
     if (Command == EMACommand::Navigate)
     {
         return Agent->TryNavigateTo(Params.TargetLocation);
     }
-    
+
     if (Command == EMACommand::Avoid)
     {
         if (!ASC)
         {
             return false;
         }
-        
+
         // Drone 保持高度
         FVector FinalTarget = Params.TargetLocation;
         if (Agent->AgentType == EMAAgentType::Drone ||
@@ -248,7 +248,7 @@ bool UMACommandManager::ApplyCommand(AMACharacter* Agent, EMACommand Command, co
         {
             FinalTarget.Z = Agent->GetActorLocation().Z;
         }
-        
+
         return ASC->TryActivateAvoid(FinalTarget);
     }
 

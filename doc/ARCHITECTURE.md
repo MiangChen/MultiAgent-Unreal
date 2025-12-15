@@ -1002,3 +1002,339 @@ HUD::OnPlannerResponse() → SimpleMainWidget::SetResultText() → 显示结果
 - **回车提交**: 输入框支持回车键提交指令
 - **模拟响应**: 开发阶段使用模拟数据测试
 - **兼容 RTS**: UI 显示时仍支持 RTS 命令快捷键
+
+
+## 14. 通信协议 (Communication Protocol)
+
+### 14.1 概述
+
+MACommSubsystem 实现了仿真端与规划器后端之间的完整 HTTP 双向通信协议。系统支持多种消息类型的发送和接收，并为未来的消息类型扩展预留接口。
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        通信协议架构                                          │
+│                                                                             │
+│  ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐       │
+│  │ MASimpleMainWidget│    │ MAEmergencyWidget│    │  Task System    │       │
+│  │ (UI 输入)        │    │ (按钮事件)       │    │ (任务反馈)      │       │
+│  └────────┬─────────┘    └────────┬─────────┘    └────────┬────────┘       │
+│           │                       │                       │                 │
+│           │ UI_Input_Message      │ Button_Event_Message  │ Task_Feedback   │
+│           └───────────────────────┼───────────────────────┘                 │
+│                                   ▼                                         │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                    MACommSubsystem                                   │   │
+│  │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐      │   │
+│  │  │ Message Factory │  │ HTTP Client     │  │ Poll Timer      │      │   │
+│  │  │ 创建消息信封    │  │ POST/GET 请求   │  │ 定期轮询        │      │   │
+│  │  └─────────────────┘  └─────────────────┘  └─────────────────┘      │   │
+│  │                                                                      │   │
+│  │  ┌─────────────────┐  ┌─────────────────┐                           │   │
+│  │  │ JSON Serializer │  │ Response Parser │                           │   │
+│  │  │ 序列化/反序列化 │  │ 解析 DAG/Graph  │                           │   │
+│  │  └─────────────────┘  └─────────────────┘                           │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                   │                                         │
+│                                   │ HTTP                                    │
+│                                   ▼                                         │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                    Planner Backend                                   │   │
+│  │                    http://localhost:8080                             │   │
+│  │  POST /api/sim/message  - 接收仿真端消息                             │   │
+│  │  GET  /api/sim/poll     - 返回待处理消息                             │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 14.2 消息类型
+
+#### 出站消息 (仿真端 → 规划器)
+
+| 消息类型 | 枚举值 | 说明 |
+|----------|--------|------|
+| `UIInput` | ui_input | UI 输入框提交的文本数据 |
+| `ButtonEvent` | button_event | 按钮点击事件 |
+| `TaskFeedback` | task_feedback | 任务执行结果反馈 |
+
+#### 入站消息 (规划器 → 仿真端)
+
+| 消息类型 | 枚举值 | 说明 |
+|----------|--------|------|
+| `TaskPlanDAG` | task_plan_dag | 任务规划有向无环图 |
+| `WorldModelGraph` | world_model_graph | 世界模型图 |
+
+### 14.3 消息格式
+
+所有消息使用统一的 Message_Envelope 包装：
+
+```json
+{
+    "message_type": "ui_input",
+    "timestamp": 1702656000000,
+    "message_id": "550e8400-e29b-41d4-a716-446655440000",
+    "payload": {
+        // 消息类型特定的数据
+    }
+}
+```
+
+#### UI 输入消息 (ui_input)
+
+```json
+{
+    "message_type": "ui_input",
+    "timestamp": 1702656000000,
+    "message_id": "...",
+    "payload": {
+        "input_source_id": "SimpleMainWidget_InputBox",
+        "input_content": "让机器人去巡逻"
+    }
+}
+```
+
+#### 按钮事件消息 (button_event)
+
+```json
+{
+    "message_type": "button_event",
+    "timestamp": 1702656000000,
+    "message_id": "...",
+    "payload": {
+        "widget_name": "EmergencyWidget",
+        "button_id": "btn_confirm",
+        "button_text": "确认处理"
+    }
+}
+```
+
+#### 任务反馈消息 (task_feedback)
+
+```json
+{
+    "message_type": "task_feedback",
+    "timestamp": 1702656000000,
+    "message_id": "...",
+    "payload": {
+        "task_id": "patrol_001",
+        "status": "success",
+        "duration_seconds": 120.5,
+        "energy_consumed": 15.3,
+        "error_message": ""
+    }
+}
+```
+
+#### 任务规划 DAG (task_plan_dag)
+
+```json
+{
+    "message_type": "task_plan_dag",
+    "timestamp": 1702656000000,
+    "message_id": "...",
+    "payload": {
+        "nodes": [
+            {
+                "node_id": "node_1",
+                "task_type": "navigate",
+                "parameters": {"target_x": "100", "target_y": "200"},
+                "dependencies": []
+            },
+            {
+                "node_id": "node_2",
+                "task_type": "patrol",
+                "parameters": {"path_id": "path_01"},
+                "dependencies": ["node_1"]
+            }
+        ],
+        "edges": [
+            {"from_node_id": "node_1", "to_node_id": "node_2"}
+        ]
+    }
+}
+```
+
+#### 世界模型图 (world_model_graph)
+
+```json
+{
+    "message_type": "world_model_graph",
+    "timestamp": 1702656000000,
+    "message_id": "...",
+    "payload": {
+        "entities": [
+            {
+                "entity_id": "robot_01",
+                "entity_type": "RobotDog",
+                "properties": {"battery": "0.85", "status": "idle"}
+            }
+        ],
+        "relationships": [
+            {
+                "entity_a_id": "robot_01",
+                "entity_b_id": "area_01",
+                "relationship_type": "assigned_to"
+            }
+        ]
+    }
+}
+```
+
+### 14.4 API 使用方法
+
+#### 发送消息
+
+```cpp
+// 获取 CommSubsystem
+UMACommSubsystem* CommSubsystem = GetGameInstance()->GetSubsystem<UMACommSubsystem>();
+
+// 发送 UI 输入消息
+CommSubsystem->SendUIInputMessage(TEXT("MyWidget_InputBox"), TEXT("用户输入内容"));
+
+// 发送按钮事件消息
+CommSubsystem->SendButtonEventMessage(TEXT("MyWidget"), TEXT("btn_submit"), TEXT("提交"));
+
+// 发送任务反馈消息
+FMATaskFeedbackMessage Feedback;
+Feedback.TaskId = TEXT("task_001");
+Feedback.Status = TEXT("success");
+Feedback.DurationSeconds = 60.0f;
+Feedback.EnergyConsumed = 10.0f;
+CommSubsystem->SendTaskFeedbackMessage(Feedback);
+```
+
+#### 接收消息 (委托绑定)
+
+```cpp
+// 绑定任务规划 DAG 接收委托
+CommSubsystem->OnTaskPlanReceived.AddDynamic(this, &UMyClass::OnTaskPlanReceived);
+
+void UMyClass::OnTaskPlanReceived(const FMATaskPlanDAG& TaskPlan)
+{
+    // 处理任务规划 DAG
+    for (const FMATaskPlanNode& Node : TaskPlan.Nodes)
+    {
+        UE_LOG(LogTemp, Log, TEXT("Task Node: %s, Type: %s"), *Node.NodeId, *Node.TaskType);
+    }
+}
+
+// 绑定世界模型图接收委托
+CommSubsystem->OnWorldModelReceived.AddDynamic(this, &UMyClass::OnWorldModelReceived);
+
+void UMyClass::OnWorldModelReceived(const FMAWorldModelGraph& WorldModel)
+{
+    // 处理世界模型图
+    for (const FMAWorldModelEntity& Entity : WorldModel.Entities)
+    {
+        UE_LOG(LogTemp, Log, TEXT("Entity: %s, Type: %s"), *Entity.EntityId, *Entity.EntityType);
+    }
+}
+```
+
+#### 向后兼容
+
+旧的 `SendNaturalLanguageCommand` API 仍然可用，内部会转换为 UI 输入消息：
+
+```cpp
+// 旧 API (仍然支持)
+CommSubsystem->SendNaturalLanguageCommand(TEXT("让机器人去巡逻"));
+
+// 等价于
+CommSubsystem->SendUIInputMessage(TEXT("legacy_command"), TEXT("让机器人去巡逻"));
+```
+
+### 14.5 配置选项
+
+通过 `config/SimConfig.json` 配置通信参数：
+
+```json
+{
+    "PlannerServerURL": "http://localhost:8080",
+    "bUseMockData": true,
+    "bEnablePolling": true,
+    "PollIntervalSeconds": 1.0
+}
+```
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `PlannerServerURL` | string | `http://localhost:8080` | 规划器服务器地址 |
+| `bUseMockData` | bool | `true` | 是否使用模拟数据 (开发测试用) |
+| `bEnablePolling` | bool | `true` | 是否启用轮询 |
+| `PollIntervalSeconds` | float | `1.0` | 轮询间隔 (秒) |
+
+### 14.6 错误处理
+
+| 错误类型 | 处理策略 |
+|---------|---------|
+| 连接失败 | 重试 3 次，指数退避 (1s, 2s, 4s) |
+| 超时 (>10s) | 取消请求，记录日志 |
+| 4xx 错误 | 不重试，记录错误日志 |
+| 5xx 错误 | 重试 3 次 |
+| JSON 解析失败 | 记录原始响应，广播错误 |
+
+### 14.7 Mock 模式
+
+当 `bUseMockData = true` 时：
+- 不发送实际 HTTP 请求
+- 生成模拟响应数据
+- 用于开发和测试
+- 轮询功能自动禁用
+
+### 14.8 UI 集成指南
+
+#### 已集成的 Widget
+
+| Widget | 按钮事件 | 输入消息 |
+|--------|----------|----------|
+| **MASimpleMainWidget** | `btn_send` (发送) | `SimpleMainWidget_InputBox` |
+| **MAEmergencyWidget** | `btn_expand_search` (扩大搜索范围)<br>`btn_ignore_return` (忽略并返回)<br>`btn_switch_firefight` (切换灭火任务)<br>`btn_send` (发送) | `EmergencyWidget_InputBox` |
+
+#### 新增 Widget 集成步骤
+
+为新 UI Widget 添加通信支持：
+
+1. **添加头文件引用**
+```cpp
+#include "MACommSubsystem.h"
+```
+
+2. **在按钮点击处理函数中上报事件**
+```cpp
+if (UGameInstance* GameInstance = GetGameInstance())
+{
+    if (UMACommSubsystem* CommSubsystem = GameInstance->GetSubsystem<UMACommSubsystem>())
+    {
+        CommSubsystem->SendButtonEventMessage(
+            TEXT("YourWidgetName"),     // widget_name
+            TEXT("btn_xxx"),            // button_id
+            TEXT("按钮文字")            // button_text
+        );
+    }
+}
+```
+
+3. **在提交输入时上报消息**
+```cpp
+CommSubsystem->SendUIInputMessage(
+    TEXT("YourWidgetName_InputBox"),    // input_source_id
+    InputContent                         // input_content
+);
+```
+
+#### 验收测试日志
+
+操作 EmergencyWidget 时应看到以下日志：
+
+**点击操作按钮：**
+```
+LogMAEmergencyWidget: Action Button 1 clicked: 扩大搜索范围
+LogMACommSubsystem: SendButtonEventMessage: Widget=EmergencyWidget, ButtonId=btn_expand_search, ButtonText=扩大搜索范围
+```
+
+**点击发送按钮：**
+```
+LogMAEmergencyWidget: Send button clicked
+LogMACommSubsystem: SendButtonEventMessage: Widget=EmergencyWidget, ButtonId=btn_send, ButtonText=发送
+LogMAEmergencyWidget: Submitting message: xxx
+LogMACommSubsystem: SendUIInputMessage: SourceId=EmergencyWidget_InputBox, Content=xxx
+```

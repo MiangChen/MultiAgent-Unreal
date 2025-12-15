@@ -47,6 +47,19 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config|Debug")
     bool bDebugMode = true;
 
+    //=========================================================================
+    // 轮询配置
+    // Requirements: 5.5, 8.1
+    //=========================================================================
+
+    /** 是否启用轮询 (默认 true) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config|Polling")
+    bool bEnablePolling = true;
+
+    /** 轮询间隔 (秒，默认 1.0) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config|Polling")
+    float PollIntervalSeconds = 1.0f;
+
     /** JSON 配置中指定的默认地图路径 */
     UPROPERTY(BlueprintReadOnly, Category = "Config|Map")
     FString ConfiguredMapPath;

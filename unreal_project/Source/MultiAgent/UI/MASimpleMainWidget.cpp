@@ -1,5 +1,6 @@
 // MASimpleMainWidget.cpp
 // 简单的主界面 Widget - 纯 C++ 实现
+// Requirements: 2.2, 2.3, 3.2, 3.3, 3.4
 
 #include "MASimpleMainWidget.h"
 #include "Components/EditableTextBox.h"
@@ -15,6 +16,7 @@
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Blueprint/WidgetTree.h"
+#include "MACommSubsystem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMASimpleWidget, Log, All);
 
@@ -220,6 +222,21 @@ FString UMASimpleMainWidget::GetInputText() const
 void UMASimpleMainWidget::OnSendButtonClicked()
 {
     UE_LOG(LogMASimpleWidget, Log, TEXT("SendButton clicked"));
+    
+    // Requirements: 3.2, 3.3, 3.4 - 发送按钮事件消息
+    // 使用 "SimpleMainWidget", "btn_send", "发送" 作为参数
+    if (UGameInstance* GameInstance = GetGameInstance())
+    {
+        if (UMACommSubsystem* CommSubsystem = GameInstance->GetSubsystem<UMACommSubsystem>())
+        {
+            CommSubsystem->SendButtonEventMessage(
+                TEXT("SimpleMainWidget"),   // widget_name
+                TEXT("btn_send"),           // button_id
+                TEXT("发送")                // button_text
+            );
+        }
+    }
+    
     SubmitCommand();
 }
 
@@ -244,7 +261,20 @@ void UMASimpleMainWidget::SubmitCommand()
     
     UE_LOG(LogMASimpleWidget, Log, TEXT("Submitting command: %s"), *Command);
     
-    // 广播委托
+    // Requirements: 2.2, 2.3 - 使用新的 SendUIInputMessage 接口
+    // 使用 "SimpleMainWidget_InputBox" 作为 input_source_id
+    if (UGameInstance* GameInstance = GetGameInstance())
+    {
+        if (UMACommSubsystem* CommSubsystem = GameInstance->GetSubsystem<UMACommSubsystem>())
+        {
+            CommSubsystem->SendUIInputMessage(
+                TEXT("SimpleMainWidget_InputBox"),  // input_source_id
+                Command                              // input_content
+            );
+        }
+    }
+    
+    // 广播委托 (保持向后兼容，允许其他组件监听)
     OnCommandSubmitted.Broadcast(Command);
     
     // 清空输入框

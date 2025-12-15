@@ -37,6 +37,8 @@ void UMAGameInstance::Init()
     UE_LOG(LogMAGameInstance, Log, TEXT("  PlannerServerURL: %s"), *PlannerServerURL);
     UE_LOG(LogMAGameInstance, Log, TEXT("  bUseMockData: %s"), bUseMockData ? TEXT("true") : TEXT("false"));
     UE_LOG(LogMAGameInstance, Log, TEXT("  bDebugMode: %s"), bDebugMode ? TEXT("true") : TEXT("false"));
+    UE_LOG(LogMAGameInstance, Log, TEXT("  bEnablePolling: %s"), bEnablePolling ? TEXT("true") : TEXT("false"));
+    UE_LOG(LogMAGameInstance, Log, TEXT("  PollIntervalSeconds: %.2f"), PollIntervalSeconds);
     UE_LOG(LogMAGameInstance, Log, TEXT("  ConfiguredMapPath: %s"), *ConfiguredMapPath);
 }
 
@@ -122,6 +124,17 @@ void UMAGameInstance::LoadConfigFromJSON()
     if (JsonObject->HasField(TEXT("bDebugMode")))
     {
         bDebugMode = JsonObject->GetBoolField(TEXT("bDebugMode"));
+    }
+
+    // Requirements: 5.5, 8.1 - 读取轮询配置
+    if (JsonObject->HasField(TEXT("bEnablePolling")))
+    {
+        bEnablePolling = JsonObject->GetBoolField(TEXT("bEnablePolling"));
+    }
+
+    if (JsonObject->HasField(TEXT("PollIntervalSeconds")))
+    {
+        PollIntervalSeconds = static_cast<float>(JsonObject->GetNumberField(TEXT("PollIntervalSeconds")));
     }
 
     // 读取 SpectatorStart 配置

@@ -20,6 +20,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "MACameraSensorComponent.h"
+#include "MACommSubsystem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMAEmergencyWidget, Log, All);
 
@@ -551,24 +552,80 @@ FString UMAEmergencyWidget::GetInputText() const
 void UMAEmergencyWidget::OnActionButton1Clicked()
 {
     UE_LOG(LogMAEmergencyWidget, Log, TEXT("Action Button 1 clicked: 扩大搜索范围"));
+    
+    // 发送按钮事件消息到后端
+    if (UGameInstance* GameInstance = GetGameInstance())
+    {
+        if (UMACommSubsystem* CommSubsystem = GameInstance->GetSubsystem<UMACommSubsystem>())
+        {
+            CommSubsystem->SendButtonEventMessage(
+                TEXT("EmergencyWidget"),        // widget_name
+                TEXT("btn_expand_search"),      // button_id
+                TEXT("扩大搜索范围")            // button_text
+            );
+        }
+    }
+    
     OnActionButtonClicked.Broadcast(0);
 }
 
 void UMAEmergencyWidget::OnActionButton2Clicked()
 {
     UE_LOG(LogMAEmergencyWidget, Log, TEXT("Action Button 2 clicked: 忽略并返回"));
+    
+    // 发送按钮事件消息到后端
+    if (UGameInstance* GameInstance = GetGameInstance())
+    {
+        if (UMACommSubsystem* CommSubsystem = GameInstance->GetSubsystem<UMACommSubsystem>())
+        {
+            CommSubsystem->SendButtonEventMessage(
+                TEXT("EmergencyWidget"),        // widget_name
+                TEXT("btn_ignore_return"),      // button_id
+                TEXT("忽略并返回")              // button_text
+            );
+        }
+    }
+    
     OnActionButtonClicked.Broadcast(1);
 }
 
 void UMAEmergencyWidget::OnActionButton3Clicked()
 {
     UE_LOG(LogMAEmergencyWidget, Log, TEXT("Action Button 3 clicked: 切换灭火任务"));
+    
+    // 发送按钮事件消息到后端
+    if (UGameInstance* GameInstance = GetGameInstance())
+    {
+        if (UMACommSubsystem* CommSubsystem = GameInstance->GetSubsystem<UMACommSubsystem>())
+        {
+            CommSubsystem->SendButtonEventMessage(
+                TEXT("EmergencyWidget"),        // widget_name
+                TEXT("btn_switch_firefight"),   // button_id
+                TEXT("切换灭火任务")            // button_text
+            );
+        }
+    }
+    
     OnActionButtonClicked.Broadcast(2);
 }
 
 void UMAEmergencyWidget::OnSendButtonClicked()
 {
     UE_LOG(LogMAEmergencyWidget, Log, TEXT("Send button clicked"));
+    
+    // 发送按钮事件消息到后端
+    if (UGameInstance* GameInstance = GetGameInstance())
+    {
+        if (UMACommSubsystem* CommSubsystem = GameInstance->GetSubsystem<UMACommSubsystem>())
+        {
+            CommSubsystem->SendButtonEventMessage(
+                TEXT("EmergencyWidget"),    // widget_name
+                TEXT("btn_send"),           // button_id
+                TEXT("发送")                // button_text
+            );
+        }
+    }
+    
     SubmitMessage();
 }
 
@@ -588,7 +645,19 @@ void UMAEmergencyWidget::SubmitMessage()
     {
         UE_LOG(LogMAEmergencyWidget, Log, TEXT("Submitting message: %s"), *Message);
         
-        // 广播消息发送事件
+        // 发送 UI 输入消息到后端
+        if (UGameInstance* GameInstance = GetGameInstance())
+        {
+            if (UMACommSubsystem* CommSubsystem = GameInstance->GetSubsystem<UMACommSubsystem>())
+            {
+                CommSubsystem->SendUIInputMessage(
+                    TEXT("EmergencyWidget_InputBox"),   // input_source_id
+                    Message                              // input_content
+                );
+            }
+        }
+        
+        // 广播消息发送事件 (保持向后兼容)
         OnMessageSent.Broadcast(Message);
         
         // 清空输入框
