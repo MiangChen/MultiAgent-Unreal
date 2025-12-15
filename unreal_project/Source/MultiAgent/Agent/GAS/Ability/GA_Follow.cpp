@@ -3,8 +3,9 @@
 
 #include "GA_Follow.h"
 #include "../MAGameplayTags.h"
-#include "MACharacter.h"
-#include "MARobotDogCharacter.h"
+#include "../../Character/MACharacter.h"
+#include "../../Character/MARobotDogCharacter.h"
+#include "../../Component/Capability/MACapabilityComponents.h"
 #include "AIController.h"
 #include "TimerManager.h"
 
@@ -52,11 +53,11 @@ void UGA_Follow::ActivateAbility(
         return;
     }
     
-    // 从 RobotDog 获取 ScanRadius 作为跟随距离
-    if (AMARobotDogCharacter* Robot = Cast<AMARobotDogCharacter>(Character))
+    // 从 PatrolComponent 获取 ScanRadius 作为跟随距离
+    if (UMAPatrolComponent* PatrolComp = Character->FindComponentByClass<UMAPatrolComponent>())
     {
-        FollowDistance = Robot->ScanRadius;
-        UE_LOG(LogTemp, Log, TEXT("[Follow] Using Robot ScanRadius as FollowDistance: %.0f"), FollowDistance);
+        FollowDistance = PatrolComp->GetScanRadius();
+        UE_LOG(LogTemp, Log, TEXT("[Follow] Using PatrolComponent ScanRadius as FollowDistance: %.0f"), FollowDistance);
     }
     
     UE_LOG(LogTemp, Log, TEXT("[Follow] %s starts following %s"), 

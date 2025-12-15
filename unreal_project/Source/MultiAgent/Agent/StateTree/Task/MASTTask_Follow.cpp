@@ -1,11 +1,38 @@
 // MASTTask_Follow.cpp
 
 #include "MASTTask_Follow.h"
-#include "MACharacter.h"
-#include "MAAbilitySystemComponent.h"
-#include "../Interface/MAAgentInterfaces.h"
+#include "../../Character/MACharacter.h"
+#include "../../GAS/MAAbilitySystemComponent.h"
+#include "../../Interface/MAAgentInterfaces.h"
+#include "../../Component/Capability/MACapabilityComponents.h"
 #include "StateTreeExecutionContext.h"
 #include "GameplayTagContainer.h"
+
+// 辅助函数: 从 Actor 获取实现了指定 Interface 的 Component
+template<typename T>
+T* GetCapabilityInterface(AActor* Actor)
+{
+    if (!Actor) return nullptr;
+    
+    // 先尝试从 Actor 本身获取 (兼容旧代码)
+    if (T* Interface = Cast<T>(Actor))
+    {
+        return Interface;
+    }
+    
+    // 再从 Component 获取
+    TArray<UActorComponent*> Components;
+    Actor->GetComponents(Components);
+    for (UActorComponent* Comp : Components)
+    {
+        if (T* Interface = Cast<T>(Comp))
+        {
+            return Interface;
+        }
+    }
+    
+    return nullptr;
+}
 
 EStateTreeRunStatus FMASTTask_Follow::EnterState(
     FStateTreeExecutionContext& Context,
@@ -29,11 +56,11 @@ EStateTreeRunStatus FMASTTask_Follow::EnterState(
         return EStateTreeRunStatus::Failed;
     }
 
-    // 使用 Interface 获取 FollowTarget
-    IMAFollowable* Followable = Cast<IMAFollowable>(Owner);
+    // 使用 Interface 获取 FollowTarget (支持 Component 模式)
+    IMAFollowable* Followable = GetCapabilityInterface<IMAFollowable>(Owner);
     if (!Followable)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[STTask_Follow] Owner does not implement IMAFollowable"));
+        UE_LOG(LogTemp, Warning, TEXT("[STTask_Follow] Owner does not have IMAFollowable capability"));
         return EStateTreeRunStatus::Failed;
     }
 

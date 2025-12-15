@@ -7,29 +7,35 @@
 #include "AIController.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "UObject/ConstructorHelpers.h"
-#include "MAAbilitySystemComponent.h"
-#include "MAGameplayTags.h"
-#include "MAStateTreeComponent.h"
+#include "../GAS/MAAbilitySystemComponent.h"
+#include "../GAS/MAGameplayTags.h"
+#include "../StateTree/MAStateTreeComponent.h"
+#include "../Component/Capability/MACapabilityComponents.h"
 
 AMARobotDogCharacter::AMARobotDogCharacter()
 {
     AgentType = EMAAgentType::RobotDog;
     bIsPlayingWalk = false;
     
-    // Energy defaults
-    Energy = 100.f;
-    MaxEnergy = 100.f;
-    EnergyDrainRate = 1.f;
+    // ========== 创建 Capability Components ==========
+    EnergyComponent = CreateDefaultSubobject<UMAEnergyComponent>(TEXT("EnergyComponent"));
+    EnergyComponent->Energy = 100.f;
+    EnergyComponent->MaxEnergy = 100.f;
+    EnergyComponent->EnergyDrainRate = 1.f;
+
+    PatrolComponent = CreateDefaultSubobject<UMAPatrolComponent>(TEXT("PatrolComponent"));
+    PatrolComponent->ScanRadius = 200.f;
+
+    FollowComponent = CreateDefaultSubobject<UMAFollowComponent>(TEXT("FollowComponent"));
+
+    CoverageComponent = CreateDefaultSubobject<UMACoverageComponent>(TEXT("CoverageComponent"));
+    CoverageComponent->ScanRadius = 200.f;
     
-    // 创建 StateTree 组件 (使用自定义的 UMAStateTreeComponent)
+    // ========== StateTree 组件 ==========
     StateTreeComponent = CreateDefaultSubobject<UMAStateTreeComponent>(TEXT("StateTreeComponent"));
     StateTreeComponent->SetStartLogicAutomatically(true);
     
-    // 注意: StateTree Asset 需要在蓝图中设置，或者在编辑器中选择 RobotDog 后设置
-    // 路径: /Game/StateTree/ST_RobotDog.ST_RobotDog
-    
-    // CapsuleComponent 大小由基类 BeginPlay 中 AutoFitCapsuleToMesh() 自动计算
-    
+    // ========== Mesh 设置 ==========
     static ConstructorHelpers::FObjectFinder<USkeletalMesh> MeshAsset(
         TEXT("/Game/Robot/go1/go1.go1"));
     if (MeshAsset.Succeeded())
@@ -40,6 +46,7 @@ AMARobotDogCharacter::AMARobotDogCharacter()
         GetMesh()->SetRelativeScale3D(FVector(1.f, 1.f, 1.f));
     }
 
+    // ========== 动画设置 ==========
     static ConstructorHelpers::FObjectFinder<UAnimSequence> IdleAnimAsset(
         TEXT("/Game/Robot/go1/1Idle.1Idle"));
     if (IdleAnimAsset.Succeeded())
@@ -61,10 +68,9 @@ AMARobotDogCharacter::AMARobotDogCharacter()
         GetMesh()->Play(true);
     }
     
+    // ========== 移动设置 ==========
     GetCharacterMovement()->MaxWalkSpeed = 150.f;
     GetCharacterMovement()->MaxAcceleration = 512.f;
-    
-    // 配置跳跃参数
     GetCharacterMovement()->JumpZVelocity = 300.f;
     GetCharacterMovement()->AirControl = 0.2f;
     GetCharacterMovement()->NavAgentProps.bCanJump = true;
@@ -73,6 +79,12 @@ AMARobotDogCharacter::AMARobotDogCharacter()
 void AMARobotDogCharacter::BeginPlay()
 {
     Super::BeginPlay();
+    
+    // 绑定能量耗尽回调
+    if (EnergyComponent)
+    {
+        EnergyComponent->OnEnergyDepleted.AddDynamic(this, &AMARobotDogCharacter::OnEnergyDepleted);
+    }
     
     // 动态加载 StateTree Asset
     if (StateTreeComponent && !StateTreeComponent->HasStateTree())
@@ -104,15 +116,11 @@ void AMARobotDogCharacter::Tick(float DeltaTime)
     // 检测卡住并自动跳跃
     CheckStuckAndJump(DeltaTime);
     
-    // Energy drain while moving
-    if (bIsMoving && HasEnergy())
+    // 移动时消耗能量 (委托给 EnergyComponent)
+    if (bIsMoving && EnergyComponent && EnergyComponent->HasEnergy())
     {
-        DrainEnergy(DeltaTime);
+        EnergyComponent->DrainEnergy(DeltaTime);
     }
-    
-    // Update energy display and status
-    UpdateEnergyDisplay();
-    CheckLowEnergyStatus();
 }
 
 void AMARobotDogCharacter::PlayWalkAnimation()
@@ -136,81 +144,25 @@ void AMARobotDogCharacter::PlayIdleAnimation()
     }
 }
 
-// ========== Energy System ==========
+// ========== 便捷访问方法 ==========
 
-void AMARobotDogCharacter::DrainEnergy(float DeltaTime)
+float AMARobotDogCharacter::GetEnergy() const
 {
-    Energy = FMath::Max(0.f, Energy - EnergyDrainRate * DeltaTime);
-    
-    // Stop movement if energy depleted
-    if (Energy <= 0.f)
-    {
-        CancelNavigation();
-        StopFollowing();
-        UE_LOG(LogTemp, Warning, TEXT("[%s] Energy depleted! Stopping movement."), *AgentName);
-    }
+    return EnergyComponent ? EnergyComponent->GetEnergy() : 0.f;
 }
 
-void AMARobotDogCharacter::RestoreEnergy(float Amount)
+bool AMARobotDogCharacter::HasEnergy() const
 {
-    float OldEnergy = Energy;
-    // 如果 Amount >= MaxEnergy，直接设置为 MaxEnergy（充满）
-    if (Amount >= MaxEnergy)
-    {
-        Energy = MaxEnergy;
-    }
-    else
-    {
-        Energy = FMath::Min(MaxEnergy, Energy + Amount);
-    }
-    UE_LOG(LogTemp, Warning, TEXT("[%s] Energy restored: %.1f -> %.1f (Amount: %.1f)"), 
-        *AgentName, OldEnergy, Energy, Amount);
+    return EnergyComponent ? EnergyComponent->HasEnergy() : false;
 }
 
-void AMARobotDogCharacter::UpdateEnergyDisplay()
-{
-    // Display energy above head
-    FVector TextLocation = GetActorLocation() + FVector(0.f, 0.f, 120.f);
-    FString EnergyText = FString::Printf(TEXT("Energy: %.0f%%"), GetEnergyPercent());
-    
-    FColor DisplayColor = FColor::Green;
-    if (Energy < LowEnergyThreshold)
-    {
-        DisplayColor = FColor::Red;
-    }
-    else if (Energy < 50.f)
-    {
-        DisplayColor = FColor::Yellow;
-    }
-    
-    DrawDebugString(
-        GetWorld(),
-        TextLocation,
-        EnergyText,
-        nullptr,
-        DisplayColor,
-        0.f,
-        true,
-        1.0f
-    );
-}
+// ========== 能量耗尽回调 ==========
 
-void AMARobotDogCharacter::CheckLowEnergyStatus()
+void AMARobotDogCharacter::OnEnergyDepleted()
 {
-    if (!AbilitySystemComponent) return;
-    
-    const FMAGameplayTags& Tags = FMAGameplayTags::Get();
-    bool bHasLowEnergyTag = AbilitySystemComponent->HasGameplayTagFromContainer(Tags.Status_LowEnergy);
-    
-    if (Energy < LowEnergyThreshold && !bHasLowEnergyTag)
-    {
-        AbilitySystemComponent->AddLooseGameplayTag(Tags.Status_LowEnergy);
-        UE_LOG(LogTemp, Warning, TEXT("[%s] Low energy warning! %.0f%%"), *AgentName, GetEnergyPercent());
-    }
-    else if (Energy >= LowEnergyThreshold && bHasLowEnergyTag)
-    {
-        AbilitySystemComponent->RemoveLooseGameplayTag(Tags.Status_LowEnergy);
-    }
+    CancelNavigation();
+    StopFollowing();
+    UE_LOG(LogTemp, Warning, TEXT("[%s] Energy depleted! Stopping movement."), *AgentName);
 }
 
 // ========== Robot Abilities ==========
@@ -279,11 +231,10 @@ void AMARobotDogCharacter::CheckStuckAndJump(float DeltaTime)
             if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_WorldStatic, Params))
             {
                 // 前方是静态障碍物，执行向前跳跃
-                // 给一个向前+向上的冲量
                 FVector JumpDirection = GetActorForwardVector() * 200.f + FVector(0.f, 0.f, 600.f);
                 LaunchCharacter(JumpDirection, false, true);
                 
-                JumpCooldown = 1.0f;  // 1 秒冷却
+                JumpCooldown = 1.0f;
                 StuckTime = 0.f;
                 
                 UE_LOG(LogTemp, Log, TEXT("[%s] Stuck detected, jumping forward over obstacle"), *AgentName);

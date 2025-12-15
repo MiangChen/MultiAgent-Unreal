@@ -1,13 +1,40 @@
 // MASTTask_Coverage.cpp
 
 #include "MASTTask_Coverage.h"
-#include "MACharacter.h"
-#include "MAAbilitySystemComponent.h"
-#include "MACoverageArea.h"
-#include "../Interface/MAAgentInterfaces.h"
+#include "../../Character/MACharacter.h"
+#include "../../GAS/MAAbilitySystemComponent.h"
+#include "../../../Environment/MACoverageArea.h"
+#include "../../Interface/MAAgentInterfaces.h"
+#include "../../Component/Capability/MACapabilityComponents.h"
 #include "StateTreeExecutionContext.h"
 #include "GameplayTagContainer.h"
 #include "NavigationSystem.h"
+
+// 辅助函数: 从 Actor 获取实现了指定 Interface 的 Component
+template<typename T>
+T* GetCapabilityInterface(AActor* Actor)
+{
+    if (!Actor) return nullptr;
+    
+    // 先尝试从 Actor 本身获取 (兼容旧代码)
+    if (T* Interface = Cast<T>(Actor))
+    {
+        return Interface;
+    }
+    
+    // 再从 Component 获取
+    TArray<UActorComponent*> Components;
+    Actor->GetComponents(Components);
+    for (UActorComponent* Comp : Components)
+    {
+        if (T* Interface = Cast<T>(Comp))
+        {
+            return Interface;
+        }
+    }
+    
+    return nullptr;
+}
 
 EStateTreeRunStatus FMASTTask_Coverage::EnterState(
     FStateTreeExecutionContext& Context,
@@ -33,11 +60,11 @@ EStateTreeRunStatus FMASTTask_Coverage::EnterState(
         return EStateTreeRunStatus::Failed;
     }
 
-    // 使用 Interface 获取 CoverageArea 和 ScanRadius
-    IMACoverable* Coverable = Cast<IMACoverable>(Owner);
+    // 使用 Interface 获取 CoverageArea 和 ScanRadius (支持 Component 模式)
+    IMACoverable* Coverable = GetCapabilityInterface<IMACoverable>(Owner);
     if (!Coverable)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[STTask_Coverage] Owner does not implement IMACoverable"));
+        UE_LOG(LogTemp, Warning, TEXT("[STTask_Coverage] Owner does not have IMACoverable capability"));
         return EStateTreeRunStatus::Failed;
     }
 
@@ -191,11 +218,11 @@ EStateTreeRunStatus FMASTTask_Coverage::Tick(
     FVector CharacterLoc = Character->GetActorLocation();
     float Distance = FVector::Dist2D(CharacterLoc, CurrentTarget);
 
-    // 使用 Interface 获取 ScanRadius
+    // 使用 Interface 获取 ScanRadius (支持 Component 模式)
     float ActualAcceptRadius = 100.f;
-    if (IMACoverable* Coverable = Cast<IMACoverable>(Owner))
+    if (IMACoverable* CoverableComp = GetCapabilityInterface<IMACoverable>(Owner))
     {
-        ActualAcceptRadius = Coverable->GetScanRadius();
+        ActualAcceptRadius = CoverableComp->GetScanRadius();
     }
 
     // 调试日志（减少频率）

@@ -7,6 +7,7 @@
 #include "../Agent/Character/MARobotDogCharacter.h"
 #include "../Agent/Character/MADroneCharacter.h"
 #include "../Agent/GAS/MAAbilitySystemComponent.h"
+#include "../Agent/Component/Capability/MACapabilityComponents.h"
 #include "../Environment/MAPatrolPath.h"
 #include "../Environment/MACoverageArea.h"
 #include "Engine/Engine.h"
@@ -309,14 +310,10 @@ void UMACommandManager::SetAgentCommandProperties(AMACharacter* Agent, EMAComman
         case EMACommand::Patrol:
             if (Params.PatrolPath.IsValid())
             {
-                // 通过 Interface 设置 PatrolPath
-                if (AMARobotDogCharacter* Robot = Cast<AMARobotDogCharacter>(Agent))
+                // 通过 Component 设置 PatrolPath
+                if (UMAPatrolComponent* PatrolComp = Agent->FindComponentByClass<UMAPatrolComponent>())
                 {
-                    Robot->SetPatrolPath(Params.PatrolPath.Get());
-                }
-                else if (AMADroneCharacter* Drone = Cast<AMADroneCharacter>(Agent))
-                {
-                    Drone->SetPatrolPath(Params.PatrolPath.Get());
+                    PatrolComp->SetPatrolPath(Params.PatrolPath.Get());
                 }
             }
             break;
@@ -324,13 +321,10 @@ void UMACommandManager::SetAgentCommandProperties(AMACharacter* Agent, EMAComman
         case EMACommand::Follow:
             if (Params.FollowTarget.IsValid())
             {
-                if (AMARobotDogCharacter* Robot = Cast<AMARobotDogCharacter>(Agent))
+                // 通过 Component 设置 FollowTarget
+                if (UMAFollowComponent* FollowComp = Agent->FindComponentByClass<UMAFollowComponent>())
                 {
-                    Robot->SetFollowTarget(Params.FollowTarget.Get());
-                }
-                else if (AMADroneCharacter* Drone = Cast<AMADroneCharacter>(Agent))
-                {
-                    Drone->SetFollowTarget(Params.FollowTarget.Get());
+                    FollowComp->SetFollowTarget(Params.FollowTarget.Get());
                 }
             }
             break;
@@ -338,11 +332,11 @@ void UMACommandManager::SetAgentCommandProperties(AMACharacter* Agent, EMAComman
         case EMACommand::Coverage:
             if (Params.CoverageArea.IsValid())
             {
-                if (AMARobotDogCharacter* Robot = Cast<AMARobotDogCharacter>(Agent))
+                // 通过 Component 设置 CoverageArea
+                if (UMACoverageComponent* CoverageComp = Agent->FindComponentByClass<UMACoverageComponent>())
                 {
-                    Robot->SetCoverageArea(Params.CoverageArea.Get());
+                    CoverageComp->SetCoverageArea(Params.CoverageArea.Get());
                 }
-                // Drone 暂不支持 CoverageArea
             }
             break;
 

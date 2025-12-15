@@ -2,9 +2,10 @@
 
 #include "GA_Charge.h"
 #include "../MAGameplayTags.h"
-#include "MACharacter.h"
-#include "MARobotDogCharacter.h"
-#include "MAChargingStation.h"
+#include "../../Character/MACharacter.h"
+#include "../../Character/MARobotDogCharacter.h"
+#include "../../../Environment/MAChargingStation.h"
+#include "../../Component/Capability/MACapabilityComponents.h"
 #include "AbilitySystemComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
@@ -108,42 +109,48 @@ void UGA_Charge::ActivateAbility(
 void UGA_Charge::UpdateCharge()
 {
     AMACharacter* Character = GetOwningCharacter();
-    AMARobotDogCharacter* Robot = Cast<AMARobotDogCharacter>(Character);
+    if (!Character)
+    {
+        EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
+        return;
+    }
     
-    if (!Robot)
+    // 使用 Component 获取能量信息
+    UMAEnergyComponent* EnergyComp = Character->FindComponentByClass<UMAEnergyComponent>();
+    if (!EnergyComp)
     {
         EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
         return;
     }
     
     // 检查是否还在充电站范围内
-    if (!CurrentChargingStation.IsValid() || !CurrentChargingStation->IsRobotInRange(Robot))
+    if (!CurrentChargingStation.IsValid() || !CurrentChargingStation->IsRobotInRange(Character))
     {
-        UE_LOG(LogTemp, Warning, TEXT("[GA_Charge] %s left charging station range"), *Robot->AgentName);
-        Robot->ShowStatus(TEXT("[Charge interrupted]"), 2.f);
+        UE_LOG(LogTemp, Warning, TEXT("[GA_Charge] %s left charging station range"), *Character->AgentName);
+        Character->ShowStatus(TEXT("[Charge interrupted]"), 2.f);
         EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
         return;
     }
     
     // 计算本次充电量
-    float ChargeAmount = (ChargeRatePerSecond / 100.f) * Robot->MaxEnergy * ChargeUpdateInterval;
-    Robot->RestoreEnergy(ChargeAmount);
+    float ChargeAmount = (ChargeRatePerSecond / 100.f) * EnergyComp->MaxEnergy * ChargeUpdateInterval;
+    EnergyComp->RestoreEnergy(ChargeAmount);
     
     // 更新显示
-    float Percent = Robot->GetEnergyPercent();
-    Robot->ShowStatus(FString::Printf(TEXT("[Charging] %.0f%%"), Percent), 9999.f);
+    float Percent = EnergyComp->GetEnergyPercent();
+    Character->ShowStatus(FString::Printf(TEXT("[Charging] %.0f%%"), Percent), 9999.f);
     
     // 检查是否充满
     if (Percent >= 100.f)
     {
-        UE_LOG(LogTemp, Log, TEXT("[GA_Charge] %s fully charged!"), *Robot->AgentName);
-        Robot->ShowAbilityStatus(TEXT("Charge"), TEXT("Complete!"));
+        UE_LOG(LogTemp, Log, TEXT("[GA_Charge] %s fully charged!"), *Character->AgentName);
+        Character->ShowAbilityStatus(TEXT("Charge"), TEXT("Complete!"));
         
         // 发送充电完成事件
-        if (UAbilitySystemComponent* ASC = Robot->GetAbilitySystemComponent())
+        if (UAbilitySystemComponent* ASC = Character->GetAbilitySystemComponent())
         {
             FGameplayEventData EventData;
-            EventData.Instigator = Robot;
+            EventData.Instigator = Character;
             ASC->HandleGameplayEvent(FMAGameplayTags::Get().Event_Charge_Complete, &EventData);
         }
         

@@ -1,6 +1,7 @@
 // MADroneCharacter.h
 // 无人机角色基类 - 支持 3D 飞行、悬停、StateTree AI
 // 子类: MADronePhantom4Character, MADroneInspire2Character
+// 使用 Capability Component 模式管理能力参数
 //
 // 飞行系统说明:
 // - 不使用 NavMesh，采用直接位置控制
@@ -11,21 +12,23 @@
 
 #include "CoreMinimal.h"
 #include "MACharacter.h"
-#include "MAPatrolPath.h"
-#include "../Interface/MAAgentInterfaces.h"
 #include "MADroneCharacter.generated.h"
 
 class UMAStateTreeComponent;
+class UMAEnergyComponent;
+class UMAPatrolComponent;
+class UMAFollowComponent;
+class UMACoverageComponent;
 
 // 无人机飞行状态
 UENUM(BlueprintType)
 enum class EMADroneFlightState : uint8
 {
-    Landed      UMETA(DisplayName = "Landed"),      // 停在地面
-    TakingOff   UMETA(DisplayName = "TakingOff"),   // 正在起飞
-    Hovering    UMETA(DisplayName = "Hovering"),    // 悬停中
-    Flying      UMETA(DisplayName = "Flying"),      // 飞行中
-    Landing     UMETA(DisplayName = "Landing")      // 正在降落
+    Landed      UMETA(DisplayName = "Landed"),
+    TakingOff   UMETA(DisplayName = "TakingOff"),
+    Hovering    UMETA(DisplayName = "Hovering"),
+    Flying      UMETA(DisplayName = "Flying"),
+    Landing     UMETA(DisplayName = "Landing")
 };
 
 // 飞行完成委托
@@ -33,11 +36,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnFlightCompleted, bool, bSuccess,
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCollisionDetected, FHitResult, HitResult);
 
 UCLASS(Abstract)
-class MULTIAGENT_API AMADroneCharacter : public AMACharacter,
-    public IMAPatrollable,
-    public IMAFollowable,
-    public IMACoverable,
-    public IMAChargeable
+class MULTIAGENT_API AMADroneCharacter : public AMACharacter
 {
     GENERATED_BODY()
 
@@ -46,22 +45,18 @@ public:
 
     virtual void Tick(float DeltaTime) override;
 
-    // ========== IMAChargeable Interface ==========
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Energy")
-    float Energy = 100.f;
-    
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Energy")
-    float MaxEnergy = 100.f;
-    
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Energy")
-    float EnergyDrainRate = 0.5f;  // 每秒消耗
-    
-    virtual void DrainEnergy(float DeltaTime) override;
-    virtual void RestoreEnergy(float Amount) override;
-    virtual bool HasEnergy() const override { return Energy > 0.f; }
-    virtual float GetEnergy() const override { return Energy; }
-    virtual float GetMaxEnergy() const override { return MaxEnergy; }
-    virtual float GetEnergyPercent() const override { return (MaxEnergy > 0.f) ? (Energy / MaxEnergy * 100.f) : 0.f; }
+    // ========== Capability Components ==========
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Capability")
+    UMAEnergyComponent* EnergyComponent;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Capability")
+    UMAPatrolComponent* PatrolComponent;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Capability")
+    UMAFollowComponent* FollowComponent;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Capability")
+    UMACoverageComponent* CoverageComponent;
 
     // ========== Flight System ==========
     
@@ -100,23 +95,18 @@ public:
     
     // ========== 飞行控制函数 ==========
     
-    // 起飞到指定高度 (默认使用 DefaultFlightAltitude)
     UFUNCTION(BlueprintCallable, Category = "Flight")
     bool TakeOff(float TargetAltitude = -1.f);
     
-    // 降落到地面
     UFUNCTION(BlueprintCallable, Category = "Flight")
     bool Land();
     
-    // 悬停在当前位置
     UFUNCTION(BlueprintCallable, Category = "Flight")
     void Hover();
     
-    // 飞向目标位置 (不使用 NavMesh，直接飞行)
     UFUNCTION(BlueprintCallable, Category = "Flight")
     bool FlyTo(FVector Destination);
     
-    // 取消当前飞行任务
     UFUNCTION(BlueprintCallable, Category = "Flight")
     void CancelFlight();
     
@@ -135,11 +125,9 @@ public:
     
     // ========== 碰撞检测 ==========
     
-    // 检测前方是否有障碍物
     UFUNCTION(BlueprintCallable, Category = "Flight|Collision")
     bool CheckForwardCollision(FHitResult& OutHit) const;
     
-    // 检测指定方向是否有障碍物
     UFUNCTION(BlueprintCallable, Category = "Flight|Collision")
     bool CheckCollisionInDirection(FVector Direction, float Distance, FHitResult& OutHit) const;
     
@@ -152,7 +140,6 @@ public:
     FOnCollisionDetected OnCollisionDetected;
 
     // ========== 重写基类导航 ==========
-    // 统一接口：自动处理起飞，然后飞向目标
     virtual bool TryNavigateTo(FVector Destination) override;
     virtual void CancelNavigation() override;
 
@@ -170,56 +157,29 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI")
     UMAStateTreeComponent* StateTreeComponent;
 
-    // ========== IMAFollowable Interface ==========
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Follow")
-    TWeakObjectPtr<AMACharacter> FollowTarget;
-
-    virtual void SetFollowTarget(AMACharacter* Target) override { FollowTarget = Target; }
-    virtual void ClearFollowTarget() override { FollowTarget.Reset(); }
-    virtual AMACharacter* GetFollowTarget() const override { return FollowTarget.Get(); }
-
-    // ========== IMACoverable Interface ==========
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Coverage")
-    float ScanRadius = 300.f;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Coverage")
-    TWeakObjectPtr<AActor> CoverageAreaRef;
-
-    virtual void SetCoverageArea(AActor* Area) override { CoverageAreaRef = Area; }
-    virtual AActor* GetCoverageArea() const override { return CoverageAreaRef.Get(); }
-    virtual float GetScanRadius() const override { return ScanRadius; }
-
-    // ========== IMAPatrollable Interface ==========
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Patrol")
-    TWeakObjectPtr<AMAPatrolPath> PatrolPath;
-
-    virtual void SetPatrolPath(AMAPatrolPath* Path) override { PatrolPath = Path; }
-    virtual AMAPatrolPath* GetPatrolPath() const override { return PatrolPath.Get(); }
-
     // ========== Direct Control - Vertical Movement ==========
-    // 垂直移动速度 (单位/秒)
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Flight|DirectControl")
     float VerticalMoveSpeed = 300.f;
     
-    // 最小飞行高度 (相对于地面)
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Flight|DirectControl")
     float MinFlightAltitude = 100.f;
     
-    // 最大飞行高度 (相对于地面)
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Flight|DirectControl")
     float MaxFlightAltitude = 2000.f;
     
-    // 应用垂直移动输入 (Direction: 1.0 = 上升, -1.0 = 下降)
     UFUNCTION(BlueprintCallable, Category = "Control")
     void ApplyVerticalMovement(float Direction);
+
+    // ========== 便捷访问方法 ==========
+    UFUNCTION(BlueprintCallable, Category = "Energy")
+    float GetEnergy() const;
+
+    UFUNCTION(BlueprintCallable, Category = "Energy")
+    bool HasEnergy() const;
 
 protected:
     virtual void SetupDroneAssets() PURE_VIRTUAL(AMADroneCharacter::SetupDroneAssets, );
     virtual void BeginPlay() override;
-    
-    // 能量系统
-    void UpdateEnergyDisplay();
-    void CheckLowEnergyStatus();
     
     // 动画
     void UpdatePropellerAnimation();
@@ -228,8 +188,6 @@ protected:
     UAnimSequence* PropellerAnim;
     
 private:
-    static constexpr float LowEnergyThreshold = 20.f;
-    
     // 飞行系统内部
     void UpdateFlight(float DeltaTime);
     void SetFlightState(EMADroneFlightState NewState);
@@ -238,4 +196,8 @@ private:
     // 起飞后待执行的飞行目标
     bool bHasPendingFlyTarget = false;
     FVector PendingFlyTarget;
+
+    // 能量耗尽回调
+    UFUNCTION()
+    void OnEnergyDepleted();
 };

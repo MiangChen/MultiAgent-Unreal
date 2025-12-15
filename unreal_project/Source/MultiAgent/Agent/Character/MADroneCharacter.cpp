@@ -5,9 +5,10 @@
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "StateTree.h"
-#include "MAAbilitySystemComponent.h"
-#include "MAGameplayTags.h"
-#include "MAStateTreeComponent.h"
+#include "../GAS/MAAbilitySystemComponent.h"
+#include "../GAS/MAGameplayTags.h"
+#include "../StateTree/MAStateTreeComponent.h"
+#include "../Component/Capability/MACapabilityComponents.h"
 #include "AIController.h"
 #include "DrawDebugHelpers.h"
 
@@ -15,22 +16,31 @@ AMADroneCharacter::AMADroneCharacter()
 {
     AgentType = EMAAgentType::Drone;
     
-    // Energy defaults
-    Energy = 100.f;
-    MaxEnergy = 100.f;
-    EnergyDrainRate = 0.5f;
+    // ========== 创建 Capability Components ==========
+    EnergyComponent = CreateDefaultSubobject<UMAEnergyComponent>(TEXT("EnergyComponent"));
+    EnergyComponent->Energy = 100.f;
+    EnergyComponent->MaxEnergy = 100.f;
+    EnergyComponent->EnergyDrainRate = 0.5f;
+
+    PatrolComponent = CreateDefaultSubobject<UMAPatrolComponent>(TEXT("PatrolComponent"));
+    PatrolComponent->ScanRadius = 300.f;
+
+    FollowComponent = CreateDefaultSubobject<UMAFollowComponent>(TEXT("FollowComponent"));
+
+    CoverageComponent = CreateDefaultSubobject<UMACoverageComponent>(TEXT("CoverageComponent"));
+    CoverageComponent->ScanRadius = 300.f;
     
-    // StateTree 组件
+    // ========== StateTree 组件 ==========
     StateTreeComponent = CreateDefaultSubobject<UMAStateTreeComponent>(TEXT("StateTreeComponent"));
     StateTreeComponent->SetStartLogicAutomatically(true);
     
-    // 配置移动组件 - 飞行模式
+    // ========== 配置移动组件 - 飞行模式 ==========
     UCharacterMovementComponent* MovementComp = GetCharacterMovement();
     MovementComp->SetMovementMode(MOVE_Flying);
     MovementComp->DefaultLandMovementMode = MOVE_Flying;
     MovementComp->BrakingDecelerationFlying = 1000.f;
     MovementComp->MaxFlySpeed = 600.f;
-    MovementComp->GravityScale = 0.f;  // 禁用重力
+    MovementComp->GravityScale = 0.f;
 }
 
 void AMADroneCharacter::BeginPlay()
@@ -38,6 +48,12 @@ void AMADroneCharacter::BeginPlay()
     Super::BeginPlay();
     
     UE_LOG(LogTemp, Log, TEXT("[%s] Drone BeginPlay"), *AgentName);
+    
+    // 绑定能量耗尽回调
+    if (EnergyComponent)
+    {
+        EnergyComponent->OnEnergyDepleted.AddDynamic(this, &AMADroneCharacter::OnEnergyDepleted);
+    }
     
     // 动态加载 StateTree
     if (StateTreeComponent && !StateTreeComponent->HasStateTree())
@@ -50,7 +66,7 @@ void AMADroneCharacter::BeginPlay()
         }
     }
     
-    // 初始状态：停在地面，等待起飞命令
+    // 初始状态：停在地面
     SetFlightState(EMADroneFlightState::Landed);
     
     // 启动螺旋桨动画
@@ -66,20 +82,34 @@ void AMADroneCharacter::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
     
-    // 更新飞行
     UpdateFlight(DeltaTime);
-    
-    // 螺旋桨动画
     UpdatePropellerAnimation();
     
     // 飞行时消耗能量
-    if (IsInAir() && HasEnergy())
+    if (IsInAir() && EnergyComponent && EnergyComponent->HasEnergy())
     {
-        DrainEnergy(DeltaTime);
+        EnergyComponent->DrainEnergy(DeltaTime);
     }
-    
-    UpdateEnergyDisplay();
-    CheckLowEnergyStatus();
+}
+
+// ========== 便捷访问方法 ==========
+
+float AMADroneCharacter::GetEnergy() const
+{
+    return EnergyComponent ? EnergyComponent->GetEnergy() : 0.f;
+}
+
+bool AMADroneCharacter::HasEnergy() const
+{
+    return EnergyComponent ? EnergyComponent->HasEnergy() : false;
+}
+
+// ========== 能量耗尽回调 ==========
+
+void AMADroneCharacter::OnEnergyDepleted()
+{
+    Land();
+    UE_LOG(LogTemp, Warning, TEXT("[%s] Energy depleted! Emergency landing."), *AgentName);
 }
 
 // ========== Flight System ==========
@@ -108,7 +138,6 @@ void AMADroneCharacter::UpdateFlight(float DeltaTime)
             SetFlightState(EMADroneFlightState::Hovering);
             UE_LOG(LogTemp, Log, TEXT("[%s] TakeOff complete at Z=%.0f"), *AgentName, CurrentLocation.Z);
             
-            // 检查是否有待执行的飞行目标
             if (bHasPendingFlyTarget)
             {
                 bHasPendingFlyTarget = false;
@@ -138,7 +167,6 @@ void AMADroneCharacter::UpdateFlight(float DeltaTime)
         FHitResult HitResult;
         if (CheckForwardCollision(HitResult))
         {
-            // 检测到障碍物，停止并悬停
             Hover();
             OnCollisionDetected.Broadcast(HitResult);
             OnFlightCompleted.Broadcast(false, CurrentLocation);
@@ -148,25 +176,20 @@ void AMADroneCharacter::UpdateFlight(float DeltaTime)
         }
     }
     
-    // 计算速度 (加速/减速)
+    // 计算速度
     float TargetSpeed = MaxFlightSpeed;
-    
-    // 接近目标时减速
     if (Distance < MaxFlightSpeed * 2.f)
     {
         TargetSpeed = FMath::Max(100.f, Distance * 0.5f);
     }
-    
-    // 平滑加速
     CurrentSpeed = FMath::FInterpTo(CurrentSpeed, TargetSpeed, DeltaTime, FlightAcceleration / 100.f);
     
-    // 移动 (使用 Sweep 检测碰撞)
+    // 移动
     FVector Direction = ToTarget.GetSafeNormal();
     FVector NewLocation = CurrentLocation + Direction * CurrentSpeed * DeltaTime;
     FHitResult SweepHit;
-    SetActorLocation(NewLocation, true, &SweepHit);  // true = sweep, 会检测碰撞
+    SetActorLocation(NewLocation, true, &SweepHit);
     
-    // 如果 Sweep 检测到碰撞，停止并悬停
     if (SweepHit.bBlockingHit)
     {
         Hover();
@@ -176,7 +199,7 @@ void AMADroneCharacter::UpdateFlight(float DeltaTime)
         return;
     }
     
-    // 朝向飞行方向 (只旋转 Yaw)
+    // 朝向飞行方向
     if (!Direction.IsNearlyZero())
     {
         FRotator TargetRotation = Direction.Rotation();
@@ -202,17 +225,8 @@ bool AMADroneCharacter::TakeOff(float TargetAltitude)
         return false;
     }
     
-    // 计算目标高度（绝对 Z 坐标）
     float GroundZ = GetGroundHeight();
-    float Altitude;
-    if (TargetAltitude > 0.f)
-    {
-        Altitude = TargetAltitude;  // 使用传入的绝对高度
-    }
-    else
-    {
-        Altitude = GroundZ + DefaultFlightAltitude;  // 地面 + 默认飞行高度
-    }
+    float Altitude = (TargetAltitude > 0.f) ? TargetAltitude : (GroundZ + DefaultFlightAltitude);
     
     FVector CurrentLocation = GetActorLocation();
     CurrentFlightTarget = FVector(CurrentLocation.X, CurrentLocation.Y, Altitude);
@@ -348,8 +362,7 @@ bool AMADroneCharacter::CheckCollisionInDirection(FVector Direction, float Dista
         Params
     );
     
-    // Debug 绘制
-    #if WITH_EDITOR
+#if WITH_EDITOR
     if (bEnableCollisionCheck)
     {
         DrawDebugLine(GetWorld(), Start, End, bHit ? FColor::Red : FColor::Green, false, 0.1f);
@@ -358,63 +371,9 @@ bool AMADroneCharacter::CheckCollisionInDirection(FVector Direction, float Dista
             DrawDebugSphere(GetWorld(), OutHit.Location, 20.f, 8, FColor::Red, false, 0.1f);
         }
     }
-    #endif
+#endif
     
     return bHit;
-}
-
-// ========== Energy System ==========
-
-void AMADroneCharacter::DrainEnergy(float DeltaTime)
-{
-    Energy = FMath::Max(0.f, Energy - EnergyDrainRate * DeltaTime);
-    
-    if (Energy <= 0.f)
-    {
-        Land();
-        UE_LOG(LogTemp, Warning, TEXT("[%s] Energy depleted! Emergency landing."), *AgentName);
-    }
-}
-
-void AMADroneCharacter::RestoreEnergy(float Amount)
-{
-    Energy = FMath::Min(MaxEnergy, Energy + Amount);
-}
-
-void AMADroneCharacter::UpdateEnergyDisplay()
-{
-    FVector TextLocation = GetActorLocation() + FVector(0.f, 0.f, 80.f);
-    FString EnergyText = FString::Printf(TEXT("%.0f%%"), GetEnergyPercent());
-    
-    FColor DisplayColor = FColor::Green;
-    if (Energy < LowEnergyThreshold)
-    {
-        DisplayColor = FColor::Red;
-    }
-    else if (Energy < 50.f)
-    {
-        DisplayColor = FColor::Yellow;
-    }
-    
-    DrawDebugString(GetWorld(), TextLocation, EnergyText, nullptr, DisplayColor, 0.f, true, 1.0f);
-}
-
-void AMADroneCharacter::CheckLowEnergyStatus()
-{
-    if (!AbilitySystemComponent) return;
-    
-    const FMAGameplayTags& Tags = FMAGameplayTags::Get();
-    bool bHasLowEnergyTag = AbilitySystemComponent->HasGameplayTagFromContainer(Tags.Status_LowEnergy);
-    
-    if (Energy < LowEnergyThreshold && !bHasLowEnergyTag)
-    {
-        AbilitySystemComponent->AddLooseGameplayTag(Tags.Status_LowEnergy);
-        UE_LOG(LogTemp, Warning, TEXT("[%s] Low energy warning! %.0f%%"), *AgentName, GetEnergyPercent());
-    }
-    else if (Energy >= LowEnergyThreshold && bHasLowEnergyTag)
-    {
-        AbilitySystemComponent->RemoveLooseGameplayTag(Tags.Status_LowEnergy);
-    }
 }
 
 // ========== Animation ==========
@@ -438,15 +397,12 @@ bool AMADroneCharacter::TryNavigateTo(FVector Destination)
         return false;
     }
     
-    // 计算目标飞行高度
     float GroundZ = GetGroundHeight();
     float TargetFlightZ = GroundZ + DefaultFlightAltitude;
     FVector FlyTarget = FVector(Destination.X, Destination.Y, TargetFlightZ);
     
-    // 如果在地面，先起飞
     if (FlightState == EMADroneFlightState::Landed)
     {
-        // 保存待飞行目标，起飞完成后执行
         bHasPendingFlyTarget = true;
         PendingFlyTarget = FlyTarget;
         
@@ -456,7 +412,6 @@ bool AMADroneCharacter::TryNavigateTo(FVector Destination)
         return true;
     }
     
-    // 如果正在起飞，更新待飞行目标
     if (FlightState == EMADroneFlightState::TakingOff)
     {
         bHasPendingFlyTarget = true;
@@ -466,7 +421,6 @@ bool AMADroneCharacter::TryNavigateTo(FVector Destination)
         return true;
     }
     
-    // 已在空中且悬停/飞行中，直接飞向目标（保持当前高度）
     FVector Target = FVector(Destination.X, Destination.Y, GetActorLocation().Z);
     return FlyTo(Target);
 }
@@ -508,40 +462,30 @@ bool AMADroneCharacter::TryCharge()
 
 void AMADroneCharacter::ApplyVerticalMovement(float Direction)
 {
-    // 只有在空中时才能垂直移动
     if (FlightState == EMADroneFlightState::Landed)
     {
         return;
     }
     
-    // 忽略接近零的输入
     if (FMath::Abs(Direction) < 0.1f)
     {
         return;
     }
     
-    // 获取当前位置和地面高度
     FVector CurrentLocation = GetActorLocation();
     float GroundZ = GetGroundHeight();
     float CurrentAltitude = CurrentLocation.Z - GroundZ;
     
-    // 计算目标高度变化
     float DeltaTime = GetWorld()->GetDeltaSeconds();
     float DeltaZ = Direction * VerticalMoveSpeed * DeltaTime;
-    float NewAltitude = CurrentAltitude + DeltaZ;
+    float NewAltitude = FMath::Clamp(CurrentAltitude + DeltaZ, MinFlightAltitude, MaxFlightAltitude);
     
-    // 限制在最小/最大高度范围内
-    NewAltitude = FMath::Clamp(NewAltitude, MinFlightAltitude, MaxFlightAltitude);
-    
-    // 计算新的 Z 坐标
     float NewZ = GroundZ + NewAltitude;
     
-    // 应用新位置 (使用 Sweep 检测碰撞)
     FVector NewLocation = FVector(CurrentLocation.X, CurrentLocation.Y, NewZ);
     FHitResult SweepHit;
     SetActorLocation(NewLocation, true, &SweepHit);
     
-    // 如果碰撞，不移动
     if (SweepHit.bBlockingHit)
     {
         UE_LOG(LogTemp, Verbose, TEXT("[%s] Vertical movement blocked by %s"), 
@@ -549,7 +493,6 @@ void AMADroneCharacter::ApplyVerticalMovement(float Direction)
         return;
     }
     
-    // 更新飞行目标为当前位置（保持悬停状态）
     if (FlightState == EMADroneFlightState::Hovering)
     {
         CurrentFlightTarget = NewLocation;

@@ -1,15 +1,42 @@
 // MASTTask_Charge.cpp
 
 #include "MASTTask_Charge.h"
-#include "MACharacter.h"
-#include "MAAbilitySystemComponent.h"
-#include "MAChargingStation.h"
-#include "../Interface/MAAgentInterfaces.h"
+#include "../../Character/MACharacter.h"
+#include "../../GAS/MAAbilitySystemComponent.h"
+#include "../../../Environment/MAChargingStation.h"
+#include "../../Interface/MAAgentInterfaces.h"
+#include "../../Component/Capability/MACapabilityComponents.h"
 #include "StateTreeExecutionContext.h"
 #include "Kismet/GameplayStatics.h"
 #include "AIController.h"
 #include "NavigationSystem.h"
 #include "GameplayTagContainer.h"
+
+// 辅助函数: 从 Actor 获取实现了指定 Interface 的 Component
+template<typename T>
+T* GetCapabilityInterface(AActor* Actor)
+{
+    if (!Actor) return nullptr;
+    
+    // 先尝试从 Actor 本身获取 (兼容旧代码)
+    if (T* Interface = Cast<T>(Actor))
+    {
+        return Interface;
+    }
+    
+    // 再从 Component 获取
+    TArray<UActorComponent*> Components;
+    Actor->GetComponents(Components);
+    for (UActorComponent* Comp : Components)
+    {
+        if (T* Interface = Cast<T>(Comp))
+        {
+            return Interface;
+        }
+    }
+    
+    return nullptr;
+}
 
 EStateTreeRunStatus FMASTTask_Charge::EnterState(
     FStateTreeExecutionContext& Context,
@@ -34,11 +61,11 @@ EStateTreeRunStatus FMASTTask_Charge::EnterState(
         return EStateTreeRunStatus::Failed;
     }
 
-    // 使用 Interface 检查是否支持充电
-    IMAChargeable* Chargeable = Cast<IMAChargeable>(Owner);
+    // 使用 Interface 检查是否支持充电 (支持 Component 模式)
+    IMAChargeable* Chargeable = GetCapabilityInterface<IMAChargeable>(Owner);
     if (!Chargeable)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[STTask_Charge] Owner does not implement IMAChargeable"));
+        UE_LOG(LogTemp, Warning, TEXT("[STTask_Charge] Owner does not have IMAChargeable capability"));
         return EStateTreeRunStatus::Failed;
     }
 
@@ -98,7 +125,7 @@ EStateTreeRunStatus FMASTTask_Charge::Tick(
         return EStateTreeRunStatus::Failed;
     }
 
-    IMAChargeable* Chargeable = Cast<IMAChargeable>(Owner);
+    IMAChargeable* Chargeable = GetCapabilityInterface<IMAChargeable>(Owner);
     if (!Chargeable)
     {
         return EStateTreeRunStatus::Failed;

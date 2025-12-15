@@ -1,23 +1,22 @@
 // MARobotDogCharacter.h
 // 机器狗角色 - 支持 StateTree AI
+// 使用 Capability Component 模式管理能力参数
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "MACharacter.h"
-#include "MAPatrolPath.h"
-#include "../Interface/MAAgentInterfaces.h"
 #include "MARobotDogCharacter.generated.h"
 
 class AMAChargingStation;
 class UMAStateTreeComponent;
+class UMAEnergyComponent;
+class UMAPatrolComponent;
+class UMAFollowComponent;
+class UMACoverageComponent;
 
 UCLASS()
-class MULTIAGENT_API AMARobotDogCharacter : public AMACharacter,
-    public IMAPatrollable,
-    public IMAFollowable,
-    public IMACoverable,
-    public IMAChargeable
+class MULTIAGENT_API AMARobotDogCharacter : public AMACharacter
 {
     GENERATED_BODY()
 
@@ -29,26 +28,20 @@ public:
     void PlayWalkAnimation();
     void PlayIdleAnimation();
 
-    // ========== IMAChargeable Interface ==========
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Energy")
-    float Energy = 100.f;
-    
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Energy")
-    float MaxEnergy = 100.f;
-    
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Energy")
-    float EnergyDrainRate = 1.f;  // 每秒消耗
-    
-    virtual void DrainEnergy(float DeltaTime) override;
-    virtual void RestoreEnergy(float Amount) override;
-    virtual bool HasEnergy() const override { return Energy > 0.f; }
-    virtual float GetEnergy() const override { return Energy; }
-    virtual float GetMaxEnergy() const override { return MaxEnergy; }
-    virtual float GetEnergyPercent() const override { return (MaxEnergy > 0.f) ? (Energy / MaxEnergy * 100.f) : 0.f; }
+    // ========== Capability Components ==========
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Capability")
+    UMAEnergyComponent* EnergyComponent;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Capability")
+    UMAPatrolComponent* PatrolComponent;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Capability")
+    UMAFollowComponent* FollowComponent;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Capability")
+    UMACoverageComponent* CoverageComponent;
 
     // ========== Robot Abilities ==========
-    // 注意: TryPatrol/TryPatrolPath/StopPatrol 已移除，Patrol 改用 StateTree
-    
     UFUNCTION(BlueprintCallable, Category = "Abilities")
     bool TrySearch();
     
@@ -59,18 +52,18 @@ public:
     bool TryCharge();
 
     // ========== StateTree ==========
-    // StateTree 组件 - 支持运行时动态加载 StateTree Asset
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI")
     UMAStateTreeComponent* StateTreeComponent;
 
+    // ========== 便捷访问方法 (委托给 Component) ==========
+    UFUNCTION(BlueprintCallable, Category = "Energy")
+    float GetEnergy() const;
+
+    UFUNCTION(BlueprintCallable, Category = "Energy")
+    bool HasEnergy() const;
+
 protected:
     virtual void BeginPlay() override;
-    
-    // 更新头顶电量显示
-    void UpdateEnergyDisplay();
-    
-    // 检查低电量状态
-    void CheckLowEnergyStatus();
 
     UPROPERTY()
     UAnimSequence* IdleAnim;
@@ -79,62 +72,27 @@ protected:
     UAnimSequence* WalkAnim;
     
     bool bIsPlayingWalk;
-    
-private:
-    // 低电量阈值
-    static constexpr float LowEnergyThreshold = 20.f;
 
 public:
-    // ========== IMACoverable Interface ==========
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Coverage")
-    float ScanRadius = 200.f;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Coverage")
-    TWeakObjectPtr<AActor> CoverageAreaRef;
-
-    virtual void SetCoverageArea(AActor* Area) override { CoverageAreaRef = Area; }
-    virtual AActor* GetCoverageArea() const override { return CoverageAreaRef.Get(); }
-    virtual float GetScanRadius() const override { return ScanRadius; }
-
-    // ========== IMAFollowable Interface ==========
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Follow")
-    TWeakObjectPtr<AMACharacter> FollowTarget;
-
-    virtual void SetFollowTarget(AMACharacter* Target) override { FollowTarget = Target; }
-    virtual void ClearFollowTarget() override { FollowTarget.Reset(); }
-    virtual AMACharacter* GetFollowTarget() const override { return FollowTarget.Get(); }
-
-    // ========== IMAPatrollable Interface ==========
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Patrol")
-    TWeakObjectPtr<AMAPatrolPath> PatrolPath;
-
-    virtual void SetPatrolPath(AMAPatrolPath* Path) override { PatrolPath = Path; }
-    virtual AMAPatrolPath* GetPatrolPath() const override { return PatrolPath.Get(); }
-
     // ========== Avoidance System ==========
-    // 避障检测半径
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Avoidance")
     float AvoidanceRadius = 100.f;
 
-    // 避障力度 (0-2, 1为正常)
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Avoidance")
     float AvoidanceStrength = 1.f;
 
-    // 避障检测间隔（秒）
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Avoidance")
     float AvoidanceCheckInterval = 0.1f;
 
-    // ========== 卡住自动跳跃 ==========
 private:
-    // 卡住计时器
+    // ========== 卡住自动跳跃 ==========
     float StuckTime = 0.f;
-    
-    // 卡住检测阈值（秒）
     float StuckThreshold = 0.5f;
-    
-    // 跳跃冷却
     float JumpCooldown = 0.f;
     
-    // 检测是否被静态障碍物卡住并尝试跳跃
     void CheckStuckAndJump(float DeltaTime);
+
+    // 能量耗尽回调
+    UFUNCTION()
+    void OnEnergyDepleted();
 };

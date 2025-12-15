@@ -164,40 +164,48 @@ MultiAgent-Unreal 是一个基于 Unreal Engine 5 的多智能体仿真框架，
 
 ## 2. 核心架构：CARLA 风格 + State Tree + GAS
 
-### 2.1 CARLA 风格设计 + Interface 架构
+### 2.1 Capability Component 架构 (2025-12 重构)
 
-本项目采用 **CARLA 风格架构 + UE Interface 模式**，参数存储在实体上，通过 Interface 实现多态：
+本项目采用 **Capability Component 模式**，类似 ROS 的 Parameter Server，但参数存储在 Agent 本地的 Component 中：
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Interface 架构                            │
-│                                                             │
-│  ┌─────────────────┐            ┌─────────────────┐        │
-│  │ RobotDog        │            │ Drone           │        │
-│  │ implements:     │            │ implements:     │        │
-│  │ - IMAPatrollable│            │ - IMAPatrollable│        │
-│  │ - IMAFollowable │            │ - IMAFollowable │        │
-│  │ - IMACoverable  │            │ - IMACoverable  │        │
-│  │ - IMAChargeable │            │ - IMAChargeable │        │
-│  └────────┬────────┘            └────────┬────────┘        │
-│           │                              │                  │
-│           └──────────┬───────────────────┘                  │
-│                      ▼                                      │
-│           ┌─────────────────────┐                          │
-│           │  StateTree Tasks    │                          │
-│           │  (使用 Interface)    │                          │
-│           │  - MASTTask_Patrol  │                          │
-│           │  - MASTTask_Follow  │                          │
-│           │  - MASTTask_Coverage│                          │
-│           │  - MASTTask_Charge  │                          │
-│           └─────────────────────┘                          │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    Capability Component 架构                                 │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                    Capability Components (复用)                      │   │
+│  │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐     │   │
+│  │  │ EnergyComponent │  │ PatrolComponent │  │ FollowComponent │     │   │
+│  │  │ : IMAChargeable │  │ : IMAPatrollable│  │ : IMAFollowable │     │   │
+│  │  │ Energy, MaxEnergy│  │ PatrolPath     │  │ FollowTarget    │     │   │
+│  │  │ DrainRate       │  │ ScanRadius     │  │                 │     │   │
+│  │  └─────────────────┘  └─────────────────┘  └─────────────────┘     │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                      │                                      │
+│                                      │ 组合使用                              │
+│                                      ▼                                      │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │  RobotDog / Drone (只需添加 Component，无重复代码)                    │   │
+│  │  - EnergyComponent                                                   │   │
+│  │  - PatrolComponent                                                   │   │
+│  │  - FollowComponent                                                   │   │
+│  │  - CoverageComponent                                                 │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                      │                                      │
+│                                      │ 通过 Interface 访问                   │
+│                                      ▼                                      │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │  StateTree Tasks / GAS Abilities                                     │   │
+│  │  GetCapabilityInterface<IMAChargeable>(Actor)->GetEnergy()          │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 **核心原则：**
-- 参数存储在 Agent 上（如 `ScanRadius`, `FollowTarget`）
-- Task/Ability 通过 Interface 获取参数，不硬编码类型
-- 同一参数可被多个 Task/Ability 复用
+- 能力参数封装在 Component 中（如 `UMAEnergyComponent`, `UMAPatrolComponent`）
+- Component 实现对应的 Interface（如 `IMAChargeable`, `IMAPatrollable`）
+- Task/Ability 通过 Interface 获取参数，不依赖具体 Character 类型
+- 新增 Agent 类型只需组合 Component，零代码重复
 - 运行时可动态修改
 - 新增 Agent 类型只需实现对应 Interface
 

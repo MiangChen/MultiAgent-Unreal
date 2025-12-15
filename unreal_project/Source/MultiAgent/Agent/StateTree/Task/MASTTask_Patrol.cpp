@@ -1,11 +1,38 @@
 // MASTTask_Patrol.cpp
 
 #include "MASTTask_Patrol.h"
-#include "MAAbilitySystemComponent.h"
-#include "MACharacter.h"
-#include "MAPatrolPath.h"
-#include "../Interface/MAAgentInterfaces.h"
+#include "../../GAS/MAAbilitySystemComponent.h"
+#include "../../Character/MACharacter.h"
+#include "../../../Environment/MAPatrolPath.h"
+#include "../../Interface/MAAgentInterfaces.h"
+#include "../../Component/Capability/MACapabilityComponents.h"
 #include "StateTreeExecutionContext.h"
+
+// 辅助函数: 从 Actor 获取实现了指定 Interface 的 Component
+template<typename T>
+T* GetCapabilityInterface(AActor* Actor)
+{
+    if (!Actor) return nullptr;
+    
+    // 先尝试从 Actor 本身获取 (兼容旧代码)
+    if (T* Interface = Cast<T>(Actor))
+    {
+        return Interface;
+    }
+    
+    // 再从 Component 获取
+    TArray<UActorComponent*> Components;
+    Actor->GetComponents(Components);
+    for (UActorComponent* Comp : Components)
+    {
+        if (T* Interface = Cast<T>(Comp))
+        {
+            return Interface;
+        }
+    }
+    
+    return nullptr;
+}
 
 EStateTreeRunStatus FMASTTask_Patrol::EnterState(
     FStateTreeExecutionContext& Context, 
@@ -28,11 +55,11 @@ EStateTreeRunStatus FMASTTask_Patrol::EnterState(
         return EStateTreeRunStatus::Failed;
     }
 
-    // 使用 Interface 获取 PatrolPath
-    IMAPatrollable* Patrollable = Cast<IMAPatrollable>(Owner);
+    // 使用 Interface 获取 PatrolPath (支持 Component 模式)
+    IMAPatrollable* Patrollable = GetCapabilityInterface<IMAPatrollable>(Owner);
     if (!Patrollable)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[STTask_Patrol] Owner does not implement IMAPatrollable"));
+        UE_LOG(LogTemp, Warning, TEXT("[STTask_Patrol] Owner does not have IMAPatrollable capability"));
         return EStateTreeRunStatus::Failed;
     }
 
@@ -84,8 +111,8 @@ EStateTreeRunStatus FMASTTask_Patrol::Tick(
         return EStateTreeRunStatus::Succeeded;
     }
 
-    // 检查能量 (使用 Interface)
-    if (IMAChargeable* Chargeable = Cast<IMAChargeable>(Owner))
+    // 检查能量 (使用 Interface，支持 Component 模式)
+    if (IMAChargeable* Chargeable = GetCapabilityInterface<IMAChargeable>(Owner))
     {
         if (!Chargeable->HasEnergy())
         {
@@ -132,11 +159,11 @@ EStateTreeRunStatus FMASTTask_Patrol::Tick(
         FVector TargetLocation = Data.Waypoints[Data.CurrentWaypointIndex];
         float Distance = FVector::Dist2D(CurrentLocation, TargetLocation);
 
-        // 使用 Interface 获取 ScanRadius 作为到达判定
+        // 使用 Interface 获取 ScanRadius 作为到达判定 (支持 Component 模式)
         float ActualAcceptRadius = 100.f;
-        if (IMAPatrollable* Patrollable = Cast<IMAPatrollable>(Owner))
+        if (IMAPatrollable* PatrollableComp = GetCapabilityInterface<IMAPatrollable>(Owner))
         {
-            ActualAcceptRadius = Patrollable->GetScanRadius();
+            ActualAcceptRadius = PatrollableComp->GetScanRadius();
         }
 
         // 移动完成检测: Character->bIsMoving 由 GA_Navigate 在完成时设为 false

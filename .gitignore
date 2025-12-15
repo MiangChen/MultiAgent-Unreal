@@ -50,6 +50,10 @@ Thumbs.db
 *.pak
 unrealcv/
 
+# 本地脚本 (使用 *_example.sh 作为模板)
+compile.sh
+start.sh
+
 # UE5 大文件 (可本地重新生成)
 *_BuiltData.uasset
 *.code-workspace
