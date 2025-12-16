@@ -1,6 +1,7 @@
 // MASTTask_Patrol.cpp
 
 #include "MASTTask_Patrol.h"
+#include "MASTTaskUtils.h"
 #include "../../GAS/MAAbilitySystemComponent.h"
 #include "../../Character/MACharacter.h"
 #include "../../../Environment/MAPatrolPath.h"
@@ -8,31 +9,7 @@
 #include "../../Component/Capability/MACapabilityComponents.h"
 #include "StateTreeExecutionContext.h"
 
-// 辅助函数: 从 Actor 获取实现了指定 Interface 的 Component
-template<typename T>
-T* GetCapabilityInterface(AActor* Actor)
-{
-    if (!Actor) return nullptr;
-    
-    // 先尝试从 Actor 本身获取 (兼容旧代码)
-    if (T* Interface = Cast<T>(Actor))
-    {
-        return Interface;
-    }
-    
-    // 再从 Component 获取
-    TArray<UActorComponent*> Components;
-    Actor->GetComponents(Components);
-    for (UActorComponent* Comp : Components)
-    {
-        if (T* Interface = Cast<T>(Comp))
-        {
-            return Interface;
-        }
-    }
-    
-    return nullptr;
-}
+using namespace MASTTaskUtils;
 
 EStateTreeRunStatus FMASTTask_Patrol::EnterState(
     FStateTreeExecutionContext& Context, 

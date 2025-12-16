@@ -34,6 +34,8 @@ public class MultiAgent : ModuleRules
             // JSON 解析 (Agent 配置)
             "Json",
             "JsonUtilities",
+            // HTTP 模块 (通信子系统)
+            "HTTP",
             // Niagara (特效系统)
             "Niagara"
         });
