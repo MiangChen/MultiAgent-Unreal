@@ -10,6 +10,8 @@
 #include "MAPickupItem.h"
 #include "../Component/Sensor/MASensorComponent.h"
 #include "../Component/Sensor/MACameraSensorComponent.h"
+#include "../../UI/MAHUD.h"
+#include "Kismet/GameplayStatics.h"
 
 AMACharacter::AMACharacter()
 {
@@ -259,16 +261,30 @@ void AMACharacter::DrawStatusText()
         return;
     }
     
+    // 当 MainUI 显示时，不绘制状态文字（避免透过 UI 显示）
+    APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+    if (PC)
+    {
+        AMAHUD* HUD = Cast<AMAHUD>(PC->GetHUD());
+        if (HUD && HUD->IsMainUIVisible())
+        {
+            return;  // MainUI 显示时跳过绘制
+        }
+    }
+    
     FVector TextLocation = GetActorLocation() + FVector(0.f, 0.f, 150.f);
     
+    // 修复闪烁问题：
+    // - bPersistent = false: 不持久化，每帧重新绘制
+    // - Duration = 0.05f: 略大于一帧时间，确保文字在下次 Tick 前不会消失
     DrawDebugString(
         GetWorld(),
         TextLocation,
         CurrentStatusText,
         nullptr,
         FColor::Yellow,
-        0.f,
-        true,
+        0.05f,    // Duration: 略大于一帧时间
+        false,    // bPersistent: false，防止累积导致闪烁
         1.2f
     );
 }

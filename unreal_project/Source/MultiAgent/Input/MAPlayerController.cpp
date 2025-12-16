@@ -268,6 +268,17 @@ void AMAPlayerController::Tick(float DeltaTime)
 
 void AMAPlayerController::OnRightClick(const FInputActionValue& Value)
 {
+    // 检查 UI 是否可见，如果可见则不处理右键点击
+    // 防止右键点击 UI 时触发 Agent 导航
+    if (AMAHUD* HUD = Cast<AMAHUD>(GetHUD()))
+    {
+        if (HUD->IsMainUIVisible() || HUD->IsEmergencyWidgetVisible())
+        {
+            // UI 可见，不处理右键点击
+            return;
+        }
+    }
+
     FVector HitLocation;
     if (!GetMouseHitLocation(HitLocation) || !CommandManager) return;
 
