@@ -10,6 +10,7 @@
 #include "MAHUD.generated.h"
 
 class UMASimpleMainWidget;
+class UMATaskPlannerWidget;
 class UMADirectControlIndicator;
 class UMAEmergencyWidget;
 class AMAPlayerController;
@@ -17,6 +18,7 @@ class AMACharacter;
 class UMAEmergencyManager;
 class UMACameraSensorComponent;
 struct FMAPlannerResponse;
+struct FMATaskGraphData;
 
 /**
  * HUD 管理器
@@ -49,9 +51,13 @@ public:
     // Widget 实例
     //=========================================================================
 
-    /** SimpleMainWidget 实例 (纯 C++ UI 实现) */
+    /** SimpleMainWidget 实例 (纯 C++ UI 实现) - 已弃用，保留向后兼容 */
     UPROPERTY(BlueprintReadOnly, Category = "UI Instances")
     UMASimpleMainWidget* SimpleMainWidget;
+
+    /** TaskPlannerWidget 实例 (任务规划工作台) */
+    UPROPERTY(BlueprintReadOnly, Category = "UI Instances")
+    UMATaskPlannerWidget* TaskPlannerWidget;
 
     /** SemanticMap Widget 实例 (后续阶段) */
     UPROPERTY(BlueprintReadOnly, Category = "UI Instances")
@@ -132,11 +138,25 @@ public:
     bool IsDirectControlIndicatorVisible() const;
 
     /**
-     * 获取 SimpleMainWidget 实例
+     * 获取 SimpleMainWidget 实例 (已弃用)
      * @return SimpleMainWidget 指针，可能为 nullptr
      */
     UFUNCTION(BlueprintPure, Category = "UI")
     UMASimpleMainWidget* GetSimpleMainWidget() const { return SimpleMainWidget; }
+
+    /**
+     * 获取 TaskPlannerWidget 实例
+     * @return TaskPlannerWidget 指针，可能为 nullptr
+     */
+    UFUNCTION(BlueprintPure, Category = "UI")
+    UMATaskPlannerWidget* GetTaskPlannerWidget() const { return TaskPlannerWidget; }
+
+    /**
+     * 加载任务图数据到 TaskPlannerWidget
+     * @param Data 任务图数据
+     */
+    UFUNCTION(BlueprintCallable, Category = "UI")
+    void LoadTaskGraph(const FMATaskGraphData& Data);
 
     /**
      * 检查 MainUI 是否可见

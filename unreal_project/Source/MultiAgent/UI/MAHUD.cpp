@@ -5,7 +5,9 @@
 
 #include "MAHUD.h"
 #include "MASimpleMainWidget.h"
+#include "MATaskPlannerWidget.h"
 #include "MADirectControlIndicator.h"
+#include "../Core/MATaskGraphTypes.h"
 #include "MAEmergencyWidget.h"
 #include "../Input/MAPlayerController.h"
 #include "../Core/MACommSubsystem.h"
@@ -28,6 +30,7 @@ AMAHUD::AMAHUD()
     // 默认值
     bMainUIVisible = false;
     EmergencyWidget = nullptr;
+    TaskPlannerWidget = nullptr;
 }
 
 //=============================================================================
@@ -68,46 +71,66 @@ void AMAHUD::ToggleMainUI()
 
 void AMAHUD::ShowMainUI()
 {
-    if (!SimpleMainWidget)
+    // 优先使用 TaskPlannerWidget
+    UUserWidget* ActiveWidget = TaskPlannerWidget ? Cast<UUserWidget>(TaskPlannerWidget) : Cast<UUserWidget>(SimpleMainWidget);
+    
+    if (!ActiveWidget)
     {
-        UE_LOG(LogMAHUD, Warning, TEXT("ShowMainUI: SimpleMainWidget is null"));
+        UE_LOG(LogMAHUD, Warning, TEXT("ShowMainUI: No MainWidget available"));
         return;
     }
 
     if (bMainUIVisible)
     {
         // 已经显示，只需重新聚焦
-        SimpleMainWidget->FocusInputBox();
+        if (TaskPlannerWidget)
+        {
+            TaskPlannerWidget->FocusJsonEditor();
+        }
+        else if (SimpleMainWidget)
+        {
+            SimpleMainWidget->FocusInputBox();
+        }
         return;
     }
 
     // 显示 Widget
-    SimpleMainWidget->SetVisibility(ESlateVisibility::Visible);
+    ActiveWidget->SetVisibility(ESlateVisibility::Visible);
     bMainUIVisible = true;
 
-    // 聚焦到输入框
-    SimpleMainWidget->FocusInputBox();
+    // 聚焦
+    if (TaskPlannerWidget)
+    {
+        TaskPlannerWidget->FocusJsonEditor();
+    }
+    else if (SimpleMainWidget)
+    {
+        SimpleMainWidget->FocusInputBox();
+    }
 
     // 设置输入模式为 UI 和游戏混合
     APlayerController* PC = GetOwningPlayerController();
     if (PC)
     {
         FInputModeGameAndUI InputMode;
-        InputMode.SetWidgetToFocus(SimpleMainWidget->TakeWidget());
+        InputMode.SetWidgetToFocus(ActiveWidget->TakeWidget());
         InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
         InputMode.SetHideCursorDuringCapture(false);
         PC->SetInputMode(InputMode);
         PC->SetShowMouseCursor(true);
     }
 
-    UE_LOG(LogMAHUD, Log, TEXT("MainUI shown"));
+    UE_LOG(LogMAHUD, Log, TEXT("MainUI shown (TaskPlannerWidget: %s)"), TaskPlannerWidget ? TEXT("Yes") : TEXT("No"));
 }
 
 void AMAHUD::HideMainUI()
 {
-    if (!SimpleMainWidget)
+    // 优先使用 TaskPlannerWidget
+    UUserWidget* ActiveWidget = TaskPlannerWidget ? Cast<UUserWidget>(TaskPlannerWidget) : Cast<UUserWidget>(SimpleMainWidget);
+    
+    if (!ActiveWidget)
     {
-        UE_LOG(LogMAHUD, Warning, TEXT("HideMainUI: SimpleMainWidget is null"));
+        UE_LOG(LogMAHUD, Warning, TEXT("HideMainUI: No MainWidget available"));
         return;
     }
 
@@ -117,7 +140,7 @@ void AMAHUD::HideMainUI()
     }
 
     // 隐藏 Widget
-    SimpleMainWidget->SetVisibility(ESlateVisibility::Collapsed);
+    ActiveWidget->SetVisibility(ESlateVisibility::Collapsed);
     bMainUIVisible = false;
 
     // 恢复输入模式为纯游戏
@@ -440,19 +463,45 @@ void AMAHUD::CreateWidgets()
         return;
     }
 
-    // 创建 SimpleMainWidget (纯 C++ UI 实现)
-    UE_LOG(LogMAHUD, Log, TEXT("Creating SimpleMainWidget..."));
+    // 创建 TaskPlannerWidget (任务规划工作台 - 替代 SimpleMainWidget)
+    UE_LOG(LogMAHUD, Log, TEXT("Creating TaskPlannerWidget..."));
+    
+    TaskPlannerWidget = CreateWidget<UMATaskPlannerWidget>(PC, UMATaskPlannerWidget::StaticClass());
+    if (TaskPlannerWidget)
+    {
+        TaskPlannerWidget->AddToViewport(10);
+        TaskPlannerWidget->SetVisibility(ESlateVisibility::Collapsed);
+        
+        // 绑定指令提交事件到 CommSubsystem
+        TaskPlannerWidget->OnCommandSubmitted.AddDynamic(this, &AMAHUD::OnSimpleCommandSubmitted);
+        
+        // 尝试加载 Mock 数据
+        if (TaskPlannerWidget->IsMockMode())
+        {
+            TaskPlannerWidget->LoadMockData();
+        }
+        
+        UE_LOG(LogMAHUD, Log, TEXT("TaskPlannerWidget created successfully"));
+    }
+    else
+    {
+        UE_LOG(LogMAHUD, Error, TEXT("Failed to create TaskPlannerWidget"));
+    }
+
+    // 创建 SimpleMainWidget (保留向后兼容，但默认不使用)
+    UE_LOG(LogMAHUD, Log, TEXT("Creating SimpleMainWidget (legacy)..."));
     
     SimpleMainWidget = CreateWidget<UMASimpleMainWidget>(PC, UMASimpleMainWidget::StaticClass());
     if (SimpleMainWidget)
     {
-        SimpleMainWidget->AddToViewport(10);
+        // 不添加到 Viewport，仅保留引用
+        // SimpleMainWidget->AddToViewport(10);
         SimpleMainWidget->SetVisibility(ESlateVisibility::Collapsed);
         
         // 绑定指令提交事件到 CommSubsystem
         SimpleMainWidget->OnCommandSubmitted.AddDynamic(this, &AMAHUD::OnSimpleCommandSubmitted);
         
-        UE_LOG(LogMAHUD, Log, TEXT("SimpleMainWidget created successfully"));
+        UE_LOG(LogMAHUD, Log, TEXT("SimpleMainWidget created successfully (legacy, not added to viewport)"));
     }
     else
     {
@@ -581,8 +630,21 @@ void AMAHUD::OnPlannerResponse(const FMAPlannerResponse& Response)
 {
     UE_LOG(LogMAHUD, Log, TEXT("Planner response received: %s"), *Response.Message);
     
-    // 显示响应到 SimpleMainWidget
-    if (SimpleMainWidget)
+    // 显示响应到 TaskPlannerWidget 或 SimpleMainWidget
+    if (TaskPlannerWidget)
+    {
+        // 追加状态日志
+        TaskPlannerWidget->AppendStatusLog(FString::Printf(TEXT("[%s] %s"), 
+            Response.bSuccess ? TEXT("成功") : TEXT("失败"),
+            *Response.Message));
+        
+        // 如果有规划数据，尝试加载
+        if (!Response.PlanText.IsEmpty())
+        {
+            TaskPlannerWidget->LoadTaskGraphFromJson(Response.PlanText);
+        }
+    }
+    else if (SimpleMainWidget)
     {
         FString DisplayText = FString::Printf(TEXT("[%s]\n%s"), 
             Response.bSuccess ? TEXT("成功") : TEXT("失败"),
@@ -594,5 +656,18 @@ void AMAHUD::OnPlannerResponse(const FMAPlannerResponse& Response)
         }
         
         SimpleMainWidget->SetResultText(DisplayText);
+    }
+}
+
+void AMAHUD::LoadTaskGraph(const FMATaskGraphData& Data)
+{
+    if (TaskPlannerWidget)
+    {
+        TaskPlannerWidget->LoadTaskGraph(Data);
+        UE_LOG(LogMAHUD, Log, TEXT("Task graph loaded to TaskPlannerWidget"));
+    }
+    else
+    {
+        UE_LOG(LogMAHUD, Warning, TEXT("LoadTaskGraph: TaskPlannerWidget is null"));
     }
 }

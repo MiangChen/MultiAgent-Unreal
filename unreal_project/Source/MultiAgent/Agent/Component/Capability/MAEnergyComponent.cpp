@@ -4,7 +4,9 @@
 #include "../../Character/MACharacter.h"
 #include "../../GAS/MAAbilitySystemComponent.h"
 #include "../../GAS/MAGameplayTags.h"
+#include "../../../UI/MAHUD.h"
 #include "DrawDebugHelpers.h"
+#include "Kismet/GameplayStatics.h"
 
 UMAEnergyComponent::UMAEnergyComponent()
 {
@@ -97,6 +99,17 @@ void UMAEnergyComponent::UpdateEnergyDisplay()
     AActor* Owner = GetOwner();
     if (!Owner) return;
     
+    // 当 MainUI 显示时，不绘制 Energy 文字（避免透过 UI 显示）
+    APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+    if (PC)
+    {
+        AMAHUD* HUD = Cast<AMAHUD>(PC->GetHUD());
+        if (HUD && HUD->IsMainUIVisible())
+        {
+            return;  // MainUI 显示时跳过绘制
+        }
+    }
+    
     FVector TextLocation = Owner->GetActorLocation() + FVector(0.f, 0.f, 120.f);
     FString EnergyText = FString::Printf(TEXT("Energy: %.0f%%"), GetEnergyPercent());
     
@@ -110,14 +123,17 @@ void UMAEnergyComponent::UpdateEnergyDisplay()
         DisplayColor = FColor::Yellow;
     }
     
+    // 修复闪烁问题：
+    // - bPersistent = false: 不持久化，每帧重新绘制
+    // - Duration = 0.15f: 略大于 TickInterval (0.1f)，确保文字在下次更新前不会消失
     DrawDebugString(
         GetWorld(),
         TextLocation,
         EnergyText,
         nullptr,
         DisplayColor,
-        0.f,
-        true,
+        0.15f,    // Duration: 略大于 TickInterval，防止闪烁
+        false,    // bPersistent: false，每帧重新绘制而不是累积
         1.0f
     );
 }

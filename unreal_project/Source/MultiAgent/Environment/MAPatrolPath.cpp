@@ -75,10 +75,11 @@ void AMAPatrolPath::DrawPathVisualization()
         DrawDebugSphere(World, CurrentPoint, WaypointSize, 12, WaypointColor, false, -1.f, 0, 2.f);
         
         // 绘制路径点编号
+        // 修复闪烁问题：bPersistent = false，Duration = 0.05f
         if (bShowWaypointNumbers)
         {
             FString PointLabel = FString::Printf(TEXT("%d"), i + 1);
-            DrawDebugString(World, CurrentPoint + FVector(0, 0, WaypointSize + 20.f), PointLabel, nullptr, WaypointColor, 0.f, true, 1.2f);
+            DrawDebugString(World, CurrentPoint + FVector(0, 0, WaypointSize + 20.f), PointLabel, nullptr, WaypointColor, 0.05f, false, 1.2f);
         }
         
         // 绘制到下一个点的连线
