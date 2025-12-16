@@ -125,6 +125,17 @@ public:
     UFUNCTION(BlueprintCallable, Category = "AgentManager")
     AMACharacter* SpawnAgent(TSubclassOf<AMACharacter> AgentClass, FVector Location, FRotator Rotation, const FString& AgentID, EMAAgentType Type);
 
+    /**
+     * 根据类型名称生成 Agent
+     * @param TypeName 类型名称: DronePhantom4, DroneInspire2, RobotDog, Human
+     * @param Location 生成位置 (如果 bAutoPosition 为 true 则忽略)
+     * @param Rotation 生成旋转
+     * @param bAutoPosition 是否自动计算位置
+     * @return 生成的 Agent，失败返回 nullptr
+     */
+    UFUNCTION(BlueprintCallable, Category = "AgentManager")
+    AMACharacter* SpawnAgentByType(const FString& TypeName, FVector Location, FRotator Rotation, bool bAutoPosition = true);
+
     UFUNCTION(BlueprintCallable, Category = "AgentManager")
     bool DestroyAgent(AMACharacter* Agent);
 

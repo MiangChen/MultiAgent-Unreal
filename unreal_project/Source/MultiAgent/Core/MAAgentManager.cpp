@@ -417,6 +417,79 @@ AMACharacter* UMAAgentManager::SpawnAgent(TSubclassOf<AMACharacter> AgentClass, 
     return NewAgent;
 }
 
+AMACharacter* UMAAgentManager::SpawnAgentByType(const FString& TypeName, FVector Location, FRotator Rotation, bool bAutoPosition)
+{
+    // 类型名称到类路径的映射
+    static TMap<FString, FString> TypeToClassPath = {
+        {TEXT("DronePhantom4"), TEXT("/Script/MultiAgent.MADronePhantom4Character")},
+        {TEXT("DroneInspire2"), TEXT("/Script/MultiAgent.MADroneInspire2Character")},
+        {TEXT("RobotDog"), TEXT("/Script/MultiAgent.MARobotDogCharacter")},
+        {TEXT("Human"), TEXT("/Script/MultiAgent.MAHumanCharacter")}
+    };
+
+    // 类型名称到 EMAAgentType 的映射
+    static TMap<FString, EMAAgentType> TypeToEnum = {
+        {TEXT("DronePhantom4"), EMAAgentType::DronePhantom4},
+        {TEXT("DroneInspire2"), EMAAgentType::DroneInspire2},
+        {TEXT("RobotDog"), EMAAgentType::RobotDog},
+        {TEXT("Human"), EMAAgentType::Human}
+    };
+
+    // 查找类路径
+    FString* ClassPath = TypeToClassPath.Find(TypeName);
+    if (!ClassPath)
+    {
+        UE_LOG(LogTemp, Error, TEXT("[AgentManager] Unknown agent type: %s"), *TypeName);
+        return nullptr;
+    }
+
+    // 加载类
+    UClass* AgentClass = LoadClass<AMACharacter>(nullptr, **ClassPath);
+    if (!AgentClass)
+    {
+        UE_LOG(LogTemp, Error, TEXT("[AgentManager] Failed to load class for type: %s"), *TypeName);
+        return nullptr;
+    }
+
+    // 计算位置
+    FVector SpawnLocation = Location;
+    if (bAutoPosition)
+    {
+        SpawnLocation = CalculateAutoPosition(SpawnedAgents.Num(), SpawnedAgents.Num() + 1);
+    }
+
+    // 判断是否为 Drone
+    bool bIsDrone = TypeName.Contains(TEXT("Drone"));
+
+    // 地面检测
+    FHitResult HitResult;
+    FVector TraceStart = SpawnLocation + FVector(0.f, 0.f, 2000.f);
+    FVector TraceEnd = SpawnLocation - FVector(0.f, 0.f, 10000.f);
+
+    if (GetWorld()->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, ECC_Visibility))
+    {
+        float HeightOffset = bIsDrone ? 50.f : 100.f;
+        SpawnLocation.Z = HitResult.Location.Z + HeightOffset;
+    }
+
+    // 获取类型枚举
+    EMAAgentType AgentType = EMAAgentType::Human;
+    if (EMAAgentType* FoundType = TypeToEnum.Find(TypeName))
+    {
+        AgentType = *FoundType;
+    }
+
+    // 生成 Agent
+    FString AgentID = FString::Printf(TEXT("%s_%d"), *TypeName, NextAgentIndex);
+    AMACharacter* Agent = SpawnAgent(AgentClass, SpawnLocation, Rotation, AgentID, AgentType);
+
+    UE_LOG(LogTemp, Log, TEXT("[AgentManager] SpawnAgentByType: %s -> %s at (%.0f, %.0f, %.0f)"),
+        *TypeName, Agent ? *Agent->AgentID : TEXT("FAILED"),
+        SpawnLocation.X, SpawnLocation.Y, SpawnLocation.Z);
+
+    return Agent;
+}
+
 bool UMAAgentManager::DestroyAgent(AMACharacter* Agent)
 {
     if (!Agent)

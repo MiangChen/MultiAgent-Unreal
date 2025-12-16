@@ -34,4 +34,7 @@ protected:
     
     // 从配置文件加载并生成所有 Agent
     void LoadAndSpawnAgents();
+    
+    // 从 Setup 配置生成 Agent
+    void SpawnAgentsFromSetupConfig(class UMAGameInstance* GameInstance);
 };

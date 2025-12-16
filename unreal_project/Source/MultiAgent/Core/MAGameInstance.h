@@ -10,6 +10,7 @@
 
 // 前向声明
 class UMACommSubsystem;
+struct FMAAgentSetupConfig;
 
 /**
  * MultiAgent 游戏实例
@@ -81,6 +82,34 @@ public:
     FRotator SpectatorStartRotation = FRotator(-45, 0, 0);
 
     //=========================================================================
+    // Setup 阶段配置 (从 SetupWidget 传入)
+    //=========================================================================
+
+    /** 是否已完成 Setup 配置 */
+    UPROPERTY(BlueprintReadOnly, Category = "Setup")
+    bool bSetupCompleted = false;
+
+    /** Setup 阶段配置的智能体列表 (类型名 -> 数量) */
+    UPROPERTY(BlueprintReadOnly, Category = "Setup")
+    TMap<FString, int32> SetupAgentConfigs;
+
+    /** Setup 阶段选择的场景 */
+    UPROPERTY(BlueprintReadOnly, Category = "Setup")
+    FString SetupSelectedScene;
+
+    /**
+     * 保存 Setup 配置
+     * @param AgentConfigs 智能体配置 (类型 -> 数量)
+     * @param SelectedScene 选择的场景
+     */
+    UFUNCTION(BlueprintCallable, Category = "Setup")
+    void SaveSetupConfig(const TMap<FString, int32>& AgentConfigs, const FString& SelectedScene);
+
+    /** 清除 Setup 配置 */
+    UFUNCTION(BlueprintCallable, Category = "Setup")
+    void ClearSetupConfig();
+
+    //=========================================================================
     // Subsystem 访问
     //=========================================================================
 
@@ -127,4 +156,13 @@ protected:
 
     /** 从 JSON 文件加载配置 */
     void LoadConfigFromJSON();
+
+public:
+    //=========================================================================
+    // Setup 配置实现
+    //=========================================================================
+
+    /** 获取 Setup 配置的智能体总数 */
+    UFUNCTION(BlueprintPure, Category = "Setup")
+    int32 GetSetupTotalAgentCount() const;
 };

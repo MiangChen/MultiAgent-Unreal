@@ -93,8 +93,16 @@ void AMAGameMode::LoadAndSpawnAgents()
     }
     UE_LOG(LogTemp, Warning, TEXT("[GameMode] AgentManager found"));
 
-    // 构建配置文件的绝对路径
-    // AgentConfigPath 是相对于 unreal_project 目录的路径
+    // 检查是否有 Setup 配置
+    UMAGameInstance* GameInstance = Cast<UMAGameInstance>(GetGameInstance());
+    if (GameInstance && GameInstance->bSetupCompleted && GameInstance->SetupAgentConfigs.Num() > 0)
+    {
+        // 从 Setup 配置生成 Agent
+        SpawnAgentsFromSetupConfig(GameInstance);
+        return;
+    }
+
+    // 否则从 JSON 文件加载（兼容旧流程）
     FString ProjectDir = FPaths::ProjectDir();
     UE_LOG(LogTemp, Warning, TEXT("[GameMode] ProjectDir: %s"), *ProjectDir);
     UE_LOG(LogTemp, Warning, TEXT("[GameMode] AgentConfigPath: %s"), *AgentConfigPath);
@@ -104,7 +112,6 @@ void AMAGameMode::LoadAndSpawnAgents()
     
     UE_LOG(LogTemp, Warning, TEXT("[GameMode] Loading agent config from: %s"), *ConfigFullPath);
     
-    // 检查文件是否存在
     if (!FPaths::FileExists(ConfigFullPath))
     {
         UE_LOG(LogTemp, Error, TEXT("[GameMode] Config file does NOT exist: %s"), *ConfigFullPath);
@@ -119,4 +126,40 @@ void AMAGameMode::LoadAndSpawnAgents()
     }
     
     UE_LOG(LogTemp, Warning, TEXT("[GameMode] Successfully spawned %d agents from config"), AgentManager->GetAgentCount());
+}
+
+void AMAGameMode::SpawnAgentsFromSetupConfig(UMAGameInstance* GameInstance)
+{
+    UE_LOG(LogTemp, Warning, TEXT("[GameMode] Spawning agents from Setup config"));
+    
+    UMAAgentManager* AgentManager = GetAgentManager();
+    if (!AgentManager)
+    {
+        return;
+    }
+
+    int32 TotalSpawned = 0;
+    
+    for (const auto& Pair : GameInstance->SetupAgentConfigs)
+    {
+        const FString& AgentType = Pair.Key;
+        int32 Count = Pair.Value;
+        
+        UE_LOG(LogTemp, Log, TEXT("[GameMode] Spawning %d x %s"), Count, *AgentType);
+        
+        for (int32 i = 0; i < Count; ++i)
+        {
+            // 使用 AgentManager 的 SpawnAgent 方法
+            // 位置使用 auto 模式，让 AgentManager 自动分配
+            if (AgentManager->SpawnAgentByType(AgentType, FVector::ZeroVector, FRotator::ZeroRotator, true))
+            {
+                TotalSpawned++;
+            }
+        }
+    }
+    
+    UE_LOG(LogTemp, Warning, TEXT("[GameMode] Spawned %d agents from Setup config"), TotalSpawned);
+    
+    // 清除 Setup 配置，避免重复生成
+    GameInstance->ClearSetupConfig();
 }

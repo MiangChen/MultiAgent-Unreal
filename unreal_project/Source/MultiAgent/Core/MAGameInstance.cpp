@@ -214,3 +214,41 @@ void UMAGameInstance::LoadConfiguredMap()
     bHasLoadedConfiguredMap = true;
     UGameplayStatics::OpenLevel(this, FName(*ConfiguredMapPath));
 }
+
+
+//=============================================================================
+// Setup 配置
+//=============================================================================
+
+void UMAGameInstance::SaveSetupConfig(const TMap<FString, int32>& AgentConfigs, const FString& SelectedScene)
+{
+    SetupAgentConfigs = AgentConfigs;
+    SetupSelectedScene = SelectedScene;
+    bSetupCompleted = true;
+
+    UE_LOG(LogMAGameInstance, Log, TEXT("Setup config saved:"));
+    UE_LOG(LogMAGameInstance, Log, TEXT("  Scene: %s"), *SetupSelectedScene);
+    for (const auto& Pair : SetupAgentConfigs)
+    {
+        UE_LOG(LogMAGameInstance, Log, TEXT("  %s x%d"), *Pair.Key, Pair.Value);
+    }
+}
+
+void UMAGameInstance::ClearSetupConfig()
+{
+    SetupAgentConfigs.Empty();
+    SetupSelectedScene.Empty();
+    bSetupCompleted = false;
+
+    UE_LOG(LogMAGameInstance, Log, TEXT("Setup config cleared"));
+}
+
+int32 UMAGameInstance::GetSetupTotalAgentCount() const
+{
+    int32 Total = 0;
+    for (const auto& Pair : SetupAgentConfigs)
+    {
+        Total += Pair.Value;
+    }
+    return Total;
+}
