@@ -149,6 +149,10 @@ protected:
     UPROPERTY()
     TMap<UButton*, int32> RemoveButtonIndexMap;
 
+    /** 减号按钮到索引的映射 */
+    UPROPERTY()
+    TMap<UButton*, int32> DecreaseButtonIndexMap;
+
 private:
     //=========================================================================
     // UI 构建
@@ -180,4 +184,11 @@ private:
     /** 删除按钮点击回调 (通过映射查找索引) */
     UFUNCTION()
     void OnRemoveButtonClicked();
+
+    /** 减号按钮点击回调 - 减少数量 */
+    UFUNCTION()
+    void OnDecreaseButtonClicked();
+
+    /** 减少指定索引的 Agent 数量 */
+    void OnDecreaseAgentCount(int32 Index);
 };

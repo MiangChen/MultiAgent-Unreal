@@ -404,6 +404,7 @@ void UMASetupWidget::RefreshAgentList()
     // 清空现有列表和按钮映射
     AgentListScrollBox->ClearChildren();
     RemoveButtonIndexMap.Empty();
+    DecreaseButtonIndexMap.Empty();
 
     if (AgentConfigs.Num() == 0)
     {
@@ -461,10 +462,30 @@ void UMASetupWidget::RefreshAgentList()
 
         // 间隔
         USpacer* BtnSpacer = NewObject<USpacer>(this);
-        BtnSpacer->SetSize(FVector2D(15.0f, 0.0f));
+        BtnSpacer->SetSize(FVector2D(10.0f, 0.0f));
         Row->AddChildToHorizontalBox(BtnSpacer);
 
-        // 删除按钮
+        // 减号按钮 (橙色/黄色)
+        const FLinearColor DecreaseBtnColor(0.7f, 0.5f, 0.2f, 1.0f);
+        UButton* DecreaseButton = NewObject<UButton>(this);
+        DecreaseButton->SetBackgroundColor(DecreaseBtnColor);
+        UTextBlock* DecreaseText = NewObject<UTextBlock>(this);
+        DecreaseText->SetText(FText::FromString(TEXT(" − ")));
+        DecreaseText->SetColorAndOpacity(FSlateColor(TextPrimaryColor));
+        DecreaseButton->AddChild(DecreaseText);
+        
+        // 存储减号按钮到索引的映射
+        DecreaseButtonIndexMap.Add(DecreaseButton, i);
+        DecreaseButton->OnClicked.AddDynamic(this, &UMASetupWidget::OnDecreaseButtonClicked);
+        
+        Row->AddChildToHorizontalBox(DecreaseButton);
+
+        // 按钮间隔
+        USpacer* BtnGapSpacer = NewObject<USpacer>(this);
+        BtnGapSpacer->SetSize(FVector2D(5.0f, 0.0f));
+        Row->AddChildToHorizontalBox(BtnGapSpacer);
+
+        // 删除按钮 (红色)
         UButton* RemoveButton = NewObject<UButton>(this);
         RemoveButton->SetBackgroundColor(RemoveBtnColor);
         UTextBlock* RemoveText = NewObject<UTextBlock>(this);
@@ -472,7 +493,7 @@ void UMASetupWidget::RefreshAgentList()
         RemoveText->SetColorAndOpacity(FSlateColor(TextPrimaryColor));
         RemoveButton->AddChild(RemoveText);
         
-        // 存储按钮到索引的映射，并绑定点击事件
+        // 存储删除按钮到索引的映射
         RemoveButtonIndexMap.Add(RemoveButton, i);
         RemoveButton->OnClicked.AddDynamic(this, &UMASetupWidget::OnRemoveButtonClicked);
         
@@ -620,5 +641,44 @@ void UMASetupWidget::OnRemoveButtonClicked()
     {
         UE_LOG(LogTemp, Warning, TEXT("[MASetupWidget] Fallback: removing last agent"));
         OnRemoveAgentClicked(AgentConfigs.Num() - 1);
+    }
+}
+
+void UMASetupWidget::OnDecreaseButtonClicked()
+{
+    // 查找是哪个减号按钮被点击了
+    for (const auto& Pair : DecreaseButtonIndexMap)
+    {
+        UButton* Button = Pair.Key;
+        if (Button && (Button->IsPressed() || Button->IsHovered()))
+        {
+            int32 Index = Pair.Value;
+            UE_LOG(LogTemp, Log, TEXT("[MASetupWidget] Decrease button clicked for index %d"), Index);
+            OnDecreaseAgentCount(Index);
+            return;
+        }
+    }
+    
+    UE_LOG(LogTemp, Warning, TEXT("[MASetupWidget] OnDecreaseButtonClicked called but couldn't identify which button"));
+}
+
+void UMASetupWidget::OnDecreaseAgentCount(int32 Index)
+{
+    if (AgentConfigs.IsValidIndex(Index))
+    {
+        FMAAgentSetupConfig& Config = AgentConfigs[Index];
+        Config.Count--;
+        
+        UE_LOG(LogTemp, Log, TEXT("[MASetupWidget] Decreased %s count to %d"), *Config.DisplayName, Config.Count);
+        
+        // 如果数量变为 0，则删除该项
+        if (Config.Count <= 0)
+        {
+            UE_LOG(LogTemp, Log, TEXT("[MASetupWidget] Count is 0, removing agent type"));
+            AgentConfigs.RemoveAt(Index);
+        }
+        
+        RefreshAgentList();
+        UpdateTotalCount();
     }
 }
