@@ -405,6 +405,7 @@ void UMASetupWidget::RefreshAgentList()
     AgentListScrollBox->ClearChildren();
     RemoveButtonIndexMap.Empty();
     DecreaseButtonIndexMap.Empty();
+    IncreaseButtonIndexMap.Empty();
 
     if (AgentConfigs.Num() == 0)
     {
@@ -464,6 +465,26 @@ void UMASetupWidget::RefreshAgentList()
         USpacer* BtnSpacer = NewObject<USpacer>(this);
         BtnSpacer->SetSize(FVector2D(10.0f, 0.0f));
         Row->AddChildToHorizontalBox(BtnSpacer);
+
+        // 加号按钮 (绿色)
+        const FLinearColor IncreaseBtnColor(0.2f, 0.6f, 0.3f, 1.0f);
+        UButton* IncreaseButton = NewObject<UButton>(this);
+        IncreaseButton->SetBackgroundColor(IncreaseBtnColor);
+        UTextBlock* IncreaseText = NewObject<UTextBlock>(this);
+        IncreaseText->SetText(FText::FromString(TEXT(" + ")));
+        IncreaseText->SetColorAndOpacity(FSlateColor(TextPrimaryColor));
+        IncreaseButton->AddChild(IncreaseText);
+        
+        // 存储加号按钮到索引的映射
+        IncreaseButtonIndexMap.Add(IncreaseButton, i);
+        IncreaseButton->OnClicked.AddDynamic(this, &UMASetupWidget::OnIncreaseButtonClicked);
+        
+        Row->AddChildToHorizontalBox(IncreaseButton);
+
+        // 按钮间隔
+        USpacer* IncDecSpacer = NewObject<USpacer>(this);
+        IncDecSpacer->SetSize(FVector2D(3.0f, 0.0f));
+        Row->AddChildToHorizontalBox(IncDecSpacer);
 
         // 减号按钮 (橙色/黄色)
         const FLinearColor DecreaseBtnColor(0.7f, 0.5f, 0.2f, 1.0f);
@@ -677,6 +698,38 @@ void UMASetupWidget::OnDecreaseAgentCount(int32 Index)
             UE_LOG(LogTemp, Log, TEXT("[MASetupWidget] Count is 0, removing agent type"));
             AgentConfigs.RemoveAt(Index);
         }
+        
+        RefreshAgentList();
+        UpdateTotalCount();
+    }
+}
+
+void UMASetupWidget::OnIncreaseButtonClicked()
+{
+    // 查找是哪个加号按钮被点击了
+    for (const auto& Pair : IncreaseButtonIndexMap)
+    {
+        UButton* Button = Pair.Key;
+        if (Button && (Button->IsPressed() || Button->IsHovered()))
+        {
+            int32 Index = Pair.Value;
+            UE_LOG(LogTemp, Log, TEXT("[MASetupWidget] Increase button clicked for index %d"), Index);
+            OnIncreaseAgentCount(Index);
+            return;
+        }
+    }
+    
+    UE_LOG(LogTemp, Warning, TEXT("[MASetupWidget] OnIncreaseButtonClicked called but couldn't identify which button"));
+}
+
+void UMASetupWidget::OnIncreaseAgentCount(int32 Index)
+{
+    if (AgentConfigs.IsValidIndex(Index))
+    {
+        FMAAgentSetupConfig& Config = AgentConfigs[Index];
+        Config.Count++;
+        
+        UE_LOG(LogTemp, Log, TEXT("[MASetupWidget] Increased %s count to %d"), *Config.DisplayName, Config.Count);
         
         RefreshAgentList();
         UpdateTotalCount();

@@ -153,6 +153,10 @@ protected:
     UPROPERTY()
     TMap<UButton*, int32> DecreaseButtonIndexMap;
 
+    /** 加号按钮到索引的映射 */
+    UPROPERTY()
+    TMap<UButton*, int32> IncreaseButtonIndexMap;
+
 private:
     //=========================================================================
     // UI 构建
@@ -191,4 +195,11 @@ private:
 
     /** 减少指定索引的 Agent 数量 */
     void OnDecreaseAgentCount(int32 Index);
+
+    /** 加号按钮点击回调 - 增加数量 */
+    UFUNCTION()
+    void OnIncreaseButtonClicked();
+
+    /** 增加指定索引的 Agent 数量 */
+    void OnIncreaseAgentCount(int32 Index);
 };
