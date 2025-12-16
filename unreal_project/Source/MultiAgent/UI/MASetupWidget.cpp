@@ -76,68 +76,91 @@ void UMASetupWidget::BuildUI()
         return;
     }
 
+    // ========== 样式常量定义 ==========
+    const FLinearColor PanelBgColor(0.08f, 0.09f, 0.12f, 0.98f);      // 主面板深色背景
+    const FLinearColor HeaderBgColor(0.12f, 0.14f, 0.18f, 1.0f);      // 标题区域背景
+    const FLinearColor SectionBgColor(0.1f, 0.11f, 0.14f, 1.0f);      // 区块背景
+    const FLinearColor AccentColor(0.2f, 0.6f, 0.9f, 1.0f);           // 强调色 (蓝色)
+    const FLinearColor SuccessColor(0.2f, 0.7f, 0.4f, 1.0f);          // 成功色 (绿色)
+    const FLinearColor DangerColor(0.8f, 0.3f, 0.3f, 1.0f);           // 危险色 (红色)
+    const FLinearColor TextPrimaryColor(0.95f, 0.95f, 0.97f, 1.0f);   // 主文字颜色
+    const FLinearColor TextSecondaryColor(0.7f, 0.72f, 0.78f, 1.0f);  // 次要文字颜色
+    const FLinearColor ListItemBgColor(0.14f, 0.15f, 0.19f, 1.0f);    // 列表项背景
+
     // 创建根容器 - CanvasPanel
     UCanvasPanel* RootCanvas = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("RootCanvas"));
     WidgetTree->RootWidget = RootCanvas;
 
     // 创建主容器 - Border 作为背景
     UBorder* MainBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("MainBorder"));
-    MainBorder->SetBrushColor(FLinearColor(0.1f, 0.1f, 0.15f, 0.95f));  // 深色半透明背景
-    MainBorder->SetPadding(FMargin(40.f));
+    MainBorder->SetBrushColor(PanelBgColor);
+    MainBorder->SetPadding(FMargin(0.f));  // 内部处理 padding
     
     UCanvasPanelSlot* BorderSlot = RootCanvas->AddChildToCanvas(MainBorder);
     BorderSlot->SetAnchors(FAnchors(0.5f, 0.5f, 0.5f, 0.5f));  // 居中
     BorderSlot->SetAlignment(FVector2D(0.5f, 0.5f));
-    BorderSlot->SetSize(FVector2D(600.f, 500.f));
+    BorderSlot->SetSize(FVector2D(650.f, 580.f));  // 稍微加大
     BorderSlot->SetPosition(FVector2D(0.f, 0.f));
 
     // 创建垂直布局容器
     UVerticalBox* MainVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("MainVBox"));
     MainBorder->AddChild(MainVBox);
 
-    // ========== 标题 ==========
+    // ========== 标题区域 (带背景) ==========
+    UBorder* HeaderBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("HeaderBorder"));
+    HeaderBorder->SetBrushColor(HeaderBgColor);
+    HeaderBorder->SetPadding(FMargin(30.f, 20.f));
+    MainVBox->AddChildToVerticalBox(HeaderBorder);
+
     UTextBlock* TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TitleText"));
-    TitleText->SetText(FText::FromString(TEXT("多智能体仿真 - 小队配置")));
+    TitleText->SetText(FText::FromString(TEXT("Multi-Agent Simulation - Squad Setup")));
     FSlateFontInfo TitleFont = TitleText->GetFont();
-    TitleFont.Size = 28;
+    TitleFont.Size = 24;
     TitleText->SetFont(TitleFont);
-    TitleText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+    TitleText->SetColorAndOpacity(FSlateColor(TextPrimaryColor));
     TitleText->SetJustification(ETextJustify::Center);
-    MainVBox->AddChildToVerticalBox(TitleText);
+    HeaderBorder->AddChild(TitleText);
 
     // 间隔
     USpacer* TitleSpacer = WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass(), TEXT("TitleSpacer"));
-    TitleSpacer->SetSize(FVector2D(0.f, 20.f));
+    TitleSpacer->SetSize(FVector2D(0.f, 15.f));
     MainVBox->AddChildToVerticalBox(TitleSpacer);
 
-    // ========== 场景选择区域 ==========
+    // ========== 场景选择区域 (带背景框) ==========
+    UBorder* SceneSectionBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("SceneSectionBorder"));
+    SceneSectionBorder->SetBrushColor(SectionBgColor);
+    SceneSectionBorder->SetPadding(FMargin(25.f, 15.f));
+    MainVBox->AddChildToVerticalBox(SceneSectionBorder);
+
     UHorizontalBox* SceneRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("SceneRow"));
-    MainVBox->AddChildToVerticalBox(SceneRow);
+    SceneSectionBorder->AddChild(SceneRow);
     
     UTextBlock* SceneLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SceneLabel"));
-    SceneLabel->SetText(FText::FromString(TEXT("选择场景: ")));
-    SceneLabel->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+    SceneLabel->SetText(FText::FromString(TEXT("Scene: ")));
+    FSlateFontInfo SceneLabelFont = SceneLabel->GetFont();
+    SceneLabelFont.Size = 16;
+    SceneLabel->SetFont(SceneLabelFont);
+    SceneLabel->SetColorAndOpacity(FSlateColor(TextSecondaryColor));
     SceneRow->AddChildToHorizontalBox(SceneLabel);
 
+    // 场景标签和下拉框之间的间隔
+    USpacer* SceneLabelSpacer = WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass(), TEXT("SceneLabelSpacer"));
+    SceneLabelSpacer->SetSize(FVector2D(15.f, 0.f));
+    SceneRow->AddChildToHorizontalBox(SceneLabelSpacer);
+
     SceneComboBox = WidgetTree->ConstructWidget<UComboBoxString>(UComboBoxString::StaticClass(), TEXT("SceneComboBox"));
-    
-    // 先清空确保没有残留选项
     SceneComboBox->ClearOptions();
     
-    // 添加场景选项
     for (const FString& Scene : AvailableScenes)
     {
         SceneComboBox->AddOption(Scene);
         UE_LOG(LogTemp, Log, TEXT("[MASetupWidget] Added scene option: %s"), *Scene);
     }
     
-    // 设置下拉框样式
-    SceneComboBox->SetContentPadding(FMargin(8.f, 4.f));
+    SceneComboBox->SetContentPadding(FMargin(12.f, 6.f));
     
-    // 确保有默认选项后再设置选中项
     if (AvailableScenes.Num() > 0)
     {
-        // 如果 SelectedScene 不在列表中，使用第一个
         if (!AvailableScenes.Contains(SelectedScene))
         {
             SelectedScene = AvailableScenes[0];
@@ -151,32 +174,45 @@ void UMASetupWidget::BuildUI()
 
     // 间隔
     USpacer* SceneSpacer = WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass(), TEXT("SceneSpacer"));
-    SceneSpacer->SetSize(FVector2D(0.f, 15.f));
+    SceneSpacer->SetSize(FVector2D(0.f, 10.f));
     MainVBox->AddChildToVerticalBox(SceneSpacer);
 
-    // ========== 添加智能体区域 ==========
+    // ========== 添加智能体区域 (带背景框) ==========
+    UBorder* AddSectionBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("AddSectionBorder"));
+    AddSectionBorder->SetBrushColor(SectionBgColor);
+    AddSectionBorder->SetPadding(FMargin(25.f, 15.f));
+    MainVBox->AddChildToVerticalBox(AddSectionBorder);
+
+    UVerticalBox* AddSectionVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("AddSectionVBox"));
+    AddSectionBorder->AddChild(AddSectionVBox);
+
+    // 区块标题
     UTextBlock* AddSectionTitle = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("AddSectionTitle"));
-    AddSectionTitle->SetText(FText::FromString(TEXT("添加智能体")));
+    AddSectionTitle->SetText(FText::FromString(TEXT("Add Agent")));
     FSlateFontInfo SectionFont = AddSectionTitle->GetFont();
-    SectionFont.Size = 18;
+    SectionFont.Size = 16;
     AddSectionTitle->SetFont(SectionFont);
-    AddSectionTitle->SetColorAndOpacity(FSlateColor(FLinearColor(0.8f, 0.8f, 0.8f)));
-    MainVBox->AddChildToVerticalBox(AddSectionTitle);
+    AddSectionTitle->SetColorAndOpacity(FSlateColor(AccentColor));
+    AddSectionVBox->AddChildToVerticalBox(AddSectionTitle);
+
+    // 标题下间隔
+    USpacer* AddTitleSpacer = WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass(), TEXT("AddTitleSpacer"));
+    AddTitleSpacer->SetSize(FVector2D(0.f, 10.f));
+    AddSectionVBox->AddChildToVerticalBox(AddTitleSpacer);
 
     UHorizontalBox* AddRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("AddRow"));
-    MainVBox->AddChildToVerticalBox(AddRow);
+    AddSectionVBox->AddChildToVerticalBox(AddRow);
 
     // 智能体类型下拉框
     AgentTypeComboBox = WidgetTree->ConstructWidget<UComboBoxString>(UComboBoxString::StaticClass(), TEXT("AgentTypeComboBox"));
     AgentTypeComboBox->ClearOptions();
     
-    // 使用显示名称作为选项，更友好
     for (const auto& Pair : AvailableAgentTypes)
     {
-        AgentTypeComboBox->AddOption(Pair.Key);  // 使用内部名称作为选项值
+        AgentTypeComboBox->AddOption(Pair.Key);
     }
     
-    AgentTypeComboBox->SetContentPadding(FMargin(8.f, 4.f));
+    AgentTypeComboBox->SetContentPadding(FMargin(12.f, 6.f));
     
     if (AvailableAgentTypes.Num() > 0)
     {
@@ -184,93 +220,155 @@ void UMASetupWidget::BuildUI()
     }
     AddRow->AddChildToHorizontalBox(AgentTypeComboBox);
 
+    // 间隔
+    USpacer* TypeCountSpacer = WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass(), TEXT("TypeCountSpacer"));
+    TypeCountSpacer->SetSize(FVector2D(20.f, 0.f));
+    AddRow->AddChildToHorizontalBox(TypeCountSpacer);
+
     // 数量标签
     UTextBlock* CountLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("CountLabel"));
-    CountLabel->SetText(FText::FromString(TEXT("  数量: ")));
-    CountLabel->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+    CountLabel->SetText(FText::FromString(TEXT("Count:")));
+    FSlateFontInfo CountLabelFont = CountLabel->GetFont();
+    CountLabelFont.Size = 14;
+    CountLabel->SetFont(CountLabelFont);
+    CountLabel->SetColorAndOpacity(FSlateColor(TextSecondaryColor));
     AddRow->AddChildToHorizontalBox(CountLabel);
+
+    // 间隔
+    USpacer* CountLabelSpacer = WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass(), TEXT("CountLabelSpacer"));
+    CountLabelSpacer->SetSize(FVector2D(8.f, 0.f));
+    AddRow->AddChildToHorizontalBox(CountLabelSpacer);
 
     // 数量输入框
     CountInputBox = WidgetTree->ConstructWidget<UEditableTextBox>(UEditableTextBox::StaticClass(), TEXT("CountInputBox"));
     CountInputBox->SetText(FText::FromString(TEXT("1")));
-    CountInputBox->SetMinDesiredWidth(60.0f);
+    CountInputBox->SetMinDesiredWidth(50.0f);
     AddRow->AddChildToHorizontalBox(CountInputBox);
 
     // 间隔
     USpacer* AddSpacer = WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass(), TEXT("AddSpacer"));
-    AddSpacer->SetSize(FVector2D(10.f, 0.f));
+    AddSpacer->SetSize(FVector2D(20.f, 0.f));
     AddRow->AddChildToHorizontalBox(AddSpacer);
 
-    // 添加按钮
+    // 添加按钮 (蓝色强调)
     AddButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("AddButton"));
+    AddButton->SetBackgroundColor(AccentColor);
     UTextBlock* AddButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("AddButtonText"));
-    AddButtonText->SetText(FText::FromString(TEXT("添加")));
+    AddButtonText->SetText(FText::FromString(TEXT("  + Add  ")));
+    FSlateFontInfo AddBtnFont = AddButtonText->GetFont();
+    AddBtnFont.Size = 14;
+    AddButtonText->SetFont(AddBtnFont);
+    AddButtonText->SetColorAndOpacity(FSlateColor(TextPrimaryColor));
     AddButton->AddChild(AddButtonText);
     AddButton->OnClicked.AddDynamic(this, &UMASetupWidget::OnAddButtonClicked);
     AddRow->AddChildToHorizontalBox(AddButton);
 
     // 间隔
     USpacer* ListSpacer = WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass(), TEXT("ListSpacer"));
-    ListSpacer->SetSize(FVector2D(0.f, 15.f));
+    ListSpacer->SetSize(FVector2D(0.f, 10.f));
     MainVBox->AddChildToVerticalBox(ListSpacer);
 
-    // ========== 智能体列表区域 ==========
+    // ========== 智能体列表区域 (带背景框) ==========
+    UBorder* ListSectionBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("ListSectionBorder"));
+    ListSectionBorder->SetBrushColor(SectionBgColor);
+    ListSectionBorder->SetPadding(FMargin(25.f, 15.f));
+    MainVBox->AddChildToVerticalBox(ListSectionBorder);
+
+    UVerticalBox* ListSectionVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("ListSectionVBox"));
+    ListSectionBorder->AddChild(ListSectionVBox);
+
+    // 区块标题
     UTextBlock* ListTitle = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ListTitle"));
-    ListTitle->SetText(FText::FromString(TEXT("当前小队成员")));
+    ListTitle->SetText(FText::FromString(TEXT("Current Squad")));
     ListTitle->SetFont(SectionFont);
-    ListTitle->SetColorAndOpacity(FSlateColor(FLinearColor(0.8f, 0.8f, 0.8f)));
-    MainVBox->AddChildToVerticalBox(ListTitle);
+    ListTitle->SetColorAndOpacity(FSlateColor(AccentColor));
+    ListSectionVBox->AddChildToVerticalBox(ListTitle);
+
+    // 标题下间隔
+    USpacer* ListTitleSpacer = WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass(), TEXT("ListTitleSpacer"));
+    ListTitleSpacer->SetSize(FVector2D(0.f, 10.f));
+    ListSectionVBox->AddChildToVerticalBox(ListTitleSpacer);
+
+    // 列表容器 (带背景)
+    UBorder* ListBgBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("ListBgBorder"));
+    ListBgBorder->SetBrushColor(ListItemBgColor);
+    ListBgBorder->SetPadding(FMargin(10.f, 8.f));
+    ListSectionVBox->AddChildToVerticalBox(ListBgBorder);
 
     AgentListScrollBox = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass(), TEXT("AgentListScrollBox"));
-    MainVBox->AddChildToVerticalBox(AgentListScrollBox);
+    ListBgBorder->AddChild(AgentListScrollBox);
 
     // 间隔
     USpacer* TotalSpacer = WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass(), TEXT("TotalSpacer"));
-    TotalSpacer->SetSize(FVector2D(0.f, 10.f));
-    MainVBox->AddChildToVerticalBox(TotalSpacer);
+    TotalSpacer->SetSize(FVector2D(0.f, 12.f));
+    ListSectionVBox->AddChildToVerticalBox(TotalSpacer);
 
     // ========== 总数显示 ==========
     TotalCountText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TotalCountText"));
-    TotalCountText->SetText(FText::FromString(TEXT("总计: 0 个智能体")));
-    TotalCountText->SetColorAndOpacity(FSlateColor(FLinearColor(0.6f, 0.9f, 0.6f)));
-    MainVBox->AddChildToVerticalBox(TotalCountText);
+    TotalCountText->SetText(FText::FromString(TEXT("Total: 0 agents")));
+    FSlateFontInfo TotalFont = TotalCountText->GetFont();
+    TotalFont.Size = 16;
+    TotalCountText->SetFont(TotalFont);
+    TotalCountText->SetColorAndOpacity(FSlateColor(SuccessColor));
+    ListSectionVBox->AddChildToVerticalBox(TotalCountText);
 
     // 间隔
     USpacer* ButtonSpacer = WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass(), TEXT("ButtonSpacer"));
-    ButtonSpacer->SetSize(FVector2D(0.f, 20.f));
+    ButtonSpacer->SetSize(FVector2D(0.f, 15.f));
     MainVBox->AddChildToVerticalBox(ButtonSpacer);
 
-    // ========== 底部按钮区域 ==========
-    UHorizontalBox* ButtonRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("ButtonRow"));
-    MainVBox->AddChildToVerticalBox(ButtonRow);
+    // ========== 底部按钮区域 (带背景) ==========
+    UBorder* ButtonSectionBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("ButtonSectionBorder"));
+    ButtonSectionBorder->SetBrushColor(HeaderBgColor);
+    ButtonSectionBorder->SetPadding(FMargin(25.f, 18.f));
+    MainVBox->AddChildToVerticalBox(ButtonSectionBorder);
 
-    // 清空按钮
+    UHorizontalBox* ButtonRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("ButtonRow"));
+    ButtonSectionBorder->AddChild(ButtonRow);
+
+    // 左侧弹性空间
+    USpacer* LeftFlexSpacer = WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass(), TEXT("LeftFlexSpacer"));
+    LeftFlexSpacer->SetSize(FVector2D(1.f, 0.f));
+    ButtonRow->AddChildToHorizontalBox(LeftFlexSpacer);
+
+    // 清空按钮 (红色危险)
     ClearButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("ClearButton"));
+    ClearButton->SetBackgroundColor(DangerColor);
     UTextBlock* ClearButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ClearButtonText"));
-    ClearButtonText->SetText(FText::FromString(TEXT("清空列表")));
+    ClearButtonText->SetText(FText::FromString(TEXT("  Clear All  ")));
+    FSlateFontInfo ClearBtnFont = ClearButtonText->GetFont();
+    ClearBtnFont.Size = 14;
+    ClearButtonText->SetFont(ClearBtnFont);
+    ClearButtonText->SetColorAndOpacity(FSlateColor(TextPrimaryColor));
     ClearButton->AddChild(ClearButtonText);
     ClearButton->OnClicked.AddDynamic(this, &UMASetupWidget::OnClearButtonClicked);
     ButtonRow->AddChildToHorizontalBox(ClearButton);
 
     // 间隔
     USpacer* BtnSpacer = WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass(), TEXT("BtnSpacer"));
-    BtnSpacer->SetSize(FVector2D(20.0f, 0.0f));
+    BtnSpacer->SetSize(FVector2D(30.0f, 0.0f));
     ButtonRow->AddChildToHorizontalBox(BtnSpacer);
 
-    // 开始按钮
+    // 开始按钮 (绿色成功)
     StartButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("StartButton"));
-    StartButton->SetBackgroundColor(FLinearColor(0.2f, 0.6f, 0.2f));
+    StartButton->SetBackgroundColor(SuccessColor);
     StartButton->SetClickMethod(EButtonClickMethod::DownAndUp);
     StartButton->SetTouchMethod(EButtonTouchMethod::DownAndUp);
     StartButton->SetPressMethod(EButtonPressMethod::DownAndUp);
     UTextBlock* StartButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("StartButtonText"));
-    StartButtonText->SetText(FText::FromString(TEXT("Start Simulation")));  // 用英文测试
+    StartButtonText->SetText(FText::FromString(TEXT("  ▶ Start Simulation  ")));
     FSlateFontInfo StartFont = StartButtonText->GetFont();
-    StartFont.Size = 18;
+    StartFont.Size = 16;
     StartButtonText->SetFont(StartFont);
+    StartButtonText->SetColorAndOpacity(FSlateColor(TextPrimaryColor));
     StartButton->AddChild(StartButtonText);
     StartButton->OnClicked.AddDynamic(this, &UMASetupWidget::OnStartButtonClicked);
     ButtonRow->AddChildToHorizontalBox(StartButton);
+
+    // 右侧弹性空间
+    USpacer* RightFlexSpacer = WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass(), TEXT("RightFlexSpacer"));
+    RightFlexSpacer->SetSize(FVector2D(1.f, 0.f));
+    ButtonRow->AddChildToHorizontalBox(RightFlexSpacer);
     
     UE_LOG(LogTemp, Warning, TEXT("[MASetupWidget] StartButton created and OnClicked bound"));
 
@@ -285,8 +383,27 @@ void UMASetupWidget::RefreshAgentList()
         return;
     }
 
+    // 样式常量
+    const FLinearColor TextPrimaryColor(0.95f, 0.95f, 0.97f, 1.0f);
+    const FLinearColor TextSecondaryColor(0.7f, 0.72f, 0.78f, 1.0f);
+    const FLinearColor CountBadgeColor(0.2f, 0.6f, 0.9f, 1.0f);
+    const FLinearColor RemoveBtnColor(0.6f, 0.25f, 0.25f, 1.0f);
+
     // 清空现有列表
     AgentListScrollBox->ClearChildren();
+
+    if (AgentConfigs.Num() == 0)
+    {
+        // 空列表提示
+        UTextBlock* EmptyText = NewObject<UTextBlock>(this);
+        EmptyText->SetText(FText::FromString(TEXT("No agents added yet. Add agents above.")));
+        FSlateFontInfo EmptyFont = EmptyText->GetFont();
+        EmptyFont.Size = 12;
+        EmptyText->SetFont(EmptyFont);
+        EmptyText->SetColorAndOpacity(FSlateColor(TextSecondaryColor));
+        AgentListScrollBox->AddChild(EmptyText);
+        return;
+    }
 
     // 为每个配置创建一行
     for (int32 i = 0; i < AgentConfigs.Num(); ++i)
@@ -295,26 +412,60 @@ void UMASetupWidget::RefreshAgentList()
 
         UHorizontalBox* Row = NewObject<UHorizontalBox>(this);
 
-        // 类型和数量显示
-        UTextBlock* InfoText = NewObject<UTextBlock>(this);
-        FString InfoStr = FString::Printf(TEXT("  %s x%d"), *Config.DisplayName, Config.Count);
-        InfoText->SetText(FText::FromString(InfoStr));
-        InfoText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
-        Row->AddChildToHorizontalBox(InfoText);
+        // Agent 类型图标/标记 (用文字代替)
+        UTextBlock* IconText = NewObject<UTextBlock>(this);
+        IconText->SetText(FText::FromString(TEXT("●")));
+        IconText->SetColorAndOpacity(FSlateColor(CountBadgeColor));
+        Row->AddChildToHorizontalBox(IconText);
 
         // 间隔
-        USpacer* Spacer = NewObject<USpacer>(this);
-        Spacer->SetSize(FVector2D(20.0f, 0.0f));
-        Row->AddChildToHorizontalBox(Spacer);
+        USpacer* IconSpacer = NewObject<USpacer>(this);
+        IconSpacer->SetSize(FVector2D(10.0f, 0.0f));
+        Row->AddChildToHorizontalBox(IconSpacer);
 
-        // 删除按钮 (简化处理，暂不实现删除功能)
+        // 类型名称
+        UTextBlock* NameText = NewObject<UTextBlock>(this);
+        NameText->SetText(FText::FromString(Config.DisplayName));
+        FSlateFontInfo NameFont = NameText->GetFont();
+        NameFont.Size = 14;
+        NameText->SetFont(NameFont);
+        NameText->SetColorAndOpacity(FSlateColor(TextPrimaryColor));
+        Row->AddChildToHorizontalBox(NameText);
+
+        // 弹性间隔
+        USpacer* FlexSpacer = NewObject<USpacer>(this);
+        FlexSpacer->SetSize(FVector2D(50.0f, 0.0f));
+        Row->AddChildToHorizontalBox(FlexSpacer);
+
+        // 数量显示
+        UTextBlock* CountText = NewObject<UTextBlock>(this);
+        CountText->SetText(FText::FromString(FString::Printf(TEXT("x%d"), Config.Count)));
+        FSlateFontInfo CountFont = CountText->GetFont();
+        CountFont.Size = 14;
+        CountText->SetFont(CountFont);
+        CountText->SetColorAndOpacity(FSlateColor(CountBadgeColor));
+        Row->AddChildToHorizontalBox(CountText);
+
+        // 间隔
+        USpacer* BtnSpacer = NewObject<USpacer>(this);
+        BtnSpacer->SetSize(FVector2D(15.0f, 0.0f));
+        Row->AddChildToHorizontalBox(BtnSpacer);
+
+        // 删除按钮
         UButton* RemoveButton = NewObject<UButton>(this);
+        RemoveButton->SetBackgroundColor(RemoveBtnColor);
         UTextBlock* RemoveText = NewObject<UTextBlock>(this);
-        RemoveText->SetText(FText::FromString(TEXT("X")));
+        RemoveText->SetText(FText::FromString(TEXT(" ✕ ")));
+        RemoveText->SetColorAndOpacity(FSlateColor(TextPrimaryColor));
         RemoveButton->AddChild(RemoveText);
         Row->AddChildToHorizontalBox(RemoveButton);
 
+        // 行间隔
+        USpacer* RowSpacer = NewObject<USpacer>(this);
+        RowSpacer->SetSize(FVector2D(0.0f, 6.0f));
+
         AgentListScrollBox->AddChild(Row);
+        AgentListScrollBox->AddChild(RowSpacer);
     }
 
     UE_LOG(LogTemp, Log, TEXT("[MASetupWidget] Agent list refreshed, %d configs"), AgentConfigs.Num());
@@ -325,7 +476,7 @@ void UMASetupWidget::UpdateTotalCount()
     int32 Total = GetTotalAgentCount();
     if (TotalCountText)
     {
-        TotalCountText->SetText(FText::FromString(FString::Printf(TEXT("总计: %d 个智能体"), Total)));
+        TotalCountText->SetText(FText::FromString(FString::Printf(TEXT("Total: %d agent(s)"), Total)));
     }
 }
 
