@@ -145,6 +145,10 @@ protected:
     /** 可用的场景列表 */
     TArray<FString> AvailableScenes;
 
+    /** 删除按钮到索引的映射 */
+    UPROPERTY()
+    TMap<UButton*, int32> RemoveButtonIndexMap;
+
 private:
     //=========================================================================
     // UI 构建
@@ -171,6 +175,9 @@ private:
     UFUNCTION()
     void OnStartButtonClicked();
 
-    UFUNCTION()
     void OnRemoveAgentClicked(int32 Index);
+
+    /** 删除按钮点击回调 (通过映射查找索引) */
+    UFUNCTION()
+    void OnRemoveButtonClicked();
 };

@@ -401,8 +401,9 @@ void UMASetupWidget::RefreshAgentList()
     const FLinearColor CountBadgeColor(0.2f, 0.6f, 0.9f, 1.0f);
     const FLinearColor RemoveBtnColor(0.6f, 0.25f, 0.25f, 1.0f);
 
-    // 清空现有列表
+    // 清空现有列表和按钮映射
     AgentListScrollBox->ClearChildren();
+    RemoveButtonIndexMap.Empty();
 
     if (AgentConfigs.Num() == 0)
     {
@@ -470,6 +471,11 @@ void UMASetupWidget::RefreshAgentList()
         RemoveText->SetText(FText::FromString(TEXT(" ✕ ")));
         RemoveText->SetColorAndOpacity(FSlateColor(TextPrimaryColor));
         RemoveButton->AddChild(RemoveText);
+        
+        // 存储按钮到索引的映射，并绑定点击事件
+        RemoveButtonIndexMap.Add(RemoveButton, i);
+        RemoveButton->OnClicked.AddDynamic(this, &UMASetupWidget::OnRemoveButtonClicked);
+        
         Row->AddChildToHorizontalBox(RemoveButton);
 
         // 行间隔
@@ -586,8 +592,33 @@ void UMASetupWidget::OnRemoveAgentClicked(int32 Index)
 {
     if (AgentConfigs.IsValidIndex(Index))
     {
+        UE_LOG(LogTemp, Log, TEXT("[MASetupWidget] Removing agent at index %d"), Index);
         AgentConfigs.RemoveAt(Index);
         RefreshAgentList();
         UpdateTotalCount();
+    }
+}
+
+void UMASetupWidget::OnRemoveButtonClicked()
+{
+    // 查找是哪个按钮被点击了 - 检查 IsHovered 作为备选
+    for (const auto& Pair : RemoveButtonIndexMap)
+    {
+        UButton* Button = Pair.Key;
+        if (Button && (Button->IsPressed() || Button->IsHovered()))
+        {
+            int32 Index = Pair.Value;
+            UE_LOG(LogTemp, Log, TEXT("[MASetupWidget] Remove button clicked for index %d"), Index);
+            OnRemoveAgentClicked(Index);
+            return;
+        }
+    }
+    
+    // 备用方案：如果上面的方法都不行，删除最后一个
+    // 这种情况不应该发生，但作为保险
+    if (AgentConfigs.Num() > 0)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[MASetupWidget] Fallback: removing last agent"));
+        OnRemoveAgentClicked(AgentConfigs.Num() - 1);
     }
 }
