@@ -159,6 +159,12 @@ void UMASetupWidget::BuildUI()
     
     SceneComboBox->SetContentPadding(FMargin(12.f, 6.f));
     
+    // 设置下拉菜单样式 - 通过 ItemStyle 设置文字颜色
+    FTableRowStyle ItemStyle = SceneComboBox->GetItemStyle();
+    ItemStyle.SetTextColor(FSlateColor(FLinearColor::Black));
+    ItemStyle.SetSelectedTextColor(FSlateColor(FLinearColor::White));
+    SceneComboBox->SetItemStyle(ItemStyle);
+    
     if (AvailableScenes.Num() > 0)
     {
         if (!AvailableScenes.Contains(SelectedScene))
@@ -213,6 +219,12 @@ void UMASetupWidget::BuildUI()
     }
     
     AgentTypeComboBox->SetContentPadding(FMargin(12.f, 6.f));
+    
+    // 设置下拉菜单样式 - 通过 ItemStyle 设置文字颜色
+    FTableRowStyle AgentItemStyle = AgentTypeComboBox->GetItemStyle();
+    AgentItemStyle.SetTextColor(FSlateColor(FLinearColor::Black));
+    AgentItemStyle.SetSelectedTextColor(FSlateColor(FLinearColor::White));
+    AgentTypeComboBox->SetItemStyle(AgentItemStyle);
     
     if (AvailableAgentTypes.Num() > 0)
     {
