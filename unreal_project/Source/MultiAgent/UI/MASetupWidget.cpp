@@ -120,11 +120,32 @@ void UMASetupWidget::BuildUI()
     SceneRow->AddChildToHorizontalBox(SceneLabel);
 
     SceneComboBox = WidgetTree->ConstructWidget<UComboBoxString>(UComboBoxString::StaticClass(), TEXT("SceneComboBox"));
+    
+    // 先清空确保没有残留选项
+    SceneComboBox->ClearOptions();
+    
+    // 添加场景选项
     for (const FString& Scene : AvailableScenes)
     {
         SceneComboBox->AddOption(Scene);
+        UE_LOG(LogTemp, Log, TEXT("[MASetupWidget] Added scene option: %s"), *Scene);
     }
-    SceneComboBox->SetSelectedOption(SelectedScene);
+    
+    // 设置下拉框样式
+    SceneComboBox->SetContentPadding(FMargin(8.f, 4.f));
+    
+    // 确保有默认选项后再设置选中项
+    if (AvailableScenes.Num() > 0)
+    {
+        // 如果 SelectedScene 不在列表中，使用第一个
+        if (!AvailableScenes.Contains(SelectedScene))
+        {
+            SelectedScene = AvailableScenes[0];
+        }
+        SceneComboBox->SetSelectedOption(SelectedScene);
+        UE_LOG(LogTemp, Log, TEXT("[MASetupWidget] Scene ComboBox selected: %s"), *SelectedScene);
+    }
+    
     SceneComboBox->OnSelectionChanged.AddDynamic(this, &UMASetupWidget::OnSceneSelectionChanged);
     SceneRow->AddChildToHorizontalBox(SceneComboBox);
 
@@ -147,11 +168,20 @@ void UMASetupWidget::BuildUI()
 
     // 智能体类型下拉框
     AgentTypeComboBox = WidgetTree->ConstructWidget<UComboBoxString>(UComboBoxString::StaticClass(), TEXT("AgentTypeComboBox"));
+    AgentTypeComboBox->ClearOptions();
+    
+    // 使用显示名称作为选项，更友好
     for (const auto& Pair : AvailableAgentTypes)
     {
-        AgentTypeComboBox->AddOption(Pair.Key);
+        AgentTypeComboBox->AddOption(Pair.Key);  // 使用内部名称作为选项值
     }
-    AgentTypeComboBox->SetSelectedIndex(0);
+    
+    AgentTypeComboBox->SetContentPadding(FMargin(8.f, 4.f));
+    
+    if (AvailableAgentTypes.Num() > 0)
+    {
+        AgentTypeComboBox->SetSelectedIndex(0);
+    }
     AddRow->AddChildToHorizontalBox(AgentTypeComboBox);
 
     // 数量标签
@@ -233,7 +263,6 @@ void UMASetupWidget::BuildUI()
     StartButton->SetClickMethod(EButtonClickMethod::DownAndUp);
     StartButton->SetTouchMethod(EButtonTouchMethod::DownAndUp);
     StartButton->SetPressMethod(EButtonPressMethod::DownAndUp);
-    StartButton->IsFocusable = true;
     UTextBlock* StartButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("StartButtonText"));
     StartButtonText->SetText(FText::FromString(TEXT("Start Simulation")));  // 用英文测试
     FSlateFontInfo StartFont = StartButtonText->GetFont();
