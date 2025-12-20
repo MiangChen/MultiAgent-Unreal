@@ -147,6 +147,10 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "Input|AgentControl")
     TObjectPtr<UInputAction> IA_LookArrow;
 
+    /** 跳跃输入 (空格键，用于地面单位跳跃) */
+    UPROPERTY(BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_Jump;
+
     // ========== Input Mapping Contexts ==========
     
     /** RTS 模式输入 (优先级 0, 始终激活) - 框选、编组、生成等 */

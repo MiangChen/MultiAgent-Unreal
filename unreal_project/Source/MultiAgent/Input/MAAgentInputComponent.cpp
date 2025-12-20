@@ -51,6 +51,7 @@ void UMAAgentInputComponent::Initialize(APlayerController* PC, AMACharacter* Age
         EIC->BindAction(InputActions->IA_MoveUp, ETriggerEvent::Triggered, this, &UMAAgentInputComponent::OnMoveUp);
         EIC->BindAction(InputActions->IA_MoveDown, ETriggerEvent::Triggered, this, &UMAAgentInputComponent::OnMoveDown);
         EIC->BindAction(InputActions->IA_LookArrow, ETriggerEvent::Triggered, this, &UMAAgentInputComponent::OnLookArrowInput);
+        EIC->BindAction(InputActions->IA_Jump, ETriggerEvent::Triggered, this, &UMAAgentInputComponent::OnJump);
         
         UE_LOG(LogTemp, Log, TEXT("[AgentInputComponent] Input bindings created for %s"), *Agent->AgentName);
     }
@@ -144,10 +145,19 @@ void UMAAgentInputComponent::OnMoveUp(const FInputActionValue& Value)
 {
     if (!ControlledAgent.IsValid()) return;
     
-    // 只有 Drone 支持垂直移动
+    // E 键用于 Drone 上升（需要在空中）
     if (AMADroneCharacter* Drone = Cast<AMADroneCharacter>(ControlledAgent.Get()))
     {
-        Drone->ApplyVerticalMovement(1.0f);
+        if (Drone->IsLanded())
+        {
+            // 在地面时，E 键起飞
+            Drone->TakeOff();
+        }
+        else
+        {
+            // 在空中时，E 键上升
+            Drone->ApplyVerticalMovement(1.0f);
+        }
     }
 }
 
@@ -155,10 +165,43 @@ void UMAAgentInputComponent::OnMoveDown(const FInputActionValue& Value)
 {
     if (!ControlledAgent.IsValid()) return;
     
-    // 只有 Drone 支持垂直移动
+    // Q 键用于 Drone 下降/降落
     if (AMADroneCharacter* Drone = Cast<AMADroneCharacter>(ControlledAgent.Get()))
     {
-        Drone->ApplyVerticalMovement(-1.0f);
+        if (Drone->IsInAir())
+        {
+            Drone->ApplyVerticalMovement(-1.0f);
+        }
+    }
+}
+
+void UMAAgentInputComponent::OnJump(const FInputActionValue& Value)
+{
+    if (!ControlledAgent.IsValid()) return;
+    
+    AMACharacter* Agent = ControlledAgent.Get();
+    
+    // Drone: Space 起飞或上升
+    if (AMADroneCharacter* Drone = Cast<AMADroneCharacter>(Agent))
+    {
+        if (Drone->IsLanded())
+        {
+            // 在地面时，Space 起飞
+            Drone->TakeOff();
+        }
+        else
+        {
+            // 在空中时，Space 上升
+            Drone->ApplyVerticalMovement(1.0f);
+        }
+    }
+    else
+    {
+        // 地面单位执行跳跃
+        if (Agent->CanPerformJump())
+        {
+            Agent->PerformJump();
+        }
     }
 }
 

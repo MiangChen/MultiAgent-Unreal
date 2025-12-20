@@ -44,6 +44,7 @@ protected:
     void OnMoveUp(const FInputActionValue& Value);
     void OnMoveDown(const FInputActionValue& Value);
     void OnLookArrowInput(const FInputActionValue& Value);
+    void OnJump(const FInputActionValue& Value);
 
 private:
     UPROPERTY()

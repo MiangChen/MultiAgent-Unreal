@@ -85,13 +85,6 @@ public:
     float AvoidanceCheckInterval = 0.1f;
 
 private:
-    // ========== 卡住自动跳跃 ==========
-    float StuckTime = 0.f;
-    float StuckThreshold = 0.5f;
-    float JumpCooldown = 0.f;
-    
-    void CheckStuckAndJump(float DeltaTime);
-
     // 能量耗尽回调
     UFUNCTION()
     void OnEnergyDepleted();

@@ -65,6 +65,7 @@ void UMAInputActions::Initialize()
     IA_LookArrow = CreateInputAction(TEXT("IA_LookArrow"), EInputActionValueType::Axis2D);
     IA_MoveUp = CreateInputAction(TEXT("IA_MoveUp"));
     IA_MoveDown = CreateInputAction(TEXT("IA_MoveDown"));
+    IA_Jump = CreateInputAction(TEXT("IA_Jump"));
 
     // 创建 Input Mapping Contexts
     IMC_RTS = NewObject<UInputMappingContext>(this, TEXT("IMC_RTS"));
@@ -94,7 +95,12 @@ void UMAInputActions::Initialize()
     AddKeyMapping(IMC_RTS, IA_StartFormation, EKeys::B);
     AddKeyMapping(IMC_RTS, IA_TakePhoto, EKeys::L);  // L for Lens/Light
     AddKeyMapping(IMC_RTS, IA_ToggleRecording, EKeys::R);  // R for Recording
-    AddKeyMapping(IMC_RTS, IA_ToggleTCPStream, EKeys::V);  // V for Video stream
+    // TCP 视频流暂时禁用
+    // AddKeyMapping(IMC_RTS, IA_ToggleTCPStream, EKeys::V);  // V for Video stream
+    
+    // Direct Control 视角切换
+    AddKeyMapping(IMC_RTS, IA_SwitchCamera, EKeys::C);  // C for Camera switch (额外绑定)
+    AddKeyMapping(IMC_RTS, IA_ReturnSpectator, EKeys::V);  // V for View (返回观察者)
 
     // 编组快捷键 (1~5, Ctrl+1~5 由代码检测)
     AddKeyMapping(IMC_RTS, IA_ControlGroup1, EKeys::One);
@@ -111,6 +117,9 @@ void UMAInputActions::Initialize()
     AddKeyMapping(IMC_RTS, IA_TriggerEmergency, EKeys::Hyphen);  // "-" 键触发/结束事件
     AddKeyMapping(IMC_RTS, IA_ToggleEmergencyUI, EKeys::X);  // "X" 键切换详情界面
 
+    // 跳跃 (空格键)
+    AddKeyMapping(IMC_RTS, IA_Jump, EKeys::SpaceBar);
+
     // ========== IMC_AgentControl 按键映射 (WASD、视角) ==========
     // 仅在 Agent View Mode 时由 MAAgentInputComponent 添加
     
@@ -123,9 +132,12 @@ void UMAInputActions::Initialize()
     // 方向键视角
     AddArrowLookMapping(IMC_AgentControl, IA_LookArrow);
 
-    // 垂直移动 (Space/Ctrl)
-    AddKeyMapping(IMC_AgentControl, IA_MoveUp, EKeys::SpaceBar);
-    AddKeyMapping(IMC_AgentControl, IA_MoveDown, EKeys::LeftControl);
+    // 垂直移动 (E上升/Q下降)
+    AddKeyMapping(IMC_AgentControl, IA_MoveUp, EKeys::E);
+    AddKeyMapping(IMC_AgentControl, IA_MoveDown, EKeys::Q);
+
+    // 跳跃 (Space) - Agent View Mode 下也需要
+    AddKeyMapping(IMC_AgentControl, IA_Jump, EKeys::SpaceBar);
 
     UE_LOG(LogTemp, Log, TEXT("[Input] MAInputActions initialized - IMC_RTS + IMC_AgentControl"));
 }

@@ -87,6 +87,15 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Control")
     void ApplyDirectMovement(FVector WorldDirection);
 
+    // ========== 跳跃 ==========
+    /** 是否能执行跳跃 */
+    UFUNCTION(BlueprintCallable, Category = "Jump")
+    virtual bool CanPerformJump() const;
+
+    /** 执行跳跃 (手动或自动触发) */
+    UFUNCTION(BlueprintCallable, Category = "Jump")
+    virtual void PerformJump();
+
     // ========== 头顶状态显示 ==========
     UFUNCTION(BlueprintCallable, Category = "Status")
     void ShowStatus(const FString& Text, float Duration = 3.0f);
@@ -127,12 +136,28 @@ protected:
     UPROPERTY(BlueprintReadOnly, Category = "Control")
     bool bIsUnderDirectControl = false;
 
+    // ========== 跳跃参数 ==========
+    /** 跳跃冷却计时器 */
+    float JumpCooldownTimer = 0.f;
+    
+    /** 跳跃冷却时间 */
+    float JumpCooldownDuration = 1.0f;
+    
+    /** 卡住检测时间 */
+    float StuckTime = 0.f;
+    
+    /** 卡住阈值 (秒) */
+    float StuckThreshold = 0.5f;
+
     virtual void BeginPlay() override;
     virtual void Tick(float DeltaTime) override;
     virtual void PossessedBy(AController* NewController) override;
 
     // 导航期间每帧调用，子类可重写
     virtual void OnNavigationTick();
+    
+    /** 检测卡住并自动跳跃 */
+    virtual void CheckStuckAndAutoJump(float DeltaTime);
     
     // 根据 SkeletalMesh 自动计算 CapsuleComponent 大小
     void AutoFitCapsuleToMesh();

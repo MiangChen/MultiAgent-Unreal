@@ -118,6 +118,9 @@ protected:
     // 切换突发事件详情界面 ("X" 键)
     void OnToggleEmergencyUI(const FInputActionValue& Value);
 
+    // 跳跃 (空格键)
+    void OnJumpPressed(const FInputActionValue& Value);
+
     // 获取鼠标点击位置
     bool GetMouseHitLocation(FVector& OutLocation);
     

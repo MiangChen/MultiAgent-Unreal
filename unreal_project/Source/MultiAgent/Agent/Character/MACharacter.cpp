@@ -140,6 +140,15 @@ void AMACharacter::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
     
+    // 更新跳跃冷却
+    if (JumpCooldownTimer > 0.f)
+    {
+        JumpCooldownTimer -= DeltaTime;
+    }
+    
+    // 检测卡住并自动跳跃
+    CheckStuckAndAutoJump(DeltaTime);
+    
     if (bIsMoving)
     {
         OnNavigationTick();
@@ -525,4 +534,68 @@ bool AMACharacter::ExecuteAction(const FString& ActionName, const TMap<FString, 
     
     UE_LOG(LogTemp, Warning, TEXT("[Agent] %s: Unknown action '%s'"), *AgentName, *ActionName);
     return false;
+}
+
+
+// ========== 跳跃 ==========
+
+bool AMACharacter::CanPerformJump() const
+{
+    // 在地面上 + 冷却结束
+    return GetCharacterMovement()->IsMovingOnGround() && JumpCooldownTimer <= 0.f;
+}
+
+void AMACharacter::PerformJump()
+{
+    if (!CanPerformJump()) return;
+    
+    // 向前+向上跳跃
+    FVector JumpImpulse = GetActorForwardVector() * 200.f + FVector(0.f, 0.f, 500.f);
+    LaunchCharacter(JumpImpulse, false, true);
+    
+    JumpCooldownTimer = JumpCooldownDuration;
+    StuckTime = 0.f;
+    
+    UE_LOG(LogTemp, Log, TEXT("[%s] PerformJump"), *AgentName);
+}
+
+void AMACharacter::CheckStuckAndAutoJump(float DeltaTime)
+{
+    // 只有在移动中才检测
+    if (!bIsMoving)
+    {
+        StuckTime = 0.f;
+        return;
+    }
+    
+    // 速度很低 = 可能卡住
+    if (GetVelocity().Size() < 10.f)
+    {
+        StuckTime += DeltaTime;
+        
+        if (StuckTime > StuckThreshold)
+        {
+            // 前方射线检测静态障碍物
+            FHitResult Hit;
+            FVector Start = GetActorLocation();
+            FVector End = Start + GetActorForwardVector() * 80.f;
+            
+            FCollisionQueryParams Params;
+            Params.AddIgnoredActor(this);
+            
+            if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_WorldStatic, Params))
+            {
+                // 调用统一的跳跃接口
+                PerformJump();
+            }
+            else
+            {
+                StuckTime = 0.f;  // 被其他 Agent 挡住，不跳
+            }
+        }
+    }
+    else
+    {
+        StuckTime = 0.f;
+    }
 }

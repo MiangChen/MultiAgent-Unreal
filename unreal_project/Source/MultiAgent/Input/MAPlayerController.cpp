@@ -140,6 +140,9 @@ void AMAPlayerController::SetupInputComponent()
         EIC->BindAction(InputActions->IA_TriggerEmergency, ETriggerEvent::Started, this, &AMAPlayerController::OnTriggerEmergency);
         EIC->BindAction(InputActions->IA_ToggleEmergencyUI, ETriggerEvent::Started, this, &AMAPlayerController::OnToggleEmergencyUI);
 
+        // 跳跃 (空格键)
+        EIC->BindAction(InputActions->IA_Jump, ETriggerEvent::Started, this, &AMAPlayerController::OnJumpPressed);
+
         // Agent View Mode 输入由 MAAgentInputComponent 处理
         // 进入 Agent View 时自动添加 IMC_AgentControl
     }
@@ -1177,5 +1180,34 @@ void AMAPlayerController::OnToggleEmergencyUI(const FInputActionValue& Value)
     else
     {
         UE_LOG(LogTemp, Warning, TEXT("[PlayerController] MAHUD not found!"));
+    }
+}
+
+void AMAPlayerController::OnJumpPressed(const FInputActionValue& Value)
+{
+    if (!SelectionManager)
+    {
+        return;
+    }
+    
+    TArray<AMACharacter*> SelectedAgents = SelectionManager->GetSelectedAgents();
+    if (SelectedAgents.Num() == 0)
+    {
+        return;
+    }
+    
+    int32 JumpCount = 0;
+    for (AMACharacter* Agent : SelectedAgents)
+    {
+        if (Agent && Agent->CanPerformJump())
+        {
+            Agent->PerformJump();
+            JumpCount++;
+        }
+    }
+    
+    if (JumpCount > 0)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[PlayerController] Jump: %d agents jumped"), JumpCount);
     }
 }

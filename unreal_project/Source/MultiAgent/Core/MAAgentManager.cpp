@@ -496,6 +496,29 @@ AMACharacter* UMAAgentManager::SpawnAgentByType(const FString& TypeName, FVector
     FString AgentID = FString::Printf(TEXT("%s_%d"), *TypeName, NextAgentIndex);
     AMACharacter* Agent = SpawnAgent(AgentClass, SpawnLocation, Rotation, AgentID, AgentType);
 
+    // 自动添加第三人称摄像头，支持 Direct Control
+    if (Agent)
+    {
+        FVector CameraOffset;
+        FRotator CameraRotation;
+        
+        if (bIsDrone)
+        {
+            // 无人机：稍远的视角
+            CameraOffset = FVector(-200.f, 0.f, 50.f);
+            CameraRotation = FRotator(-10.f, 0.f, 0.f);
+        }
+        else
+        {
+            // 地面单位：标准第三人称
+            CameraOffset = FVector(-150.f, 0.f, 80.f);
+            CameraRotation = FRotator(-15.f, 0.f, 0.f);
+        }
+        
+        Agent->AddCameraSensor(CameraOffset, CameraRotation);
+        UE_LOG(LogTemp, Log, TEXT("[AgentManager] Added default camera to %s"), *Agent->AgentID);
+    }
+
     UE_LOG(LogTemp, Log, TEXT("[AgentManager] SpawnAgentByType: %s -> %s at (%.0f, %.0f, %.0f)"),
         *TypeName, Agent ? *Agent->AgentID : TEXT("FAILED"),
         SpawnLocation.X, SpawnLocation.Y, SpawnLocation.Z);

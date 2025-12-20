@@ -26,8 +26,8 @@
 
 | 按键 | 功能 |
 |------|------|
-| **Tab** | 切换到下一个 Agent 的 Camera 视角，进入 Direct Control 模式 |
-| **0** | 返回上帝视角 (Spectator)，位置 (790, 1810, 502) |
+| **Tab** / **C** | 切换到下一个 Agent 的 Camera 视角，进入 Direct Control 模式 |
+| **0** / **V** | 返回上帝视角 (Spectator)，位置 (790, 1810, 502) |
 
 ## Agent View Mode (Direct Control 模式)
 
@@ -41,8 +41,9 @@
 | **S** | Agent 向后移动 |
 | **A** | Agent 向左平移 |
 | **D** | Agent 向右平移 |
-| **Space** | Drone 上升 (仅 Drone 有效) |
-| **Left Ctrl** | Drone 下降 (仅 Drone 有效) |
+| **Space** | 跳跃 (Human/RobotDog) |
+| **E** | Drone 上升 (仅 Drone 有效) |
+| **Q** | Drone 下降 (仅 Drone 有效) |
 
 ### 视角控制
 
@@ -105,7 +106,6 @@
 |------|------|
 | **L** | 拍照 (保存到 Saved/Screenshots/) |
 | **R** | 开始/停止录像 |
-| **V** | 开始/停止 TCP 视频流 (端口 9000) |
 
 ## 编队类型说明
 
