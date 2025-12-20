@@ -56,10 +56,10 @@ void UMASetupWidget::InitializeData()
 
     // 可用的场景 (使用英文避免字体问题)
     AvailableScenes.Add(TEXT("CyberCity"));
-    AvailableScenes.Add(TEXT("OldTown"));
-    AvailableScenes.Add(TEXT("Factory"));
-    AvailableScenes.Add(TEXT("Forest"));
-    AvailableScenes.Add(TEXT("DesertBase"));
+    AvailableScenes.Add(TEXT("DesertLab"));
+    AvailableScenes.Add(TEXT("SpruceForest"));
+    AvailableScenes.Add(TEXT("Town"));
+    AvailableScenes.Add(TEXT("Warehouse"));
 
     // 默认添加一些智能体
     AgentConfigs.Add(FMAAgentSetupConfig(TEXT("DronePhantom4"), TEXT("Drone Phantom 4"), 3));

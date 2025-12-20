@@ -92,10 +92,10 @@ void AMASetupHUD::OnStartSimulation()
         // 根据你的实际地图路径修改
         static TMap<FString, FString> SceneToMapPath = {
             {TEXT("CyberCity"), TEXT("/Game/Map/LS_Scifi_ModernCity/Maps/Scifi_ModernCity")},
-            {TEXT("OldTown"), TEXT("/Game/Maps/OldTown")},
-            {TEXT("Factory"), TEXT("/Game/Maps/Factory")},
-            {TEXT("Forest"), TEXT("/Game/Maps/Forest")},
-            {TEXT("DesertBase"), TEXT("/Game/Maps/DesertBase")}
+            {TEXT("DesertLab"), TEXT("/Game/Map/DesertLab/Maps/DesertLab")},
+            {TEXT("SpruceForest"), TEXT("/Game/Map/Spruce_Forest/Demo/Maps/SpruceForest")},
+            {TEXT("Town"), TEXT("/Game/Map/Town/DreamscapeFarmlands/Maps/Demo_Village_New")},
+            {TEXT("Warehouse"), TEXT("/Game/Map/Warehouse/Maps/Demonstration_Map")}
         };
 
         FString MapPath = TEXT("/Game/Maps/") + SelectedScene;  // 默认路径
@@ -108,8 +108,9 @@ void AMASetupHUD::OnStartSimulation()
         UE_LOG(LogTemp, Warning, TEXT("[MASetupHUD] Loading map: %s"), *MapPath);
         UE_LOG(LogTemp, Warning, TEXT("[MASetupHUD] Total agents: %d"), SetupWidget->GetTotalAgentCount());
 
-        // 切换到仿真地图
-        UGameplayStatics::OpenLevel(this, FName(*MapPath));
+        // 切换到仿真地图，强制使用 MAGameMode（覆盖地图自带的 GameMode 设置）
+        FString Options = TEXT("?game=/Script/MultiAgent.MAGameMode");
+        UGameplayStatics::OpenLevel(this, FName(*MapPath), true, Options);
     }
     else
     {
