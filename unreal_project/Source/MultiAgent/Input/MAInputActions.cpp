@@ -22,6 +22,7 @@ void UMAInputActions::Initialize()
     // 创建所有 Input Actions
     IA_LeftClick = CreateInputAction(TEXT("IA_LeftClick"));
     IA_RightClick = CreateInputAction(TEXT("IA_RightClick"));
+    IA_MiddleClick = CreateInputAction(TEXT("IA_MiddleClick"));
     IA_Pickup = CreateInputAction(TEXT("IA_Pickup"));
     IA_Drop = CreateInputAction(TEXT("IA_Drop"));
     IA_SpawnItem = CreateInputAction(TEXT("IA_SpawnItem"));
@@ -75,6 +76,7 @@ void UMAInputActions::Initialize()
     // ========== IMC_RTS 按键映射 (框选、编组、生成等) ==========
     AddKeyMapping(IMC_RTS, IA_LeftClick, EKeys::LeftMouseButton);
     AddKeyMapping(IMC_RTS, IA_RightClick, EKeys::RightMouseButton);
+    AddKeyMapping(IMC_RTS, IA_MiddleClick, EKeys::MiddleMouseButton);
     AddKeyMapping(IMC_RTS, IA_Pickup, EKeys::P);
     AddKeyMapping(IMC_RTS, IA_Drop, EKeys::O);
     AddKeyMapping(IMC_RTS, IA_SpawnItem, EKeys::I);

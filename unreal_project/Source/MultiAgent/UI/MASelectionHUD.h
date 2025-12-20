@@ -52,9 +52,17 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Selection|Style")
     FLinearColor ControlGroupTextColor = FLinearColor(1.f, 1.f, 0.f, 1.f);
 
+    // 部署模式框选颜色
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Selection|Style")
+    FLinearColor DeploymentBoxColor = FLinearColor(0.2f, 0.6f, 1.f, 0.3f);
+
+    // 部署模式边框颜色
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Selection|Style")
+    FLinearColor DeploymentBoxBorderColor = FLinearColor(0.2f, 0.6f, 1.f, 1.f);
+
 private:
     // 绘制框选矩形
-    void DrawSelectionBox();
+    void DrawSelectionBox(bool bIsDeploymentMode = false);
 
     // 绘制选中 Agent 的高亮圈
     void DrawSelectedAgents();
@@ -67,4 +75,7 @@ private:
 
     // 绘制当前鼠标模式
     void DrawMouseMode();
+
+    // 绘制部署模式信息
+    void DrawDeploymentInfo();
 };

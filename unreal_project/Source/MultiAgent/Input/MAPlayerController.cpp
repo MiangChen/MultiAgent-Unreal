@@ -85,7 +85,9 @@ void AMAPlayerController::SetupInputComponent()
         // 鼠标点击 (框选)
         EIC->BindAction(InputActions->IA_LeftClick, ETriggerEvent::Started, this, &AMAPlayerController::OnLeftClick);
         EIC->BindAction(InputActions->IA_LeftClick, ETriggerEvent::Completed, this, &AMAPlayerController::OnLeftClickReleased);
-        EIC->BindAction(InputActions->IA_RightClick, ETriggerEvent::Started, this, &AMAPlayerController::OnRightClick);
+        EIC->BindAction(InputActions->IA_RightClick, ETriggerEvent::Started, this, &AMAPlayerController::OnRightClickPressed);
+        EIC->BindAction(InputActions->IA_RightClick, ETriggerEvent::Completed, this, &AMAPlayerController::OnRightClickReleased);
+        EIC->BindAction(InputActions->IA_MiddleClick, ETriggerEvent::Started, this, &AMAPlayerController::OnMiddleClick);
 
         // GAS 技能
         EIC->BindAction(InputActions->IA_Pickup, ETriggerEvent::Started, this, &AMAPlayerController::OnPickup);
@@ -160,34 +162,33 @@ bool AMAPlayerController::GetMouseHitLocation(FVector& OutLocation)
 
 void AMAPlayerController::OnLeftClick(const FInputActionValue& Value)
 {
-    if (CurrentMouseMode == EMAMouseMode::Select)
+    if (CurrentMouseMode == EMAMouseMode::Deployment)
     {
-        // Select 模式：开始框选
-        if (SelectionManager)
-        {
-            float MouseX, MouseY;
-            if (GetMousePosition(MouseX, MouseY))
-            {
-                SelectionManager->BeginBoxSelect(FVector2D(MouseX, MouseY));
-            }
-        }
+        // 部署模式：开始框选部署区域
+        OnDeploymentLeftClick();
+        return;
     }
-    else // Navigate 模式
+    
+    // Select 模式：开始框选
+    if (SelectionManager)
     {
-        // Human 导航到点击位置
-        FVector HitLocation;
-        if (GetMouseHitLocation(HitLocation) && AgentManager)
+        float MouseX, MouseY;
+        if (GetMousePosition(MouseX, MouseY))
         {
-            for (AMACharacter* Agent : AgentManager->GetAgentsByType(EMAAgentType::Human))
-            {
-                if (Agent) Agent->TryNavigateTo(HitLocation);
-            }
+            SelectionManager->BeginBoxSelect(FVector2D(MouseX, MouseY));
         }
     }
 }
 
 void AMAPlayerController::OnLeftClickReleased(const FInputActionValue& Value)
 {
+    if (CurrentMouseMode == EMAMouseMode::Deployment)
+    {
+        // 部署模式：完成框选放置
+        OnDeploymentLeftClickReleased();
+        return;
+    }
+    
     if (!SelectionManager || !SelectionManager->IsBoxSelecting()) return;
 
     // 更新终点
@@ -227,11 +228,8 @@ void AMAPlayerController::OnLeftClickReleased(const FInputActionValue& Value)
             }
         }
         
-        // 点击空地，清除选择
-        if (!bCtrlPressed)
-        {
-            SelectionManager->ClearSelection();
-        }
+        // 点击空地：不清除选择，保持当前选中状态
+        // 如果需要清除选择，可以按 Esc 或点击已选中的 Agent
     }
     else
     {
@@ -264,33 +262,96 @@ void AMAPlayerController::Tick(float DeltaTime)
             SelectionHUD->BoxEnd = SelectionManager->GetBoxSelectEnd();
         }
     }
+    
+    // 右键拖动旋转视角
+    if (bIsRightMouseRotating)
+    {
+        float MouseX, MouseY;
+        if (GetMousePosition(MouseX, MouseY))
+        {
+            FVector2D CurrentPos(MouseX, MouseY);
+            FVector2D Delta = CurrentPos - RightMouseStartPosition;
+            
+            // 只有拖动超过阈值才旋转（避免抖动）
+            if (Delta.Size() > 2.f)
+            {
+                // 获取当前 Pawn 并旋转
+                if (APawn* ControlledPawn = GetPawn())
+                {
+                    // Yaw (左右旋转) - 鼠标 X 移动
+                    // Pitch (上下旋转) - 鼠标 Y 移动
+                    FRotator NewRotation = ControlledPawn->GetActorRotation();
+                    NewRotation.Yaw += Delta.X * CameraRotationSensitivity;
+                    NewRotation.Pitch = FMath::Clamp(NewRotation.Pitch - Delta.Y * CameraRotationSensitivity, -89.f, 89.f);
+                    
+                    ControlledPawn->SetActorRotation(NewRotation);
+                    SetControlRotation(NewRotation);
+                }
+                
+                // 更新起始位置，实现连续旋转
+                RightMouseStartPosition = CurrentPos;
+            }
+        }
+    }
 }
 
-void AMAPlayerController::OnRightClick(const FInputActionValue& Value)
+void AMAPlayerController::OnRightClickPressed(const FInputActionValue& Value)
 {
-    // 检查 UI 是否可见，如果可见则不处理右键点击
-    // 防止右键点击 UI 时触发 Agent 导航
+    // 检查 UI 是否可见
     if (AMAHUD* HUD = Cast<AMAHUD>(GetHUD()))
     {
         if (HUD->IsMainUIVisible() || HUD->IsEmergencyWidgetVisible())
         {
-            // UI 可见，不处理右键点击
+            return;
+        }
+    }
+    
+    // 开始右键旋转
+    bIsRightMouseRotating = true;
+    float MouseX, MouseY;
+    if (GetMousePosition(MouseX, MouseY))
+    {
+        RightMouseStartPosition = FVector2D(MouseX, MouseY);
+    }
+}
+
+void AMAPlayerController::OnRightClickReleased(const FInputActionValue& Value)
+{
+    // 右键只用于旋转视角，释放时结束旋转
+    bIsRightMouseRotating = false;
+}
+
+void AMAPlayerController::OnMiddleClick(const FInputActionValue& Value)
+{
+    // 中键：导航已选中的 Agent 到点击位置
+    if (!SelectionManager) return;
+    
+    TArray<AMACharacter*> SelectedAgents = SelectionManager->GetSelectedAgents();
+    if (SelectedAgents.Num() == 0)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Yellow, TEXT("No agents selected"));
+        return;
+    }
+    
+    FVector HitLocation;
+    if (!GetMouseHitLocation(HitLocation)) return;
+
+    // 检查 UI 是否可见
+    if (AMAHUD* HUD = Cast<AMAHUD>(GetHUD()))
+    {
+        if (HUD->IsMainUIVisible() || HUD->IsEmergencyWidgetVisible())
+        {
             return;
         }
     }
 
-    FVector HitLocation;
-    if (!GetMouseHitLocation(HitLocation) || !CommandManager) return;
-
-    FMACommandParams Params;
-    Params.TargetLocation = HitLocation;
-    Params.bShowMessage = false;  // 导航不显示消息
-
-    // RobotDog + Drone 导航到点击位置
-    for (AMACharacter* Agent : CommandManager->GetControllableAgents())
+    // 导航所有已选中的 Agent
+    for (AMACharacter* Agent : SelectedAgents)
     {
+        if (!Agent) continue;
+        
         FVector Target = HitLocation;
-        // Drone: 如果在空中则保持高度，如果在地面则让 TryNavigateTo 处理起飞
+        // Drone: 如果在空中则保持高度
         if (Agent->AgentType == EMAAgentType::Drone ||
             Agent->AgentType == EMAAgentType::DronePhantom4 ||
             Agent->AgentType == EMAAgentType::DroneInspire2)
@@ -299,9 +360,8 @@ void AMAPlayerController::OnRightClick(const FInputActionValue& Value)
             {
                 if (Drone->IsInAir())
                 {
-                    Target.Z = Agent->GetActorLocation().Z;  // 在空中，保持高度
+                    Target.Z = Agent->GetActorLocation().Z;
                 }
-                // 在地面时不修改 Target.Z，让 TryNavigateTo 使用 DefaultFlightAltitude
             }
         }
         Agent->TryNavigateTo(Target);
@@ -647,41 +707,75 @@ void AMAPlayerController::OnDisbandSquad(const FInputActionValue& Value)
 
 void AMAPlayerController::OnToggleMouseMode(const FInputActionValue& Value)
 {
-    // 循环切换: Select <-> Navigate
-    if (CurrentMouseMode == EMAMouseMode::Select)
+    // 切换: Select ↔ Deployment (如果有待部署单位)
+    EMAMouseMode NewMode;
+    
+    switch (CurrentMouseMode)
     {
-        CurrentMouseMode = EMAMouseMode::Navigate;
+        case EMAMouseMode::Select:
+            // 如果背包有待部署单位，切换到部署模式
+            if (HasPendingDeployments())
+            {
+                NewMode = EMAMouseMode::Deployment;
+            }
+            else
+            {
+                GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Yellow, TEXT("No units to deploy"));
+                return;
+            }
+            break;
+        case EMAMouseMode::Deployment:
+            NewMode = EMAMouseMode::Select;
+            break;
+        default:
+            NewMode = EMAMouseMode::Select;
+            break;
     }
-    else
+    
+    // 如果从部署模式切出，保存状态
+    if (CurrentMouseMode == EMAMouseMode::Deployment && NewMode != EMAMouseMode::Deployment)
     {
-        CurrentMouseMode = EMAMouseMode::Select;
+        // 取消正在进行的框选
+        if (SelectionManager && SelectionManager->IsBoxSelecting())
+        {
+            SelectionManager->CancelBoxSelect();
+        }
+        CurrentDeploymentIndex = 0;
     }
-
-    // 根据模式调整输入设置
-    if (CurrentMouseMode == EMAMouseMode::Select)
+    
+    // 如果切入部署模式，重置部署索引
+    if (NewMode == EMAMouseMode::Deployment && CurrentMouseMode != EMAMouseMode::Deployment)
     {
-        // Select 模式：显示鼠标，禁用视角控制（框选时不要转视角）
-        bShowMouseCursor = true;
-        SetIgnoreLookInput(true);
-        FInputModeGameAndUI InputMode;
-        InputMode.SetHideCursorDuringCapture(false);
-        SetInputMode(InputMode);
+        CurrentDeploymentIndex = 0;
+        DeployedCount = 0;
     }
-    else
-    {
-        // Navigate 模式：显示鼠标，允许视角控制
-        bShowMouseCursor = true;
-        SetIgnoreLookInput(false);
-        FInputModeGameAndUI InputMode;
-        InputMode.SetHideCursorDuringCapture(false);
-        SetInputMode(InputMode);
-    }
+    
+    PreviousMouseMode = CurrentMouseMode;
+    CurrentMouseMode = NewMode;
+    ApplyMouseModeSettings(NewMode);
 
     FString ModeName = MouseModeToString(CurrentMouseMode);
+    FString ExtraInfo;
+    if (CurrentMouseMode == EMAMouseMode::Deployment)
+    {
+        ExtraInfo = FString::Printf(TEXT(" [%d pending]"), GetDeploymentQueueCount());
+    }
+    
     GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan,
-        FString::Printf(TEXT("Mouse Mode: %s (M to switch)"), *ModeName));
+        FString::Printf(TEXT("Mode: %s%s (M to switch)"), *ModeName, *ExtraInfo));
 
     UE_LOG(LogTemp, Log, TEXT("[PlayerController] Mouse mode: %s"), *ModeName);
+}
+
+void AMAPlayerController::ApplyMouseModeSettings(EMAMouseMode Mode)
+{
+    // 所有模式都显示鼠标，视角旋转由右键控制
+    bShowMouseCursor = true;
+    SetIgnoreLookInput(true);  // 禁用默认视角控制，由右键拖动处理
+    
+    FInputModeGameAndUI InputMode;
+    InputMode.SetHideCursorDuringCapture(false);
+    SetInputMode(InputMode);
 }
 
 FString AMAPlayerController::MouseModeToString(EMAMouseMode Mode)
@@ -689,9 +783,344 @@ FString AMAPlayerController::MouseModeToString(EMAMouseMode Mode)
     switch (Mode)
     {
         case EMAMouseMode::Select: return TEXT("Select");
-        case EMAMouseMode::Navigate: return TEXT("Navigate");
+        case EMAMouseMode::Deployment: return TEXT("Deployment");
         default: return TEXT("Unknown");
     }
+}
+
+// ========== 部署背包系统 ==========
+
+void AMAPlayerController::AddToDeploymentQueue(const FString& AgentType, int32 Count)
+{
+    if (Count <= 0) return;
+    
+    // 查找是否已有该类型
+    for (FMAPendingDeployment& D : DeploymentQueue)
+    {
+        if (D.AgentType == AgentType)
+        {
+            D.Count += Count;
+            OnDeploymentQueueChanged.Broadcast();
+            UE_LOG(LogTemp, Log, TEXT("[PlayerController] Added %d x %s to queue (total: %d)"), 
+                Count, *AgentType, D.Count);
+            return;
+        }
+    }
+    
+    // 新类型
+    DeploymentQueue.Add(FMAPendingDeployment(AgentType, Count));
+    OnDeploymentQueueChanged.Broadcast();
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] Added new type %d x %s to queue"), Count, *AgentType);
+}
+
+void AMAPlayerController::RemoveFromDeploymentQueue(const FString& AgentType, int32 Count)
+{
+    if (Count <= 0) return;
+    
+    for (int32 i = DeploymentQueue.Num() - 1; i >= 0; --i)
+    {
+        if (DeploymentQueue[i].AgentType == AgentType)
+        {
+            DeploymentQueue[i].Count -= Count;
+            if (DeploymentQueue[i].Count <= 0)
+            {
+                DeploymentQueue.RemoveAt(i);
+            }
+            OnDeploymentQueueChanged.Broadcast();
+            return;
+        }
+    }
+}
+
+void AMAPlayerController::ClearDeploymentQueue()
+{
+    DeploymentQueue.Empty();
+    CurrentDeploymentIndex = 0;
+    OnDeploymentQueueChanged.Broadcast();
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] Deployment queue cleared"));
+}
+
+int32 AMAPlayerController::GetDeploymentQueueCount() const
+{
+    int32 Total = 0;
+    for (const FMAPendingDeployment& D : DeploymentQueue)
+    {
+        Total += D.Count;
+    }
+    return Total;
+}
+
+FString AMAPlayerController::GetCurrentDeployingType() const
+{
+    if (CurrentDeploymentIndex < DeploymentQueue.Num())
+    {
+        return DeploymentQueue[CurrentDeploymentIndex].AgentType;
+    }
+    return TEXT("");
+}
+
+int32 AMAPlayerController::GetCurrentDeployingCount() const
+{
+    if (CurrentDeploymentIndex < DeploymentQueue.Num())
+    {
+        return DeploymentQueue[CurrentDeploymentIndex].Count;
+    }
+    return 0;
+}
+
+// ========== 部署模式 ==========
+
+void AMAPlayerController::EnterDeploymentMode()
+{
+    if (!HasPendingDeployments())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] EnterDeploymentMode: No units in queue"));
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Yellow, TEXT("No units to deploy!"));
+        return;
+    }
+    
+    PreviousMouseMode = CurrentMouseMode;
+    CurrentMouseMode = EMAMouseMode::Deployment;
+    CurrentDeploymentIndex = 0;
+    DeployedCount = 0;
+    
+    ApplyMouseModeSettings(EMAMouseMode::Deployment);
+    
+    int32 TotalCount = GetDeploymentQueueCount();
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] Entered Deployment Mode: %d types, %d total agents"), 
+        DeploymentQueue.Num(), TotalCount);
+    
+    GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Cyan,
+        FString::Printf(TEXT("Deployment Mode: Drag to place %d agents"), TotalCount));
+}
+
+void AMAPlayerController::EnterDeploymentModeWithUnits(const TArray<FMAPendingDeployment>& Deployments)
+{
+    // 添加到背包
+    for (const FMAPendingDeployment& D : Deployments)
+    {
+        AddToDeploymentQueue(D.AgentType, D.Count);
+    }
+    
+    // 进入部署模式
+    EnterDeploymentMode();
+}
+
+void AMAPlayerController::ExitDeploymentMode()
+{
+    // 取消正在进行的框选
+    if (SelectionManager && SelectionManager->IsBoxSelecting())
+    {
+        SelectionManager->CancelBoxSelect();
+    }
+    
+    // 恢复之前的模式
+    CurrentMouseMode = PreviousMouseMode;
+    ApplyMouseModeSettings(CurrentMouseMode);
+    
+    int32 RemainingCount = GetDeploymentQueueCount();
+    
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] Exited Deployment Mode, deployed: %d, remaining: %d"), 
+        DeployedCount, RemainingCount);
+    
+    if (RemainingCount > 0)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Yellow, 
+            FString::Printf(TEXT("Deployment paused. %d units remaining in queue."), RemainingCount));
+    }
+    else
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green, TEXT("All units deployed!"));
+        // 广播完成事件
+        OnDeploymentCompleted.Broadcast();
+    }
+    
+    CurrentDeploymentIndex = 0;
+    DeployedCount = 0;
+}
+
+void AMAPlayerController::OnDeploymentLeftClick()
+{
+    // 开始框选（复用 SelectionManager 的框选逻辑）
+    if (SelectionManager)
+    {
+        float MouseX, MouseY;
+        if (GetMousePosition(MouseX, MouseY))
+        {
+            SelectionManager->BeginBoxSelect(FVector2D(MouseX, MouseY));
+        }
+    }
+}
+
+void AMAPlayerController::OnDeploymentLeftClickReleased()
+{
+    if (!SelectionManager || !SelectionManager->IsBoxSelecting()) return;
+    if (!AgentManager) return;
+    
+    // 更新终点
+    float MouseX, MouseY;
+    if (GetMousePosition(MouseX, MouseY))
+    {
+        SelectionManager->UpdateBoxSelect(FVector2D(MouseX, MouseY));
+    }
+    
+    FVector2D Start = SelectionManager->GetBoxSelectStart();
+    FVector2D End = SelectionManager->GetBoxSelectEnd();
+    
+    // 取消框选状态
+    SelectionManager->CancelBoxSelect();
+    
+    // 计算框选大小
+    float BoxWidth = FMath::Abs(End.X - Start.X);
+    float BoxHeight = FMath::Abs(End.Y - Start.Y);
+    
+    // 框太小，忽略
+    if (BoxWidth < 20.f && BoxHeight < 20.f)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Yellow, TEXT("Drag a larger area to deploy"));
+        return;
+    }
+    
+    // 获取当前要部署的类型
+    if (CurrentDeploymentIndex >= DeploymentQueue.Num())
+    {
+        ExitDeploymentMode();
+        return;
+    }
+    
+    FMAPendingDeployment& CurrentDeployment = DeploymentQueue[CurrentDeploymentIndex];
+    int32 CountToSpawn = CurrentDeployment.Count;
+    
+    // 计算生成点
+    TArray<FVector> SpawnPoints = ProjectSelectionBoxToWorld(Start, End, CountToSpawn);
+    
+    // 生成 Agent
+    int32 SpawnedThisBatch = 0;
+    for (const FVector& Point : SpawnPoints)
+    {
+        if (AgentManager->SpawnAgentByType(CurrentDeployment.AgentType, Point, FRotator::ZeroRotator, false))
+        {
+            SpawnedThisBatch++;
+            DeployedCount++;
+        }
+    }
+    
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] Deployed %d x %s"), SpawnedThisBatch, *CurrentDeployment.AgentType);
+    GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green,
+        FString::Printf(TEXT("Deployed %d x %s"), SpawnedThisBatch, *CurrentDeployment.AgentType));
+    
+    // 从背包中移除已部署的
+    DeploymentQueue.RemoveAt(CurrentDeploymentIndex);
+    OnDeploymentQueueChanged.Broadcast();
+    
+    // 检查是否还有待部署的（不需要增加索引，因为已经移除了当前项）
+    if (DeploymentQueue.Num() == 0)
+    {
+        ExitDeploymentMode();
+    }
+    else
+    {
+        // 确保索引有效
+        if (CurrentDeploymentIndex >= DeploymentQueue.Num())
+        {
+            CurrentDeploymentIndex = 0;
+        }
+        
+        FMAPendingDeployment& NextDeployment = DeploymentQueue[CurrentDeploymentIndex];
+        GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Cyan,
+            FString::Printf(TEXT("Next: Drag to place %d x %s"), NextDeployment.Count, *NextDeployment.AgentType));
+    }
+}
+
+TArray<FVector> AMAPlayerController::ProjectSelectionBoxToWorld(FVector2D Start, FVector2D End, int32 Count)
+{
+    TArray<FVector> Points;
+    if (Count <= 0) return Points;
+    
+    // 计算屏幕框的边界
+    float MinX = FMath::Min(Start.X, End.X);
+    float MaxX = FMath::Max(Start.X, End.X);
+    float MinY = FMath::Min(Start.Y, End.Y);
+    float MaxY = FMath::Max(Start.Y, End.Y);
+    
+    float BoxWidth = MaxX - MinX;
+    float BoxHeight = MaxY - MinY;
+    
+    UE_LOG(LogTemp, Warning, TEXT("[Deployment] Screen Box: (%.0f, %.0f) to (%.0f, %.0f), Size: %.0f x %.0f"),
+        MinX, MinY, MaxX, MaxY, BoxWidth, BoxHeight);
+    
+    // 在屏幕空间网格分布，然后每个点单独投影到世界
+    int32 Cols = FMath::Max(1, FMath::CeilToInt(FMath::Sqrt((float)Count)));
+    int32 Rows = FMath::Max(1, FMath::CeilToInt((float)Count / Cols));
+    
+    int32 Spawned = 0;
+    for (int32 Row = 0; Row < Rows && Spawned < Count; ++Row)
+    {
+        for (int32 Col = 0; Col < Cols && Spawned < Count; ++Col)
+        {
+            // 计算屏幕空间的 UV
+            float U = (Cols > 1) ? ((float)Col / (Cols - 1)) : 0.5f;
+            float V = (Rows > 1) ? ((float)Row / (Rows - 1)) : 0.5f;
+            
+            // 添加一点随机偏移
+            U = FMath::Clamp(U + FMath::RandRange(-0.05f, 0.05f), 0.f, 1.f);
+            V = FMath::Clamp(V + FMath::RandRange(-0.05f, 0.05f), 0.f, 1.f);
+            
+            // 计算屏幕坐标
+            float ScreenX = FMath::Lerp(MinX, MaxX, U);
+            float ScreenY = FMath::Lerp(MinY, MaxY, V);
+            
+            // 从屏幕坐标射线检测地面
+            FVector WorldPos, WorldDir;
+            DeprojectScreenPositionToWorld(ScreenX, ScreenY, WorldPos, WorldDir);
+            
+            // 射线检测地面
+            FHitResult HitResult;
+            FVector TraceStart = WorldPos;
+            FVector TraceEnd = WorldPos + WorldDir * 50000.f;  // 沿视线方向延伸
+            
+            FVector SpawnPoint;
+            if (GetWorld()->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, ECC_Visibility))
+            {
+                SpawnPoint = HitResult.Location;
+            }
+            else
+            {
+                // 没有命中，使用 ProjectToGround 作为备选
+                SpawnPoint = ProjectToGround(WorldPos + WorldDir * 5000.f);
+            }
+            
+            UE_LOG(LogTemp, Warning, TEXT("[Deployment] SpawnPoint[%d]: Screen=(%.0f, %.0f) -> World=(%.0f, %.0f, %.0f)"),
+                Spawned, ScreenX, ScreenY, SpawnPoint.X, SpawnPoint.Y, SpawnPoint.Z);
+            
+            Points.Add(SpawnPoint);
+            Spawned++;
+        }
+    }
+    
+    return Points;
+}
+
+FVector AMAPlayerController::ProjectToGround(FVector WorldLocation)
+{
+    UWorld* World = GetWorld();
+    if (!World) return WorldLocation;
+    
+    FHitResult HitResult;
+    // 从固定高空位置开始检测，确保能检测到任何高度的地面
+    // 使用 XY 坐标，但 Z 从 10000 开始向下检测到 -20000
+    FVector TraceStart = FVector(WorldLocation.X, WorldLocation.Y, 10000.f);
+    FVector TraceEnd = FVector(WorldLocation.X, WorldLocation.Y, -20000.f);
+    
+    if (World->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, ECC_Visibility))
+    {
+        return HitResult.Location;
+    }
+    
+    UE_LOG(LogTemp, Warning, TEXT("[PlayerController] ProjectToGround: No ground at (%.0f, %.0f)"), 
+        WorldLocation.X, WorldLocation.Y);
+    
+    return WorldLocation;
 }
 
 // ========== UI 切换 (Z 键) ==========

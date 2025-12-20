@@ -32,6 +32,9 @@ public:
     TObjectPtr<UInputAction> IA_RightClick;
 
     UPROPERTY(BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_MiddleClick;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Input")
     TObjectPtr<UInputAction> IA_Pickup;
 
     UPROPERTY(BlueprintReadOnly, Category = "Input")

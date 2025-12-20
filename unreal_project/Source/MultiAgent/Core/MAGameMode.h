@@ -37,4 +37,7 @@ protected:
     
     // 从 Setup 配置生成 Agent
     void SpawnAgentsFromSetupConfig(class UMAGameInstance* GameInstance);
+    
+    // 查找安全的 Spectator 位置（避免卡在建筑内）
+    FVector FindSafeSpectatorLocation(FVector DesiredLocation);
 };

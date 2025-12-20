@@ -461,15 +461,28 @@ AMACharacter* UMAAgentManager::SpawnAgentByType(const FString& TypeName, FVector
     // 判断是否为 Drone
     bool bIsDrone = TypeName.Contains(TEXT("Drone"));
 
-    // 地面检测
+    // 地面检测 - 从固定高空位置向下检测
+    // 注意：地面 Z 可能是负值（取决于地图），这是正常的
     FHitResult HitResult;
-    FVector TraceStart = SpawnLocation + FVector(0.f, 0.f, 2000.f);
-    FVector TraceEnd = SpawnLocation - FVector(0.f, 0.f, 10000.f);
+    FVector TraceStart = FVector(SpawnLocation.X, SpawnLocation.Y, 10000.f);
+    FVector TraceEnd = FVector(SpawnLocation.X, SpawnLocation.Y, -20000.f);
 
     if (GetWorld()->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, ECC_Visibility))
     {
-        float HeightOffset = bIsDrone ? 50.f : 100.f;
+        // 所有 Agent 都生成在地面上方
+        // 无人机和地面单位的逻辑相同：地面位置 + 适当偏移
+        // 偏移量考虑 Capsule 半高，确保不会卡在地面里
+        float HeightOffset = bIsDrone ? 100.f : 100.f;  // 统一使用 100 单位偏移
         SpawnLocation.Z = HitResult.Location.Z + HeightOffset;
+        
+        UE_LOG(LogTemp, Log, TEXT("[AgentManager] %s ground detection: Ground=%.1f, Spawn=%.1f (offset=%.1f)"),
+            *TypeName, HitResult.Location.Z, SpawnLocation.Z, HeightOffset);
+    }
+    else
+    {
+        // 没有检测到地面，保持原始 Z 但记录警告
+        UE_LOG(LogTemp, Warning, TEXT("[AgentManager] No ground detected for %s at (%.0f, %.0f), keeping Z=%.0f"),
+            *TypeName, SpawnLocation.X, SpawnLocation.Y, SpawnLocation.Z);
     }
 
     // 获取类型枚举

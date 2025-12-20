@@ -15,8 +15,24 @@ struct FInputActionValue;
 UENUM(BlueprintType)
 enum class EMAMouseMode : uint8
 {
-    Select      UMETA(DisplayName = "Select"),      // 框选 Agent，禁用视角旋转
-    Navigate    UMETA(DisplayName = "Navigate")     // Human 导航 + 视角旋转
+    Select      UMETA(DisplayName = "Select"),      // 框选 Agent + 视角旋转
+    Deployment  UMETA(DisplayName = "Deployment")   // 部署模式：拖拽框选区域放置 Agent
+};
+
+// 待部署的 Agent 配置
+USTRUCT(BlueprintType)
+struct FMAPendingDeployment
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadWrite)
+    FString AgentType;
+
+    UPROPERTY(BlueprintReadWrite)
+    int32 Count = 0;
+
+    FMAPendingDeployment() {}
+    FMAPendingDeployment(const FString& InType, int32 InCount) : AgentType(InType), Count(InCount) {}
 };
 
 UCLASS()
@@ -71,6 +87,27 @@ protected:
     // 切换鼠标模式
     void OnToggleMouseMode(const FInputActionValue& Value);
     
+    // 右键视角旋转
+    void OnRightClickPressed(const FInputActionValue& Value);
+    void OnRightClickReleased(const FInputActionValue& Value);
+    
+    // 中键导航
+    void OnMiddleClick(const FInputActionValue& Value);
+
+    // ========== 部署模式 ==========
+    
+    // 部署模式下的左键点击（开始拖拽）
+    void OnDeploymentLeftClick();
+    
+    // 部署模式下的左键释放（完成框选放置）
+    void OnDeploymentLeftClickReleased();
+    
+    // 将屏幕框选区域投影到世界坐标，返回生成点
+    TArray<FVector> ProjectSelectionBoxToWorld(FVector2D Start, FVector2D End, int32 Count);
+    
+    // 投影到地面
+    FVector ProjectToGround(FVector WorldLocation);
+    
     // 切换主 UI 显示/隐藏 (Z 键)
     void OnToggleMainUI(const FInputActionValue& Value);
 
@@ -98,6 +135,74 @@ public:
     // 获取模式名称
     UFUNCTION(BlueprintCallable, Category = "Input")
     static FString MouseModeToString(EMAMouseMode Mode);
+
+    // ========== 部署背包系统 ==========
+    
+    /** 添加待部署单位到背包 */
+    UFUNCTION(BlueprintCallable, Category = "Deployment")
+    void AddToDeploymentQueue(const FString& AgentType, int32 Count = 1);
+    
+    /** 从背包移除待部署单位 */
+    UFUNCTION(BlueprintCallable, Category = "Deployment")
+    void RemoveFromDeploymentQueue(const FString& AgentType, int32 Count = 1);
+    
+    /** 清空部署背包 */
+    UFUNCTION(BlueprintCallable, Category = "Deployment")
+    void ClearDeploymentQueue();
+    
+    /** 获取部署背包内容 */
+    UFUNCTION(BlueprintPure, Category = "Deployment")
+    TArray<FMAPendingDeployment> GetDeploymentQueue() const { return DeploymentQueue; }
+    
+    /** 获取部署背包总数 */
+    UFUNCTION(BlueprintPure, Category = "Deployment")
+    int32 GetDeploymentQueueCount() const;
+    
+    /** 背包是否有待部署单位 */
+    UFUNCTION(BlueprintPure, Category = "Deployment")
+    bool HasPendingDeployments() const { return DeploymentQueue.Num() > 0 && GetDeploymentQueueCount() > 0; }
+
+    // ========== 部署模式 ==========
+    
+    /** 进入部署模式（使用背包中的单位） */
+    UFUNCTION(BlueprintCallable, Category = "Deployment")
+    void EnterDeploymentMode();
+    
+    /** 进入部署模式（指定单位列表，会添加到背包） */
+    UFUNCTION(BlueprintCallable, Category = "Deployment")
+    void EnterDeploymentModeWithUnits(const TArray<FMAPendingDeployment>& Deployments);
+    
+    /** 退出部署模式（保留未部署的单位在背包中） */
+    UFUNCTION(BlueprintCallable, Category = "Deployment")
+    void ExitDeploymentMode();
+    
+    /** 是否在部署模式 */
+    UFUNCTION(BlueprintPure, Category = "Deployment")
+    bool IsInDeploymentMode() const { return CurrentMouseMode == EMAMouseMode::Deployment; }
+    
+    /** 获取当前正在部署的类型 */
+    UFUNCTION(BlueprintPure, Category = "Deployment")
+    FString GetCurrentDeployingType() const;
+    
+    /** 获取当前正在部署的数量 */
+    UFUNCTION(BlueprintPure, Category = "Deployment")
+    int32 GetCurrentDeployingCount() const;
+    
+    /** 获取已部署数量（本次部署会话） */
+    UFUNCTION(BlueprintPure, Category = "Deployment")
+    int32 GetDeployedCount() const { return DeployedCount; }
+
+    /** 部署完成委托 */
+    DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnDeploymentCompleted);
+    
+    UPROPERTY(BlueprintAssignable, Category = "Deployment")
+    FOnDeploymentCompleted OnDeploymentCompleted;
+    
+    /** 背包变化委托 */
+    DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnDeploymentQueueChanged);
+    
+    UPROPERTY(BlueprintAssignable, Category = "Deployment")
+    FOnDeploymentQueueChanged OnDeploymentQueueChanged;
 
 private:
     // 初始化 Subsystem 缓存
@@ -127,4 +232,33 @@ private:
 
     UPROPERTY()
     class UMAEmergencyManager* EmergencyManager;
+
+    // ========== 部署模式数据 ==========
+    
+    /** 部署背包：待部署的 Agent 列表（持久存储） */
+    UPROPERTY()
+    TArray<FMAPendingDeployment> DeploymentQueue;
+    
+    /** 当前正在部署的类型索引 */
+    int32 CurrentDeploymentIndex = 0;
+    
+    /** 已部署数量（本次部署会话） */
+    int32 DeployedCount = 0;
+    
+    /** 部署前的鼠标模式（用于退出时恢复） */
+    EMAMouseMode PreviousMouseMode = EMAMouseMode::Select;
+    
+    /** 应用模式设置 */
+    void ApplyMouseModeSettings(EMAMouseMode Mode);
+    
+    // ========== 右键视角旋转 ==========
+    
+    /** 是否正在右键拖动旋转视角 */
+    bool bIsRightMouseRotating = false;
+    
+    /** 右键按下时的鼠标位置 */
+    FVector2D RightMouseStartPosition;
+    
+    /** 视角旋转灵敏度 */
+    float CameraRotationSensitivity = 0.3f;
 };

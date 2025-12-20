@@ -62,15 +62,20 @@ void AMAGameMode::SetupSpectatorStart()
         return;
     }
     
+    FVector TargetLocation = GameInstance->SpectatorStartPosition;
+    
+    // 检测目标位置是否在建筑内部，如果是则自动调整
+    TargetLocation = FindSafeSpectatorLocation(TargetLocation);
+    
     // 设置 Spectator 位置和旋转
-    SpectatorPawn->SetActorLocation(GameInstance->SpectatorStartPosition);
+    SpectatorPawn->SetActorLocation(TargetLocation);
     SpectatorPawn->SetActorRotation(GameInstance->SpectatorStartRotation);
     PC->SetControlRotation(GameInstance->SpectatorStartRotation);
     
     UE_LOG(LogTemp, Log, TEXT("[GameMode] Spectator set to (%.0f, %.0f, %.0f) Rot: (%.0f, %.0f, %.0f)"),
-        GameInstance->SpectatorStartPosition.X,
-        GameInstance->SpectatorStartPosition.Y,
-        GameInstance->SpectatorStartPosition.Z,
+        TargetLocation.X,
+        TargetLocation.Y,
+        TargetLocation.Z,
         GameInstance->SpectatorStartRotation.Pitch,
         GameInstance->SpectatorStartRotation.Yaw,
         GameInstance->SpectatorStartRotation.Roll);
@@ -130,36 +135,145 @@ void AMAGameMode::LoadAndSpawnAgents()
 
 void AMAGameMode::SpawnAgentsFromSetupConfig(UMAGameInstance* GameInstance)
 {
-    UE_LOG(LogTemp, Warning, TEXT("[GameMode] Spawning agents from Setup config"));
+    UE_LOG(LogTemp, Warning, TEXT("[GameMode] Entering Deployment Mode from Setup config"));
     
-    UMAAgentManager* AgentManager = GetAgentManager();
-    if (!AgentManager)
-    {
-        return;
-    }
-
-    int32 TotalSpawned = 0;
-    
+    // 构建待部署列表
+    TArray<FMAPendingDeployment> Deployments;
     for (const auto& Pair : GameInstance->SetupAgentConfigs)
     {
-        const FString& AgentType = Pair.Key;
-        int32 Count = Pair.Value;
-        
-        UE_LOG(LogTemp, Log, TEXT("[GameMode] Spawning %d x %s"), Count, *AgentType);
-        
-        for (int32 i = 0; i < Count; ++i)
+        Deployments.Add(FMAPendingDeployment(Pair.Key, Pair.Value));
+    }
+    
+    // 清除 Setup 配置
+    GameInstance->ClearSetupConfig();
+    
+    // 延迟进入部署模式，确保 PlayerController 已初始化
+    GetWorld()->GetTimerManager().SetTimerForNextTick([this, Deployments]()
+    {
+        APlayerController* PC = GetWorld()->GetFirstPlayerController();
+        if (AMAPlayerController* MAPC = Cast<AMAPlayerController>(PC))
         {
-            // 使用 AgentManager 的 SpawnAgent 方法
-            // 位置使用 auto 模式，让 AgentManager 自动分配
-            if (AgentManager->SpawnAgentByType(AgentType, FVector::ZeroVector, FRotator::ZeroRotator, true))
+            // 使用新的 API：添加到背包并进入部署模式
+            MAPC->EnterDeploymentModeWithUnits(Deployments);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("[GameMode] MAPlayerController not found!"));
+        }
+    });
+}
+
+FVector AMAGameMode::FindSafeSpectatorLocation(FVector DesiredLocation)
+{
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return DesiredLocation;
+    }
+    
+    FCollisionQueryParams QueryParams;
+    QueryParams.bTraceComplex = false;
+    
+    // 使用射线检测：从目标位置向上发射，如果立即碰到东西说明在建筑内
+    FHitResult HitResult;
+    FVector TraceStart = DesiredLocation;
+    FVector TraceEnd = DesiredLocation + FVector(0.f, 0.f, 50.f);
+    
+    bool bHitAbove = World->LineTraceSingleByChannel(
+        HitResult,
+        TraceStart,
+        TraceEnd,
+        ECC_WorldStatic,
+        QueryParams
+    );
+    
+    if (!bHitAbove)
+    {
+        // 上方没有碰撞，位置可能安全，再检查下方
+        TraceEnd = DesiredLocation - FVector(0.f, 0.f, 50.f);
+        bool bHitBelow = World->LineTraceSingleByChannel(
+            HitResult,
+            TraceStart,
+            TraceEnd,
+            ECC_WorldStatic,
+            QueryParams
+        );
+        
+        if (!bHitBelow)
+        {
+            // 上下都没碰撞，位置安全
+            UE_LOG(LogTemp, Log, TEXT("[GameMode] Spectator location is safe"));
+            return DesiredLocation;
+        }
+    }
+    
+    UE_LOG(LogTemp, Warning, TEXT("[GameMode] Spectator location blocked, searching for safe position..."));
+    
+    // 尝试向上移动找到安全位置
+    FVector TestLocation = DesiredLocation;
+    for (int32 i = 0; i < 20; ++i)
+    {
+        TestLocation.Z += 200.f;
+        
+        // 检测上方
+        TraceStart = TestLocation;
+        TraceEnd = TestLocation + FVector(0.f, 0.f, 100.f);
+        
+        bool bBlocked = World->LineTraceSingleByChannel(
+            HitResult,
+            TraceStart,
+            TraceEnd,
+            ECC_WorldStatic,
+            QueryParams
+        );
+        
+        if (!bBlocked)
+        {
+            UE_LOG(LogTemp, Log, TEXT("[GameMode] Found safe location at Z=%.0f (moved up %.0f)"), 
+                TestLocation.Z, TestLocation.Z - DesiredLocation.Z);
+            return TestLocation;
+        }
+    }
+    
+    // 向上找不到，尝试在 XY 平面搜索
+    const float SearchRadius = 500.f;
+    const int32 NumDirections = 8;
+    
+    for (int32 Ring = 1; Ring <= 5; ++Ring)
+    {
+        float CurrentRadius = SearchRadius * Ring;
+        
+        for (int32 Dir = 0; Dir < NumDirections; ++Dir)
+        {
+            float Angle = (2.f * PI / NumDirections) * Dir;
+            TestLocation = DesiredLocation + FVector(
+                FMath::Cos(Angle) * CurrentRadius,
+                FMath::Sin(Angle) * CurrentRadius,
+                500.f  // 稍微抬高
+            );
+            
+            // 检测上方
+            TraceStart = TestLocation;
+            TraceEnd = TestLocation + FVector(0.f, 0.f, 100.f);
+            
+            bool bBlocked = World->LineTraceSingleByChannel(
+                HitResult,
+                TraceStart,
+                TraceEnd,
+                ECC_WorldStatic,
+                QueryParams
+            );
+            
+            if (!bBlocked)
             {
-                TotalSpawned++;
+                UE_LOG(LogTemp, Log, TEXT("[GameMode] Found safe location at (%.0f, %.0f, %.0f)"), 
+                    TestLocation.X, TestLocation.Y, TestLocation.Z);
+                return TestLocation;
             }
         }
     }
     
-    UE_LOG(LogTemp, Warning, TEXT("[GameMode] Spawned %d agents from Setup config"), TotalSpawned);
-    
-    // 清除 Setup 配置，避免重复生成
-    GameInstance->ClearSetupConfig();
+    // 实在找不到，返回一个很高的位置
+    UE_LOG(LogTemp, Warning, TEXT("[GameMode] Could not find safe location, using high altitude"));
+    return FVector(DesiredLocation.X, DesiredLocation.Y, 3000.f);
 }
