@@ -39,7 +39,6 @@ void UMAGameInstance::Init()
     UE_LOG(LogMAGameInstance, Log, TEXT("  bDebugMode: %s"), bDebugMode ? TEXT("true") : TEXT("false"));
     UE_LOG(LogMAGameInstance, Log, TEXT("  bEnablePolling: %s"), bEnablePolling ? TEXT("true") : TEXT("false"));
     UE_LOG(LogMAGameInstance, Log, TEXT("  PollIntervalSeconds: %.2f"), PollIntervalSeconds);
-    UE_LOG(LogMAGameInstance, Log, TEXT("  ConfiguredMapPath: %s"), *ConfiguredMapPath);
 }
 
 void UMAGameInstance::Shutdown()
@@ -105,12 +104,7 @@ void UMAGameInstance::LoadConfigFromJSON()
         return;
     }
 
-    // 读取配置项
-    if (JsonObject->HasField(TEXT("DefaultMap")))
-    {
-        ConfiguredMapPath = JsonObject->GetStringField(TEXT("DefaultMap"));
-    }
-
+    // 读取配置项 (地图通过 Setup UI 选择，不再从 JSON 加载)
     if (JsonObject->HasField(TEXT("PlannerServerURL")))
     {
         PlannerServerURL = JsonObject->GetStringField(TEXT("PlannerServerURL"));
@@ -172,48 +166,6 @@ void UMAGameInstance::LoadConfigFromJSON()
     UE_LOG(LogMAGameInstance, Log, TEXT("Loaded config from: %s"), *ConfigPath);
 }
 
-//=============================================================================
-// 地图加载
-//=============================================================================
-
-void UMAGameInstance::LoadConfiguredMap()
-{
-    if (ConfiguredMapPath.IsEmpty())
-    {
-        UE_LOG(LogMAGameInstance, Warning, TEXT("No configured map path"));
-        return;
-    }
-
-    if (bHasLoadedConfiguredMap)
-    {
-        UE_LOG(LogMAGameInstance, Log, TEXT("Configured map already loaded"));
-        return;
-    }
-
-    // 检查当前地图是否已经是目标地图
-    UWorld* World = GetWorld();
-    if (World)
-    {
-        FString CurrentMapName = World->GetMapName();
-        // 移除 UEDPIE_ 前缀 (PIE 模式下的前缀)
-        CurrentMapName.RemoveFromStart(TEXT("UEDPIE_"));
-        
-        // 提取目标地图名称
-        FString TargetMapName = FPaths::GetBaseFilename(ConfiguredMapPath);
-        
-        if (CurrentMapName.Contains(TargetMapName))
-        {
-            UE_LOG(LogMAGameInstance, Log, TEXT("Already on configured map: %s"), *TargetMapName);
-            bHasLoadedConfiguredMap = true;
-            return;
-        }
-    }
-
-    UE_LOG(LogMAGameInstance, Log, TEXT("Loading configured map: %s"), *ConfiguredMapPath);
-    
-    bHasLoadedConfiguredMap = true;
-    UGameplayStatics::OpenLevel(this, FName(*ConfiguredMapPath));
-}
 
 
 //=============================================================================

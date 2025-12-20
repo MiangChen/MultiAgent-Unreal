@@ -61,8 +61,11 @@ void UMASetupWidget::InitializeData()
     AvailableScenes.Add(TEXT("Town"));
     AvailableScenes.Add(TEXT("Warehouse"));
 
-    // 默认添加一些智能体
-    AgentConfigs.Add(FMAAgentSetupConfig(TEXT("DronePhantom4"), TEXT("Drone Phantom 4"), 3));
+    // 默认添加每种智能体各一个
+    AgentConfigs.Add(FMAAgentSetupConfig(TEXT("DronePhantom4"), TEXT("Drone Phantom 4"), 1));
+    AgentConfigs.Add(FMAAgentSetupConfig(TEXT("DroneInspire2"), TEXT("Drone Inspire 2"), 1));
+    AgentConfigs.Add(FMAAgentSetupConfig(TEXT("RobotDog"), TEXT("Robot Dog"), 1));
+    AgentConfigs.Add(FMAAgentSetupConfig(TEXT("Human"), TEXT("Human"), 1));
     
     UE_LOG(LogTemp, Warning, TEXT("[MASetupWidget] InitializeData: %d scenes, %d agent types"), 
         AvailableScenes.Num(), AvailableAgentTypes.Num());

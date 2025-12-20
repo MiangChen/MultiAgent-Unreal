@@ -1,5 +1,4 @@
 {
-    "DefaultMap": "/Game/LS_Scifi_ModernCity/Maps/Scifi_ModernCity",
     "PlannerServerURL": "http://localhost:8080",
     "bUseMockData": true,
     "bDebugMode": true,

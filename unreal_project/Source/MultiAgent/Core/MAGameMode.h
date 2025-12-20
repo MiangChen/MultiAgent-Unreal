@@ -1,6 +1,6 @@
 // MAGameMode.h
 // 游戏模式 - 负责初始化各个子系统，协调游戏流程
-// 使用 JSON 配置驱动 Agent 创建
+// Agent 通过 Setup UI 界面配置
 
 #pragma once
 
@@ -9,6 +9,7 @@
 #include "MAGameMode.generated.h"
 
 class UMAAgentManager;
+class AMAMiniMapManager;
 
 UCLASS()
 class MULTIAGENT_API AMAGameMode : public AGameModeBase
@@ -22,9 +23,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Subsystem")
     UMAAgentManager* GetAgentManager() const;
 
-    // Agent 配置文件路径（相对于项目根目录）
-    UPROPERTY(EditDefaultsOnly, Category = "Config")
-    FString AgentConfigPath = TEXT("../config/agents.json");
+    // 小地图管理器类
+    UPROPERTY(EditDefaultsOnly, Category = "MiniMap")
+    TSubclassOf<AMAMiniMapManager> MiniMapManagerClass;
 
 protected:
     virtual void BeginPlay() override;
@@ -40,4 +41,12 @@ protected:
     
     // 查找安全的 Spectator 位置（避免卡在建筑内）
     FVector FindSafeSpectatorLocation(FVector DesiredLocation);
+    
+    // 生成小地图管理器
+    void SpawnMiniMapManager();
+
+private:
+    // 小地图管理器实例
+    UPROPERTY()
+    AMAMiniMapManager* MiniMapManager;
 };

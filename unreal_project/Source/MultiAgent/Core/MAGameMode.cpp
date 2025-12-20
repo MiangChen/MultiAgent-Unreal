@@ -4,6 +4,7 @@
 #include "MAGameInstance.h"
 #include "../Input/MAPlayerController.h"
 #include "../UI/MAHUD.h"
+#include "../UI/MAMiniMapManager.h"
 #include "MAAgentManager.h"
 #include "GameFramework/SpectatorPawn.h"
 #include "GameFramework/PlayerController.h"
@@ -36,6 +37,9 @@ void AMAGameMode::BeginPlay()
         
         // 生成 Agent
         LoadAndSpawnAgents();
+        
+        // 生成小地图
+        SpawnMiniMapManager();
         
         UE_LOG(LogTemp, Warning, TEXT("========== [GameMode] Initialization COMPLETE =========="));
     });
@@ -98,39 +102,16 @@ void AMAGameMode::LoadAndSpawnAgents()
     }
     UE_LOG(LogTemp, Warning, TEXT("[GameMode] AgentManager found"));
 
-    // 检查是否有 Setup 配置
+    // 从 Setup UI 配置生成 Agent
     UMAGameInstance* GameInstance = Cast<UMAGameInstance>(GetGameInstance());
     if (GameInstance && GameInstance->bSetupCompleted && GameInstance->SetupAgentConfigs.Num() > 0)
     {
-        // 从 Setup 配置生成 Agent
         SpawnAgentsFromSetupConfig(GameInstance);
-        return;
     }
-
-    // 否则从 JSON 文件加载（兼容旧流程）
-    FString ProjectDir = FPaths::ProjectDir();
-    UE_LOG(LogTemp, Warning, TEXT("[GameMode] ProjectDir: %s"), *ProjectDir);
-    UE_LOG(LogTemp, Warning, TEXT("[GameMode] AgentConfigPath: %s"), *AgentConfigPath);
-    
-    FString ConfigFullPath = FPaths::Combine(ProjectDir, AgentConfigPath);
-    ConfigFullPath = FPaths::ConvertRelativePathToFull(ConfigFullPath);
-    
-    UE_LOG(LogTemp, Warning, TEXT("[GameMode] Loading agent config from: %s"), *ConfigFullPath);
-    
-    if (!FPaths::FileExists(ConfigFullPath))
+    else
     {
-        UE_LOG(LogTemp, Error, TEXT("[GameMode] Config file does NOT exist: %s"), *ConfigFullPath);
-        return;
+        UE_LOG(LogTemp, Warning, TEXT("[GameMode] No Setup config found - please use Setup UI to configure agents"));
     }
-    UE_LOG(LogTemp, Warning, TEXT("[GameMode] Config file exists"));
-    
-    if (!AgentManager->LoadAndSpawnFromConfig(ConfigFullPath))
-    {
-        UE_LOG(LogTemp, Error, TEXT("[GameMode] Failed to load agent config from: %s"), *ConfigFullPath);
-        return;
-    }
-    
-    UE_LOG(LogTemp, Warning, TEXT("[GameMode] Successfully spawned %d agents from config"), AgentManager->GetAgentCount());
 }
 
 void AMAGameMode::SpawnAgentsFromSetupConfig(UMAGameInstance* GameInstance)
@@ -276,4 +257,38 @@ FVector AMAGameMode::FindSafeSpectatorLocation(FVector DesiredLocation)
     // 实在找不到，返回一个很高的位置
     UE_LOG(LogTemp, Warning, TEXT("[GameMode] Could not find safe location, using high altitude"));
     return FVector(DesiredLocation.X, DesiredLocation.Y, 3000.f);
+}
+
+
+void AMAGameMode::SpawnMiniMapManager()
+{
+    UWorld* World = GetWorld();
+    if (!World) return;
+
+    // 如果没有指定类，使用默认的 AMAMiniMapManager
+    TSubclassOf<AMAMiniMapManager> ClassToSpawn = MiniMapManagerClass;
+    if (!ClassToSpawn)
+    {
+        ClassToSpawn = AMAMiniMapManager::StaticClass();
+    }
+
+    // 生成 MiniMapManager
+    FActorSpawnParameters SpawnParams;
+    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+    MiniMapManager = World->SpawnActor<AMAMiniMapManager>(
+        ClassToSpawn,
+        FVector::ZeroVector,
+        FRotator::ZeroRotator,
+        SpawnParams
+    );
+
+    if (MiniMapManager)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[GameMode] MiniMapManager spawned successfully"));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[GameMode] Failed to spawn MiniMapManager"));
+    }
 }

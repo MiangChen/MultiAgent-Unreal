@@ -61,14 +61,6 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config|Polling")
     float PollIntervalSeconds = 1.0f;
 
-    /** JSON 配置中指定的默认地图路径 */
-    UPROPERTY(BlueprintReadOnly, Category = "Config|Map")
-    FString ConfiguredMapPath;
-
-    /** 是否已加载配置地图 */
-    UPROPERTY(BlueprintReadOnly, Category = "Config|Map")
-    bool bHasLoadedConfiguredMap = false;
-
     //=========================================================================
     // Spectator 配置
     //=========================================================================
@@ -131,17 +123,6 @@ public:
      */
     UFUNCTION(BlueprintPure, Category = "Game Instance", meta = (WorldContext = "WorldContextObject"))
     static UMAGameInstance* GetMAGameInstance(const UObject* WorldContextObject);
-
-    //=========================================================================
-    // 地图加载
-    //=========================================================================
-
-    /**
-     * 加载 JSON 配置中指定的地图
-     * 在首次进入游戏时调用
-     */
-    UFUNCTION(BlueprintCallable, Category = "Map")
-    void LoadConfiguredMap();
 
 protected:
     //=========================================================================
