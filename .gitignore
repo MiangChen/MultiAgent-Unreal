@@ -32,8 +32,9 @@ ENV/
 *.swo
 
 # Kiro / SII
-.kiro/specs/
-.kiro/settings/
+.kiro/
+!.kiro/steering/
+!.kiro/steering/project-guide.md
 .sii/
 
 # Temp files
