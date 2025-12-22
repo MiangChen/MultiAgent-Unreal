@@ -58,7 +58,6 @@ void UMASetupWidget::InitializeData()
     AvailableScenes.Add(TEXT("CyberCity"));
     AvailableScenes.Add(TEXT("DesertLab"));
     AvailableScenes.Add(TEXT("SpruceForest"));
-    AvailableScenes.Add(TEXT("Town"));
     AvailableScenes.Add(TEXT("Warehouse"));
 
     // 默认添加每种智能体各一个
