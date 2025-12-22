@@ -33,12 +33,13 @@
 
 ## 文档
 
+详细文档请查看 [doc/README.md](doc/README.md)
+
 | 文档 | 说明 |
 |------|------|
-| [ARCHITECTURE.md](doc/ARCHITECTURE.md) | 系统架构、模块设计、API 参考 |
-| [KEYBINDINGS.md](doc/KEYBINDINGS.md) | 按键说明 |
-| [UE5_API_CHANGES.md](doc/UE5_API_CHANGES.md) | UE5 API 变更说明 |
-| [prompt_code_style.md](doc/prompt_code_style.md) | 编码规范 |
+| [doc/ARCHITECTURE.md](doc/ARCHITECTURE.md) | 系统架构、模块设计 |
+| [doc/KEYBINDINGS.md](doc/KEYBINDINGS.md) | 按键说明 |
+| [doc/guide/NEW_FEATURE_GUIDE.md](doc/guide/NEW_FEATURE_GUIDE.md) | 新功能开发指南 |
 
 ## 项目结构
 
