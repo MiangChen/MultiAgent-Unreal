@@ -3,6 +3,8 @@ Binaries/
 DerivedDataCache/
 Intermediate/
 Saved/
+Content/
+Content.zip
 
 # IDE
 .idea/
