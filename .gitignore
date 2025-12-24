@@ -45,6 +45,8 @@ ENV/
 # OS
 .DS_Store
 Thumbs.db
+/Content/Map/
+/Content/
 
 # Project specific
 *.utoc
