@@ -2,6 +2,28 @@
 
 基于 Unreal Engine 5 的多智能体仿真框架，用于机器人、无人机、角色等异构智能体的协同仿真。
 
+## 资产下载
+
+项目资产托管在 Hugging Face，克隆代码后需要下载 Content 资产：
+
+```bash
+# 安装 Hugging Face CLI (如果没有)
+curl -LsSf https://hf.co/cli/install.sh | bash
+
+# 下载 Content.zip
+hf download MiangChen/MultiAgent-Unreal Content.zip --repo-type=dataset --local-dir=./unreal_project
+
+# 解压到 Content 文件夹
+cd unreal_project
+unzip Content.zip
+```
+
+**要求：**
+- Unreal Engine 5.5 (源码编译版本)
+- 需要先编译 C++ 代码再打开编辑器
+
+**启用的插件：** GameplayAbilities, StateTree, MassEntity, MassGameplay, MassAI
+
 ## 快速开始
 
 ### 编译
