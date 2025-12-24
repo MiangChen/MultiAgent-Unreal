@@ -15,3 +15,5 @@ Content.zip
 # OS
 .DS_Store
 Thumbs.db
+/Content/Map/
+/Content/
