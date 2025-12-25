@@ -1,0 +1,39 @@
+{
+  "areas_plan": {
+    "cybertown": {
+      "water_body": 2,
+      "park": 2,
+      "residential_zone": 2,
+      "square": 1,
+      "industrial_park": 2,
+      "campus": 2
+    }
+  },
+  "building_plan": {
+    "mall": 2,
+    "hospital": 1,
+    "residence": 6,
+    "power_station": 1,
+    "warehouse": 1,
+    "robot_base": 1,
+    "parking": 3
+  },
+  "robot_plan": {
+    "UAV": 6,
+    "FW_UAV": 6,
+    "UGV": 6,
+    "Quadruped": 6,
+    "Humanoid": 6
+  },
+  "prop_plan": {
+    "person": 20,
+    "vehicle": 20,
+    "cargo": 12,
+    "boat": 6,
+    "fire": 4,
+    "equipment_failure": 2,
+    "hazmat": 4,
+    "assembly_component": 13
+  },
+  "seed": 42
+}
