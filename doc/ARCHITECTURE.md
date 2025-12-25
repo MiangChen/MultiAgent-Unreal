@@ -448,6 +448,7 @@ MultiAgent-Unreal/
     │   ├── MAHUD.h/cpp              # HUD 管理器 (继承 MASelectionHUD)
     │   ├── MASimpleMainWidget.h/cpp # 主界面 Widget (输入框 + 结果显示)
     │   ├── MAEmergencyWidget.h/cpp  # 突发事件详情界面
+    │   ├── MAModifyWidget.h/cpp     # Modify 模式修改面板 (Actor 标签编辑)
     │   ├── MATaskPlannerWidget.h/cpp # 任务规划工作台主容器
     │   ├── MADAGCanvasWidget.h/cpp  # DAG 画布 (拓扑排序布局)
     │   ├── MATaskNodeWidget.h/cpp   # 任务节点 Widget
@@ -947,6 +948,7 @@ if (SweepHit.bBlockingHit)
 |------|------|----------|
 | **MASimpleMainWidget** | 主界面 UI (输入框 + 结果显示) | 纯 C++ 动态创建 |
 | **MAEmergencyWidget** | 突发事件详情界面 (相机画面 + 操作按钮) | 纯 C++ 动态创建 |
+| **MAModifyWidget** | Modify 模式修改面板 (Actor 标签编辑) | 纯 C++ 动态创建 |
 | **MATaskPlannerWidget** | 任务规划工作台 (DAG 编辑器 + 指令输入) | 纯 C++ 动态创建 |
 | **MADAGCanvasWidget** | DAG 画布 (拓扑排序布局 + 节点/边渲染) | 纯 C++ 动态创建 |
 | **MATaskNodeWidget** | 任务节点 Widget (显示任务信息) | 纯 C++ 动态创建 |
@@ -994,6 +996,77 @@ if (SweepHit.bBlockingHit)
 - `EmergencyManager.GetSourceAgent()` - 返回触发事件的 Agent
 - 视频流与 Agent 编号完全解耦，支持任意 Agent 触发事件
 
+### 13.5 Modify 模式系统
+
+Modify 模式是第三种鼠标模式，用于查看和编辑场景中 Actor 的标签信息：
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        Modify 模式系统架构                                    │
+│                                                                             │
+│  模式切换:                                                                   │
+│  M 键 → Select → Deployment → Modify → Select (循环)                        │
+│  (如果 Deployment 背包为空则跳过)                                            │
+│                                                                             │
+│  ┌─────────────────┐                                                        │
+│  │ MAPlayerController│  ◄── 模式状态管理                                     │
+│  │ (Input 层)        │                                                      │
+│  │ - CurrentMouseMode│  ← EMAMouseMode::Modify                              │
+│  │ - HighlightedActor│  ← 当前高亮的 Actor                                   │
+│  └────────┬─────────┘                                                       │
+│           │ OnModifyActorSelected 委托                                       │
+│           ▼                                                                 │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                    MAHUD                                             │   │
+│  │  ┌─────────────────┐  ┌─────────────────┐                           │   │
+│  │  │ MASelectionHUD  │  │ MAModifyWidget  │                           │   │
+│  │  │ DrawMouseMode() │  │ (修改面板)      │                           │   │
+│  │  │ 橙色 "Modify"   │  │ - 多行文本框    │                           │   │
+│  │  └─────────────────┘  │ - 确认按钮      │                           │   │
+│  │                       │ - Actor 标签显示│                           │   │
+│  │                       └─────────────────┘                           │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Modify 模式数据流:**
+```
+用户按 M 键 → PlayerController::OnToggleMouseMode()
+                    │
+                    ├── 进入 Modify 模式
+                    │   ├── EnterModifyMode()
+                    │   └── MAHUD::ShowModifyWidget()
+                    │
+用户左键点击 → OnModifyLeftClick()
+                    │
+                    ├── GetHitResultUnderCursor() 射线检测
+                    ├── SetActorHighlight() 更新高亮
+                    └── OnModifyActorSelected 委托 → ModifyWidget::SetSelectedActor()
+                                                            │
+                                                            ▼
+                                                    文本框显示 Actor 标签
+                                                            │
+用户点击确认 → OnModifyConfirmed 委托
+                    │
+                    ├── 输出调试日志 (占位符实现)
+                    └── 清空文本框和高亮
+```
+
+**MAModifyWidget 接口:**
+
+| 方法 | 功能 |
+|------|------|
+| `SetSelectedActor(Actor)` | 设置选中的 Actor，更新文本框内容 |
+| `ClearSelection()` | 清除选中状态，显示提示文字 |
+| `GetLabelText()` | 获取文本框内容 |
+| `SetLabelText(Text)` | 设置文本框内容 |
+
+**Actor 高亮实现:**
+- 使用 UE5 的 Custom Depth Stencil 实现轮廓高亮
+- 遍历 Actor 的 PrimitiveComponent 设置 RenderCustomDepth
+- 同一时间只能高亮一个 Actor
+- 退出 Modify 模式时自动清除高亮
+
 ### 13.3 数据流程
 
 ```
@@ -1015,10 +1088,12 @@ HUD::OnPlannerResponse() → SimpleMainWidget::SetResultText() → 显示结果
 ### 13.4 UI 特性
 
 - **Z 键切换**: 显示/隐藏主界面
+- **M 键切换**: 循环切换鼠标模式 (Select → Deployment → Modify → Select)
 - **自动聚焦**: UI 显示时自动聚焦到输入框
 - **回车提交**: 输入框支持回车键提交指令
 - **模拟响应**: 开发阶段使用模拟数据测试
 - **兼容 RTS**: UI 显示时仍支持 RTS 命令快捷键
+- **Modify 模式**: 点击 Actor 显示高亮和修改面板，支持标签编辑
 
 
 ## 14. 通信协议 (Communication Protocol)
