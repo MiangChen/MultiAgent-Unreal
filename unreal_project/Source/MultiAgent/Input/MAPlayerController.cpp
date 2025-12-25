@@ -1237,13 +1237,93 @@ void AMAPlayerController::OnJumpPressed(const FInputActionValue& Value)
 
 // ========== Modify 模式 ==========
 
-void AMAPlayerController::SetActorHighlight(AActor* Actor, bool bHighlight)
+// 查找根 Actor（向上遍历 Attach 父级直到找到最顶层）
+static AActor* FindRootActor(AActor* Actor)
+{
+    if (!Actor) return nullptr;
+    
+    AActor* Current = Actor;
+    AActor* Parent = Current->GetAttachParentActor();
+    
+    // 向上遍历直到没有父 Actor
+    while (Parent)
+    {
+        Current = Parent;
+        Parent = Current->GetAttachParentActor();
+    }
+    
+    return Current;
+}
+
+// 递归收集 Actor 及其所有子 Actor
+static void CollectActorAndChildren(AActor* Actor, TArray<AActor*>& OutActors)
+{
+    if (!Actor) return;
+    
+    OutActors.Add(Actor);
+    
+    // 获取所有附加的子 Actor
+    TArray<AActor*> AttachedActors;
+    Actor->GetAttachedActors(AttachedActors);
+    
+    for (AActor* Child : AttachedActors)
+    {
+        CollectActorAndChildren(Child, OutActors);
+    }
+}
+
+// 对单个 Actor 设置高亮（不递归）
+void AMAPlayerController::SetSingleActorHighlight(AActor* Actor, bool bHighlight)
 {
     if (!Actor) return;
     
     // 获取所有 PrimitiveComponent
     TArray<UPrimitiveComponent*> Components;
     Actor->GetComponents<UPrimitiveComponent>(Components);
+    
+    // 创建高亮材质的静态函数
+    auto CreateHighlightMaterial = [](UObject* Outer, FLinearColor Color) -> UMaterialInstanceDynamic*
+    {
+        // 使用引擎的 Unlit 材质作为基础（纯色，不受光照影响）
+        static UMaterial* UnlitMaterial = nullptr;
+        if (!UnlitMaterial)
+        {
+            // 尝试多个可能的材质路径
+            UnlitMaterial = LoadObject<UMaterial>(nullptr, 
+                TEXT("/Engine/EngineMaterials/DefaultDeferredDecalMaterial.DefaultDeferredDecalMaterial"));
+            
+            if (!UnlitMaterial)
+            {
+                UnlitMaterial = LoadObject<UMaterial>(nullptr, 
+                    TEXT("/Engine/EngineMaterials/DefaultMaterial.DefaultMaterial"));
+            }
+        }
+        
+        if (UnlitMaterial)
+        {
+            UMaterialInstanceDynamic* DynMat = UMaterialInstanceDynamic::Create(UnlitMaterial, Outer);
+            if (DynMat)
+            {
+                // 尝试设置各种参数
+                DynMat->SetVectorParameterValue(TEXT("BaseColor"), Color);
+                DynMat->SetVectorParameterValue(TEXT("Color"), Color);
+                return DynMat;
+            }
+        }
+        return nullptr;
+    };
+    
+    // ========== 高亮颜色配置 ==========
+    // 可以修改这里的颜色来尝试不同效果：
+    // 鲜艳橙色: FLinearColor(1.0f, 0.3f, 0.0f)
+    // 亮青色:   FLinearColor(0.0f, 1.0f, 1.0f)
+    // 亮绿色:   FLinearColor(0.0f, 1.0f, 0.0f)
+    // 亮粉色:   FLinearColor(1.0f, 0.0f, 0.5f)
+    // 亮黄色:   FLinearColor(1.0f, 1.0f, 0.0f)
+    // 亮蓝色:   FLinearColor(0.0f, 0.5f, 1.0f)
+    // 纯白色:   FLinearColor(1.0f, 1.0f, 1.0f)
+    FLinearColor HighlightColor(0.0f, 1.0f, 0.5f);  // 当前：亮青绿色
+    // ====================================
     
     for (UPrimitiveComponent* Comp : Components)
     {
@@ -1254,67 +1334,49 @@ void AMAPlayerController::SetActorHighlight(AActor* Actor, bool bHighlight)
             Comp->SetCustomDepthStencilValue(bHighlight ? 1 : 0);
             
             // 方式 2: 使用 Overlay Material 实现高亮
-            if (UStaticMeshComponent* SMComp = Cast<UStaticMeshComponent>(Comp))
+            UMeshComponent* MeshComp = Cast<UMeshComponent>(Comp);
+            if (MeshComp)
             {
                 if (bHighlight)
                 {
-                    // 加载或创建高亮材质
-                    static UMaterial* HighlightMaterial = nullptr;
-                    if (!HighlightMaterial)
+                    UMaterialInstanceDynamic* DynMat = CreateHighlightMaterial(MeshComp, HighlightColor);
+                    if (DynMat)
                     {
-                        // 尝试加载引擎自带的发光材质
-                        HighlightMaterial = LoadObject<UMaterial>(nullptr, 
-                            TEXT("/Engine/EngineMaterials/DefaultMaterial.DefaultMaterial"));
-                    }
-                    
-                    if (HighlightMaterial)
-                    {
-                        UMaterialInstanceDynamic* DynMat = UMaterialInstanceDynamic::Create(HighlightMaterial, this);
-                        if (DynMat)
-                        {
-                            // 设置橙色发光
-                            DynMat->SetVectorParameterValue(TEXT("BaseColor"), FLinearColor(1.0f, 0.5f, 0.0f, 1.0f));
-                            SMComp->SetOverlayMaterial(DynMat);
-                        }
+                        MeshComp->SetOverlayMaterial(DynMat);
                     }
                 }
                 else
                 {
                     // 清除 Overlay Material
-                    SMComp->SetOverlayMaterial(nullptr);
-                }
-            }
-            else if (USkeletalMeshComponent* SKComp = Cast<USkeletalMeshComponent>(Comp))
-            {
-                if (bHighlight)
-                {
-                    static UMaterial* HighlightMaterial = nullptr;
-                    if (!HighlightMaterial)
-                    {
-                        HighlightMaterial = LoadObject<UMaterial>(nullptr, 
-                            TEXT("/Engine/EngineMaterials/DefaultMaterial.DefaultMaterial"));
-                    }
-                    
-                    if (HighlightMaterial)
-                    {
-                        UMaterialInstanceDynamic* DynMat = UMaterialInstanceDynamic::Create(HighlightMaterial, this);
-                        if (DynMat)
-                        {
-                            DynMat->SetVectorParameterValue(TEXT("BaseColor"), FLinearColor(1.0f, 0.5f, 0.0f, 1.0f));
-                            SKComp->SetOverlayMaterial(DynMat);
-                        }
-                    }
-                }
-                else
-                {
-                    SKComp->SetOverlayMaterial(nullptr);
+                    MeshComp->SetOverlayMaterial(nullptr);
                 }
             }
         }
     }
+}
+
+void AMAPlayerController::SetActorHighlight(AActor* Actor, bool bHighlight)
+{
+    if (!Actor) return;
     
-    UE_LOG(LogTemp, Log, TEXT("[PlayerController] SetActorHighlight: %s -> %s"), 
-        *Actor->GetName(), bHighlight ? TEXT("ON") : TEXT("OFF"));
+    // 查找根 Actor
+    AActor* RootActor = FindRootActor(Actor);
+    
+    // 收集根 Actor 及其所有子 Actor
+    TArray<AActor*> AllActors;
+    CollectActorAndChildren(RootActor, AllActors);
+    
+    // 对所有 Actor 设置高亮
+    for (AActor* ActorToHighlight : AllActors)
+    {
+        SetSingleActorHighlight(ActorToHighlight, bHighlight);
+    }
+    
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] SetActorHighlight: %s (Root: %s, Total: %d actors) -> %s"), 
+        *Actor->GetName(), 
+        *RootActor->GetName(),
+        AllActors.Num(),
+        bHighlight ? TEXT("ON") : TEXT("OFF"));
 }
 
 void AMAPlayerController::ClearAllHighlights()
@@ -1337,8 +1399,12 @@ void AMAPlayerController::OnModifyLeftClick()
         
         if (HitActor)
         {
-            // 如果点击了新的 Actor
-            if (HitActor != HighlightedActor)
+            // 查找根 Actor
+            AActor* RootActor = FindRootActor(HitActor);
+            AActor* CurrentRootActor = HighlightedActor ? FindRootActor(HighlightedActor) : nullptr;
+            
+            // 如果点击了新的 Actor 树
+            if (RootActor != CurrentRootActor)
             {
                 // 清除之前的高亮
                 if (HighlightedActor)
@@ -1346,14 +1412,15 @@ void AMAPlayerController::OnModifyLeftClick()
                     SetActorHighlight(HighlightedActor, false);
                 }
                 
-                // 高亮新 Actor
-                HighlightedActor = HitActor;
+                // 存储根 Actor 并高亮整个 Actor 树
+                HighlightedActor = RootActor;
                 SetActorHighlight(HighlightedActor, true);
                 
-                UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnModifyLeftClick: Selected %s"), *HitActor->GetName());
+                UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnModifyLeftClick: Selected %s (Root: %s)"), 
+                    *HitActor->GetName(), *RootActor->GetName());
             }
             
-            // 广播选中事件
+            // 广播选中事件（广播根 Actor）
             OnModifyActorSelected.Broadcast(HighlightedActor);
             return;
         }

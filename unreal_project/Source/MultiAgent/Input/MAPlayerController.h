@@ -269,8 +269,11 @@ private:
     UPROPERTY()
     AActor* HighlightedActor = nullptr;
     
-    /** 设置 Actor 高亮状态 */
+    /** 设置 Actor 高亮状态（会自动查找根 Actor 并高亮整个 Actor 树） */
     void SetActorHighlight(AActor* Actor, bool bHighlight);
+    
+    /** 对单个 Actor 设置高亮（不递归，内部使用） */
+    void SetSingleActorHighlight(AActor* Actor, bool bHighlight);
     
     /** 清除所有高亮 */
     void ClearAllHighlights();
