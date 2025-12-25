@@ -25,6 +25,7 @@ AMACharacter::AMACharacter()
     // CapsuleComponent 用于 Agent 间碰撞（统一使用 Capsule 碰撞）
     GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
     GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
+    GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);  // 允许射线检测（Modify 模式点击选中）
 
     AIControllerClass = AAIController::StaticClass();
     AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;

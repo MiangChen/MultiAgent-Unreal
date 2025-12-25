@@ -16,7 +16,8 @@ UENUM(BlueprintType)
 enum class EMAMouseMode : uint8
 {
     Select      UMETA(DisplayName = "Select"),      // 框选 Agent + 视角旋转
-    Deployment  UMETA(DisplayName = "Deployment")   // 部署模式：拖拽框选区域放置 Agent
+    Deployment  UMETA(DisplayName = "Deployment"),  // 部署模式：拖拽框选区域放置 Agent
+    Modify      UMETA(DisplayName = "Modify")       // 修改模式：点击 Actor 查看/编辑标签
 };
 
 // 待部署的 Agent 配置
@@ -207,6 +208,14 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Deployment")
     FOnDeploymentQueueChanged OnDeploymentQueueChanged;
 
+    // ========== Modify 模式 ==========
+    
+    /** Actor 选中委托 - 当 Modify 模式下选中 Actor 时广播 */
+    DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnModifyActorSelected, AActor*, SelectedActor);
+    
+    UPROPERTY(BlueprintAssignable, Category = "Modify")
+    FOnModifyActorSelected OnModifyActorSelected;
+
 private:
     // 初始化 Subsystem 缓存
     bool InitializeSubsystems();
@@ -253,6 +262,27 @@ private:
     
     /** 应用模式设置 */
     void ApplyMouseModeSettings(EMAMouseMode Mode);
+    
+    // ========== Modify 模式数据 ==========
+    
+    /** 当前高亮的 Actor */
+    UPROPERTY()
+    AActor* HighlightedActor = nullptr;
+    
+    /** 设置 Actor 高亮状态 */
+    void SetActorHighlight(AActor* Actor, bool bHighlight);
+    
+    /** 清除所有高亮 */
+    void ClearAllHighlights();
+    
+    /** Modify 模式下的左键点击处理 */
+    void OnModifyLeftClick();
+    
+    /** 进入 Modify 模式 */
+    void EnterModifyMode();
+    
+    /** 退出 Modify 模式 */
+    void ExitModifyMode();
     
     // ========== 右键视角旋转 ==========
     

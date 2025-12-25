@@ -13,6 +13,7 @@ class UMASimpleMainWidget;
 class UMATaskPlannerWidget;
 class UMADirectControlIndicator;
 class UMAEmergencyWidget;
+class UMAModifyWidget;
 class AMAPlayerController;
 class AMACharacter;
 class UMAEmergencyManager;
@@ -70,6 +71,10 @@ public:
     /** 突发事件详情界面实例 */
     UPROPERTY(BlueprintReadOnly, Category = "UI Instances")
     UMAEmergencyWidget* EmergencyWidget;
+
+    /** Modify 模式修改面板实例 */
+    UPROPERTY(BlueprintReadOnly, Category = "UI Instances")
+    UMAModifyWidget* ModifyWidget;
 
     //=========================================================================
     // UI 状态
@@ -226,6 +231,31 @@ public:
     UFUNCTION(BlueprintCallable, Category = "UI Control|Emergency")
     void UpdateEmergencyCameraSource(UMACameraSensorComponent* Camera);
 
+    //=========================================================================
+    // Modify 模式 UI 控制
+    //=========================================================================
+
+    /**
+     * 显示 ModifyWidget
+     * Requirements: 3.1
+     */
+    UFUNCTION(BlueprintCallable, Category = "UI Control|Modify")
+    void ShowModifyWidget();
+
+    /**
+     * 隐藏 ModifyWidget
+     * Requirements: 3.4
+     */
+    UFUNCTION(BlueprintCallable, Category = "UI Control|Modify")
+    void HideModifyWidget();
+
+    /**
+     * 检查 ModifyWidget 是否可见
+     * @return true 如果 ModifyWidget 当前可见
+     */
+    UFUNCTION(BlueprintPure, Category = "UI|Modify")
+    bool IsModifyWidgetVisible() const;
+
 protected:
     //=========================================================================
     // AHUD 重写
@@ -302,4 +332,21 @@ private:
      */
     UFUNCTION()
     void OnPlannerResponse(const FMAPlannerResponse& Response);
+
+    /**
+     * ModifyWidget 确认修改回调
+     * @param Actor 选中的 Actor
+     * @param LabelText 文本框内容
+     * Requirements: 5.1, 5.2
+     */
+    UFUNCTION()
+    void OnModifyConfirmed(AActor* Actor, const FString& LabelText);
+
+    /**
+     * PlayerController 的 Actor 选中回调
+     * @param SelectedActor 选中的 Actor
+     * Requirements: 4.1
+     */
+    UFUNCTION()
+    void OnModifyActorSelected(AActor* SelectedActor);
 };

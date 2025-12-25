@@ -22,6 +22,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
 #include "Kismet/GameplayStatics.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/Canvas.h"
 
 AMAPlayerController::AMAPlayerController()
@@ -169,6 +170,13 @@ void AMAPlayerController::OnLeftClick(const FInputActionValue& Value)
     {
         // 部署模式：开始框选部署区域
         OnDeploymentLeftClick();
+        return;
+    }
+    
+    if (CurrentMouseMode == EMAMouseMode::Modify)
+    {
+        // Modify 模式：点击选择 Actor
+        OnModifyLeftClick();
         return;
     }
     
@@ -710,24 +718,26 @@ void AMAPlayerController::OnDisbandSquad(const FInputActionValue& Value)
 
 void AMAPlayerController::OnToggleMouseMode(const FInputActionValue& Value)
 {
-    // 切换: Select ↔ Deployment (如果有待部署单位)
+    // 切换: Select → Deployment (如果有待部署单位) → Modify → Select
     EMAMouseMode NewMode;
     
     switch (CurrentMouseMode)
     {
         case EMAMouseMode::Select:
-            // 如果背包有待部署单位，切换到部署模式
+            // 如果背包有待部署单位，切换到部署模式，否则跳过到 Modify
             if (HasPendingDeployments())
             {
                 NewMode = EMAMouseMode::Deployment;
             }
             else
             {
-                GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Yellow, TEXT("No units to deploy"));
-                return;
+                NewMode = EMAMouseMode::Modify;
             }
             break;
         case EMAMouseMode::Deployment:
+            NewMode = EMAMouseMode::Modify;
+            break;
+        case EMAMouseMode::Modify:
             NewMode = EMAMouseMode::Select;
             break;
         default:
@@ -779,6 +789,18 @@ void AMAPlayerController::ApplyMouseModeSettings(EMAMouseMode Mode)
     FInputModeGameAndUI InputMode;
     InputMode.SetHideCursorDuringCapture(false);
     SetInputMode(InputMode);
+    
+    // 处理 Modify 模式的进入/退出
+    if (Mode == EMAMouseMode::Modify && PreviousMouseMode != EMAMouseMode::Modify)
+    {
+        // 进入 Modify 模式
+        EnterModifyMode();
+    }
+    else if (Mode != EMAMouseMode::Modify && PreviousMouseMode == EMAMouseMode::Modify)
+    {
+        // 退出 Modify 模式
+        ExitModifyMode();
+    }
 }
 
 FString AMAPlayerController::MouseModeToString(EMAMouseMode Mode)
@@ -787,6 +809,7 @@ FString AMAPlayerController::MouseModeToString(EMAMouseMode Mode)
     {
         case EMAMouseMode::Select: return TEXT("Select");
         case EMAMouseMode::Deployment: return TEXT("Deployment");
+        case EMAMouseMode::Modify: return TEXT("Modify");
         default: return TEXT("Unknown");
     }
 }
@@ -1209,5 +1232,163 @@ void AMAPlayerController::OnJumpPressed(const FInputActionValue& Value)
     if (JumpCount > 0)
     {
         UE_LOG(LogTemp, Log, TEXT("[PlayerController] Jump: %d agents jumped"), JumpCount);
+    }
+}
+
+// ========== Modify 模式 ==========
+
+void AMAPlayerController::SetActorHighlight(AActor* Actor, bool bHighlight)
+{
+    if (!Actor) return;
+    
+    // 获取所有 PrimitiveComponent
+    TArray<UPrimitiveComponent*> Components;
+    Actor->GetComponents<UPrimitiveComponent>(Components);
+    
+    for (UPrimitiveComponent* Comp : Components)
+    {
+        if (Comp)
+        {
+            // 方式 1: Custom Depth (需要 Post Process 配合)
+            Comp->SetRenderCustomDepth(bHighlight);
+            Comp->SetCustomDepthStencilValue(bHighlight ? 1 : 0);
+            
+            // 方式 2: 使用 Overlay Material 实现高亮
+            if (UStaticMeshComponent* SMComp = Cast<UStaticMeshComponent>(Comp))
+            {
+                if (bHighlight)
+                {
+                    // 加载或创建高亮材质
+                    static UMaterial* HighlightMaterial = nullptr;
+                    if (!HighlightMaterial)
+                    {
+                        // 尝试加载引擎自带的发光材质
+                        HighlightMaterial = LoadObject<UMaterial>(nullptr, 
+                            TEXT("/Engine/EngineMaterials/DefaultMaterial.DefaultMaterial"));
+                    }
+                    
+                    if (HighlightMaterial)
+                    {
+                        UMaterialInstanceDynamic* DynMat = UMaterialInstanceDynamic::Create(HighlightMaterial, this);
+                        if (DynMat)
+                        {
+                            // 设置橙色发光
+                            DynMat->SetVectorParameterValue(TEXT("BaseColor"), FLinearColor(1.0f, 0.5f, 0.0f, 1.0f));
+                            SMComp->SetOverlayMaterial(DynMat);
+                        }
+                    }
+                }
+                else
+                {
+                    // 清除 Overlay Material
+                    SMComp->SetOverlayMaterial(nullptr);
+                }
+            }
+            else if (USkeletalMeshComponent* SKComp = Cast<USkeletalMeshComponent>(Comp))
+            {
+                if (bHighlight)
+                {
+                    static UMaterial* HighlightMaterial = nullptr;
+                    if (!HighlightMaterial)
+                    {
+                        HighlightMaterial = LoadObject<UMaterial>(nullptr, 
+                            TEXT("/Engine/EngineMaterials/DefaultMaterial.DefaultMaterial"));
+                    }
+                    
+                    if (HighlightMaterial)
+                    {
+                        UMaterialInstanceDynamic* DynMat = UMaterialInstanceDynamic::Create(HighlightMaterial, this);
+                        if (DynMat)
+                        {
+                            DynMat->SetVectorParameterValue(TEXT("BaseColor"), FLinearColor(1.0f, 0.5f, 0.0f, 1.0f));
+                            SKComp->SetOverlayMaterial(DynMat);
+                        }
+                    }
+                }
+                else
+                {
+                    SKComp->SetOverlayMaterial(nullptr);
+                }
+            }
+        }
+    }
+    
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] SetActorHighlight: %s -> %s"), 
+        *Actor->GetName(), bHighlight ? TEXT("ON") : TEXT("OFF"));
+}
+
+void AMAPlayerController::ClearAllHighlights()
+{
+    if (HighlightedActor)
+    {
+        SetActorHighlight(HighlightedActor, false);
+        HighlightedActor = nullptr;
+        UE_LOG(LogTemp, Log, TEXT("[PlayerController] ClearAllHighlights: Cleared"));
+    }
+}
+
+void AMAPlayerController::OnModifyLeftClick()
+{
+    // 执行射线检测
+    FHitResult HitResult;
+    if (GetHitResultUnderCursor(ECC_Visibility, false, HitResult))
+    {
+        AActor* HitActor = HitResult.GetActor();
+        
+        if (HitActor)
+        {
+            // 如果点击了新的 Actor
+            if (HitActor != HighlightedActor)
+            {
+                // 清除之前的高亮
+                if (HighlightedActor)
+                {
+                    SetActorHighlight(HighlightedActor, false);
+                }
+                
+                // 高亮新 Actor
+                HighlightedActor = HitActor;
+                SetActorHighlight(HighlightedActor, true);
+                
+                UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnModifyLeftClick: Selected %s"), *HitActor->GetName());
+            }
+            
+            // 广播选中事件
+            OnModifyActorSelected.Broadcast(HighlightedActor);
+            return;
+        }
+    }
+    
+    // 点击空白区域，清除高亮
+    ClearAllHighlights();
+    
+    // 广播空选中事件
+    OnModifyActorSelected.Broadcast(nullptr);
+    
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnModifyLeftClick: Clicked empty area"));
+}
+
+void AMAPlayerController::EnterModifyMode()
+{
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] EnterModifyMode"));
+    
+    // 通知 HUD 显示 ModifyWidget
+    if (AMAHUD* HUD = Cast<AMAHUD>(GetHUD()))
+    {
+        HUD->ShowModifyWidget();
+    }
+}
+
+void AMAPlayerController::ExitModifyMode()
+{
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] ExitModifyMode"));
+    
+    // 清除高亮
+    ClearAllHighlights();
+    
+    // 通知 HUD 隐藏 ModifyWidget
+    if (AMAHUD* HUD = Cast<AMAHUD>(GetHUD()))
+    {
+        HUD->HideModifyWidget();
     }
 }

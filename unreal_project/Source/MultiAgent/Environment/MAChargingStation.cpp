@@ -21,9 +21,13 @@ AMAChargingStation::AMAChargingStation()
     // 让充电站不影响 NavMesh（机器人可以走到充电站位置）
     MeshComponent->SetCanEverAffectNavigation(false);
     
-    // 让充电站 Mesh 不阻挡移动（只做视觉显示）
-    // 机器人可以"穿过"充电站，由 InteractionSphere 负责检测
-    MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    // 设置碰撞：允许射线检测（Visibility 通道），但不阻挡移动（Pawn 通道）
+    // 这样 Modify 模式可以点击选中充电站，但机器人可以"穿过"充电站
+    MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+    MeshComponent->SetCollisionObjectType(ECC_WorldStatic);
+    MeshComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
+    MeshComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);  // 允许射线检测
+    MeshComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Block);      // 允许相机碰撞;
     
     // Set default soft references (can be changed in editor)
     StationMeshAsset = TSoftObjectPtr<UStaticMesh>(FSoftObjectPath(TEXT("/Game/charge/SM_StationRecharge.SM_StationRecharge")));

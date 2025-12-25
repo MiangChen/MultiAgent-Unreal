@@ -9,6 +9,7 @@
 #include "MADirectControlIndicator.h"
 #include "../Core/MATaskGraphTypes.h"
 #include "MAEmergencyWidget.h"
+#include "MAModifyWidget.h"
 #include "../Input/MAPlayerController.h"
 #include "../Core/MACommSubsystem.h"
 #include "../Core/MASimTypes.h"
@@ -31,6 +32,7 @@ AMAHUD::AMAHUD()
     bMainUIVisible = false;
     EmergencyWidget = nullptr;
     TaskPlannerWidget = nullptr;
+    ModifyWidget = nullptr;
 }
 
 //=============================================================================
@@ -549,6 +551,25 @@ void AMAHUD::CreateWidgets()
     {
         UE_LOG(LogMAHUD, Error, TEXT("Failed to create EmergencyWidget"));
     }
+
+    // 创建 ModifyWidget (Requirements: 3.1, 3.2, 3.3)
+    UE_LOG(LogMAHUD, Log, TEXT("Creating ModifyWidget..."));
+    
+    ModifyWidget = CreateWidget<UMAModifyWidget>(PC, UMAModifyWidget::StaticClass());
+    if (ModifyWidget)
+    {
+        ModifyWidget->AddToViewport(11);  // 中等优先级，在 MainWidget 之上
+        ModifyWidget->SetVisibility(ESlateVisibility::Collapsed);
+        
+        // 绑定 OnModifyConfirmed 委托
+        ModifyWidget->OnModifyConfirmed.AddDynamic(this, &AMAHUD::OnModifyConfirmed);
+        
+        UE_LOG(LogMAHUD, Log, TEXT("ModifyWidget created successfully"));
+    }
+    else
+    {
+        UE_LOG(LogMAHUD, Error, TEXT("Failed to create ModifyWidget"));
+    }
 }
 
 void AMAHUD::BindControllerEvents()
@@ -559,6 +580,10 @@ void AMAHUD::BindControllerEvents()
         UE_LOG(LogMAHUD, Warning, TEXT("BindControllerEvents: MAPlayerController not found"));
         return;
     }
+
+    // 绑定 Modify 模式 Actor 选中委托
+    MAPC->OnModifyActorSelected.AddDynamic(this, &AMAHUD::OnModifyActorSelected);
+    UE_LOG(LogMAHUD, Log, TEXT("BindControllerEvents: Bound OnModifyActorSelected delegate"));
 
     // 注意: 这里需要 MAPlayerController 定义 OnMainUIToggled 和 OnRefocusMainUI 委托
     // 这些委托将在后续任务 4.2 中添加到 MAPlayerController
@@ -669,5 +694,102 @@ void AMAHUD::LoadTaskGraph(const FMATaskGraphData& Data)
     else
     {
         UE_LOG(LogMAHUD, Warning, TEXT("LoadTaskGraph: TaskPlannerWidget is null"));
+    }
+}
+
+//=============================================================================
+// Modify 模式 UI 控制
+//=============================================================================
+
+void AMAHUD::ShowModifyWidget()
+{
+    if (!ModifyWidget)
+    {
+        UE_LOG(LogMAHUD, Warning, TEXT("ShowModifyWidget: ModifyWidget is null"));
+        return;
+    }
+
+    if (IsModifyWidgetVisible())
+    {
+        // 已经显示
+        return;
+    }
+
+    // 显示 Widget
+    ModifyWidget->SetVisibility(ESlateVisibility::Visible);
+
+    // 设置输入模式为 UI 和游戏混合
+    APlayerController* PC = GetOwningPlayerController();
+    if (PC)
+    {
+        FInputModeGameAndUI InputMode;
+        InputMode.SetWidgetToFocus(ModifyWidget->TakeWidget());
+        InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+        InputMode.SetHideCursorDuringCapture(false);
+        PC->SetInputMode(InputMode);
+        PC->SetShowMouseCursor(true);
+    }
+
+    UE_LOG(LogMAHUD, Log, TEXT("ModifyWidget shown"));
+}
+
+void AMAHUD::HideModifyWidget()
+{
+    if (!ModifyWidget)
+    {
+        UE_LOG(LogMAHUD, Warning, TEXT("HideModifyWidget: ModifyWidget is null"));
+        return;
+    }
+
+    if (!IsModifyWidgetVisible())
+    {
+        return;
+    }
+
+    // 隐藏 Widget
+    ModifyWidget->SetVisibility(ESlateVisibility::Collapsed);
+
+    // 清除选中状态
+    ModifyWidget->ClearSelection();
+
+    // 恢复输入模式为纯游戏
+    APlayerController* PC = GetOwningPlayerController();
+    if (PC)
+    {
+        FInputModeGameOnly InputMode;
+        PC->SetInputMode(InputMode);
+        PC->SetShowMouseCursor(true);  // 保持鼠标可见用于 RTS 操作
+    }
+
+    UE_LOG(LogMAHUD, Log, TEXT("ModifyWidget hidden"));
+}
+
+bool AMAHUD::IsModifyWidgetVisible() const
+{
+    if (!ModifyWidget)
+    {
+        return false;
+    }
+    
+    return ModifyWidget->IsVisible();
+}
+
+void AMAHUD::OnModifyConfirmed(AActor* Actor, const FString& LabelText)
+{
+    UE_LOG(LogMAHUD, Log, TEXT("OnModifyConfirmed: Actor=%s, LabelText=%s"), 
+        Actor ? *Actor->GetName() : TEXT("null"), *LabelText);
+    
+    // 当前为占位符实现，仅输出日志
+    // 未来可以在这里处理标签保存逻辑
+}
+
+void AMAHUD::OnModifyActorSelected(AActor* SelectedActor)
+{
+    UE_LOG(LogMAHUD, Log, TEXT("OnModifyActorSelected: Actor=%s"), 
+        SelectedActor ? *SelectedActor->GetName() : TEXT("null"));
+    
+    if (ModifyWidget)
+    {
+        ModifyWidget->SetSelectedActor(SelectedActor);
     }
 }
