@@ -12,6 +12,7 @@ class UMASelectionManager;
 class UMASquadManager;
 class UMAViewportManager;
 class UMAEmergencyManager;
+class UMAEditModeManager;
 class UWorld;
 
 /**
@@ -32,6 +33,7 @@ struct MULTIAGENT_API FMASubsystem
     UMASquadManager* SquadManager = nullptr;
     UMAViewportManager* ViewportManager = nullptr;
     UMAEmergencyManager* EmergencyManager = nullptr;
+    UMAEditModeManager* EditModeManager = nullptr;
 
     // 从 World 获取所有 Subsystem
     static FMASubsystem Get(UWorld* World);

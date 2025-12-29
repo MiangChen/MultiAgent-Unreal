@@ -17,7 +17,8 @@ enum class EMAMouseMode : uint8
 {
     Select      UMETA(DisplayName = "Select"),      // 框选 Agent + 视角旋转
     Deployment  UMETA(DisplayName = "Deployment"),  // 部署模式：拖拽框选区域放置 Agent
-    Modify      UMETA(DisplayName = "Modify")       // 修改模式：点击 Actor 查看/编辑标签
+    Modify      UMETA(DisplayName = "Modify"),      // 修改模式：点击 Actor 查看/编辑标签
+    Edit        UMETA(DisplayName = "Edit")         // 编辑模式：模拟任务执行中的动态变化
 };
 
 // 待部署的 Agent 配置
@@ -210,11 +211,36 @@ public:
 
     // ========== Modify 模式 ==========
     
-    /** Actor 选中委托 - 当 Modify 模式下选中 Actor 时广播 */
+    /** Actor 选中委托 - 当 Modify 模式下选中单个 Actor 时广播 (向后兼容) */
     DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnModifyActorSelected, AActor*, SelectedActor);
     
     UPROPERTY(BlueprintAssignable, Category = "Modify")
     FOnModifyActorSelected OnModifyActorSelected;
+    
+    /** 多选委托 - 当 Modify 模式下选择集合变化时广播 */
+    DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnModifyActorsSelected, const TArray<AActor*>&, SelectedActors);
+    
+    UPROPERTY(BlueprintAssignable, Category = "Modify")
+    FOnModifyActorsSelected OnModifyActorsSelected;
+
+    /**
+     * 清除 Modify 模式的高亮
+     * 用于外部调用（如 MAHUD）清除当前高亮的 Actor
+     */
+    UFUNCTION(BlueprintCallable, Category = "Modify")
+    void ClearModifyHighlight();
+    
+    /** 获取当前选择数量 */
+    UFUNCTION(BlueprintPure, Category = "Modify")
+    int32 GetSelectionCount() const { return HighlightedActors.Num(); }
+    
+    /** 是否处于多选状态 */
+    UFUNCTION(BlueprintPure, Category = "Modify")
+    bool IsMultiSelectActive() const { return HighlightedActors.Num() > 1; }
+    
+    /** 获取所有选中的 Actor */
+    UFUNCTION(BlueprintPure, Category = "Modify")
+    TArray<AActor*> GetHighlightedActors() const { return HighlightedActors; }
 
 private:
     // 初始化 Subsystem 缓存
@@ -265,9 +291,9 @@ private:
     
     // ========== Modify 模式数据 ==========
     
-    /** 当前高亮的 Actor */
+    /** 多选集合 - 当前高亮的 Actor 列表 */
     UPROPERTY()
-    AActor* HighlightedActor = nullptr;
+    TArray<AActor*> HighlightedActors;
     
     /** 设置 Actor 高亮状态（会自动查找根 Actor 并高亮整个 Actor 树） */
     void SetActorHighlight(AActor* Actor, bool bHighlight);
@@ -277,6 +303,15 @@ private:
     
     /** 清除所有高亮 */
     void ClearAllHighlights();
+    
+    /** 添加 Actor 到选择集合 (Shift+Click) - toggle 行为 */
+    void AddToSelection(AActor* Actor);
+    
+    /** 从选择集合移除 Actor */
+    void RemoveFromSelection(AActor* Actor);
+    
+    /** 清除所有选择并选中单个 Actor */
+    void ClearAndSelect(AActor* Actor);
     
     /** Modify 模式下的左键点击处理 */
     void OnModifyLeftClick();

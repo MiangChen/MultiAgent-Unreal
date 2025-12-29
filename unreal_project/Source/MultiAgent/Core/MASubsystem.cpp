@@ -7,6 +7,7 @@
 #include "MASquadManager.h"
 #include "MAViewportManager.h"
 #include "MAEmergencyManager.h"
+#include "MAEditModeManager.h"
 #include "Engine/World.h"
 
 FMASubsystem FMASubsystem::Get(UWorld* World)
@@ -21,6 +22,7 @@ FMASubsystem FMASubsystem::Get(UWorld* World)
         Subs.SquadManager = World->GetSubsystem<UMASquadManager>();
         Subs.ViewportManager = World->GetSubsystem<UMAViewportManager>();
         Subs.EmergencyManager = World->GetSubsystem<UMAEmergencyManager>();
+        Subs.EditModeManager = World->GetSubsystem<UMAEditModeManager>();
     }
     
     return Subs;
@@ -28,5 +30,5 @@ FMASubsystem FMASubsystem::Get(UWorld* World)
 
 bool FMASubsystem::IsValid() const
 {
-    return AgentManager && CommandManager && SelectionManager && SquadManager && ViewportManager && EmergencyManager;
+    return AgentManager && CommandManager && SelectionManager && SquadManager && ViewportManager && EmergencyManager && EditModeManager;
 }

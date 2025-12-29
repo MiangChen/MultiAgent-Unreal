@@ -718,7 +718,7 @@ void AMAPlayerController::OnDisbandSquad(const FInputActionValue& Value)
 
 void AMAPlayerController::OnToggleMouseMode(const FInputActionValue& Value)
 {
-    // 切换: Select → Deployment (如果有待部署单位) → Modify → Select
+    // 切换: Select → Deployment (如果有待部署单位) → Modify → Edit → Select
     EMAMouseMode NewMode;
     
     switch (CurrentMouseMode)
@@ -738,6 +738,9 @@ void AMAPlayerController::OnToggleMouseMode(const FInputActionValue& Value)
             NewMode = EMAMouseMode::Modify;
             break;
         case EMAMouseMode::Modify:
+            NewMode = EMAMouseMode::Edit;
+            break;
+        case EMAMouseMode::Edit:
             NewMode = EMAMouseMode::Select;
             break;
         default:
@@ -810,6 +813,7 @@ FString AMAPlayerController::MouseModeToString(EMAMouseMode Mode)
         case EMAMouseMode::Select: return TEXT("Select");
         case EMAMouseMode::Deployment: return TEXT("Deployment");
         case EMAMouseMode::Modify: return TEXT("Modify");
+        case EMAMouseMode::Edit: return TEXT("Edit");
         default: return TEXT("Unknown");
     }
 }
@@ -1381,16 +1385,120 @@ void AMAPlayerController::SetActorHighlight(AActor* Actor, bool bHighlight)
 
 void AMAPlayerController::ClearAllHighlights()
 {
-    if (HighlightedActor)
+    // 遍历所有高亮的 Actor 并清除高亮
+    for (AActor* Actor : HighlightedActors)
     {
-        SetActorHighlight(HighlightedActor, false);
-        HighlightedActor = nullptr;
-        UE_LOG(LogTemp, Log, TEXT("[PlayerController] ClearAllHighlights: Cleared"));
+        if (Actor)
+        {
+            SetActorHighlight(Actor, false);
+        }
     }
+    
+    // 清空数组
+    HighlightedActors.Empty();
+    
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] ClearAllHighlights: Cleared all selections"));
+}
+
+void AMAPlayerController::AddToSelection(AActor* Actor)
+{
+    if (!Actor) return;
+    
+    // 查找根 Actor
+    AActor* RootActor = FindRootActor(Actor);
+    
+    // 检查是否已在选择集中 - toggle 行为
+    if (HighlightedActors.Contains(RootActor))
+    {
+        // 已存在则移除 (toggle)
+        RemoveFromSelection(RootActor);
+        UE_LOG(LogTemp, Log, TEXT("[PlayerController] AddToSelection: Toggled off %s"), *RootActor->GetName());
+    }
+    else
+    {
+        // 不存在则添加
+        HighlightedActors.Add(RootActor);
+        SetActorHighlight(RootActor, true);
+        UE_LOG(LogTemp, Log, TEXT("[PlayerController] AddToSelection: Added %s (total: %d)"), 
+            *RootActor->GetName(), HighlightedActors.Num());
+    }
+    
+    // 广播多选委托
+    OnModifyActorsSelected.Broadcast(HighlightedActors);
+    
+    // 向后兼容：如果只有一个选中，也广播单选委托
+    if (HighlightedActors.Num() == 1)
+    {
+        OnModifyActorSelected.Broadcast(HighlightedActors[0]);
+    }
+    else if (HighlightedActors.Num() == 0)
+    {
+        OnModifyActorSelected.Broadcast(nullptr);
+    }
+}
+
+void AMAPlayerController::RemoveFromSelection(AActor* Actor)
+{
+    if (!Actor) return;
+    
+    // 查找根 Actor
+    AActor* RootActor = FindRootActor(Actor);
+    
+    // 从选择集移除
+    if (HighlightedActors.Remove(RootActor) > 0)
+    {
+        // 移除该 Actor 的高亮
+        SetActorHighlight(RootActor, false);
+        UE_LOG(LogTemp, Log, TEXT("[PlayerController] RemoveFromSelection: Removed %s (remaining: %d)"), 
+            *RootActor->GetName(), HighlightedActors.Num());
+        
+        // 广播多选委托
+        OnModifyActorsSelected.Broadcast(HighlightedActors);
+        
+        // 向后兼容
+        if (HighlightedActors.Num() == 1)
+        {
+            OnModifyActorSelected.Broadcast(HighlightedActors[0]);
+        }
+        else if (HighlightedActors.Num() == 0)
+        {
+            OnModifyActorSelected.Broadcast(nullptr);
+        }
+    }
+}
+
+void AMAPlayerController::ClearAndSelect(AActor* Actor)
+{
+    // 清除所有现有选择和高亮
+    ClearAllHighlights();
+    
+    if (!Actor)
+    {
+        // 广播空选中事件
+        OnModifyActorSelected.Broadcast(nullptr);
+        OnModifyActorsSelected.Broadcast(HighlightedActors);
+        return;
+    }
+    
+    // 查找根 Actor
+    AActor* RootActor = FindRootActor(Actor);
+    
+    // 选中并高亮单个 Actor
+    HighlightedActors.Add(RootActor);
+    SetActorHighlight(RootActor, true);
+    
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] ClearAndSelect: Selected %s"), *RootActor->GetName());
+    
+    // 广播选中事件
+    OnModifyActorSelected.Broadcast(RootActor);
+    OnModifyActorsSelected.Broadcast(HighlightedActors);
 }
 
 void AMAPlayerController::OnModifyLeftClick()
 {
+    // 检测 Shift 键状态
+    bool bShiftPressed = IsInputKeyDown(EKeys::LeftShift) || IsInputKeyDown(EKeys::RightShift);
+    
     // 执行射线检测
     FHitResult HitResult;
     if (GetHitResultUnderCursor(ECC_Visibility, false, HitResult))
@@ -1399,40 +1507,32 @@ void AMAPlayerController::OnModifyLeftClick()
         
         if (HitActor)
         {
-            // 查找根 Actor
-            AActor* RootActor = FindRootActor(HitActor);
-            AActor* CurrentRootActor = HighlightedActor ? FindRootActor(HighlightedActor) : nullptr;
-            
-            // 如果点击了新的 Actor 树
-            if (RootActor != CurrentRootActor)
+            if (bShiftPressed)
             {
-                // 清除之前的高亮
-                if (HighlightedActor)
-                {
-                    SetActorHighlight(HighlightedActor, false);
-                }
-                
-                // 存储根 Actor 并高亮整个 Actor 树
-                HighlightedActor = RootActor;
-                SetActorHighlight(HighlightedActor, true);
-                
-                UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnModifyLeftClick: Selected %s (Root: %s)"), 
-                    *HitActor->GetName(), *RootActor->GetName());
+                // Shift+Click: 添加到选择集 (toggle 行为)
+                AddToSelection(HitActor);
+                UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnModifyLeftClick: Shift+Click on %s"), 
+                    *HitActor->GetName());
             }
-            
-            // 广播选中事件（广播根 Actor）
-            OnModifyActorSelected.Broadcast(HighlightedActor);
+            else
+            {
+                // 普通 Click: 清除所有选择并选中单个 Actor
+                ClearAndSelect(HitActor);
+                UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnModifyLeftClick: Click on %s"), 
+                    *HitActor->GetName());
+            }
             return;
         }
     }
     
-    // 点击空白区域，清除高亮
+    // 点击空白区域，清除所有选择（无论是否按 Shift）
     ClearAllHighlights();
     
     // 广播空选中事件
     OnModifyActorSelected.Broadcast(nullptr);
+    OnModifyActorsSelected.Broadcast(HighlightedActors);
     
-    UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnModifyLeftClick: Clicked empty area"));
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnModifyLeftClick: Clicked empty area, cleared all selections"));
 }
 
 void AMAPlayerController::EnterModifyMode()
@@ -1458,4 +1558,16 @@ void AMAPlayerController::ExitModifyMode()
     {
         HUD->HideModifyWidget();
     }
+}
+
+void AMAPlayerController::ClearModifyHighlight()
+{
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] ClearModifyHighlight"));
+    
+    // 清除所有高亮
+    ClearAllHighlights();
+    
+    // 广播空选中事件
+    OnModifyActorSelected.Broadcast(nullptr);
+    OnModifyActorsSelected.Broadcast(HighlightedActors);
 }

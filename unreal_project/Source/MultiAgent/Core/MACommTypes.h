@@ -388,3 +388,86 @@ struct MULTIAGENT_API FMAWorldModelGraph
     /** 从 JSON 解析 */
     static bool FromJson(const FString& Json, FMAWorldModelGraph& Out);
 };
+
+//=============================================================================
+// 场景变化消息类型 (Edit Mode)
+// Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7, 11.8
+//=============================================================================
+
+/**
+ * 场景变化消息类型枚举
+ * 用于 Edit Mode 中通知后端规划器场景发生的变化
+ */
+UENUM(BlueprintType)
+enum class EMASceneChangeType : uint8
+{
+    AddNode         UMETA(DisplayName = "Add Node"),        // 添加节点
+    DeleteNode      UMETA(DisplayName = "Delete Node"),     // 删除节点
+    EditNode        UMETA(DisplayName = "Edit Node"),       // 修改节点
+    AddGoal         UMETA(DisplayName = "Add Goal"),        // 添加目标点
+    DeleteGoal      UMETA(DisplayName = "Delete Goal"),     // 删除目标点
+    AddZone         UMETA(DisplayName = "Add Zone"),        // 添加区域
+    DeleteZone      UMETA(DisplayName = "Delete Zone"),     // 删除区域
+    AddEdge         UMETA(DisplayName = "Add Edge"),        // 添加边
+    EditEdge        UMETA(DisplayName = "Edit Edge")        // 修改边
+};
+
+/**
+ * 场景变化消息
+ * 用于 Edit Mode 中向后端规划器发送场景变化通知
+ * 
+ * 消息格式:
+ * - add_node: payload 包含完整的 Node JSON
+ * - delete_node: payload 包含 Node ID
+ * - edit_node: payload 包含修改后的 Node JSON
+ * - add_goal: payload 包含 Goal Node JSON
+ * - delete_goal: payload 包含 Goal ID
+ * - add_zone: payload 包含 Zone Node JSON
+ * - delete_zone: payload 包含 Zone ID
+ */
+USTRUCT(BlueprintType)
+struct MULTIAGENT_API FMASceneChangeMessage
+{
+    GENERATED_BODY()
+
+    /** 变化类型 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SceneChange")
+    EMASceneChangeType ChangeType = EMASceneChangeType::AddNode;
+
+    /** 负载数据 (JSON 格式) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SceneChange")
+    FString Payload;
+
+    /** 时间戳 (Unix timestamp in milliseconds) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SceneChange")
+    int64 Timestamp = 0;
+
+    /** 消息 ID (UUID) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SceneChange")
+    FString MessageId;
+
+    FMASceneChangeMessage() 
+    {
+        Timestamp = FMAMessageEnvelope::GetCurrentTimestamp();
+        MessageId = FMAMessageEnvelope::GenerateMessageId();
+    }
+
+    FMASceneChangeMessage(EMASceneChangeType InType, const FString& InPayload)
+        : ChangeType(InType), Payload(InPayload)
+    {
+        Timestamp = FMAMessageEnvelope::GetCurrentTimestamp();
+        MessageId = FMAMessageEnvelope::GenerateMessageId();
+    }
+
+    /** 序列化为 JSON */
+    FString ToJson() const;
+
+    /** 从 JSON 解析 */
+    static bool FromJson(const FString& Json, FMASceneChangeMessage& Out);
+
+    /** 获取变化类型的字符串表示 */
+    static FString ChangeTypeToString(EMASceneChangeType Type);
+
+    /** 从字符串解析变化类型 */
+    static EMASceneChangeType StringToChangeType(const FString& TypeStr);
+};

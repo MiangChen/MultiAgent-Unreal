@@ -214,6 +214,7 @@ void AMASelectionHUD::DrawMouseMode()
         case EMAMouseMode::Select: ModeColor = FLinearColor::Green; break;
         case EMAMouseMode::Deployment: ModeColor = FLinearColor(0.2f, 0.6f, 1.f, 1.f); break;
         case EMAMouseMode::Modify: ModeColor = FLinearColor(1.f, 0.6f, 0.f, 1.f); break;  // 橙色
+        case EMAMouseMode::Edit: ModeColor = FLinearColor(0.f, 0.5f, 1.f, 1.f); break;    // 蓝色
         default: ModeColor = FLinearColor::White; break;
     }
 

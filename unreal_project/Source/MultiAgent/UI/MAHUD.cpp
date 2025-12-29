@@ -15,10 +15,12 @@
 #include "../Core/MASimTypes.h"
 #include "../Core/MASubsystem.h"
 #include "../Core/MAEmergencyManager.h"
+#include "../Core/MASceneGraphManager.h"
 #include "../Agent/Character/MACharacter.h"
 #include "../Agent/Component/Sensor/MACameraSensorComponent.h"
 #include "Blueprint/UserWidget.h"
 #include "Engine/Canvas.h"
+#include "DrawDebugHelpers.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMAHUD, Log, All);
 
@@ -356,6 +358,13 @@ void AMAHUD::DrawHUD()
         TextItem.OutlineColor = FLinearColor::Black;
         Canvas->DrawItem(TextItem);
     }
+
+    // 绘制场景标签 (Modify 模式)
+    // Requirements: 5.3 - 每帧刷新显示
+    DrawSceneLabels();
+
+    // 绘制通知消息
+    DrawNotification();
 }
 
 void AMAHUD::ShowDirectControlIndicator(AMACharacter* Agent)
@@ -561,8 +570,11 @@ void AMAHUD::CreateWidgets()
         ModifyWidget->AddToViewport(11);  // 中等优先级，在 MainWidget 之上
         ModifyWidget->SetVisibility(ESlateVisibility::Collapsed);
         
-        // 绑定 OnModifyConfirmed 委托
+        // 绑定 OnModifyConfirmed 委托 (单选模式)
         ModifyWidget->OnModifyConfirmed.AddDynamic(this, &AMAHUD::OnModifyConfirmed);
+        
+        // 绑定 OnMultiSelectModifyConfirmed 委托 (多选模式)
+        ModifyWidget->OnMultiSelectModifyConfirmed.AddDynamic(this, &AMAHUD::OnMultiSelectModifyConfirmed);
         
         UE_LOG(LogMAHUD, Log, TEXT("ModifyWidget created successfully"));
     }
@@ -581,9 +593,13 @@ void AMAHUD::BindControllerEvents()
         return;
     }
 
-    // 绑定 Modify 模式 Actor 选中委托
+    // 绑定 Modify 模式 Actor 选中委托 (单选模式)
     MAPC->OnModifyActorSelected.AddDynamic(this, &AMAHUD::OnModifyActorSelected);
     UE_LOG(LogMAHUD, Log, TEXT("BindControllerEvents: Bound OnModifyActorSelected delegate"));
+
+    // 绑定 Modify 模式 Actor 选中委托 (多选模式)
+    MAPC->OnModifyActorsSelected.AddDynamic(this, &AMAHUD::OnModifyActorsSelected);
+    UE_LOG(LogMAHUD, Log, TEXT("BindControllerEvents: Bound OnModifyActorsSelected delegate"));
 
     // 注意: 这里需要 MAPlayerController 定义 OnMainUIToggled 和 OnRefocusMainUI 委托
     // 这些委托将在后续任务 4.2 中添加到 MAPlayerController
@@ -730,6 +746,9 @@ void AMAHUD::ShowModifyWidget()
         PC->SetShowMouseCursor(true);
     }
 
+    // Requirements: 5.1 - 进入 Modify 模式时开始场景标签可视化
+    StartSceneLabelVisualization();
+
     UE_LOG(LogMAHUD, Log, TEXT("ModifyWidget shown"));
 }
 
@@ -745,6 +764,9 @@ void AMAHUD::HideModifyWidget()
     {
         return;
     }
+
+    // Requirements: 5.2 - 退出 Modify 模式时停止场景标签可视化
+    StopSceneLabelVisualization();
 
     // 隐藏 Widget
     ModifyWidget->SetVisibility(ESlateVisibility::Collapsed);
@@ -779,8 +801,99 @@ void AMAHUD::OnModifyConfirmed(AActor* Actor, const FString& LabelText)
     UE_LOG(LogMAHUD, Log, TEXT("OnModifyConfirmed: Actor=%s, LabelText=%s"), 
         Actor ? *Actor->GetName() : TEXT("null"), *LabelText);
     
-    // 当前为占位符实现，仅输出日志
-    // 未来可以在这里处理标签保存逻辑
+    // Requirements: 5.1 - 检查是否有选中的 Actor
+    if (!Actor)
+    {
+        ShowNotification(TEXT("请先选中一个 Actor"), true);
+        return;
+    }
+
+    // 获取 SceneGraphManager
+    // Requirements: 8.2, 8.3
+    UGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+    if (!GI)
+    {
+        ShowNotification(TEXT("保存失败: 无法获取 GameInstance"), true);
+        return;
+    }
+
+    UMASceneGraphManager* SceneGraphManager = GI->GetSubsystem<UMASceneGraphManager>();
+    if (!SceneGraphManager)
+    {
+        ShowNotification(TEXT("保存失败: SceneGraphManager 未找到"), true);
+        return;
+    }
+
+    // Requirements: 1.1, 1.2, 1.3, 1.4 - 解析输入
+    FString Id, Type, ErrorMessage;
+    if (!SceneGraphManager->ParseLabelInput(LabelText, Id, Type, ErrorMessage))
+    {
+        // Requirements: 2.1, 2.2, 2.3 - 显示错误消息
+        ShowNotification(ErrorMessage, true);
+        
+        // Requirements: 2.5 - 验证失败时保留输入文本
+        // ModifyWidget 不清空，由 ModifyWidget 自己处理
+        // 重新设置选中的 Actor 以保留状态
+        if (ModifyWidget)
+        {
+            ModifyWidget->SetSelectedActor(Actor);
+            ModifyWidget->SetLabelText(LabelText);
+        }
+        return;
+    }
+
+    // Requirements: 5.1, 5.3 - 获取 Actor 世界坐标
+    FVector WorldLocation = Actor->GetActorLocation();
+    UE_LOG(LogMAHUD, Log, TEXT("OnModifyConfirmed: Actor location = (%f, %f, %f)"), 
+        WorldLocation.X, WorldLocation.Y, WorldLocation.Z);
+
+    // Requirements: 3.1, 3.2, 6.3, 6.5, 7.1, 7.2, 7.3, 7.4 - 添加场景节点
+    FString GeneratedLabel;
+    if (!SceneGraphManager->AddSceneNode(Id, Type, WorldLocation, Actor, GeneratedLabel, ErrorMessage))
+    {
+        // Requirements: 3.2 - ID 重复或其他错误
+        // 检查是否是 ID 重复的警告
+        if (ErrorMessage.Contains(TEXT("ID 已存在")))
+        {
+            ShowNotification(ErrorMessage, false, true);  // 警告样式
+            // Requirements: 2.5 - ID 重复时清空输入（因为用户需要输入新的 ID）
+            if (ModifyWidget)
+            {
+                ModifyWidget->ClearSelection();
+            }
+            ClearHighlightedActor();
+        }
+        else
+        {
+            ShowNotification(ErrorMessage, true);  // 错误样式
+            // Requirements: 2.5 - 其他错误时保留输入文本
+            if (ModifyWidget)
+            {
+                ModifyWidget->SetSelectedActor(Actor);
+                ModifyWidget->SetLabelText(LabelText);
+            }
+        }
+        return;
+    }
+
+    // Requirements: 6.5 - 显示成功消息
+    FString SuccessMessage = FString::Printf(TEXT("标签已保存: %s"), *GeneratedLabel);
+    ShowNotification(SuccessMessage, false);
+
+    // Requirements: 5.4 - 成功添加节点后刷新可视化
+    // 重新加载场景图数据以显示新添加的节点
+    LoadSceneGraphForVisualization();
+
+    // Requirements: 2.5 - 成功时清空输入并取消选择
+    if (ModifyWidget)
+    {
+        ModifyWidget->ClearSelection();
+    }
+
+    // 清除高亮的 Actor
+    ClearHighlightedActor();
+
+    UE_LOG(LogMAHUD, Log, TEXT("OnModifyConfirmed: Successfully saved node with label=%s"), *GeneratedLabel);
 }
 
 void AMAHUD::OnModifyActorSelected(AActor* SelectedActor)
@@ -792,4 +905,324 @@ void AMAHUD::OnModifyActorSelected(AActor* SelectedActor)
     {
         ModifyWidget->SetSelectedActor(SelectedActor);
     }
+}
+
+void AMAHUD::OnModifyActorsSelected(const TArray<AActor*>& SelectedActors)
+{
+    UE_LOG(LogMAHUD, Log, TEXT("OnModifyActorsSelected: %d actors"), SelectedActors.Num());
+    
+    if (ModifyWidget)
+    {
+        ModifyWidget->SetSelectedActors(SelectedActors);
+    }
+}
+
+void AMAHUD::OnMultiSelectModifyConfirmed(const TArray<AActor*>& Actors, const FString& LabelText, const FString& GeneratedJson)
+{
+    UE_LOG(LogMAHUD, Log, TEXT("OnMultiSelectModifyConfirmed: %d actors, LabelText=%s"), 
+        Actors.Num(), *LabelText);
+    
+    // Requirements: 8.1 - 检查是否有选中的 Actor
+    if (Actors.Num() == 0)
+    {
+        ShowNotification(TEXT("请先选中至少一个 Actor"), true);
+        return;
+    }
+
+    // 获取 SceneGraphManager
+    UGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+    if (!GI)
+    {
+        ShowNotification(TEXT("保存失败: 无法获取 GameInstance"), true);
+        return;
+    }
+
+    UMASceneGraphManager* SceneGraphManager = GI->GetSubsystem<UMASceneGraphManager>();
+    if (!SceneGraphManager)
+    {
+        ShowNotification(TEXT("保存失败: SceneGraphManager 未找到"), true);
+        return;
+    }
+
+    // 解析输入以获取 ID
+    FString Id, Type, ErrorMessage;
+    if (!SceneGraphManager->ParseLabelInput(LabelText, Id, Type, ErrorMessage))
+    {
+        // 解析失败 - 显示错误
+        ShowNotification(ErrorMessage, true);
+        
+        // 保留输入状态
+        if (ModifyWidget)
+        {
+            ModifyWidget->SetSelectedActors(Actors);
+            ModifyWidget->SetLabelText(LabelText);
+        }
+        return;
+    }
+
+    // 检查 ID 是否已存在
+    if (SceneGraphManager->IsIdExists(Id))
+    {
+        ShowNotification(FString::Printf(TEXT("ID '%s' 已存在，请使用其他 ID"), *Id), false, true);
+        
+        // 保留输入状态
+        if (ModifyWidget)
+        {
+            ModifyWidget->SetSelectedActors(Actors);
+            ModifyWidget->SetLabelText(LabelText);
+        }
+        return;
+    }
+
+    // TODO: 将生成的 JSON 保存到 SceneGraphManager
+    // 目前 SceneGraphManager 只支持单节点添加，需要扩展以支持多选节点
+    // 这里先输出日志，后续任务 8 会完成集成
+    UE_LOG(LogMAHUD, Log, TEXT("OnMultiSelectModifyConfirmed: Saving JSON:\n%s"), *GeneratedJson);
+    
+    // 调用 SceneGraphManager 保存多选节点
+    if (!SceneGraphManager->AddMultiSelectNode(GeneratedJson, ErrorMessage))
+    {
+        // 保存失败
+        ShowNotification(ErrorMessage, true);
+        
+        // 保留输入状态
+        if (ModifyWidget)
+        {
+            ModifyWidget->SetSelectedActors(Actors);
+            ModifyWidget->SetLabelText(LabelText);
+        }
+        return;
+    }
+
+    // 显示成功消息
+    FString SuccessMessage = FString::Printf(TEXT("多选标注已保存: %d 个 Actor"), Actors.Num());
+    ShowNotification(SuccessMessage, false);
+
+    // 刷新可视化
+    LoadSceneGraphForVisualization();
+
+    // 清空选择
+    if (ModifyWidget)
+    {
+        ModifyWidget->ClearSelection();
+    }
+
+    // 清除高亮
+    ClearHighlightedActor();
+
+    UE_LOG(LogMAHUD, Log, TEXT("OnMultiSelectModifyConfirmed: Successfully processed multi-select annotation"));
+}
+
+//=============================================================================
+// 通知系统
+// Requirements: 2.1, 3.2, 6.5
+//=============================================================================
+
+void AMAHUD::ShowNotification(const FString& Message, bool bIsError, bool bIsWarning)
+{
+    CurrentNotificationMessage = Message;
+    
+    // 设置颜色
+    if (bIsError)
+    {
+        CurrentNotificationColor = FLinearColor::Red;
+    }
+    else if (bIsWarning)
+    {
+        CurrentNotificationColor = FLinearColor::Yellow;
+    }
+    else
+    {
+        CurrentNotificationColor = FLinearColor::Green;
+    }
+    
+    bShowNotification = true;
+    NotificationStartTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+    
+    UE_LOG(LogMAHUD, Log, TEXT("ShowNotification: %s (Error=%d, Warning=%d)"), 
+        *Message, bIsError, bIsWarning);
+}
+
+void AMAHUD::DrawNotification()
+{
+    if (!bShowNotification || !Canvas)
+    {
+        return;
+    }
+    
+    // 检查是否超时
+    float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+    float ElapsedTime = CurrentTime - NotificationStartTime;
+    
+    if (ElapsedTime >= NotificationDuration)
+    {
+        bShowNotification = false;
+        return;
+    }
+    
+    // 计算淡出效果 (最后 0.5 秒淡出)
+    float Alpha = 1.0f;
+    if (ElapsedTime > NotificationDuration - 0.5f)
+    {
+        Alpha = (NotificationDuration - ElapsedTime) / 0.5f;
+    }
+    
+    // 获取屏幕尺寸
+    float ScreenWidth = Canvas->SizeX;
+    float ScreenHeight = Canvas->SizeY;
+    
+    // 计算文字位置 (屏幕底部中央偏上)
+    float TextX = ScreenWidth * 0.5f;
+    float TextY = ScreenHeight * 0.75f;
+    
+    // 设置颜色和透明度
+    FLinearColor DrawColor = CurrentNotificationColor;
+    DrawColor.A = Alpha;
+    
+    // 绘制通知文字
+    FCanvasTextItem TextItem(
+        FVector2D(TextX, TextY), 
+        FText::FromString(CurrentNotificationMessage), 
+        GEngine->GetLargeFont(), 
+        DrawColor
+    );
+    TextItem.Scale = FVector2D(1.2f, 1.2f);
+    TextItem.bOutlined = true;
+    TextItem.OutlineColor = FLinearColor(0.0f, 0.0f, 0.0f, Alpha);
+    TextItem.bCentreX = true;
+    TextItem.bCentreY = true;
+    
+    Canvas->DrawItem(TextItem);
+}
+
+void AMAHUD::ClearHighlightedActor()
+{
+    AMAPlayerController* MAPC = GetMAPlayerController();
+    if (MAPC)
+    {
+        // 调用 PlayerController 的方法清除高亮
+        // 这会触发 OnModifyActorSelected(nullptr)
+        MAPC->ClearModifyHighlight();
+    }
+}
+
+//=============================================================================
+// 场景标签可视化
+// Requirements: 3.1, 3.2, 3.3, 3.4, 4.1, 4.2, 4.3, 4.4, 4.5, 5.1, 5.2, 5.3, 6.1
+//=============================================================================
+
+void AMAHUD::LoadSceneGraphForVisualization()
+{
+    // Requirements: 3.1 - 读取场景图数据
+    // Requirements: 3.2 - 如果文件不存在，跳过可视化
+    // Requirements: 3.3 - 如果数据无效，记录警告并跳过
+    
+    // 清空缓存
+    CachedSceneNodes.Empty();
+    
+    // 获取 SceneGraphManager
+    UGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+    if (!GI)
+    {
+        UE_LOG(LogMAHUD, Warning, TEXT("LoadSceneGraphForVisualization: GameInstance not found"));
+        return;
+    }
+    
+    UMASceneGraphManager* SceneGraphManager = GI->GetSubsystem<UMASceneGraphManager>();
+    if (!SceneGraphManager)
+    {
+        UE_LOG(LogMAHUD, Warning, TEXT("LoadSceneGraphForVisualization: SceneGraphManager not found"));
+        return;
+    }
+    
+    // 获取所有节点
+    CachedSceneNodes = SceneGraphManager->GetAllNodes();
+    
+    UE_LOG(LogMAHUD, Log, TEXT("LoadSceneGraphForVisualization: Loaded %d nodes"), CachedSceneNodes.Num());
+}
+
+void AMAHUD::DrawSceneLabels()
+{
+    // Requirements: 4.1 - 在 Modify 模式激活时显示绿色文本
+    // Requirements: 5.3 - 每帧刷新显示
+    
+    // 检查是否应该显示
+    if (!bShowingSceneLabels)
+    {
+        return;
+    }
+    
+    // 获取 World 用于 DrawDebugString
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return;
+    }
+    
+    // 遍历缓存的节点
+    for (const FMASceneGraphNode& Node : CachedSceneNodes)
+    {
+        // Requirements: 4.3 - 跳过缺少 center 的节点 (Center 为零向量表示无效)
+        // 注意: 实际上 (0,0,0) 可能是有效坐标，但根据设计文档，缺少 center 字段时跳过
+        // 这里我们假设如果节点被成功解析，Center 就是有效的
+        
+        // 格式化显示文本: "id: [id]\nLabel: [label]"
+        // 使用 id 而不是 GUID，因为 id 更简洁易读
+        FString IdDisplay = Node.Id.IsEmpty() ? TEXT("N/A") : Node.Id;
+        FString LabelDisplay = Node.Label.IsEmpty() ? TEXT("N/A") : Node.Label;
+        FString DisplayText = FString::Printf(TEXT("id: %s\nLabel: %s"), *IdDisplay, *LabelDisplay);
+        
+        // Requirements: 4.5 - 位置: Center + FVector(0, 0, 100) 垂直偏移
+        FVector TextPosition = Node.Center + FVector(0.0f, 0.0f, 100.0f);
+        
+        // Requirements: 4.4 - 使用 DrawDebugString 绘制绿色文本
+        // Duration = 0.0f 表示每帧重绘
+        DrawDebugString(
+            World,
+            TextPosition,
+            DisplayText,
+            nullptr,           // Actor (不附加到任何 Actor)
+            FColor::Green,     // 绿色
+            0.0f,              // Duration: 每帧重绘
+            false              // bDrawShadow
+        );
+    }
+}
+
+void AMAHUD::StartSceneLabelVisualization()
+{
+    // Requirements: 5.1 - 进入 Modify 模式时开始显示标签
+    
+    if (bShowingSceneLabels)
+    {
+        // 已经在显示，只需刷新数据
+        LoadSceneGraphForVisualization();
+        return;
+    }
+    
+    // 设置标志
+    bShowingSceneLabels = true;
+    
+    // 加载场景图数据
+    LoadSceneGraphForVisualization();
+    
+    UE_LOG(LogMAHUD, Log, TEXT("StartSceneLabelVisualization: Started with %d nodes"), CachedSceneNodes.Num());
+}
+
+void AMAHUD::StopSceneLabelVisualization()
+{
+    // Requirements: 5.2 - 退出 Modify 模式时停止显示标签
+    
+    if (!bShowingSceneLabels)
+    {
+        return;
+    }
+    
+    // 设置标志
+    bShowingSceneLabels = false;
+    
+    // 清空缓存
+    CachedSceneNodes.Empty();
+    
+    UE_LOG(LogMAHUD, Log, TEXT("StopSceneLabelVisualization: Stopped"));
 }
