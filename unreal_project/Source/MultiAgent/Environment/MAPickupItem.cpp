@@ -4,9 +4,7 @@
 #include "MAPickupItem.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
-#include "MACharacter.h"
-#include "MAAbilitySystemComponent.h"
-#include "MAGameplayTags.h"
+#include "../Agent/Character/MACharacter.h"
 
 AMAPickupItem::AMAPickupItem()
 {
@@ -59,24 +57,14 @@ void AMAPickupItem::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* 
 
     if (AMACharacter* Character = Cast<AMACharacter>(OtherActor))
     {
-        if (UMAAbilitySystemComponent* ASC = Character->FindComponentByClass<UMAAbilitySystemComponent>())
-        {
-            ASC->AddLooseGameplayTag(FMAGameplayTags::Get().Status_CanPickup);
-            UE_LOG(LogTemp, Log, TEXT("%s entered pickup range of %s"), *Character->AgentName, *ItemName);
-        }
+        UE_LOG(LogTemp, Log, TEXT("%s entered pickup range of %s"), *Character->AgentName, *ItemName);
     }
 }
 
 void AMAPickupItem::OnOverlapEnd(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
     UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
-    if (AMACharacter* Character = Cast<AMACharacter>(OtherActor))
-    {
-        if (UMAAbilitySystemComponent* ASC = Character->FindComponentByClass<UMAAbilitySystemComponent>())
-        {
-            ASC->RemoveLooseGameplayTag(FMAGameplayTags::Get().Status_CanPickup);
-        }
-    }
+    // Pickup 功能已移除，此处仅保留空实现
 }
 
 void AMAPickupItem::OnPickedUp(AActor* PickerActor)

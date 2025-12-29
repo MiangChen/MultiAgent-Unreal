@@ -26,7 +26,7 @@ void UMAInputActions::Initialize()
     IA_Pickup = CreateInputAction(TEXT("IA_Pickup"));
     IA_Drop = CreateInputAction(TEXT("IA_Drop"));
     IA_SpawnItem = CreateInputAction(TEXT("IA_SpawnItem"));
-    IA_SpawnRobotDog = CreateInputAction(TEXT("IA_SpawnRobotDog"));
+    IA_SpawnQuadruped = CreateInputAction(TEXT("IA_SpawnQuadruped"));
     IA_PrintInfo = CreateInputAction(TEXT("IA_PrintInfo"));
     IA_DestroyLast = CreateInputAction(TEXT("IA_DestroyLast"));
     IA_SwitchCamera = CreateInputAction(TEXT("IA_SwitchCamera"));
@@ -81,7 +81,7 @@ void UMAInputActions::Initialize()
     AddKeyMapping(IMC_RTS, IA_Pickup, EKeys::P);
     AddKeyMapping(IMC_RTS, IA_Drop, EKeys::O);
     AddKeyMapping(IMC_RTS, IA_SpawnItem, EKeys::I);
-    AddKeyMapping(IMC_RTS, IA_SpawnRobotDog, EKeys::T);
+    AddKeyMapping(IMC_RTS, IA_SpawnQuadruped, EKeys::T);
     AddKeyMapping(IMC_RTS, IA_PrintInfo, EKeys::Y);
     AddKeyMapping(IMC_RTS, IA_DestroyLast, EKeys::U);
     AddKeyMapping(IMC_RTS, IA_SwitchCamera, EKeys::Tab);

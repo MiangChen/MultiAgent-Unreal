@@ -4,20 +4,19 @@
 
 #include "MAPlayerController.h"
 #include "MAInputActions.h"
-#include "../Core/MAAgentManager.h"
+#include "../Core/Manager/MAAgentManager.h"
 #include "../UI/MAHUD.h"
-#include "../Core/MACommandManager.h"
-#include "../Core/MASquadManager.h"
+#include "../Core/Manager/MACommandManager.h"
+#include "../Core/Manager/MASquadManager.h"
 #include "../Core/MASquad.h"
-#include "../Core/MASelectionManager.h"
-#include "../Core/MAViewportManager.h"
-#include "../Core/MAEmergencyManager.h"
+#include "../Core/Manager/MASelectionManager.h"
+#include "../Core/Manager/MAViewportManager.h"
+#include "../Core/Manager/MAEmergencyManager.h"
 #include "../UI/MASelectionHUD.h"
 #include "MACharacter.h"
-#include "MARobotDogCharacter.h"
-#include "MADroneCharacter.h"
+#include "MAQuadrupedCharacter.h"
+#include "../Agent/Character/MAUAVCharacter.h"
 #include "../Agent/Component/Sensor/MACameraSensorComponent.h"
-#include "MAPickupItem.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
@@ -95,7 +94,7 @@ void AMAPlayerController::SetupInputComponent()
 
         // 生成
         EIC->BindAction(InputActions->IA_SpawnItem, ETriggerEvent::Started, this, &AMAPlayerController::OnSpawnPickupItem);
-        EIC->BindAction(InputActions->IA_SpawnRobotDog, ETriggerEvent::Started, this, &AMAPlayerController::OnSpawnRobotDog);
+        EIC->BindAction(InputActions->IA_SpawnQuadruped, ETriggerEvent::Started, this, &AMAPlayerController::OnSpawnQuadruped);
 
         // 调试
         EIC->BindAction(InputActions->IA_PrintInfo, ETriggerEvent::Started, this, &AMAPlayerController::OnPrintAgentInfo);
@@ -354,14 +353,12 @@ void AMAPlayerController::OnMiddleClick(const FInputActionValue& Value)
         if (!Agent) continue;
         
         FVector Target = HitLocation;
-        // Drone: 如果在空中则保持高度
-        if (Agent->AgentType == EMAAgentType::Drone ||
-            Agent->AgentType == EMAAgentType::DronePhantom4 ||
-            Agent->AgentType == EMAAgentType::DroneInspire2)
+        // UAV: 如果在空中则保持高度
+        if (Agent->AgentType == EMAAgentType::UAV)
         {
-            if (AMADroneCharacter* Drone = Cast<AMADroneCharacter>(Agent))
+            if (AMAUAVCharacter* UAV = Cast<AMAUAVCharacter>(Agent))
             {
-                if (Drone->IsInAir())
+                if (UAV->IsInAir())
                 {
                     Target.Z = Agent->GetActorLocation().Z;
                 }
@@ -372,78 +369,30 @@ void AMAPlayerController::OnMiddleClick(const FInputActionValue& Value)
 }
 
 // ========== 拾取/放下 ==========
+// 注意：Pickup/Drop 功能已移至 Place 技能，这些函数保留为空实现
 
 void AMAPlayerController::OnPickup(const FInputActionValue& Value)
 {
-    if (!AgentManager) return;
-
-    for (AMACharacter* Agent : AgentManager->GetAgentsByType(EMAAgentType::Human))
-    {
-        if (Agent && !Agent->IsHoldingItem())
-        {
-            if (Agent->TryPickup())
-            {
-                GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green,
-                    FString::Printf(TEXT("%s: Picking up"), *Agent->AgentName));
-            }
-        }
-    }
+    // Place 技能处理物品操作
 }
 
 void AMAPlayerController::OnDrop(const FInputActionValue& Value)
 {
-    if (!AgentManager) return;
-
-    for (AMACharacter* Agent : AgentManager->GetAgentsByType(EMAAgentType::Human))
-    {
-        if (Agent && Agent->IsHoldingItem())
-        {
-            Agent->TryDrop();
-        }
-    }
+    // Place 技能处理物品操作
 }
 
 // ========== 生成 ==========
 
 void AMAPlayerController::OnSpawnPickupItem(const FInputActionValue& Value)
 {
-    FVector HitLocation;
-    if (!GetMouseHitLocation(HitLocation)) return;
-
-    HitLocation.Z += 50.f;
-    
-    FActorSpawnParameters SpawnParams;
-    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-    
-    AMAPickupItem* Item = GetWorld()->SpawnActor<AMAPickupItem>(
-        AMAPickupItem::StaticClass(), HitLocation, FRotator::ZeroRotator, SpawnParams);
-    
-    if (Item)
-    {
-        static int32 ItemCounter = 0;
-        Item->ItemName = FString::Printf(TEXT("Cube_%d"), ItemCounter++);
-        Item->ItemID = ItemCounter;
-        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan, FString::Printf(TEXT("Spawned: %s"), *Item->ItemName));
-    }
+    // PickupItem 功能已移除，由 Place 技能处理
+    GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Yellow, TEXT("SpawnItem disabled - use Place skill"));
 }
 
-void AMAPlayerController::OnSpawnRobotDog(const FInputActionValue& Value)
+void AMAPlayerController::OnSpawnQuadruped(const FInputActionValue& Value)
 {
-    if (!AgentManager) return;
-    
-    FVector SpawnLocation = GetPawn()->GetActorLocation() + GetPawn()->GetActorForwardVector() * 300.f;
-    
-    static int32 SpawnCounter = 0;
-    FString AgentID = FString::Printf(TEXT("robot_spawned_%d"), SpawnCounter++);
-    
-    AMACharacter* NewAgent = AgentManager->SpawnAgent(
-        AMARobotDogCharacter::StaticClass(), SpawnLocation, FRotator::ZeroRotator, AgentID, EMAAgentType::RobotDog);
-    
-    if (NewAgent)
-    {
-        NewAgent->AddCameraSensor(FVector(-150.f, 0.f, 80.f), FRotator(-15.f, 0.f, 0.f));
-        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green, FString::Printf(TEXT("Spawned: %s"), *NewAgent->AgentName));
-    }
+    // 动态生成功能已移除，使用配置文件定义 Agent
+    GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Yellow, TEXT("SpawnQuadruped disabled - use config/agents.json"));
 }
 
 // ========== 调试 ==========
@@ -453,25 +402,18 @@ void AMAPlayerController::OnPrintAgentInfo(const FInputActionValue& Value)
     if (!AgentManager) return;
     
     int32 Total = AgentManager->GetAgentCount();
-    int32 Dogs = AgentManager->GetAgentsByType(EMAAgentType::RobotDog).Num();
-    int32 Humans = AgentManager->GetAgentsByType(EMAAgentType::Human).Num();
-    
-    int32 TotalSensors = 0;
-    for (AMACharacter* Agent : AgentManager->GetAllAgents())
-    {
-        if (Agent) TotalSensors += Agent->GetSensorCount();
-    }
+    int32 Quadrupeds = AgentManager->GetAgentsByType(EMAAgentType::Quadruped).Num();
+    int32 Humanoids = AgentManager->GetAgentsByType(EMAAgentType::Humanoid).Num();
+    int32 UAVs = AgentManager->GetAgentsByType(EMAAgentType::UAV).Num();
     
     GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Cyan, 
-        FString::Printf(TEXT("=== Agents: %d | Dogs: %d | Humans: %d | Sensors: %d ==="), Total, Dogs, Humans, TotalSensors));
+        FString::Printf(TEXT("=== Agents: %d | UAVs: %d | Quadrupeds: %d | Humanoids: %d ==="), Total, UAVs, Quadrupeds, Humanoids));
     
     for (AMACharacter* Agent : AgentManager->GetAllAgents())
     {
         if (Agent)
         {
             FString Info = FString::Printf(TEXT("  [%s] %s"), *Agent->AgentID, *Agent->AgentName);
-            if (Agent->IsHoldingItem()) Info += TEXT(" [Holding]");
-            if (Agent->GetSensorCount() > 0) Info += FString::Printf(TEXT(" [%d sensors]"), Agent->GetSensorCount());
             GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, Info);
         }
     }
@@ -506,32 +448,22 @@ void AMAPlayerController::OnReturnToSpectator(const FInputActionValue& Value)
 }
 
 // ========== 命令 (通过 CommandManager) ==========
+// 注意：键盘命令基本不用，主要通过 Python 端发送技能列表
 
 void AMAPlayerController::SendCommand(EMACommand Command)
 {
-    if (CommandManager) CommandManager->SendCommand(Command);
+    // 旧接口已移除，键盘命令暂不支持
 }
 
-void AMAPlayerController::OnStartPatrol(const FInputActionValue& Value) { SendCommand(EMACommand::Patrol); }
+void AMAPlayerController::OnStartPatrol(const FInputActionValue& Value) { /* Patrol 已移除 */ }
 void AMAPlayerController::OnStartCharge(const FInputActionValue& Value) { SendCommand(EMACommand::Charge); }
 void AMAPlayerController::OnStopIdle(const FInputActionValue& Value) { SendCommand(EMACommand::Idle); }
-void AMAPlayerController::OnStartCoverage(const FInputActionValue& Value) { SendCommand(EMACommand::Coverage); }
+void AMAPlayerController::OnStartCoverage(const FInputActionValue& Value) { /* Coverage 已移除 */ }
 void AMAPlayerController::OnStartFollow(const FInputActionValue& Value) { SendCommand(EMACommand::Follow); }
 
 void AMAPlayerController::OnStartAvoid(const FInputActionValue& Value)
 {
-    if (!CommandManager) return;
-
-    FVector TargetLocation;
-    if (!GetMouseHitLocation(TargetLocation))
-    {
-        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, TEXT("Click on ground!"));
-        return;
-    }
-
-    FMACommandParams Params;
-    Params.TargetLocation = TargetLocation;
-    CommandManager->SendCommand(EMACommand::Avoid, Params);
+    // Avoid 命令已移除
 }
 
 void AMAPlayerController::OnStartFormation(const FInputActionValue& Value)
@@ -1199,9 +1131,9 @@ void AMAPlayerController::OnJumpPressed(const FInputActionValue& Value)
     int32 JumpCount = 0;
     for (AMACharacter* Agent : SelectedAgents)
     {
-        if (Agent && Agent->CanPerformJump())
+        if (Agent && Agent->CanJump())
         {
-            Agent->PerformJump();
+            Agent->Jump();
             JumpCount++;
         }
     }

@@ -44,7 +44,7 @@ public:
     TObjectPtr<UInputAction> IA_SpawnItem;
 
     UPROPERTY(BlueprintReadOnly, Category = "Input")
-    TObjectPtr<UInputAction> IA_SpawnRobotDog;
+    TObjectPtr<UInputAction> IA_SpawnQuadruped;
 
     UPROPERTY(BlueprintReadOnly, Category = "Input")
     TObjectPtr<UInputAction> IA_PrintInfo;

@@ -44,7 +44,7 @@ struct MULTIAGENT_API FMASubsystem
  * 便捷宏 - 需要当前类有 GetWorld() 方法
  * 
  * 使用示例:
- *   MA_SUBS.CommandManager->SendCommand(EMACommand::Patrol);
+ *   MA_SUBS.CommandManager->SendCommandToAgent(Agent, EMACommand::Navigate);
  *   MA_SUBS.AgentManager->GetAllAgents();
  * 
  * 性能提示: 每次调用都会获取所有 Subsystem

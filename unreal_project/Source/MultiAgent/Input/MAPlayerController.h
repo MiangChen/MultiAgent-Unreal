@@ -6,7 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
-#include "../Core/MACommandManager.h"
+#include "../Core/Manager/MACommandManager.h"
 #include "MAPlayerController.generated.h"
 
 struct FInputActionValue;
@@ -55,7 +55,7 @@ protected:
     void OnPickup(const FInputActionValue& Value);
     void OnDrop(const FInputActionValue& Value);
     void OnSpawnPickupItem(const FInputActionValue& Value);
-    void OnSpawnRobotDog(const FInputActionValue& Value);
+    void OnSpawnQuadruped(const FInputActionValue& Value);
     void OnPrintAgentInfo(const FInputActionValue& Value);
     void OnDestroyLastAgent(const FInputActionValue& Value);
     void OnSwitchCamera(const FInputActionValue& Value);

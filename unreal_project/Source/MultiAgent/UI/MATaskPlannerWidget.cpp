@@ -6,6 +6,7 @@
 #include "MADAGCanvasWidget.h"
 #include "MANodePaletteWidget.h"
 #include "MATaskGraphModel.h"
+#include "../Core/Config/MAConfigManager.h"
 #include "Components/MultiLineEditableTextBox.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
@@ -721,8 +722,8 @@ FString UMATaskPlannerWidget::GetTimestamp() const
 
 bool UMATaskPlannerWidget::LoadMockData()
 {
-    // 构建 Mock 数据文件路径
-    FString FilePath = FPaths::ProjectDir() / TEXT("datasets/response_example.json");
+    // 使用 ConfigManager 获取正确的路径
+    FString FilePath = UMAConfigManager::GetDatasetFilePath(TEXT("response_example.json"));
     
     // 检查文件是否存在
     if (!FPaths::FileExists(FilePath))

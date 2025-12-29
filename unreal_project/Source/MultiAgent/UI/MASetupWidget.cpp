@@ -49,22 +49,22 @@ void UMASetupWidget::InitializeData()
     }
     
     // 可用的智能体类型: 内部名称 -> 显示名称
-    AvailableAgentTypes.Add(TEXT("DronePhantom4"), TEXT("Drone Phantom 4"));
-    AvailableAgentTypes.Add(TEXT("DroneInspire2"), TEXT("Drone Inspire 2"));
-    AvailableAgentTypes.Add(TEXT("RobotDog"), TEXT("Robot Dog"));
-    AvailableAgentTypes.Add(TEXT("Human"), TEXT("Human"));
+    AvailableAgentTypes.Add(TEXT("UAV"), TEXT("UAV (Multi-rotor)"));
+    AvailableAgentTypes.Add(TEXT("FixedWingUAV"), TEXT("Fixed Wing UAV"));
+    AvailableAgentTypes.Add(TEXT("UGV"), TEXT("UGV (Ground Vehicle)"));
+    AvailableAgentTypes.Add(TEXT("Quadruped"), TEXT("Quadruped Robot"));
+    AvailableAgentTypes.Add(TEXT("Humanoid"), TEXT("Humanoid"));
 
-    // 可用的场景 (使用英文避免字体问题)
+    // 可用的场景
     AvailableScenes.Add(TEXT("CyberCity"));
     AvailableScenes.Add(TEXT("DesertLab"));
     AvailableScenes.Add(TEXT("SpruceForest"));
     AvailableScenes.Add(TEXT("Warehouse"));
 
     // 默认添加每种智能体各一个
-    AgentConfigs.Add(FMAAgentSetupConfig(TEXT("DronePhantom4"), TEXT("Drone Phantom 4"), 1));
-    AgentConfigs.Add(FMAAgentSetupConfig(TEXT("DroneInspire2"), TEXT("Drone Inspire 2"), 1));
-    AgentConfigs.Add(FMAAgentSetupConfig(TEXT("RobotDog"), TEXT("Robot Dog"), 1));
-    AgentConfigs.Add(FMAAgentSetupConfig(TEXT("Human"), TEXT("Human"), 1));
+    AgentConfigs.Add(FMAAgentSetupConfig(TEXT("UAV"), TEXT("UAV"), 1));
+    AgentConfigs.Add(FMAAgentSetupConfig(TEXT("Quadruped"), TEXT("Quadruped Robot"), 1));
+    AgentConfigs.Add(FMAAgentSetupConfig(TEXT("Humanoid"), TEXT("Humanoid"), 1));
     
     UE_LOG(LogTemp, Warning, TEXT("[MASetupWidget] InitializeData: %d scenes, %d agent types"), 
         AvailableScenes.Num(), AvailableAgentTypes.Num());

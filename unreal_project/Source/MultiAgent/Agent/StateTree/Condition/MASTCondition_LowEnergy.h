@@ -15,7 +15,7 @@ struct FMASTCondition_LowEnergyInstanceData
 };
 
 /**
- * 检查 RobotDog 电量是否低于阈值
+ * 检查 Quadruped 电量是否低于阈值
  */
 USTRUCT(meta = (DisplayName = "MA Low Energy"))
 struct MULTIAGENT_API FMASTCondition_LowEnergy : public FStateTreeConditionCommonBase

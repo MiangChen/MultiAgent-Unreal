@@ -6,7 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "MATaskGraphTypes.h"
+#include "../Core/Types/MATaskGraphTypes.h"
 #include "MATaskNodeWidget.generated.h"
 
 class UBorder;

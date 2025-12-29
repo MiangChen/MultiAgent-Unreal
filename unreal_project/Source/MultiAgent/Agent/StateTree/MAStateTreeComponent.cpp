@@ -2,83 +2,119 @@
 
 #include "MAStateTreeComponent.h"
 #include "StateTree.h"
+#include "StateTreeExecutionContext.h"
+#include "../../Core/Config/MAConfigManager.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogMAStateTree, Log, All);
 
 UMAStateTreeComponent::UMAStateTreeComponent(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
 {
-    UE_LOG(LogTemp, Warning, TEXT("[MAStateTreeComponent] Constructor called"));
+    // 默认启用，BeginPlay 时根据配置决定
+    bStateTreeEnabled = true;
+}
+
+void UMAStateTreeComponent::BeginPlay()
+{
+    // 在 BeginPlay 时检查配置，决定是否启用 StateTree
+    bStateTreeEnabled = ShouldUseStateTree();
+    
+    if (!bStateTreeEnabled)
+    {
+        // 禁用 StateTree：阻止自动启动
+        SetStartLogicAutomatically(false);
+        
+        UE_LOG(LogMAStateTree, Log, TEXT("[%s] StateTree DISABLED by config (use_state_tree=false)"), 
+            GetOwner() ? *GetOwner()->GetName() : TEXT("Unknown"));
+        
+        // 必须调用父类 BeginPlay，否则组件的 HasBegunPlay() 会返回 false
+        // 但先禁用自动启动，这样父类 BeginPlay 不会启动 StateTree
+        Super::BeginPlay();
+        
+        // BeginPlay 后再停止逻辑（如果有的话）
+        StopLogic(TEXT("StateTree disabled by config"));
+    }
+    else
+    {
+        UE_LOG(LogMAStateTree, Log, TEXT("[%s] StateTree ENABLED"), 
+            GetOwner() ? *GetOwner()->GetName() : TEXT("Unknown"));
+        
+        Super::BeginPlay();
+    }
+}
+
+bool UMAStateTreeComponent::ShouldUseStateTree() const
+{
+    if (UWorld* World = GetWorld())
+    {
+        if (UGameInstance* GI = World->GetGameInstance())
+        {
+            if (UMAConfigManager* ConfigMgr = GI->GetSubsystem<UMAConfigManager>())
+            {
+                return ConfigMgr->bUseStateTree;
+            }
+        }
+    }
+    // 默认启用
+    return true;
 }
 
 void UMAStateTreeComponent::SetStateTreeAsset(UStateTree* InStateTree)
 {
-    if (InStateTree)
+    // 如果 StateTree 被禁用，不加载资产
+    if (!bStateTreeEnabled)
     {
-        StateTreeRef.SetStateTree(InStateTree);
-        UE_LOG(LogTemp, Warning, TEXT("[MAStateTreeComponent] StateTree set: %s"), *InStateTree->GetName());
-        
-        // 检查是否设置成功
-        if (StateTreeRef.IsValid())
-        {
-            UE_LOG(LogTemp, Warning, TEXT("[MAStateTreeComponent] StateTreeRef is now VALID"));
-            
-            // 检查 Owner
-            AActor* Owner = GetOwner();
-            if (Owner)
-            {
-                UE_LOG(LogTemp, Warning, TEXT("[MAStateTreeComponent] Owner: %s"), *Owner->GetName());
-            }
-            else
-            {
-                UE_LOG(LogTemp, Error, TEXT("[MAStateTreeComponent] Owner is NULL!"));
-            }
-            
-            // 检查 AIController (StateTree AI Component Schema 需要)
-            APawn* Pawn = Cast<APawn>(Owner);
-            if (Pawn)
-            {
-                AController* Controller = Pawn->GetController();
-                if (Controller)
-                {
-                    UE_LOG(LogTemp, Warning, TEXT("[MAStateTreeComponent] Controller: %s"), *Controller->GetName());
-                }
-                else
-                {
-                    UE_LOG(LogTemp, Error, TEXT("[MAStateTreeComponent] Pawn has NO Controller! StateTree needs AIController."));
-                }
-            }
-            
-            // 延迟启动 - 等待下一帧，确保所有组件都初始化完成
-            UE_LOG(LogTemp, Warning, TEXT("[MAStateTreeComponent] Scheduling StartLogic for next tick..."));
-            GetWorld()->GetTimerManager().SetTimerForNextTick([this]()
-            {
-                UE_LOG(LogTemp, Warning, TEXT("[MAStateTreeComponent] Calling StartLogic() (next tick)..."));
-                StartLogic();
-                
-                EStateTreeRunStatus Status = GetStateTreeRunStatus();
-                FString StatusStr;
-                switch(Status)
-                {
-                    case EStateTreeRunStatus::Running: StatusStr = TEXT("Running"); break;
-                    case EStateTreeRunStatus::Failed: StatusStr = TEXT("Failed"); break;
-                    case EStateTreeRunStatus::Succeeded: StatusStr = TEXT("Succeeded"); break;
-                    case EStateTreeRunStatus::Stopped: StatusStr = TEXT("Stopped"); break;
-                    default: StatusStr = TEXT("Unknown"); break;
-                }
-                UE_LOG(LogTemp, Warning, TEXT("[MAStateTreeComponent] After StartLogic - RunStatus: %s"), *StatusStr);
-            });
-        }
-        else
-        {
-            UE_LOG(LogTemp, Error, TEXT("[MAStateTreeComponent] StateTreeRef is still INVALID after SetStateTree!"));
-        }
+        UE_LOG(LogMAStateTree, Log, TEXT("[%s] SetStateTreeAsset ignored - StateTree disabled"), 
+            GetOwner() ? *GetOwner()->GetName() : TEXT("Unknown"));
+        return;
     }
-    else
+    
+    if (!InStateTree) return;
+    
+    StateTreeRef.SetStateTree(InStateTree);
+    
+    if (!StateTreeRef.IsValid()) return;
+    
+    // 延迟启动 - 等待下一帧
+    if (UWorld* World = GetWorld())
     {
-        UE_LOG(LogTemp, Error, TEXT("[MAStateTreeComponent] SetStateTreeAsset called with NULL!"));
+        World->GetTimerManager().SetTimerForNextTick([this]()
+        {
+            StopLogic(TEXT("Resetting for new StateTree"));
+            StartLogic();
+        });
     }
 }
 
 bool UMAStateTreeComponent::HasStateTree() const
 {
-    return StateTreeRef.IsValid();
+    return bStateTreeEnabled && StateTreeRef.IsValid();
+}
+
+void UMAStateTreeComponent::DisableStateTree()
+{
+    if (!bStateTreeEnabled) return;
+    
+    bStateTreeEnabled = false;
+    SetStartLogicAutomatically(false);
+    StopLogic(TEXT("StateTree disabled manually"));
+    
+    UE_LOG(LogMAStateTree, Log, TEXT("[%s] StateTree disabled manually"), 
+        GetOwner() ? *GetOwner()->GetName() : TEXT("Unknown"));
+}
+
+void UMAStateTreeComponent::EnableStateTree()
+{
+    if (bStateTreeEnabled) return;
+    
+    bStateTreeEnabled = true;
+    
+    // 如果有有效的 StateTree，启动它
+    if (StateTreeRef.IsValid())
+    {
+        StartLogic();
+    }
+    
+    UE_LOG(LogMAStateTree, Log, TEXT("[%s] StateTree enabled manually"), 
+        GetOwner() ? *GetOwner()->GetName() : TEXT("Unknown"));
 }

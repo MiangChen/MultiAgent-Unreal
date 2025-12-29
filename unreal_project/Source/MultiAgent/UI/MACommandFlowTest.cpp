@@ -7,8 +7,8 @@
 #include "Misc/AutomationTest.h"
 #include "MASimpleMainWidget.h"
 #include "MAHUD.h"
-#include "../Core/MACommSubsystem.h"
-#include "../Core/MASimTypes.h"
+#include "../Core/Comm/MACommSubsystem.h"
+#include "../Core/Types/MASimTypes.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 

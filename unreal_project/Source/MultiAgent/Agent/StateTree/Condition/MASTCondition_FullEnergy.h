@@ -15,7 +15,7 @@ struct FMASTCondition_FullEnergyInstanceData
 };
 
 /**
- * 检查 RobotDog 电量是否已满
+ * 检查 Quadruped 电量是否已满
  */
 USTRUCT(meta = (DisplayName = "MA Full Energy"))
 struct MULTIAGENT_API FMASTCondition_FullEnergy : public FStateTreeConditionCommonBase

@@ -2,8 +2,8 @@
 // 小地图 Widget 实现
 
 #include "MAMiniMapWidget.h"
-#include "../Core/MAAgentManager.h"
-#include "../Core/MASelectionManager.h"
+#include "../Core/Manager/MAAgentManager.h"
+#include "../Core/Manager/MASelectionManager.h"
 #include "../Agent/Character/MACharacter.h"
 #include "Components/Image.h"
 #include "Components/CanvasPanel.h"
@@ -182,16 +182,18 @@ void UMAMiniMapWidget::UpdateAgentPositions()
         FLinearColor IconColor;
         switch (Agent->AgentType)
         {
-            case EMAAgentType::Human:
-                IconColor = FLinearColor(1.f, 0.8f, 0.2f, 1.f);  // 黄色 - 圆形
+            case EMAAgentType::Humanoid:
+                IconColor = FLinearColor(1.f, 0.8f, 0.2f, 1.f);  // 黄色
                 break;
-            case EMAAgentType::Drone:
-            case EMAAgentType::DronePhantom4:
-            case EMAAgentType::DroneInspire2:
-                IconColor = FLinearColor(0.2f, 0.6f, 1.f, 1.f);  // 蓝色 - 方形
+            case EMAAgentType::UAV:
+            case EMAAgentType::FixedWingUAV:
+                IconColor = FLinearColor(0.2f, 0.6f, 1.f, 1.f);  // 蓝色
                 break;
-            case EMAAgentType::RobotDog:
-                IconColor = FLinearColor(0.2f, 1.f, 0.4f, 1.f);  // 绿色 - 三角形
+            case EMAAgentType::UGV:
+                IconColor = FLinearColor(0.8f, 0.4f, 0.1f, 1.f);  // 橙色
+                break;
+            case EMAAgentType::Quadruped:
+                IconColor = FLinearColor(0.2f, 1.f, 0.4f, 1.f);  // 绿色
                 break;
             default:
                 IconColor = FLinearColor::White;

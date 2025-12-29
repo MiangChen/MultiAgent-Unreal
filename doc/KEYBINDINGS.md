@@ -6,7 +6,7 @@
 |------|-------------|---------------|
 | **左键** | 点击选择 Agent / 框选多个 Agent | Human 导航到点击位置 |
 | **左键 + Ctrl** | 添加/移除选择 | - |
-| **右键** | 选中的 RobotDog/Drone 导航到点击位置 | 选中的 RobotDog/Drone 导航到点击位置 |
+| **右键** | 选中的 Quadruped/Drone 导航到点击位置 | 选中的 Quadruped/Drone 导航到点击位置 |
 
 ## 模式切换
 
@@ -41,7 +41,7 @@
 | **S** | Agent 向后移动 |
 | **A** | Agent 向左平移 |
 | **D** | Agent 向右平移 |
-| **Space** | 跳跃 (Human/RobotDog) |
+| **Space** | 跳跃 (Human/Quadruped) |
 | **E** | Drone 上升 (仅 Drone 有效) |
 | **Q** | Drone 下降 (仅 Drone 有效) |
 
@@ -78,11 +78,11 @@
 
 | 按键 | 功能 |
 |------|------|
-| **F** | 选中的 RobotDog/Drone 跟随 Human |
-| **G** | 选中的 RobotDog/Drone 开始巡逻 (需场景中有 PatrolPath) |
-| **H** | 选中的 RobotDog/Drone 去充电 |
-| **J** | 选中的 RobotDog/Drone 停止并进入 Idle |
-| **K** | 选中的 RobotDog/Drone 开始覆盖扫描 (需场景中有 CoverageArea) |
+| **F** | 选中的 Quadruped/Drone 跟随 Human |
+| **G** | 选中的 Quadruped/Drone 开始巡逻 (需场景中有 PatrolPath) |
+| **H** | 选中的 Quadruped/Drone 去充电 |
+| **J** | 选中的 Quadruped/Drone 停止并进入 Idle |
+| **K** | 选中的 Quadruped/Drone 开始覆盖扫描 (需场景中有 CoverageArea) |
 
 ## 物品交互
 
@@ -96,7 +96,7 @@
 
 | 按键 | 功能 |
 |------|------|
-| **T** | 在 Human 前方生成 RobotDog |
+| **T** | 在 Human 前方生成 Quadruped |
 | **Y** | 打印所有 Agent 信息 |
 | **U** | 销毁最后一个 Agent |
 

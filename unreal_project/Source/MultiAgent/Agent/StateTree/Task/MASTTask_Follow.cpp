@@ -1,15 +1,10 @@
 // MASTTask_Follow.cpp
+// StateTree 跟随任务 - 从 SkillComponent 读取参数
 
 #include "MASTTask_Follow.h"
-#include "MASTTaskUtils.h"
 #include "../../Character/MACharacter.h"
-#include "../../GAS/MAAbilitySystemComponent.h"
-#include "../../Interface/MAAgentInterfaces.h"
-#include "../../Component/Capability/MACapabilityComponents.h"
+#include "../../Skill/MASkillComponent.h"
 #include "StateTreeExecutionContext.h"
-#include "GameplayTagContainer.h"
-
-using namespace MASTTaskUtils;
 
 EStateTreeRunStatus FMASTTask_Follow::EnterState(
     FStateTreeExecutionContext& Context,
@@ -17,59 +12,33 @@ EStateTreeRunStatus FMASTTask_Follow::EnterState(
 {
     FMASTTask_FollowInstanceData& Data = Context.GetInstanceData<FMASTTask_FollowInstanceData>(*this);
     Data.TargetCharacter.Reset();
-    Data.bAbilityActivated = false;
+    Data.bSkillActivated = false;
 
     AActor* Owner = Cast<AActor>(Context.GetOwner());
-    if (!Owner)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[STTask_Follow] No owner actor"));
-        return EStateTreeRunStatus::Failed;
-    }
-
     AMACharacter* Character = Cast<AMACharacter>(Owner);
-    if (!Character)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[STTask_Follow] Owner is not AMACharacter"));
-        return EStateTreeRunStatus::Failed;
-    }
+    if (!Character) return EStateTreeRunStatus::Failed;
 
-    // 使用 Interface 获取 FollowTarget (支持 Component 模式)
-    IMAFollowable* Followable = GetCapabilityInterface<IMAFollowable>(Owner);
-    if (!Followable)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[STTask_Follow] Owner does not have IMAFollowable capability"));
-        return EStateTreeRunStatus::Failed;
-    }
+    UMASkillComponent* SkillComp = Character->GetSkillComponent();
+    if (!SkillComp) return EStateTreeRunStatus::Failed;
 
-    AMACharacter* TargetCharacter = Followable->GetFollowTarget();
+    const FMASkillParams& Params = SkillComp->GetSkillParams();
+    
+    AMACharacter* TargetCharacter = Params.FollowTarget.Get();
     if (!TargetCharacter)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[STTask_Follow] %s: No FollowTarget set, cannot follow"),
-            *Character->AgentName);
+        UE_LOG(LogTemp, Warning, TEXT("[STTask_Follow] %s: No FollowTarget"), *Character->AgentName);
         return EStateTreeRunStatus::Failed;
     }
     
-    UE_LOG(LogTemp, Log, TEXT("[STTask_Follow] %s: Following target: %s"),
-        *Character->AgentName, *TargetCharacter->AgentName);
-
     Data.TargetCharacter = TargetCharacter;
 
-    // 激活 Follow ability
-    UMAAbilitySystemComponent* ASC = Cast<UMAAbilitySystemComponent>(Character->GetAbilitySystemComponent());
-    if (!ASC)
+    if (!SkillComp->TryActivateFollow(TargetCharacter, Params.FollowDistance))
     {
-        UE_LOG(LogTemp, Warning, TEXT("[STTask_Follow] %s: No ASC found"), *Character->AgentName);
         return EStateTreeRunStatus::Failed;
     }
     
-    if (!ASC->TryActivateFollow(TargetCharacter))
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[STTask_Follow] %s: GA_Follow activation failed"), *Character->AgentName);
-        return EStateTreeRunStatus::Failed;
-    }
-    
-    Data.bAbilityActivated = true;
-    UE_LOG(LogTemp, Log, TEXT("[STTask_Follow] %s: GA_Follow activated for %s"),
+    Data.bSkillActivated = true;
+    UE_LOG(LogTemp, Log, TEXT("[STTask_Follow] %s following %s"), 
         *Character->AgentName, *TargetCharacter->AgentName);
 
     return EStateTreeRunStatus::Running;
@@ -83,27 +52,19 @@ EStateTreeRunStatus FMASTTask_Follow::Tick(
 
     AActor* Owner = Cast<AActor>(Context.GetOwner());
     AMACharacter* Character = Cast<AMACharacter>(Owner);
-    if (!Character)
-    {
-        return EStateTreeRunStatus::Failed;
-    }
+    if (!Character) return EStateTreeRunStatus::Failed;
 
-    // 检查 Command Tag
-    UMAAbilitySystemComponent* ASC = Cast<UMAAbilitySystemComponent>(Character->GetAbilitySystemComponent());
-    if (ASC && !ASC->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Follow"))))
+    UMASkillComponent* SkillComp = Character->GetSkillComponent();
+    if (SkillComp && !SkillComp->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Follow"))))
     {
-        // 命令被取消
         return EStateTreeRunStatus::Succeeded;
     }
 
-    // 检查目标是否还有效
     if (!Data.TargetCharacter.IsValid())
     {
-        UE_LOG(LogTemp, Warning, TEXT("[STTask_Follow] Target lost"));
         return EStateTreeRunStatus::Failed;
     }
 
-    // Follow ability 会自己处理跟随逻辑，这里只需要保持 Running
     return EStateTreeRunStatus::Running;
 }
 
@@ -114,35 +75,13 @@ void FMASTTask_Follow::ExitState(
     FMASTTask_FollowInstanceData& Data = Context.GetInstanceData<FMASTTask_FollowInstanceData>(*this);
 
     AActor* Owner = Cast<AActor>(Context.GetOwner());
-    if (Owner)
+    if (!Owner) return;
+    
+    if (UMASkillComponent* SkillComp = Owner->FindComponentByClass<UMASkillComponent>())
     {
-        UMAAbilitySystemComponent* ASC = Owner->FindComponentByClass<UMAAbilitySystemComponent>();
-        if (ASC)
+        if (Data.bSkillActivated)
         {
-            if (Data.bAbilityActivated)
-            {
-                ASC->CancelFollow();
-            }
-            
-            // 如果没有其他命令，设置 Idle 命令
-            FGameplayTag IdleTag = FGameplayTag::RequestGameplayTag(FName("Command.Idle"));
-            FGameplayTag FollowTag = FGameplayTag::RequestGameplayTag(FName("Command.Follow"));
-            FGameplayTag ChargeTag = FGameplayTag::RequestGameplayTag(FName("Command.Charge"));
-            FGameplayTag CoverageTag = FGameplayTag::RequestGameplayTag(FName("Command.Coverage"));
-            FGameplayTag PatrolTag = FGameplayTag::RequestGameplayTag(FName("Command.Patrol"));
-            
-            bool bHasOtherCommand = ASC->HasMatchingGameplayTag(FollowTag) ||
-                                    ASC->HasMatchingGameplayTag(ChargeTag) ||
-                                    ASC->HasMatchingGameplayTag(CoverageTag) ||
-                                    ASC->HasMatchingGameplayTag(PatrolTag);
-            
-            if (!bHasOtherCommand && !ASC->HasMatchingGameplayTag(IdleTag))
-            {
-                ASC->AddLooseGameplayTag(IdleTag);
-                UE_LOG(LogTemp, Log, TEXT("[STTask_Follow] Added Command.Idle for state transition"));
-            }
+            SkillComp->CancelFollow();
         }
     }
-    
-    UE_LOG(LogTemp, Log, TEXT("[STTask_Follow] Follow ended"));
 }

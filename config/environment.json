@@ -1,0 +1,9 @@
+{
+    "charging_stations": [
+        {
+            "id": "ChargingStation_1",
+            "position": [500, 0, 0]
+        }
+    ],
+    "objects": []
+}

@@ -10,8 +10,8 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # 路径配置
-UE_ROOT="/home/ubuntu/PycharmProjects/UnrealEngine"
-PROJECT_ROOT="/home/ubuntu/PycharmProjects/MultiAgent-Unreal"
+UE_ROOT="/home/zhugb/Software/UnrealEngine"
+PROJECT_ROOT="/home/zhugb/Documents/unreal_projects/MultiAgent-Unreal"
 PROJECT_FILE="${PROJECT_ROOT}/unreal_project/MultiAgent.uproject"
 BUILD_SCRIPT="${UE_ROOT}/Engine/Build/BatchFiles/Linux/Build.sh"
 

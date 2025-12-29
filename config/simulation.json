@@ -1,0 +1,27 @@
+{
+    "simulation": {
+        "name": "MultiAgent Simulation",
+        "version": "1.0",
+        "use_setup_ui": false,
+        "use_state_tree": false,
+        "enable_energy_drain": false,
+        "default_map": "/Game/Map/LS_Scifi_ModernCity/Maps/Scifi_ModernCity"
+    },
+    "server": {
+        "planner_url": "http://localhost:8080",
+        "use_mock_data": false,
+        "enable_polling": true,
+        "poll_interval_seconds": 1.0,
+        "debug_mode": false
+    },
+    "spectator": {
+        "position": [0, 0, 800],
+        "rotation": [-45, 0, 0]
+    },
+    "spawn_settings": {
+        "use_player_start": true,
+        "fallback_origin": [0, 0, 100],
+        "spawn_radius": 400,
+        "project_to_navmesh": true
+    }
+}

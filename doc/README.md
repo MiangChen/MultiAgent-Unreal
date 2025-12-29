@@ -13,15 +13,17 @@
 
 | 功能模块 | 代码位置 | 相关文档 |
 |---------|---------|---------|
-| Agent 生命周期 | `Core/MAAgentManager` | ARCHITECTURE.md §6 |
-| 命令系统 (RTS) | `Core/MACommandManager` | ARCHITECTURE.md §2.3 |
-| 选择/编组 | `Core/MASelectionManager` | ARCHITECTURE.md §2.3 |
-| 编队系统 | `Core/MASquadManager` | dev-completed/feature.md |
-| StateTree 任务 | `Agent/StateTree/Task/` | ARCHITECTURE.md §2.2 |
-| GAS 技能 | `Agent/GAS/Ability/` | ARCHITECTURE.md §2.2 |
-| 能力组件 | `Agent/Component/Capability/` | ARCHITECTURE.md §2.1 |
+| 游戏流程 | `Core/GameFlow/` | ARCHITECTURE.md |
+| Agent 生命周期 | `Core/Manager/MAAgentManager` | ARCHITECTURE.md |
+| 命令系统 (RTS) | `Core/Manager/MACommandManager` | ARCHITECTURE.md |
+| 选择/编组 | `Core/Manager/MASelectionManager` | ARCHITECTURE.md |
+| 编队系统 | `Core/Manager/MASquadManager` | dev-completed/feature.md |
+| 通信系统 | `Core/Comm/` | dev-completed/2025-12-15_communication.md |
+| StateTree 任务 | `Agent/StateTree/Task/` | ARCHITECTURE.md |
+| 技能系统 | `Agent/Skill/` | ARCHITECTURE.md |
+| 能力组件 | `Agent/Component/Capability/` | dev-completed/2025-12-13_capability_component.md |
 | 传感器 | `Agent/Component/Sensor/` | dev-completed/feature.md |
-| UI 系统 | `UI/` | dev-completed/feature.md |
+| UI 系统 | `UI/` | dev-completed/2025-12-16_ui.md |
 | 输入系统 | `Input/MAInputActions` | KEYBINDINGS.md |
 | 环境实体 | `Environment/` | dev-completed/feature.md |
 
