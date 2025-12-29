@@ -55,24 +55,24 @@ SKILL_LIST_SINGLE = {
 SKILL_LIST_FIRST = {
     "0": {
         "UAV_01": {"skill": "take_off", "params": {}},
-        # "Humanoid_01": {
-        #     "skill": "navigate",
-        #     "params": {"dest": {"x": -2000, "y": 0, "z": 0}}
-        # },
-        # "UGV_01": {
-        #     "skill": "navigate",
-        #     "params": {"dest": {"x": 2000, "y": 2000, "z": 0}}
-        # }
+        "Humanoid_01": {
+            "skill": "navigate",
+            "params": {"dest": {"x": -2000, "y": 0, "z": 0}}
+        },
+        "UGV_01": {
+            "skill": "navigate",
+            "params": {"dest": {"x": 2000, "y": 2000, "z": 0}}
+        }
     },
     "1": {
         "UAV_01": {
             "skill": "navigate",
             "params": {"dest": {"x": 3000, "y": 3000, "z": 3200}}
         },
-        # "Humanoid_01": {
-        #     "skill": "navigate",
-        #     "params": {"dest": {"x": -2000, "y": 2000, "z": 0}}
-        # }
+        "Humanoid_01": {
+            "skill": "navigate",
+            "params": {"dest": {"x": -2000, "y": 2000, "z": 0}}
+        }
     },
     "2": {
         "UAV_01": {
