@@ -381,6 +381,8 @@ MultiAgent-Unreal/
     │   ├── MASelectionManager.h/cpp # 选择管理器 (框选、编组)
     │   ├── MASquadManager.h/cpp     # 编队管理器
     │   ├── MAViewportManager.h/cpp  # 视角管理器
+    │   ├── MASceneGraphManager.h/cpp # 场景图管理器 (语义标注 + JSON 持久化)
+    │   ├── MAGeometryUtils.h/cpp    # 几何计算工具类 (凸包、最近邻排序)
     │   ├── MAGameMode.h/cpp         # 游戏模式 (配置驱动)
     │   └── MAPlayerController.h/cpp # 玩家控制器 (Enhanced Input)
     │
@@ -448,7 +450,8 @@ MultiAgent-Unreal/
     │   ├── MAHUD.h/cpp              # HUD 管理器 (继承 MASelectionHUD)
     │   ├── MASimpleMainWidget.h/cpp # 主界面 Widget (输入框 + 结果显示)
     │   ├── MAEmergencyWidget.h/cpp  # 突发事件详情界面
-    │   ├── MAModifyWidget.h/cpp     # Modify 模式修改面板 (Actor 标签编辑)
+    │   ├── MAModifyWidget.h/cpp     # Modify 模式修改面板 (多选 + 标签编辑)
+    │   ├── MAModifyTypes.h          # Modify 模式类型定义 (FMAAnnotationInput, EMAShapeType)
     │   ├── MATaskPlannerWidget.h/cpp # 任务规划工作台主容器
     │   ├── MADAGCanvasWidget.h/cpp  # DAG 画布 (拓扑排序布局)
     │   ├── MATaskNodeWidget.h/cpp   # 任务节点 Widget
@@ -499,6 +502,9 @@ UGameplayAbility (UE GAS)
 
 UWorldSubsystem (UE)
     └── UMAAgentManager (Agent 管理 + JSON 配置 + Action 路由)
+
+UGameInstanceSubsystem (UE)
+    └── UMASceneGraphManager (场景图管理 + 语义标注 + JSON 持久化)
 ```
 
 ## 5. JSON 配置驱动系统
@@ -610,6 +616,7 @@ MAAgentManager::LoadAndSpawnFromConfig(path)
 |---------|------|---------|------|
 | **MAAgentManager** | 全局 | JSON 配置加载 + Agent 生命周期 + Action 路由 + 编队管理 | ✅ 已实现 |
 | **MAEmergencyManager** | 全局 | 突发事件触发/结束 + 状态管理 + SourceAgent 追踪 | ✅ 已实现 |
+| **MASceneGraphManager** | 全局 | 场景图管理 + 语义标注 + JSON 持久化 + GUID 反向查询 | ✅ 已实现 |
 | **RelationManager** | 全局 | 实体关系管理 | ❌ 待开发 |
 | **MapManager** | 全局 | 地图感知 | ❌ 待开发 |
 | **StateTree** | Character级 | 状态决策 | ✅ 已实现 |
@@ -998,7 +1005,7 @@ if (SweepHit.bBlockingHit)
 
 ### 13.5 Modify 模式系统
 
-Modify 模式是第三种鼠标模式，用于查看和编辑场景中 Actor 的标签信息：
+Modify 模式是第三种鼠标模式，用于查看和编辑场景中 Actor 的语义标签信息，支持单选和多选两种模式：
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -1012,60 +1019,113 @@ Modify 模式是第三种鼠标模式，用于查看和编辑场景中 Actor 的
 │  │ MAPlayerController│  ◄── 模式状态管理                                     │
 │  │ (Input 层)        │                                                      │
 │  │ - CurrentMouseMode│  ← EMAMouseMode::Modify                              │
-│  │ - HighlightedActor│  ← 当前高亮的 Actor                                   │
+│  │ - HighlightedActors│ ← 当前高亮的 Actor 数组 (支持多选)                   │
 │  └────────┬─────────┘                                                       │
-│           │ OnModifyActorSelected 委托                                       │
+│           │ OnModifyActorsSelected 委托                                      │
 │           ▼                                                                 │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
 │  │                    MAHUD                                             │   │
-│  │  ┌─────────────────┐  ┌─────────────────┐                           │   │
-│  │  │ MASelectionHUD  │  │ MAModifyWidget  │                           │   │
-│  │  │ DrawMouseMode() │  │ (修改面板)      │                           │   │
-│  │  │ 橙色 "Modify"   │  │ - 多行文本框    │                           │   │
-│  │  └─────────────────┘  │ - 确认按钮      │                           │   │
-│  │                       │ - Actor 标签显示│                           │   │
+│  │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐      │   │
+│  │  │ MASelectionHUD  │  │ MAModifyWidget  │  │ SceneLabels     │      │   │
+│  │  │ DrawMouseMode() │  │ (修改面板)      │  │ (绿色文本标签)  │      │   │
+│  │  │ 橙色 "Modify"   │  │ - 多行文本框    │  │ DrawDebugString │      │   │
+│  │  └─────────────────┘  │ - 确认按钮      │  └─────────────────┘      │   │
+│  │                       │ - JSON 预览     │                           │   │
 │  │                       └─────────────────┘                           │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                    │                                        │
+│                                    ▼                                        │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                    MASceneGraphManager                               │   │
+│  │  - ParseLabelInput()      解析 "id:值,type:值,shape:值" 格式         │   │
+│  │  - AddSceneNode()         添加节点到 JSON 文件                        │   │
+│  │  - GetAllNodes()          获取所有节点用于可视化                       │   │
+│  │  - FindNodesByGuid()      通过 GUID 反向查询所属节点                   │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Modify 模式数据流:**
+**选择模式:**
+
+| 操作 | 功能 |
+|------|------|
+| 左键点击 Actor | 单选模式，清除之前选择，选中当前 Actor |
+| Shift+左键点击 | 多选模式，添加/移除 Actor 到选择集 (toggle) |
+| 左键点击空白区域 | 清除所有选择 |
+
+**输入格式:**
+
+| 模式 | 输入格式 | 示例 |
+|------|----------|------|
+| 单选 (Point) | `id:值,type:值` | `id:building_01,type:building` |
+| 多选 (Polygon) | `id:值,type:值,shape:polygon` | `id:area_01,type:building,shape:polygon` |
+| 多选 (LineString) | `id:值,type:值,shape:linestring` | `id:road_01,type:road,shape:linestring` |
+
+**JSON 输出格式:**
+
+```json
+// Point 类型 (单选)
+{
+  "id": "building_01",
+  "guid": "A1B2C3D4-E5F6-7890-ABCD-EF1234567890",
+  "properties": { "type": "building", "label": "Building-1" },
+  "shape": { "type": "point", "center": [100, 200, 0] }
+}
+
+// Polygon 类型 (多选建筑群)
+{
+  "id": "area_01",
+  "count": 3,
+  "Guid": ["GUID1", "GUID2", "GUID3"],
+  "properties": { "type": "building", "label": "Building-1" },
+  "shape": { "type": "polygon", "vertices": [[x1,y1,z1], [x2,y2,z2], ...] }
+}
+
+// LineString 类型 (多选道路片段)
+{
+  "id": "road_01",
+  "count": 5,
+  "Guid": ["GUID1", "GUID2", "GUID3", "GUID4", "GUID5"],
+  "properties": { "type": "road", "label": "Road-1" },
+  "shape": { "type": "linestring", "points": [[x1,y1,z1], [x2,y2,z2], ...] }
+}
 ```
-用户按 M 键 → PlayerController::OnToggleMouseMode()
-                    │
-                    ├── 进入 Modify 模式
-                    │   ├── EnterModifyMode()
-                    │   └── MAHUD::ShowModifyWidget()
-                    │
-用户左键点击 → OnModifyLeftClick()
-                    │
-                    ├── GetHitResultUnderCursor() 射线检测
-                    ├── SetActorHighlight() 更新高亮
-                    └── OnModifyActorSelected 委托 → ModifyWidget::SetSelectedActor()
-                                                            │
-                                                            ▼
-                                                    文本框显示 Actor 标签
-                                                            │
-用户点击确认 → OnModifyConfirmed 委托
-                    │
-                    ├── 输出调试日志 (占位符实现)
-                    └── 清空文本框和高亮
-```
+
+**几何计算 (MAGeometryUtils):**
+
+| 方法 | 功能 |
+|------|------|
+| `ComputeConvexHull2D()` | Graham Scan 算法计算凸包，返回逆时针顶点 |
+| `CollectBoundingBoxCorners()` | 收集所有 Actor 边界框角点 |
+| `SortByNearestNeighbor()` | 最近邻算法排序点序列 (用于 LineString) |
+| `CalculatePolygonCentroid()` | 计算多边形几何中心 |
+| `CalculateLineStringCentroid()` | 计算线串几何中心 |
+
+**场景标签可视化:**
+- 进入 Modify 模式时，自动加载 `datasets/scene_graph_cyberworld.json`
+- 在已标注 Actor 位置显示绿色文本标签 (GUID + Label)
+- 使用 `DrawDebugString` 绘制，位置偏移 Z+100
+- 退出 Modify 模式时自动清除可视化
+
+**GUID 反向查询:**
+- 点击 Actor 时，通过 `FindNodesByGuid()` 查询其所属的 Polygon/LineString 节点
+- 如果 Actor 属于某个节点，在 JSON 预览区显示完整节点信息
+- 支持 Actor 属于多个节点的情况
 
 **MAModifyWidget 接口:**
 
 | 方法 | 功能 |
 |------|------|
-| `SetSelectedActor(Actor)` | 设置选中的 Actor，更新文本框内容 |
+| `SetSelectedActors(Actors)` | 设置选中的 Actor 数组，更新 HintText 显示数量 |
 | `ClearSelection()` | 清除选中状态，显示提示文字 |
-| `GetLabelText()` | 获取文本框内容 |
-| `SetLabelText(Text)` | 设置文本框内容 |
+| `ParseAnnotationInput()` | 解析用户输入，返回 FMAAnnotationInput |
+| `GenerateSceneGraphNode()` | 根据输入和选中 Actor 生成 JSON 节点 |
+| `UpdateJsonPreview()` | 更新 JSON 预览，支持 GUID 反向查询 |
 
 **Actor 高亮实现:**
 - 使用 UE5 的 Custom Depth Stencil 实现轮廓高亮
-- 遍历 Actor 的 PrimitiveComponent 设置 RenderCustomDepth
-- 同一时间只能高亮一个 Actor
-- 退出 Modify 模式时自动清除高亮
+- 支持同时高亮多个 Actor
+- 退出 Modify 模式时自动清除所有高亮
 
 ### 13.3 数据流程
 
@@ -1621,3 +1681,232 @@ Layer 2:    [Node E]
 | Widget | 按钮事件 | 输入消息 |
 |--------|----------|----------|
 | **MATaskPlannerWidget** | `btn_update_graph` (更新任务图)<br>`btn_send_command` (发送指令) | `TaskPlannerWidget_InputBox` |
+
+
+## 16. 场景图管理系统 (Scene Graph Manager)
+
+### 16.1 概述
+
+场景图管理系统用于管理场景中 Actor 的语义标注数据，支持单选和多选标注，并将数据持久化到 JSON 文件。
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        场景图管理系统架构                                     │
+│                                                                             │
+│  ┌─────────────────┐                                                        │
+│  │ MAPlayerController│  ◄── Modify 模式交互                                  │
+│  │ - HighlightedActors│ ← 支持多选 (Shift+Click)                            │
+│  │ - OnModifyActorsSelected│                                                │
+│  └────────┬─────────┘                                                       │
+│           │                                                                 │
+│           ▼                                                                 │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                    MAModifyWidget                                    │   │
+│  │  - ParseAnnotationInput()    解析用户输入                             │   │
+│  │  - GenerateSceneGraphNode()  生成 JSON 节点                           │   │
+│  │  - UpdateJsonPreview()       更新 JSON 预览                           │   │
+│  └────────┬─────────────────────────────────────────────────────────────┘   │
+│           │                                                                 │
+│           ▼                                                                 │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                    MASceneGraphManager (UGameInstanceSubsystem)      │   │
+│  │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐      │   │
+│  │  │ ParseLabelInput │  │ AddSceneNode    │  │ GetAllNodes     │      │   │
+│  │  │ 解析输入格式    │  │ 添加节点到 JSON │  │ 获取所有节点    │      │   │
+│  │  └─────────────────┘  └─────────────────┘  └─────────────────┘      │   │
+│  │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐      │   │
+│  │  │ GenerateLabel   │  │ IsIdExists      │  │ FindNodesByGuid │      │   │
+│  │  │ 生成 Type-N 标签│  │ ID 去重检查     │  │ GUID 反向查询   │      │   │
+│  │  └─────────────────┘  └─────────────────┘  └─────────────────┘      │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                   │                                         │
+│                                   ▼                                         │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                    datasets/scene_graph_cyberworld.json              │   │
+│  │  { "nodes": [ ... ] }                                                │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 16.2 数据结构
+
+**FMASceneGraphNode 结构体:**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `Id` | FString | 用户指定的唯一标识符 |
+| `Guid` | FString | Actor 的 GUID (单选时) |
+| `GuidArray` | TArray<FString> | Actor GUID 数组 (多选时) |
+| `Type` | FString | 语义类型 (building, road, etc.) |
+| `Label` | FString | 自动生成的标签 (Type-N) |
+| `Center` | FVector | 显示位置 (几何中心) |
+| `ShapeType` | FString | 形状类型 (point, polygon, linestring) |
+| `RawJson` | FString | 原始 JSON 字符串 |
+
+**FMAAnnotationInput 结构体:**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `Id` | FString | 用户输入的 ID |
+| `Type` | FString | 用户输入的类型 |
+| `Shape` | EMAShapeType | 形状类型枚举 |
+| `Properties` | TMap<FString, FString> | 额外属性 |
+
+**EMAShapeType 枚举:**
+
+| 值 | 说明 |
+|----|------|
+| `Point` | 点类型 (单选默认) |
+| `Polygon` | 多边形类型 (多选建筑群) |
+| `LineString` | 线串类型 (多选道路片段) |
+| `Rectangle` | 矩形类型 (预留) |
+
+### 16.3 MASceneGraphManager API
+
+```cpp
+// 解析用户输入
+bool ParseLabelInput(const FString& Input, FString& OutId, FString& OutType, FString& OutError);
+
+// 添加场景节点 (单选)
+bool AddSceneNode(const FString& Input, const FVector& Location, AActor* Actor, FString& OutMessage);
+
+// 生成标签 (Type-N 格式)
+FString GenerateLabel(const FString& Type);
+
+// 检查 ID 是否存在
+bool IsIdExists(const FString& Id);
+
+// 获取所有节点 (用于可视化)
+TArray<FMASceneGraphNode> GetAllNodes() const;
+
+// 通过 GUID 查询所属节点
+TArray<FMASceneGraphNode> FindNodesByGuid(const FString& Guid) const;
+
+// 加载/保存场景图
+void LoadSceneGraph();
+void SaveSceneGraph();
+```
+
+### 16.4 几何计算工具 (MAGeometryUtils)
+
+```cpp
+// 计算 2D 凸包 (Graham Scan 算法)
+static TArray<FVector> ComputeConvexHull2D(const TArray<FVector>& Points);
+
+// 收集 Actor 边界框角点
+static TArray<FVector> CollectBoundingBoxCorners(const TArray<AActor*>& Actors);
+
+// 最近邻排序 (用于 LineString)
+static TArray<FVector> SortByNearestNeighbor(const TArray<FVector>& Points);
+
+// 计算多边形几何中心
+static FVector CalculatePolygonCentroid(const TArray<FVector>& Vertices);
+
+// 计算线串几何中心
+static FVector CalculateLineStringCentroid(const TArray<FVector>& Points);
+
+// 2D 叉积
+static float CrossProduct2D(const FVector& O, const FVector& A, const FVector& B);
+```
+
+### 16.5 JSON 文件格式
+
+场景图数据保存在 `datasets/scene_graph_cyberworld.json`:
+
+```json
+{
+  "nodes": [
+    {
+      "id": "building_01",
+      "guid": "A1B2C3D4-E5F6-7890-ABCD-EF1234567890",
+      "properties": {
+        "type": "building",
+        "label": "Building-1"
+      },
+      "shape": {
+        "type": "point",
+        "center": [100, 200, 0]
+      }
+    },
+    {
+      "id": "area_01",
+      "count": 3,
+      "Guid": ["GUID1", "GUID2", "GUID3"],
+      "properties": {
+        "type": "building",
+        "label": "Building-2"
+      },
+      "shape": {
+        "type": "polygon",
+        "vertices": [[x1,y1,z1], [x2,y2,z2], [x3,y3,z3], [x4,y4,z4]]
+      }
+    },
+    {
+      "id": "road_01",
+      "count": 5,
+      "Guid": ["GUID1", "GUID2", "GUID3", "GUID4", "GUID5"],
+      "properties": {
+        "type": "road",
+        "label": "Road-1"
+      },
+      "shape": {
+        "type": "linestring",
+        "points": [[x1,y1,z1], [x2,y2,z2], [x3,y3,z3], [x4,y4,z4], [x5,y5,z5]]
+      }
+    }
+  ]
+}
+```
+
+### 16.6 场景标签可视化
+
+进入 Modify 模式时，系统自动在已标注 Actor 位置显示绿色文本标签：
+
+```cpp
+// MAHUD::DrawSceneLabels()
+for (const FMASceneGraphNode& Node : CachedSceneNodes)
+{
+    FString DisplayText = FString::Printf(TEXT("GUID: %s\nLabel: %s"), 
+        Node.Guid.IsEmpty() ? TEXT("N/A") : *Node.Guid,
+        *Node.Label);
+    
+    FVector DisplayPos = Node.Center + FVector(0, 0, 100);  // Z 偏移 100
+    DrawDebugString(GetWorld(), DisplayPos, DisplayText, nullptr, FColor::Green, 0.f, true);
+}
+```
+
+**可视化生命周期:**
+- `ShowModifyWidget()` → `StartSceneLabelVisualization()` → 加载 JSON 并开始显示
+- `HideModifyWidget()` → `StopSceneLabelVisualization()` → 停止显示并清空缓存
+- `DrawHUD()` 每帧调用 `DrawSceneLabels()` 刷新显示
+
+### 16.7 GUID 反向查询
+
+当用户点击 Actor 时，系统通过 GUID 查询该 Actor 所属的 Polygon/LineString 节点：
+
+```cpp
+// MAModifyWidget::UpdateJsonPreview()
+FString ActorGuid = Actor->GetActorGuid().ToString();
+TArray<FMASceneGraphNode> MatchingNodes = SceneGraphManager->FindNodesByGuid(ActorGuid);
+
+if (MatchingNodes.Num() > 0)
+{
+    // 显示所属节点的完整 JSON
+    JsonPreviewText->SetText(FText::FromString(MatchingNodes[0].RawJson));
+}
+else
+{
+    // 显示默认的单 Actor 预览
+    ShowDefaultPreview(Actor);
+}
+```
+
+### 16.8 错误处理
+
+| 错误类型 | 处理方式 |
+|---------|---------|
+| 输入格式无效 | 显示错误消息，保留输入文本 |
+| ID 已存在 | 显示警告消息，不写入 JSON |
+| JSON 文件不存在 | 自动创建空结构 |
+| JSON 解析失败 | 记录警告日志，跳过可视化 |
+| Actor 为 nullptr | 生成空 GUID，记录警告 |
