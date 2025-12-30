@@ -382,6 +382,7 @@ MultiAgent-Unreal/
     │   ├── MASquadManager.h/cpp     # 编队管理器
     │   ├── MAViewportManager.h/cpp  # 视角管理器
     │   ├── MASceneGraphManager.h/cpp # 场景图管理器 (语义标注 + JSON 持久化)
+    │   ├── MAEditModeManager.h/cpp  # Edit 模式管理器 (临时场景图 + POI/Goal/Zone)
     │   ├── MAGeometryUtils.h/cpp    # 几何计算工具类 (凸包、最近邻排序)
     │   ├── MAGameMode.h/cpp         # 游戏模式 (配置驱动)
     │   └── MAPlayerController.h/cpp # 玩家控制器 (Enhanced Input)
@@ -438,7 +439,10 @@ MultiAgent-Unreal/
     │   ├── MAPickupItem.h/cpp       # 可拾取物品
     │   ├── MAChargingStation.h/cpp  # 充电站
     │   ├── MAPatrolPath.h/cpp       # 巡逻路径
-    │   └── MACoverageArea.h/cpp     # 覆盖区域
+    │   ├── MACoverageArea.h/cpp     # 覆盖区域
+    │   ├── MAPointOfInterest.h/cpp  # POI 标记点 (Edit Mode)
+    │   ├── MAGoalActor.h/cpp        # Goal 可视化 Actor (Edit Mode)
+    │   └── MAZoneActor.h/cpp        # Zone 可视化 Actor (Edit Mode)
     │
     ├── Input/                       # 输入系统
     │   ├── MAInputActions.h/cpp     # Input Actions 单例 (运行时创建)
@@ -452,6 +456,8 @@ MultiAgent-Unreal/
     │   ├── MAEmergencyWidget.h/cpp  # 突发事件详情界面
     │   ├── MAModifyWidget.h/cpp     # Modify 模式修改面板 (多选 + 标签编辑)
     │   ├── MAModifyTypes.h          # Modify 模式类型定义 (FMAAnnotationInput, EMAShapeType)
+    │   ├── MAEditWidget.h/cpp       # Edit 模式编辑面板 (JSON 编辑 + Goal/Zone 创建)
+    │   ├── MASceneListWidget.h/cpp  # Edit 模式左侧列表面板 (Goal/Zone 列表)
     │   ├── MATaskPlannerWidget.h/cpp # 任务规划工作台主容器
     │   ├── MADAGCanvasWidget.h/cpp  # DAG 画布 (拓扑排序布局)
     │   ├── MATaskNodeWidget.h/cpp   # 任务节点 Widget
@@ -617,6 +623,7 @@ MAAgentManager::LoadAndSpawnFromConfig(path)
 | **MAAgentManager** | 全局 | JSON 配置加载 + Agent 生命周期 + Action 路由 + 编队管理 | ✅ 已实现 |
 | **MAEmergencyManager** | 全局 | 突发事件触发/结束 + 状态管理 + SourceAgent 追踪 | ✅ 已实现 |
 | **MASceneGraphManager** | 全局 | 场景图管理 + 语义标注 + JSON 持久化 + GUID 反向查询 | ✅ 已实现 |
+| **MAEditModeManager** | 全局 | Edit 模式管理 + 临时场景图 + POI/Goal/Zone 管理 | ✅ 已实现 |
 | **RelationManager** | 全局 | 实体关系管理 | ❌ 待开发 |
 | **MapManager** | 全局 | 地图感知 | ❌ 待开发 |
 | **StateTree** | Character级 | 状态决策 | ✅ 已实现 |
@@ -1910,3 +1917,222 @@ else
 | JSON 文件不存在 | 自动创建空结构 |
 | JSON 解析失败 | 记录警告日志，跳过可视化 |
 | Actor 为 nullptr | 生成空 GUID，记录警告 |
+
+
+## 17. Edit Mode 系统 (编辑模式)
+
+### 17.1 概述
+
+Edit Mode 是一个用于模拟任务执行过程中"新情况"（动态变化）的交互模式。与 Modify Mode（持久化修改源场景图文件）不同，Edit Mode 的所有操作仅针对临时场景图文件进行，不影响源文件。该功能的核心目标是支持任务规划算法的验证：当场景中发生新情况时，系统需要能够触发重规划。
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        Edit Mode 系统架构                                    │
+│                                                                             │
+│  ┌─────────────────┐                                                        │
+│  │ MAPlayerController│  ◄── M 键切换模式                                     │
+│  │ (Input 层)        │                                                      │
+│  │ - CurrentMouseMode│  ← EMAMouseMode::Edit                                │
+│  │ - EditModeManager │  ← 委托给 Manager 处理                                │
+│  └────────┬─────────┘                                                       │
+│           │                                                                 │
+│           │ 模式切换事件                                                     │
+│           ▼                                                                 │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                    MAEditModeManager (UWorldSubsystem)               │   │
+│  │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐      │   │
+│  │  │ TempSceneGraph  │  │ POI Management  │  │ Selection Mgmt  │      │   │
+│  │  │ 临时场景图管理  │  │ POI 创建/销毁   │  │ 选择集合管理    │      │   │
+│  │  └─────────────────┘  └─────────────────┘  └─────────────────┘      │   │
+│  │                                                                      │   │
+│  │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐      │   │
+│  │  │ Node Operations │  │ Goal/Zone Mgmt  │  │ Backend Comm    │      │   │
+│  │  │ 增删改节点      │  │ Goal/Zone Actor │  │ 后端通信接口    │      │   │
+│  │  └─────────────────┘  └─────────────────┘  └─────────────────┘      │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                   │                                         │
+│                                   │ 场景变化通知                             │
+│                                   ▼                                         │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                    MACommSubsystem                                   │   │
+│  │  - SendSceneGraphChangeMessage()                                     │   │
+│  │  - add_node / delete_node / edit_node / add_goal / add_zone         │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                   │                                         │
+│                                   │ HTTP POST                               │
+│                                   ▼                                         │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                    Backend Planner                                   │   │
+│  │                    (触发重规划)                                       │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 17.2 UI 架构
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        Edit Mode UI 架构                                     │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                    MAHUD                                             │   │
+│  │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐      │   │
+│  │  │ Mode Indicator  │  │ MASceneListWidget│  │ MAEditWidget    │      │   │
+│  │  │ 蓝色 "Edit (M)" │  │ (左侧面板)      │  │ (右侧面板)      │      │   │
+│  │  │ 右上角          │  │ Goal/Zone 列表  │  │ JSON 编辑       │      │   │
+│  │  └─────────────────┘  └─────────────────┘  └─────────────────┘      │   │
+│  │                                                                      │   │
+│  │  ┌─────────────────┐                                                │   │
+│  │  │ Coord Display   │                                                │   │
+│  │  │ 绿色坐标显示    │                                                │   │
+│  │  │ 屏幕下方        │                                                │   │
+│  │  └─────────────────┘                                                │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 17.3 MAEditModeManager API
+
+```cpp
+// 临时场景图管理
+bool CreateTempSceneGraph();           // 从源文件复制创建临时文件
+void DeleteTempSceneGraph();           // 删除临时文件
+FString GetTempSceneGraphPath() const; // 获取临时文件路径
+bool IsEditModeAvailable() const;      // 检查 Edit Mode 是否可用
+
+// POI 管理
+AMAPointOfInterest* CreatePOI(const FVector& WorldLocation);
+void DestroyPOI(AMAPointOfInterest* POI);
+void DestroyAllPOIs();
+TArray<AMAPointOfInterest*> GetAllPOIs() const;
+
+// 选择管理
+void SelectActor(AActor* Actor);       // 单选 Actor
+void SelectPOI(AMAPointOfInterest* POI); // 多选 POI
+void DeselectObject(UObject* Object);
+void ClearSelection();
+AActor* GetSelectedActor() const;
+TArray<AMAPointOfInterest*> GetSelectedPOIs() const;
+
+// Node 操作
+bool AddNode(const FString& NodeJson, FString& OutError);
+bool DeleteNode(const FString& NodeId, FString& OutError);
+bool EditNode(const FString& NodeId, const FString& NewNodeJson, FString& OutError);
+bool CreateGoal(const FVector& Location, const FString& Description, FString& OutError);
+bool CreateZone(const TArray<FVector>& Vertices, const FString& Description, FString& OutError);
+
+// Goal/Zone Actor 管理
+AMAZoneActor* CreateZoneActor(const FString& NodeId, const TArray<FVector>& Vertices);
+AMAGoalActor* CreateGoalActor(const FString& NodeId, const FVector& Location, const FString& Description);
+void DestroyZoneActor(const FString& NodeId);
+void DestroyGoalActor(const FString& NodeId);
+
+// 设为 Goal 功能
+bool SetNodeAsGoal(const FString& NodeId, FString& OutError);
+bool UnsetNodeAsGoal(const FString& NodeId, FString& OutError);
+bool IsNodeGoal(const FString& NodeId) const;
+
+// 列表查询
+TArray<FString> GetAllGoalNodeIds() const;
+TArray<FString> GetAllZoneNodeIds() const;
+FString GetNodeLabel(const FString& NodeId) const;
+```
+
+### 17.4 可视化 Actor
+
+| Actor 类型 | 组件 | 外观 | 用途 |
+|-----------|------|------|------|
+| **AMAPointOfInterest** | UNiagaraComponent | 蓝色粒子效果 | 临时标记点 |
+| **AMAGoalActor** | UStaticMeshComponent + UTextRenderComponent | 红色锥体 + 文本标签 | Goal 节点可视化 |
+| **AMAZoneActor** | USplineComponent + USplineMeshComponent | 蓝色样条曲线边界 | Zone 节点可视化 |
+
+### 17.5 数据流程
+
+```
+用户点击场景 → MAPlayerController::HandleEditModeClick()
+                    │
+                    ├── 左键点击空白区域 → EditModeManager->CreatePOI(Location)
+                    │                           │
+                    │                           └── 生成 AMAPointOfInterest Actor
+                    │
+                    └── Shift+左键点击 Actor → EditModeManager->SelectActor(Actor)
+                                                    │
+                                                    ├── 更新高亮状态
+                                                    ├── 触发 OnSelectionChanged 委托
+                                                    └── MAHUD 更新 MAEditWidget
+
+用户点击 [创建 Goal] → MAEditWidget::OnCreateGoalButtonClicked()
+                            │
+                            ▼
+                    EditModeManager->CreateGoal(Location, Description)
+                            │
+                            ├── 添加 Goal Node 到临时场景图
+                            ├── 创建 AMAGoalActor 可视化
+                            ├── 销毁对应 POI
+                            ├── 发送 add_goal 消息到后端
+                            └── 触发 OnTempSceneGraphChanged 委托
+
+用户点击 [创建区域] → MAEditWidget::OnCreateZoneButtonClicked()
+                            │
+                            ▼
+                    EditModeManager->CreateZone(Vertices, Description)
+                            │
+                            ├── 计算凸包
+                            ├── 添加 Zone Node 到临时场景图
+                            ├── 创建 AMAZoneActor 可视化
+                            ├── 销毁所有参与的 POI
+                            ├── 发送 add_zone 消息到后端
+                            └── 触发 OnTempSceneGraphChanged 委托
+```
+
+### 17.6 场景变化消息类型
+
+| 消息类型 | 枚举值 | Payload |
+|---------|--------|---------|
+| AddNode | add_node | 完整 Node JSON |
+| DeleteNode | delete_node | Node ID |
+| EditNode | edit_node | 修改后的 Node JSON |
+| AddGoal | add_goal | Goal Node JSON |
+| DeleteGoal | delete_goal | Goal ID |
+| AddZone | add_zone | Zone Node JSON |
+| DeleteZone | delete_zone | Zone ID |
+
+### 17.7 临时场景图文件
+
+临时场景图文件存储在 `Saved/Temp/` 目录下，文件名包含时间戳：
+
+```
+Saved/Temp/temp_scene_graph_20251230_150939.json
+```
+
+**生命周期:**
+- 游戏启动时从源文件 `datasets/scene_graph_cyberworld.json` 复制创建
+- Edit Mode 的所有修改仅影响临时文件
+- 游戏结束时自动删除
+
+### 17.8 选择机制约束
+
+| 约束 | 说明 |
+|------|------|
+| POI 多选 | 可同时选中多个 POI |
+| Actor 单选 | 同一时间只能选中一个 Actor |
+| 互斥选择 | Actor 和 POI 不能同时选中 |
+
+### 17.9 Shape 类型编辑约束
+
+| Shape 类型 | 可编辑字段 | 可删除 |
+|------------|-----------|--------|
+| point | properties, shape.center | ✓ |
+| polygon | properties | ✗ |
+| linestring | properties | ✗ |
+
+### 17.10 错误处理
+
+| 错误类型 | 处理策略 |
+|---------|---------|
+| 源文件不存在 | 禁用 Edit Mode，记录错误日志 |
+| 临时文件创建失败 | 禁用 Edit Mode，显示通知 |
+| JSON 格式不合法 | 显示错误提示，阻止提交 |
+| Node 操作失败 | 记录日志，显示通知，不修改文件 |
+| 后端通信失败 | 本地操作生效，显示警告 |
+| 非法删除操作 | 显示错误提示，阻止删除 |

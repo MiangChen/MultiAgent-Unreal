@@ -1529,6 +1529,12 @@ void AMAHUD::BindEditWidgetDelegates()
         EditWidget->OnAddPresetActor.AddDynamic(this, &AMAHUD::OnEditAddPresetActor);
     }
     
+    // 绑定删除 POI 委托
+    if (!EditWidget->OnDeletePOIs.IsAlreadyBound(this, &AMAHUD::OnEditDeletePOIs))
+    {
+        EditWidget->OnDeletePOIs.AddDynamic(this, &AMAHUD::OnEditDeletePOIs);
+    }
+    
     // 绑定设为 Goal 委托 - Requirements: 16.2
     if (!EditWidget->OnSetAsGoal.IsAlreadyBound(this, &AMAHUD::OnEditSetAsGoal))
     {
@@ -1546,7 +1552,7 @@ void AMAHUD::BindEditWidgetDelegates()
 
 void AMAHUD::DrawEditModeIndicator()
 {
-    // Requirements: 2.2, 3.3 - 绘制 Edit 模式指示器和 POI 坐标
+    // Requirements: 2.2, 3.3 - 绘制 Edit 模式指示器和 POI/Goal/Zone 坐标
     
     if (!Canvas)
     {
@@ -1578,7 +1584,7 @@ void AMAHUD::DrawEditModeIndicator()
     ModeTextItem.OutlineColor = FLinearColor::Black;
     Canvas->DrawItem(ModeTextItem);
     
-    // Requirements: 3.3 - 在屏幕下方显示 POI 坐标 (绿色小字)
+    // 获取 EditModeManager
     UWorld* World = GetWorld();
     if (!World)
     {
@@ -1591,33 +1597,91 @@ void AMAHUD::DrawEditModeIndicator()
         return;
     }
     
+    // 当前行 Y 坐标 (从底部向上排列)
+    float CurrentY = ScreenHeight - 30.0f;
+    const float LineHeight = 18.0f;
+    
+    FLinearColor GreenColor = FLinearColor(0.3f, 0.8f, 0.3f);  // 绿色 - POI
+    FLinearColor RedColor = FLinearColor(1.0f, 0.4f, 0.4f);    // 红色 - Goal
+    FLinearColor CyanColor = FLinearColor(0.3f, 0.8f, 1.0f);   // 青色 - Zone
+    
+    // Requirements: 3.3 - 在屏幕下方显示 POI 坐标 (绿色小字)
     TArray<AMAPointOfInterest*> POIs = EditModeManager->GetAllPOIs();
-    if (POIs.Num() == 0)
+    if (POIs.Num() > 0)
     {
-        return;
-    }
-    
-    // 构建 POI 坐标显示文本
-    FString POIText = TEXT("POI 坐标: ");
-    for (int32 i = 0; i < POIs.Num(); ++i)
-    {
-        if (POIs[i])
+        FString POIText = TEXT("POI: ");
+        for (int32 i = 0; i < POIs.Num(); ++i)
         {
-            FVector Loc = POIs[i]->GetActorLocation();
-            POIText += FString::Printf(TEXT("[%d](%.0f, %.0f, %.0f) "), i + 1, Loc.X, Loc.Y, Loc.Z);
+            if (POIs[i])
+            {
+                FVector Loc = POIs[i]->GetActorLocation();
+                POIText += FString::Printf(TEXT("[%d](%.0f, %.0f, %.0f) "), i + 1, Loc.X, Loc.Y, Loc.Z);
+            }
         }
+        
+        FCanvasTextItem POITextItem(FVector2D(20.0f, CurrentY), FText::FromString(POIText), GEngine->GetSmallFont(), GreenColor);
+        POITextItem.Scale = FVector2D(1.0f, 1.0f);
+        POITextItem.bOutlined = true;
+        POITextItem.OutlineColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.5f);
+        Canvas->DrawItem(POITextItem);
+        CurrentY -= LineHeight;
     }
     
-    // 在屏幕下方中央显示
-    float POITextY = ScreenHeight - 50.0f;  // 底部边距 50 像素
+    // 显示 Goal 列表 (红色小字)
+    TArray<FString> GoalNodeIds = EditModeManager->GetAllGoalNodeIds();
+    if (GoalNodeIds.Num() > 0)
+    {
+        FString GoalText = TEXT("Goal: ");
+        for (int32 i = 0; i < GoalNodeIds.Num(); ++i)
+        {
+            FString Label = EditModeManager->GetNodeLabel(GoalNodeIds[i]);
+            if (Label.IsEmpty())
+            {
+                Label = GoalNodeIds[i];
+            }
+            
+            // 获取 Goal Actor 位置
+            AMAGoalActor* GoalActor = EditModeManager->GetGoalActorByNodeId(GoalNodeIds[i]);
+            if (GoalActor)
+            {
+                FVector Loc = GoalActor->GetActorLocation();
+                GoalText += FString::Printf(TEXT("[%s](%.0f, %.0f, %.0f) "), *Label, Loc.X, Loc.Y, Loc.Z);
+            }
+            else
+            {
+                GoalText += FString::Printf(TEXT("[%s] "), *Label);
+            }
+        }
+        
+        FCanvasTextItem GoalTextItem(FVector2D(20.0f, CurrentY), FText::FromString(GoalText), GEngine->GetSmallFont(), RedColor);
+        GoalTextItem.Scale = FVector2D(1.0f, 1.0f);
+        GoalTextItem.bOutlined = true;
+        GoalTextItem.OutlineColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.5f);
+        Canvas->DrawItem(GoalTextItem);
+        CurrentY -= LineHeight;
+    }
     
-    FLinearColor GreenColor = FLinearColor(0.3f, 0.8f, 0.3f);  // 绿色
-    
-    FCanvasTextItem POITextItem(FVector2D(20.0f, POITextY), FText::FromString(POIText), GEngine->GetSmallFont(), GreenColor);
-    POITextItem.Scale = FVector2D(1.0f, 1.0f);
-    POITextItem.bOutlined = true;
-    POITextItem.OutlineColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.5f);
-    Canvas->DrawItem(POITextItem);
+    // 显示 Zone 列表 (青色小字)
+    TArray<FString> ZoneNodeIds = EditModeManager->GetAllZoneNodeIds();
+    if (ZoneNodeIds.Num() > 0)
+    {
+        FString ZoneText = TEXT("Zone: ");
+        for (int32 i = 0; i < ZoneNodeIds.Num(); ++i)
+        {
+            FString Label = EditModeManager->GetNodeLabel(ZoneNodeIds[i]);
+            if (Label.IsEmpty())
+            {
+                Label = ZoneNodeIds[i];
+            }
+            ZoneText += FString::Printf(TEXT("[%s] "), *Label);
+        }
+        
+        FCanvasTextItem ZoneTextItem(FVector2D(20.0f, CurrentY), FText::FromString(ZoneText), GEngine->GetSmallFont(), CyanColor);
+        ZoneTextItem.Scale = FVector2D(1.0f, 1.0f);
+        ZoneTextItem.bOutlined = true;
+        ZoneTextItem.OutlineColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.5f);
+        Canvas->DrawItem(ZoneTextItem);
+    }
 }
 
 void AMAHUD::OnEditModeSelectionChanged()
@@ -1957,6 +2021,48 @@ void AMAHUD::OnEditAddPresetActor(AMAPointOfInterest* POI, const FString& ActorT
     ShowNotification(TEXT("预设 Actor 功能暂未实现"), false, true);
     
     UE_LOG(LogMAHUD, Warning, TEXT("OnEditAddPresetActor: Preset Actor feature not yet implemented"));
+}
+
+void AMAHUD::OnEditDeletePOIs(const TArray<AMAPointOfInterest*>& POIs)
+{
+    // 处理删除 POI
+    
+    UE_LOG(LogMAHUD, Log, TEXT("OnEditDeletePOIs: %d POIs to delete"), POIs.Num());
+    
+    if (POIs.Num() == 0)
+    {
+        ShowNotification(TEXT("请先选中 POI"), true);
+        return;
+    }
+    
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        ShowNotification(TEXT("删除失败: 无法获取 World"), true);
+        return;
+    }
+    
+    UMAEditModeManager* EditModeManager = World->GetSubsystem<UMAEditModeManager>();
+    if (!EditModeManager)
+    {
+        ShowNotification(TEXT("删除失败: EditModeManager 未找到"), true);
+        return;
+    }
+    
+    // 删除所有选中的 POI
+    int32 DeletedCount = 0;
+    for (AMAPointOfInterest* POI : POIs)
+    {
+        if (POI)
+        {
+            EditModeManager->DestroyPOI(POI);
+            DeletedCount++;
+        }
+    }
+    
+    ShowNotification(FString::Printf(TEXT("已删除 %d 个 POI"), DeletedCount), false);
+    
+    UE_LOG(LogMAHUD, Log, TEXT("OnEditDeletePOIs: Deleted %d POIs"), DeletedCount);
 }
 
 void AMAHUD::OnEditSetAsGoal(AActor* Actor)

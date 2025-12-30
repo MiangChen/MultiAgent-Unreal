@@ -700,6 +700,24 @@ TSharedPtr<FJsonObject> UMAEditModeManager::FindNodeById(const FString& NodeId) 
     return nullptr;
 }
 
+FString UMAEditModeManager::GetNodeJsonById(const FString& NodeId) const
+{
+    TSharedPtr<FJsonObject> NodeObject = FindNodeById(NodeId);
+    if (!NodeObject.IsValid())
+    {
+        return FString();
+    }
+    
+    FString JsonString;
+    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&JsonString);
+    if (FJsonSerializer::Serialize(NodeObject.ToSharedRef(), Writer))
+    {
+        return JsonString;
+    }
+    
+    return FString();
+}
+
 int32 UMAEditModeManager::FindNodeIndexById(const FString& NodeId) const
 {
     if (!TempSceneGraphData.IsValid() || NodeId.IsEmpty())

@@ -598,6 +598,13 @@ private:
     void OnEditAddPresetActor(AMAPointOfInterest* POI, const FString& ActorType);
 
     /**
+     * EditWidget 删除 POI 回调
+     * @param POIs 要删除的 POI 数组
+     */
+    UFUNCTION()
+    void OnEditDeletePOIs(const TArray<AMAPointOfInterest*>& POIs);
+
+    /**
      * EditWidget 设为 Goal 回调
      * @param Actor 目标 Actor
      * Requirements: 16.2

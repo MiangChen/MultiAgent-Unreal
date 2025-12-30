@@ -21,6 +21,8 @@
 #include "../Core/MAEditModeManager.h"
 #include "../Core/MASceneGraphManager.h"
 #include "../Environment/MAPointOfInterest.h"
+#include "../Environment/MAGoalActor.h"
+#include "../Environment/MAZoneActor.h"
 #include "Kismet/GameplayStatics.h"
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonReader.h"
@@ -124,6 +126,19 @@ void UMAEditWidget::NativeConstruct()
     else
     {
         UE_LOG(LogMAEditWidget, Warning, TEXT("AddActorButton is null!"));
+    }
+    
+    if (DeletePOIButton)
+    {
+        if (!DeletePOIButton->OnClicked.IsAlreadyBound(this, &UMAEditWidget::OnDeletePOIButtonClicked))
+        {
+            DeletePOIButton->OnClicked.AddDynamic(this, &UMAEditWidget::OnDeletePOIButtonClicked);
+            UE_LOG(LogMAEditWidget, Log, TEXT("DeletePOIButton event bound"));
+        }
+    }
+    else
+    {
+        UE_LOG(LogMAEditWidget, Warning, TEXT("DeletePOIButton is null!"));
     }
     
     if (SetAsGoalButton)
@@ -413,7 +428,20 @@ void UMAEditWidget::BuildUI()
     ZoneText->SetFont(ZoneFont);
     CreateZoneButton->AddChild(ZoneText);
     
-    POIButtonBox->AddChildToHorizontalBox(CreateZoneButton);
+    UHorizontalBoxSlot* ZoneSlot = POIButtonBox->AddChildToHorizontalBox(CreateZoneButton);
+    ZoneSlot->SetPadding(FMargin(0, 0, 10, 0));
+
+    // 删除 POI 按钮
+    DeletePOIButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("DeletePOIButton"));
+    UTextBlock* DeletePOIText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("DeletePOIText"));
+    DeletePOIText->SetText(FText::FromString(TEXT(" 删除 POI ")));
+    DeletePOIText->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
+    FSlateFontInfo DeletePOIFont = DeletePOIText->GetFont();
+    DeletePOIFont.Size = 12;
+    DeletePOIText->SetFont(DeletePOIFont);
+    DeletePOIButton->AddChild(DeletePOIText);
+    
+    POIButtonBox->AddChildToHorizontalBox(DeletePOIButton);
     
     UVerticalBoxSlot* POIButtonSlot = POIOperationBox->AddChildToVerticalBox(POIButtonBox);
     POIButtonSlot->SetPadding(FMargin(0, 0, 0, 10));
@@ -474,15 +502,128 @@ void UMAEditWidget::SetSelectedActor(AActor* Actor)
     UWorld* World = GetWorld();
     if (World)
     {
+        // MAEditModeManager 是 WorldSubsystem，从 World 获取
+        UMAEditModeManager* EditModeManager = World->GetSubsystem<UMAEditModeManager>();
+        
+        // MASceneGraphManager 是 GameInstanceSubsystem，从 GameInstance 获取
+        UMASceneGraphManager* SceneGraphManager = nullptr;
         if (UGameInstance* GI = World->GetGameInstance())
         {
-            if (UMASceneGraphManager* SceneGraphManager = GI->GetSubsystem<UMASceneGraphManager>())
+            SceneGraphManager = GI->GetSubsystem<UMASceneGraphManager>();
+        }
+        
+        FString SearchId;
+        bool bIsGoalOrZone = false;
+        
+        // 检查是否为 Goal Actor 或 Zone Actor，使用 GetNodeId() 获取 Node ID
+        if (AMAGoalActor* GoalActor = Cast<AMAGoalActor>(Actor))
+        {
+            SearchId = GoalActor->GetNodeId();
+            bIsGoalOrZone = true;
+            UE_LOG(LogMAEditWidget, Log, TEXT("SetSelectedActor: GoalActor detected, NodeId = %s"), *SearchId);
+        }
+        else if (AMAZoneActor* ZoneActor = Cast<AMAZoneActor>(Actor))
+        {
+            SearchId = ZoneActor->GetNodeId();
+            bIsGoalOrZone = true;
+            UE_LOG(LogMAEditWidget, Log, TEXT("SetSelectedActor: ZoneActor detected, NodeId = %s"), *SearchId);
+        }
+        else
+        {
+            // 普通 Actor，使用 GUID
+            SearchId = Actor->GetActorGuid().ToString();
+            UE_LOG(LogMAEditWidget, Log, TEXT("SetSelectedActor: Regular Actor, GUID = %s"), *SearchId);
+        }
+        
+        // 对于 Goal/Zone Actor，从 MAEditModeManager 的临时场景图中查找
+        if (bIsGoalOrZone && EditModeManager && !SearchId.IsEmpty())
+        {
+            FString NodeJsonStr = EditModeManager->GetNodeJsonById(SearchId);
+            if (!NodeJsonStr.IsEmpty())
+            {
+                // 解析 JSON
+                TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(NodeJsonStr);
+                TSharedPtr<FJsonObject> NodeJson;
+                if (FJsonSerializer::Deserialize(Reader, NodeJson) && NodeJson.IsValid())
+                {
+                    // 将 JSON 转换为 FMASceneGraphNode
+                    FMASceneGraphNode Node;
+                    Node.Id = SearchId;
+                    
+                    // 获取 properties
+                    if (NodeJson->HasField(TEXT("properties")))
+                    {
+                        TSharedPtr<FJsonObject> Props = NodeJson->GetObjectField(TEXT("properties"));
+                        if (Props.IsValid())
+                        {
+                            Node.Type = Props->GetStringField(TEXT("type"));
+                            Node.Label = Props->GetStringField(TEXT("label"));
+                        }
+                    }
+                    
+                    // 获取 shape
+                    if (NodeJson->HasField(TEXT("shape")))
+                    {
+                        TSharedPtr<FJsonObject> Shape = NodeJson->GetObjectField(TEXT("shape"));
+                        if (Shape.IsValid())
+                        {
+                            Node.ShapeType = Shape->GetStringField(TEXT("type"));
+                            
+                            if (Shape->HasField(TEXT("center")))
+                            {
+                                TArray<TSharedPtr<FJsonValue>> CenterArray = Shape->GetArrayField(TEXT("center"));
+                                if (CenterArray.Num() >= 3)
+                                {
+                                    Node.Center = FVector(
+                                        CenterArray[0]->AsNumber(),
+                                        CenterArray[1]->AsNumber(),
+                                        CenterArray[2]->AsNumber()
+                                    );
+                                }
+                            }
+                        }
+                    }
+                    
+                    // 获取 guid
+                    if (NodeJson->HasField(TEXT("guid")))
+                    {
+                        Node.Guid = NodeJson->GetStringField(TEXT("guid"));
+                    }
+                    
+                    // 存储 RawJson
+                    Node.RawJson = NodeJsonStr;
+                    
+                    ActorNodes.Add(Node);
+                    UE_LOG(LogMAEditWidget, Log, TEXT("SetSelectedActor: Found Goal/Zone node by ID from temp scene graph: %s"), *Node.Id);
+                }
+            }
+            else
+            {
+                UE_LOG(LogMAEditWidget, Warning, TEXT("SetSelectedActor: Goal/Zone node not found in temp scene graph: %s"), *SearchId);
+            }
+        }
+        // 对于普通 Actor，从 MASceneGraphManager 查找
+        else if (SceneGraphManager && !SearchId.IsEmpty())
+        {
+            // 首先尝试通过 Node ID 直接查找
+            TArray<FMASceneGraphNode> AllNodes = SceneGraphManager->GetAllNodes();
+            for (const FMASceneGraphNode& Node : AllNodes)
+            {
+                if (Node.Id == SearchId)
+                {
+                    ActorNodes.Add(Node);
+                    UE_LOG(LogMAEditWidget, Log, TEXT("SetSelectedActor: Found node by ID: %s"), *Node.Id);
+                    break;
+                }
+            }
+            
+            // 如果没找到，尝试通过 GUID 查找
+            if (ActorNodes.Num() == 0)
             {
                 FString ActorGuid = Actor->GetActorGuid().ToString();
                 ActorNodes = SceneGraphManager->FindNodesByGuid(ActorGuid);
                 
                 // 也检查单个 guid 字段匹配 (point 类型)
-                TArray<FMASceneGraphNode> AllNodes = SceneGraphManager->GetAllNodes();
                 for (const FMASceneGraphNode& Node : AllNodes)
                 {
                     if (Node.Guid == ActorGuid)
@@ -1270,4 +1411,33 @@ void UMAEditWidget::OnUnsetAsGoalButtonClicked()
     UpdateUIState();
     
     UE_LOG(LogMAEditWidget, Log, TEXT("OnUnsetAsGoalButtonClicked: Unset as Goal requested for Actor %s"), *CurrentActor->GetName());
+}
+
+
+//=========================================================================
+// OnDeletePOIButtonClicked - 删除 POI 按钮点击处理
+//=========================================================================
+
+void UMAEditWidget::OnDeletePOIButtonClicked()
+{
+    UE_LOG(LogMAEditWidget, Log, TEXT("OnDeletePOIButtonClicked"));
+    
+    if (CurrentPOIs.Num() == 0)
+    {
+        ShowError(TEXT("未选中 POI"));
+        return;
+    }
+    
+    ClearError();
+    
+    // 广播删除 POI 委托
+    OnDeletePOIs.Broadcast(CurrentPOIs);
+    
+    // 清除选择
+    ClearSelection();
+    
+    // 刷新场景图预览
+    RefreshSceneGraphPreview();
+    
+    UE_LOG(LogMAEditWidget, Log, TEXT("OnDeletePOIButtonClicked: Delete requested for %d POIs"), CurrentPOIs.Num());
 }

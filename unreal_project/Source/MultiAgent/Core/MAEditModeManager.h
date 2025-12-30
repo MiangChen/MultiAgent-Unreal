@@ -449,6 +449,15 @@ public:
     UFUNCTION(BlueprintPure, Category = "EditMode|Query")
     AActor* FindActorByGuid(const FString& Guid) const;
 
+    /**
+     * 根据 ID 查找 Node JSON (公共接口)
+     * 
+     * @param NodeId Node ID
+     * @return Node JSON 字符串，未找到返回空字符串
+     */
+    UFUNCTION(BlueprintPure, Category = "EditMode|Query")
+    FString GetNodeJsonById(const FString& NodeId) const;
+
     //=========================================================================
     // 委托
     //=========================================================================

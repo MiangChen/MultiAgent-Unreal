@@ -65,6 +65,12 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnCreateZone, const TArray<AMAPoin
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAddPresetActor, AMAPointOfInterest*, POI, const FString&, ActorType);
 
 /**
+ * 删除 POI 委托
+ * @param POIs 要删除的 POI 数组
+ */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDeletePOIs, const TArray<AMAPointOfInterest*>&, POIs);
+
+/**
  * 设为 Goal 委托
  * @param Actor 目标 Actor
  * Requirements: 16.2
@@ -195,6 +201,10 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Events")
     FOnAddPresetActor OnAddPresetActor;
 
+    /** 删除 POI 委托 */
+    UPROPERTY(BlueprintAssignable, Category = "Events")
+    FOnDeletePOIs OnDeletePOIs;
+
     /** 设为 Goal 委托 - Requirements: 16.2 */
     UPROPERTY(BlueprintAssignable, Category = "Events")
     FOnSetAsGoal OnSetAsGoal;
@@ -247,6 +257,10 @@ protected:
     /** 添加 Actor 按钮 */
     UPROPERTY()
     UButton* AddActorButton;
+
+    /** 删除 POI 按钮 */
+    UPROPERTY()
+    UButton* DeletePOIButton;
 
     /** 设为 Goal 按钮 - Requirements: 16.1 */
     UPROPERTY()
@@ -388,6 +402,10 @@ private:
     /** 添加 Actor 按钮点击 - Requirements: 8.2 */
     UFUNCTION()
     void OnAddActorButtonClicked();
+
+    /** 删除 POI 按钮点击 */
+    UFUNCTION()
+    void OnDeletePOIButtonClicked();
 
     /** 设为 Goal 按钮点击 - Requirements: 16.2 */
     UFUNCTION()
