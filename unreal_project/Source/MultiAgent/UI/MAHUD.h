@@ -13,12 +13,15 @@ class UMASimpleMainWidget;
 class UMATaskPlannerWidget;
 class UMADirectControlIndicator;
 class UMAEmergencyWidget;
+class UMAModifyWidget;
 class AMAPlayerController;
 class AMACharacter;
 class UMAEmergencyManager;
 class UMACameraSensorComponent;
+class UMASceneGraphManager;
 struct FMAPlannerResponse;
 struct FMATaskGraphData;
+struct FMASceneGraphNode;
 
 /**
  * HUD 管理器
@@ -71,6 +74,10 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "UI Instances")
     UMAEmergencyWidget* EmergencyWidget;
 
+    /** Modify 模式修改面板实例 */
+    UPROPERTY(BlueprintReadOnly, Category = "UI Instances")
+    UMAModifyWidget* ModifyWidget;
+
     //=========================================================================
     // UI 状态
     //=========================================================================
@@ -82,6 +89,14 @@ public:
     /** 突发事件指示器是否显示 */
     UPROPERTY(BlueprintReadOnly, Category = "UI State|Emergency")
     bool bShowEmergencyIndicator = false;
+
+    /** 是否正在显示场景标签 */
+    UPROPERTY(BlueprintReadOnly, Category = "UI State|SceneLabel")
+    bool bShowingSceneLabels = false;
+
+    /** 缓存的场景节点数据 */
+    UPROPERTY(BlueprintReadOnly, Category = "UI State|SceneLabel")
+    TArray<FMASceneGraphNode> CachedSceneNodes;
 
     //=========================================================================
     // 公共接口
@@ -226,6 +241,73 @@ public:
     UFUNCTION(BlueprintCallable, Category = "UI Control|Emergency")
     void UpdateEmergencyCameraSource(UMACameraSensorComponent* Camera);
 
+    //=========================================================================
+    // Modify 模式 UI 控制
+    //=========================================================================
+
+    /**
+     * 显示 ModifyWidget
+     * Requirements: 3.1
+     */
+    UFUNCTION(BlueprintCallable, Category = "UI Control|Modify")
+    void ShowModifyWidget();
+
+    /**
+     * 隐藏 ModifyWidget
+     * Requirements: 3.4
+     */
+    UFUNCTION(BlueprintCallable, Category = "UI Control|Modify")
+    void HideModifyWidget();
+
+    /**
+     * 检查 ModifyWidget 是否可见
+     * @return true 如果 ModifyWidget 当前可见
+     */
+    UFUNCTION(BlueprintPure, Category = "UI|Modify")
+    bool IsModifyWidgetVisible() const;
+
+    //=========================================================================
+    // 场景标签可视化
+    // Requirements: 3.1, 3.2, 3.3, 3.4, 4.1, 4.2, 4.3, 4.4, 4.5, 5.1, 5.2, 5.3, 6.1
+    //=========================================================================
+
+    /**
+     * 开始场景标签可视化
+     * 加载场景图数据并开始显示标签
+     * Requirements: 5.1
+     */
+    UFUNCTION(BlueprintCallable, Category = "UI Control|SceneLabel")
+    void StartSceneLabelVisualization();
+
+    /**
+     * 停止场景标签可视化
+     * 停止显示标签并清空缓存
+     * Requirements: 5.2
+     */
+    UFUNCTION(BlueprintCallable, Category = "UI Control|SceneLabel")
+    void StopSceneLabelVisualization();
+
+    /**
+     * 检查场景标签可视化是否激活
+     * @return true 如果正在显示场景标签
+     */
+    UFUNCTION(BlueprintPure, Category = "UI|SceneLabel")
+    bool IsSceneLabelVisualizationActive() const { return bShowingSceneLabels; }
+
+    //=========================================================================
+    // 通知系统
+    //=========================================================================
+
+    /**
+     * 显示通知消息
+     * @param Message 通知消息内容
+     * @param bIsError 是否为错误消息 (红色)，false 为成功消息 (绿色)
+     * @param bIsWarning 是否为警告消息 (黄色)，优先级低于 bIsError
+     * Requirements: 2.1, 3.2, 6.5
+     */
+    UFUNCTION(BlueprintCallable, Category = "UI|Notification")
+    void ShowNotification(const FString& Message, bool bIsError = false, bool bIsWarning = false);
+
 protected:
     //=========================================================================
     // AHUD 重写
@@ -302,4 +384,89 @@ private:
      */
     UFUNCTION()
     void OnPlannerResponse(const FMAPlannerResponse& Response);
+
+    /**
+     * ModifyWidget 确认修改回调 (单选模式)
+     * @param Actor 选中的 Actor
+     * @param LabelText 文本框内容
+     * Requirements: 5.1, 5.2
+     */
+    UFUNCTION()
+    void OnModifyConfirmed(AActor* Actor, const FString& LabelText);
+
+    /**
+     * ModifyWidget 确认修改回调 (多选模式)
+     * @param Actors 选中的 Actor 数组
+     * @param LabelText 文本框内容
+     * @param GeneratedJson 生成的 JSON 字符串
+     * Requirements: 4.1, 4.2, 5.1, 8.1
+     */
+    UFUNCTION()
+    void OnMultiSelectModifyConfirmed(const TArray<AActor*>& Actors, const FString& LabelText, const FString& GeneratedJson);
+
+    /**
+     * PlayerController 的 Actor 选中回调 (单选模式)
+     * @param SelectedActor 选中的 Actor
+     * Requirements: 4.1
+     */
+    UFUNCTION()
+    void OnModifyActorSelected(AActor* SelectedActor);
+
+    /**
+     * PlayerController 的 Actor 选中回调 (多选模式)
+     * @param SelectedActors 选中的 Actor 数组
+     * Requirements: 2.1, 2.2
+     */
+    UFUNCTION()
+    void OnModifyActorsSelected(const TArray<AActor*>& SelectedActors);
+
+    //=========================================================================
+    // 通知系统内部
+    //=========================================================================
+
+    /** 当前通知消息 */
+    FString CurrentNotificationMessage;
+
+    /** 通知消息颜色 */
+    FLinearColor CurrentNotificationColor;
+
+    /** 是否显示通知 */
+    bool bShowNotification = false;
+
+    /** 通知显示开始时间 */
+    float NotificationStartTime = 0.0f;
+
+    /** 通知显示持续时间 (秒) */
+    static constexpr float NotificationDuration = 3.0f;
+
+    /**
+     * 绘制通知消息
+     * Requirements: 2.1, 3.2, 6.5
+     */
+    void DrawNotification();
+
+    //=========================================================================
+    // 场景标签可视化内部方法
+    // Requirements: 3.1, 3.2, 3.3, 3.4, 4.1, 4.2, 4.3, 4.4, 4.5, 6.1
+    //=========================================================================
+
+    /**
+     * 加载场景图数据用于可视化
+     * 从 SceneGraphManager 获取所有节点并缓存
+     * Requirements: 3.1, 3.2, 3.3
+     */
+    void LoadSceneGraphForVisualization();
+
+    /**
+     * 绘制场景标签
+     * 在 DrawHUD() 中调用，遍历缓存的节点并绘制绿色文本
+     * Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 5.3, 6.1
+     */
+    void DrawSceneLabels();
+
+    /**
+     * 清除高亮的 Actor
+     * 通过 PlayerController 清除当前高亮
+     */
+    void ClearHighlightedActor();
 };
