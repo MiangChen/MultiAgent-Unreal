@@ -27,24 +27,80 @@ cd MultiAgent-Unreal
 
 ### 2. 下载资产
 
-项目资产托管在 HuggingFace，需要单独下载：
+项目资产（约 5GB）托管在 HuggingFace，需要单独下载。UE5 要求 Content 目录与 `.uproject` 文件在同一级目录。
+
+#### 方法 A：直接放在项目内（简单）
 
 ```bash
+cd MultiAgent-Unreal
+
 # 安装 huggingface_hub
 pip install huggingface_hub
 
-# 下载压缩包
+# 下载压缩包到项目目录
 huggingface-cli download WindyLab/MultiAgent-Content MultiAgent_Content.tar.gz \
     --repo-type dataset --local-dir .
 
-# 解压
+# 解压到 unreal_project 目录
+tar -xzvf MultiAgent_Content.tar.gz -C unreal_project
+
+# 重命名为 Content
+mv unreal_project/MultiAgent_Content unreal_project/Content
+
+# 清理压缩包（可选）
+rm MultiAgent_Content.tar.gz
+```
+
+#### 方法 B：放在项目外 + 软链接（推荐）
+
+将资产放在项目外可以避免 Git 跟踪大文件，多个项目也可以共享资产。
+
+```bash
+# 1. 创建资产存放目录（示例路径，可自定义）
+mkdir -p ~/UE5_Assets
+
+# 2. 下载压缩包
+huggingface-cli download WindyLab/MultiAgent-Content MultiAgent_Content.tar.gz \
+    --repo-type dataset --local-dir ~/UE5_Assets
+
+# 3. 解压
+cd ~/UE5_Assets
 tar -xzvf MultiAgent_Content.tar.gz
 
-# 创建软链接（Linux/macOS）
-ln -s $(pwd)/MultiAgent_Content unreal_project/Content
+# 4. 在项目中创建软链接
+cd /path/to/MultiAgent-Unreal
+ln -s ~/UE5_Assets/MultiAgent_Content unreal_project/Content
 
-# Windows: 复制或使用 mklink
-# mklink /D unreal_project\Content path\to\MultiAgent_Content
+# 5. 验证软链接
+ls -la unreal_project/Content  # 应显示指向实际目录的链接
+```
+
+#### Windows 用户
+
+Windows 不支持 `ln -s`，使用以下方式：
+
+```powershell
+# 方法 1：管理员权限下创建符号链接
+mklink /D unreal_project\Content C:\UE5_Assets\MultiAgent_Content
+
+# 方法 2：直接复制（不推荐，占用空间）
+xcopy /E /I C:\UE5_Assets\MultiAgent_Content unreal_project\Content
+```
+
+#### 目录结构验证
+
+正确配置后，目录结构应为：
+
+```
+unreal_project/
+├── MultiAgent.uproject
+├── Source/
+├── Content/              # 软链接或实际目录
+│   ├── Characters/
+│   ├── Map/
+│   ├── Robot/
+│   └── ...
+└── ...
 ```
 
 ### 3. 配置脚本
