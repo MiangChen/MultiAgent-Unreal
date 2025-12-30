@@ -650,7 +650,7 @@ TArray<FMASceneGraphNode> UMASceneGraphManager::FindNodesByGuid(const FString& A
 {
     // Requirements: 2.1, 2.2, 2.4
     // 根据 Actor GUID 查找包含该 GUID 的所有节点
-    // 遍历所有节点，检查 GuidArray 是否包含目标 GUID
+    // 遍历所有节点，检查 GuidArray 和 Guid 字段
 
     TArray<FMASceneGraphNode> Result;
 
@@ -660,14 +660,42 @@ TArray<FMASceneGraphNode> UMASceneGraphManager::FindNodesByGuid(const FString& A
         return Result;
     }
 
+    // 规范化输入的 GUID（移除连字符，转为大写）
+    FString NormalizedInputGuid = ActorGuid.Replace(TEXT("-"), TEXT("")).ToUpper();
+
     // 获取所有节点
     TArray<FMASceneGraphNode> AllNodes = GetAllNodes();
 
-    // 遍历所有节点，检查 GuidArray 是否包含目标 GUID
+    // 遍历所有节点，检查 GuidArray 和 Guid 字段
     for (const FMASceneGraphNode& Node : AllNodes)
     {
-        // Requirements: 2.1 - 检查 GuidArray 是否包含目标 GUID
-        if (Node.GuidArray.Contains(ActorGuid))
+        bool bFound = false;
+        
+        // 检查单个 Guid 字段 (point 类型)
+        if (!Node.Guid.IsEmpty())
+        {
+            FString NormalizedNodeGuid = Node.Guid.Replace(TEXT("-"), TEXT("")).ToUpper();
+            if (NormalizedNodeGuid == NormalizedInputGuid)
+            {
+                bFound = true;
+            }
+        }
+        
+        // 检查 GuidArray (polygon/linestring 类型)
+        if (!bFound)
+        {
+            for (const FString& Guid : Node.GuidArray)
+            {
+                FString NormalizedGuid = Guid.Replace(TEXT("-"), TEXT("")).ToUpper();
+                if (NormalizedGuid == NormalizedInputGuid)
+                {
+                    bFound = true;
+                    break;
+                }
+            }
+        }
+        
+        if (bFound)
         {
             Result.Add(Node);
             UE_LOG(LogMASceneGraphManager, Verbose, TEXT("FindNodesByGuid: Found node %s (type=%s) containing GUID %s"), 

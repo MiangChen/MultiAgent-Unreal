@@ -10,6 +10,7 @@
 
 class UMAAgentManager;
 class AMAMiniMapManager;
+class UMAEditModeManager;
 
 UCLASS()
 class MULTIAGENT_API AMAGameMode : public AGameModeBase
@@ -44,6 +45,9 @@ protected:
     
     // 生成小地图管理器
     void SpawnMiniMapManager();
+    
+    // 初始化 Edit Mode 管理器
+    void InitializeEditModeManager();
 
 private:
     // 小地图管理器实例

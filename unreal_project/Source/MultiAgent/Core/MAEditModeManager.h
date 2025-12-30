@@ -5,15 +5,20 @@
 // 与 Modify Mode（持久化修改源场景图文件）不同，Edit Mode 的所有操作仅针对临时场景图文件进行
 //
 // Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 3.1, 3.2, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7
+// Requirements: 6.4, 7.4, 8.4, 9.6, 10.7, 11.1
+// Requirements: 14.1, 14.6, 15.2, 15.6, 16.1-16.6, 17.2, 17.3
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "Dom/JsonObject.h"
+#include "MACommTypes.h"
 #include "MAEditModeManager.generated.h"
 
 class AMAPointOfInterest;
+class AMAZoneActor;
+class AMAGoalActor;
 
 // 日志类别
 DECLARE_LOG_CATEGORY_EXTERN(LogMAEditMode, Log, All);
@@ -36,6 +41,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnTempSceneGraphChanged);
  * - POI (Point of Interest) 的创建和管理
  * - 对象选择管理 (Actor 单选、POI 多选、互斥选择)
  * - Node 操作 (添加、删除、修改)
+ * - Zone/Goal Actor 可视化管理
  * - 后端通信 (场景变化通知)
  * 
  * Requirements: 1.1, 1.2, 1.3, 1.4, 1.5
@@ -267,16 +273,181 @@ public:
     bool CreateZone(const TArray<FVector>& Vertices, const FString& Description, FString& OutError);
 
     //=========================================================================
-    // 后端通信 (将在后续任务中实现)
+    // 后端通信
+    // Requirements: 6.4, 7.4, 8.4, 9.6, 10.7, 11.1
     //=========================================================================
     
     /**
-     * 发送场景变化消息
+     * 发送场景变化消息到后端规划器
+     * Requirements: 11.1
      * 
-     * @param ChangeType 变化类型
-     * @param Payload 负载数据
+     * @param ChangeType 变化类型字符串 (add_node, delete_node, edit_node, add_goal, add_zone 等)
+     * @param Payload 负载数据 (JSON 格式)
      */
     void SendSceneChangeMessage(const FString& ChangeType, const FString& Payload);
+    
+    /**
+     * 发送场景变化消息 (使用枚举类型)
+     * Requirements: 11.1
+     * 
+     * @param ChangeType 变化类型枚举
+     * @param Payload 负载数据 (JSON 格式)
+     */
+    void SendSceneChangeMessageByType(EMASceneChangeType ChangeType, const FString& Payload);
+
+    //=========================================================================
+    // Zone/Goal Actor 管理
+    // Requirements: 14.1, 14.6, 15.2, 15.6
+    //=========================================================================
+    
+    /**
+     * 为 Zone Node 创建可视化 Actor
+     * Requirements: 14.1
+     * 
+     * @param NodeId Node ID
+     * @param Vertices 顶点数组
+     * @return 创建的 Zone Actor
+     */
+    UFUNCTION(BlueprintCallable, Category = "EditMode|Zone")
+    AMAZoneActor* CreateZoneActor(const FString& NodeId, const TArray<FVector>& Vertices);
+    
+    /**
+     * 销毁 Zone Actor
+     * 
+     * @param NodeId Node ID
+     */
+    UFUNCTION(BlueprintCallable, Category = "EditMode|Zone")
+    void DestroyZoneActor(const FString& NodeId);
+    
+    /**
+     * 销毁所有 Zone Actor
+     * Requirements: 14.6
+     */
+    UFUNCTION(BlueprintCallable, Category = "EditMode|Zone")
+    void DestroyAllZoneActors();
+    
+    /**
+     * 根据 Node ID 获取 Zone Actor
+     * 
+     * @param NodeId Node ID
+     * @return Zone Actor，未找到返回 nullptr
+     */
+    UFUNCTION(BlueprintPure, Category = "EditMode|Zone")
+    AMAZoneActor* GetZoneActorByNodeId(const FString& NodeId) const;
+    
+    /**
+     * 为 Goal Node 创建可视化 Actor
+     * Requirements: 15.2
+     * 
+     * @param NodeId Node ID
+     * @param Location 位置
+     * @param Description 描述
+     * @return 创建的 Goal Actor
+     */
+    UFUNCTION(BlueprintCallable, Category = "EditMode|Goal")
+    AMAGoalActor* CreateGoalActor(const FString& NodeId, const FVector& Location, const FString& Description);
+    
+    /**
+     * 销毁 Goal Actor
+     * 
+     * @param NodeId Node ID
+     */
+    UFUNCTION(BlueprintCallable, Category = "EditMode|Goal")
+    void DestroyGoalActor(const FString& NodeId);
+    
+    /**
+     * 销毁所有 Goal Actor
+     * Requirements: 15.6
+     */
+    UFUNCTION(BlueprintCallable, Category = "EditMode|Goal")
+    void DestroyAllGoalActors();
+    
+    /**
+     * 根据 Node ID 获取 Goal Actor
+     * 
+     * @param NodeId Node ID
+     * @return Goal Actor，未找到返回 nullptr
+     */
+    UFUNCTION(BlueprintPure, Category = "EditMode|Goal")
+    AMAGoalActor* GetGoalActorByNodeId(const FString& NodeId) const;
+
+    //=========================================================================
+    // 设为 Goal 功能
+    // Requirements: 16.1, 16.2, 16.3, 16.4, 16.5, 16.6
+    //=========================================================================
+    
+    /**
+     * 将 Node 设为 Goal (添加 is_goal: true)
+     * Requirements: 16.2, 16.3, 16.4
+     * 
+     * @param NodeId Node ID
+     * @param OutError 错误信息
+     * @return 是否成功
+     */
+    UFUNCTION(BlueprintCallable, Category = "EditMode|Goal")
+    bool SetNodeAsGoal(const FString& NodeId, FString& OutError);
+    
+    /**
+     * 取消 Node 的 Goal 状态 (移除 is_goal)
+     * Requirements: 16.6
+     * 
+     * @param NodeId Node ID
+     * @param OutError 错误信息
+     * @return 是否成功
+     */
+    UFUNCTION(BlueprintCallable, Category = "EditMode|Goal")
+    bool UnsetNodeAsGoal(const FString& NodeId, FString& OutError);
+    
+    /**
+     * 检查 Node 是否为 Goal
+     * Requirements: 16.5
+     * 
+     * @param NodeId Node ID
+     * @return 是否为 Goal
+     */
+    UFUNCTION(BlueprintPure, Category = "EditMode|Goal")
+    bool IsNodeGoal(const FString& NodeId) const;
+
+    //=========================================================================
+    // 列表查询
+    // Requirements: 17.2, 17.3
+    //=========================================================================
+    
+    /**
+     * 获取所有 Goal Node ID 列表
+     * Requirements: 17.2
+     * 
+     * @return Goal Node ID 数组
+     */
+    UFUNCTION(BlueprintPure, Category = "EditMode|Query")
+    TArray<FString> GetAllGoalNodeIds() const;
+    
+    /**
+     * 获取所有 Zone Node ID 列表
+     * Requirements: 17.3
+     * 
+     * @return Zone Node ID 数组
+     */
+    UFUNCTION(BlueprintPure, Category = "EditMode|Query")
+    TArray<FString> GetAllZoneNodeIds() const;
+    
+    /**
+     * 根据 Node ID 获取 Node 标签
+     * 
+     * @param NodeId Node ID
+     * @return Node 标签
+     */
+    UFUNCTION(BlueprintPure, Category = "EditMode|Query")
+    FString GetNodeLabel(const FString& NodeId) const;
+
+    /**
+     * 根据 GUID 查找场景中的 Actor
+     * 
+     * @param Guid Actor 的 GUID
+     * @return 找到的 Actor，未找到返回 nullptr
+     */
+    UFUNCTION(BlueprintPure, Category = "EditMode|Query")
+    AActor* FindActorByGuid(const FString& Guid) const;
 
     //=========================================================================
     // 委托
@@ -318,6 +489,14 @@ private:
     
     /** 下一个可用的 Node ID */
     int32 NextNodeId = 1;
+
+    /** Zone Actor 映射 (NodeId -> Actor) */
+    UPROPERTY()
+    TMap<FString, AMAZoneActor*> ZoneActors;
+    
+    /** Goal Actor 映射 (NodeId -> Actor) */
+    UPROPERTY()
+    TMap<FString, AMAGoalActor*> GoalActors;
 
     //=========================================================================
     // 内部方法
@@ -368,4 +547,55 @@ private:
      * 清除 POI 高亮
      */
     void ClearPOIHighlight();
+    
+    /**
+     * 检查 Node 是否为 point 类型
+     * Requirements: 5.3, 5.5, 7.5, 12.5
+     * 
+     * @param NodeObject Node JSON 对象
+     * @return 是否为 point 类型
+     */
+    bool IsPointTypeNode(const TSharedPtr<FJsonObject>& NodeObject) const;
+    
+    /**
+     * 根据 ID 查找 Node
+     * 
+     * @param NodeId Node ID
+     * @return Node JSON 对象，未找到返回 nullptr
+     */
+    TSharedPtr<FJsonObject> FindNodeById(const FString& NodeId) const;
+    
+    /**
+     * 根据 ID 查找 Node 索引
+     * 
+     * @param NodeId Node ID
+     * @return Node 在数组中的索引，未找到返回 -1
+     */
+    int32 FindNodeIndexById(const FString& NodeId) const;
+    
+    /**
+     * 删除与指定 Node 相关的所有 Edge
+     * Requirements: 7.3
+     * 
+     * @param NodeId Node ID
+     * @return 删除的 Edge 数量
+     */
+    int32 DeleteEdgesForNode(const FString& NodeId);
+    
+    /**
+     * 同步 Actor 位置到场景
+     * Requirements: 6.5, 12.2, 12.3
+     * 
+     * @param NodeObject Node JSON 对象
+     */
+    void SyncActorPositionFromNode(const TSharedPtr<FJsonObject>& NodeObject);
+    
+    /**
+     * 计算凸包
+     * Requirements: 10.3
+     * 
+     * @param Points 输入点集
+     * @return 凸包顶点（逆时针顺序）
+     */
+    TArray<FVector> ComputeConvexHull(const TArray<FVector>& Points) const;
 };

@@ -14,11 +14,15 @@ class UMATaskPlannerWidget;
 class UMADirectControlIndicator;
 class UMAEmergencyWidget;
 class UMAModifyWidget;
+class UMAEditWidget;
+class UMASceneListWidget;
 class AMAPlayerController;
 class AMACharacter;
 class UMAEmergencyManager;
+class UMAEditModeManager;
 class UMACameraSensorComponent;
 class UMASceneGraphManager;
+class AMAPointOfInterest;
 struct FMAPlannerResponse;
 struct FMATaskGraphData;
 struct FMASceneGraphNode;
@@ -77,6 +81,14 @@ public:
     /** Modify 模式修改面板实例 */
     UPROPERTY(BlueprintReadOnly, Category = "UI Instances")
     UMAModifyWidget* ModifyWidget;
+
+    /** Edit 模式编辑面板实例 */
+    UPROPERTY(BlueprintReadOnly, Category = "UI Instances")
+    UMAEditWidget* EditWidget;
+
+    /** 场景列表面板实例 (Edit 模式左侧 Goal/Zone 列表) */
+    UPROPERTY(BlueprintReadOnly, Category = "UI Instances")
+    UMASceneListWidget* SceneListWidget;
 
     //=========================================================================
     // UI 状态
@@ -265,6 +277,40 @@ public:
      */
     UFUNCTION(BlueprintPure, Category = "UI|Modify")
     bool IsModifyWidgetVisible() const;
+
+    //=========================================================================
+    // Edit 模式 UI 控制
+    // Requirements: 2.3
+    //=========================================================================
+
+    /**
+     * 显示 EditWidget
+     * Requirements: 2.3
+     */
+    UFUNCTION(BlueprintCallable, Category = "UI Control|Edit")
+    void ShowEditWidget();
+
+    /**
+     * 隐藏 EditWidget
+     * Requirements: 2.3
+     */
+    UFUNCTION(BlueprintCallable, Category = "UI Control|Edit")
+    void HideEditWidget();
+
+    /**
+     * 检查 EditWidget 是否可见
+     * @return true 如果 EditWidget 当前可见
+     */
+    UFUNCTION(BlueprintPure, Category = "UI|Edit")
+    bool IsEditWidgetVisible() const;
+
+    /**
+     * 检查鼠标是否在 EditWidget 上
+     * 用于 Edit 模式下判断是否应该处理场景点击
+     * @return true 如果鼠标在 EditWidget 或 SceneListWidget 上
+     */
+    UFUNCTION(BlueprintPure, Category = "UI|Edit")
+    bool IsMouseOverEditWidget() const;
 
     //=========================================================================
     // 场景标签可视化
@@ -469,4 +515,117 @@ private:
      * 通过 PlayerController 清除当前高亮
      */
     void ClearHighlightedActor();
+
+    //=========================================================================
+    // Edit 模式内部方法
+    // Requirements: 2.2, 3.3, 6.3, 7.2, 9.3, 10.4, 13.2
+    //=========================================================================
+
+    /**
+     * 绑定 EditModeManager 事件
+     * Requirements: 13.2
+     */
+    void BindEditModeManagerEvents();
+
+    /**
+     * 绑定 EditWidget 委托
+     * Requirements: 6.3, 7.2, 9.3, 10.4
+     */
+    void BindEditWidgetDelegates();
+
+    /**
+     * 绘制 Edit 模式指示器和 POI 坐标
+     * Requirements: 2.2, 3.3
+     */
+    void DrawEditModeIndicator();
+
+    /**
+     * EditModeManager 选择变化回调
+     * Requirements: 13.2
+     */
+    UFUNCTION()
+    void OnEditModeSelectionChanged();
+
+    /**
+     * EditModeManager 临时场景图变化回调
+     * Requirements: 13.2
+     */
+    UFUNCTION()
+    void OnTempSceneGraphChanged();
+
+    /**
+     * EditWidget 确认修改回调
+     * @param Actor 选中的 Actor
+     * @param JsonContent JSON 编辑内容
+     * Requirements: 6.3
+     */
+    UFUNCTION()
+    void OnEditConfirmed(AActor* Actor, const FString& JsonContent);
+
+    /**
+     * EditWidget 删除 Actor 回调
+     * @param Actor 要删除的 Actor
+     * Requirements: 7.2
+     */
+    UFUNCTION()
+    void OnEditDeleteActor(AActor* Actor);
+
+    /**
+     * EditWidget 创建 Goal 回调
+     * @param POI 用于创建 Goal 的 POI
+     * @param Description Goal 描述
+     * Requirements: 9.3
+     */
+    UFUNCTION()
+    void OnEditCreateGoal(AMAPointOfInterest* POI, const FString& Description);
+
+    /**
+     * EditWidget 创建 Zone 回调
+     * @param POIs 用于创建 Zone 的 POI 数组
+     * @param Description Zone 描述
+     * Requirements: 10.4
+     */
+    UFUNCTION()
+    void OnEditCreateZone(const TArray<AMAPointOfInterest*>& POIs, const FString& Description);
+
+    /**
+     * EditWidget 添加预设 Actor 回调
+     * @param POI 目标 POI
+     * @param ActorType 预设 Actor 类型
+     * Requirements: 8.2
+     */
+    UFUNCTION()
+    void OnEditAddPresetActor(AMAPointOfInterest* POI, const FString& ActorType);
+
+    /**
+     * EditWidget 设为 Goal 回调
+     * @param Actor 目标 Actor
+     * Requirements: 16.2
+     */
+    UFUNCTION()
+    void OnEditSetAsGoal(AActor* Actor);
+
+    /**
+     * EditWidget 取消 Goal 回调
+     * @param Actor 目标 Actor
+     * Requirements: 16.6
+     */
+    UFUNCTION()
+    void OnEditUnsetAsGoal(AActor* Actor);
+
+    /**
+     * SceneListWidget Goal 项点击回调
+     * @param GoalId Goal Node ID
+     * Requirements: 17.4
+     */
+    UFUNCTION()
+    void OnSceneListGoalClicked(const FString& GoalId);
+
+    /**
+     * SceneListWidget Zone 项点击回调
+     * @param ZoneId Zone Node ID
+     * Requirements: 17.5
+     */
+    UFUNCTION()
+    void OnSceneListZoneClicked(const FString& ZoneId);
 };
