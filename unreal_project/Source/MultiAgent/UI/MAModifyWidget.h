@@ -149,6 +149,25 @@ public:
     FString GetNextAvailableId();
 
     //=========================================================================
+    // 选择验证
+    // Requirements: 2.1, 2.2, 3.1, 4.1
+    //=========================================================================
+
+    /**
+     * 验证选择是否符合分类约束
+     * - Building 类型: 仅允许单选 (SelectionCount == 1)
+     * - TransFacility 类型: 允许任意数量
+     * - Prop 类型: 允许任意数量
+     * @param Category 节点分类
+     * @param SelectionCount 选中的 Actor 数量
+     * @param OutError 错误信息 (如果验证失败)
+     * @return 验证是否通过
+     * Requirements: 2.1, 2.2, 3.1, 4.1
+     */
+    UFUNCTION(BlueprintCallable, Category = "UI|Validation")
+    bool ValidateSelectionForCategory(EMANodeCategory Category, int32 SelectionCount, FString& OutError);
+
+    //=========================================================================
     // 默认属性
     // Requirements: 6.1, 7.1, 8.1
     //=========================================================================
@@ -210,6 +229,20 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "UI|JSON")
     FString GenerateSceneGraphNode(const FMAAnnotationInput& Input, const TArray<AActor*>& Actors);
+
+    /**
+     * 生成场景图节点 JSON V2 (支持新的形状类型)
+     * 根据 Category 调用不同的几何计算方法:
+     * - Building: ComputePrismFromActors → Prism JSON
+     * - TransFacility: ComputeOBBFromActors → LineString + Vertices JSON
+     * - Prop: ComputeCenterFromActors → Point JSON
+     * @param Input 解析后的标注输入
+     * @param Actors 选中的 Actor 数组
+     * @return 生成的 JSON 字符串
+     * Requirements: 2.5, 2.6, 2.7, 3.4, 3.5, 3.6, 4.3, 4.4
+     */
+    UFUNCTION(BlueprintCallable, Category = "UI|JSON")
+    FString GenerateSceneGraphNodeV2(const FMAAnnotationInput& Input, const TArray<AActor*>& Actors);
 
     //=========================================================================
     // 事件委托
@@ -310,6 +343,14 @@ private:
      * Requirements: 3.1, 3.2, 3.3, 3.4
      */
     FString FormatJsonPreviewWithHighlight(const FMASceneGraphNode& Node, const FString& ActorGuid) const;
+
+    /**
+     * 根据分类获取对应的提示文本
+     * @param Category 节点分类
+     * @return 对应的提示文本
+     * Requirements: 1.4
+     */
+    FString GetHintTextForCategory(EMANodeCategory Category) const;
 
     /**
      * 更新 JSON 预览文本 (多选模式)
