@@ -417,14 +417,15 @@ bool UMASceneGraphManager::AddSceneNode(const FString& Id, const FString& Type, 
 
 bool UMASceneGraphManager::AddMultiSelectNode(const FString& JsonString, FString& OutErrorMessage)
 {
-    // Requirements: 4.1, 4.2, 5.1, 5.2, 8.1
-    // 添加多选节点 (Polygon/LineString)
+    // Requirements: 4.1, 4.2, 5.1, 5.2, 7.4, 8.1, 8.3, 8.4
+    // 添加多选节点 (Polygon/LineString/Prism/Point)
 
     OutErrorMessage.Empty();
 
     if (JsonString.IsEmpty())
     {
         OutErrorMessage = TEXT("JSON 字符串为空");
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("AddMultiSelectNode: JSON string is empty"));
         return false;
     }
 
@@ -443,6 +444,7 @@ bool UMASceneGraphManager::AddMultiSelectNode(const FString& JsonString, FString
     if (!NodeObject->TryGetStringField(TEXT("id"), NodeId))
     {
         OutErrorMessage = TEXT("JSON 缺少 id 字段");
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("AddMultiSelectNode: JSON missing 'id' field"));
         return false;
     }
 
@@ -451,6 +453,14 @@ bool UMASceneGraphManager::AddMultiSelectNode(const FString& JsonString, FString
     {
         OutErrorMessage = FString::Printf(TEXT("ID 已存在: %s"), *NodeId);
         UE_LOG(LogMASceneGraphManager, Warning, TEXT("AddMultiSelectNode: %s"), *OutErrorMessage);
+        return false;
+    }
+
+    // Requirements: 7.4, 8.3, 8.4 - 验证 JSON 结构
+    if (!ValidateNodeJsonStructure(NodeObject, OutErrorMessage))
+    {
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("AddMultiSelectNode: JSON validation failed for node id=%s: %s"), *NodeId, *OutErrorMessage);
+        // 验证失败，不修改文件，直接返回
         return false;
     }
 
@@ -465,6 +475,7 @@ bool UMASceneGraphManager::AddMultiSelectNode(const FString& JsonString, FString
     if (!NodesArray)
     {
         OutErrorMessage = TEXT("保存失败: 无法获取节点数组");
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("AddMultiSelectNode: Failed to get nodes array"));
         return false;
     }
 
@@ -475,6 +486,7 @@ bool UMASceneGraphManager::AddMultiSelectNode(const FString& JsonString, FString
     if (!SaveSceneGraph())
     {
         OutErrorMessage = TEXT("保存失败: 无法写入文件");
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("AddMultiSelectNode: Failed to save scene graph"));
         // 回滚：移除刚添加的节点
         NodesArray->RemoveAt(NodesArray->Num() - 1);
         return false;
@@ -605,6 +617,28 @@ TArray<FMASceneGraphNode> UMASceneGraphManager::GetAllNodes() const
                 else
                 {
                     UE_LOG(LogMASceneGraphManager, Warning, TEXT("GetAllNodes: linestring node %s missing points"), *Node.Id);
+                    Node.Center = FVector::ZeroVector;
+                }
+            }
+            else if (Node.ShapeType == TEXT("prism"))
+            {
+                // 对于 prism 类型，从 vertices (底面顶点) 计算中心点
+                const TArray<TSharedPtr<FJsonValue>>* VerticesArray;
+                if ((*ShapeObject)->TryGetArrayField(TEXT("vertices"), VerticesArray))
+                {
+                    // 使用 CalculatePolygonCentroid 计算底面多边形的中心
+                    Node.Center = CalculatePolygonCentroid(*VerticesArray);
+                    
+                    // 可选：将 Z 坐标调整为棱柱高度的一半
+                    double Height = 0.0;
+                    if ((*ShapeObject)->TryGetNumberField(TEXT("height"), Height))
+                    {
+                        Node.Center.Z += Height / 2.0;
+                    }
+                }
+                else
+                {
+                    UE_LOG(LogMASceneGraphManager, Warning, TEXT("GetAllNodes: prism node %s missing vertices"), *Node.Id);
                     Node.Center = FVector::ZeroVector;
                 }
             }
@@ -838,4 +872,193 @@ TArray<TSharedPtr<FJsonValue>>* UMASceneGraphManager::GetNodesArray() const
     // 返回非 const 指针以便修改
     // 注意：这里使用 const_cast 是因为我们需要修改数组内容
     return const_cast<TArray<TSharedPtr<FJsonValue>>*>(NodesArray);
+}
+
+bool UMASceneGraphManager::ValidateNodeJsonStructure(const TSharedPtr<FJsonObject>& NodeObject, FString& OutErrorMessage) const
+{
+    // Requirements: 7.4, 8.3, 8.4
+    // 验证场景图节点 JSON 结构
+    // 根据 shape.type 验证必需字段
+
+    OutErrorMessage.Empty();
+
+    if (!NodeObject.IsValid())
+    {
+        OutErrorMessage = TEXT("JSON 对象无效");
+        return false;
+    }
+
+    // 验证必需的顶级字段: id
+    FString NodeId;
+    if (!NodeObject->TryGetStringField(TEXT("id"), NodeId) || NodeId.IsEmpty())
+    {
+        OutErrorMessage = TEXT("JSON 缺少有效的 id 字段");
+        return false;
+    }
+
+    // 验证 properties 对象
+    const TSharedPtr<FJsonObject>* PropertiesObject;
+    if (!NodeObject->TryGetObjectField(TEXT("properties"), PropertiesObject) || !PropertiesObject->IsValid())
+    {
+        OutErrorMessage = TEXT("JSON 缺少 properties 对象");
+        return false;
+    }
+
+    // 验证 properties.type 字段
+    FString PropertyType;
+    if (!(*PropertiesObject)->TryGetStringField(TEXT("type"), PropertyType) || PropertyType.IsEmpty())
+    {
+        OutErrorMessage = TEXT("JSON properties 缺少有效的 type 字段");
+        return false;
+    }
+
+    // 验证 shape 对象
+    const TSharedPtr<FJsonObject>* ShapeObject;
+    if (!NodeObject->TryGetObjectField(TEXT("shape"), ShapeObject) || !ShapeObject->IsValid())
+    {
+        OutErrorMessage = TEXT("JSON 缺少 shape 对象");
+        return false;
+    }
+
+    // 验证 shape.type 字段
+    FString ShapeType;
+    if (!(*ShapeObject)->TryGetStringField(TEXT("type"), ShapeType) || ShapeType.IsEmpty())
+    {
+        OutErrorMessage = TEXT("JSON shape 缺少有效的 type 字段");
+        return false;
+    }
+
+    // 根据 shape.type 验证特定字段
+    if (ShapeType.Equals(TEXT("prism"), ESearchCase::IgnoreCase))
+    {
+        // Prism 类型: 需要 vertices 和 height
+        // Requirements: 2.5, 2.6, 2.7
+        
+        const TArray<TSharedPtr<FJsonValue>>* VerticesArray;
+        if (!(*ShapeObject)->TryGetArrayField(TEXT("vertices"), VerticesArray))
+        {
+            OutErrorMessage = TEXT("prism 类型缺少 vertices 字段");
+            return false;
+        }
+        
+        if (VerticesArray->Num() < 3)
+        {
+            OutErrorMessage = FString::Printf(TEXT("prism 类型 vertices 数量不足 (需要至少 3 个，实际 %d 个)"), VerticesArray->Num());
+            return false;
+        }
+
+        double Height;
+        if (!(*ShapeObject)->TryGetNumberField(TEXT("height"), Height))
+        {
+            OutErrorMessage = TEXT("prism 类型缺少 height 字段");
+            return false;
+        }
+
+        if (Height <= 0)
+        {
+            OutErrorMessage = FString::Printf(TEXT("prism 类型 height 值无效 (需要 > 0，实际 %f)"), Height);
+            return false;
+        }
+
+        UE_LOG(LogMASceneGraphManager, Verbose, TEXT("ValidateNodeJsonStructure: prism validation passed (vertices=%d, height=%f)"), 
+            VerticesArray->Num(), Height);
+    }
+    else if (ShapeType.Equals(TEXT("linestring"), ESearchCase::IgnoreCase))
+    {
+        // LineString 类型: 需要 points 和 vertices
+        // Requirements: 3.4, 3.5, 3.6
+        
+        const TArray<TSharedPtr<FJsonValue>>* PointsArray;
+        if (!(*ShapeObject)->TryGetArrayField(TEXT("points"), PointsArray))
+        {
+            OutErrorMessage = TEXT("linestring 类型缺少 points 字段");
+            return false;
+        }
+        
+        if (PointsArray->Num() < 2)
+        {
+            OutErrorMessage = FString::Printf(TEXT("linestring 类型 points 数量不足 (需要至少 2 个，实际 %d 个)"), PointsArray->Num());
+            return false;
+        }
+
+        const TArray<TSharedPtr<FJsonValue>>* VerticesArray;
+        if (!(*ShapeObject)->TryGetArrayField(TEXT("vertices"), VerticesArray))
+        {
+            OutErrorMessage = TEXT("linestring 类型缺少 vertices 字段");
+            return false;
+        }
+        
+        if (VerticesArray->Num() != 4)
+        {
+            OutErrorMessage = FString::Printf(TEXT("linestring 类型 vertices 数量错误 (需要 4 个，实际 %d 个)"), VerticesArray->Num());
+            return false;
+        }
+
+        UE_LOG(LogMASceneGraphManager, Verbose, TEXT("ValidateNodeJsonStructure: linestring validation passed (points=%d, vertices=%d)"), 
+            PointsArray->Num(), VerticesArray->Num());
+    }
+    else if (ShapeType.Equals(TEXT("point"), ESearchCase::IgnoreCase))
+    {
+        // Point 类型: 需要 center
+        // Requirements: 4.3, 4.4
+        
+        const TArray<TSharedPtr<FJsonValue>>* CenterArray;
+        if (!(*ShapeObject)->TryGetArrayField(TEXT("center"), CenterArray))
+        {
+            OutErrorMessage = TEXT("point 类型缺少 center 字段");
+            return false;
+        }
+        
+        if (CenterArray->Num() != 3)
+        {
+            OutErrorMessage = FString::Printf(TEXT("point 类型 center 坐标数量错误 (需要 3 个，实际 %d 个)"), CenterArray->Num());
+            return false;
+        }
+
+        UE_LOG(LogMASceneGraphManager, Verbose, TEXT("ValidateNodeJsonStructure: point validation passed"));
+    }
+    else if (ShapeType.Equals(TEXT("polygon"), ESearchCase::IgnoreCase))
+    {
+        // Polygon 类型: 需要 vertices (向后兼容)
+        const TArray<TSharedPtr<FJsonValue>>* VerticesArray;
+        if (!(*ShapeObject)->TryGetArrayField(TEXT("vertices"), VerticesArray))
+        {
+            OutErrorMessage = TEXT("polygon 类型缺少 vertices 字段");
+            return false;
+        }
+        
+        if (VerticesArray->Num() < 3)
+        {
+            OutErrorMessage = FString::Printf(TEXT("polygon 类型 vertices 数量不足 (需要至少 3 个，实际 %d 个)"), VerticesArray->Num());
+            return false;
+        }
+
+        UE_LOG(LogMASceneGraphManager, Verbose, TEXT("ValidateNodeJsonStructure: polygon validation passed (vertices=%d)"), 
+            VerticesArray->Num());
+    }
+    else
+    {
+        // 未知的 shape.type，记录警告但允许通过（向后兼容）
+        UE_LOG(LogMASceneGraphManager, Warning, TEXT("ValidateNodeJsonStructure: Unknown shape type '%s', allowing for backward compatibility"), *ShapeType);
+    }
+
+    // 验证 Guid 数组（如果存在）
+    const TArray<TSharedPtr<FJsonValue>>* GuidArray;
+    if (NodeObject->TryGetArrayField(TEXT("Guid"), GuidArray))
+    {
+        // 验证 count 字段与 Guid 数组长度一致
+        int32 Count;
+        if (NodeObject->TryGetNumberField(TEXT("count"), Count))
+        {
+            if (Count != GuidArray->Num())
+            {
+                UE_LOG(LogMASceneGraphManager, Warning, TEXT("ValidateNodeJsonStructure: count (%d) does not match Guid array length (%d)"), 
+                    Count, GuidArray->Num());
+                // 这是警告，不是错误，允许继续
+            }
+        }
+    }
+
+    UE_LOG(LogMASceneGraphManager, Log, TEXT("ValidateNodeJsonStructure: Validation passed for node id=%s, shape.type=%s"), *NodeId, *ShapeType);
+    return true;
 }

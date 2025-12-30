@@ -32,7 +32,7 @@ enum class EMANodeCategory : uint8
 /**
  * 形状类型枚举
  * 用于标识多选标注的几何形状类型
- * Requirements: 4.1, 5.1
+ * Requirements: 4.1, 5.1, 2.5
  */
 UENUM(BlueprintType)
 enum class EMAShapeType : uint8
@@ -47,7 +47,10 @@ enum class EMAShapeType : uint8
     LineString  UMETA(DisplayName = "LineString"),
     
     /** 矩形类型 - 用于简单的矩形区域 */
-    Rectangle   UMETA(DisplayName = "Rectangle")
+    Rectangle   UMETA(DisplayName = "Rectangle"),
+    
+    /** 棱柱类型 - 用于建筑物的 3D 表示 (底面多边形 + 高度) */
+    Prism       UMETA(DisplayName = "Prism")
 };
 
 /**
@@ -263,6 +266,16 @@ struct MULTIAGENT_API FMAAnnotationInput
     }
 
     /**
+     * 检查是否为 Prism 类型
+     * @return 如果 Shape 为 "prism" (不区分大小写)
+     * Requirements: 2.5
+     */
+    FORCEINLINE bool IsPrism() const
+    {
+        return Shape.Equals(TEXT("prism"), ESearchCase::IgnoreCase);
+    }
+
+    /**
      * 获取形状类型枚举值
      * @return 对应的 EMAShapeType 枚举值
      */
@@ -279,6 +292,10 @@ struct MULTIAGENT_API FMAAnnotationInput
         else if (IsRectangle())
         {
             return EMAShapeType::Rectangle;
+        }
+        else if (IsPrism())
+        {
+            return EMAShapeType::Prism;
         }
         return EMAShapeType::Point;
     }

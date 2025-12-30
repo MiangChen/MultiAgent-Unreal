@@ -27,9 +27,12 @@
 DEFINE_LOG_CATEGORY_STATIC(LogMAModifyWidget, Log, All);
 
 // 提示文字常量
-// Requirements: 10.3 - 更新为新格式提示
-static const FString DefaultHintText = TEXT("输入格式: cate:building/trans_facility/prop,type:xxx");
-static const FString MultiSelectHintText = TEXT("输入格式: cate:xxx,type:xxx,shape:polygon/linestring");
+// Requirements: 1.4, 10.1 - 更新为新格式提示，根据 Category 显示不同提示
+static const FString DefaultHintText = TEXT("输入格式: cate:building/trans_facility/prop,type:xxx\n• building: 建筑物 (棱柱建模，仅单选)\n• trans_facility: 交通设施 (OBB矩形)\n• prop: 道具 (点建模)");
+static const FString MultiSelectHintText = TEXT("多选模式 - 输入格式: cate:trans_facility/prop,type:xxx\n注意: building 类型仅支持单选");
+static const FString BuildingHintText = TEXT("Building 类型 (棱柱建模)\n输入格式: cate:building,type:xxx\n• 仅支持单选\n• 自动计算底面多边形和高度");
+static const FString TransFacilityHintText = TEXT("TransFacility 类型 (OBB矩形建模)\n输入格式: cate:trans_facility,type:xxx\n• 支持单选或多选\n• 自动计算最小包围矩形");
+static const FString PropHintText = TEXT("Prop 类型 (点建模)\n输入格式: cate:prop,type:xxx\n• 支持单选或多选\n• 自动计算几何中心");
 
 UMAModifyWidget::UMAModifyWidget(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
@@ -391,7 +394,7 @@ void UMAModifyWidget::SetLabelText(const FString& Text)
 
 //=========================================================================
 // OnConfirmButtonClicked - 确认按钮点击处理
-// Requirements: 5.1, 5.2, 5.3, 5.4, 8.1, 8.2, 8.3
+// Requirements: 2.1, 2.2, 5.1, 5.2, 5.3, 5.4, 8.1, 8.2, 8.3
 //=========================================================================
 
 void UMAModifyWidget::OnConfirmButtonClicked()
@@ -408,50 +411,61 @@ void UMAModifyWidget::OnConfirmButtonClicked()
     // 获取文本框内容
     FString LabelContent = GetLabelText();
     
-    // 判断是单选还是多选模式
-    if (IsMultiSelectMode())
+    // 解析输入 (支持新旧格式)
+    FMAAnnotationInput ParsedInput;
+    FString ParseError;
+    if (!ParseAnnotationInput(LabelContent, ParsedInput, ParseError))
     {
-        // 多选模式
-        UE_LOG(LogMAModifyWidget, Log, TEXT("OnConfirmButtonClicked: Multi-select mode, %d actors, LabelText=%s"), 
-            SelectedActors.Num(), *LabelContent);
-        
-        // 解析输入
-        FMAAnnotationInput ParsedInput;
-        FString ParseError;
-        if (!ParseAnnotationInput(LabelContent, ParsedInput, ParseError))
+        UE_LOG(LogMAModifyWidget, Warning, TEXT("OnConfirmButtonClicked: Parse failed - %s"), *ParseError);
+        // 解析失败，广播单选委托让 MAHUD 处理错误显示
+        OnModifyConfirmed.Broadcast(SelectedActors[0], LabelContent);
+        return;
+    }
+    
+    // Requirements: 2.1, 2.2, 8.1, 8.2 - 验证选择是否符合分类约束
+    if (ParsedInput.HasCategory())
+    {
+        FString ValidationError;
+        if (!ValidateSelectionForCategory(ParsedInput.Category, SelectedActors.Num(), ValidationError))
         {
-            UE_LOG(LogMAModifyWidget, Warning, TEXT("OnConfirmButtonClicked: Parse failed - %s"), *ParseError);
-            // 解析失败，保留输入，由 MAHUD 处理错误显示
-            OnModifyConfirmed.Broadcast(SelectedActors[0], LabelContent);
+            UE_LOG(LogMAModifyWidget, Warning, TEXT("OnConfirmButtonClicked: Validation failed - %s"), *ValidationError);
+            // 验证失败，广播单选委托让 MAHUD 处理错误显示
+            // 将错误信息附加到 LabelContent 以便 MAHUD 显示
+            OnModifyConfirmed.Broadcast(SelectedActors[0], FString::Printf(TEXT("ERROR: %s"), *ValidationError));
             return;
         }
-        
-        // 检查多选模式是否指定了 shape
-        if (!ParsedInput.IsMultiSelect())
-        {
-            UE_LOG(LogMAModifyWidget, Warning, TEXT("OnConfirmButtonClicked: Multi-select requires shape:polygon or shape:linestring"));
-            // 广播单选委托，让 MAHUD 处理错误
-            OnModifyConfirmed.Broadcast(SelectedActors[0], LabelContent);
-            return;
-        }
-        
-        // 生成 JSON
-        FString GeneratedJson = GenerateSceneGraphNode(ParsedInput, SelectedActors);
-        
-        // 广播多选确认委托
-        OnMultiSelectModifyConfirmed.Broadcast(SelectedActors, LabelContent, GeneratedJson);
+    }
+    
+    // 根据是否有 Category 决定使用哪个 JSON 生成方法
+    FString GeneratedJson;
+    if (ParsedInput.HasCategory())
+    {
+        // 新格式 (cate:xxx,type:xxx) - 使用 GenerateSceneGraphNodeV2
+        // Requirements: 2.5, 2.6, 2.7, 3.4, 3.5, 3.6, 4.3, 4.4
+        GeneratedJson = GenerateSceneGraphNodeV2(ParsedInput, SelectedActors);
+        UE_LOG(LogMAModifyWidget, Log, TEXT("OnConfirmButtonClicked: Using GenerateSceneGraphNodeV2 for Category=%s"), 
+            *ParsedInput.GetCategoryString());
+    }
+    else if (ParsedInput.IsMultiSelect())
+    {
+        // 旧格式多选 (id:xxx,type:xxx,shape:polygon) - 使用 GenerateSceneGraphNode
+        GeneratedJson = GenerateSceneGraphNode(ParsedInput, SelectedActors);
+        UE_LOG(LogMAModifyWidget, Log, TEXT("OnConfirmButtonClicked: Using GenerateSceneGraphNode for legacy multi-select"));
     }
     else
     {
-        // 单选模式 - 保持原有行为
-        UE_LOG(LogMAModifyWidget, Log, TEXT("OnConfirmButtonClicked: Single-select mode, Actor=%s, LabelText=%s"), 
+        // 旧格式单选 - 不生成 JSON，由 MAHUD 处理
+        UE_LOG(LogMAModifyWidget, Log, TEXT("OnConfirmButtonClicked: Legacy single-select mode, Actor=%s, LabelText=%s"), 
             *SelectedActors[0]->GetName(), *LabelContent);
-        
-        // 广播单选确认委托
         OnModifyConfirmed.Broadcast(SelectedActors[0], LabelContent);
+        UE_LOG(LogMAModifyWidget, Log, TEXT("OnConfirmButtonClicked: Modification confirmed, waiting for MAHUD to handle state"));
+        return;
     }
     
-    UE_LOG(LogMAModifyWidget, Log, TEXT("OnConfirmButtonClicked: Modification confirmed, waiting for MAHUD to handle state"));
+    // 广播多选确认委托 (包含生成的 JSON)
+    OnMultiSelectModifyConfirmed.Broadcast(SelectedActors, LabelContent, GeneratedJson);
+    
+    UE_LOG(LogMAModifyWidget, Log, TEXT("OnConfirmButtonClicked: Modification confirmed with JSON, waiting for MAHUD to handle state"));
 }
 
 //=========================================================================
@@ -848,12 +862,27 @@ FString UMAModifyWidget::GenerateSceneGraphNode(const FMAAnnotationInput& Input,
     TSharedPtr<FJsonObject> PropertiesObject = MakeShareable(new FJsonObject());
     PropertiesObject->SetStringField(TEXT("type"), Input.Type);
     
-    // 生成标签
-    FString Label = FString::Printf(TEXT("%s-%s"), *Input.Type, *Input.Id);
-    // 首字母大写
-    if (Label.Len() > 0)
+    // 生成标签 - 使用 MASceneGraphManager::GenerateLabel() 生成 Type-N 格式
+    // Requirements: 1.1, 2.1, 2.2, 2.3, 2.4
+    FString Label;
+    UWorld* World = GetWorld();
+    UGameInstance* GI = World ? World->GetGameInstance() : nullptr;
+    UMASceneGraphManager* SceneGraphManager = GI ? GI->GetSubsystem<UMASceneGraphManager>() : nullptr;
+    
+    if (SceneGraphManager)
     {
-        Label[0] = FChar::ToUpper(Label[0]);
+        Label = SceneGraphManager->GenerateLabel(Input.Type);
+    }
+    else
+    {
+        // 回退：MASceneGraphManager 不可用时使用 Type-1 格式
+        FString CapitalizedType = Input.Type;
+        if (CapitalizedType.Len() > 0)
+        {
+            CapitalizedType[0] = FChar::ToUpper(CapitalizedType[0]);
+        }
+        Label = FString::Printf(TEXT("%s-1"), *CapitalizedType);
+        UE_LOG(LogMAModifyWidget, Warning, TEXT("GenerateSceneGraphNode: MASceneGraphManager not available, using fallback label: %s"), *Label);
     }
     PropertiesObject->SetStringField(TEXT("label"), Label);
     
@@ -960,6 +989,406 @@ FString UMAModifyWidget::GenerateSceneGraphNode(const FMAAnnotationInput& Input,
     FJsonSerializer::Serialize(RootObject.ToSharedRef(), Writer);
     
     UE_LOG(LogMAModifyWidget, Log, TEXT("GenerateSceneGraphNode: Generated JSON for %d actors"), Actors.Num());
+    return OutputString;
+}
+
+//=========================================================================
+// GenerateSceneGraphNodeV2 - 生成场景图节点 JSON V2 (支持新的形状类型)
+// 根据 Category 调用不同的几何计算方法:
+// - Building: ComputePrismFromActors → Prism JSON
+// - TransFacility: ComputeOBBFromActors → LineString + Vertices JSON
+// - Prop: ComputeCenterFromActors → Point JSON
+// Requirements: 2.5, 2.6, 2.7, 3.4, 3.5, 3.6, 4.3, 4.4
+//=========================================================================
+
+FString UMAModifyWidget::GenerateSceneGraphNodeV2(const FMAAnnotationInput& Input, const TArray<AActor*>& Actors)
+{
+    if (Actors.Num() == 0)
+    {
+        UE_LOG(LogMAModifyWidget, Warning, TEXT("GenerateSceneGraphNodeV2: No actors provided"));
+        return TEXT("{}");
+    }
+    
+    // 创建 JSON 对象
+    TSharedPtr<FJsonObject> RootObject = MakeShareable(new FJsonObject());
+    
+    // 基本字段
+    RootObject->SetStringField(TEXT("id"), Input.Id);
+    RootObject->SetNumberField(TEXT("count"), Actors.Num());
+    
+    // GUID 数组
+    TArray<TSharedPtr<FJsonValue>> GuidArray;
+    TArray<FString> Guids = CollectActorGuids(Actors);
+    for (const FString& Guid : Guids)
+    {
+        GuidArray.Add(MakeShareable(new FJsonValueString(Guid)));
+    }
+    RootObject->SetArrayField(TEXT("Guid"), GuidArray);
+    
+    // properties 对象
+    TSharedPtr<FJsonObject> PropertiesObject = MakeShareable(new FJsonObject());
+    PropertiesObject->SetStringField(TEXT("type"), Input.Type);
+    
+    // 生成标签 - 使用 MASceneGraphManager::GenerateLabel() 生成 Type-N 格式
+    // Requirements: 1.1, 2.1, 2.2, 2.3, 2.5
+    FString Label;
+    UWorld* World = GetWorld();
+    UGameInstance* GI = World ? World->GetGameInstance() : nullptr;
+    UMASceneGraphManager* SceneGraphManager = GI ? GI->GetSubsystem<UMASceneGraphManager>() : nullptr;
+    
+    if (SceneGraphManager)
+    {
+        Label = SceneGraphManager->GenerateLabel(Input.Type);
+    }
+    else
+    {
+        // 回退：MASceneGraphManager 不可用时使用 Type-1 格式
+        FString CapitalizedType = Input.Type;
+        if (CapitalizedType.Len() > 0)
+        {
+            CapitalizedType[0] = FChar::ToUpper(CapitalizedType[0]);
+        }
+        Label = FString::Printf(TEXT("%s-1"), *CapitalizedType);
+        UE_LOG(LogMAModifyWidget, Warning, TEXT("GenerateSceneGraphNodeV2: MASceneGraphManager not available, using fallback label: %s"), *Label);
+    }
+    PropertiesObject->SetStringField(TEXT("label"), Label);
+    
+    // 添加 category 字段
+    if (Input.HasCategory())
+    {
+        PropertiesObject->SetStringField(TEXT("category"), Input.GetCategoryString());
+    }
+    
+    // 添加默认属性
+    if (Input.HasCategory())
+    {
+        TMap<FString, FString> DefaultProps = GetDefaultPropertiesForCategory(Input.Category);
+        for (const auto& DefaultProp : DefaultProps)
+        {
+            // 跳过 category，已经添加过了
+            if (DefaultProp.Key == TEXT("category"))
+            {
+                continue;
+            }
+            // 检查用户是否已经在 Input.Properties 中指定了该字段
+            if (!Input.Properties.Contains(DefaultProp.Key))
+            {
+                // 处理布尔值字段
+                if (DefaultProp.Value == TEXT("true") || DefaultProp.Value == TEXT("false"))
+                {
+                    PropertiesObject->SetBoolField(DefaultProp.Key, DefaultProp.Value == TEXT("true"));
+                }
+                else
+                {
+                    PropertiesObject->SetStringField(DefaultProp.Key, DefaultProp.Value);
+                }
+            }
+        }
+    }
+    
+    // 添加用户指定的额外属性（用户输入优先，会覆盖默认值）
+    for (const auto& Prop : Input.Properties)
+    {
+        // 处理布尔值字段
+        if (Prop.Value.Equals(TEXT("true"), ESearchCase::IgnoreCase) || 
+            Prop.Value.Equals(TEXT("false"), ESearchCase::IgnoreCase))
+        {
+            PropertiesObject->SetBoolField(Prop.Key, Prop.Value.Equals(TEXT("true"), ESearchCase::IgnoreCase));
+        }
+        else
+        {
+            PropertiesObject->SetStringField(Prop.Key, Prop.Value);
+        }
+    }
+    RootObject->SetObjectField(TEXT("properties"), PropertiesObject);
+    
+    // shape 对象 - 根据 Category 生成不同的形状
+    TSharedPtr<FJsonObject> ShapeObject = MakeShareable(new FJsonObject());
+    
+    switch (Input.Category)
+    {
+    case EMANodeCategory::Building:
+        {
+            // Building 类型 - Prism (棱柱)
+            // Requirements: 2.5, 2.6, 2.7
+            ShapeObject->SetStringField(TEXT("type"), TEXT("prism"));
+            
+            // 调用 ComputePrismFromActors 获取几何数据
+            FMAPrismGeometry PrismGeometry = FMAGeometryUtils::ComputePrismFromActors(Actors);
+            
+            if (PrismGeometry.bIsValid)
+            {
+                // 添加 vertices 字段 (底面顶点)
+                TArray<TSharedPtr<FJsonValue>> VerticesArray;
+                for (const FVector& Vertex : PrismGeometry.BottomVertices)
+                {
+                    TArray<TSharedPtr<FJsonValue>> PointArray;
+                    PointArray.Add(MakeShareable(new FJsonValueNumber(Vertex.X)));
+                    PointArray.Add(MakeShareable(new FJsonValueNumber(Vertex.Y)));
+                    PointArray.Add(MakeShareable(new FJsonValueNumber(Vertex.Z)));
+                    VerticesArray.Add(MakeShareable(new FJsonValueArray(PointArray)));
+                }
+                ShapeObject->SetArrayField(TEXT("vertices"), VerticesArray);
+                
+                // 添加 height 字段
+                ShapeObject->SetNumberField(TEXT("height"), PrismGeometry.Height);
+                
+                UE_LOG(LogMAModifyWidget, Log, TEXT("GenerateSceneGraphNodeV2: Building - Prism with %d vertices, height=%.2f"), 
+                    PrismGeometry.BottomVertices.Num(), PrismGeometry.Height);
+            }
+            else
+            {
+                // 回退到边界框近似
+                UE_LOG(LogMAModifyWidget, Warning, TEXT("GenerateSceneGraphNodeV2: Prism computation failed, using fallback"));
+                
+                // 使用第一个 Actor 的边界框
+                if (Actors[0])
+                {
+                    FVector Origin, BoxExtent;
+                    Actors[0]->GetActorBounds(false, Origin, BoxExtent);
+                    
+                    // 生成矩形底面顶点
+                    TArray<TSharedPtr<FJsonValue>> VerticesArray;
+                    float MinZ = Origin.Z - BoxExtent.Z;
+                    
+                    TArray<FVector2D> Corners = {
+                        FVector2D(Origin.X - BoxExtent.X, Origin.Y - BoxExtent.Y),
+                        FVector2D(Origin.X + BoxExtent.X, Origin.Y - BoxExtent.Y),
+                        FVector2D(Origin.X + BoxExtent.X, Origin.Y + BoxExtent.Y),
+                        FVector2D(Origin.X - BoxExtent.X, Origin.Y + BoxExtent.Y)
+                    };
+                    
+                    for (const FVector2D& Corner : Corners)
+                    {
+                        TArray<TSharedPtr<FJsonValue>> PointArray;
+                        PointArray.Add(MakeShareable(new FJsonValueNumber(Corner.X)));
+                        PointArray.Add(MakeShareable(new FJsonValueNumber(Corner.Y)));
+                        PointArray.Add(MakeShareable(new FJsonValueNumber(MinZ)));
+                        VerticesArray.Add(MakeShareable(new FJsonValueArray(PointArray)));
+                    }
+                    ShapeObject->SetArrayField(TEXT("vertices"), VerticesArray);
+                    ShapeObject->SetNumberField(TEXT("height"), BoxExtent.Z * 2.0f);
+                }
+            }
+        }
+        break;
+        
+    case EMANodeCategory::TransFacility:
+        {
+            // TransFacility 类型处理逻辑:
+            // - 如果 type 为 "intersection"，shape.type = "point"，center 是矩形 vertices 的几何中心
+            // - 如果 type 为其他值，shape.type = "linestring"，points 是矩形短边的两个中点
+            // - 两种情况都包含 vertices 字段 (OBB 矩形的四个角点)
+            // Requirements: 3.4, 3.5, 3.6
+            
+            // 调用 ComputeOBBFromActors 获取 OBB 几何数据
+            FMAOBBGeometry OBBGeometry = FMAGeometryUtils::ComputeOBBFromActors(Actors);
+            
+            // 判断是否为 intersection 类型
+            bool bIsIntersection = Input.Type.Equals(TEXT("intersection"), ESearchCase::IgnoreCase);
+            
+            if (bIsIntersection)
+            {
+                // intersection 类型 - Point (矩形几何中心)
+                ShapeObject->SetStringField(TEXT("type"), TEXT("point"));
+                
+                if (OBBGeometry.bIsValid && OBBGeometry.CornerPoints.Num() == 4)
+                {
+                    // 计算矩形 vertices 的几何中心
+                    FVector Center = FVector::ZeroVector;
+                    for (const FVector& Corner : OBBGeometry.CornerPoints)
+                    {
+                        Center += Corner;
+                    }
+                    Center /= 4.0f;
+                    
+                    // 添加 center 字段
+                    TArray<TSharedPtr<FJsonValue>> CenterArray;
+                    CenterArray.Add(MakeShareable(new FJsonValueNumber(Center.X)));
+                    CenterArray.Add(MakeShareable(new FJsonValueNumber(Center.Y)));
+                    CenterArray.Add(MakeShareable(new FJsonValueNumber(Center.Z)));
+                    ShapeObject->SetArrayField(TEXT("center"), CenterArray);
+                    
+                    // 添加 vertices 字段 (OBB 四个角点)
+                    TArray<TSharedPtr<FJsonValue>> VerticesArray;
+                    for (const FVector& Corner : OBBGeometry.CornerPoints)
+                    {
+                        TArray<TSharedPtr<FJsonValue>> PointArray;
+                        PointArray.Add(MakeShareable(new FJsonValueNumber(Corner.X)));
+                        PointArray.Add(MakeShareable(new FJsonValueNumber(Corner.Y)));
+                        PointArray.Add(MakeShareable(new FJsonValueNumber(Corner.Z)));
+                        VerticesArray.Add(MakeShareable(new FJsonValueArray(PointArray)));
+                    }
+                    ShapeObject->SetArrayField(TEXT("vertices"), VerticesArray);
+                    
+                    UE_LOG(LogMAModifyWidget, Log, TEXT("GenerateSceneGraphNodeV2: TransFacility (intersection) - Point at [%.2f, %.2f, %.2f], OBB with %d corners"), 
+                        Center.X, Center.Y, Center.Z, OBBGeometry.CornerPoints.Num());
+                }
+                else
+                {
+                    // OBB 计算失败，使用 Actor 几何中心作为回退
+                    UE_LOG(LogMAModifyWidget, Warning, TEXT("GenerateSceneGraphNodeV2: OBB computation failed for intersection, using actor center fallback"));
+                    
+                    FVector Center = FMAGeometryUtils::ComputeCenterFromActors(Actors);
+                    TArray<TSharedPtr<FJsonValue>> CenterArray;
+                    CenterArray.Add(MakeShareable(new FJsonValueNumber(Center.X)));
+                    CenterArray.Add(MakeShareable(new FJsonValueNumber(Center.Y)));
+                    CenterArray.Add(MakeShareable(new FJsonValueNumber(Center.Z)));
+                    ShapeObject->SetArrayField(TEXT("center"), CenterArray);
+                }
+            }
+            else
+            {
+                // 非 intersection 类型 - LineString (矩形短边中点)
+                ShapeObject->SetStringField(TEXT("type"), TEXT("linestring"));
+                
+                if (OBBGeometry.bIsValid && OBBGeometry.CornerPoints.Num() == 4)
+                {
+                    // 计算矩形短边的两个中点作为 points
+                    TArray<FVector> ShortEdgeMidpoints = FMAGeometryUtils::ComputeShortEdgeMidpoints(OBBGeometry.CornerPoints);
+                    
+                    TArray<TSharedPtr<FJsonValue>> PointsArray;
+                    for (const FVector& Midpoint : ShortEdgeMidpoints)
+                    {
+                        TArray<TSharedPtr<FJsonValue>> PointArray;
+                        PointArray.Add(MakeShareable(new FJsonValueNumber(Midpoint.X)));
+                        PointArray.Add(MakeShareable(new FJsonValueNumber(Midpoint.Y)));
+                        PointArray.Add(MakeShareable(new FJsonValueNumber(Midpoint.Z)));
+                        PointsArray.Add(MakeShareable(new FJsonValueArray(PointArray)));
+                    }
+                    ShapeObject->SetArrayField(TEXT("points"), PointsArray);
+                    
+                    // 添加 vertices 字段 (OBB 四个角点)
+                    TArray<TSharedPtr<FJsonValue>> VerticesArray;
+                    for (const FVector& Corner : OBBGeometry.CornerPoints)
+                    {
+                        TArray<TSharedPtr<FJsonValue>> PointArray;
+                        PointArray.Add(MakeShareable(new FJsonValueNumber(Corner.X)));
+                        PointArray.Add(MakeShareable(new FJsonValueNumber(Corner.Y)));
+                        PointArray.Add(MakeShareable(new FJsonValueNumber(Corner.Z)));
+                        VerticesArray.Add(MakeShareable(new FJsonValueArray(PointArray)));
+                    }
+                    ShapeObject->SetArrayField(TEXT("vertices"), VerticesArray);
+                    
+                    UE_LOG(LogMAModifyWidget, Log, TEXT("GenerateSceneGraphNodeV2: TransFacility - LineString with %d short edge midpoints, OBB with %d corners"), 
+                        ShortEdgeMidpoints.Num(), OBBGeometry.CornerPoints.Num());
+                }
+                else
+                {
+                    // OBB 计算失败，使用旧的 LineString 计算逻辑作为回退
+                    UE_LOG(LogMAModifyWidget, Warning, TEXT("GenerateSceneGraphNodeV2: OBB computation failed, using legacy linestring fallback"));
+                    
+                    TArray<FVector2D> LinePoints = ComputeLineString(Actors);
+                    TArray<TSharedPtr<FJsonValue>> PointsArray;
+                    for (const FVector2D& Point : LinePoints)
+                    {
+                        TArray<TSharedPtr<FJsonValue>> PointArray;
+                        PointArray.Add(MakeShareable(new FJsonValueNumber(Point.X)));
+                        PointArray.Add(MakeShareable(new FJsonValueNumber(Point.Y)));
+                        PointArray.Add(MakeShareable(new FJsonValueNumber(0.0)));
+                        PointsArray.Add(MakeShareable(new FJsonValueArray(PointArray)));
+                    }
+                    ShapeObject->SetArrayField(TEXT("points"), PointsArray);
+                    
+                    // 使用凸包作为 vertices 回退
+                    TArray<FVector2D> ConvexHull = ComputeConvexHull(Actors);
+                    TArray<TSharedPtr<FJsonValue>> VerticesArray;
+                    for (const FVector2D& Vertex : ConvexHull)
+                    {
+                        TArray<TSharedPtr<FJsonValue>> PointArray;
+                        PointArray.Add(MakeShareable(new FJsonValueNumber(Vertex.X)));
+                        PointArray.Add(MakeShareable(new FJsonValueNumber(Vertex.Y)));
+                        PointArray.Add(MakeShareable(new FJsonValueNumber(0.0)));
+                        VerticesArray.Add(MakeShareable(new FJsonValueArray(PointArray)));
+                    }
+                    ShapeObject->SetArrayField(TEXT("vertices"), VerticesArray);
+                }
+            }
+        }
+        break;
+        
+    case EMANodeCategory::Prop:
+        {
+            // Prop 类型 - Point (几何中心)
+            // Requirements: 4.3, 4.4
+            ShapeObject->SetStringField(TEXT("type"), TEXT("point"));
+            
+            // 调用 ComputeCenterFromActors 获取几何中心
+            FVector Center = FMAGeometryUtils::ComputeCenterFromActors(Actors);
+            
+            // 添加 center 字段
+            TArray<TSharedPtr<FJsonValue>> CenterArray;
+            CenterArray.Add(MakeShareable(new FJsonValueNumber(Center.X)));
+            CenterArray.Add(MakeShareable(new FJsonValueNumber(Center.Y)));
+            CenterArray.Add(MakeShareable(new FJsonValueNumber(Center.Z)));
+            ShapeObject->SetArrayField(TEXT("center"), CenterArray);
+            
+            UE_LOG(LogMAModifyWidget, Log, TEXT("GenerateSceneGraphNodeV2: Prop - Point at [%.2f, %.2f, %.2f]"), 
+                Center.X, Center.Y, Center.Z);
+        }
+        break;
+        
+    case EMANodeCategory::None:
+    default:
+        {
+            // 未指定分类，回退到旧的逻辑
+            UE_LOG(LogMAModifyWidget, Warning, TEXT("GenerateSceneGraphNodeV2: No category specified, falling back to legacy logic"));
+            
+            // 根据 Shape 字段判断
+            if (Input.IsPolygon())
+            {
+                ShapeObject->SetStringField(TEXT("type"), TEXT("polygon"));
+                TArray<FVector2D> Vertices = ComputeConvexHull(Actors);
+                TArray<TSharedPtr<FJsonValue>> VerticesArray;
+                for (const FVector2D& Vertex : Vertices)
+                {
+                    TArray<TSharedPtr<FJsonValue>> PointArray;
+                    PointArray.Add(MakeShareable(new FJsonValueNumber(Vertex.X)));
+                    PointArray.Add(MakeShareable(new FJsonValueNumber(Vertex.Y)));
+                    PointArray.Add(MakeShareable(new FJsonValueNumber(0.0)));
+                    VerticesArray.Add(MakeShareable(new FJsonValueArray(PointArray)));
+                }
+                ShapeObject->SetArrayField(TEXT("vertices"), VerticesArray);
+            }
+            else if (Input.IsLineString())
+            {
+                ShapeObject->SetStringField(TEXT("type"), TEXT("linestring"));
+                TArray<FVector2D> Points = ComputeLineString(Actors);
+                TArray<TSharedPtr<FJsonValue>> PointsArray;
+                for (const FVector2D& Point : Points)
+                {
+                    TArray<TSharedPtr<FJsonValue>> PointArray;
+                    PointArray.Add(MakeShareable(new FJsonValueNumber(Point.X)));
+                    PointArray.Add(MakeShareable(new FJsonValueNumber(Point.Y)));
+                    PointArray.Add(MakeShareable(new FJsonValueNumber(0.0)));
+                    PointsArray.Add(MakeShareable(new FJsonValueArray(PointArray)));
+                }
+                ShapeObject->SetArrayField(TEXT("points"), PointsArray);
+            }
+            else
+            {
+                // 默认为 Point 类型
+                ShapeObject->SetStringField(TEXT("type"), TEXT("point"));
+                FVector Center = Actors[0]->GetActorLocation();
+                TArray<TSharedPtr<FJsonValue>> CenterArray;
+                CenterArray.Add(MakeShareable(new FJsonValueNumber(Center.X)));
+                CenterArray.Add(MakeShareable(new FJsonValueNumber(Center.Y)));
+                CenterArray.Add(MakeShareable(new FJsonValueNumber(Center.Z)));
+                ShapeObject->SetArrayField(TEXT("center"), CenterArray);
+            }
+        }
+        break;
+    }
+    
+    RootObject->SetObjectField(TEXT("shape"), ShapeObject);
+    
+    // 序列化为 JSON 字符串
+    FString OutputString;
+    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
+    FJsonSerializer::Serialize(RootObject.ToSharedRef(), Writer);
+    
+    UE_LOG(LogMAModifyWidget, Log, TEXT("GenerateSceneGraphNodeV2: Generated JSON for %d actors, Category=%s"), 
+        Actors.Num(), *Input.GetCategoryString());
     return OutputString;
 }
 
@@ -1225,8 +1654,63 @@ TMap<FString, FString> UMAModifyWidget::GetDefaultPropertiesForCategory(EMANodeC
 }
 
 //=========================================================================
+// ValidateSelectionForCategory - 验证选择是否符合分类约束
+// Requirements: 2.1, 2.2, 3.1, 4.1
+//=========================================================================
+
+bool UMAModifyWidget::ValidateSelectionForCategory(EMANodeCategory Category, int32 SelectionCount, FString& OutError)
+{
+    OutError.Empty();
+    
+    // 检查选择数量是否有效
+    if (SelectionCount <= 0)
+    {
+        OutError = TEXT("请至少选择一个 Actor");
+        UE_LOG(LogMAModifyWidget, Warning, TEXT("ValidateSelectionForCategory: No Actor selected"));
+        return false;
+    }
+    
+    switch (Category)
+    {
+    case EMANodeCategory::Building:
+        // Requirements: 2.1, 2.2 - Building 类型仅允许单选
+        if (SelectionCount != 1)
+        {
+            OutError = TEXT("Building 类型仅支持单选，请只选择一个 Actor");
+            UE_LOG(LogMAModifyWidget, Warning, TEXT("ValidateSelectionForCategory: Building requires single selection, got %d"), SelectionCount);
+            return false;
+        }
+        break;
+        
+    case EMANodeCategory::TransFacility:
+        // Requirements: 3.1 - TransFacility 类型允许单选或多选
+        // 任意数量都有效
+        break;
+        
+    case EMANodeCategory::Prop:
+        // Requirements: 4.1 - Prop 类型允许单选或多选
+        // 任意数量都有效
+        break;
+        
+    case EMANodeCategory::None:
+    default:
+        // 未指定分类时，允许任意数量
+        break;
+    }
+    
+    UE_LOG(LogMAModifyWidget, Log, TEXT("ValidateSelectionForCategory: Category=%d, SelectionCount=%d, Valid=true"), 
+        static_cast<int32>(Category), SelectionCount);
+    return true;
+}
+
+//=========================================================================
 // ParseAnnotationInputV2 - 解析新格式的标注输入 (cate:xxx,type:xxx)
-// Requirements: 5.1, 5.2, 5.3, 5.4, 5.5
+// Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 5.1, 5.2, 5.3, 5.4, 5.5
+//
+// 根据 cate 值自动设置默认 shape:
+// - building → prism
+// - trans_facility → linestring
+// - prop → point
 //=========================================================================
 
 bool UMAModifyWidget::ParseAnnotationInputV2(const FString& Input, FMAAnnotationInput& OutResult, FString& OutError)
@@ -1235,6 +1719,7 @@ bool UMAModifyWidget::ParseAnnotationInputV2(const FString& Input, FMAAnnotation
     OutError.Empty();
     
     // 检查空输入
+    // Requirements: 1.4 - 输入格式无效时显示错误消息
     if (Input.IsEmpty())
     {
         OutError = TEXT("输入不能为空");
@@ -1242,11 +1727,13 @@ bool UMAModifyWidget::ParseAnnotationInputV2(const FString& Input, FMAAnnotation
     }
     
     // 解析 "key:value, key:value" 格式
+    // Requirements: 1.1 - 接受 cate:xxxx,type:xxxxxx 格式
     TArray<FString> Pairs;
     Input.ParseIntoArray(Pairs, TEXT(","), true);
     
     bool bHasCate = false;
     bool bHasType = false;
+    bool bHasExplicitShape = false;  // 用户是否显式指定了 shape
     
     for (const FString& Pair : Pairs)
     {
@@ -1280,9 +1767,10 @@ bool UMAModifyWidget::ParseAnnotationInputV2(const FString& Input, FMAAnnotation
         }
         
         // 解析已知字段
+        // Requirements: 1.5 - 支持 cate 和 type 字段名的大小写不敏感解析
         if (Key == TEXT("cate") || Key == TEXT("category"))
         {
-            // 解析 category 字段
+            // Requirements: 1.2 - 提取 cate 字段值作为分类
             EMANodeCategory ParsedCategory = FMAAnnotationInput::ParseCategoryFromString(Value);
             if (ParsedCategory == EMANodeCategory::None)
             {
@@ -1298,20 +1786,23 @@ bool UMAModifyWidget::ParseAnnotationInputV2(const FString& Input, FMAAnnotation
         }
         else if (Key == TEXT("type"))
         {
+            // Requirements: 1.3 - 提取 type 字段值作为实体类型
             OutResult.Type = Value;
             bHasType = true;
         }
         else if (Key == TEXT("shape"))
         {
-            // 验证 shape 值
+            // 验证 shape 值 (包括新增的 prism 类型)
             FString ShapeLower = Value.ToLower();
             if (ShapeLower != TEXT("polygon") && ShapeLower != TEXT("linestring") && 
-                ShapeLower != TEXT("point") && ShapeLower != TEXT("rectangle"))
+                ShapeLower != TEXT("point") && ShapeLower != TEXT("rectangle") &&
+                ShapeLower != TEXT("prism"))
             {
-                OutError = FString::Printf(TEXT("无效的 shape 值: %s (应为 polygon, linestring, point 或 rectangle)"), *Value);
+                OutError = FString::Printf(TEXT("无效的 shape 值: %s (应为 polygon, linestring, point, rectangle 或 prism)"), *Value);
                 return false;
             }
             OutResult.Shape = ShapeLower;
+            bHasExplicitShape = true;
         }
         else
         {
@@ -1323,6 +1814,7 @@ bool UMAModifyWidget::ParseAnnotationInputV2(const FString& Input, FMAAnnotation
     // 验证必需字段
     if (!bHasCate)
     {
+        // Requirements: 1.4 - 显示错误消息，说明期望的格式
         OutError = TEXT("缺少必需字段: cate (应为 building, trans_facility 或 prop)");
         return false;
     }
@@ -1340,6 +1832,62 @@ bool UMAModifyWidget::ParseAnnotationInputV2(const FString& Input, FMAAnnotation
         UE_LOG(LogMAModifyWidget, Log, TEXT("ParseAnnotationInputV2: Auto-assigned ID = %s"), *OutResult.Id);
     }
     
+    // Requirements: 根据 cate 值自动设置默认 shape
+    // 如果用户没有显式指定 shape，则根据 category 自动设置
+    // - building → prism
+    // - trans_facility → linestring
+    // - prop → point
+    if (!bHasExplicitShape)
+    {
+        switch (OutResult.Category)
+        {
+        case EMANodeCategory::Building:
+            OutResult.Shape = TEXT("prism");
+            UE_LOG(LogMAModifyWidget, Log, TEXT("ParseAnnotationInputV2: Auto-set shape to 'prism' for building category"));
+            break;
+            
+        case EMANodeCategory::TransFacility:
+            OutResult.Shape = TEXT("linestring");
+            UE_LOG(LogMAModifyWidget, Log, TEXT("ParseAnnotationInputV2: Auto-set shape to 'linestring' for trans_facility category"));
+            break;
+            
+        case EMANodeCategory::Prop:
+            OutResult.Shape = TEXT("point");
+            UE_LOG(LogMAModifyWidget, Log, TEXT("ParseAnnotationInputV2: Auto-set shape to 'point' for prop category"));
+            break;
+            
+        case EMANodeCategory::None:
+        default:
+            // 未指定分类时不自动设置 shape
+            break;
+        }
+    }
+    
     UE_LOG(LogMAModifyWidget, Log, TEXT("ParseAnnotationInputV2: %s"), *OutResult.ToString());
     return true;
+}
+
+
+//=========================================================================
+// GetHintTextForCategory - 根据分类获取对应的提示文本
+// Requirements: 1.4
+//=========================================================================
+
+FString UMAModifyWidget::GetHintTextForCategory(EMANodeCategory Category) const
+{
+    switch (Category)
+    {
+    case EMANodeCategory::Building:
+        return BuildingHintText;
+        
+    case EMANodeCategory::TransFacility:
+        return TransFacilityHintText;
+        
+    case EMANodeCategory::Prop:
+        return PropHintText;
+        
+    case EMANodeCategory::None:
+    default:
+        return DefaultHintText;
+    }
 }
