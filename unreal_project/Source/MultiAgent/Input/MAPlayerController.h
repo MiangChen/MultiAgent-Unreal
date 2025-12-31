@@ -9,6 +9,9 @@
 #include "../Core/MACommandManager.h"
 #include "MAPlayerController.generated.h"
 
+class UMAEditModeManager;
+class AMAPointOfInterest;
+
 struct FInputActionValue;
 
 // 鼠标左键模式
@@ -271,6 +274,9 @@ private:
     UPROPERTY()
     class UMAEmergencyManager* EmergencyManager;
 
+    UPROPERTY()
+    class UMAEditModeManager* EditModeManager;
+
     // ========== 部署模式数据 ==========
     
     /** 部署背包：待部署的 Agent 列表（持久存储） */
@@ -321,6 +327,17 @@ private:
     
     /** 退出 Modify 模式 */
     void ExitModifyMode();
+    
+    // ========== Edit 模式 ==========
+    
+    /** Edit 模式下的左键点击处理 */
+    void OnEditLeftClick();
+    
+    /** 进入 Edit 模式 */
+    void EnterEditMode();
+    
+    /** 退出 Edit 模式 */
+    void ExitEditMode();
     
     // ========== 右键视角旋转 ==========
     

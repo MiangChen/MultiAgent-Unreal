@@ -274,6 +274,22 @@ private:
      */
     TArray<TSharedPtr<FJsonValue>>* GetNodesArray() const;
 
+    /**
+     * 验证场景图节点 JSON 结构
+     * 
+     * 根据 shape.type 验证必需字段:
+     * - prism: 需要 shape.vertices 和 shape.height
+     * - linestring: 需要 shape.points 和 shape.vertices
+     * - point: 需要 shape.center
+     * 
+     * @param NodeObject 要验证的 JSON 对象
+     * @param OutErrorMessage 验证失败时的错误信息
+     * @return 验证是否通过
+     * 
+     * Requirements: 7.4, 8.3, 8.4
+     */
+    bool ValidateNodeJsonStructure(const TSharedPtr<FJsonObject>& NodeObject, FString& OutErrorMessage) const;
+
     //=========================================================================
     // 内部状态
     //=========================================================================

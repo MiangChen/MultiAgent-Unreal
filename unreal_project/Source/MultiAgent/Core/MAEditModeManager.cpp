@@ -1,9 +1,13 @@
 // MAEditModeManager.cpp
 // Edit Mode 管理器实现
 // Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 3.1, 3.2, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7
+// Requirements: 6.4, 7.4, 8.4, 9.6, 10.7, 11.1
 
 #include "MAEditModeManager.h"
+#include "MACommSubsystem.h"
 #include "../Environment/MAPointOfInterest.h"
+#include "../Environment/MAZoneActor.h"
+#include "../Environment/MAGoalActor.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Misc/DateTime.h"
@@ -12,7 +16,12 @@
 #include "Serialization/JsonWriter.h"
 #include "Serialization/JsonSerializer.h"
 #include "Components/PrimitiveComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Components/MeshComponent.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/World.h"
+#include "Engine/GameInstance.h"
+#include "EngineUtils.h"  // For TActorIterator
 
 DEFINE_LOG_CATEGORY(LogMAEditMode);
 
@@ -52,6 +61,12 @@ void UMAEditModeManager::Deinitialize()
     
     // 销毁所有 POI
     DestroyAllPOIs();
+    
+    // 销毁所有 Zone Actor
+    DestroyAllZoneActors();
+    
+    // 销毁所有 Goal Actor
+    DestroyAllGoalActors();
     
     // 删除临时场景图文件
     DeleteTempSceneGraph();
@@ -249,6 +264,7 @@ bool UMAEditModeManager::SaveTempSceneGraph()
         return false;
     }
     
+    // 保存到临时文件
     if (!FFileHelper::SaveStringToFile(JsonString, *TempSceneGraphPath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM))
     {
         UE_LOG(LogMAEditMode, Error, TEXT("SaveTempSceneGraph: Failed to write file: %s"), *TempSceneGraphPath);
@@ -256,6 +272,17 @@ bool UMAEditModeManager::SaveTempSceneGraph()
     }
     
     UE_LOG(LogMAEditMode, Log, TEXT("SaveTempSceneGraph: Saved to %s"), *TempSceneGraphPath);
+    
+    // 同时保存到 datasets/scene_graph_cyberworld_temp.json
+    FString SyncFilePath = FPaths::ProjectDir() / TEXT("datasets/scene_graph_cyberworld_temp.json");
+    if (!FFileHelper::SaveStringToFile(JsonString, *SyncFilePath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM))
+    {
+        UE_LOG(LogMAEditMode, Warning, TEXT("SaveTempSceneGraph: Failed to sync to %s"), *SyncFilePath);
+    }
+    else
+    {
+        UE_LOG(LogMAEditMode, Log, TEXT("SaveTempSceneGraph: Synced to %s"), *SyncFilePath);
+    }
     
     // 广播变化事件
     OnTempSceneGraphChanged.Broadcast();
@@ -474,6 +501,102 @@ void UMAEditModeManager::ClearSelection()
     OnSelectionChanged.Broadcast();
 }
 
+// 查找根 Actor（向上遍历 Attach 父级直到找到最顶层）
+static AActor* FindRootActorForEdit(AActor* Actor)
+{
+    if (!Actor) return nullptr;
+    
+    AActor* Current = Actor;
+    AActor* Parent = Current->GetAttachParentActor();
+    
+    // 向上遍历直到没有父 Actor
+    while (Parent)
+    {
+        Current = Parent;
+        Parent = Current->GetAttachParentActor();
+    }
+    
+    return Current;
+}
+
+// 递归收集 Actor 及其所有子 Actor
+static void CollectActorAndChildrenForEdit(AActor* Actor, TArray<AActor*>& OutActors)
+{
+    if (!Actor) return;
+    
+    OutActors.Add(Actor);
+    
+    // 获取所有附加的子 Actor
+    TArray<AActor*> AttachedActors;
+    Actor->GetAttachedActors(AttachedActors);
+    
+    for (AActor* Child : AttachedActors)
+    {
+        CollectActorAndChildrenForEdit(Child, OutActors);
+    }
+}
+
+// 对单个 Actor 设置高亮（不递归）
+static void SetSingleActorHighlightForEdit(AActor* Actor, bool bHighlight)
+{
+    if (!Actor) return;
+    
+    // 获取所有 PrimitiveComponent
+    TArray<UPrimitiveComponent*> Components;
+    Actor->GetComponents<UPrimitiveComponent>(Components);
+    
+    // 高亮颜色 - 使用蓝色区分于 Modify 模式的青绿色
+    FLinearColor HighlightColor(0.3f, 0.6f, 1.0f);  // 蓝色
+    
+    for (UPrimitiveComponent* Comp : Components)
+    {
+        if (Comp)
+        {
+            // 方式 1: Custom Depth (需要 Post Process 配合)
+            Comp->SetRenderCustomDepth(bHighlight);
+            Comp->SetCustomDepthStencilValue(bHighlight ? 2 : 0);  // 使用 2 区分于 Modify 模式
+            
+            // 方式 2: 使用 Overlay Material 实现高亮
+            UMeshComponent* MeshComp = Cast<UMeshComponent>(Comp);
+            if (MeshComp)
+            {
+                if (bHighlight)
+                {
+                    // 创建高亮材质
+                    static UMaterial* UnlitMaterial = nullptr;
+                    if (!UnlitMaterial)
+                    {
+                        UnlitMaterial = LoadObject<UMaterial>(nullptr, 
+                            TEXT("/Engine/EngineMaterials/DefaultDeferredDecalMaterial.DefaultDeferredDecalMaterial"));
+                        
+                        if (!UnlitMaterial)
+                        {
+                            UnlitMaterial = LoadObject<UMaterial>(nullptr, 
+                                TEXT("/Engine/EngineMaterials/DefaultMaterial.DefaultMaterial"));
+                        }
+                    }
+                    
+                    if (UnlitMaterial)
+                    {
+                        UMaterialInstanceDynamic* DynMat = UMaterialInstanceDynamic::Create(UnlitMaterial, MeshComp);
+                        if (DynMat)
+                        {
+                            DynMat->SetVectorParameterValue(TEXT("BaseColor"), HighlightColor);
+                            DynMat->SetVectorParameterValue(TEXT("Color"), HighlightColor);
+                            MeshComp->SetOverlayMaterial(DynMat);
+                        }
+                    }
+                }
+                else
+                {
+                    // 清除 Overlay Material
+                    MeshComp->SetOverlayMaterial(nullptr);
+                }
+            }
+        }
+    }
+}
+
 void UMAEditModeManager::SetActorHighlight(AActor* Actor, bool bHighlight)
 {
     if (!Actor)
@@ -481,21 +604,24 @@ void UMAEditModeManager::SetActorHighlight(AActor* Actor, bool bHighlight)
         return;
     }
     
-    // 使用 Custom Depth Stencil 实现轮廓高亮
-    TArray<UPrimitiveComponent*> PrimitiveComponents;
-    Actor->GetComponents<UPrimitiveComponent>(PrimitiveComponents);
+    // 查找根 Actor
+    AActor* RootActor = FindRootActorForEdit(Actor);
     
-    for (UPrimitiveComponent* PrimComp : PrimitiveComponents)
+    // 收集根 Actor 及其所有子 Actor
+    TArray<AActor*> AllActors;
+    CollectActorAndChildrenForEdit(RootActor, AllActors);
+    
+    // 对所有 Actor 设置高亮
+    for (AActor* ActorToHighlight : AllActors)
     {
-        if (PrimComp)
-        {
-            PrimComp->SetRenderCustomDepth(bHighlight);
-            if (bHighlight)
-            {
-                PrimComp->SetCustomDepthStencilValue(1);
-            }
-        }
+        SetSingleActorHighlightForEdit(ActorToHighlight, bHighlight);
     }
+    
+    UE_LOG(LogMAEditMode, Log, TEXT("SetActorHighlight: %s highlight for %s (Root: %s, Total: %d actors)"), 
+        bHighlight ? TEXT("Enabled") : TEXT("Disabled"), 
+        *Actor->GetName(),
+        *RootActor->GetName(),
+        AllActors.Num());
 }
 
 void UMAEditModeManager::ClearActorHighlight()
@@ -518,50 +644,1362 @@ void UMAEditModeManager::ClearPOIHighlight()
 }
 
 //=============================================================================
-// Node 操作 (占位实现，将在后续任务中完善)
+// Node 操作
+// Requirements: 6.3, 7.2, 7.3, 8.3, 9.3, 9.4, 9.5, 10.3, 10.4, 10.5, 10.6
 //=============================================================================
+
+bool UMAEditModeManager::IsPointTypeNode(const TSharedPtr<FJsonObject>& NodeObject) const
+{
+    // Requirements: 5.3, 5.5, 7.5, 12.5
+    if (!NodeObject.IsValid())
+    {
+        return false;
+    }
+    
+    const TSharedPtr<FJsonObject>* ShapeObject;
+    if (!NodeObject->TryGetObjectField(TEXT("shape"), ShapeObject) || !ShapeObject->IsValid())
+    {
+        return false;
+    }
+    
+    FString ShapeType;
+    if (!(*ShapeObject)->TryGetStringField(TEXT("type"), ShapeType))
+    {
+        return false;
+    }
+    
+    return ShapeType.Equals(TEXT("point"), ESearchCase::IgnoreCase);
+}
+
+TSharedPtr<FJsonObject> UMAEditModeManager::FindNodeById(const FString& NodeId) const
+{
+    if (!TempSceneGraphData.IsValid() || NodeId.IsEmpty())
+    {
+        return nullptr;
+    }
+    
+    const TArray<TSharedPtr<FJsonValue>>* NodesArray;
+    if (!TempSceneGraphData->TryGetArrayField(TEXT("nodes"), NodesArray))
+    {
+        return nullptr;
+    }
+    
+    for (const TSharedPtr<FJsonValue>& NodeValue : *NodesArray)
+    {
+        if (NodeValue.IsValid() && NodeValue->Type == EJson::Object)
+        {
+            TSharedPtr<FJsonObject> NodeObject = NodeValue->AsObject();
+            FString Id;
+            if (NodeObject->TryGetStringField(TEXT("id"), Id) && Id == NodeId)
+            {
+                return NodeObject;
+            }
+        }
+    }
+    
+    return nullptr;
+}
+
+FString UMAEditModeManager::GetNodeJsonById(const FString& NodeId) const
+{
+    TSharedPtr<FJsonObject> NodeObject = FindNodeById(NodeId);
+    if (!NodeObject.IsValid())
+    {
+        return FString();
+    }
+    
+    FString JsonString;
+    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&JsonString);
+    if (FJsonSerializer::Serialize(NodeObject.ToSharedRef(), Writer))
+    {
+        return JsonString;
+    }
+    
+    return FString();
+}
+
+int32 UMAEditModeManager::FindNodeIndexById(const FString& NodeId) const
+{
+    if (!TempSceneGraphData.IsValid() || NodeId.IsEmpty())
+    {
+        return -1;
+    }
+    
+    const TArray<TSharedPtr<FJsonValue>>* NodesArray;
+    if (!TempSceneGraphData->TryGetArrayField(TEXT("nodes"), NodesArray))
+    {
+        return -1;
+    }
+    
+    for (int32 i = 0; i < NodesArray->Num(); ++i)
+    {
+        const TSharedPtr<FJsonValue>& NodeValue = (*NodesArray)[i];
+        if (NodeValue.IsValid() && NodeValue->Type == EJson::Object)
+        {
+            TSharedPtr<FJsonObject> NodeObject = NodeValue->AsObject();
+            FString Id;
+            if (NodeObject->TryGetStringField(TEXT("id"), Id) && Id == NodeId)
+            {
+                return i;
+            }
+        }
+    }
+    
+    return -1;
+}
+
+int32 UMAEditModeManager::DeleteEdgesForNode(const FString& NodeId)
+{
+    // Requirements: 7.3 - 自动删除与该 Node 相连的所有 Edge
+    
+    if (!TempSceneGraphData.IsValid() || NodeId.IsEmpty())
+    {
+        return 0;
+    }
+    
+    const TArray<TSharedPtr<FJsonValue>>* EdgesArrayConst;
+    if (!TempSceneGraphData->TryGetArrayField(TEXT("edges"), EdgesArrayConst))
+    {
+        return 0;
+    }
+    
+    // 复制数组以便修改
+    TArray<TSharedPtr<FJsonValue>> EdgesArray = *EdgesArrayConst;
+    int32 DeletedCount = 0;
+    
+    // 从后向前遍历，以便安全删除
+    for (int32 i = EdgesArray.Num() - 1; i >= 0; --i)
+    {
+        const TSharedPtr<FJsonValue>& EdgeValue = EdgesArray[i];
+        if (EdgeValue.IsValid() && EdgeValue->Type == EJson::Object)
+        {
+            TSharedPtr<FJsonObject> EdgeObject = EdgeValue->AsObject();
+            FString Source, Target;
+            EdgeObject->TryGetStringField(TEXT("source"), Source);
+            EdgeObject->TryGetStringField(TEXT("target"), Target);
+            
+            if (Source == NodeId || Target == NodeId)
+            {
+                EdgesArray.RemoveAt(i);
+                DeletedCount++;
+                UE_LOG(LogMAEditMode, Log, TEXT("DeleteEdgesForNode: Deleted edge %s -> %s"), *Source, *Target);
+            }
+        }
+    }
+    
+    // 将修改后的数组设置回去
+    if (DeletedCount > 0)
+    {
+        TempSceneGraphData->SetArrayField(TEXT("edges"), EdgesArray);
+    }
+    
+    return DeletedCount;
+}
+
+AActor* UMAEditModeManager::FindActorByGuid(const FString& Guid) const
+{
+    if (Guid.IsEmpty())
+    {
+        return nullptr;
+    }
+    
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return nullptr;
+    }
+    
+    // 规范化输入的 GUID（移除连字符，转为大写）
+    FString NormalizedInputGuid = Guid.Replace(TEXT("-"), TEXT("")).ToUpper();
+    
+    // 遍历所有 Actor 查找匹配的 GUID
+    // 使用 Actor->GetActorGuid().ToString() 获取 GUID（与 MASceneGraphManager 保持一致）
+    for (TActorIterator<AActor> It(World); It; ++It)
+    {
+        AActor* Actor = *It;
+        if (Actor)
+        {
+            // 使用 UE5 内置的 Actor GUID
+            FString ActorGuid = Actor->GetActorGuid().ToString();
+            
+            // 规范化 Actor 的 GUID（移除连字符，转为大写）
+            FString NormalizedActorGuid = ActorGuid.Replace(TEXT("-"), TEXT("")).ToUpper();
+            
+            if (NormalizedActorGuid == NormalizedInputGuid)
+            {
+                return Actor;
+            }
+        }
+    }
+    
+    return nullptr;
+}
+
+void UMAEditModeManager::SyncActorPositionFromNode(const TSharedPtr<FJsonObject>& NodeObject)
+{
+    // Requirements: 6.5, 12.2, 12.3 - 同步更新虚幻场景中 Actor 的位置
+    
+    if (!NodeObject.IsValid())
+    {
+        return;
+    }
+    
+    // 只处理 point 类型
+    if (!IsPointTypeNode(NodeObject))
+    {
+        return;
+    }
+    
+    // 获取 GUID
+    FString Guid;
+    if (!NodeObject->TryGetStringField(TEXT("guid"), Guid))
+    {
+        // 尝试获取 Guid 数组的第一个元素
+        const TArray<TSharedPtr<FJsonValue>>* GuidArray;
+        if (NodeObject->TryGetArrayField(TEXT("Guid"), GuidArray) && GuidArray->Num() > 0)
+        {
+            Guid = (*GuidArray)[0]->AsString();
+        }
+    }
+    
+    if (Guid.IsEmpty())
+    {
+        UE_LOG(LogMAEditMode, Warning, TEXT("SyncActorPositionFromNode: No GUID found"));
+        return;
+    }
+    
+    // 获取新位置
+    const TSharedPtr<FJsonObject>* ShapeObject;
+    if (!NodeObject->TryGetObjectField(TEXT("shape"), ShapeObject))
+    {
+        return;
+    }
+    
+    const TArray<TSharedPtr<FJsonValue>>* CenterArray;
+    if (!(*ShapeObject)->TryGetArrayField(TEXT("center"), CenterArray) || CenterArray->Num() < 3)
+    {
+        return;
+    }
+    
+    FVector NewLocation(
+        (*CenterArray)[0]->AsNumber(),
+        (*CenterArray)[1]->AsNumber(),
+        (*CenterArray)[2]->AsNumber()
+    );
+    
+    // 查找并更新 Actor 位置
+    AActor* Actor = FindActorByGuid(Guid);
+    if (Actor)
+    {
+        Actor->SetActorLocation(NewLocation);
+        UE_LOG(LogMAEditMode, Log, TEXT("SyncActorPositionFromNode: Updated Actor %s to (%f, %f, %f)"),
+            *Actor->GetName(), NewLocation.X, NewLocation.Y, NewLocation.Z);
+    }
+    else
+    {
+        UE_LOG(LogMAEditMode, Warning, TEXT("SyncActorPositionFromNode: Actor with GUID %s not found"), *Guid);
+    }
+}
 
 bool UMAEditModeManager::AddNode(const FString& NodeJson, FString& OutError)
 {
-    // 将在任务 4 中实现
-    OutError = TEXT("Not implemented yet");
-    return false;
+    // Requirements: 8.3 - 在 Temp_Scene_Graph 中创建对应的 Node
+    
+    if (!TempSceneGraphData.IsValid())
+    {
+        OutError = TEXT("Temp scene graph not loaded");
+        UE_LOG(LogMAEditMode, Error, TEXT("AddNode: %s"), *OutError);
+        return false;
+    }
+    
+    // 解析输入的 JSON
+    TSharedPtr<FJsonObject> NewNodeObject;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(NodeJson);
+    if (!FJsonSerializer::Deserialize(Reader, NewNodeObject) || !NewNodeObject.IsValid())
+    {
+        OutError = TEXT("Invalid JSON format");
+        UE_LOG(LogMAEditMode, Error, TEXT("AddNode: %s"), *OutError);
+        return false;
+    }
+    
+    // 如果没有 ID，生成一个新的
+    FString NodeId;
+    if (!NewNodeObject->TryGetStringField(TEXT("id"), NodeId) || NodeId.IsEmpty())
+    {
+        NodeId = GenerateNextId();
+        NewNodeObject->SetStringField(TEXT("id"), NodeId);
+    }
+    else
+    {
+        // 检查 ID 是否已存在
+        if (FindNodeById(NodeId).IsValid())
+        {
+            OutError = FString::Printf(TEXT("Node with ID %s already exists"), *NodeId);
+            UE_LOG(LogMAEditMode, Error, TEXT("AddNode: %s"), *OutError);
+            return false;
+        }
+    }
+    
+    // 获取 nodes 数组
+    const TArray<TSharedPtr<FJsonValue>>* NodesArrayConst;
+    TArray<TSharedPtr<FJsonValue>> NodesArray;
+    
+    if (TempSceneGraphData->TryGetArrayField(TEXT("nodes"), NodesArrayConst))
+    {
+        NodesArray = *NodesArrayConst;
+    }
+    
+    // 添加新 Node
+    NodesArray.Add(MakeShareable(new FJsonValueObject(NewNodeObject)));
+    
+    // 将修改后的数组设置回去
+    TempSceneGraphData->SetArrayField(TEXT("nodes"), NodesArray);
+    
+    // 保存临时场景图
+    if (!SaveTempSceneGraph())
+    {
+        OutError = TEXT("Failed to save temp scene graph");
+        UE_LOG(LogMAEditMode, Error, TEXT("AddNode: %s"), *OutError);
+        return false;
+    }
+    
+    UE_LOG(LogMAEditMode, Log, TEXT("AddNode: Added node with ID %s"), *NodeId);
+    
+    // 发送后端通知
+    SendSceneChangeMessage(TEXT("add_node"), NodeJson);
+    
+    return true;
 }
 
 bool UMAEditModeManager::DeleteNode(const FString& NodeId, FString& OutError)
 {
-    // 将在任务 4 中实现
-    OutError = TEXT("Not implemented yet");
-    return false;
+    // Requirements: 7.2, 7.3, 7.5 - 从 Temp_Scene_Graph 中删除对应的 Node
+    
+    if (!TempSceneGraphData.IsValid())
+    {
+        OutError = TEXT("Temp scene graph not loaded");
+        UE_LOG(LogMAEditMode, Error, TEXT("DeleteNode: %s"), *OutError);
+        return false;
+    }
+    
+    // 查找 Node
+    TSharedPtr<FJsonObject> NodeObject = FindNodeById(NodeId);
+    if (!NodeObject.IsValid())
+    {
+        OutError = FString::Printf(TEXT("Node with ID %s not found"), *NodeId);
+        UE_LOG(LogMAEditMode, Error, TEXT("DeleteNode: %s"), *OutError);
+        return false;
+    }
+    
+    // Requirements: 7.5 - 仅允许删除 shape 类型为 point 的 Node
+    if (!IsPointTypeNode(NodeObject))
+    {
+        OutError = TEXT("Only point type nodes can be deleted");
+        UE_LOG(LogMAEditMode, Error, TEXT("DeleteNode: %s"), *OutError);
+        return false;
+    }
+    
+    // 查找 Node 索引
+    int32 NodeIndex = FindNodeIndexById(NodeId);
+    if (NodeIndex < 0)
+    {
+        OutError = FString::Printf(TEXT("Node index not found for ID %s"), *NodeId);
+        UE_LOG(LogMAEditMode, Error, TEXT("DeleteNode: %s"), *OutError);
+        return false;
+    }
+    
+    // Requirements: 7.3 - 自动删除与该 Node 相连的所有 Edge
+    int32 DeletedEdges = DeleteEdgesForNode(NodeId);
+    UE_LOG(LogMAEditMode, Log, TEXT("DeleteNode: Deleted %d edges for node %s"), DeletedEdges, *NodeId);
+    
+    // 删除 Node
+    const TArray<TSharedPtr<FJsonValue>>* NodesArrayConst;
+    if (TempSceneGraphData->TryGetArrayField(TEXT("nodes"), NodesArrayConst))
+    {
+        TArray<TSharedPtr<FJsonValue>> NodesArray = *NodesArrayConst;
+        NodesArray.RemoveAt(NodeIndex);
+        TempSceneGraphData->SetArrayField(TEXT("nodes"), NodesArray);
+    }
+    
+    // 保存临时场景图
+    if (!SaveTempSceneGraph())
+    {
+        OutError = TEXT("Failed to save temp scene graph");
+        UE_LOG(LogMAEditMode, Error, TEXT("DeleteNode: %s"), *OutError);
+        return false;
+    }
+    
+    UE_LOG(LogMAEditMode, Log, TEXT("DeleteNode: Deleted node with ID %s"), *NodeId);
+    
+    // 发送后端通知
+    FString Payload = FString::Printf(TEXT("{\"id\":\"%s\"}"), *NodeId);
+    SendSceneChangeMessage(TEXT("delete_node"), Payload);
+    
+    return true;
 }
 
 bool UMAEditModeManager::EditNode(const FString& NodeId, const FString& NewNodeJson, FString& OutError)
 {
-    // 将在任务 4 中实现
-    OutError = TEXT("Not implemented yet");
-    return false;
+    // Requirements: 6.3, 5.3, 5.5, 12.5 - 更新 Temp_Scene_Graph 中对应的 Node
+    
+    if (!TempSceneGraphData.IsValid())
+    {
+        OutError = TEXT("Temp scene graph not loaded");
+        UE_LOG(LogMAEditMode, Error, TEXT("EditNode: %s"), *OutError);
+        return false;
+    }
+    
+    // 查找现有 Node
+    TSharedPtr<FJsonObject> ExistingNode = FindNodeById(NodeId);
+    if (!ExistingNode.IsValid())
+    {
+        OutError = FString::Printf(TEXT("Node with ID %s not found"), *NodeId);
+        UE_LOG(LogMAEditMode, Error, TEXT("EditNode: %s"), *OutError);
+        return false;
+    }
+    
+    // 解析新的 JSON
+    TSharedPtr<FJsonObject> NewNodeObject;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(NewNodeJson);
+    if (!FJsonSerializer::Deserialize(Reader, NewNodeObject) || !NewNodeObject.IsValid())
+    {
+        OutError = TEXT("Invalid JSON format");
+        UE_LOG(LogMAEditMode, Error, TEXT("EditNode: %s"), *OutError);
+        return false;
+    }
+    
+    // 检查 shape 类型编辑约束
+    bool bIsPointType = IsPointTypeNode(ExistingNode);
+    
+    // Requirements: 5.3, 5.5, 12.5 - 根据 shape 类型限制可编辑字段
+    if (!bIsPointType)
+    {
+        // polygon 或 linestring 类型仅允许编辑 properties
+        // 检查是否尝试修改 shape
+        const TSharedPtr<FJsonObject>* NewShapeObject;
+        const TSharedPtr<FJsonObject>* ExistingShapeObject;
+        
+        if (NewNodeObject->TryGetObjectField(TEXT("shape"), NewShapeObject) &&
+            ExistingNode->TryGetObjectField(TEXT("shape"), ExistingShapeObject))
+        {
+            // 序列化两个 shape 对象进行比较
+            FString NewShapeJson, ExistingShapeJson;
+            TSharedRef<TJsonWriter<>> NewWriter = TJsonWriterFactory<>::Create(&NewShapeJson);
+            TSharedRef<TJsonWriter<>> ExistingWriter = TJsonWriterFactory<>::Create(&ExistingShapeJson);
+            
+            FJsonSerializer::Serialize(NewShapeObject->ToSharedRef(), NewWriter);
+            FJsonSerializer::Serialize(ExistingShapeObject->ToSharedRef(), ExistingWriter);
+            
+            if (NewShapeJson != ExistingShapeJson)
+            {
+                OutError = TEXT("Cannot modify shape for polygon/linestring type nodes");
+                UE_LOG(LogMAEditMode, Error, TEXT("EditNode: %s"), *OutError);
+                return false;
+            }
+        }
+    }
+    
+    // 确保 ID 不变
+    NewNodeObject->SetStringField(TEXT("id"), NodeId);
+    
+    // 查找 Node 索引并替换
+    int32 NodeIndex = FindNodeIndexById(NodeId);
+    if (NodeIndex < 0)
+    {
+        OutError = FString::Printf(TEXT("Node index not found for ID %s"), *NodeId);
+        UE_LOG(LogMAEditMode, Error, TEXT("EditNode: %s"), *OutError);
+        return false;
+    }
+    
+    const TArray<TSharedPtr<FJsonValue>>* NodesArrayConst;
+    if (TempSceneGraphData->TryGetArrayField(TEXT("nodes"), NodesArrayConst))
+    {
+        TArray<TSharedPtr<FJsonValue>> NodesArray = *NodesArrayConst;
+        NodesArray[NodeIndex] = MakeShareable(new FJsonValueObject(NewNodeObject));
+        TempSceneGraphData->SetArrayField(TEXT("nodes"), NodesArray);
+    }
+    
+    // Requirements: 6.5, 12.2, 12.3 - 如果是 point 类型且修改了 shape.center，同步更新 Actor 位置
+    if (bIsPointType)
+    {
+        SyncActorPositionFromNode(NewNodeObject);
+    }
+    
+    // 保存临时场景图
+    if (!SaveTempSceneGraph())
+    {
+        OutError = TEXT("Failed to save temp scene graph");
+        UE_LOG(LogMAEditMode, Error, TEXT("EditNode: %s"), *OutError);
+        return false;
+    }
+    
+    UE_LOG(LogMAEditMode, Log, TEXT("EditNode: Updated node with ID %s"), *NodeId);
+    
+    // 发送后端通知
+    SendSceneChangeMessage(TEXT("edit_node"), NewNodeJson);
+    
+    return true;
 }
 
 bool UMAEditModeManager::CreateGoal(const FVector& Location, const FString& Description, FString& OutError)
 {
-    // 将在任务 4 中实现
-    OutError = TEXT("Not implemented yet");
-    return false;
+    // Requirements: 9.3, 9.4, 9.5, 9.6, 9.7 - 在 Temp_Scene_Graph 中创建 Goal Node
+    
+    if (!TempSceneGraphData.IsValid())
+    {
+        OutError = TEXT("Temp scene graph not loaded");
+        UE_LOG(LogMAEditMode, Error, TEXT("CreateGoal: %s"), *OutError);
+        return false;
+    }
+    
+    // 生成新的 ID
+    FString GoalId = FString::Printf(TEXT("goal_%s"), *GenerateNextId());
+    
+    // Requirements: 9.4, 9.5 - 设置正确的属性
+    // 构建 Goal Node JSON
+    TSharedPtr<FJsonObject> GoalNode = MakeShareable(new FJsonObject());
+    GoalNode->SetStringField(TEXT("id"), GoalId);
+    
+    // 生成 GUID
+    FGuid NewGuid = FGuid::NewGuid();
+    GoalNode->SetStringField(TEXT("guid"), NewGuid.ToString(EGuidFormats::DigitsWithHyphens));
+    
+    // Properties
+    TSharedPtr<FJsonObject> Properties = MakeShareable(new FJsonObject());
+    Properties->SetStringField(TEXT("type"), TEXT("goal"));
+    Properties->SetStringField(TEXT("label"), FString::Printf(TEXT("Goal-%s"), *GoalId));
+    Properties->SetStringField(TEXT("category"), TEXT("goal"));
+    Properties->SetStringField(TEXT("status"), TEXT("uncompleted"));
+    Properties->SetStringField(TEXT("description"), Description);
+    GoalNode->SetObjectField(TEXT("properties"), Properties);
+    
+    // Shape - point type
+    TSharedPtr<FJsonObject> Shape = MakeShareable(new FJsonObject());
+    Shape->SetStringField(TEXT("type"), TEXT("point"));
+    
+    TArray<TSharedPtr<FJsonValue>> CenterArray;
+    CenterArray.Add(MakeShareable(new FJsonValueNumber(Location.X)));
+    CenterArray.Add(MakeShareable(new FJsonValueNumber(Location.Y)));
+    CenterArray.Add(MakeShareable(new FJsonValueNumber(Location.Z)));
+    Shape->SetArrayField(TEXT("center"), CenterArray);
+    
+    GoalNode->SetObjectField(TEXT("shape"), Shape);
+    
+    // 序列化为 JSON 字符串
+    FString GoalJson;
+    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&GoalJson);
+    if (!FJsonSerializer::Serialize(GoalNode.ToSharedRef(), Writer))
+    {
+        OutError = TEXT("Failed to serialize Goal node");
+        UE_LOG(LogMAEditMode, Error, TEXT("CreateGoal: %s"), *OutError);
+        return false;
+    }
+    
+    // 添加到场景图
+    FString AddError;
+    if (!AddNode(GoalJson, AddError))
+    {
+        OutError = FString::Printf(TEXT("Failed to add Goal node: %s"), *AddError);
+        UE_LOG(LogMAEditMode, Error, TEXT("CreateGoal: %s"), *OutError);
+        return false;
+    }
+    
+    UE_LOG(LogMAEditMode, Log, TEXT("CreateGoal: Created Goal node %s at (%f, %f, %f)"),
+        *GoalId, Location.X, Location.Y, Location.Z);
+    
+    // Requirements: 15.2 - 创建 Goal Actor 可视化
+    CreateGoalActor(GoalId, Location, Description);
+    
+    // Requirements: 9.6 - 发送 add_goal 消息通知后端
+    SendSceneChangeMessage(TEXT("add_goal"), GoalJson);
+    
+    return true;
 }
 
 bool UMAEditModeManager::CreateZone(const TArray<FVector>& Vertices, const FString& Description, FString& OutError)
 {
-    // 将在任务 4 中实现
-    OutError = TEXT("Not implemented yet");
-    return false;
+    // Requirements: 10.3, 10.4, 10.5, 10.6, 10.7, 10.8 - 根据 POI 点创建 Zone Node
+    
+    if (!TempSceneGraphData.IsValid())
+    {
+        OutError = TEXT("Temp scene graph not loaded");
+        UE_LOG(LogMAEditMode, Error, TEXT("CreateZone: %s"), *OutError);
+        return false;
+    }
+    
+    // 至少需要 3 个点
+    if (Vertices.Num() < 3)
+    {
+        OutError = TEXT("At least 3 vertices required to create a zone");
+        UE_LOG(LogMAEditMode, Error, TEXT("CreateZone: %s"), *OutError);
+        return false;
+    }
+    
+    // Requirements: 10.3 - 计算凸包作为 Zone 边界
+    TArray<FVector> ConvexHull = ComputeConvexHull(Vertices);
+    
+    if (ConvexHull.Num() < 3)
+    {
+        OutError = TEXT("Failed to compute convex hull (points may be collinear)");
+        UE_LOG(LogMAEditMode, Error, TEXT("CreateZone: %s"), *OutError);
+        return false;
+    }
+    
+    // 生成新的 ID
+    FString ZoneId = FString::Printf(TEXT("zone_%s"), *GenerateNextId());
+    
+    // Requirements: 10.5, 10.6 - 设置正确的属性
+    // 构建 Zone Node JSON
+    TSharedPtr<FJsonObject> ZoneNode = MakeShareable(new FJsonObject());
+    ZoneNode->SetStringField(TEXT("id"), ZoneId);
+    
+    // 生成 GUID
+    FGuid NewGuid = FGuid::NewGuid();
+    ZoneNode->SetStringField(TEXT("guid"), NewGuid.ToString(EGuidFormats::DigitsWithHyphens));
+    
+    // Properties
+    TSharedPtr<FJsonObject> Properties = MakeShareable(new FJsonObject());
+    Properties->SetStringField(TEXT("type"), TEXT("zone"));
+    Properties->SetStringField(TEXT("label"), FString::Printf(TEXT("Zone-%s"), *ZoneId));
+    Properties->SetStringField(TEXT("category"), TEXT("zone"));
+    Properties->SetStringField(TEXT("status"), TEXT("undiscovered"));
+    Properties->SetStringField(TEXT("description"), Description);
+    ZoneNode->SetObjectField(TEXT("properties"), Properties);
+    
+    // Shape - polygon type
+    TSharedPtr<FJsonObject> Shape = MakeShareable(new FJsonObject());
+    Shape->SetStringField(TEXT("type"), TEXT("polygon"));
+    
+    // 构建顶点数组
+    TArray<TSharedPtr<FJsonValue>> VerticesArray;
+    for (const FVector& Vertex : ConvexHull)
+    {
+        TArray<TSharedPtr<FJsonValue>> PointArray;
+        PointArray.Add(MakeShareable(new FJsonValueNumber(Vertex.X)));
+        PointArray.Add(MakeShareable(new FJsonValueNumber(Vertex.Y)));
+        PointArray.Add(MakeShareable(new FJsonValueNumber(Vertex.Z)));
+        VerticesArray.Add(MakeShareable(new FJsonValueArray(PointArray)));
+    }
+    Shape->SetArrayField(TEXT("vertices"), VerticesArray);
+    
+    ZoneNode->SetObjectField(TEXT("shape"), Shape);
+    
+    // 序列化为 JSON 字符串
+    FString ZoneJson;
+    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&ZoneJson);
+    if (!FJsonSerializer::Serialize(ZoneNode.ToSharedRef(), Writer))
+    {
+        OutError = TEXT("Failed to serialize Zone node");
+        UE_LOG(LogMAEditMode, Error, TEXT("CreateZone: %s"), *OutError);
+        return false;
+    }
+    
+    // 添加到场景图
+    FString AddError;
+    if (!AddNode(ZoneJson, AddError))
+    {
+        OutError = FString::Printf(TEXT("Failed to add Zone node: %s"), *AddError);
+        UE_LOG(LogMAEditMode, Error, TEXT("CreateZone: %s"), *OutError);
+        return false;
+    }
+    
+    UE_LOG(LogMAEditMode, Log, TEXT("CreateZone: Created Zone node %s with %d vertices"),
+        *ZoneId, ConvexHull.Num());
+    
+    // Requirements: 14.1 - 创建 Zone Actor 可视化
+    CreateZoneActor(ZoneId, ConvexHull);
+    
+    // Requirements: 10.7 - 发送 add_zone 消息通知后端
+    SendSceneChangeMessage(TEXT("add_zone"), ZoneJson);
+    
+    return true;
 }
 
 //=============================================================================
-// 后端通信 (占位实现，将在后续任务中完善)
+// 后端通信
+// Requirements: 6.4, 7.4, 8.4, 9.6, 10.7, 11.1
 //=============================================================================
 
 void UMAEditModeManager::SendSceneChangeMessage(const FString& ChangeType, const FString& Payload)
 {
-    // 将在任务 6 中实现
-    UE_LOG(LogMAEditMode, Log, TEXT("SendSceneChangeMessage: Type=%s (not implemented yet)"), *ChangeType);
+    // Requirements: 11.1 - 通过 MACommSubsystem 发送场景变化消息
+    
+    UE_LOG(LogMAEditMode, Log, TEXT("SendSceneChangeMessage: Type=%s"), *ChangeType);
+    UE_LOG(LogMAEditMode, Verbose, TEXT("Payload: %s"), *Payload);
+    
+    // 获取 GameInstance
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        UE_LOG(LogMAEditMode, Warning, TEXT("SendSceneChangeMessage: World is null"));
+        return;
+    }
+    
+    UGameInstance* GameInstance = World->GetGameInstance();
+    if (!GameInstance)
+    {
+        UE_LOG(LogMAEditMode, Warning, TEXT("SendSceneChangeMessage: GameInstance is null"));
+        return;
+    }
+    
+    // 获取 MACommSubsystem
+    UMACommSubsystem* CommSubsystem = GameInstance->GetSubsystem<UMACommSubsystem>();
+    if (!CommSubsystem)
+    {
+        UE_LOG(LogMAEditMode, Warning, TEXT("SendSceneChangeMessage: MACommSubsystem not found"));
+        return;
+    }
+    
+    // 将字符串类型转换为枚举类型
+    EMASceneChangeType ChangeTypeEnum = FMASceneChangeMessage::StringToChangeType(ChangeType);
+    
+    // 创建场景变化消息
+    FMASceneChangeMessage Message(ChangeTypeEnum, Payload);
+    
+    // 发送消息
+    CommSubsystem->SendSceneChangeMessage(Message);
+    
+    UE_LOG(LogMAEditMode, Log, TEXT("SendSceneChangeMessage: Message sent successfully"));
+}
+
+void UMAEditModeManager::SendSceneChangeMessageByType(EMASceneChangeType ChangeType, const FString& Payload)
+{
+    // Requirements: 11.1 - 使用枚举类型发送消息
+    
+    FString ChangeTypeStr = FMASceneChangeMessage::ChangeTypeToString(ChangeType);
+    SendSceneChangeMessage(ChangeTypeStr, Payload);
+}
+
+//=============================================================================
+// 辅助函数
+//=============================================================================
+
+TArray<FVector> UMAEditModeManager::ComputeConvexHull(const TArray<FVector>& Points) const
+{
+    // Requirements: 10.3 - 计算凸包
+    // 使用 Graham Scan 算法，返回逆时针顺序的凸包顶点
+    
+    TArray<FVector> Result;
+    
+    if (Points.Num() < 3)
+    {
+        return Result;
+    }
+    
+    // 复制点集用于排序
+    TArray<FVector> SortedPoints = Points;
+    
+    // 找到最低点（Y 最小，如果相同则 X 最小）
+    int32 LowestIndex = 0;
+    for (int32 i = 1; i < SortedPoints.Num(); ++i)
+    {
+        if (SortedPoints[i].Y < SortedPoints[LowestIndex].Y ||
+            (SortedPoints[i].Y == SortedPoints[LowestIndex].Y && SortedPoints[i].X < SortedPoints[LowestIndex].X))
+        {
+            LowestIndex = i;
+        }
+    }
+    
+    // 将最低点移到第一个位置
+    Swap(SortedPoints[0], SortedPoints[LowestIndex]);
+    FVector Pivot = SortedPoints[0];
+    
+    // 按极角排序（相对于 Pivot）
+    // 从索引 1 开始排序
+    if (SortedPoints.Num() > 2)
+    {
+        // 手动实现排序，避免 Lambda 问题
+        for (int32 i = 1; i < SortedPoints.Num() - 1; ++i)
+        {
+            for (int32 j = i + 1; j < SortedPoints.Num(); ++j)
+            {
+                FVector2D VA(SortedPoints[i].X - Pivot.X, SortedPoints[i].Y - Pivot.Y);
+                FVector2D VB(SortedPoints[j].X - Pivot.X, SortedPoints[j].Y - Pivot.Y);
+                
+                double Cross = VA.X * VB.Y - VA.Y * VB.X;
+                
+                bool bShouldSwap = false;
+                if (FMath::Abs(Cross) < KINDA_SMALL_NUMBER)
+                {
+                    // 共线，按距离排序
+                    double DistA = VA.SizeSquared();
+                    double DistB = VB.SizeSquared();
+                    bShouldSwap = DistA > DistB;
+                }
+                else
+                {
+                    // 逆时针方向
+                    bShouldSwap = Cross < 0;
+                }
+                
+                if (bShouldSwap)
+                {
+                    Swap(SortedPoints[i], SortedPoints[j]);
+                }
+            }
+        }
+    }
+    
+    // 移除共线的点（保留最远的）
+    TArray<FVector> UniquePoints;
+    UniquePoints.Add(SortedPoints[0]);
+    
+    for (int32 i = 1; i < SortedPoints.Num(); ++i)
+    {
+        // 检查是否与前一个点共线
+        if (UniquePoints.Num() >= 2)
+        {
+            FVector& Last = UniquePoints.Last();
+            FVector2D VA(Last.X - Pivot.X, Last.Y - Pivot.Y);
+            FVector2D VB(SortedPoints[i].X - Pivot.X, SortedPoints[i].Y - Pivot.Y);
+            
+            double Cross = VA.X * VB.Y - VA.Y * VB.X;
+            
+            if (FMath::Abs(Cross) < KINDA_SMALL_NUMBER)
+            {
+                // 共线，保留更远的点
+                double DistA = VA.SizeSquared();
+                double DistB = VB.SizeSquared();
+                if (DistB > DistA)
+                {
+                    UniquePoints.Last() = SortedPoints[i];
+                }
+                continue;
+            }
+        }
+        UniquePoints.Add(SortedPoints[i]);
+    }
+    
+    if (UniquePoints.Num() < 3)
+    {
+        return Result;
+    }
+    
+    // Graham Scan
+    TArray<FVector> Stack;
+    Stack.Add(UniquePoints[0]);
+    Stack.Add(UniquePoints[1]);
+    
+    for (int32 i = 2; i < UniquePoints.Num(); ++i)
+    {
+        // 移除不是左转的点
+        while (Stack.Num() > 1)
+        {
+            FVector Top = Stack.Last();
+            FVector SecondTop = Stack[Stack.Num() - 2];
+            
+            // 计算叉积
+            FVector2D V1(Top.X - SecondTop.X, Top.Y - SecondTop.Y);
+            FVector2D V2(UniquePoints[i].X - Top.X, UniquePoints[i].Y - Top.Y);
+            
+            double Cross = V1.X * V2.Y - V1.Y * V2.X;
+            
+            if (Cross <= 0)
+            {
+                Stack.Pop();
+            }
+            else
+            {
+                break;
+            }
+        }
+        Stack.Add(UniquePoints[i]);
+    }
+    
+    Result = Stack;
+    
+    UE_LOG(LogMAEditMode, Log, TEXT("ComputeConvexHull: Input %d points, Output %d vertices"),
+        Points.Num(), Result.Num());
+    
+    return Result;
+}
+
+
+//=============================================================================
+// Zone/Goal Actor 管理
+// Requirements: 14.1, 14.6, 15.2, 15.6
+//=============================================================================
+
+AMAZoneActor* UMAEditModeManager::CreateZoneActor(const FString& NodeId, const TArray<FVector>& Vertices)
+{
+    // Requirements: 14.1 - 为 Zone Node 创建可视化 Actor
+    
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        UE_LOG(LogMAEditMode, Error, TEXT("CreateZoneActor: World is null"));
+        return nullptr;
+    }
+    
+    if (Vertices.Num() < 3)
+    {
+        UE_LOG(LogMAEditMode, Warning, TEXT("CreateZoneActor: Need at least 3 vertices"));
+        return nullptr;
+    }
+    
+    // 检查是否已存在
+    if (ZoneActors.Contains(NodeId))
+    {
+        UE_LOG(LogMAEditMode, Warning, TEXT("CreateZoneActor: Zone Actor for %s already exists"), *NodeId);
+        return ZoneActors[NodeId];
+    }
+    
+    // 计算中心位置
+    FVector Center = FVector::ZeroVector;
+    for (const FVector& V : Vertices)
+    {
+        Center += V;
+    }
+    Center /= Vertices.Num();
+    
+    FActorSpawnParameters SpawnParams;
+    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+    
+    AMAZoneActor* ZoneActor = World->SpawnActor<AMAZoneActor>(
+        AMAZoneActor::StaticClass(),
+        Center,
+        FRotator::ZeroRotator,
+        SpawnParams
+    );
+    
+    if (ZoneActor)
+    {
+        ZoneActor->SetNodeId(NodeId);
+        ZoneActor->SetVertices(Vertices);
+        ZoneActors.Add(NodeId, ZoneActor);
+        
+        UE_LOG(LogMAEditMode, Log, TEXT("CreateZoneActor: Created Zone Actor for %s with %d vertices"), 
+            *NodeId, Vertices.Num());
+    }
+    else
+    {
+        UE_LOG(LogMAEditMode, Error, TEXT("CreateZoneActor: Failed to spawn Zone Actor"));
+    }
+    
+    return ZoneActor;
+}
+
+void UMAEditModeManager::DestroyZoneActor(const FString& NodeId)
+{
+    if (AMAZoneActor** FoundActor = ZoneActors.Find(NodeId))
+    {
+        if (*FoundActor && IsValid(*FoundActor))
+        {
+            (*FoundActor)->Destroy();
+        }
+        ZoneActors.Remove(NodeId);
+        UE_LOG(LogMAEditMode, Log, TEXT("DestroyZoneActor: Destroyed Zone Actor for %s"), *NodeId);
+    }
+}
+
+void UMAEditModeManager::DestroyAllZoneActors()
+{
+    // Requirements: 14.6 - Edit Mode 退出时销毁所有 Zone Actor
+    
+    for (auto& Pair : ZoneActors)
+    {
+        if (Pair.Value && IsValid(Pair.Value))
+        {
+            Pair.Value->Destroy();
+        }
+    }
+    ZoneActors.Empty();
+    
+    UE_LOG(LogMAEditMode, Log, TEXT("DestroyAllZoneActors: Destroyed all Zone Actors"));
+}
+
+AMAZoneActor* UMAEditModeManager::GetZoneActorByNodeId(const FString& NodeId) const
+{
+    if (const AMAZoneActor* const* FoundActor = ZoneActors.Find(NodeId))
+    {
+        return const_cast<AMAZoneActor*>(*FoundActor);
+    }
+    return nullptr;
+}
+
+AMAGoalActor* UMAEditModeManager::CreateGoalActor(const FString& NodeId, const FVector& Location, const FString& Description)
+{
+    // Requirements: 15.2 - 为 Goal Node 创建可视化 Actor
+    
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        UE_LOG(LogMAEditMode, Error, TEXT("CreateGoalActor: World is null"));
+        return nullptr;
+    }
+    
+    // 检查是否已存在
+    if (GoalActors.Contains(NodeId))
+    {
+        UE_LOG(LogMAEditMode, Warning, TEXT("CreateGoalActor: Goal Actor for %s already exists"), *NodeId);
+        return GoalActors[NodeId];
+    }
+    
+    FActorSpawnParameters SpawnParams;
+    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+    
+    AMAGoalActor* GoalActor = World->SpawnActor<AMAGoalActor>(
+        AMAGoalActor::StaticClass(),
+        Location,
+        FRotator::ZeroRotator,
+        SpawnParams
+    );
+    
+    if (GoalActor)
+    {
+        GoalActor->SetNodeId(NodeId);
+        GoalActor->SetDescription(Description);
+        GoalActor->SetLabel(FString::Printf(TEXT("Goal-%s"), *NodeId));
+        GoalActors.Add(NodeId, GoalActor);
+        
+        UE_LOG(LogMAEditMode, Log, TEXT("CreateGoalActor: Created Goal Actor for %s at (%f, %f, %f)"), 
+            *NodeId, Location.X, Location.Y, Location.Z);
+    }
+    else
+    {
+        UE_LOG(LogMAEditMode, Error, TEXT("CreateGoalActor: Failed to spawn Goal Actor"));
+    }
+    
+    return GoalActor;
+}
+
+void UMAEditModeManager::DestroyGoalActor(const FString& NodeId)
+{
+    if (AMAGoalActor** FoundActor = GoalActors.Find(NodeId))
+    {
+        if (*FoundActor && IsValid(*FoundActor))
+        {
+            (*FoundActor)->Destroy();
+        }
+        GoalActors.Remove(NodeId);
+        UE_LOG(LogMAEditMode, Log, TEXT("DestroyGoalActor: Destroyed Goal Actor for %s"), *NodeId);
+    }
+}
+
+void UMAEditModeManager::DestroyAllGoalActors()
+{
+    // Requirements: 15.6 - Edit Mode 退出时销毁所有 Goal Actor
+    
+    for (auto& Pair : GoalActors)
+    {
+        if (Pair.Value && IsValid(Pair.Value))
+        {
+            Pair.Value->Destroy();
+        }
+    }
+    GoalActors.Empty();
+    
+    UE_LOG(LogMAEditMode, Log, TEXT("DestroyAllGoalActors: Destroyed all Goal Actors"));
+}
+
+AMAGoalActor* UMAEditModeManager::GetGoalActorByNodeId(const FString& NodeId) const
+{
+    if (const AMAGoalActor* const* FoundActor = GoalActors.Find(NodeId))
+    {
+        return const_cast<AMAGoalActor*>(*FoundActor);
+    }
+    return nullptr;
+}
+
+//=============================================================================
+// 设为 Goal 功能
+// Requirements: 16.1, 16.2, 16.3, 16.4, 16.5, 16.6
+//=============================================================================
+
+bool UMAEditModeManager::SetNodeAsGoal(const FString& NodeId, FString& OutError)
+{
+    // Requirements: 16.2, 16.3, 16.4 - 将 Node 设为 Goal
+    
+    if (!TempSceneGraphData.IsValid())
+    {
+        OutError = TEXT("Temp scene graph not loaded");
+        UE_LOG(LogMAEditMode, Error, TEXT("SetNodeAsGoal: %s"), *OutError);
+        return false;
+    }
+    
+    // 查找 Node
+    TSharedPtr<FJsonObject> NodeObject = FindNodeById(NodeId);
+    if (!NodeObject.IsValid())
+    {
+        OutError = FString::Printf(TEXT("Node with ID %s not found"), *NodeId);
+        UE_LOG(LogMAEditMode, Error, TEXT("SetNodeAsGoal: %s"), *OutError);
+        return false;
+    }
+    
+    // 获取或创建 properties 对象
+    TSharedPtr<FJsonObject> Properties;
+    const TSharedPtr<FJsonObject>* PropertiesPtr;
+    if (NodeObject->TryGetObjectField(TEXT("properties"), PropertiesPtr))
+    {
+        Properties = *PropertiesPtr;
+    }
+    else
+    {
+        Properties = MakeShareable(new FJsonObject());
+        NodeObject->SetObjectField(TEXT("properties"), Properties);
+    }
+    
+    // 添加 is_goal: true
+    Properties->SetBoolField(TEXT("is_goal"), true);
+    
+    // 保存临时场景图
+    if (!SaveTempSceneGraph())
+    {
+        OutError = TEXT("Failed to save temp scene graph");
+        UE_LOG(LogMAEditMode, Error, TEXT("SetNodeAsGoal: %s"), *OutError);
+        return false;
+    }
+    
+    UE_LOG(LogMAEditMode, Log, TEXT("SetNodeAsGoal: Set node %s as goal"), *NodeId);
+    
+    // 序列化 Node 为 JSON 字符串
+    FString NodeJson;
+    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&NodeJson);
+    FJsonSerializer::Serialize(NodeObject.ToSharedRef(), Writer);
+    
+    // 发送后端通知
+    SendSceneChangeMessage(TEXT("edit_node"), NodeJson);
+    
+    return true;
+}
+
+bool UMAEditModeManager::UnsetNodeAsGoal(const FString& NodeId, FString& OutError)
+{
+    // Requirements: 16.6 - 取消 Node 的 Goal 状态
+    
+    if (!TempSceneGraphData.IsValid())
+    {
+        OutError = TEXT("Temp scene graph not loaded");
+        UE_LOG(LogMAEditMode, Error, TEXT("UnsetNodeAsGoal: %s"), *OutError);
+        return false;
+    }
+    
+    // 查找 Node
+    TSharedPtr<FJsonObject> NodeObject = FindNodeById(NodeId);
+    if (!NodeObject.IsValid())
+    {
+        OutError = FString::Printf(TEXT("Node with ID %s not found"), *NodeId);
+        UE_LOG(LogMAEditMode, Error, TEXT("UnsetNodeAsGoal: %s"), *OutError);
+        return false;
+    }
+    
+    // 获取 properties 对象
+    const TSharedPtr<FJsonObject>* PropertiesPtr;
+    if (!NodeObject->TryGetObjectField(TEXT("properties"), PropertiesPtr))
+    {
+        OutError = TEXT("Node has no properties");
+        UE_LOG(LogMAEditMode, Warning, TEXT("UnsetNodeAsGoal: %s"), *OutError);
+        return true;  // 没有 properties 也算成功
+    }
+    
+    TSharedPtr<FJsonObject> Properties = *PropertiesPtr;
+    
+    // 移除 is_goal 字段
+    Properties->RemoveField(TEXT("is_goal"));
+    
+    // 保存临时场景图
+    if (!SaveTempSceneGraph())
+    {
+        OutError = TEXT("Failed to save temp scene graph");
+        UE_LOG(LogMAEditMode, Error, TEXT("UnsetNodeAsGoal: %s"), *OutError);
+        return false;
+    }
+    
+    UE_LOG(LogMAEditMode, Log, TEXT("UnsetNodeAsGoal: Unset node %s as goal"), *NodeId);
+    
+    // 序列化 Node 为 JSON 字符串
+    FString NodeJson;
+    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&NodeJson);
+    FJsonSerializer::Serialize(NodeObject.ToSharedRef(), Writer);
+    
+    // 发送后端通知
+    SendSceneChangeMessage(TEXT("edit_node"), NodeJson);
+    
+    return true;
+}
+
+bool UMAEditModeManager::IsNodeGoal(const FString& NodeId) const
+{
+    // Requirements: 16.5 - 检查 Node 是否为 Goal
+    
+    if (!TempSceneGraphData.IsValid())
+    {
+        return false;
+    }
+    
+    TSharedPtr<FJsonObject> NodeObject = FindNodeById(NodeId);
+    if (!NodeObject.IsValid())
+    {
+        return false;
+    }
+    
+    // 检查 properties.is_goal
+    const TSharedPtr<FJsonObject>* PropertiesPtr;
+    if (!NodeObject->TryGetObjectField(TEXT("properties"), PropertiesPtr))
+    {
+        return false;
+    }
+    
+    bool bIsGoal = false;
+    (*PropertiesPtr)->TryGetBoolField(TEXT("is_goal"), bIsGoal);
+    
+    return bIsGoal;
+}
+
+//=============================================================================
+// 列表查询
+// Requirements: 17.2, 17.3
+//=============================================================================
+
+TArray<FString> UMAEditModeManager::GetAllGoalNodeIds() const
+{
+    // Requirements: 17.2 - 获取所有 Goal Node ID
+    
+    TArray<FString> GoalIds;
+    
+    if (!TempSceneGraphData.IsValid())
+    {
+        return GoalIds;
+    }
+    
+    const TArray<TSharedPtr<FJsonValue>>* NodesArray;
+    if (!TempSceneGraphData->TryGetArrayField(TEXT("nodes"), NodesArray))
+    {
+        return GoalIds;
+    }
+    
+    for (const TSharedPtr<FJsonValue>& NodeValue : *NodesArray)
+    {
+        if (!NodeValue.IsValid() || NodeValue->Type != EJson::Object)
+        {
+            continue;
+        }
+        
+        TSharedPtr<FJsonObject> NodeObject = NodeValue->AsObject();
+        
+        // 检查 properties.type == "goal" 或 properties.is_goal == true
+        const TSharedPtr<FJsonObject>* PropertiesPtr;
+        if (NodeObject->TryGetObjectField(TEXT("properties"), PropertiesPtr))
+        {
+            FString Type;
+            bool bIsGoal = false;
+            
+            (*PropertiesPtr)->TryGetStringField(TEXT("type"), Type);
+            (*PropertiesPtr)->TryGetBoolField(TEXT("is_goal"), bIsGoal);
+            
+            if (Type.Equals(TEXT("goal"), ESearchCase::IgnoreCase) || bIsGoal)
+            {
+                FString NodeId;
+                if (NodeObject->TryGetStringField(TEXT("id"), NodeId))
+                {
+                    GoalIds.Add(NodeId);
+                }
+            }
+        }
+    }
+    
+    return GoalIds;
+}
+
+TArray<FString> UMAEditModeManager::GetAllZoneNodeIds() const
+{
+    // Requirements: 17.3 - 获取所有 Zone Node ID
+    
+    TArray<FString> ZoneIds;
+    
+    if (!TempSceneGraphData.IsValid())
+    {
+        return ZoneIds;
+    }
+    
+    const TArray<TSharedPtr<FJsonValue>>* NodesArray;
+    if (!TempSceneGraphData->TryGetArrayField(TEXT("nodes"), NodesArray))
+    {
+        return ZoneIds;
+    }
+    
+    for (const TSharedPtr<FJsonValue>& NodeValue : *NodesArray)
+    {
+        if (!NodeValue.IsValid() || NodeValue->Type != EJson::Object)
+        {
+            continue;
+        }
+        
+        TSharedPtr<FJsonObject> NodeObject = NodeValue->AsObject();
+        
+        // 检查 properties.type == "zone" 或 shape.type == "polygon"
+        const TSharedPtr<FJsonObject>* PropertiesPtr;
+        const TSharedPtr<FJsonObject>* ShapePtr;
+        
+        bool bIsZone = false;
+        
+        if (NodeObject->TryGetObjectField(TEXT("properties"), PropertiesPtr))
+        {
+            FString Type;
+            (*PropertiesPtr)->TryGetStringField(TEXT("type"), Type);
+            if (Type.Equals(TEXT("zone"), ESearchCase::IgnoreCase))
+            {
+                bIsZone = true;
+            }
+        }
+        
+        // 也检查 shape.type == "polygon" (Zone 通常是多边形)
+        if (!bIsZone && NodeObject->TryGetObjectField(TEXT("shape"), ShapePtr))
+        {
+            FString ShapeType;
+            (*ShapePtr)->TryGetStringField(TEXT("type"), ShapeType);
+            if (ShapeType.Equals(TEXT("polygon"), ESearchCase::IgnoreCase))
+            {
+                // 检查 properties.category == "zone"
+                if (PropertiesPtr)
+                {
+                    FString Category;
+                    (*PropertiesPtr)->TryGetStringField(TEXT("category"), Category);
+                    if (Category.Equals(TEXT("zone"), ESearchCase::IgnoreCase))
+                    {
+                        bIsZone = true;
+                    }
+                }
+            }
+        }
+        
+        if (bIsZone)
+        {
+            FString NodeId;
+            if (NodeObject->TryGetStringField(TEXT("id"), NodeId))
+            {
+                ZoneIds.Add(NodeId);
+            }
+        }
+    }
+    
+    return ZoneIds;
+}
+
+FString UMAEditModeManager::GetNodeLabel(const FString& NodeId) const
+{
+    if (!TempSceneGraphData.IsValid())
+    {
+        return FString();
+    }
+    
+    TSharedPtr<FJsonObject> NodeObject = FindNodeById(NodeId);
+    if (!NodeObject.IsValid())
+    {
+        return FString();
+    }
+    
+    // 尝试从 properties.label 获取
+    const TSharedPtr<FJsonObject>* PropertiesPtr;
+    if (NodeObject->TryGetObjectField(TEXT("properties"), PropertiesPtr))
+    {
+        FString Label;
+        if ((*PropertiesPtr)->TryGetStringField(TEXT("label"), Label))
+        {
+            return Label;
+        }
+    }
+    
+    // 回退到 Node ID
+    return NodeId;
 }

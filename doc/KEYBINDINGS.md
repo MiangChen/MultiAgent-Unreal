@@ -2,17 +2,18 @@
 
 ## 鼠标操作
 
-| 按键 | Select 模式 | Deployment 模式 | Modify 模式 |
-|------|-------------|-----------------|-------------|
-| **左键** | 点击选择 Agent / 框选多个 Agent | 在点击位置部署 Agent | 点击选择 Actor 进行修改 |
-| **左键 + Ctrl** | 添加/移除选择 | - | - |
-| **右键** | 选中的 RobotDog/Drone 导航到点击位置 | - | - |
+| 按键 | Select 模式 | Deployment 模式 | Modify 模式 | Edit 模式 |
+|------|-------------|-----------------|-------------|-----------|
+| **左键** | 点击选择 Agent / 框选多个 Agent | 在点击位置部署 Agent | 点击选择 Actor 进行修改 | 在点击位置创建 POI 标记点 |
+| **左键 + Ctrl** | 添加/移除选择 | - | - | - |
+| **左键 + Shift** | - | - | - | 选择 Actor 或 POI |
+| **右键** | 选中的 RobotDog/Drone 导航到点击位置 | - | - | - |
 
 ## 模式切换
 
 | 按键 | 功能 |
 |------|------|
-| **M** | 循环切换鼠标模式 (Select → Deployment → Modify → Select)，如果 Deployment 背包为空则跳过 |
+| **M** | 循环切换鼠标模式 (Select → Deployment → Modify → Edit → Select)，如果 Deployment 背包为空则跳过 |
 | **Z** | 切换主 UI 显示/隐藏 (输入框 + 结果显示) |
 
 ## Modify 模式 (修改模式)
@@ -39,6 +40,94 @@ Modify 模式用于查看和编辑场景中 Actor 的标签信息。进入该模
 - 同一时间只能高亮一个 Actor
 - 切换到其他模式时自动清除高亮和隐藏修改面板
 - 当前为占位符实现，标签格式为 "Actor: [ActorName]\nLabel: [placeholder]"
+
+## Edit 模式 (编辑模式)
+
+Edit 模式用于模拟任务执行过程中发生的"新情况"（动态变化）。与 Modify 模式（持久化修改源场景图文件）不同，Edit 模式的所有操作仅针对临时场景图文件进行，不影响源文件。进入该模式后，屏幕右上角显示蓝色 "Mode: Edit (M)" 指示器，屏幕右侧显示编辑面板，屏幕左侧显示 Goal/Zone 列表面板。
+
+### 操作说明
+
+| 操作 | 功能 |
+|------|------|
+| **左键点击场景** | 在点击位置创建 POI (Point of Interest) 标记点 |
+| **Shift + 左键点击 Actor** | 选中 Actor，显示轮廓高亮，编辑面板显示 Actor 对应的 JSON |
+| **Shift + 左键点击 POI** | 选中/取消选中 POI（支持多选） |
+| **Shift + 左键点击 Goal/Zone Actor** | 选中 Goal 或 Zone，显示其 JSON 信息 |
+| **Shift + 左键点击已选中对象** | 取消选中该对象 |
+
+### 编辑面板功能 (右侧)
+
+#### 选中 Actor 时
+
+- **JSON 编辑区**: 显示 Actor 对应的 Node JSON，可编辑（根据 shape 类型限制可编辑字段）
+- **Node 切换按钮**: 如果 Actor 属于多个 Node，可切换显示不同 Node
+- **确认按钮**: 提交 JSON 修改到临时场景图
+- **删除按钮**: 从场景中删除 Actor 及其对应的 Node（仅 point 类型）
+- **设为 Goal 按钮**: 为选中的 Actor 添加 `is_goal: true` 属性
+- **取消 Goal 按钮**: 移除 Actor 的 `is_goal` 属性（仅当 Actor 已是 Goal 时显示）
+
+#### 选中 POI 时
+
+- **描述输入框**: 输入 Goal 或 Zone 的描述信息
+- **创建 Goal 按钮**: 选中单个 POI 时显示，将 POI 转换为 Goal 节点
+- **创建区域按钮**: 选中 3 个或更多 POI 时显示，将 POI 围成的区域创建为 Zone 节点
+- **预设 Actor 下拉框**: 选中单个 POI 时显示，可在 POI 位置添加预设 Actor
+
+#### 选中 Goal Actor 时
+
+- **JSON 编辑区**: 显示 Goal 的 JSON 信息，可编辑描述等属性
+- **确认按钮**: 提交修改
+- **删除按钮**: 删除 Goal
+
+#### 选中 Zone Actor 时
+
+- **JSON 编辑区**: 显示 Zone 的 JSON 信息，可编辑 properties
+- **确认按钮**: 提交修改
+- **删除按钮**: 删除 Zone
+
+#### 临时场景图预览
+
+- **JSON 预览区**: 只读显示临时场景图的完整内容
+- **滚动浏览**: 支持滚动查看完整 JSON
+- **高亮显示**: 选中 Actor 或 POI 时，相关 Node 在预览中高亮
+
+### Goal/Zone 列表面板 (左侧)
+
+- **Goal 列表**: 显示当前临时场景图中所有 Goal 节点
+- **Zone 列表**: 显示当前临时场景图中所有 Zone 节点
+- **点击列表项**: 自动选中对应的 Goal/Zone Actor
+- **自动刷新**: 当场景图变化时自动更新列表
+
+### 选择机制
+
+- **POI 多选**: 可同时选中多个 POI
+- **Actor 单选**: 同一时间只能选中一个 Actor，选中新 Actor 时自动取消之前的选择
+- **互斥选择**: Actor 和 POI 不能同时选中，选择一种类型时自动清除另一种类型的选择
+
+### Shape 类型编辑约束
+
+| Shape 类型 | 可编辑字段 | 可删除 |
+|------------|-----------|--------|
+| **point** | properties, shape.center | ✓ |
+| **polygon** | properties | ✗ |
+| **linestring** | properties | ✗ |
+
+### 可视化元素
+
+| 元素 | 外观 | 说明 |
+|------|------|------|
+| **POI** | 蓝色粒子效果 | 临时标记点，选中时变为黄色 |
+| **Goal Actor** | 红色锥体 + 文本标签 | 已创建的 Goal 节点可视化 |
+| **Zone Actor** | 蓝色样条曲线边界 | 已创建的 Zone 节点可视化，选中时变为黄色 |
+
+### 特性说明
+
+- POI 仅作为临时标记，不写入场景图文件
+- 切换到其他模式时自动清除所有 POI、Goal Actor、Zone Actor 和高亮状态
+- 所有修改仅影响临时场景图，不影响源文件
+- 场景变化会实时通知后端规划器，支持重规划触发
+- 修改 point 类型 Node 的坐标时，场景中 Actor 位置会同步更新
+- Goal 和 Zone 创建后会自动生成可视化 Actor，支持点击选择和编辑
 
 ## 突发事件系统
 

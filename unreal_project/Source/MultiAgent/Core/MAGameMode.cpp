@@ -2,6 +2,7 @@
 
 #include "MAGameMode.h"
 #include "MAGameInstance.h"
+#include "MAEditModeManager.h"
 #include "../Input/MAPlayerController.h"
 #include "../UI/MAHUD.h"
 #include "../UI/MAMiniMapManager.h"
@@ -40,6 +41,9 @@ void AMAGameMode::BeginPlay()
         
         // 生成小地图
         SpawnMiniMapManager();
+        
+        // 初始化 Edit Mode 管理器
+        InitializeEditModeManager();
         
         UE_LOG(LogTemp, Warning, TEXT("========== [GameMode] Initialization COMPLETE =========="));
     });
@@ -290,5 +294,37 @@ void AMAGameMode::SpawnMiniMapManager()
     else
     {
         UE_LOG(LogTemp, Warning, TEXT("[GameMode] Failed to spawn MiniMapManager"));
+    }
+}
+
+void AMAGameMode::InitializeEditModeManager()
+{
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        UE_LOG(LogTemp, Error, TEXT("[GameMode] InitializeEditModeManager: World is null"));
+        return;
+    }
+    
+    // 获取 EditModeManager 子系统
+    UMAEditModeManager* EditModeManager = World->GetSubsystem<UMAEditModeManager>();
+    if (!EditModeManager)
+    {
+        UE_LOG(LogTemp, Error, TEXT("[GameMode] EditModeManager subsystem not found"));
+        return;
+    }
+    
+    // 创建临时场景图
+    // Requirements: 1.1 - 游戏启动时从 Source_Scene_Graph 复制创建 Temp_Scene_Graph
+    bool bSuccess = EditModeManager->CreateTempSceneGraph();
+    
+    if (bSuccess)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[GameMode] EditModeManager initialized - Temp scene graph created at: %s"), 
+            *EditModeManager->GetTempSceneGraphPath());
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[GameMode] EditModeManager initialization failed - Edit Mode will be disabled"));
     }
 }

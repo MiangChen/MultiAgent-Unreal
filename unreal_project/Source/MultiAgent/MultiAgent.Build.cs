@@ -37,7 +37,9 @@ public class MultiAgent : ModuleRules
             // HTTP 模块 (通信子系统)
             "HTTP",
             // Niagara (特效系统)
-            "Niagara"
+            "Niagara",
+            // GeometryCore (几何计算模块 - OBB, Prism 等)
+            "GeometryCore"
         });
 
         PrivateDependencyModuleNames.AddRange(new string[] { });

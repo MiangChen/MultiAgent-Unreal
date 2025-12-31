@@ -149,6 +149,31 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Polling")
     float PollIntervalSeconds = 1.0f;
 
+    //=========================================================================
+    // 场景变化消息发送接口 (Edit Mode)
+    // Requirements: 11.1
+    //=========================================================================
+
+    /**
+     * 发送场景变化消息
+     * 用于 Edit Mode 中通知后端规划器场景发生的变化
+     * 
+     * @param Message 场景变化消息
+     * Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7, 11.8
+     */
+    UFUNCTION(BlueprintCallable, Category = "Communication|SceneChange")
+    void SendSceneChangeMessage(const FMASceneChangeMessage& Message);
+
+    /**
+     * 发送场景变化消息 (便捷方法)
+     * 
+     * @param ChangeType 变化类型
+     * @param Payload 负载数据 (JSON 格式)
+     * Requirements: 11.1
+     */
+    UFUNCTION(BlueprintCallable, Category = "Communication|SceneChange")
+    void SendSceneChangeMessageByType(EMASceneChangeType ChangeType, const FString& Payload);
+
     /**
      * 是否启用轮询
      * 如果为 true，Initialize() 时自动启动轮询

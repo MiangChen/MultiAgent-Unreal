@@ -12,6 +12,8 @@
 #include "../Core/MASelectionManager.h"
 #include "../Core/MAViewportManager.h"
 #include "../Core/MAEmergencyManager.h"
+#include "../Core/MAEditModeManager.h"
+#include "../Environment/MAPointOfInterest.h"
 #include "../UI/MASelectionHUD.h"
 #include "MACharacter.h"
 #include "MARobotDogCharacter.h"
@@ -24,6 +26,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/Canvas.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Widgets/SWindow.h"
 
 AMAPlayerController::AMAPlayerController()
 {
@@ -70,6 +74,7 @@ bool AMAPlayerController::InitializeSubsystems()
     SquadManager = World->GetSubsystem<UMASquadManager>();
     ViewportManager = World->GetSubsystem<UMAViewportManager>();
     EmergencyManager = World->GetSubsystem<UMAEmergencyManager>();
+    EditModeManager = World->GetSubsystem<UMAEditModeManager>();
     
     return AgentManager && CommandManager && SelectionManager && SquadManager && ViewportManager && EmergencyManager;
 }
@@ -166,6 +171,10 @@ bool AMAPlayerController::GetMouseHitLocation(FVector& OutLocation)
 
 void AMAPlayerController::OnLeftClick(const FInputActionValue& Value)
 {
+    // 注意: 不再在这里检测 UI，因为 UMG 按钮的 OnClicked 事件是独立于 Enhanced Input 的
+    // Modify 模式也没有 UI 检测，按钮点击仍然正常工作
+    // Edit 模式采用相同的方式：让 OnEditLeftClick 处理场景交互，UMG 自己处理按钮点击
+    
     if (CurrentMouseMode == EMAMouseMode::Deployment)
     {
         // 部署模式：开始框选部署区域
@@ -177,6 +186,13 @@ void AMAPlayerController::OnLeftClick(const FInputActionValue& Value)
     {
         // Modify 模式：点击选择 Actor
         OnModifyLeftClick();
+        return;
+    }
+    
+    if (CurrentMouseMode == EMAMouseMode::Edit)
+    {
+        // Edit 模式：点击创建 POI 或选择对象
+        OnEditLeftClick();
         return;
     }
     
@@ -803,6 +819,18 @@ void AMAPlayerController::ApplyMouseModeSettings(EMAMouseMode Mode)
     {
         // 退出 Modify 模式
         ExitModifyMode();
+    }
+    
+    // 处理 Edit 模式的进入/退出
+    if (Mode == EMAMouseMode::Edit && PreviousMouseMode != EMAMouseMode::Edit)
+    {
+        // 进入 Edit 模式
+        EnterEditMode();
+    }
+    else if (Mode != EMAMouseMode::Edit && PreviousMouseMode == EMAMouseMode::Edit)
+    {
+        // 退出 Edit 模式
+        ExitEditMode();
     }
 }
 
@@ -1570,4 +1598,157 @@ void AMAPlayerController::ClearModifyHighlight()
     // 广播空选中事件
     OnModifyActorSelected.Broadcast(nullptr);
     OnModifyActorsSelected.Broadcast(HighlightedActors);
+}
+
+
+// ========== Edit 模式 ==========
+
+void AMAPlayerController::OnEditLeftClick()
+{
+    // Requirements: 3.1, 4.1, 4.2, 4.7
+    
+    // 检查鼠标是否在 UI 上，如果是则不处理场景交互
+    // 这样 UMG 按钮可以正常接收点击，同时避免在 UI 区域创建 POI
+    if (AMAHUD* HUD = Cast<AMAHUD>(GetHUD()))
+    {
+        if (HUD->IsMouseOverEditWidget())
+        {
+            UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnEditLeftClick: Mouse over UI, skipping scene interaction"));
+            return;
+        }
+    }
+    
+    // 检测 Shift 键状态
+    bool bShiftPressed = IsInputKeyDown(EKeys::LeftShift) || IsInputKeyDown(EKeys::RightShift);
+    
+    if (bShiftPressed)
+    {
+        // Shift+Click: 选择 Actor 或 POI
+        // Requirements: 4.1, 4.2, 4.7
+        FHitResult HitResult;
+        if (GetHitResultUnderCursor(ECC_Visibility, false, HitResult))
+        {
+            AActor* HitActor = HitResult.GetActor();
+            
+            if (HitActor)
+            {
+                // 检查是否点击了 POI
+                AMAPointOfInterest* POI = Cast<AMAPointOfInterest>(HitActor);
+                if (POI)
+                {
+                    // 点击 POI: 切换选择状态
+                    if (EditModeManager)
+                    {
+                        if (EditModeManager->GetSelectedPOIs().Contains(POI))
+                        {
+                            // 已选中，取消选择
+                            EditModeManager->DeselectObject(POI);
+                            UE_LOG(LogTemp, Log, TEXT("[PlayerController] Edit Mode: Deselected POI at %s"), 
+                                *POI->GetActorLocation().ToString());
+                        }
+                        else
+                        {
+                            // 未选中，添加到选择
+                            EditModeManager->SelectPOI(POI);
+                            UE_LOG(LogTemp, Log, TEXT("[PlayerController] Edit Mode: Selected POI at %s"), 
+                                *POI->GetActorLocation().ToString());
+                        }
+                    }
+                    return;
+                }
+                
+                // 点击普通 Actor: 选择 Actor (单选)
+                // Requirements: 4.1, 4.5, 4.6
+                if (EditModeManager)
+                {
+                    if (EditModeManager->GetSelectedActor() == HitActor)
+                    {
+                        // 已选中，取消选择
+                        EditModeManager->DeselectObject(HitActor);
+                        UE_LOG(LogTemp, Log, TEXT("[PlayerController] Edit Mode: Deselected Actor %s"), 
+                            *HitActor->GetName());
+                    }
+                    else
+                    {
+                        // 选择新 Actor
+                        EditModeManager->SelectActor(HitActor);
+                        UE_LOG(LogTemp, Log, TEXT("[PlayerController] Edit Mode: Selected Actor %s"), 
+                            *HitActor->GetName());
+                    }
+                }
+                return;
+            }
+        }
+        
+        // 点击空白区域，清除选择
+        if (EditModeManager)
+        {
+            EditModeManager->ClearSelection();
+            UE_LOG(LogTemp, Log, TEXT("[PlayerController] Edit Mode: Cleared selection"));
+        }
+    }
+    else
+    {
+        // 普通 Click: 创建 POI
+        // Requirements: 3.1
+        FVector HitLocation;
+        if (GetMouseHitLocation(HitLocation))
+        {
+            if (EditModeManager)
+            {
+                AMAPointOfInterest* NewPOI = EditModeManager->CreatePOI(HitLocation);
+                if (NewPOI)
+                {
+                    UE_LOG(LogTemp, Log, TEXT("[PlayerController] Edit Mode: Created POI at %s"), 
+                        *HitLocation.ToString());
+                    
+                    // 在屏幕上显示坐标
+                    GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green,
+                        FString::Printf(TEXT("POI: (%.0f, %.0f, %.0f)"), 
+                            HitLocation.X, HitLocation.Y, HitLocation.Z));
+                }
+            }
+        }
+    }
+}
+
+void AMAPlayerController::EnterEditMode()
+{
+    // Requirements: 2.1, 2.3
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] EnterEditMode"));
+    
+    // 检查 Edit Mode 是否可用
+    if (EditModeManager && !EditModeManager->IsEditModeAvailable())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Edit Mode is not available (source scene graph not found)"));
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, 
+            TEXT("Edit Mode 不可用: 源场景图文件未找到"));
+        return;
+    }
+    
+    // 通知 HUD 显示 EditWidget
+    if (AMAHUD* HUD = Cast<AMAHUD>(GetHUD()))
+    {
+        HUD->ShowEditWidget();
+    }
+}
+
+void AMAPlayerController::ExitEditMode()
+{
+    // Requirements: 2.4, 2.5, 3.5
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] ExitEditMode"));
+    
+    // 清除所有 POI 和选择
+    // Requirements: 2.4, 3.5
+    if (EditModeManager)
+    {
+        EditModeManager->ClearSelection();
+        EditModeManager->DestroyAllPOIs();
+    }
+    
+    // 通知 HUD 隐藏 EditWidget
+    if (AMAHUD* HUD = Cast<AMAHUD>(GetHUD()))
+    {
+        HUD->HideEditWidget();
+    }
 }

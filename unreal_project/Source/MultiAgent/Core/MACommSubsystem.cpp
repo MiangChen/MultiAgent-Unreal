@@ -305,6 +305,87 @@ void UMACommSubsystem::SendTaskFeedbackMessage(const FMATaskFeedbackMessage& Fee
     SendMessageEnvelope(Envelope);
 }
 
+//=============================================================================
+// 场景变化消息发送接口 (Edit Mode)
+// Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7, 11.8
+//=============================================================================
+
+void UMACommSubsystem::SendSceneChangeMessage(const FMASceneChangeMessage& Message)
+{
+    // Requirements: 11.1 - 通过 MACommSubsystem 发送场景变化消息
+    
+    FString ChangeTypeStr = FMASceneChangeMessage::ChangeTypeToString(Message.ChangeType);
+    
+    UE_LOG(LogMACommSubsystem, Log, TEXT("SendSceneChangeMessage: Type=%s, MessageId=%s"), 
+        *ChangeTypeStr, *Message.MessageId);
+    UE_LOG(LogMACommSubsystem, Verbose, TEXT("Payload: %s"), *Message.Payload);
+
+    // 序列化场景变化消息为 JSON
+    FString MessageJson = Message.ToJson();
+
+    // Mock 模式下仅记录日志
+    if (bUseMockData)
+    {
+        UE_LOG(LogMACommSubsystem, Log, TEXT("Mock mode: Scene change message logged but not sent"));
+        UE_LOG(LogMACommSubsystem, Log, TEXT("  ChangeType: %s"), *ChangeTypeStr);
+        UE_LOG(LogMACommSubsystem, Verbose, TEXT("  Full JSON: %s"), *MessageJson);
+        return;
+    }
+
+    // 发送 HTTP POST 请求到场景变化端点
+    // 使用专门的场景变化端点 /api/sim/scene_change
+    FString FullUrl = ServerURL + TEXT("/api/sim/scene_change");
+    
+    UE_LOG(LogMACommSubsystem, Log, TEXT("SendSceneChangeMessage: Sending to %s"), *FullUrl);
+
+    // 创建 HTTP 请求
+    TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
+    
+    HttpRequest->SetURL(FullUrl);
+    HttpRequest->SetVerb(TEXT("POST"));
+    HttpRequest->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
+    HttpRequest->SetContentAsString(MessageJson);
+    
+    // 设置超时（10秒）
+    HttpRequest->SetTimeout(10.0f);
+    
+    // 绑定完成回调 - 使用简单的日志回调，不需要重试逻辑
+    HttpRequest->OnProcessRequestComplete().BindLambda(
+        [ChangeTypeStr](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bConnectedSuccessfully)
+        {
+            if (!bConnectedSuccessfully || !Response.IsValid())
+            {
+                UE_LOG(LogMACommSubsystem, Warning, TEXT("SendSceneChangeMessage: Failed to send %s message - connection error"), *ChangeTypeStr);
+                return;
+            }
+            
+            int32 ResponseCode = Response->GetResponseCode();
+            if (ResponseCode >= 200 && ResponseCode < 300)
+            {
+                UE_LOG(LogMACommSubsystem, Log, TEXT("SendSceneChangeMessage: %s message sent successfully"), *ChangeTypeStr);
+            }
+            else
+            {
+                UE_LOG(LogMACommSubsystem, Warning, TEXT("SendSceneChangeMessage: %s message failed with code %d"), *ChangeTypeStr, ResponseCode);
+            }
+        }
+    );
+    
+    // 发送请求
+    if (!HttpRequest->ProcessRequest())
+    {
+        UE_LOG(LogMACommSubsystem, Error, TEXT("SendSceneChangeMessage: Failed to initiate HTTP request for %s"), *ChangeTypeStr);
+    }
+}
+
+void UMACommSubsystem::SendSceneChangeMessageByType(EMASceneChangeType ChangeType, const FString& Payload)
+{
+    // Requirements: 11.1 - 便捷方法，创建消息并发送
+    
+    FMASceneChangeMessage Message(ChangeType, Payload);
+    SendSceneChangeMessage(Message);
+}
+
 void UMACommSubsystem::SendMessageEnvelope(const FMAMessageEnvelope& Envelope)
 {
     // Requirements: 5.1, 5.2, 5.6 - 统一的消息发送入口

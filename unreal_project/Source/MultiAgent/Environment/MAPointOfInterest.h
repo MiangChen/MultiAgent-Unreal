@@ -15,6 +15,7 @@
 class UNiagaraComponent;
 class UNiagaraSystem;
 class USphereComponent;
+class UStaticMeshComponent;
 
 /**
  * POI (Point of Interest) Actor
@@ -46,6 +47,10 @@ public:
     /** 碰撞球体 - 用于选择检测 */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
     USphereComponent* CollisionSphere;
+
+    /** 可视化球体 - 当没有 Niagara 系统时的备选方案 */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+    UStaticMeshComponent* VisualSphere;
 
     //=========================================================================
     // 公共接口
