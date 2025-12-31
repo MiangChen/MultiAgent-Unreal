@@ -1821,27 +1821,62 @@ void AMAHUD::OnEditDeleteActor(AActor* Actor)
         return;
     }
     
-    // 获取 Actor 对应的 Node ID
-    // 通过 SceneGraphManager 查找
-    UGameInstance* GI = World->GetGameInstance();
-    if (!GI)
+    FString NodeId;
+    bool bIsGoalOrZone = false;
+    
+    // 检查是否为 GoalActor 或 ZoneActor，使用 GetNodeId() 获取 Node ID
+    if (AMAGoalActor* GoalActor = Cast<AMAGoalActor>(Actor))
     {
-        ShowNotification(TEXT("删除失败: 无法获取 GameInstance"), true);
+        NodeId = GoalActor->GetNodeId();
+        bIsGoalOrZone = true;
+        UE_LOG(LogMAHUD, Log, TEXT("OnEditDeleteActor: GoalActor detected, NodeId=%s"), *NodeId);
+    }
+    else if (AMAZoneActor* ZoneActor = Cast<AMAZoneActor>(Actor))
+    {
+        NodeId = ZoneActor->GetNodeId();
+        bIsGoalOrZone = true;
+        UE_LOG(LogMAHUD, Log, TEXT("OnEditDeleteActor: ZoneActor detected, NodeId=%s"), *NodeId);
+    }
+    
+    // 如果是 Goal/Zone Actor，直接使用 NodeId 删除
+    if (bIsGoalOrZone)
+    {
+        if (NodeId.IsEmpty())
+        {
+            ShowNotification(TEXT("删除失败: 无法获取 Node ID"), true);
+            return;
+        }
+        
+        FString OutError;
+        if (!EditModeManager->DeleteNode(NodeId, OutError))
+        {
+            ShowNotification(OutError, true);
+            return;
+        }
+        
+        // 销毁对应的可视化 Actor
+        if (Actor->IsA<AMAGoalActor>())
+        {
+            EditModeManager->DestroyGoalActor(NodeId);
+        }
+        else if (Actor->IsA<AMAZoneActor>())
+        {
+            EditModeManager->DestroyZoneActor(NodeId);
+        }
+        
+        // 成功
+        ShowNotification(TEXT("已删除"), false);
+        
+        // 清除选择
+        EditModeManager->ClearSelection();
         return;
     }
     
-    UMASceneGraphManager* SceneGraphManager = GI->GetSubsystem<UMASceneGraphManager>();
-    if (!SceneGraphManager)
-    {
-        ShowNotification(TEXT("删除失败: SceneGraphManager 未找到"), true);
-        return;
-    }
-    
-    // 通过 GUID 查找 Node
+    // 普通 Actor：通过 MAEditModeManager 的临时场景图查找
     FString ActorGuid = Actor->GetActorGuid().ToString();
-    TArray<FMASceneGraphNode> Nodes = SceneGraphManager->FindNodesByGuid(ActorGuid);
+    TArray<FString> NodeIds = EditModeManager->FindNodeIdsByGuid(ActorGuid);
     
-    if (Nodes.Num() == 0)
+    if (NodeIds.Num() == 0)
     {
         ShowNotification(TEXT("未找到对应的场景图节点"), true);
         return;
@@ -1849,7 +1884,7 @@ void AMAHUD::OnEditDeleteActor(AActor* Actor)
     
     // 删除第一个匹配的 Node
     FString OutError;
-    if (!EditModeManager->DeleteNode(Nodes[0].Id, OutError))
+    if (!EditModeManager->DeleteNode(NodeIds[0], OutError))
     {
         ShowNotification(OutError, true);
         return;
@@ -2091,26 +2126,11 @@ void AMAHUD::OnEditSetAsGoal(AActor* Actor)
         return;
     }
     
-    // 获取 Actor 对应的 Node ID
-    UGameInstance* GI = World->GetGameInstance();
-    if (!GI)
-    {
-        ShowNotification(TEXT("设置失败: 无法获取 GameInstance"), true);
-        return;
-    }
-    
-    UMASceneGraphManager* SceneGraphManager = GI->GetSubsystem<UMASceneGraphManager>();
-    if (!SceneGraphManager)
-    {
-        ShowNotification(TEXT("设置失败: SceneGraphManager 未找到"), true);
-        return;
-    }
-    
-    // 通过 GUID 查找 Node
+    // 通过 GUID 从临时场景图查找 Node
     FString ActorGuid = Actor->GetActorGuid().ToString();
-    TArray<FMASceneGraphNode> Nodes = SceneGraphManager->FindNodesByGuid(ActorGuid);
+    TArray<FString> NodeIds = EditModeManager->FindNodeIdsByGuid(ActorGuid);
     
-    if (Nodes.Num() == 0)
+    if (NodeIds.Num() == 0)
     {
         ShowNotification(TEXT("未找到对应的场景图节点"), true);
         return;
@@ -2118,14 +2138,21 @@ void AMAHUD::OnEditSetAsGoal(AActor* Actor)
     
     // 设置第一个匹配的 Node 为 Goal
     FString OutError;
-    if (!EditModeManager->SetNodeAsGoal(Nodes[0].Id, OutError))
+    if (!EditModeManager->SetNodeAsGoal(NodeIds[0], OutError))
     {
         ShowNotification(OutError, true);
         return;
     }
     
+    // 获取 Node 标签用于显示
+    FString NodeLabel = EditModeManager->GetNodeLabel(NodeIds[0]);
+    if (NodeLabel.IsEmpty())
+    {
+        NodeLabel = NodeIds[0];
+    }
+    
     // 成功
-    ShowNotification(FString::Printf(TEXT("已将 %s 设为 Goal"), *Nodes[0].Label), false);
+    ShowNotification(FString::Printf(TEXT("已将 %s 设为 Goal"), *NodeLabel), false);
     
     // 刷新 SceneListWidget
     if (SceneListWidget)
@@ -2166,41 +2193,33 @@ void AMAHUD::OnEditUnsetAsGoal(AActor* Actor)
         return;
     }
     
-    // 获取 Actor 对应的 Node ID
-    UGameInstance* GI = World->GetGameInstance();
-    if (!GI)
-    {
-        ShowNotification(TEXT("取消失败: 无法获取 GameInstance"), true);
-        return;
-    }
-    
-    UMASceneGraphManager* SceneGraphManager = GI->GetSubsystem<UMASceneGraphManager>();
-    if (!SceneGraphManager)
-    {
-        ShowNotification(TEXT("取消失败: SceneGraphManager 未找到"), true);
-        return;
-    }
-    
-    // 通过 GUID 查找 Node
+    // 通过 GUID 从临时场景图查找 Node
     FString ActorGuid = Actor->GetActorGuid().ToString();
-    TArray<FMASceneGraphNode> Nodes = SceneGraphManager->FindNodesByGuid(ActorGuid);
+    TArray<FString> NodeIds = EditModeManager->FindNodeIdsByGuid(ActorGuid);
     
-    if (Nodes.Num() == 0)
+    if (NodeIds.Num() == 0)
     {
         ShowNotification(TEXT("未找到对应的场景图节点"), true);
         return;
     }
     
+    // 获取 Node 标签用于显示
+    FString NodeLabel = EditModeManager->GetNodeLabel(NodeIds[0]);
+    if (NodeLabel.IsEmpty())
+    {
+        NodeLabel = NodeIds[0];
+    }
+    
     // 取消第一个匹配的 Node 的 Goal 状态
     FString OutError;
-    if (!EditModeManager->UnsetNodeAsGoal(Nodes[0].Id, OutError))
+    if (!EditModeManager->UnsetNodeAsGoal(NodeIds[0], OutError))
     {
         ShowNotification(OutError, true);
         return;
     }
     
     // 成功
-    ShowNotification(FString::Printf(TEXT("已取消 %s 的 Goal 状态"), *Nodes[0].Label), false);
+    ShowNotification(FString::Printf(TEXT("已取消 %s 的 Goal 状态"), *NodeLabel), false);
     
     // 刷新 SceneListWidget
     if (SceneListWidget)
@@ -2243,28 +2262,25 @@ void AMAHUD::OnSceneListGoalClicked(const FString& GoalId)
     }
     else
     {
-        // 如果没有 Goal Actor，尝试通过 SceneGraphManager 查找对应的场景 Actor
-        UGameInstance* GI = World->GetGameInstance();
-        if (GI)
+        // 如果没有 Goal Actor，尝试通过临时场景图查找对应的场景 Actor
+        FString NodeJson = EditModeManager->GetNodeJsonById(GoalId);
+        if (!NodeJson.IsEmpty())
         {
-            UMASceneGraphManager* SceneGraphManager = GI->GetSubsystem<UMASceneGraphManager>();
-            if (SceneGraphManager)
+            // 解析 JSON 获取 GUID
+            TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(NodeJson);
+            TSharedPtr<FJsonObject> NodeObject;
+            if (FJsonSerializer::Deserialize(Reader, NodeObject) && NodeObject.IsValid())
             {
-                // 查找 Node 并获取其 GUID
-                TArray<FMASceneGraphNode> AllNodes = SceneGraphManager->GetAllNodes();
-                for (const FMASceneGraphNode& Node : AllNodes)
+                FString Guid;
+                if (NodeObject->TryGetStringField(TEXT("guid"), Guid) && !Guid.IsEmpty())
                 {
-                    if (Node.Id == GoalId && !Node.Guid.IsEmpty())
+                    // 通过 GUID 查找 Actor
+                    AActor* FoundActor = EditModeManager->FindActorByGuid(Guid);
+                    if (FoundActor)
                     {
-                        // 通过 GUID 查找 Actor
-                        AActor* FoundActor = EditModeManager->FindActorByGuid(Node.Guid);
-                        if (FoundActor)
-                        {
-                            EditModeManager->SelectActor(FoundActor);
-                            UE_LOG(LogMAHUD, Log, TEXT("OnSceneListGoalClicked: Selected Actor %s for Goal %s"), 
-                                *FoundActor->GetName(), *GoalId);
-                        }
-                        break;
+                        EditModeManager->SelectActor(FoundActor);
+                        UE_LOG(LogMAHUD, Log, TEXT("OnSceneListGoalClicked: Selected Actor %s for Goal %s"), 
+                            *FoundActor->GetName(), *GoalId);
                     }
                 }
             }

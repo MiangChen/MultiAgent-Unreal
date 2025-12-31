@@ -19,7 +19,6 @@
 #include "Blueprint/WidgetTree.h"
 #include "Framework/Application/SlateApplication.h"
 #include "../Core/MAEditModeManager.h"
-#include "../Core/MASceneGraphManager.h"
 #include "../Environment/MAPointOfInterest.h"
 #include "../Environment/MAGoalActor.h"
 #include "../Environment/MAZoneActor.h"
@@ -505,13 +504,6 @@ void UMAEditWidget::SetSelectedActor(AActor* Actor)
         // MAEditModeManager 是 WorldSubsystem，从 World 获取
         UMAEditModeManager* EditModeManager = World->GetSubsystem<UMAEditModeManager>();
         
-        // MASceneGraphManager 是 GameInstanceSubsystem，从 GameInstance 获取
-        UMASceneGraphManager* SceneGraphManager = nullptr;
-        if (UGameInstance* GI = World->GetGameInstance())
-        {
-            SceneGraphManager = GI->GetSubsystem<UMASceneGraphManager>();
-        }
-        
         FString SearchId;
         bool bIsGoalOrZone = false;
         
@@ -535,64 +527,89 @@ void UMAEditWidget::SetSelectedActor(AActor* Actor)
             UE_LOG(LogMAEditWidget, Log, TEXT("SetSelectedActor: Regular Actor, GUID = %s"), *SearchId);
         }
         
+        // 辅助函数：从 JSON 字符串解析 Node
+        auto ParseNodeFromJson = [](const FString& NodeJsonStr, const FString& NodeId) -> FMASceneGraphNode
+        {
+            FMASceneGraphNode Node;
+            TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(NodeJsonStr);
+            TSharedPtr<FJsonObject> NodeJson;
+            if (FJsonSerializer::Deserialize(Reader, NodeJson) && NodeJson.IsValid())
+            {
+                Node.Id = NodeId;
+                
+                // 获取 properties
+                if (NodeJson->HasField(TEXT("properties")))
+                {
+                    TSharedPtr<FJsonObject> Props = NodeJson->GetObjectField(TEXT("properties"));
+                    if (Props.IsValid())
+                    {
+                        Node.Type = Props->GetStringField(TEXT("type"));
+                        Node.Label = Props->GetStringField(TEXT("label"));
+                    }
+                }
+                
+                // 获取 shape
+                if (NodeJson->HasField(TEXT("shape")))
+                {
+                    TSharedPtr<FJsonObject> Shape = NodeJson->GetObjectField(TEXT("shape"));
+                    if (Shape.IsValid())
+                    {
+                        Node.ShapeType = Shape->GetStringField(TEXT("type"));
+                        
+                        if (Shape->HasField(TEXT("center")))
+                        {
+                            TArray<TSharedPtr<FJsonValue>> CenterArray = Shape->GetArrayField(TEXT("center"));
+                            if (CenterArray.Num() >= 3)
+                            {
+                                Node.Center = FVector(
+                                    CenterArray[0]->AsNumber(),
+                                    CenterArray[1]->AsNumber(),
+                                    CenterArray[2]->AsNumber()
+                                );
+                            }
+                        }
+                    }
+                }
+                
+                // 获取 guid (point 类型使用小写 guid 字符串)
+                if (NodeJson->HasField(TEXT("guid")))
+                {
+                    Node.Guid = NodeJson->GetStringField(TEXT("guid"));
+                }
+                // 获取 Guid 数组 (polygon/linestring/prism 类型使用大写 Guid 数组)
+                else if (NodeJson->HasField(TEXT("Guid")))
+                {
+                    const TArray<TSharedPtr<FJsonValue>>* GuidArray;
+                    if (NodeJson->TryGetArrayField(TEXT("Guid"), GuidArray) && GuidArray->Num() > 0)
+                    {
+                        // 将第一个 GUID 存入 Node.Guid 用于兼容
+                        Node.Guid = (*GuidArray)[0]->AsString();
+                        // 将所有 GUID 存入 GuidArray
+                        for (const TSharedPtr<FJsonValue>& GuidValue : *GuidArray)
+                        {
+                            if (GuidValue.IsValid())
+                            {
+                                Node.GuidArray.Add(GuidValue->AsString());
+                            }
+                        }
+                    }
+                }
+                
+                // 存储 RawJson
+                Node.RawJson = NodeJsonStr;
+            }
+            return Node;
+        };
+        
         // 对于 Goal/Zone Actor，从 MAEditModeManager 的临时场景图中查找
         if (bIsGoalOrZone && EditModeManager && !SearchId.IsEmpty())
         {
             FString NodeJsonStr = EditModeManager->GetNodeJsonById(SearchId);
             if (!NodeJsonStr.IsEmpty())
             {
-                // 解析 JSON
-                TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(NodeJsonStr);
-                TSharedPtr<FJsonObject> NodeJson;
-                if (FJsonSerializer::Deserialize(Reader, NodeJson) && NodeJson.IsValid())
+                FMASceneGraphNode Node = ParseNodeFromJson(NodeJsonStr, SearchId);
+                if (!Node.Id.IsEmpty())
                 {
-                    // 将 JSON 转换为 FMASceneGraphNode
-                    FMASceneGraphNode Node;
-                    Node.Id = SearchId;
-                    
-                    // 获取 properties
-                    if (NodeJson->HasField(TEXT("properties")))
-                    {
-                        TSharedPtr<FJsonObject> Props = NodeJson->GetObjectField(TEXT("properties"));
-                        if (Props.IsValid())
-                        {
-                            Node.Type = Props->GetStringField(TEXT("type"));
-                            Node.Label = Props->GetStringField(TEXT("label"));
-                        }
-                    }
-                    
-                    // 获取 shape
-                    if (NodeJson->HasField(TEXT("shape")))
-                    {
-                        TSharedPtr<FJsonObject> Shape = NodeJson->GetObjectField(TEXT("shape"));
-                        if (Shape.IsValid())
-                        {
-                            Node.ShapeType = Shape->GetStringField(TEXT("type"));
-                            
-                            if (Shape->HasField(TEXT("center")))
-                            {
-                                TArray<TSharedPtr<FJsonValue>> CenterArray = Shape->GetArrayField(TEXT("center"));
-                                if (CenterArray.Num() >= 3)
-                                {
-                                    Node.Center = FVector(
-                                        CenterArray[0]->AsNumber(),
-                                        CenterArray[1]->AsNumber(),
-                                        CenterArray[2]->AsNumber()
-                                    );
-                                }
-                            }
-                        }
-                    }
-                    
-                    // 获取 guid
-                    if (NodeJson->HasField(TEXT("guid")))
-                    {
-                        Node.Guid = NodeJson->GetStringField(TEXT("guid"));
-                    }
-                    
-                    // 存储 RawJson
-                    Node.RawJson = NodeJsonStr;
-                    
                     ActorNodes.Add(Node);
                     UE_LOG(LogMAEditWidget, Log, TEXT("SetSelectedActor: Found Goal/Zone node by ID from temp scene graph: %s"), *Node.Id);
                 }
@@ -602,47 +619,31 @@ void UMAEditWidget::SetSelectedActor(AActor* Actor)
                 UE_LOG(LogMAEditWidget, Warning, TEXT("SetSelectedActor: Goal/Zone node not found in temp scene graph: %s"), *SearchId);
             }
         }
-        // 对于普通 Actor，从 MASceneGraphManager 查找
-        else if (SceneGraphManager && !SearchId.IsEmpty())
+        // 对于普通 Actor，从 MAEditModeManager 的临时场景图中通过 GUID 查找
+        else if (EditModeManager && !SearchId.IsEmpty())
         {
-            // 首先尝试通过 Node ID 直接查找
-            TArray<FMASceneGraphNode> AllNodes = SceneGraphManager->GetAllNodes();
-            for (const FMASceneGraphNode& Node : AllNodes)
+            // 通过 GUID 从临时场景图查找 Node ID
+            FString ActorGuid = Actor->GetActorGuid().ToString();
+            TArray<FString> NodeIds = EditModeManager->FindNodeIdsByGuid(ActorGuid);
+            
+            // 对于每个找到的 Node ID，获取完整的 Node 数据
+            for (const FString& NodeId : NodeIds)
             {
-                if (Node.Id == SearchId)
+                FString NodeJsonStr = EditModeManager->GetNodeJsonById(NodeId);
+                if (!NodeJsonStr.IsEmpty())
                 {
-                    ActorNodes.Add(Node);
-                    UE_LOG(LogMAEditWidget, Log, TEXT("SetSelectedActor: Found node by ID: %s"), *Node.Id);
-                    break;
+                    FMASceneGraphNode Node = ParseNodeFromJson(NodeJsonStr, NodeId);
+                    if (!Node.Id.IsEmpty())
+                    {
+                        ActorNodes.Add(Node);
+                        UE_LOG(LogMAEditWidget, Log, TEXT("SetSelectedActor: Found node %s from temp scene graph"), *Node.Id);
+                    }
                 }
             }
             
-            // 如果没找到，尝试通过 GUID 查找
-            if (ActorNodes.Num() == 0)
+            if (NodeIds.Num() == 0)
             {
-                FString ActorGuid = Actor->GetActorGuid().ToString();
-                ActorNodes = SceneGraphManager->FindNodesByGuid(ActorGuid);
-                
-                // 也检查单个 guid 字段匹配 (point 类型)
-                for (const FMASceneGraphNode& Node : AllNodes)
-                {
-                    if (Node.Guid == ActorGuid)
-                    {
-                        bool bAlreadyAdded = false;
-                        for (const FMASceneGraphNode& ExistingNode : ActorNodes)
-                        {
-                            if (ExistingNode.Id == Node.Id)
-                            {
-                                bAlreadyAdded = true;
-                                break;
-                            }
-                        }
-                        if (!bAlreadyAdded)
-                        {
-                            ActorNodes.Add(Node);
-                        }
-                    }
-                }
+                UE_LOG(LogMAEditWidget, Warning, TEXT("SetSelectedActor: No nodes found in temp scene graph for GUID %s"), *ActorGuid);
             }
         }
     }
@@ -842,11 +843,18 @@ void UMAEditWidget::UpdateUIState()
         AddActorButton->SetVisibility((bHasPOIs && CurrentPOIs.Num() == 1) ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
     }
     
-    // 删除按钮 - 仅对 point 类型 Node 显示
+    // 删除按钮 - 对 point 类型 Node、GoalActor、ZoneActor 显示
     if (DeleteButton && bHasActor)
     {
         bool bCanDelete = false;
-        if (ActorNodes.Num() > 0 && CurrentNodeIndex < ActorNodes.Num())
+        
+        // 检查是否为 GoalActor 或 ZoneActor (这些始终可删除)
+        if (CurrentActor->IsA<AMAGoalActor>() || CurrentActor->IsA<AMAZoneActor>())
+        {
+            bCanDelete = true;
+        }
+        // 普通 Actor：检查是否为 point 类型
+        else if (ActorNodes.Num() > 0 && CurrentNodeIndex < ActorNodes.Num())
         {
             bCanDelete = IsPointTypeNode(ActorNodes[CurrentNodeIndex]);
         }
@@ -858,9 +866,18 @@ void UMAEditWidget::UpdateUIState()
     }
     
     // 设为 Goal / 取消 Goal 按钮 - Requirements: 16.1, 16.5
-    // 检查当前 Node 是否已经是 Goal
+    // 仅对普通 Actor（非 GoalActor/ZoneActor）显示这些按钮
+    // 所有类型的节点（point, prism, linestring 等）都可以设为 Goal
+    bool bIsGoalOrZoneActor = false;
+    if (CurrentActor)
+    {
+        bIsGoalOrZoneActor = CurrentActor->IsA<AMAGoalActor>() || CurrentActor->IsA<AMAZoneActor>();
+    }
+    
+    // 检查当前 Node 是否已经是 Goal (通过 is_goal 字段)
     bool bIsCurrentNodeGoal = false;
-    if (bHasActor && ActorNodes.Num() > 0 && CurrentNodeIndex < ActorNodes.Num())
+    bool bCanSetAsGoal = false;  // 是否可以设为 Goal（所有类型都可以）
+    if (bHasActor && !bIsGoalOrZoneActor && ActorNodes.Num() > 0 && CurrentNodeIndex < ActorNodes.Num())
     {
         // 检查 properties 中是否有 is_goal: true
         const FMASceneGraphNode& Node = ActorNodes[CurrentNodeIndex];
@@ -868,18 +885,23 @@ void UMAEditWidget::UpdateUIState()
         bIsCurrentNodeGoal = Node.RawJson.Contains(TEXT("\"is_goal\"")) && 
                              (Node.RawJson.Contains(TEXT("\"is_goal\": true")) || 
                               Node.RawJson.Contains(TEXT("\"is_goal\":true")));
+        
+        // 所有类型的节点都可以设为 Goal（移除 point 类型限制）
+        bCanSetAsGoal = true;
     }
     
     if (SetAsGoalButton)
     {
-        // 如果已经是 Goal，隐藏 "设为 Goal" 按钮
-        SetAsGoalButton->SetVisibility((bHasActor && !bIsCurrentNodeGoal) ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+        // 如果是普通 Actor、是 point 类型、且还不是 Goal，显示 "设为 Goal" 按钮
+        SetAsGoalButton->SetVisibility((bHasActor && !bIsGoalOrZoneActor && bCanSetAsGoal && !bIsCurrentNodeGoal) 
+            ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
     }
     
     if (UnsetAsGoalButton)
     {
-        // 如果已经是 Goal，显示 "取消 Goal" 按钮
-        UnsetAsGoalButton->SetVisibility((bHasActor && bIsCurrentNodeGoal) ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+        // 如果是普通 Actor、是 point 类型、且已经是 Goal，显示 "取消 Goal" 按钮
+        UnsetAsGoalButton->SetVisibility((bHasActor && !bIsGoalOrZoneActor && bCanSetAsGoal && bIsCurrentNodeGoal) 
+            ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
     }
 }
 
@@ -1112,6 +1134,9 @@ void UMAEditWidget::OnConfirmButtonClicked()
         return;
     }
     
+    // 保存 Actor 名称用于日志（因为 Broadcast 后 CurrentActor 可能被清空）
+    FString ActorName = CurrentActor->GetName();
+    
     // 获取 JSON 内容
     FString JsonContent = GetJsonEditContent();
     
@@ -1126,12 +1151,14 @@ void UMAEditWidget::OnConfirmButtonClicked()
     ClearError();
     
     // 广播确认委托
+    // 注意: Broadcast 会触发 MAHUD::OnEditConfirmed，其中会调用 ClearSelection，
+    // 这会将 CurrentActor 设置为 nullptr
     OnEditConfirmed.Broadcast(CurrentActor, JsonContent);
     
     // 刷新场景图预览
     RefreshSceneGraphPreview();
     
-    UE_LOG(LogMAEditWidget, Log, TEXT("OnConfirmButtonClicked: Edit confirmed for Actor %s"), *CurrentActor->GetName());
+    UE_LOG(LogMAEditWidget, Log, TEXT("OnConfirmButtonClicked: Edit confirmed for Actor %s"), *ActorName);
 }
 
 //=========================================================================
@@ -1149,8 +1176,11 @@ void UMAEditWidget::OnDeleteButtonClicked()
         return;
     }
     
-    // 检查是否为 point 类型
-    if (ActorNodes.Num() > 0 && CurrentNodeIndex < ActorNodes.Num())
+    // GoalActor 和 ZoneActor 始终可删除，跳过 point 类型检查
+    bool bIsGoalOrZone = CurrentActor->IsA<AMAGoalActor>() || CurrentActor->IsA<AMAZoneActor>();
+    
+    // 普通 Actor：检查是否为 point 类型
+    if (!bIsGoalOrZone && ActorNodes.Num() > 0 && CurrentNodeIndex < ActorNodes.Num())
     {
         if (!IsPointTypeNode(ActorNodes[CurrentNodeIndex]))
         {

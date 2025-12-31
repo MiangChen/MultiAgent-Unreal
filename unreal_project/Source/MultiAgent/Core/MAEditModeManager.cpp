@@ -835,6 +835,79 @@ AActor* UMAEditModeManager::FindActorByGuid(const FString& Guid) const
     return nullptr;
 }
 
+TArray<FString> UMAEditModeManager::FindNodeIdsByGuid(const FString& Guid) const
+{
+    TArray<FString> Result;
+    
+    if (Guid.IsEmpty() || !TempSceneGraphData.IsValid())
+    {
+        return Result;
+    }
+    
+    // 规范化输入的 GUID（移除连字符，转为大写）
+    FString NormalizedInputGuid = Guid.Replace(TEXT("-"), TEXT("")).ToUpper();
+    
+    const TArray<TSharedPtr<FJsonValue>>* NodesArray;
+    if (!TempSceneGraphData->TryGetArrayField(TEXT("nodes"), NodesArray))
+    {
+        return Result;
+    }
+    
+    for (const TSharedPtr<FJsonValue>& NodeValue : *NodesArray)
+    {
+        if (!NodeValue.IsValid() || NodeValue->Type != EJson::Object)
+        {
+            continue;
+        }
+        
+        TSharedPtr<FJsonObject> NodeObject = NodeValue->AsObject();
+        if (!NodeObject.IsValid())
+        {
+            continue;
+        }
+        
+        FString NodeId;
+        if (!NodeObject->TryGetStringField(TEXT("id"), NodeId))
+        {
+            continue;
+        }
+        
+        // 检查单个 guid 字段 (point 类型)
+        FString NodeGuid;
+        if (NodeObject->TryGetStringField(TEXT("guid"), NodeGuid))
+        {
+            FString NormalizedNodeGuid = NodeGuid.Replace(TEXT("-"), TEXT("")).ToUpper();
+            if (NormalizedNodeGuid == NormalizedInputGuid)
+            {
+                Result.Add(NodeId);
+                continue;
+            }
+        }
+        
+        // 检查 Guid 数组 (polygon/linestring 类型)
+        const TArray<TSharedPtr<FJsonValue>>* GuidArray;
+        if (NodeObject->TryGetArrayField(TEXT("Guid"), GuidArray))
+        {
+            for (const TSharedPtr<FJsonValue>& GuidValue : *GuidArray)
+            {
+                if (GuidValue.IsValid())
+                {
+                    FString ArrayGuid = GuidValue->AsString();
+                    FString NormalizedArrayGuid = ArrayGuid.Replace(TEXT("-"), TEXT("")).ToUpper();
+                    if (NormalizedArrayGuid == NormalizedInputGuid)
+                    {
+                        Result.Add(NodeId);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    
+    UE_LOG(LogMAEditMode, Log, TEXT("FindNodeIdsByGuid: Found %d nodes for GUID %s"), Result.Num(), *Guid);
+    return Result;
+}
+
 void UMAEditModeManager::SyncActorPositionFromNode(const TSharedPtr<FJsonObject>& NodeObject)
 {
     // Requirements: 6.5, 12.2, 12.3 - 同步更新虚幻场景中 Actor 的位置
@@ -991,10 +1064,34 @@ bool UMAEditModeManager::DeleteNode(const FString& NodeId, FString& OutError)
         return false;
     }
     
-    // Requirements: 7.5 - 仅允许删除 shape 类型为 point 的 Node
-    if (!IsPointTypeNode(NodeObject))
+    // 检查是否为 Goal 或 Zone 类型 (这些始终可删除)
+    bool bIsGoalOrZone = false;
+    bool bHasIsGoalFlag = false;  // 普通 node 是否有 is_goal: true
+    FString NodeType;
+    const TSharedPtr<FJsonObject>* PropertiesObject;
+    if (NodeObject->TryGetObjectField(TEXT("properties"), PropertiesObject) && PropertiesObject->IsValid())
     {
-        OutError = TEXT("Only point type nodes can be deleted");
+        if ((*PropertiesObject)->TryGetStringField(TEXT("type"), NodeType))
+        {
+            bIsGoalOrZone = NodeType.Equals(TEXT("goal"), ESearchCase::IgnoreCase) || 
+                           NodeType.Equals(TEXT("zone"), ESearchCase::IgnoreCase);
+        }
+        
+        // 检查普通 node 是否有 is_goal: true
+        if (!bIsGoalOrZone)
+        {
+            bool bIsGoal = false;
+            if ((*PropertiesObject)->TryGetBoolField(TEXT("is_goal"), bIsGoal) && bIsGoal)
+            {
+                bHasIsGoalFlag = true;
+            }
+        }
+    }
+    
+    // Requirements: 7.5 - 仅允许删除 shape 类型为 point 的 Node，或 Goal/Zone 类型
+    if (!bIsGoalOrZone && !IsPointTypeNode(NodeObject))
+    {
+        OutError = TEXT("Only point type nodes or Goal/Zone can be deleted");
         UE_LOG(LogMAEditMode, Error, TEXT("DeleteNode: %s"), *OutError);
         return false;
     }
@@ -1035,6 +1132,27 @@ bool UMAEditModeManager::DeleteNode(const FString& NodeId, FString& OutError)
     FString Payload = FString::Printf(TEXT("{\"id\":\"%s\"}"), *NodeId);
     SendSceneChangeMessage(TEXT("delete_node"), Payload);
     
+    // 如果是 Goal 或 Zone 类型，还需要发送额外的 delete_goal 或 delete_zone 消息
+    if (bIsGoalOrZone)
+    {
+        if (NodeType.Equals(TEXT("goal"), ESearchCase::IgnoreCase))
+        {
+            SendSceneChangeMessage(TEXT("delete_goal"), Payload);
+            UE_LOG(LogMAEditMode, Log, TEXT("DeleteNode: Sent delete_goal for Goal type node %s"), *NodeId);
+        }
+        else if (NodeType.Equals(TEXT("zone"), ESearchCase::IgnoreCase))
+        {
+            SendSceneChangeMessage(TEXT("delete_zone"), Payload);
+            UE_LOG(LogMAEditMode, Log, TEXT("DeleteNode: Sent delete_zone for Zone type node %s"), *NodeId);
+        }
+    }
+    // 如果是普通 node 但有 is_goal: true，也要发送 delete_goal
+    else if (bHasIsGoalFlag)
+    {
+        SendSceneChangeMessage(TEXT("delete_goal"), Payload);
+        UE_LOG(LogMAEditMode, Log, TEXT("DeleteNode: Sent delete_goal for node %s with is_goal flag"), *NodeId);
+    }
+    
     return true;
 }
 
@@ -1074,28 +1192,50 @@ bool UMAEditModeManager::EditNode(const FString& NodeId, const FString& NewNodeJ
     // Requirements: 5.3, 5.5, 12.5 - 根据 shape 类型限制可编辑字段
     if (!bIsPointType)
     {
-        // polygon 或 linestring 类型仅允许编辑 properties
-        // 检查是否尝试修改 shape
-        const TSharedPtr<FJsonObject>* NewShapeObject;
-        const TSharedPtr<FJsonObject>* ExistingShapeObject;
+        // polygon, linestring, prism 类型仅允许编辑 properties
+        // 直接使用原始节点的 shape 数据，避免大型 JSON 序列化比较导致的性能问题和崩溃
         
-        if (NewNodeObject->TryGetObjectField(TEXT("shape"), NewShapeObject) &&
-            ExistingNode->TryGetObjectField(TEXT("shape"), ExistingShapeObject))
+        // 深拷贝原始 shape 对象（通过序列化再反序列化）
+        const TSharedPtr<FJsonObject>* ExistingShapePtr;
+        if (ExistingNode->TryGetObjectField(TEXT("shape"), ExistingShapePtr) && ExistingShapePtr->IsValid())
         {
-            // 序列化两个 shape 对象进行比较
-            FString NewShapeJson, ExistingShapeJson;
-            TSharedRef<TJsonWriter<>> NewWriter = TJsonWriterFactory<>::Create(&NewShapeJson);
-            TSharedRef<TJsonWriter<>> ExistingWriter = TJsonWriterFactory<>::Create(&ExistingShapeJson);
-            
-            FJsonSerializer::Serialize(NewShapeObject->ToSharedRef(), NewWriter);
-            FJsonSerializer::Serialize(ExistingShapeObject->ToSharedRef(), ExistingWriter);
-            
-            if (NewShapeJson != ExistingShapeJson)
+            // 序列化原始 shape 为 JSON 字符串
+            FString ShapeJsonStr;
+            TSharedRef<TJsonWriter<>> ShapeWriter = TJsonWriterFactory<>::Create(&ShapeJsonStr);
+            if (FJsonSerializer::Serialize((*ExistingShapePtr).ToSharedRef(), ShapeWriter))
             {
-                OutError = TEXT("Cannot modify shape for polygon/linestring type nodes");
-                UE_LOG(LogMAEditMode, Error, TEXT("EditNode: %s"), *OutError);
-                return false;
+                // 反序列化为新的 shape 对象（深拷贝）
+                TSharedPtr<FJsonObject> ShapeCopy;
+                TSharedRef<TJsonReader<>> ShapeReader = TJsonReaderFactory<>::Create(ShapeJsonStr);
+                if (FJsonSerializer::Deserialize(ShapeReader, ShapeCopy) && ShapeCopy.IsValid())
+                {
+                    NewNodeObject->SetObjectField(TEXT("shape"), ShapeCopy);
+                    UE_LOG(LogMAEditMode, Log, TEXT("EditNode: Non-point type node, preserving original shape data (deep copy)"));
+                }
             }
+        }
+        
+        // 同样保留原始的 Guid 数组（polygon/linestring 类型使用 Guid 数组而非单个 guid）
+        const TArray<TSharedPtr<FJsonValue>>* ExistingGuidArray;
+        if (ExistingNode->TryGetArrayField(TEXT("Guid"), ExistingGuidArray))
+        {
+            // 深拷贝 Guid 数组
+            TArray<TSharedPtr<FJsonValue>> GuidArrayCopy;
+            for (const TSharedPtr<FJsonValue>& GuidValue : *ExistingGuidArray)
+            {
+                if (GuidValue.IsValid())
+                {
+                    GuidArrayCopy.Add(MakeShareable(new FJsonValueString(GuidValue->AsString())));
+                }
+            }
+            NewNodeObject->SetArrayField(TEXT("Guid"), GuidArrayCopy);
+        }
+        
+        // 保留原始的 count 字段
+        int32 ExistingCount;
+        if (ExistingNode->TryGetNumberField(TEXT("count"), ExistingCount))
+        {
+            NewNodeObject->SetNumberField(TEXT("count"), ExistingCount);
         }
     }
     
@@ -1757,8 +1897,10 @@ bool UMAEditModeManager::SetNodeAsGoal(const FString& NodeId, FString& OutError)
     TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&NodeJson);
     FJsonSerializer::Serialize(NodeObject.ToSharedRef(), Writer);
     
-    // 发送后端通知
+    // 发送后端通知: edit_node + add_goal
     SendSceneChangeMessage(TEXT("edit_node"), NodeJson);
+    SendSceneChangeMessage(TEXT("add_goal"), NodeJson);
+    UE_LOG(LogMAEditMode, Log, TEXT("SetNodeAsGoal: Sent edit_node and add_goal for node %s"), *NodeId);
     
     return true;
 }
@@ -1812,8 +1954,11 @@ bool UMAEditModeManager::UnsetNodeAsGoal(const FString& NodeId, FString& OutErro
     TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&NodeJson);
     FJsonSerializer::Serialize(NodeObject.ToSharedRef(), Writer);
     
-    // 发送后端通知
+    // 发送后端通知: edit_node + delete_goal
     SendSceneChangeMessage(TEXT("edit_node"), NodeJson);
+    FString Payload = FString::Printf(TEXT("{\"id\":\"%s\"}"), *NodeId);
+    SendSceneChangeMessage(TEXT("delete_goal"), Payload);
+    UE_LOG(LogMAEditMode, Log, TEXT("UnsetNodeAsGoal: Sent edit_node and delete_goal for node %s"), *NodeId);
     
     return true;
 }

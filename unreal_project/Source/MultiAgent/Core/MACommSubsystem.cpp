@@ -44,14 +44,21 @@ void UMACommSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 void UMACommSubsystem::LoadConfigFromJSON()
 {
-    // 配置文件路径: 项目根目录/config/SimConfig.json
+    // 配置文件路径: 优先从 ProjectDir/config/SimConfig.json 读取
+    // 如果不存在，尝试从项目根目录的 config/SimConfig.json 读取（向后兼容）
     FString ConfigPath = FPaths::ProjectDir() / TEXT("config/SimConfig.json");
     
     FString JsonString;
     if (!FFileHelper::LoadFileToString(JsonString, *ConfigPath))
     {
-        UE_LOG(LogMACommSubsystem, Warning, TEXT("Failed to load config file: %s, using defaults"), *ConfigPath);
-        return;
+        // 尝试从项目根目录的上一级目录读取（兼容旧的目录结构）
+        FString AltConfigPath = FPaths::ProjectDir() / TEXT("../config/SimConfig.json");
+        if (!FFileHelper::LoadFileToString(JsonString, *AltConfigPath))
+        {
+            UE_LOG(LogMACommSubsystem, Warning, TEXT("Failed to load config file from: %s or %s, using defaults"), *ConfigPath, *AltConfigPath);
+            return;
+        }
+        ConfigPath = AltConfigPath;
     }
 
     TSharedPtr<FJsonObject> JsonObject;
@@ -300,6 +307,30 @@ void UMACommSubsystem::SendTaskFeedbackMessage(const FMATaskFeedbackMessage& Fee
     Envelope.Timestamp = FMAMessageEnvelope::GetCurrentTimestamp();
     Envelope.MessageId = FMAMessageEnvelope::GenerateMessageId();
     Envelope.PayloadJson = Feedback.ToJson();
+
+    // 发送消息信封
+    SendMessageEnvelope(Envelope);
+}
+
+void UMACommSubsystem::SendTaskGraphSubmitMessage(const FString& TaskGraphJson)
+{
+    // 发送任务图提交消息到后端规划器
+    
+    if (TaskGraphJson.IsEmpty())
+    {
+        UE_LOG(LogMACommSubsystem, Warning, TEXT("SendTaskGraphSubmitMessage: Empty task graph JSON ignored"));
+        return;
+    }
+
+    UE_LOG(LogMACommSubsystem, Log, TEXT("SendTaskGraphSubmitMessage: Sending task graph to backend"));
+    UE_LOG(LogMACommSubsystem, Verbose, TEXT("TaskGraphJson: %s"), *TaskGraphJson);
+
+    // 创建消息信封
+    FMAMessageEnvelope Envelope;
+    Envelope.MessageType = EMACommMessageType::TaskGraphSubmit;
+    Envelope.Timestamp = FMAMessageEnvelope::GetCurrentTimestamp();
+    Envelope.MessageId = FMAMessageEnvelope::GenerateMessageId();
+    Envelope.PayloadJson = TaskGraphJson;
 
     // 发送消息信封
     SendMessageEnvelope(Envelope);
@@ -748,7 +779,8 @@ void UMACommSubsystem::OnPollRequestComplete(FHttpRequestPtr Request, FHttpRespo
 
 void UMACommSubsystem::HandlePollResponse(const FString& ResponseJson)
 {
-    // Requirements: 6.5, 7.4 - 解析响应 JSON 并分发到对应处理函数
+    // Requirements: 6.5 - 解析响应 JSON 并分发到对应处理函数
+    // 注意: 世界模型图 (world_model_graph) 已移至仿真端本地管理，不再通过轮询获取
     
     UE_LOG(LogMACommSubsystem, Log, TEXT("HandlePollResponse: Processing response"));
     
@@ -838,32 +870,6 @@ void UMACommSubsystem::HandlePollResponse(const FString& ResponseJson)
                 else
                 {
                     UE_LOG(LogMACommSubsystem, Warning, TEXT("HandlePollResponse: Failed to parse TaskPlanDAG payload"));
-                }
-            }
-        }
-        else if (MessageTypeStr == TEXT("world_model_graph"))
-        {
-            // Requirements: 7.4 - 解析 World_Model_Graph 并广播
-            const TSharedPtr<FJsonObject>* PayloadObject;
-            if (MsgObject->TryGetObjectField(TEXT("payload"), PayloadObject))
-            {
-                // 将 payload 对象序列化回 JSON 字符串
-                FString PayloadJson;
-                TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&PayloadJson);
-                FJsonSerializer::Serialize(PayloadObject->ToSharedRef(), Writer);
-                
-                FMAWorldModelGraph WorldModel;
-                if (FMAWorldModelGraph::FromJson(PayloadJson, WorldModel))
-                {
-                    UE_LOG(LogMACommSubsystem, Log, TEXT("HandlePollResponse: Broadcasting WorldModelGraph with %d entities, %d relationships"),
-                        WorldModel.Entities.Num(), WorldModel.Relationships.Num());
-                    
-                    // 广播委托
-                    OnWorldModelReceived.Broadcast(WorldModel);
-                }
-                else
-                {
-                    UE_LOG(LogMACommSubsystem, Warning, TEXT("HandlePollResponse: Failed to parse WorldModelGraph payload"));
                 }
             }
         }

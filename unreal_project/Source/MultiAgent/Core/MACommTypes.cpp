@@ -25,6 +25,7 @@ namespace MACommTypeHelpers
         case EMACommMessageType::UIInput:         return TEXT("ui_input");
         case EMACommMessageType::ButtonEvent:     return TEXT("button_event");
         case EMACommMessageType::TaskFeedback:    return TEXT("task_feedback");
+        case EMACommMessageType::TaskGraphSubmit: return TEXT("task_graph_submit");
         case EMACommMessageType::TaskPlanDAG:     return TEXT("task_plan_dag");
         case EMACommMessageType::WorldModelGraph: return TEXT("world_model_graph");
         case EMACommMessageType::Custom:
@@ -37,6 +38,7 @@ namespace MACommTypeHelpers
         if (TypeStr == TEXT("ui_input"))           return EMACommMessageType::UIInput;
         if (TypeStr == TEXT("button_event"))       return EMACommMessageType::ButtonEvent;
         if (TypeStr == TEXT("task_feedback"))      return EMACommMessageType::TaskFeedback;
+        if (TypeStr == TEXT("task_graph_submit"))  return EMACommMessageType::TaskGraphSubmit;
         if (TypeStr == TEXT("task_plan_dag"))      return EMACommMessageType::TaskPlanDAG;
         if (TypeStr == TEXT("world_model_graph"))  return EMACommMessageType::WorldModelGraph;
         return EMACommMessageType::Custom;

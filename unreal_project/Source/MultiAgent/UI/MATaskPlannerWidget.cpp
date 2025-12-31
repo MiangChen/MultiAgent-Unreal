@@ -6,6 +6,7 @@
 #include "MADAGCanvasWidget.h"
 #include "MANodePaletteWidget.h"
 #include "MATaskGraphModel.h"
+#include "MACommSubsystem.h"
 #include "Components/MultiLineEditableTextBox.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
@@ -70,6 +71,13 @@ void UMATaskPlannerWidget::NativeConstruct()
     {
         SendCommandButton->OnClicked.AddDynamic(this, &UMATaskPlannerWidget::OnSendCommandButtonClicked);
         UE_LOG(LogMATaskPlanner, Log, TEXT("SendCommandButton event bound"));
+    }
+    
+    // 绑定提交任务图按钮事件
+    if (SubmitTaskGraphButton && !SubmitTaskGraphButton->OnClicked.IsAlreadyBound(this, &UMATaskPlannerWidget::OnSubmitTaskGraphButtonClicked))
+    {
+        SubmitTaskGraphButton->OnClicked.AddDynamic(this, &UMATaskPlannerWidget::OnSubmitTaskGraphButtonClicked);
+        UE_LOG(LogMATaskPlanner, Log, TEXT("SubmitTaskGraphButton event bound"));
     }
     
     // 绑定数据模型事件
@@ -344,6 +352,18 @@ UVerticalBox* UMATaskPlannerWidget::CreateJsonEditorSection()
     
     UVerticalBoxSlot* ButtonSlot = Section->AddChildToVerticalBox(UpdateGraphButton);
     ButtonSlot->SetHorizontalAlignment(HAlign_Left);
+    ButtonSlot->SetPadding(FMargin(0, 0, 0, 5));
+
+    // "提交任务图" 按钮
+    SubmitTaskGraphButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("SubmitTaskGraphButton"));
+    
+    UTextBlock* SubmitButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SubmitButtonText"));
+    SubmitButtonText->SetText(FText::FromString(TEXT(" 提交任务图 ")));
+    SubmitButtonText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+    SubmitTaskGraphButton->AddChild(SubmitButtonText);
+    
+    UVerticalBoxSlot* SubmitButtonSlot = Section->AddChildToVerticalBox(SubmitTaskGraphButton);
+    SubmitButtonSlot->SetHorizontalAlignment(HAlign_Left);
 
     return Section;
 }
@@ -595,6 +615,51 @@ void UMATaskPlannerWidget::OnSendCommandButtonClicked()
     OnCommandSubmitted.Broadcast(Command);
     
     UE_LOG(LogMATaskPlanner, Log, TEXT("Command submitted: %s"), *Command);
+}
+
+void UMATaskPlannerWidget::OnSubmitTaskGraphButtonClicked()
+{
+    UE_LOG(LogMATaskPlanner, Log, TEXT("SubmitTaskGraphButton clicked"));
+    
+    if (!GraphModel)
+    {
+        AppendStatusLog(TEXT("[错误] 任务图模型未初始化"));
+        return;
+    }
+    
+    // 获取任务图 JSON
+    FString TaskGraphJson = GraphModel->ToJson();
+    
+    if (TaskGraphJson.IsEmpty())
+    {
+        AppendStatusLog(TEXT("[警告] 任务图为空"));
+        return;
+    }
+    
+    // 获取 CommSubsystem 并发送任务图
+    UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+    if (!GameInstance)
+    {
+        AppendStatusLog(TEXT("[错误] 无法获取 GameInstance"));
+        return;
+    }
+    
+    UMACommSubsystem* CommSubsystem = GameInstance->GetSubsystem<UMACommSubsystem>();
+    if (!CommSubsystem)
+    {
+        AppendStatusLog(TEXT("[错误] 无法获取通信子系统"));
+        return;
+    }
+    
+    // 发送任务图到后端
+    CommSubsystem->SendTaskGraphSubmitMessage(TaskGraphJson);
+    
+    // 记录日志
+    FMATaskGraphData Data = GraphModel->GetWorkingData();
+    AppendStatusLog(FString::Printf(TEXT("[提交] 任务图已发送: %d 个节点, %d 条边"), 
+        Data.Nodes.Num(), Data.Edges.Num()));
+    
+    UE_LOG(LogMATaskPlanner, Log, TEXT("Task graph submitted: %s"), *TaskGraphJson);
 }
 
 void UMATaskPlannerWidget::OnModelDataChanged()

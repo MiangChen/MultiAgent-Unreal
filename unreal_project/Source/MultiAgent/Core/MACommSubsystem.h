@@ -19,11 +19,14 @@
  * - 与外部规划器通信 (HTTP)
  * - 发送自然语言指令
  * - 发送 UI 输入消息、按钮事件消息、任务反馈消息
- * - 轮询接收入站消息（任务规划 DAG、世界模型图）
+ * - 轮询接收入站消息（任务规划 DAG）
  * - 广播规划器响应给订阅者
  * - 支持模拟数据模式用于开发测试
  * 
- * Requirements: 2.1, 3.1, 4.1, 4.2, 4.3, 4.4, 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 6.5, 7.4, 8.1, 8.2, 8.3, 8.4, 8.5
+ * 注意: 世界模型（场景图）现在存储在仿真端本地，由 MASceneGraphManager 管理，
+ *       不再通过轮询从后端获取。仿真端通过 scene_change 消息向后端同步场景变化。
+ * 
+ * Requirements: 2.1, 3.1, 4.1, 4.2, 4.3, 4.4, 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 6.5, 8.1, 8.2, 8.3, 8.4, 8.5
  */
 UCLASS()
 class MULTIAGENT_API UMACommSubsystem : public UGameInstanceSubsystem
@@ -88,6 +91,14 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Communication")
     void SendTaskFeedbackMessage(const FMATaskFeedbackMessage& Feedback);
 
+    /**
+     * 发送任务图提交消息
+     * 将编辑后的任务图 JSON 发送到后端规划器
+     * @param TaskGraphJson 任务图 JSON 字符串
+     */
+    UFUNCTION(BlueprintCallable, Category = "Communication")
+    void SendTaskGraphSubmitMessage(const FString& TaskGraphJson);
+
     //=========================================================================
     // 事件委托
     //=========================================================================
@@ -114,10 +125,10 @@ public:
 
     /**
      * 收到世界模型更新委托
-     * 当从规划器收到世界模型图时广播
-     * Requirements: 7.4
+     * @deprecated 世界模型（场景图）现在存储在仿真端本地，由 MASceneGraphManager 管理，
+     *             不再通过轮询从后端获取。此委托保留用于向后兼容，但不会被触发。
      */
-    UPROPERTY(BlueprintAssignable, Category = "Events")
+    UPROPERTY(BlueprintAssignable, Category = "Events", meta = (DeprecatedProperty, DeprecationMessage = "World model is now managed locally by MASceneGraphManager"))
     FOnMAWorldModelReceived OnWorldModelReceived;
 
     //=========================================================================
@@ -266,7 +277,7 @@ protected:
 
     //=========================================================================
     // 轮询相关内部方法
-    // Requirements: 8.2, 6.5, 7.4
+    // Requirements: 8.2, 6.5
     //=========================================================================
 
     /**
@@ -279,8 +290,9 @@ protected:
     /**
      * 处理轮询响应
      * 解析响应 JSON 并分发到对应处理函数
+     * 注意: 仅处理 task_plan_dag 消息，world_model_graph 已移至本地管理
      * @param ResponseJson 响应 JSON 字符串
-     * Requirements: 6.5, 7.4
+     * Requirements: 6.5
      */
     void HandlePollResponse(const FString& ResponseJson);
 

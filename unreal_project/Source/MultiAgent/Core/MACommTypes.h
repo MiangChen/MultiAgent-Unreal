@@ -28,6 +28,7 @@ enum class EMACommMessageType : uint8
     UIInput         UMETA(DisplayName = "UI Input"),
     ButtonEvent     UMETA(DisplayName = "Button Event"),
     TaskFeedback    UMETA(DisplayName = "Task Feedback"),
+    TaskGraphSubmit UMETA(DisplayName = "Task Graph Submit"),
     
     // 入站消息 (规划器 -> 仿真端)
     TaskPlanDAG     UMETA(DisplayName = "Task Plan DAG"),
