@@ -1,6 +1,6 @@
 // MAModifyWidget.cpp
-// Modify 模式修改面板 Widget - 纯 C++ 实现
-// 支持单选和多选模式
+// Modify Mode Panel Widget - Pure C++ Implementation
+// Supports single and multi-select modes
 // Requirements: 2.4, 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 5.1, 5.2, 5.3, 5.4, 8.1, 8.2, 8.3, 9.3, 9.4
 
 #include "MAModifyWidget.h"
@@ -26,13 +26,13 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogMAModifyWidget, Log, All);
 
-// 提示文字常量
-// Requirements: 1.4, 10.1 - 更新为新格式提示，根据 Category 显示不同提示
-static const FString DefaultHintText = TEXT("输入格式: cate:building/trans_facility/prop,type:xxx\n• building: 建筑物 (棱柱建模，仅单选)\n• trans_facility: 交通设施 (OBB矩形)\n• prop: 道具 (点建模)");
-static const FString MultiSelectHintText = TEXT("多选模式 - 输入格式: cate:trans_facility/prop,type:xxx\n注意: building 类型仅支持单选");
-static const FString BuildingHintText = TEXT("Building 类型 (棱柱建模)\n输入格式: cate:building,type:xxx\n• 仅支持单选\n• 自动计算底面多边形和高度");
-static const FString TransFacilityHintText = TEXT("TransFacility 类型 (OBB矩形建模)\n输入格式: cate:trans_facility,type:xxx\n• 支持单选或多选\n• 自动计算最小包围矩形");
-static const FString PropHintText = TEXT("Prop 类型 (点建模)\n输入格式: cate:prop,type:xxx\n• 支持单选或多选\n• 自动计算几何中心");
+// Hint text constants
+// Requirements: 1.4, 10.1 - Updated to new format hints, display different hints based on Category
+static const FString DefaultHintText = TEXT("Input format: cate:building/trans_facility/prop,type:xxx\n• building: Buildings (prism modeling, single-select only)\n• trans_facility: Transport facilities (OBB rectangle)\n• prop: Props (point modeling)");
+static const FString MultiSelectHintText = TEXT("Multi-select mode - Input format: cate:trans_facility/prop,type:xxx\nNote: building type only supports single-select");
+static const FString BuildingHintText = TEXT("Building type (prism modeling)\nInput format: cate:building,type:xxx\n• Single-select only\n• Auto-calculates base polygon and height");
+static const FString TransFacilityHintText = TEXT("TransFacility type (OBB rectangle modeling)\nInput format: cate:trans_facility,type:xxx\n• Supports single or multi-select\n• Auto-calculates minimum bounding rectangle");
+static const FString PropHintText = TEXT("Prop type (point modeling)\nInput format: cate:prop,type:xxx\n• Supports single or multi-select\n• Auto-calculates geometric center");
 
 UMAModifyWidget::UMAModifyWidget(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
@@ -126,18 +126,18 @@ void UMAModifyWidget::BuildUI()
     UVerticalBox* MainVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("MainVBox"));
     BackgroundBorder->AddChild(MainVBox);
 
-    // 标题 - Requirements: 3.1
+    // Title - Requirements: 3.1
     TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TitleText"));
-    TitleText->SetText(FText::FromString(TEXT("修改面板")));
+    TitleText->SetText(FText::FromString(TEXT("Modify Panel")));
     FSlateFontInfo TitleFont = TitleText->GetFont();
     TitleFont.Size = 16;
     TitleText->SetFont(TitleFont);
-    TitleText->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.6f, 0.0f)));  // 橙色，与 Modify 模式颜色一致
+    TitleText->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.6f, 0.0f)));  // Orange, matches Modify mode color
     
     UVerticalBoxSlot* TitleSlot = MainVBox->AddChildToVerticalBox(TitleText);
     TitleSlot->SetPadding(FMargin(0, 0, 0, 10));
 
-    // 提示文本 - Requirements: 4.3
+    // Hint text - Requirements: 4.3
     HintText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("HintText"));
     HintText->SetText(FText::FromString(DefaultHintText));
     FSlateFontInfo HintFont = HintText->GetFont();
@@ -148,20 +148,20 @@ void UMAModifyWidget::BuildUI()
     UVerticalBoxSlot* HintSlot = MainVBox->AddChildToVerticalBox(HintText);
     HintSlot->SetPadding(FMargin(0, 0, 0, 10));
 
-    // JSON 预览文本框 - 只读，显示 Actor 对应的 JSON 片段
+    // JSON preview text box - read-only, displays JSON fragment for selected Actor
     UBorder* JsonPreviewBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("JsonPreviewBorder"));
-    JsonPreviewBorder->SetBrushColor(FLinearColor(0.15f, 0.15f, 0.15f, 1.0f));  // 深灰色背景
+    JsonPreviewBorder->SetBrushColor(FLinearColor(0.15f, 0.15f, 0.15f, 1.0f));  // Dark gray background
     JsonPreviewBorder->SetPadding(FMargin(8.0f));
     
     UScrollBox* JsonScrollBox = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass(), TEXT("JsonScrollBox"));
     JsonPreviewBorder->AddChild(JsonScrollBox);
     
     JsonPreviewText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("JsonPreviewText"));
-    JsonPreviewText->SetText(FText::FromString(TEXT("选中 Actor 后显示 JSON 预览")));
+    JsonPreviewText->SetText(FText::FromString(TEXT("Select an Actor to display JSON preview")));
     FSlateFontInfo JsonFont = JsonPreviewText->GetFont();
     JsonFont.Size = 10;
     JsonPreviewText->SetFont(JsonFont);
-    JsonPreviewText->SetColorAndOpacity(FSlateColor(FLinearColor(0.7f, 0.9f, 0.7f)));  // 浅绿色
+    JsonPreviewText->SetColorAndOpacity(FSlateColor(FLinearColor(0.7f, 0.9f, 0.7f)));  // Light green
     JsonPreviewText->SetAutoWrapText(true);
     JsonScrollBox->AddChild(JsonPreviewText);
     
@@ -173,17 +173,17 @@ void UMAModifyWidget::BuildUI()
     UVerticalBoxSlot* JsonPreviewSlot = MainVBox->AddChildToVerticalBox(JsonPreviewSizeBox);
     JsonPreviewSlot->SetPadding(FMargin(0, 0, 0, 10));
 
-    // 多行文本框 - Requirements: 3.2, 4.4
+    // Multi-line text box - Requirements: 3.2, 4.4
     LabelTextBox = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(UMultiLineEditableTextBox::StaticClass(), TEXT("LabelTextBox"));
-    // Requirements: 2.5, 10.3 - 显示新格式输入提示
+    // Requirements: 2.5, 10.3 - Display new format input hint
     LabelTextBox->SetHintText(FText::FromString(DefaultHintText));
     
-    // 设置文字颜色为严格的黑色 - 通过 WidgetStyle 属性
+    // Set text color to strict black - via WidgetStyle property
     FEditableTextBoxStyle TextBoxStyle;
-    TextBoxStyle.SetForegroundColor(FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f)));  // 严格黑色
+    TextBoxStyle.SetForegroundColor(FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f)));  // Strict black
     LabelTextBox->WidgetStyle = TextBoxStyle;
     
-    // 使用 SizeBox 设置最小高度
+    // Use SizeBox to set minimum height
     USizeBox* TextBoxSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("TextBoxSizeBox"));
     TextBoxSizeBox->SetMinDesiredHeight(150.0f);
     TextBoxSizeBox->AddChild(LabelTextBox);
@@ -192,11 +192,11 @@ void UMAModifyWidget::BuildUI()
     TextBoxSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
     TextBoxSlot->SetPadding(FMargin(0, 0, 0, 15));
 
-    // 确认按钮 - Requirements: 3.3
+    // Confirm button - Requirements: 3.3
     ConfirmButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("ConfirmButton"));
     
     UTextBlock* ButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ButtonText"));
-    ButtonText->SetText(FText::FromString(TEXT("  确认  ")));
+    ButtonText->SetText(FText::FromString(TEXT("  Confirm  ")));
     ButtonText->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
     FSlateFontInfo ButtonFont = ButtonText->GetFont();
     ButtonFont.Size = 14;
@@ -248,33 +248,33 @@ void UMAModifyWidget::SetSelectedActor(AActor* Actor)
         return;
     }
     
-    // 单选模式：清空数组并添加单个 Actor
+    // Single-select mode: clear array and add single Actor
     SelectedActors.Empty();
     SelectedActors.Add(Actor);
     
-    // 清空文本框，让用户输入新的标签
-    // Requirements: 2.5, 10.3 - 显示新格式输入提示
+    // Clear text box, let user input new label
+    // Requirements: 2.5, 10.3 - Display new format input hint
     if (LabelTextBox)
     {
         LabelTextBox->SetText(FText::GetEmpty());
         LabelTextBox->SetHintText(FText::FromString(DefaultHintText));
     }
     
-    // 更新提示文本
+    // Update hint text
     if (HintText)
     {
-        HintText->SetText(FText::FromString(FString::Printf(TEXT("已选中: %s"), *Actor->GetName())));
-        HintText->SetColorAndOpacity(FSlateColor(FLinearColor(0.3f, 0.8f, 0.3f)));  // 绿色表示已选中
+        HintText->SetText(FText::FromString(FString::Printf(TEXT("Selected: %s"), *Actor->GetName())));
+        HintText->SetColorAndOpacity(FSlateColor(FLinearColor(0.3f, 0.8f, 0.3f)));  // Green indicates selected
     }
     
-    // 更新 JSON 预览
+    // Update JSON preview
     UpdateJsonPreview(Actor);
     
     UE_LOG(LogMAModifyWidget, Log, TEXT("SetSelectedActor: %s"), *Actor->GetName());
 }
 
 //=========================================================================
-// SetSelectedActors - 设置多个选中的 Actor (多选模式)
+// SetSelectedActors - Set multiple selected Actors (multi-select mode)
 // Requirements: 2.4
 //=========================================================================
 
@@ -296,26 +296,26 @@ void UMAModifyWidget::SetSelectedActors(const TArray<AActor*>& Actors)
         return;
     }
     
-    // 更新提示文本显示选择数量
-    // Requirements: 2.4 - 更新 HintText 显示选择数量
+    // Update hint text to display selection count
+    // Requirements: 2.4 - Update HintText to display selection count
     if (HintText)
     {
         if (SelectedActors.Num() == 1)
         {
-            HintText->SetText(FText::FromString(FString::Printf(TEXT("已选中: %s"), *SelectedActors[0]->GetName())));
+            HintText->SetText(FText::FromString(FString::Printf(TEXT("Selected: %s"), *SelectedActors[0]->GetName())));
         }
         else
         {
-            HintText->SetText(FText::FromString(FString::Printf(TEXT("已选中: %d 个 Actor"), SelectedActors.Num())));
+            HintText->SetText(FText::FromString(FString::Printf(TEXT("Selected: %d Actors"), SelectedActors.Num())));
         }
-        HintText->SetColorAndOpacity(FSlateColor(FLinearColor(0.3f, 0.8f, 0.3f)));  // 绿色表示已选中
+        HintText->SetColorAndOpacity(FSlateColor(FLinearColor(0.3f, 0.8f, 0.3f)));  // Green indicates selected
     }
     
-    // 清空文本框，让用户输入新的标签
+    // Clear text box, let user input new label
     if (LabelTextBox)
     {
         LabelTextBox->SetText(FText::GetEmpty());
-        // Requirements: 10.3 - 多选模式提示不同的输入格式
+        // Requirements: 10.3 - Multi-select mode shows different input format hint
         if (SelectedActors.Num() > 1)
         {
             LabelTextBox->SetHintText(FText::FromString(MultiSelectHintText));
@@ -326,7 +326,7 @@ void UMAModifyWidget::SetSelectedActors(const TArray<AActor*>& Actors)
         }
     }
     
-    // 更新 JSON 预览
+    // Update JSON preview
     if (SelectedActors.Num() > 1)
     {
         UpdateJsonPreviewMultiSelect(SelectedActors);
@@ -340,7 +340,7 @@ void UMAModifyWidget::SetSelectedActors(const TArray<AActor*>& Actors)
 }
 
 //=========================================================================
-// ClearSelection - 清除选中状态
+// ClearSelection - Clear selection state
 // Requirements: 4.3
 //=========================================================================
 
@@ -348,30 +348,30 @@ void UMAModifyWidget::ClearSelection()
 {
     SelectedActors.Empty();
     
-    // 清空文本框
+    // Clear text box
     if (LabelTextBox)
     {
         LabelTextBox->SetText(FText::GetEmpty());
     }
     
-    // 显示提示文字
+    // Display hint text
     if (HintText)
     {
         HintText->SetText(FText::FromString(DefaultHintText));
-        HintText->SetColorAndOpacity(FSlateColor(FLinearColor(0.6f, 0.6f, 0.6f)));  // 灰色
+        HintText->SetColorAndOpacity(FSlateColor(FLinearColor(0.6f, 0.6f, 0.6f)));  // Gray
     }
     
-    // 清空 JSON 预览
+    // Clear JSON preview
     if (JsonPreviewText)
     {
-        JsonPreviewText->SetText(FText::FromString(TEXT("选中 Actor 后显示 JSON 预览")));
+        JsonPreviewText->SetText(FText::FromString(TEXT("Select an Actor to display JSON preview")));
     }
     
     UE_LOG(LogMAModifyWidget, Log, TEXT("ClearSelection: Selection cleared"));
 }
 
 //=========================================================================
-// GetLabelText / SetLabelText - 文本框内容访问
+// GetLabelText / SetLabelText - Text box content access
 //=========================================================================
 
 FString UMAModifyWidget::GetLabelText() const
@@ -477,7 +477,7 @@ void UMAModifyWidget::OnConfirmButtonClicked()
 // 1. 获取选中 Actor 的 GUID
 // 2. 同时查找 GuidArray 匹配 (polygon/linestring) 和 guid 字段匹配 (point)
 // 3. 如果找到多个匹配节点，显示所有节点的 JSON
-// 4. 如果未找到，保持现有的单 Actor 预览行为
+// 4. If not found, maintain existing single Actor preview behavior
 //=========================================================================
 
 void UMAModifyWidget::UpdateJsonPreview(AActor* Actor)
@@ -489,49 +489,49 @@ void UMAModifyWidget::UpdateJsonPreview(AActor* Actor)
     
     if (!Actor)
     {
-        JsonPreviewText->SetText(FText::FromString(TEXT("选中 Actor 后显示 JSON 预览")));
+        JsonPreviewText->SetText(FText::FromString(TEXT("Select an Actor to display JSON preview")));
         return;
     }
     
-    // 获取 SceneGraphManager
+    // Get SceneGraphManager
     UWorld* World = GetWorld();
     if (!World)
     {
-        JsonPreviewText->SetText(FText::FromString(TEXT("无法获取 World")));
+        JsonPreviewText->SetText(FText::FromString(TEXT("Unable to get World")));
         return;
     }
     
     UGameInstance* GI = World->GetGameInstance();
     if (!GI)
     {
-        JsonPreviewText->SetText(FText::FromString(TEXT("无法获取 GameInstance")));
+        JsonPreviewText->SetText(FText::FromString(TEXT("Unable to get GameInstance")));
         return;
     }
     
     UMASceneGraphManager* SceneGraphManager = GI->GetSubsystem<UMASceneGraphManager>();
     if (!SceneGraphManager)
     {
-        JsonPreviewText->SetText(FText::FromString(TEXT("SceneGraphManager 未找到")));
+        JsonPreviewText->SetText(FText::FromString(TEXT("SceneGraphManager not found")));
         return;
     }
     
-    // 获取 Actor 的 GUID
+    // Get Actor's GUID
     FString ActorGuid = Actor->GetActorGuid().ToString();
     
-    // 收集所有匹配的节点 (包括 GuidArray 匹配和 guid 字段匹配)
+    // Collect all matching nodes (including GuidArray matches and guid field matches)
     TArray<FMASceneGraphNode> AllMatchingNodes;
     
-    // 1. 通过 GuidArray 查找 (polygon/linestring 类型)
+    // 1. Find via GuidArray (polygon/linestring types)
     TArray<FMASceneGraphNode> GuidArrayMatches = SceneGraphManager->FindNodesByGuid(ActorGuid);
     AllMatchingNodes.Append(GuidArrayMatches);
     
-    // 2. 通过单个 guid 字段查找 (point 类型)
+    // 2. Find via single guid field (point type)
     TArray<FMASceneGraphNode> AllNodes = SceneGraphManager->GetAllNodes();
     for (const FMASceneGraphNode& Node : AllNodes)
     {
         if (Node.Guid == ActorGuid)
         {
-            // 检查是否已经在 AllMatchingNodes 中 (避免重复)
+            // Check if already in AllMatchingNodes (avoid duplicates)
             bool bAlreadyAdded = false;
             for (const FMASceneGraphNode& ExistingNode : AllMatchingNodes)
             {
@@ -550,43 +550,43 @@ void UMAModifyWidget::UpdateJsonPreview(AActor* Actor)
     
     if (AllMatchingNodes.Num() > 0)
     {
-        // 找到匹配节点，显示所有节点的 JSON
+        // Found matching nodes, display JSON for all nodes
         FString CombinedPreview;
         
-        // 如果有多个节点，添加总数提示
+        // If multiple nodes, add count hint
         if (AllMatchingNodes.Num() > 1)
         {
-            CombinedPreview = FString::Printf(TEXT("此 Actor 属于 %d 个节点:\n"), AllMatchingNodes.Num());
+            CombinedPreview = FString::Printf(TEXT("This Actor belongs to %d nodes:\n"), AllMatchingNodes.Num());
             CombinedPreview += TEXT("━━━━━━━━━━━━━━━━━━━━\n\n");
         }
         
-        // 显示每个节点的信息
+        // Display info for each node
         for (int32 i = 0; i < AllMatchingNodes.Num(); ++i)
         {
             const FMASceneGraphNode& Node = AllMatchingNodes[i];
             
-            // 添加节点分隔符 (如果不是第一个)
+            // Add node separator (if not first)
             if (i > 0)
             {
                 CombinedPreview += TEXT("\n────────────────────\n\n");
             }
             
-            // 格式化并添加节点信息
+            // Format and add node info
             CombinedPreview += FormatJsonPreviewWithHighlight(Node, ActorGuid);
         }
         
         JsonPreviewText->SetText(FText::FromString(CombinedPreview));
-        JsonPreviewText->SetColorAndOpacity(FSlateColor(FLinearColor(0.7f, 0.9f, 0.7f)));  // 浅绿色
+        JsonPreviewText->SetColorAndOpacity(FSlateColor(FLinearColor(0.7f, 0.9f, 0.7f)));  // Light green
         
         UE_LOG(LogMAModifyWidget, Log, TEXT("UpdateJsonPreview: Found %d nodes for Actor GUID %s"), 
             AllMatchingNodes.Num(), *ActorGuid);
         return;
     }
     
-    // 未找到任何匹配的节点，显示默认的单 Actor 预览
+    // No matching nodes found, display default single Actor preview
     FVector Location = Actor->GetActorLocation();
     FString PreviewText = FString::Printf(
-        TEXT("Actor: %s\nGUID: %s\nLocation: [%.0f, %.0f, %.0f]\n\n(尚未标注 - 不属于任何节点)"),
+        TEXT("Actor: %s\nGUID: %s\nLocation: [%.0f, %.0f, %.0f]\n\n(Not annotated - does not belong to any node)"),
         *Actor->GetName(),
         *ActorGuid,
         Location.X,
@@ -594,13 +594,13 @@ void UMAModifyWidget::UpdateJsonPreview(AActor* Actor)
         Location.Z
     );
     JsonPreviewText->SetText(FText::FromString(PreviewText));
-    JsonPreviewText->SetColorAndOpacity(FSlateColor(FLinearColor(0.9f, 0.7f, 0.5f)));  // 橙色表示未标注
+    JsonPreviewText->SetColorAndOpacity(FSlateColor(FLinearColor(0.9f, 0.7f, 0.5f)));  // Orange indicates not annotated
     
     UE_LOG(LogMAModifyWidget, Log, TEXT("UpdateJsonPreview: No node found for Actor GUID %s"), *ActorGuid);
 }
 
 //=========================================================================
-// UpdateJsonPreviewMultiSelect - 更新 JSON 预览文本 (多选模式)
+// UpdateJsonPreviewMultiSelect - Update JSON preview text (multi-select mode)
 // Requirements: 8.3
 //=========================================================================
 
@@ -613,15 +613,15 @@ void UMAModifyWidget::UpdateJsonPreviewMultiSelect(const TArray<AActor*>& Actors
     
     if (Actors.Num() == 0)
     {
-        JsonPreviewText->SetText(FText::FromString(TEXT("选中 Actor 后显示 JSON 预览")));
+        JsonPreviewText->SetText(FText::FromString(TEXT("Select an Actor to display JSON preview")));
         return;
     }
     
-    // 构建多选预览信息
-    FString PreviewText = FString::Printf(TEXT("多选模式: %d 个 Actor\n\n"), Actors.Num());
+    // Build multi-select preview info
+    FString PreviewText = FString::Printf(TEXT("Multi-select mode: %d Actors\n\n"), Actors.Num());
     
-    // 列出所有选中的 Actor
-    PreviewText += TEXT("选中的 Actor:\n");
+    // List all selected Actors
+    PreviewText += TEXT("Selected Actors:\n");
     for (int32 i = 0; i < FMath::Min(Actors.Num(), 5); ++i)
     {
         if (Actors[i])
@@ -634,68 +634,68 @@ void UMAModifyWidget::UpdateJsonPreviewMultiSelect(const TArray<AActor*>& Actors
     
     if (Actors.Num() > 5)
     {
-        PreviewText += FString::Printf(TEXT("  ... 还有 %d 个\n"), Actors.Num() - 5);
+        PreviewText += FString::Printf(TEXT("  ... and %d more\n"), Actors.Num() - 5);
     }
     
-    PreviewText += TEXT("\n输入 shape:polygon 或 shape:linestring");
+    PreviewText += TEXT("\nEnter shape:polygon or shape:linestring");
     
     JsonPreviewText->SetText(FText::FromString(PreviewText));
-    JsonPreviewText->SetColorAndOpacity(FSlateColor(FLinearColor(0.5f, 0.7f, 0.9f)));  // 浅蓝色表示多选
+    JsonPreviewText->SetColorAndOpacity(FSlateColor(FLinearColor(0.5f, 0.7f, 0.9f)));  // Light blue indicates multi-select
 }
 
 //=========================================================================
-// FormatJsonPreviewWithHighlight - 格式化 JSON 预览并高亮显示选中 Actor 的 GUID
+// FormatJsonPreviewWithHighlight - Format JSON preview and highlight selected Actor's GUID
 // Requirements: 3.1, 3.2, 3.3, 3.4
 //
-// 功能:
-// - 添加节点类型标题 (Polygon/LineString/Point)
-// - 高亮显示选中 Actor 的 GUID (使用 >>> <<< 标记)
-// - 使用缩进格式化 JSON
+// Features:
+// - Add node type title (Polygon/LineString/Point)
+// - Highlight selected Actor's GUID (using >>> <<< markers)
+// - Use indentation to format JSON
 //=========================================================================
 
 FString UMAModifyWidget::FormatJsonPreviewWithHighlight(const FMASceneGraphNode& Node, const FString& ActorGuid) const
 {
     FString Result;
     
-    // Requirements: 3.4 - 添加节点类型标题
+    // Requirements: 3.4 - Add node type title
     FString TypeTitle;
     if (Node.ShapeType == TEXT("polygon"))
     {
-        TypeTitle = TEXT("=== Polygon 节点 ===");
+        TypeTitle = TEXT("=== Polygon Node ===");
     }
     else if (Node.ShapeType == TEXT("linestring"))
     {
-        TypeTitle = TEXT("=== LineString 节点 ===");
+        TypeTitle = TEXT("=== LineString Node ===");
     }
     else
     {
-        TypeTitle = TEXT("=== Point 节点 ===");
+        TypeTitle = TEXT("=== Point Node ===");
     }
     Result += TypeTitle + TEXT("\n\n");
     
-    // Requirements: 3.1, 3.2 - 格式化 JSON 显示
-    // 使用 RawJson 字段，但进行简化显示以适应预览框
+    // Requirements: 3.1, 3.2 - Format JSON display
+    // Use RawJson field, but simplify display to fit preview box
     
-    // 基本信息
+    // Basic info
     Result += FString::Printf(TEXT("id: %s\n"), *Node.Id);
     Result += FString::Printf(TEXT("type: %s\n"), *Node.Type);
     Result += FString::Printf(TEXT("label: %s\n"), *Node.Label);
     
-    // 显示中心点
+    // Display center point
     Result += FString::Printf(TEXT("center: [%.0f, %.0f, %.0f]\n"), 
         Node.Center.X, Node.Center.Y, Node.Center.Z);
     
-    // Requirements: 3.3 - 高亮显示选中 Actor 的 GUID
+    // Requirements: 3.3 - Highlight selected Actor's GUID
     if (Node.GuidArray.Num() > 0)
     {
-        Result += TEXT("\nGuid 数组:\n");
+        Result += TEXT("\nGuid Array:\n");
         for (int32 i = 0; i < Node.GuidArray.Num(); ++i)
         {
             const FString& Guid = Node.GuidArray[i];
             if (Guid == ActorGuid)
             {
-                // 高亮显示选中的 GUID
-                Result += FString::Printf(TEXT("  [%d] >>> %s <<< (选中)\n"), i, *Guid);
+                // Highlight selected GUID
+                Result += FString::Printf(TEXT("  [%d] >>> %s <<< (selected)\n"), i, *Guid);
             }
             else
             {
@@ -705,10 +705,10 @@ FString UMAModifyWidget::FormatJsonPreviewWithHighlight(const FMASceneGraphNode&
     }
     else if (!Node.Guid.IsEmpty())
     {
-        // Point 类型节点，显示单个 guid
+        // Point type node, display single guid
         if (Node.Guid == ActorGuid)
         {
-            Result += FString::Printf(TEXT("\nguid: >>> %s <<< (选中)\n"), *Node.Guid);
+            Result += FString::Printf(TEXT("\nguid: >>> %s <<< (selected)\n"), *Node.Guid);
         }
         else
         {
@@ -720,8 +720,8 @@ FString UMAModifyWidget::FormatJsonPreviewWithHighlight(const FMASceneGraphNode&
 }
 
 //=========================================================================
-// ParseAnnotationInput - 解析标注输入字符串
-// 支持向后兼容：检测输入格式，新格式调用 ParseAnnotationInputV2
+// ParseAnnotationInput - Parse annotation input string
+// Supports backward compatibility: detect input format, new format calls ParseAnnotationInputV2
 // Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 10.1, 10.2
 //=========================================================================
 
@@ -730,27 +730,27 @@ bool UMAModifyWidget::ParseAnnotationInput(const FString& Input, FMAAnnotationIn
     OutResult.Reset();
     OutError.Empty();
     
-    // 检查空输入
+    // Check for empty input
     if (Input.IsEmpty())
     {
-        OutError = TEXT("输入不能为空");
+        OutError = TEXT("Input cannot be empty");
         return false;
     }
     
-    // 检测输入格式：新格式包含 "cate:" 或 "category:"
-    // Requirements: 10.1, 10.2 - 向后兼容性
+    // Detect input format: new format contains "cate:" or "category:"
+    // Requirements: 10.1, 10.2 - Backward compatibility
     FString InputLower = Input.ToLower();
     if (InputLower.Contains(TEXT("cate:")) || InputLower.Contains(TEXT("category:")))
     {
-        // 新格式：调用 ParseAnnotationInputV2
+        // New format: call ParseAnnotationInputV2
         UE_LOG(LogMAModifyWidget, Log, TEXT("ParseAnnotationInput: Detected new format (cate:xxx), delegating to ParseAnnotationInputV2"));
         return ParseAnnotationInputV2(Input, OutResult, OutError);
     }
     
-    // 旧格式：保持原有逻辑
+    // Legacy format: maintain original logic
     UE_LOG(LogMAModifyWidget, Log, TEXT("ParseAnnotationInput: Using legacy format (id:xxx,type:xxx)"));
     
-    // 解析 "key:value, key:value" 格式
+    // Parse "key:value, key:value" format
     TArray<FString> Pairs;
     Input.ParseIntoArray(Pairs, TEXT(","), true);
     
@@ -762,11 +762,11 @@ bool UMAModifyWidget::ParseAnnotationInput(const FString& Input, FMAAnnotationIn
             continue;
         }
         
-        // 分割 key:value
+        // Split key:value
         FString Key, Value;
         if (!TrimmedPair.Split(TEXT(":"), &Key, &Value))
         {
-            OutError = FString::Printf(TEXT("无效的键值对格式: %s (应为 key:value)"), *TrimmedPair);
+            OutError = FString::Printf(TEXT("Invalid key-value format: %s (expected key:value)"), *TrimmedPair);
             return false;
         }
         
@@ -775,17 +775,17 @@ bool UMAModifyWidget::ParseAnnotationInput(const FString& Input, FMAAnnotationIn
         
         if (Key.IsEmpty())
         {
-            OutError = TEXT("键名不能为空");
+            OutError = TEXT("Key name cannot be empty");
             return false;
         }
         
         if (Value.IsEmpty())
         {
-            OutError = FString::Printf(TEXT("键 '%s' 的值不能为空"), *Key);
+            OutError = FString::Printf(TEXT("Value for key '%s' cannot be empty"), *Key);
             return false;
         }
         
-        // 解析已知字段
+        // Parse known fields
         if (Key == TEXT("id"))
         {
             OutResult.Id = Value;
@@ -796,33 +796,33 @@ bool UMAModifyWidget::ParseAnnotationInput(const FString& Input, FMAAnnotationIn
         }
         else if (Key == TEXT("shape"))
         {
-            // 验证 shape 值
+            // Validate shape value
             FString ShapeLower = Value.ToLower();
             if (ShapeLower != TEXT("polygon") && ShapeLower != TEXT("linestring") && 
                 ShapeLower != TEXT("point") && ShapeLower != TEXT("rectangle"))
             {
-                OutError = FString::Printf(TEXT("无效的 shape 值: %s (应为 polygon, linestring, point 或 rectangle)"), *Value);
+                OutError = FString::Printf(TEXT("Invalid shape value: %s (expected polygon, linestring, point or rectangle)"), *Value);
                 return false;
             }
             OutResult.Shape = ShapeLower;
         }
         else
         {
-            // 存储为额外属性
+            // Store as extra property
             OutResult.Properties.Add(Key, Value);
         }
     }
     
-    // 验证必需字段 (旧格式需要 id)
+    // Validate required fields (legacy format requires id)
     if (OutResult.Id.IsEmpty())
     {
-        OutError = TEXT("缺少必需字段: id");
+        OutError = TEXT("Missing required field: id");
         return false;
     }
     
     if (OutResult.Type.IsEmpty())
     {
-        OutError = TEXT("缺少必需字段: type");
+        OutError = TEXT("Missing required field: type");
         return false;
     }
     
@@ -831,7 +831,7 @@ bool UMAModifyWidget::ParseAnnotationInput(const FString& Input, FMAAnnotationIn
 }
 
 //=========================================================================
-// GenerateSceneGraphNode - 生成场景图节点 JSON
+// GenerateSceneGraphNode - Generate scene graph node JSON
 // Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 5.1, 5.2, 5.3, 5.4, 5.5, 6.1, 6.2, 7.1, 7.2, 8.1, 8.2
 //=========================================================================
 
@@ -842,10 +842,10 @@ FString UMAModifyWidget::GenerateSceneGraphNode(const FMAAnnotationInput& Input,
         return TEXT("{}");
     }
     
-    // 创建 JSON 对象
+    // Create JSON object
     TSharedPtr<FJsonObject> RootObject = MakeShareable(new FJsonObject());
     
-    // 基本字段
+    // Basic fields
     RootObject->SetStringField(TEXT("id"), Input.Id);
     RootObject->SetNumberField(TEXT("count"), Actors.Num());
     
@@ -1662,10 +1662,10 @@ bool UMAModifyWidget::ValidateSelectionForCategory(EMANodeCategory Category, int
 {
     OutError.Empty();
     
-    // 检查选择数量是否有效
+    // Check if selection count is valid
     if (SelectionCount <= 0)
     {
-        OutError = TEXT("请至少选择一个 Actor");
+        OutError = TEXT("Please select at least one Actor");
         UE_LOG(LogMAModifyWidget, Warning, TEXT("ValidateSelectionForCategory: No Actor selected"));
         return false;
     }
@@ -1673,28 +1673,28 @@ bool UMAModifyWidget::ValidateSelectionForCategory(EMANodeCategory Category, int
     switch (Category)
     {
     case EMANodeCategory::Building:
-        // Requirements: 2.1, 2.2 - Building 类型仅允许单选
+        // Requirements: 2.1, 2.2 - Building type only allows single-select
         if (SelectionCount != 1)
         {
-            OutError = TEXT("Building 类型仅支持单选，请只选择一个 Actor");
+            OutError = TEXT("Building type only supports single-select, please select only one Actor");
             UE_LOG(LogMAModifyWidget, Warning, TEXT("ValidateSelectionForCategory: Building requires single selection, got %d"), SelectionCount);
             return false;
         }
         break;
         
     case EMANodeCategory::TransFacility:
-        // Requirements: 3.1 - TransFacility 类型允许单选或多选
-        // 任意数量都有效
+        // Requirements: 3.1 - TransFacility type allows single or multi-select
+        // Any count is valid
         break;
         
     case EMANodeCategory::Prop:
-        // Requirements: 4.1 - Prop 类型允许单选或多选
-        // 任意数量都有效
+        // Requirements: 4.1 - Prop type allows single or multi-select
+        // Any count is valid
         break;
         
     case EMANodeCategory::None:
     default:
-        // 未指定分类时，允许任意数量
+        // When no category specified, allow any count
         break;
     }
     
@@ -1704,10 +1704,10 @@ bool UMAModifyWidget::ValidateSelectionForCategory(EMANodeCategory Category, int
 }
 
 //=========================================================================
-// ParseAnnotationInputV2 - 解析新格式的标注输入 (cate:xxx,type:xxx)
+// ParseAnnotationInputV2 - Parse new format annotation input (cate:xxx,type:xxx)
 // Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 5.1, 5.2, 5.3, 5.4, 5.5
 //
-// 根据 cate 值自动设置默认 shape:
+// Auto-set default shape based on cate value:
 // - building → prism
 // - trans_facility → linestring
 // - prop → point
@@ -1718,22 +1718,22 @@ bool UMAModifyWidget::ParseAnnotationInputV2(const FString& Input, FMAAnnotation
     OutResult.Reset();
     OutError.Empty();
     
-    // 检查空输入
-    // Requirements: 1.4 - 输入格式无效时显示错误消息
+    // Check for empty input
+    // Requirements: 1.4 - Display error message when input format is invalid
     if (Input.IsEmpty())
     {
-        OutError = TEXT("输入不能为空");
+        OutError = TEXT("Input cannot be empty");
         return false;
     }
     
-    // 解析 "key:value, key:value" 格式
-    // Requirements: 1.1 - 接受 cate:xxxx,type:xxxxxx 格式
+    // Parse "key:value, key:value" format
+    // Requirements: 1.1 - Accept cate:xxxx,type:xxxxxx format
     TArray<FString> Pairs;
     Input.ParseIntoArray(Pairs, TEXT(","), true);
     
     bool bHasCate = false;
     bool bHasType = false;
-    bool bHasExplicitShape = false;  // 用户是否显式指定了 shape
+    bool bHasExplicitShape = false;  // Whether user explicitly specified shape
     
     for (const FString& Pair : Pairs)
     {
@@ -1743,11 +1743,11 @@ bool UMAModifyWidget::ParseAnnotationInputV2(const FString& Input, FMAAnnotation
             continue;
         }
         
-        // 分割 key:value
+        // Split key:value
         FString Key, Value;
         if (!TrimmedPair.Split(TEXT(":"), &Key, &Value))
         {
-            OutError = FString::Printf(TEXT("无效的键值对格式: %s (应为 key:value)"), *TrimmedPair);
+            OutError = FString::Printf(TEXT("Invalid key-value format: %s (expected key:value)"), *TrimmedPair);
             return false;
         }
         
@@ -1756,25 +1756,25 @@ bool UMAModifyWidget::ParseAnnotationInputV2(const FString& Input, FMAAnnotation
         
         if (Key.IsEmpty())
         {
-            OutError = TEXT("键名不能为空");
+            OutError = TEXT("Key name cannot be empty");
             return false;
         }
         
         if (Value.IsEmpty())
         {
-            OutError = FString::Printf(TEXT("键 '%s' 的值不能为空"), *Key);
+            OutError = FString::Printf(TEXT("Value for key '%s' cannot be empty"), *Key);
             return false;
         }
         
-        // 解析已知字段
-        // Requirements: 1.5 - 支持 cate 和 type 字段名的大小写不敏感解析
+        // Parse known fields
+        // Requirements: 1.5 - Support case-insensitive parsing of cate and type field names
         if (Key == TEXT("cate") || Key == TEXT("category"))
         {
-            // Requirements: 1.2 - 提取 cate 字段值作为分类
+            // Requirements: 1.2 - Extract cate field value as category
             EMANodeCategory ParsedCategory = FMAAnnotationInput::ParseCategoryFromString(Value);
             if (ParsedCategory == EMANodeCategory::None)
             {
-                OutError = FString::Printf(TEXT("无效的 cate 值: %s (应为 building, trans_facility 或 prop)"), *Value);
+                OutError = FString::Printf(TEXT("Invalid cate value: %s (expected building, trans_facility or prop)"), *Value);
                 return false;
             }
             OutResult.Category = ParsedCategory;
@@ -1786,19 +1786,19 @@ bool UMAModifyWidget::ParseAnnotationInputV2(const FString& Input, FMAAnnotation
         }
         else if (Key == TEXT("type"))
         {
-            // Requirements: 1.3 - 提取 type 字段值作为实体类型
+            // Requirements: 1.3 - Extract type field value as entity type
             OutResult.Type = Value;
             bHasType = true;
         }
         else if (Key == TEXT("shape"))
         {
-            // 验证 shape 值 (包括新增的 prism 类型)
+            // Validate shape value (including new prism type)
             FString ShapeLower = Value.ToLower();
             if (ShapeLower != TEXT("polygon") && ShapeLower != TEXT("linestring") && 
                 ShapeLower != TEXT("point") && ShapeLower != TEXT("rectangle") &&
                 ShapeLower != TEXT("prism"))
             {
-                OutError = FString::Printf(TEXT("无效的 shape 值: %s (应为 polygon, linestring, point, rectangle 或 prism)"), *Value);
+                OutError = FString::Printf(TEXT("Invalid shape value: %s (expected polygon, linestring, point, rectangle or prism)"), *Value);
                 return false;
             }
             OutResult.Shape = ShapeLower;
@@ -1806,34 +1806,34 @@ bool UMAModifyWidget::ParseAnnotationInputV2(const FString& Input, FMAAnnotation
         }
         else
         {
-            // 存储为额外属性
+            // Store as extra property
             OutResult.Properties.Add(Key, Value);
         }
     }
     
-    // 验证必需字段
+    // Validate required fields
     if (!bHasCate)
     {
-        // Requirements: 1.4 - 显示错误消息，说明期望的格式
-        OutError = TEXT("缺少必需字段: cate (应为 building, trans_facility 或 prop)");
+        // Requirements: 1.4 - Display error message explaining expected format
+        OutError = TEXT("Missing required field: cate (expected building, trans_facility or prop)");
         return false;
     }
     
     if (!bHasType)
     {
-        OutError = TEXT("缺少必需字段: type");
+        OutError = TEXT("Missing required field: type");
         return false;
     }
     
-    // 如果没有指定 ID，自动分配
+    // If no ID specified, auto-assign
     if (OutResult.Id.IsEmpty())
     {
         OutResult.Id = GetNextAvailableId();
         UE_LOG(LogMAModifyWidget, Log, TEXT("ParseAnnotationInputV2: Auto-assigned ID = %s"), *OutResult.Id);
     }
     
-    // Requirements: 根据 cate 值自动设置默认 shape
-    // 如果用户没有显式指定 shape，则根据 category 自动设置
+    // Requirements: Auto-set default shape based on cate value
+    // If user didn't explicitly specify shape, auto-set based on category
     // - building → prism
     // - trans_facility → linestring
     // - prop → point
@@ -1858,7 +1858,7 @@ bool UMAModifyWidget::ParseAnnotationInputV2(const FString& Input, FMAAnnotation
             
         case EMANodeCategory::None:
         default:
-            // 未指定分类时不自动设置 shape
+            // When no category specified, don't auto-set shape
             break;
         }
     }
@@ -1869,7 +1869,7 @@ bool UMAModifyWidget::ParseAnnotationInputV2(const FString& Input, FMAAnnotation
 
 
 //=========================================================================
-// GetHintTextForCategory - 根据分类获取对应的提示文本
+// GetHintTextForCategory - Get corresponding hint text based on category
 // Requirements: 1.4
 //=========================================================================
 

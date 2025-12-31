@@ -1,5 +1,5 @@
 // MAEmergencyWidget.cpp
-// 突发事件详情界面 Widget 实现
+// Emergency Event Details Widget Implementation
 // Requirements: 2.2, 2.3, 3.1, 3.2, 3.3, 3.4
 
 #include "MAEmergencyWidget.h"
@@ -27,7 +27,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogMAEmergencyWidget, Log, All);
 UMAEmergencyWidget::UMAEmergencyWidget(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
 {
-    // 初始化指针
+    // Initialize pointers
     RootCanvas = nullptr;
     BackgroundBorder = nullptr;
     CameraFeedImage = nullptr;
@@ -40,7 +40,7 @@ UMAEmergencyWidget::UMAEmergencyWidget(const FObjectInitializer& ObjectInitializ
     RenderTarget = nullptr;
     CameraMaterial = nullptr;
     
-    // 确保 WidgetTree 存在
+    // Ensure WidgetTree exists
     if (!WidgetTree)
     {
         WidgetTree = NewObject<UWidgetTree>(this, TEXT("WidgetTree"));
@@ -51,7 +51,7 @@ void UMAEmergencyWidget::NativePreConstruct()
 {
     Super::NativePreConstruct();
     
-    // 在这里构建 UI，确保 WidgetTree 已经初始化
+    // Build UI here, ensure WidgetTree is initialized
     if (WidgetTree && !WidgetTree->RootWidget)
     {
         BuildUI();
@@ -64,10 +64,10 @@ void UMAEmergencyWidget::NativeConstruct()
     
     UE_LOG(LogMAEmergencyWidget, Log, TEXT("NativeConstruct called"));
     
-    // 创建相机渲染资源
+    // Create camera render resources
     CreateCameraRenderResources();
     
-    // 绑定按钮事件
+    // Bind button events
     BindButtonEvents();
     
     UE_LOG(LogMAEmergencyWidget, Log, TEXT("EmergencyWidget constructed successfully"));
@@ -75,13 +75,13 @@ void UMAEmergencyWidget::NativeConstruct()
 
 TSharedRef<SWidget> UMAEmergencyWidget::RebuildWidget()
 {
-    // 确保 WidgetTree 存在
+    // Ensure WidgetTree exists
     if (!WidgetTree)
     {
         WidgetTree = NewObject<UWidgetTree>(this, TEXT("WidgetTree"));
     }
     
-    // 构建 UI
+    // Build UI
     if (!WidgetTree->RootWidget)
     {
         BuildUI();
@@ -100,7 +100,7 @@ void UMAEmergencyWidget::BuildUI()
     
     UE_LOG(LogMAEmergencyWidget, Log, TEXT("Building UI layout..."));
     
-    // 创建根 Canvas
+    // Create root Canvas
     RootCanvas = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("RootCanvas"));
     if (!RootCanvas)
     {
@@ -110,8 +110,8 @@ void UMAEmergencyWidget::BuildUI()
     WidgetTree->RootWidget = RootCanvas;
     
     //=========================================================================
-    // 创建背景边框 - 半透明深色背景
-    // 位置: (20, 100), 大小: (960, 500)
+    // Create background border - semi-transparent dark background
+    // Position: (20, 100), Size: (960, 500)
     //=========================================================================
     BackgroundBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("BackgroundBorder"));
     if (BackgroundBorder)
@@ -131,7 +131,7 @@ void UMAEmergencyWidget::BuildUI()
         UE_LOG(LogMAEmergencyWidget, Log, TEXT("Created BackgroundBorder"));
     }
     
-    // 创建内部 Canvas 用于布局
+    // Create inner Canvas for layout
     UCanvasPanel* InnerCanvas = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("InnerCanvas"));
     if (InnerCanvas && BackgroundBorder)
     {
@@ -145,12 +145,12 @@ void UMAEmergencyWidget::BuildUI()
     }
     
     //=========================================================================
-    // 标题
+    // Title
     //=========================================================================
     UTextBlock* TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TitleText"));
     if (TitleText)
     {
-        TitleText->SetText(FText::FromString(TEXT("突发事件详情")));
+        TitleText->SetText(FText::FromString(TEXT("Emergency Event Details")));
         FSlateFontInfo TitleFont = TitleText->GetFont();
         TitleFont.Size = 20;
         TitleText->SetFont(TitleFont);
@@ -168,8 +168,8 @@ void UMAEmergencyWidget::BuildUI()
     }
     
     //=========================================================================
-    // 相机画面区域 (左中)
-    // 位置: (0, 40), 大小: (400, 300)
+    // Camera feed area (center-left)
+    // Position: (0, 40), Size: (400, 300)
     //=========================================================================
     CameraFeedImage = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("CameraFeedImage"));
     if (CameraFeedImage)
@@ -183,15 +183,15 @@ void UMAEmergencyWidget::BuildUI()
             CameraSlot->SetAutoSize(false);
         }
         
-        // 设置默认黑色背景
+        // Set default black background
         CameraFeedImage->SetColorAndOpacity(FLinearColor::Black);
         
         UE_LOG(LogMAEmergencyWidget, Log, TEXT("Created CameraFeedImage"));
     }
     
     //=========================================================================
-    // 信息显示区域 (右中)
-    // 位置: (420, 40), 大小: (300, 200)
+    // Info display area (center-right)
+    // Position: (420, 40), Size: (300, 200)
     //=========================================================================
     InfoTextBox = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(UMultiLineEditableTextBox::StaticClass(), TEXT("InfoTextBox"));
     if (InfoTextBox)
@@ -205,20 +205,20 @@ void UMAEmergencyWidget::BuildUI()
             InfoSlot->SetAutoSize(false);
         }
         
-        // 设置为只读
+        // Set as read-only
         InfoTextBox->SetIsReadOnly(true);
-        InfoTextBox->SetText(FText::FromString(TEXT("突发事件信息显示区域\n等待事件数据...\n\n按 X 键关闭此界面\n按 - 键结束事件")));
+        InfoTextBox->SetText(FText::FromString(TEXT("Emergency event information area\nWaiting for event data...\n\nPress X to close this panel\nPress - to end event")));
         
         UE_LOG(LogMAEmergencyWidget, Log, TEXT("Created InfoTextBox"));
     }
     
     //=========================================================================
-    // 操作按钮 (右侧)
-    // 按钮 1: (740, 50), 按钮 2: (740, 100), 按钮 3: (740, 150)
-    // 大小: (160, 40)
+    // Action buttons (right side)
+    // Button 1: (740, 50), Button 2: (740, 100), Button 3: (740, 150)
+    // Size: (160, 40)
     //=========================================================================
     
-    // 按钮 1: 扩大搜索范围
+    // Button 1: Expand Search Area
     ActionButton1 = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("ActionButton1"));
     if (ActionButton1)
     {
@@ -231,11 +231,11 @@ void UMAEmergencyWidget::BuildUI()
             Button1Slot->SetAutoSize(false);
         }
         
-        // 添加按钮文本
+        // Add button text
         UTextBlock* Button1Text = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Button1Text"));
         if (Button1Text)
         {
-            Button1Text->SetText(FText::FromString(TEXT("扩大搜索范围")));
+            Button1Text->SetText(FText::FromString(TEXT("Expand Search Area")));
             Button1Text->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
             ActionButton1->AddChild(Button1Text);
         }
@@ -243,7 +243,7 @@ void UMAEmergencyWidget::BuildUI()
         UE_LOG(LogMAEmergencyWidget, Log, TEXT("Created ActionButton1"));
     }
     
-    // 按钮 2: 忽略并返回
+    // Button 2: Ignore and Return
     ActionButton2 = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("ActionButton2"));
     if (ActionButton2)
     {
@@ -256,11 +256,11 @@ void UMAEmergencyWidget::BuildUI()
             Button2Slot->SetAutoSize(false);
         }
         
-        // 添加按钮文本
+        // Add button text
         UTextBlock* Button2Text = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Button2Text"));
         if (Button2Text)
         {
-            Button2Text->SetText(FText::FromString(TEXT("忽略并返回")));
+            Button2Text->SetText(FText::FromString(TEXT("Ignore and Return")));
             Button2Text->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
             ActionButton2->AddChild(Button2Text);
         }
@@ -268,7 +268,7 @@ void UMAEmergencyWidget::BuildUI()
         UE_LOG(LogMAEmergencyWidget, Log, TEXT("Created ActionButton2"));
     }
     
-    // 按钮 3: 切换灭火任务
+    // Button 3: Switch to Firefighting
     ActionButton3 = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("ActionButton3"));
     if (ActionButton3)
     {
@@ -281,11 +281,11 @@ void UMAEmergencyWidget::BuildUI()
             Button3Slot->SetAutoSize(false);
         }
         
-        // 添加按钮文本
+        // Add button text
         UTextBlock* Button3Text = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Button3Text"));
         if (Button3Text)
         {
-            Button3Text->SetText(FText::FromString(TEXT("切换灭火任务")));
+            Button3Text->SetText(FText::FromString(TEXT("Switch to Firefighting")));
             Button3Text->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
             ActionButton3->AddChild(Button3Text);
         }
@@ -294,12 +294,12 @@ void UMAEmergencyWidget::BuildUI()
     }
     
     //=========================================================================
-    // 输入区域 (底部)
-    // 输入框: (0, 360), 大小: (700, 80)
-    // 发送按钮: (720, 380), 大小: (80, 40)
+    // Input area (bottom)
+    // Input box: (0, 360), Size: (700, 80)
+    // Send button: (720, 380), Size: (80, 40)
     //=========================================================================
     
-    // 输入文本框
+    // Input text box
     InputTextBox = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(UMultiLineEditableTextBox::StaticClass(), TEXT("InputTextBox"));
     if (InputTextBox)
     {
@@ -312,13 +312,13 @@ void UMAEmergencyWidget::BuildUI()
             InputSlot->SetAutoSize(false);
         }
         
-        // 设置提示文本
-        InputTextBox->SetHintText(FText::FromString(TEXT("输入指令或消息...")));
+        // Set hint text
+        InputTextBox->SetHintText(FText::FromString(TEXT("Enter command or message...")));
         
         UE_LOG(LogMAEmergencyWidget, Log, TEXT("Created InputTextBox"));
     }
     
-    // 发送按钮
+    // Send button
     SendButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("SendButton"));
     if (SendButton)
     {
@@ -331,11 +331,11 @@ void UMAEmergencyWidget::BuildUI()
             SendSlot->SetAutoSize(false);
         }
         
-        // 添加按钮文本
+        // Add button text
         UTextBlock* SendText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SendText"));
         if (SendText)
         {
-            SendText->SetText(FText::FromString(TEXT("发送")));
+            SendText->SetText(FText::FromString(TEXT("Send")));
             SendText->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
             SendButton->AddChild(SendText);
         }
@@ -350,8 +350,8 @@ void UMAEmergencyWidget::CreateCameraRenderResources()
 {
     UE_LOG(LogMAEmergencyWidget, Log, TEXT("Creating camera render resources..."));
     
-    // 我们不需要创建自己的渲染目标，而是直接使用相机传感器的渲染目标
-    // 这样可以避免额外的渲染开销，并确保与相机传感器的一致性
+    // We don't need to create our own render target, instead use the camera sensor's render target directly
+    // This avoids extra rendering overhead and ensures consistency with the camera sensor
     
     UE_LOG(LogMAEmergencyWidget, Log, TEXT("Camera render resources initialized (will use camera's render target)"));
 }
@@ -360,7 +360,7 @@ void UMAEmergencyWidget::BindButtonEvents()
 {
     UE_LOG(LogMAEmergencyWidget, Log, TEXT("Binding button events..."));
     
-    // 绑定操作按钮事件
+    // Bind action button events
     if (ActionButton1)
     {
         ActionButton1->OnClicked.AddDynamic(this, &UMAEmergencyWidget::OnActionButton1Clicked);
@@ -376,13 +376,13 @@ void UMAEmergencyWidget::BindButtonEvents()
         ActionButton3->OnClicked.AddDynamic(this, &UMAEmergencyWidget::OnActionButton3Clicked);
     }
     
-    // 绑定发送按钮事件
+    // Bind send button event
     if (SendButton)
     {
         SendButton->OnClicked.AddDynamic(this, &UMAEmergencyWidget::OnSendButtonClicked);
     }
     
-    // 绑定输入框回车事件
+    // Bind input box enter key event
     if (InputTextBox)
     {
         InputTextBox->OnTextCommitted.AddDynamic(this, &UMAEmergencyWidget::OnInputTextCommitted);
@@ -392,7 +392,7 @@ void UMAEmergencyWidget::BindButtonEvents()
 }
 
 //=========================================================================
-// 相机源管理
+// Camera Source Management
 //=========================================================================
 
 void UMAEmergencyWidget::SetCameraSource(UMACameraSensorComponent* Camera)
@@ -406,7 +406,7 @@ void UMAEmergencyWidget::SetCameraSource(UMACameraSensorComponent* Camera)
         return;
     }
     
-    // 先清除之前的相机源（如果有的话，恢复其设置）
+    // Clear previous camera source first (if any, restore its settings)
     if (CurrentCameraSource.IsValid() && CurrentCameraSource.Get() != Camera)
     {
         USceneCaptureComponent2D* OldCapture = CurrentCameraSource->GetSceneCaptureComponent();
@@ -418,7 +418,7 @@ void UMAEmergencyWidget::SetCameraSource(UMACameraSensorComponent* Camera)
     
     CurrentCameraSource = Camera;
     
-    // 获取相机的 SceneCaptureComponent
+    // Get camera's SceneCaptureComponent
     USceneCaptureComponent2D* SceneCapture = Camera->GetSceneCaptureComponent();
     if (!SceneCapture)
     {
@@ -427,14 +427,14 @@ void UMAEmergencyWidget::SetCameraSource(UMACameraSensorComponent* Camera)
         return;
     }
     
-    // 启用每帧捕获以显示实时画面
+    // Enable per-frame capture to display live feed
     SceneCapture->bCaptureEveryFrame = true;
     
-    // 获取相机的渲染目标
+    // Get camera's render target
     UTextureRenderTarget2D* CameraRenderTarget = SceneCapture->TextureTarget;
     if (CameraRenderTarget && CameraFeedImage)
     {
-        // 使用渲染目标作为图像源
+        // Use render target as image source
         FSlateBrush Brush;
         Brush.SetResourceObject(CameraRenderTarget);
         Brush.ImageSize = FVector2D(CameraRenderTarget->SizeX, CameraRenderTarget->SizeY);
@@ -456,20 +456,20 @@ void UMAEmergencyWidget::ClearCameraSource()
 {
     UE_LOG(LogMAEmergencyWidget, Log, TEXT("ClearCameraSource called"));
     
-    // 恢复之前相机的设置
+    // Restore previous camera's settings
     if (CurrentCameraSource.IsValid())
     {
         USceneCaptureComponent2D* SceneCapture = CurrentCameraSource->GetSceneCaptureComponent();
         if (SceneCapture)
         {
-            // 恢复为不每帧捕获（节省性能）
+            // Restore to not capture every frame (save performance)
             SceneCapture->bCaptureEveryFrame = false;
         }
     }
     
     CurrentCameraSource.Reset();
     
-    // 设置为黑屏
+    // Set to black screen
     if (CameraFeedImage)
     {
         CameraFeedImage->SetColorAndOpacity(FLinearColor::Black);
@@ -482,7 +482,7 @@ void UMAEmergencyWidget::ClearCameraSource()
 }
 
 //=========================================================================
-// 信息显示
+// Info Display
 //=========================================================================
 
 void UMAEmergencyWidget::SetInfoText(const FString& Text)
@@ -515,7 +515,7 @@ void UMAEmergencyWidget::ClearInfoText()
 }
 
 //=========================================================================
-// 输入控制
+// Input Control
 //=========================================================================
 
 void UMAEmergencyWidget::FocusInputBox()
@@ -546,14 +546,14 @@ FString UMAEmergencyWidget::GetInputText() const
 }
 
 //=========================================================================
-// 事件处理
+// Event Handling
 //=========================================================================
 
 void UMAEmergencyWidget::OnActionButton1Clicked()
 {
-    UE_LOG(LogMAEmergencyWidget, Log, TEXT("Action Button 1 clicked: 扩大搜索范围"));
+    UE_LOG(LogMAEmergencyWidget, Log, TEXT("Action Button 1 clicked: Expand Search Area"));
     
-    // 发送按钮事件消息到后端
+    // Send button event message to backend
     if (UGameInstance* GameInstance = GetGameInstance())
     {
         if (UMACommSubsystem* CommSubsystem = GameInstance->GetSubsystem<UMACommSubsystem>())
@@ -561,7 +561,7 @@ void UMAEmergencyWidget::OnActionButton1Clicked()
             CommSubsystem->SendButtonEventMessage(
                 TEXT("EmergencyWidget"),        // widget_name
                 TEXT("btn_expand_search"),      // button_id
-                TEXT("扩大搜索范围")            // button_text
+                TEXT("Expand Search Area")      // button_text
             );
         }
     }
@@ -571,9 +571,9 @@ void UMAEmergencyWidget::OnActionButton1Clicked()
 
 void UMAEmergencyWidget::OnActionButton2Clicked()
 {
-    UE_LOG(LogMAEmergencyWidget, Log, TEXT("Action Button 2 clicked: 忽略并返回"));
+    UE_LOG(LogMAEmergencyWidget, Log, TEXT("Action Button 2 clicked: Ignore and Return"));
     
-    // 发送按钮事件消息到后端
+    // Send button event message to backend
     if (UGameInstance* GameInstance = GetGameInstance())
     {
         if (UMACommSubsystem* CommSubsystem = GameInstance->GetSubsystem<UMACommSubsystem>())
@@ -581,7 +581,7 @@ void UMAEmergencyWidget::OnActionButton2Clicked()
             CommSubsystem->SendButtonEventMessage(
                 TEXT("EmergencyWidget"),        // widget_name
                 TEXT("btn_ignore_return"),      // button_id
-                TEXT("忽略并返回")              // button_text
+                TEXT("Ignore and Return")       // button_text
             );
         }
     }
@@ -591,9 +591,9 @@ void UMAEmergencyWidget::OnActionButton2Clicked()
 
 void UMAEmergencyWidget::OnActionButton3Clicked()
 {
-    UE_LOG(LogMAEmergencyWidget, Log, TEXT("Action Button 3 clicked: 切换灭火任务"));
+    UE_LOG(LogMAEmergencyWidget, Log, TEXT("Action Button 3 clicked: Switch to Firefighting"));
     
-    // 发送按钮事件消息到后端
+    // Send button event message to backend
     if (UGameInstance* GameInstance = GetGameInstance())
     {
         if (UMACommSubsystem* CommSubsystem = GameInstance->GetSubsystem<UMACommSubsystem>())
@@ -601,7 +601,7 @@ void UMAEmergencyWidget::OnActionButton3Clicked()
             CommSubsystem->SendButtonEventMessage(
                 TEXT("EmergencyWidget"),        // widget_name
                 TEXT("btn_switch_firefight"),   // button_id
-                TEXT("切换灭火任务")            // button_text
+                TEXT("Switch to Firefighting")  // button_text
             );
         }
     }
@@ -613,7 +613,7 @@ void UMAEmergencyWidget::OnSendButtonClicked()
 {
     UE_LOG(LogMAEmergencyWidget, Log, TEXT("Send button clicked"));
     
-    // 发送按钮事件消息到后端
+    // Send button event message to backend
     if (UGameInstance* GameInstance = GetGameInstance())
     {
         if (UMACommSubsystem* CommSubsystem = GameInstance->GetSubsystem<UMACommSubsystem>())
@@ -621,7 +621,7 @@ void UMAEmergencyWidget::OnSendButtonClicked()
             CommSubsystem->SendButtonEventMessage(
                 TEXT("EmergencyWidget"),    // widget_name
                 TEXT("btn_send"),           // button_id
-                TEXT("发送")                // button_text
+                TEXT("Send")                // button_text
             );
         }
     }
@@ -645,7 +645,7 @@ void UMAEmergencyWidget::SubmitMessage()
     {
         UE_LOG(LogMAEmergencyWidget, Log, TEXT("Submitting message: %s"), *Message);
         
-        // 发送 UI 输入消息到后端
+        // Send UI input message to backend
         if (UGameInstance* GameInstance = GetGameInstance())
         {
             if (UMACommSubsystem* CommSubsystem = GameInstance->GetSubsystem<UMACommSubsystem>())
@@ -657,13 +657,13 @@ void UMAEmergencyWidget::SubmitMessage()
             }
         }
         
-        // 广播消息发送事件 (保持向后兼容)
+        // Broadcast message sent event (for backward compatibility)
         OnMessageSent.Broadcast(Message);
         
-        // 清空输入框
+        // Clear input box
         ClearInputBox();
         
-        // 重新聚焦输入框
+        // Refocus input box
         FocusInputBox();
     }
     else

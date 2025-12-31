@@ -98,7 +98,7 @@ void UMASceneListWidget::BuildUI()
     // 标题
     // =========================================================================
     UTextBlock* TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TitleText"));
-    TitleText->SetText(FText::FromString(TEXT("场景元素列表")));
+    TitleText->SetText(FText::FromString(TEXT("Scene Elements List")));
     FSlateFontInfo TitleFont = TitleText->GetFont();
     TitleFont.Size = 14;
     TitleText->SetFont(TitleFont);
@@ -247,7 +247,7 @@ void UMASceneListWidget::PopulateGoalList()
     if (AllGoalIds.Num() == 0)
     {
         UTextBlock* EmptyText = NewObject<UTextBlock>(this);
-        EmptyText->SetText(FText::FromString(TEXT("  (无 Goal)")));
+        EmptyText->SetText(FText::FromString(TEXT("  (No Goals)")));
         FSlateFontInfo EmptyFont = EmptyText->GetFont();
         EmptyFont.Size = 10;
         EmptyText->SetFont(EmptyFont);
@@ -304,7 +304,7 @@ void UMASceneListWidget::PopulateZoneList()
     if (AllZoneIds.Num() == 0)
     {
         UTextBlock* EmptyText = NewObject<UTextBlock>(this);
-        EmptyText->SetText(FText::FromString(TEXT("  (无 Zone)")));
+        EmptyText->SetText(FText::FromString(TEXT("  (No Zones)")));
         FSlateFontInfo EmptyFont = EmptyText->GetFont();
         EmptyFont.Size = 10;
         EmptyText->SetFont(EmptyFont);

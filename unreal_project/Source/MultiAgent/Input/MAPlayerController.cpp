@@ -1722,7 +1722,7 @@ void AMAPlayerController::EnterEditMode()
     {
         UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Edit Mode is not available (source scene graph not found)"));
         GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, 
-            TEXT("Edit Mode 不可用: 源场景图文件未找到"));
+            TEXT("Edit Mode unavailable: source scene graph file not found"));
         return;
     }
     

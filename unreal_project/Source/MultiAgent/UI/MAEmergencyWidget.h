@@ -1,6 +1,6 @@
 // MAEmergencyWidget.h
-// 突发事件详情界面 Widget - 纯 C++ 实现
-// 显示相机画面、信息文本、操作按钮和输入框
+// Emergency Event Details Widget - Pure C++ Implementation
+// Displays camera feed, info text, action buttons and input box
 // Requirements: 2.2, 2.3, 3.1, 3.2, 3.3, 3.4
 
 #pragma once
@@ -19,25 +19,25 @@ class UMaterialInstanceDynamic;
 class UMACameraSensorComponent;
 
 /**
- * 按钮点击委托
- * @param ButtonIndex 按钮索引 (0=扩大搜索范围, 1=忽略并返回, 2=切换灭火任务)
+ * Button click delegate
+ * @param ButtonIndex Button index (0=Expand Search Area, 1=Ignore and Return, 2=Switch to Firefighting)
  */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnActionButtonClicked, int32, ButtonIndex);
 
 /**
- * 消息发送委托
- * @param Message 用户输入的消息内容
+ * Message sent delegate
+ * @param Message User input message content
  */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMessageSent, const FString&, Message);
 
 /**
- * 突发事件详情界面 Widget
+ * Emergency Event Details Widget
  * 
- * 布局:
- * - 左中: 相机画面区域 (CameraFeedImage)
- * - 右中: 信息显示区域 (InfoTextBox)
- * - 右侧: 三个操作按钮 (ActionButton1/2/3)
- * - 底部: 输入框和发送按钮 (InputTextBox, SendButton)
+ * Layout:
+ * - Center-left: Camera feed area (CameraFeedImage)
+ * - Center-right: Info display area (InfoTextBox)
+ * - Right side: Three action buttons (ActionButton1/2/3)
+ * - Bottom: Input box and send button (InputTextBox, SendButton)
  * 
  * Requirements: 2.2, 2.3, 3.1, 3.2, 3.3, 3.4
  */
@@ -50,86 +50,86 @@ public:
     UMAEmergencyWidget(const FObjectInitializer& ObjectInitializer);
 
     //=========================================================================
-    // 相机源管理
+    // Camera Source Management
     //=========================================================================
 
     /**
-     * 设置相机源，连接到渲染目标
-     * @param Camera 相机传感器组件
+     * Set camera source, connect to render target
+     * @param Camera Camera sensor component
      * Requirements: 2.2, 2.3, 4.4
      */
     UFUNCTION(BlueprintCallable, Category = "Emergency|Camera")
     void SetCameraSource(UMACameraSensorComponent* Camera);
 
     /**
-     * 清除相机源，显示黑屏
+     * Clear camera source, show black screen
      * Requirements: 2.5
      */
     UFUNCTION(BlueprintCallable, Category = "Emergency|Camera")
     void ClearCameraSource();
 
     //=========================================================================
-    // 信息显示
+    // Info Display
     //=========================================================================
 
     /**
-     * 设置信息显示文本
-     * @param Text 要显示的信息文本
+     * Set info display text
+     * @param Text Text to display
      * Requirements: 3.1
      */
     UFUNCTION(BlueprintCallable, Category = "Emergency|Info")
     void SetInfoText(const FString& Text);
 
     /**
-     * 添加信息文本（追加模式）
-     * @param Text 要追加的信息文本
+     * Append info text (append mode)
+     * @param Text Text to append
      * Requirements: 3.1
      */
     UFUNCTION(BlueprintCallable, Category = "Emergency|Info")
     void AppendInfoText(const FString& Text);
 
     /**
-     * 清空信息显示
+     * Clear info display
      * Requirements: 3.1
      */
     UFUNCTION(BlueprintCallable, Category = "Emergency|Info")
     void ClearInfoText();
 
     //=========================================================================
-    // 输入控制
+    // Input Control
     //=========================================================================
 
     /**
-     * 将焦点设置到输入框
+     * Set focus to input box
      * Requirements: 3.3
      */
     UFUNCTION(BlueprintCallable, Category = "Emergency|Input")
     void FocusInputBox();
 
     /**
-     * 清空输入框内容
+     * Clear input box content
      * Requirements: 3.3
      */
     UFUNCTION(BlueprintCallable, Category = "Emergency|Input")
     void ClearInputBox();
 
     /**
-     * 获取输入框当前文本
-     * @return 输入框中的文本内容
+     * Get current text from input box
+     * @return Text content in input box
      * Requirements: 3.4
      */
     UFUNCTION(BlueprintPure, Category = "Emergency|Input")
     FString GetInputText() const;
 
     //=========================================================================
-    // 事件委托
+    // Event Delegates
     //=========================================================================
 
-    /** 按钮点击委托 */
+    /** Button click delegate */
     UPROPERTY(BlueprintAssignable, Category = "Events")
     FOnActionButtonClicked OnActionButtonClicked;
 
-    /** 消息发送委托 */
+    /** Message sent delegate */
     UPROPERTY(BlueprintAssignable, Category = "Events")
     FOnMessageSent OnMessageSent;
 
@@ -139,108 +139,108 @@ protected:
     virtual TSharedRef<SWidget> RebuildWidget() override;
 
     //=========================================================================
-    // UI 组件 (动态创建)
+    // UI Components (dynamically created)
     //=========================================================================
 
-    /** 根面板 */
+    /** Root panel */
     UPROPERTY()
     UCanvasPanel* RootCanvas;
     
-    /** 背景边框 */
+    /** Background border */
     UPROPERTY()
     class UBorder* BackgroundBorder;
 
-    /** 相机画面显示 */
+    /** Camera feed display */
     UPROPERTY()
     UImage* CameraFeedImage;
 
-    /** 信息显示文本框 */
+    /** Info display text box */
     UPROPERTY()
     UMultiLineEditableTextBox* InfoTextBox;
 
-    /** 操作按钮 1: 扩大搜索范围 */
+    /** Action button 1: Expand Search Area */
     UPROPERTY()
     UButton* ActionButton1;
 
-    /** 操作按钮 2: 忽略并返回 */
+    /** Action button 2: Ignore and Return */
     UPROPERTY()
     UButton* ActionButton2;
 
-    /** 操作按钮 3: 切换灭火任务 */
+    /** Action button 3: Switch to Firefighting */
     UPROPERTY()
     UButton* ActionButton3;
 
-    /** 输入文本框 */
+    /** Input text box */
     UPROPERTY()
     UMultiLineEditableTextBox* InputTextBox;
 
-    /** 发送按钮 */
+    /** Send button */
     UPROPERTY()
     UButton* SendButton;
 
     //=========================================================================
-    // 相机渲染资源
+    // Camera Render Resources
     //=========================================================================
 
-    /** 渲染目标 */
+    /** Render target */
     UPROPERTY()
     UTextureRenderTarget2D* RenderTarget;
 
-    /** 相机材质实例 */
+    /** Camera material instance */
     UPROPERTY()
     UMaterialInstanceDynamic* CameraMaterial;
 
-    /** 当前相机源 */
+    /** Current camera source */
     UPROPERTY()
     TWeakObjectPtr<UMACameraSensorComponent> CurrentCameraSource;
 
 private:
     //=========================================================================
-    // 内部方法
+    // Internal Methods
     //=========================================================================
 
     /**
-     * 构建 UI 布局
+     * Build UI layout
      * Requirements: 2.2, 2.3, 3.1, 3.2, 3.3
      */
     void BuildUI();
 
     /**
-     * 创建相机渲染资源
+     * Create camera render resources
      * Requirements: 2.2, 2.3, 4.4
      */
     void CreateCameraRenderResources();
 
     /**
-     * 绑定按钮事件
+     * Bind button events
      * Requirements: 3.2, 3.4
      */
     void BindButtonEvents();
 
     //=========================================================================
-    // 事件处理
+    // Event Handling
     //=========================================================================
 
-    /** 操作按钮 1 点击处理 */
+    /** Action button 1 click handler */
     UFUNCTION()
     void OnActionButton1Clicked();
 
-    /** 操作按钮 2 点击处理 */
+    /** Action button 2 click handler */
     UFUNCTION()
     void OnActionButton2Clicked();
 
-    /** 操作按钮 3 点击处理 */
+    /** Action button 3 click handler */
     UFUNCTION()
     void OnActionButton3Clicked();
 
-    /** 发送按钮点击处理 */
+    /** Send button click handler */
     UFUNCTION()
     void OnSendButtonClicked();
 
-    /** 输入框回车提交处理 */
+    /** Input box enter key submit handler */
     UFUNCTION()
     void OnInputTextCommitted(const FText& Text, ETextCommit::Type CommitMethod);
 
-    /** 提交消息 */
+    /** Submit message */
     void SubmitMessage();
 };

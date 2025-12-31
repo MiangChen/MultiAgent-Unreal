@@ -30,11 +30,11 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogMAEditWidget, Log, All);
 
-// 提示文字常量
-static const FString DefaultHintText = TEXT("选中 Actor 或 POI 进行操作");
-static const FString ActorSelectedHintText = TEXT("编辑 JSON 后点击确认保存");
-static const FString POISingleHintText = TEXT("可创建 Goal 或添加预设 Actor");
-static const FString POIMultiHintText = TEXT("选中 3 个以上 POI 可创建区域");
+// Hint text constants
+static const FString DefaultHintText = TEXT("Select an Actor or POI to operate");
+static const FString ActorSelectedHintText = TEXT("Edit JSON and click Confirm to save");
+static const FString POISingleHintText = TEXT("Can create Goal or add preset Actor");
+static const FString POIMultiHintText = TEXT("Select 3+ POIs to create a zone");
 
 UMAEditWidget::UMAEditWidget(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
@@ -233,7 +233,7 @@ void UMAEditWidget::BuildUI()
     // 标题区域
     // =========================================================================
     TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TitleText"));
-    TitleText->SetText(FText::FromString(TEXT("Edit Mode - 场景编辑")));
+    TitleText->SetText(FText::FromString(TEXT("Edit Mode - Scene Editor")));
     FSlateFontInfo TitleFont = TitleText->GetFont();
     TitleFont.Size = 16;
     TitleText->SetFont(TitleFont);
@@ -281,9 +281,9 @@ void UMAEditWidget::BuildUI()
     UVerticalBoxSlot* NodeSwitchSlot = ActorOperationBox->AddChildToVerticalBox(NodeSwitchContainer);
     NodeSwitchSlot->SetPadding(FMargin(0, 0, 0, 8));
 
-    // JSON 编辑区域标签
+    // JSON editor label
     UTextBlock* JsonLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("JsonLabel"));
-    JsonLabel->SetText(FText::FromString(TEXT("JSON 编辑:")));
+    JsonLabel->SetText(FText::FromString(TEXT("JSON Editor:")));
     FSlateFontInfo JsonLabelFont = JsonLabel->GetFont();
     JsonLabelFont.Size = 12;
     JsonLabel->SetFont(JsonLabelFont);
@@ -292,9 +292,9 @@ void UMAEditWidget::BuildUI()
     UVerticalBoxSlot* JsonLabelSlot = ActorOperationBox->AddChildToVerticalBox(JsonLabel);
     JsonLabelSlot->SetPadding(FMargin(0, 0, 0, 4));
 
-    // JSON 编辑文本框 - Requirements: 5.1
+    // JSON edit text box - Requirements: 5.1
     JsonEditBox = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(UMultiLineEditableTextBox::StaticClass(), TEXT("JsonEditBox"));
-    JsonEditBox->SetHintText(FText::FromString(TEXT("选中 Actor 后显示 JSON")));
+    JsonEditBox->SetHintText(FText::FromString(TEXT("Select an Actor to display JSON")));
     
     FEditableTextBoxStyle JsonTextBoxStyle;
     JsonTextBoxStyle.SetForegroundColor(FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f)));
@@ -311,10 +311,10 @@ void UMAEditWidget::BuildUI()
     // Actor 操作按钮区域
     UHorizontalBox* ActorButtonBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("ActorButtonBox"));
     
-    // 确认按钮 - Requirements: 6.4
+    // Confirm button - Requirements: 6.4
     ConfirmButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("ConfirmButton"));
     UTextBlock* ConfirmText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ConfirmText"));
-    ConfirmText->SetText(FText::FromString(TEXT("  确认  ")));
+    ConfirmText->SetText(FText::FromString(TEXT("  Confirm  ")));
     ConfirmText->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
     FSlateFontInfo ConfirmFont = ConfirmText->GetFont();
     ConfirmFont.Size = 12;
@@ -324,10 +324,10 @@ void UMAEditWidget::BuildUI()
     UHorizontalBoxSlot* ConfirmSlot = ActorButtonBox->AddChildToHorizontalBox(ConfirmButton);
     ConfirmSlot->SetPadding(FMargin(0, 0, 10, 0));
 
-    // 删除按钮 - Requirements: 7.1
+    // Delete button - Requirements: 7.1
     DeleteButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("DeleteButton"));
     UTextBlock* DeleteText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("DeleteText"));
-    DeleteText->SetText(FText::FromString(TEXT("  删除  ")));
+    DeleteText->SetText(FText::FromString(TEXT("  Delete  ")));
     DeleteText->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
     FSlateFontInfo DeleteFont = DeleteText->GetFont();
     DeleteFont.Size = 12;
@@ -337,10 +337,10 @@ void UMAEditWidget::BuildUI()
     UHorizontalBoxSlot* DeleteSlot = ActorButtonBox->AddChildToHorizontalBox(DeleteButton);
     DeleteSlot->SetPadding(FMargin(0, 0, 10, 0));
 
-    // 设为 Goal 按钮 - Requirements: 16.1
+    // Set as Goal button - Requirements: 16.1
     SetAsGoalButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("SetAsGoalButton"));
     UTextBlock* SetGoalText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SetGoalText"));
-    SetGoalText->SetText(FText::FromString(TEXT(" 设为Goal ")));
+    SetGoalText->SetText(FText::FromString(TEXT(" Set as Goal ")));
     SetGoalText->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
     FSlateFontInfo SetGoalFont = SetGoalText->GetFont();
     SetGoalFont.Size = 12;
@@ -350,10 +350,10 @@ void UMAEditWidget::BuildUI()
     UHorizontalBoxSlot* SetGoalSlot = ActorButtonBox->AddChildToHorizontalBox(SetAsGoalButton);
     SetGoalSlot->SetPadding(FMargin(0, 0, 10, 0));
 
-    // 取消 Goal 按钮 - Requirements: 16.5
+    // Unset Goal button - Requirements: 16.5
     UnsetAsGoalButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("UnsetAsGoalButton"));
     UTextBlock* UnsetGoalText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("UnsetGoalText"));
-    UnsetGoalText->SetText(FText::FromString(TEXT(" 取消Goal ")));
+    UnsetGoalText->SetText(FText::FromString(TEXT(" Unset Goal ")));
     UnsetGoalText->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
     FSlateFontInfo UnsetGoalFont = UnsetGoalText->GetFont();
     UnsetGoalFont.Size = 12;
@@ -374,9 +374,9 @@ void UMAEditWidget::BuildUI()
     UVerticalBoxSlot* POIOpSlot = MainVBox->AddChildToVerticalBox(POIOperationBox);
     POIOpSlot->SetPadding(FMargin(0, 0, 0, 10));
 
-    // 描述输入区域标签
+    // Description input label
     UTextBlock* DescLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("DescLabel"));
-    DescLabel->SetText(FText::FromString(TEXT("描述信息:")));
+    DescLabel->SetText(FText::FromString(TEXT("Description:")));
     FSlateFontInfo DescLabelFont = DescLabel->GetFont();
     DescLabelFont.Size = 12;
     DescLabel->SetFont(DescLabelFont);
@@ -385,9 +385,9 @@ void UMAEditWidget::BuildUI()
     UVerticalBoxSlot* DescLabelSlot = POIOperationBox->AddChildToVerticalBox(DescLabel);
     DescLabelSlot->SetPadding(FMargin(0, 0, 0, 4));
 
-    // 描述输入文本框 - Requirements: 9.2, 10.2
+    // Description input text box - Requirements: 9.2, 10.2
     DescriptionBox = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(UMultiLineEditableTextBox::StaticClass(), TEXT("DescriptionBox"));
-    DescriptionBox->SetHintText(FText::FromString(TEXT("输入 Goal/Zone 的描述信息...")));
+    DescriptionBox->SetHintText(FText::FromString(TEXT("Enter description for Goal/Zone...")));
     
     FEditableTextBoxStyle DescTextBoxStyle;
     DescTextBoxStyle.SetForegroundColor(FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f)));
@@ -404,10 +404,10 @@ void UMAEditWidget::BuildUI()
     // POI 操作按钮区域
     UHorizontalBox* POIButtonBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("POIButtonBox"));
     
-    // 创建 Goal 按钮 - Requirements: 9.1
+    // Create Goal button - Requirements: 9.1
     CreateGoalButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("CreateGoalButton"));
     UTextBlock* GoalText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("GoalText"));
-    GoalText->SetText(FText::FromString(TEXT(" 创建 Goal ")));
+    GoalText->SetText(FText::FromString(TEXT(" Create Goal ")));
     GoalText->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
     FSlateFontInfo GoalFont = GoalText->GetFont();
     GoalFont.Size = 12;
@@ -417,10 +417,10 @@ void UMAEditWidget::BuildUI()
     UHorizontalBoxSlot* GoalSlot = POIButtonBox->AddChildToHorizontalBox(CreateGoalButton);
     GoalSlot->SetPadding(FMargin(0, 0, 10, 0));
 
-    // 创建 Zone 按钮 - Requirements: 10.1
+    // Create Zone button - Requirements: 10.1
     CreateZoneButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("CreateZoneButton"));
     UTextBlock* ZoneText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ZoneText"));
-    ZoneText->SetText(FText::FromString(TEXT(" 创建区域 ")));
+    ZoneText->SetText(FText::FromString(TEXT(" Create Zone ")));
     ZoneText->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
     FSlateFontInfo ZoneFont = ZoneText->GetFont();
     ZoneFont.Size = 12;
@@ -430,10 +430,10 @@ void UMAEditWidget::BuildUI()
     UHorizontalBoxSlot* ZoneSlot = POIButtonBox->AddChildToHorizontalBox(CreateZoneButton);
     ZoneSlot->SetPadding(FMargin(0, 0, 10, 0));
 
-    // 删除 POI 按钮
+    // Delete POI button
     DeletePOIButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("DeletePOIButton"));
     UTextBlock* DeletePOIText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("DeletePOIText"));
-    DeletePOIText->SetText(FText::FromString(TEXT(" 删除 POI ")));
+    DeletePOIText->SetText(FText::FromString(TEXT(" Delete POI ")));
     DeletePOIText->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
     FSlateFontInfo DeletePOIFont = DeletePOIText->GetFont();
     DeletePOIFont.Size = 12;
@@ -448,20 +448,20 @@ void UMAEditWidget::BuildUI()
     // 预设 Actor 区域 - Requirements: 8.1, 8.5
     UHorizontalBox* PresetActorBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("PresetActorBox"));
     
-    // 预设 Actor 下拉框
+    // Preset Actor dropdown
     PresetActorComboBox = WidgetTree->ConstructWidget<UComboBoxString>(UComboBoxString::StaticClass(), TEXT("PresetActorComboBox"));
-    // Requirements: 8.5 - 预留 Actor 选择 UI，即使当前预设 Actor 列表为空
-    PresetActorComboBox->AddOption(TEXT("(暂无预设 Actor)"));
+    // Requirements: 8.5 - Reserve Actor selection UI even if preset Actor list is empty
+    PresetActorComboBox->AddOption(TEXT("(No preset Actors)"));
     PresetActorComboBox->SetSelectedIndex(0);
     
     UHorizontalBoxSlot* ComboSlot = PresetActorBox->AddChildToHorizontalBox(PresetActorComboBox);
     ComboSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
     ComboSlot->SetPadding(FMargin(0, 0, 10, 0));
 
-    // 添加 Actor 按钮 - Requirements: 8.2
+    // Add Actor button - Requirements: 8.2
     AddActorButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("AddActorButton"));
     UTextBlock* AddActorText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("AddActorText"));
-    AddActorText->SetText(FText::FromString(TEXT(" 添加 ")));
+    AddActorText->SetText(FText::FromString(TEXT(" Add ")));
     AddActorText->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
     FSlateFontInfo AddActorFont = AddActorText->GetFont();
     AddActorFont.Size = 12;
@@ -705,7 +705,7 @@ void UMAEditWidget::SetSelectedPOIs(const TArray<AMAPointOfInterest*>& POIs)
         }
         else if (CurrentPOIs.Num() >= 3)
         {
-            HintText->SetText(FText::FromString(FString::Printf(TEXT("已选中 %d 个 POI，可创建区域"), CurrentPOIs.Num())));
+            HintText->SetText(FText::FromString(FString::Printf(TEXT("%d POIs selected, can create zone"), CurrentPOIs.Num())));
         }
         else
         {
@@ -919,7 +919,7 @@ void UMAEditWidget::UpdateJsonEditBox()
     
     if (!CurrentActor || ActorNodes.Num() == 0)
     {
-        JsonEditBox->SetText(FText::FromString(TEXT("未找到对应的场景图节点")));
+        JsonEditBox->SetText(FText::FromString(TEXT("No matching scene graph node found")));
         JsonEditBox->SetIsReadOnly(true);
         return;
     }
@@ -957,10 +957,10 @@ void UMAEditWidget::UpdateJsonEditBox()
     bool bIsPoint = IsPointTypeNode(Node);
     if (!bIsPoint)
     {
-        // 非 point 类型，显示提示
+        // Non-point type, show hint
         if (HintText)
         {
-            HintText->SetText(FText::FromString(TEXT("polygon/linestring 类型: 仅 properties 字段的修改会被保存")));
+            HintText->SetText(FText::FromString(TEXT("polygon/linestring type: only properties field modifications will be saved")));
             HintText->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.6f, 0.0f)));
         }
     }
@@ -1046,24 +1046,24 @@ bool UMAEditWidget::ValidateJson(const FString& Json, FString& OutError)
 {
     if (Json.IsEmpty())
     {
-        OutError = TEXT("JSON 内容不能为空");
+        OutError = TEXT("JSON content cannot be empty");
         return false;
     }
     
-    // 尝试解析 JSON
+    // Try to parse JSON
     TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Json);
     TSharedPtr<FJsonObject> JsonObject;
     
     if (!FJsonSerializer::Deserialize(Reader, JsonObject) || !JsonObject.IsValid())
     {
-        OutError = TEXT("JSON 格式无效，请检查语法");
+        OutError = TEXT("Invalid JSON format, please check syntax");
         return false;
     }
     
-    // 检查必需字段
+    // Check required fields
     if (!JsonObject->HasField(TEXT("id")))
     {
-        OutError = TEXT("缺少必需字段: id");
+        OutError = TEXT("Missing required field: id");
         return false;
     }
     
@@ -1130,7 +1130,7 @@ void UMAEditWidget::OnConfirmButtonClicked()
     
     if (!CurrentActor)
     {
-        ShowError(TEXT("未选中 Actor"));
+        ShowError(TEXT("No Actor selected"));
         return;
     }
     
@@ -1172,19 +1172,19 @@ void UMAEditWidget::OnDeleteButtonClicked()
     
     if (!CurrentActor)
     {
-        ShowError(TEXT("未选中 Actor"));
+        ShowError(TEXT("No Actor selected"));
         return;
     }
     
-    // GoalActor 和 ZoneActor 始终可删除，跳过 point 类型检查
+    // GoalActor and ZoneActor can always be deleted, skip point type check
     bool bIsGoalOrZone = CurrentActor->IsA<AMAGoalActor>() || CurrentActor->IsA<AMAZoneActor>();
     
-    // 普通 Actor：检查是否为 point 类型
+    // Regular Actor: check if it's point type
     if (!bIsGoalOrZone && ActorNodes.Num() > 0 && CurrentNodeIndex < ActorNodes.Num())
     {
         if (!IsPointTypeNode(ActorNodes[CurrentNodeIndex]))
         {
-            ShowError(TEXT("仅支持删除 point 类型节点"));
+            ShowError(TEXT("Only point type nodes can be deleted"));
             return;
         }
     }
@@ -1214,7 +1214,7 @@ void UMAEditWidget::OnCreateGoalButtonClicked()
     
     if (CurrentPOIs.Num() == 0)
     {
-        ShowError(TEXT("未选中 POI"));
+        ShowError(TEXT("No POI selected"));
         return;
     }
     
@@ -1250,7 +1250,7 @@ void UMAEditWidget::OnCreateZoneButtonClicked()
     
     if (CurrentPOIs.Num() < 3)
     {
-        ShowError(TEXT("创建区域需要至少 3 个 POI"));
+        ShowError(TEXT("Creating a zone requires at least 3 POIs"));
         return;
     }
     
@@ -1286,20 +1286,20 @@ void UMAEditWidget::OnAddActorButtonClicked()
     
     if (CurrentPOIs.Num() != 1)
     {
-        ShowError(TEXT("请选中单个 POI"));
+        ShowError(TEXT("Please select a single POI"));
         return;
     }
     
-    // 获取选中的预设 Actor 类型
+    // Get selected preset Actor type
     FString ActorType;
     if (PresetActorComboBox)
     {
         ActorType = PresetActorComboBox->GetSelectedOption();
     }
     
-    if (ActorType.IsEmpty() || ActorType == TEXT("(暂无预设 Actor)"))
+    if (ActorType.IsEmpty() || ActorType == TEXT("(No preset Actors)"))
     {
-        ShowError(TEXT("请选择预设 Actor 类型"));
+        ShowError(TEXT("Please select a preset Actor type"));
         return;
     }
     
@@ -1402,7 +1402,7 @@ void UMAEditWidget::OnSetAsGoalButtonClicked()
     
     if (!CurrentActor)
     {
-        ShowError(TEXT("未选中 Actor"));
+        ShowError(TEXT("No Actor selected"));
         return;
     }
     
@@ -1428,7 +1428,7 @@ void UMAEditWidget::OnUnsetAsGoalButtonClicked()
     
     if (!CurrentActor)
     {
-        ShowError(TEXT("未选中 Actor"));
+        ShowError(TEXT("No Actor selected"));
         return;
     }
     
@@ -1454,7 +1454,7 @@ void UMAEditWidget::OnDeletePOIButtonClicked()
     
     if (CurrentPOIs.Num() == 0)
     {
-        ShowError(TEXT("未选中 POI"));
+        ShowError(TEXT("No POI selected"));
         return;
     }
     

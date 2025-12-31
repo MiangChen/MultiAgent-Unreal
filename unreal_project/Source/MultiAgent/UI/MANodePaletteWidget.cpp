@@ -110,9 +110,9 @@ void UMANodePaletteWidget::BuildUI()
     UVerticalBox* MainVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("MainVBox"));
     BackgroundBorder->AddChild(MainVBox);
 
-    // 标题
+    // Title
     TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TitleText"));
-    TitleText->SetText(FText::FromString(TEXT("节点模板")));
+    TitleText->SetText(FText::FromString(TEXT("Node Templates")));
     FSlateFontInfo TitleFont = TitleText->GetFont();
     TitleFont.Size = 14;
     TitleText->SetFont(TitleFont);
@@ -291,38 +291,38 @@ void UMANodePaletteWidget::InitializeTemplates()
     // 添加默认模板
     NodeTemplates.Empty();
     
-    // Navigate 模板
+    // Navigate template
     NodeTemplates.Add(FMANodeTemplate(
         TEXT("Navigate"),
-        TEXT("导航到指定位置"),
+        TEXT("Navigate to target location"),
         TEXT("target_location")
     ));
     
-    // Patrol 模板
+    // Patrol template
     NodeTemplates.Add(FMANodeTemplate(
         TEXT("Patrol"),
-        TEXT("巡逻指定区域"),
+        TEXT("Patrol specified area"),
         TEXT("patrol_area")
     ));
     
-    // Perceive 模板
+    // Perceive template
     NodeTemplates.Add(FMANodeTemplate(
         TEXT("Perceive"),
-        TEXT("感知周围环境"),
+        TEXT("Perceive surroundings"),
         TEXT("current_location")
     ));
     
-    // Broadcast 模板
+    // Broadcast template
     NodeTemplates.Add(FMANodeTemplate(
         TEXT("Broadcast"),
-        TEXT("广播消息"),
+        TEXT("Broadcast message"),
         TEXT("broadcast_area")
     ));
     
-    // Custom 模板
+    // Custom template
     NodeTemplates.Add(FMANodeTemplate(
         TEXT("Custom"),
-        TEXT("自定义任务"),
+        TEXT("Custom task"),
         TEXT("custom_location")
     ));
 

@@ -113,9 +113,9 @@ void UMASimpleMainWidget::BuildUI()
     UVerticalBox* MainVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("MainVBox"));
     BackgroundBorder->AddChild(MainVBox);
 
-    // 标题
+    // Title
     UTextBlock* TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TitleText"));
-    TitleText->SetText(FText::FromString(TEXT("MultiAgent 指令输入")));
+    TitleText->SetText(FText::FromString(TEXT("MultiAgent Command Input")));
     FSlateFontInfo TitleFont = TitleText->GetFont();
     TitleFont.Size = 18;
     TitleText->SetFont(TitleFont);
@@ -124,9 +124,9 @@ void UMASimpleMainWidget::BuildUI()
     UVerticalBoxSlot* TitleSlot = MainVBox->AddChildToVerticalBox(TitleText);
     TitleSlot->SetPadding(FMargin(0, 0, 0, 15));
 
-    // 提示文本
+    // Hint text
     UTextBlock* HintText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("HintText"));
-    HintText->SetText(FText::FromString(TEXT("按 Z 键切换显示/隐藏")));
+    HintText->SetText(FText::FromString(TEXT("Press Z to toggle visibility")));
     FSlateFontInfo HintFont = HintText->GetFont();
     HintFont.Size = 12;
     HintText->SetFont(HintFont);
@@ -138,19 +138,19 @@ void UMASimpleMainWidget::BuildUI()
     // 输入区域 (水平布局)
     UHorizontalBox* InputHBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("InputHBox"));
     
-    // 输入框
+    // Input text box
     InputTextBox = WidgetTree->ConstructWidget<UEditableTextBox>(UEditableTextBox::StaticClass(), TEXT("InputTextBox"));
-    InputTextBox->SetHintText(FText::FromString(TEXT("输入指令后按回车...")));
+    InputTextBox->SetHintText(FText::FromString(TEXT("Enter command and press Enter...")));
     
     UHorizontalBoxSlot* InputSlot = InputHBox->AddChildToHorizontalBox(InputTextBox);
     InputSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
     InputSlot->SetPadding(FMargin(0, 0, 10, 0));
 
-    // 发送按钮
+    // Send button
     SendButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("SendButton"));
     
     UTextBlock* ButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ButtonText"));
-    ButtonText->SetText(FText::FromString(TEXT(" 发送 ")));
+    ButtonText->SetText(FText::FromString(TEXT(" Send ")));
     ButtonText->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
     SendButton->AddChild(ButtonText);
     
@@ -160,18 +160,18 @@ void UMASimpleMainWidget::BuildUI()
     UVerticalBoxSlot* InputRowSlot = MainVBox->AddChildToVerticalBox(InputHBox);
     InputRowSlot->SetPadding(FMargin(0, 0, 0, 15));
 
-    // 结果标签
+    // Result label
     UTextBlock* ResultLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ResultLabel"));
-    ResultLabel->SetText(FText::FromString(TEXT("响应结果:")));
+    ResultLabel->SetText(FText::FromString(TEXT("Response:")));
     ResultLabel->SetColorAndOpacity(FSlateColor(FLinearColor(0.7f, 0.7f, 0.7f)));
     
     UVerticalBoxSlot* LabelSlot = MainVBox->AddChildToVerticalBox(ResultLabel);
     LabelSlot->SetPadding(FMargin(0, 0, 0, 5));
 
-    // 结果显示框
+    // Result display box
     ResultTextBox = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(UMultiLineEditableTextBox::StaticClass(), TEXT("ResultTextBox"));
     ResultTextBox->SetIsReadOnly(true);
-    ResultTextBox->SetText(FText::FromString(TEXT("等待输入指令...\n\n提示:\n- 输入任意文本后按回车发送\n- 系统将返回模拟响应")));
+    ResultTextBox->SetText(FText::FromString(TEXT("Waiting for command input...\n\nTips:\n- Enter any text and press Enter to send\n- System will return simulated response")));
     
     // 使用 SizeBox 设置最小高度
     USizeBox* ResultSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("ResultSizeBox"));
@@ -223,8 +223,8 @@ void UMASimpleMainWidget::OnSendButtonClicked()
 {
     UE_LOG(LogMASimpleWidget, Log, TEXT("SendButton clicked"));
     
-    // Requirements: 3.2, 3.3, 3.4 - 发送按钮事件消息
-    // 使用 "SimpleMainWidget", "btn_send", "发送" 作为参数
+    // Requirements: 3.2, 3.3, 3.4 - Send button event message
+    // Use "SimpleMainWidget", "btn_send", "Send" as parameters
     if (UGameInstance* GameInstance = GetGameInstance())
     {
         if (UMACommSubsystem* CommSubsystem = GameInstance->GetSubsystem<UMACommSubsystem>())
@@ -232,7 +232,7 @@ void UMASimpleMainWidget::OnSendButtonClicked()
             CommSubsystem->SendButtonEventMessage(
                 TEXT("SimpleMainWidget"),   // widget_name
                 TEXT("btn_send"),           // button_id
-                TEXT("发送")                // button_text
+                TEXT("Send")                // button_text
             );
         }
     }
