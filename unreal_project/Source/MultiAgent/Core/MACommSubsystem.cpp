@@ -132,98 +132,98 @@ void UMACommSubsystem::SendNaturalLanguageCommand(const FString& Command)
     {
         UE_LOG(LogMACommSubsystem, Warning, TEXT("SendNaturalLanguageCommand: Empty command ignored"));
         
-        // 广播失败响应
-        BroadcastResponse(FMAPlannerResponse::Failure(TEXT("指令不能为空")));
+        // Broadcast failure response
+        BroadcastResponse(FMAPlannerResponse::Failure(TEXT("Command cannot be empty")));
         return;
     }
 
     UE_LOG(LogMACommSubsystem, Log, TEXT("SendNaturalLanguageCommand: %s"), *Command);
     
-    // 保存指令并设置等待状态
+    // Save command and set waiting state
     LastCommand = Command;
     bWaitingForResponse = true;
 
-    // Requirements: 9.3 - 内部转换为 UI 输入消息
-    // 使用 "legacy_command" 作为 input_source_id 以保持向后兼容
+    // Requirements: 9.3 - Convert to UI input message internally
+    // Use "legacy_command" as input_source_id for backward compatibility
     SendUIInputMessage(TEXT("legacy_command"), Command);
 }
 
 //=============================================================================
-// 内部方法
+// Internal Methods
 //=============================================================================
 
 void UMACommSubsystem::GenerateMockPlanResponse(const FString& UserCommand)
 {
-    // Requirements: 4.4 - 生成模拟数据用于开发测试
+    // Requirements: 4.4 - Generate mock data for development testing
     
     FMAPlannerResponse Response;
     Response.bSuccess = true;
     
-    // 根据指令内容生成不同的模拟响应
+    // Generate different mock responses based on command content
     FString LowerCommand = UserCommand.ToLower();
     
-    if (LowerCommand.Contains(TEXT("move")) || LowerCommand.Contains(TEXT("移动")) || LowerCommand.Contains(TEXT("go")))
+    if (LowerCommand.Contains(TEXT("move")) || LowerCommand.Contains(TEXT("go")))
     {
-        Response.Message = TEXT("移动指令已接收");
+        Response.Message = TEXT("Move command received");
         Response.PlanText = FString::Printf(
-            TEXT("规划结果:\n")
-            TEXT("1. 解析目标位置\n")
-            TEXT("2. 计算最优路径\n")
-            TEXT("3. 执行移动任务\n")
-            TEXT("\n原始指令: %s"), *UserCommand);
+            TEXT("Planning result:\n")
+            TEXT("1. Parse target location\n")
+            TEXT("2. Calculate optimal path\n")
+            TEXT("3. Execute move task\n")
+            TEXT("\nOriginal command: %s"), *UserCommand);
     }
-    else if (LowerCommand.Contains(TEXT("patrol")) || LowerCommand.Contains(TEXT("巡逻")))
+    else if (LowerCommand.Contains(TEXT("patrol")))
     {
-        Response.Message = TEXT("巡逻指令已接收");
+        Response.Message = TEXT("Patrol command received");
         Response.PlanText = FString::Printf(
-            TEXT("规划结果:\n")
-            TEXT("1. 设置巡逻路径点\n")
-            TEXT("2. 配置巡逻参数\n")
-            TEXT("3. 开始循环巡逻\n")
-            TEXT("\n原始指令: %s"), *UserCommand);
+            TEXT("Planning result:\n")
+            TEXT("1. Set patrol waypoints\n")
+            TEXT("2. Configure patrol parameters\n")
+            TEXT("3. Start patrol loop\n")
+            TEXT("\nOriginal command: %s"), *UserCommand);
     }
-    else if (LowerCommand.Contains(TEXT("stop")) || LowerCommand.Contains(TEXT("停止")))
+    else if (LowerCommand.Contains(TEXT("stop")))
     {
-        Response.Message = TEXT("停止指令已接收");
+        Response.Message = TEXT("Stop command received");
         Response.PlanText = FString::Printf(
-            TEXT("规划结果:\n")
-            TEXT("1. 中断当前任务\n")
-            TEXT("2. 停止移动\n")
-            TEXT("3. 进入待命状态\n")
-            TEXT("\n原始指令: %s"), *UserCommand);
+            TEXT("Planning result:\n")
+            TEXT("1. Interrupt current task\n")
+            TEXT("2. Stop movement\n")
+            TEXT("3. Enter standby state\n")
+            TEXT("\nOriginal command: %s"), *UserCommand);
     }
-    else if (LowerCommand.Contains(TEXT("status")) || LowerCommand.Contains(TEXT("状态")))
+    else if (LowerCommand.Contains(TEXT("status")))
     {
-        Response.Message = TEXT("状态查询已处理");
+        Response.Message = TEXT("Status query processed");
         Response.PlanText = FString::Printf(
-            TEXT("系统状态:\n")
-            TEXT("- 通信状态: 正常\n")
-            TEXT("- 模拟模式: 已启用\n")
-            TEXT("- 服务器: %s\n")
-            TEXT("\n原始指令: %s"), *ServerURL, *UserCommand);
+            TEXT("System status:\n")
+            TEXT("- Communication: Normal\n")
+            TEXT("- Mock mode: Enabled\n")
+            TEXT("- Server: %s\n")
+            TEXT("\nOriginal command: %s"), *ServerURL, *UserCommand);
     }
-    else if (LowerCommand.Contains(TEXT("help")) || LowerCommand.Contains(TEXT("帮助")))
+    else if (LowerCommand.Contains(TEXT("help")))
     {
-        Response.Message = TEXT("帮助信息");
+        Response.Message = TEXT("Help information");
         Response.PlanText = TEXT(
-            "可用指令:\n"
-            "- move/移动 [目标]: 移动到指定位置\n"
-            "- patrol/巡逻: 开始巡逻任务\n"
-            "- stop/停止: 停止当前任务\n"
-            "- status/状态: 查询系统状态\n"
-            "- help/帮助: 显示帮助信息");
+            "Available commands:\n"
+            "- move [target]: Move to specified location\n"
+            "- patrol: Start patrol task\n"
+            "- stop: Stop current task\n"
+            "- status: Query system status\n"
+            "- help: Show help information");
     }
     else
     {
-        // 默认响应
-        Response.Message = FString::Printf(TEXT("收到指令: %s"), *UserCommand);
+        // Default response
+        Response.Message = FString::Printf(TEXT("Command received: %s"), *UserCommand);
         Response.PlanText = FString::Printf(
-            TEXT("规划结果:\n")
-            TEXT("指令已记录，等待进一步处理。\n")
-            TEXT("\n原始指令: %s"), *UserCommand);
+            TEXT("Planning result:\n")
+            TEXT("Command recorded, awaiting further processing.\n")
+            TEXT("\nOriginal command: %s"), *UserCommand);
     }
 
-    // 广播响应
+    // Broadcast response
     BroadcastResponse(Response);
 
     UE_LOG(LogMACommSubsystem, Log, TEXT("Mock response generated - Success: %s, Message: %s"), 
@@ -543,58 +543,58 @@ void UMACommSubsystem::OnHttpRequestComplete(FHttpRequestPtr Request, FHttpRespo
     }
     else if (ResponseCode >= 400 && ResponseCode < 500)
     {
-        // 客户端错误 (4xx) - 不重试
+        // Client error (4xx) - do not retry
         UE_LOG(LogMACommSubsystem, Error, TEXT("HTTP client error: %d - %s"), ResponseCode, *ResponseContent);
         
-        // 广播失败响应
+        // Broadcast failure response
         FMAPlannerResponse ErrorResponse;
         ErrorResponse.bSuccess = false;
-        ErrorResponse.Message = FString::Printf(TEXT("请求错误 (%d)"), ResponseCode);
+        ErrorResponse.Message = FString::Printf(TEXT("Request error (%d)"), ResponseCode);
         ErrorResponse.PlanText = ResponseContent;
         BroadcastResponse(ErrorResponse);
         
-        // 重置重试计数
+        // Reset retry count
         RetryCount = 0;
     }
     else if (ResponseCode >= 500)
     {
-        // 服务器错误 (5xx) - 尝试重试
+        // Server error (5xx) - attempt retry
         UE_LOG(LogMACommSubsystem, Warning, TEXT("HTTP server error: %d - %s"), ResponseCode, *ResponseContent);
         
-        // 尝试重试
+        // Attempt retry
         ScheduleRetry(PendingEnvelope);
     }
     else
     {
-        // 其他状态码
+        // Other status codes
         UE_LOG(LogMACommSubsystem, Warning, TEXT("Unexpected HTTP response code: %d"), ResponseCode);
         
-        // 广播响应
+        // Broadcast response
         FMAPlannerResponse UnexpectedResponse;
         UnexpectedResponse.bSuccess = false;
-        UnexpectedResponse.Message = FString::Printf(TEXT("意外的响应码 (%d)"), ResponseCode);
+        UnexpectedResponse.Message = FString::Printf(TEXT("Unexpected response code (%d)"), ResponseCode);
         BroadcastResponse(UnexpectedResponse);
     }
 }
 
 void UMACommSubsystem::ScheduleRetry(const FMAMessageEnvelope& OriginalEnvelope)
 {
-    // Requirements: 5.4 - 实现指数退避重试逻辑（最多 3 次，1s/2s/4s）
+    // Requirements: 5.4 - Implement exponential backoff retry logic (max 3 times, 1s/2s/4s)
     
     RetryCount++;
     
     if (RetryCount > MaxRetries)
     {
-        // 超过最大重试次数
+        // Exceeded max retries
         UE_LOG(LogMACommSubsystem, Error, TEXT("HTTP request failed after %d retries"), MaxRetries);
         
-        // 广播失败响应
+        // Broadcast failure response
         FMAPlannerResponse FailureResponse;
         FailureResponse.bSuccess = false;
-        FailureResponse.Message = FString::Printf(TEXT("请求失败，已重试 %d 次"), MaxRetries);
+        FailureResponse.Message = FString::Printf(TEXT("Request failed after %d retries"), MaxRetries);
         BroadcastResponse(FailureResponse);
         
-        // 重置重试计数
+        // Reset retry count
         RetryCount = 0;
         return;
     }
