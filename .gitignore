@@ -45,8 +45,6 @@ ENV/
 # OS
 .DS_Store
 Thumbs.db
-/Content/Map/
-/Content/
 
 # Project specific
 *.utoc
@@ -60,3 +58,18 @@ start.sh
 # UE5 大文件 (可本地重新生成)
 *_BuiltData.uasset
 *.code-workspace
+
+# Unreal generated (这些目录可本地重新生成)
+Binaries/
+Intermediate/
+Saved/
+DerivedDataCache/
+
+# UE5 Content (资源文件太大，不适合 Git)
+# 如需共享资源，建议使用网盘或 Git LFS
+unreal_project/Content/
+
+# Visual Studio
+.vs/
+*.sln
+*.VC.db

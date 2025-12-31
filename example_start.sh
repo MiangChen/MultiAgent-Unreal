@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 设置引擎根目录变量
-export UE5_ROOT="/home/ubuntu/PycharmProjects/UnrealEngine"
+export UE5_ROOT="/home/zhugb/Software/UnrealEngine"
 
 # 获取脚本所在目录
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
