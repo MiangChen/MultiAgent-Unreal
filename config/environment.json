@@ -5,5 +5,33 @@
             "position": [500, 0, 0]
         }
     ],
-    "objects": []
+    "objects": [
+        {
+            "id": "PickupItem_1",
+            "name": "RedBox",
+            "type": "box",
+            "position": [300, 2400, 0],
+            "features": {
+                "color": "red"
+            }
+        },
+        {
+            "id": "PickupItem_2",
+            "name": "BlueBox",
+            "type": "box",
+            "position": [400, 2400, 0],
+            "features": {
+                "color": "blue"
+            }
+        },
+        {
+            "id": "PickupItem_3",
+            "name": "GreenBox",
+            "type": "box",
+            "position": [500, 2400, 0],
+            "features": {
+                "color": "green"
+            }
+        }
+    ]
 }

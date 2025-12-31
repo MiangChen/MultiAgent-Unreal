@@ -882,6 +882,33 @@ bool FMASkillListMessage::FromJson(const FString& Json, FMASkillListMessage& Out
                         }
                     }
                 }
+                
+                //=============================================================
+                // 解析 Place 技能参数: object1 和 object2 (Requirements: 10.1, 10.2)
+                // 格式: { "object1": { "class": "...", "type": "...", "features": {...} },
+                //         "object2": { "class": "...", "type": "...", "features": {...} } }
+                //=============================================================
+                const TSharedPtr<FJsonObject>* Object1JsonObj;
+                if ((*ParamsObject)->TryGetObjectField(TEXT("object1"), Object1JsonObj))
+                {
+                    FString Object1JsonStr;
+                    TSharedRef<TJsonWriter<>> Object1Writer = TJsonWriterFactory<>::Create(&Object1JsonStr);
+                    FJsonSerializer::Serialize(Object1JsonObj->ToSharedRef(), Object1Writer);
+                    Cmd.Params.Object1Json = Object1JsonStr;
+                    
+                    UE_LOG(LogMACommTypes, Verbose, TEXT("  Parsed object1: %s"), *Object1JsonStr);
+                }
+                
+                const TSharedPtr<FJsonObject>* Object2JsonObj;
+                if ((*ParamsObject)->TryGetObjectField(TEXT("object2"), Object2JsonObj))
+                {
+                    FString Object2JsonStr;
+                    TSharedRef<TJsonWriter<>> Object2Writer = TJsonWriterFactory<>::Create(&Object2JsonStr);
+                    FJsonSerializer::Serialize(Object2JsonObj->ToSharedRef(), Object2Writer);
+                    Cmd.Params.Object2Json = Object2JsonStr;
+                    
+                    UE_LOG(LogMACommTypes, Verbose, TEXT("  Parsed object2: %s"), *Object2JsonStr);
+                }
             }
             
             TimeStepCmd.Commands.Add(Cmd);
@@ -1003,4 +1030,115 @@ FString FMATimeStepFeedbackMessage::ToJson() const
     FJsonSerializer::Serialize(JsonObject.ToSharedRef(), Writer);
     
     return OutputString;
+}
+
+
+//=============================================================================
+// FMASceneChangeMessage 实现
+// Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7, 11.8
+//=============================================================================
+
+FString FMASceneChangeMessage::ChangeTypeToString(EMASceneChangeType Type)
+{
+    switch (Type)
+    {
+    case EMASceneChangeType::AddNode:       return TEXT("add_node");
+    case EMASceneChangeType::DeleteNode:    return TEXT("delete_node");
+    case EMASceneChangeType::EditNode:      return TEXT("edit_node");
+    case EMASceneChangeType::AddGoal:       return TEXT("add_goal");
+    case EMASceneChangeType::DeleteGoal:    return TEXT("delete_goal");
+    case EMASceneChangeType::AddZone:       return TEXT("add_zone");
+    case EMASceneChangeType::DeleteZone:    return TEXT("delete_zone");
+    case EMASceneChangeType::AddEdge:       return TEXT("add_edge");
+    case EMASceneChangeType::EditEdge:      return TEXT("edit_edge");
+    default:                                return TEXT("unknown");
+    }
+}
+
+EMASceneChangeType FMASceneChangeMessage::StringToChangeType(const FString& TypeStr)
+{
+    if (TypeStr == TEXT("add_node"))        return EMASceneChangeType::AddNode;
+    if (TypeStr == TEXT("delete_node"))     return EMASceneChangeType::DeleteNode;
+    if (TypeStr == TEXT("edit_node"))       return EMASceneChangeType::EditNode;
+    if (TypeStr == TEXT("add_goal"))        return EMASceneChangeType::AddGoal;
+    if (TypeStr == TEXT("delete_goal"))     return EMASceneChangeType::DeleteGoal;
+    if (TypeStr == TEXT("add_zone"))        return EMASceneChangeType::AddZone;
+    if (TypeStr == TEXT("delete_zone"))     return EMASceneChangeType::DeleteZone;
+    if (TypeStr == TEXT("add_edge"))        return EMASceneChangeType::AddEdge;
+    if (TypeStr == TEXT("edit_edge"))       return EMASceneChangeType::EditEdge;
+    return EMASceneChangeType::AddNode; // 默认值
+}
+
+FString FMASceneChangeMessage::ToJson() const
+{
+    TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject());
+    
+    JsonObject->SetStringField(TEXT("change_type"), ChangeTypeToString(ChangeType));
+    JsonObject->SetNumberField(TEXT("timestamp"), static_cast<double>(Timestamp));
+    JsonObject->SetStringField(TEXT("message_id"), MessageId);
+    
+    // 尝试将 Payload 解析为 JSON 对象并嵌入
+    TSharedPtr<FJsonObject> PayloadObject;
+    TSharedRef<TJsonReader<>> PayloadReader = TJsonReaderFactory<>::Create(Payload);
+    if (FJsonSerializer::Deserialize(PayloadReader, PayloadObject) && PayloadObject.IsValid())
+    {
+        JsonObject->SetObjectField(TEXT("payload"), PayloadObject);
+    }
+    else
+    {
+        // 如果 Payload 不是有效 JSON，作为字符串存储
+        JsonObject->SetStringField(TEXT("payload"), Payload);
+    }
+    
+    FString OutputString;
+    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
+    FJsonSerializer::Serialize(JsonObject.ToSharedRef(), Writer);
+    
+    return OutputString;
+}
+
+bool FMASceneChangeMessage::FromJson(const FString& Json, FMASceneChangeMessage& Out)
+{
+    TSharedPtr<FJsonObject> JsonObject;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Json);
+    
+    if (!FJsonSerializer::Deserialize(Reader, JsonObject) || !JsonObject.IsValid())
+    {
+        UE_LOG(LogMACommTypes, Warning, TEXT("FMASceneChangeMessage::FromJson - Failed to parse JSON"));
+        return false;
+    }
+    
+    // 解析 change_type
+    FString TypeStr;
+    if (JsonObject->TryGetStringField(TEXT("change_type"), TypeStr))
+    {
+        Out.ChangeType = StringToChangeType(TypeStr);
+    }
+    
+    // 解析 timestamp
+    double TimestampDouble = 0;
+    if (JsonObject->TryGetNumberField(TEXT("timestamp"), TimestampDouble))
+    {
+        Out.Timestamp = static_cast<int64>(TimestampDouble);
+    }
+    
+    // 解析 message_id
+    JsonObject->TryGetStringField(TEXT("message_id"), Out.MessageId);
+    
+    // 解析 payload - 将其序列化回 JSON 字符串
+    const TSharedPtr<FJsonObject>* PayloadObject;
+    if (JsonObject->TryGetObjectField(TEXT("payload"), PayloadObject))
+    {
+        FString PayloadString;
+        TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&PayloadString);
+        FJsonSerializer::Serialize(PayloadObject->ToSharedRef(), Writer);
+        Out.Payload = PayloadString;
+    }
+    else
+    {
+        // 尝试作为字符串读取
+        JsonObject->TryGetStringField(TEXT("payload"), Out.Payload);
+    }
+    
+    return true;
 }

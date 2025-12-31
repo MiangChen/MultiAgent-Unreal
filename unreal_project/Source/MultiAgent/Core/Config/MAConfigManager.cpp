@@ -74,6 +74,7 @@ bool UMAConfigManager::LoadAllConfigs()
         UE_LOG(LogMAConfig, Log, TEXT("  PollIntervalSeconds: %.2f"), PollIntervalSeconds);
         UE_LOG(LogMAConfig, Log, TEXT("  AgentConfigs: %d"), AgentConfigs.Num());
         UE_LOG(LogMAConfig, Log, TEXT("  ChargingStations: %d"), ChargingStations.Num());
+        UE_LOG(LogMAConfig, Log, TEXT("  PickupItems: %d"), PickupItems.Num());
     }
     
     return bSuccess;
@@ -83,6 +84,7 @@ bool UMAConfigManager::ReloadConfigs()
 {
     AgentConfigs.Empty();
     ChargingStations.Empty();
+    PickupItems.Empty();
     bConfigLoaded = false;
     
     return LoadAllConfigs();
@@ -287,6 +289,7 @@ bool UMAConfigManager::LoadEnvironmentConfig()
     }
     
     ChargingStations.Empty();
+    PickupItems.Empty();
     
     // 解析 charging_stations 数组
     if (const TArray<TSharedPtr<FJsonValue>>* StationsArray; RootObject->TryGetArrayField(TEXT("charging_stations"), StationsArray))
@@ -315,6 +318,50 @@ bool UMAConfigManager::LoadEnvironmentConfig()
         }
     }
     
-    UE_LOG(LogMAConfig, Log, TEXT("Loaded %d charging stations from: %s"), ChargingStations.Num(), *ConfigPath);
+    // 解析 objects 数组 (PickupItems)
+    if (const TArray<TSharedPtr<FJsonValue>>* ObjectsArray; RootObject->TryGetArrayField(TEXT("objects"), ObjectsArray))
+    {
+        for (const TSharedPtr<FJsonValue>& ObjectValue : *ObjectsArray)
+        {
+            const TSharedPtr<FJsonObject>& ObjectObj = ObjectValue->AsObject();
+            if (!ObjectObj.IsValid()) continue;
+            
+            FMAPickupItemConfig Config;
+            ObjectObj->TryGetStringField(TEXT("id"), Config.ID);
+            ObjectObj->TryGetStringField(TEXT("name"), Config.Name);
+            ObjectObj->TryGetStringField(TEXT("type"), Config.Type);
+            
+            // 解析 position
+            if (const TArray<TSharedPtr<FJsonValue>>* PosArray; ObjectObj->TryGetArrayField(TEXT("position"), PosArray))
+            {
+                if (PosArray->Num() >= 3)
+                {
+                    Config.Position = FVector(
+                        (*PosArray)[0]->AsNumber(),
+                        (*PosArray)[1]->AsNumber(),
+                        (*PosArray)[2]->AsNumber()
+                    );
+                }
+            }
+            
+            // 解析 features
+            if (const TSharedPtr<FJsonObject>* FeaturesObj; ObjectObj->TryGetObjectField(TEXT("features"), FeaturesObj))
+            {
+                for (const auto& Pair : (*FeaturesObj)->Values)
+                {
+                    FString Value;
+                    if (Pair.Value->TryGetString(Value))
+                    {
+                        Config.Features.Add(Pair.Key, Value);
+                    }
+                }
+            }
+            
+            PickupItems.Add(Config);
+        }
+    }
+    
+    UE_LOG(LogMAConfig, Log, TEXT("Loaded %d charging stations and %d pickup items from: %s"), 
+        ChargingStations.Num(), PickupItems.Num(), *ConfigPath);
     return true;
 }

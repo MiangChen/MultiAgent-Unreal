@@ -171,19 +171,95 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GeneratePlaceFeedback(AMACharact
     if (SkillComp)
     {
         const FMAFeedbackContext& Context = SkillComp->GetFeedbackContext();
+        
+        // 添加放置的对象名称
         if (!Context.PlacedObjectName.IsEmpty())
         {
             Feedback.Data.Add(TEXT("object"), Context.PlacedObjectName);
         }
+        
+        // 添加目标名称
         if (!Context.PlaceTargetName.IsEmpty())
         {
             Feedback.Data.Add(TEXT("target"), Context.PlaceTargetName);
         }
+        
+        // 添加最终位置
+        if (!Context.PlaceFinalLocation.IsZero())
+        {
+            Feedback.Data.Add(TEXT("final_x"), FString::Printf(TEXT("%.1f"), Context.PlaceFinalLocation.X));
+            Feedback.Data.Add(TEXT("final_y"), FString::Printf(TEXT("%.1f"), Context.PlaceFinalLocation.Y));
+            Feedback.Data.Add(TEXT("final_z"), FString::Printf(TEXT("%.1f"), Context.PlaceFinalLocation.Z));
+            Feedback.Data.Add(TEXT("final_location"), FString::Printf(TEXT("(%.1f, %.1f, %.1f)"), 
+                Context.PlaceFinalLocation.X, Context.PlaceFinalLocation.Y, Context.PlaceFinalLocation.Z));
+        }
+        
+        // 失败时添加错误原因
+        if (!bSuccess && !Context.PlaceErrorReason.IsEmpty())
+        {
+            Feedback.Data.Add(TEXT("error_reason"), Context.PlaceErrorReason);
+        }
+        
+        // 取消时添加取消阶段
+        if (!bSuccess && !Context.PlaceCancelledPhase.IsEmpty())
+        {
+            Feedback.Data.Add(TEXT("cancelled_phase"), Context.PlaceCancelledPhase);
+        }
     }
     
-    Feedback.Message = Message.IsEmpty() 
-        ? (bSuccess ? TEXT("Place completed") : TEXT("Place failed")) 
-        : Message;
+    // 生成消息
+    if (!Message.IsEmpty())
+    {
+        Feedback.Message = Message;
+    }
+    else if (SkillComp)
+    {
+        const FMAFeedbackContext& Context = SkillComp->GetFeedbackContext();
+        
+        if (bSuccess)
+        {
+            // 成功消息：包含对象名、目标名、最终位置
+            if (!Context.PlacedObjectName.IsEmpty() && !Context.PlaceTargetName.IsEmpty())
+            {
+                if (!Context.PlaceFinalLocation.IsZero())
+                {
+                    Feedback.Message = FString::Printf(TEXT("Place succeeded: Moved %s to %s at (%.0f, %.0f, %.0f)"),
+                        *Context.PlacedObjectName, *Context.PlaceTargetName,
+                        Context.PlaceFinalLocation.X, Context.PlaceFinalLocation.Y, Context.PlaceFinalLocation.Z);
+                }
+                else
+                {
+                    Feedback.Message = FString::Printf(TEXT("Place succeeded: Moved %s to %s"),
+                        *Context.PlacedObjectName, *Context.PlaceTargetName);
+                }
+            }
+            else
+            {
+                Feedback.Message = TEXT("Place completed");
+            }
+        }
+        else
+        {
+            // 失败消息：包含具体错误原因
+            if (!Context.PlaceErrorReason.IsEmpty())
+            {
+                Feedback.Message = FString::Printf(TEXT("Place failed: %s"), *Context.PlaceErrorReason);
+            }
+            else if (!Context.PlaceCancelledPhase.IsEmpty())
+            {
+                Feedback.Message = FString::Printf(TEXT("Place cancelled: Stopped while %s"), *Context.PlaceCancelledPhase);
+            }
+            else
+            {
+                Feedback.Message = TEXT("Place failed");
+            }
+        }
+    }
+    else
+    {
+        Feedback.Message = bSuccess ? TEXT("Place completed") : TEXT("Place failed");
+    }
+    
     return Feedback;
 }
 

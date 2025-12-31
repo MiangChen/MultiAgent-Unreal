@@ -12,6 +12,18 @@
     # 测试连续三个技能列表
     python scripts/send_skill_list.py --server --test triple
     
+    # 测试 Place 技能 - 装货到 UGV
+    python scripts/send_skill_list.py --server --test place_load
+    
+    # 测试 Place 技能 - 从 UGV 卸货到地面
+    python scripts/send_skill_list.py --server --test place_unload
+    
+    # 测试 Place 技能 - 堆叠物体
+    python scripts/send_skill_list.py --server --test place_stack
+    
+    # 测试 Place 技能 - UGV 和 Humanoid 协作搬运
+    python scripts/send_skill_list.py --server --test place_coop
+    
     # 自定义间隔时间（秒）
     python scripts/send_skill_list.py --server --test double --interval 10
 """
@@ -127,6 +139,134 @@ SKILL_LIST_THIRD = {
     }
 }
 
+# ========== Place 技能测试列表 ==========
+
+# Place 测试 - 装货到 UGV：Humanoid 拾取 RedBox 放到 UGV_01 上
+SKILL_LIST_PLACE_LOAD = {
+    "0": {
+        "Humanoid_01": {
+            "skill": "place",
+            "params": {
+                "object1": {
+                    "class": "object",
+                    "type": "box",
+                    "features": {"color": "red", "name": "RedBox"}
+                },
+                "object2": {
+                    "class": "robot",
+                    "type": "UGV",
+                    "features": {"name": "UGV_01"}
+                }
+            }
+        }
+    }
+}
+
+# Place 测试 - 卸货到地面：Humanoid 从 UGV_01 取物体放到地面
+SKILL_LIST_PLACE_UNLOAD = {
+    "0": {
+        "Humanoid_01": {
+            "skill": "place",
+            "params": {
+                "object1": {
+                    "class": "object",
+                    "type": "box",
+                    "features": {"color": "red", "name": "RedBox"}
+                },
+                "object2": {
+                    "class": "ground",
+                    "type": "",
+                    "features": {}
+                }
+            }
+        }
+    }
+}
+
+# Place 测试 - 堆叠物体：Humanoid 将 BlueBox 堆叠到 RedBox 上
+SKILL_LIST_PLACE_STACK = {
+    "0": {
+        "Humanoid_01": {
+            "skill": "place",
+            "params": {
+                "object1": {
+                    "class": "object",
+                    "type": "box",
+                    "features": {"color": "blue", "name": "BlueBox"}
+                },
+                "object2": {
+                    "class": "object",
+                    "type": "box",
+                    "features": {"color": "red", "name": "RedBox"}
+                }
+            }
+        }
+    }
+}
+
+# Place 测试 - UGV 和 Humanoid 协作搬运场景
+# Step 0: UGV 导航到物体附近，Humanoid 拾取 RedBox 放到 UGV
+# Step 1: UGV 携带物体导航到目标位置
+# Step 2: Humanoid 从 UGV 卸货到地面
+SKILL_LIST_PLACE_COOP = {
+    "0": {
+        "UGV_01": {
+            "skill": "navigate",
+            "params": {"dest": {"x": 400, "y": 1300, "z": 0}}
+        },
+        "Humanoid_01": {
+            "skill": "navigate",
+            "params": {"dest": {"x": 200, "y": 1850, "z": 0}}
+        }
+    },
+    "1": {
+        "Humanoid_01": {
+            "skill": "place",
+            "params": {
+                "object1": {
+                    "class": "object",
+                    "type": "box",
+                    "features": {"color": "red", "name": "RedBox"}
+                },
+                "object2": {
+                    "class": "robot",
+                    "type": "UGV",
+                    "features": {"name": "UGV_01"}
+                }
+            }
+        }
+    },
+    "2": {
+        "UGV_01": {
+            "skill": "navigate",
+            "params": {"dest": {"x": 1000, "y": 1000, "z": 0}}
+        }
+    },
+    "3": {
+        "Humanoid_01": {
+            "skill": "navigate",
+            "params": {"dest": {"x": 1150, "y": 1000, "z": 0}}
+        }
+    },
+    "4": {
+        "Humanoid_01": {
+            "skill": "place",
+            "params": {
+                "object1": {
+                    "class": "object",
+                    "type": "box",
+                    "features": {"color": "red", "name": "RedBox"}
+                },
+                "object2": {
+                    "class": "ground",
+                    "type": "",
+                    "features": {}
+                }
+            }
+        }
+    }
+}
+
 
 class SimPollHandler(BaseHTTPRequestHandler):
     """处理 UE5 仿真端的轮询请求和反馈"""
@@ -229,8 +369,22 @@ def print_skill_list(name: str, skill_list: dict):
             skill = cmd.get('skill')
             params = cmd.get('params', {})
             dest = params.get('dest')
+            object1 = params.get('object1')
+            object2 = params.get('object2')
+            
             if dest:
                 print(f"    {agent}: {skill} -> ({dest['x']:.0f}, {dest['y']:.0f}, {dest['z']:.0f})")
+            elif object1 and object2:
+                # Place 技能
+                obj1_name = object1.get('features', {}).get('name', object1.get('type', 'unknown'))
+                obj2_class = object2.get('class', '')
+                if obj2_class == 'ground':
+                    obj2_name = 'ground'
+                elif obj2_class == 'robot':
+                    obj2_name = object2.get('features', {}).get('name', 'UGV')
+                else:
+                    obj2_name = object2.get('features', {}).get('name', object2.get('type', 'unknown'))
+                print(f"    {agent}: {skill} ({obj1_name} -> {obj2_name})")
             else:
                 print(f"    {agent}: {skill}")
 
@@ -286,6 +440,27 @@ def run_server(port: int, test_mode: str, interval: float):
         schedule_skill_list(SKILL_LIST_SECOND, interval, "Skill List #2 (Interrupt)")
         schedule_skill_list(SKILL_LIST_THIRD, interval * 2, "Skill List #3 (Interrupt)")
     
+    # Place 技能测试模式
+    elif test_mode == 'place_load':
+        print_skill_list("Place Test - Load to UGV", SKILL_LIST_PLACE_LOAD)
+        msg = create_skill_list_message(SKILL_LIST_PLACE_LOAD)
+        SimPollHandler.pending_messages.append(msg)
+        
+    elif test_mode == 'place_unload':
+        print_skill_list("Place Test - Unload to Ground", SKILL_LIST_PLACE_UNLOAD)
+        msg = create_skill_list_message(SKILL_LIST_PLACE_UNLOAD)
+        SimPollHandler.pending_messages.append(msg)
+        
+    elif test_mode == 'place_stack':
+        print_skill_list("Place Test - Stack Objects", SKILL_LIST_PLACE_STACK)
+        msg = create_skill_list_message(SKILL_LIST_PLACE_STACK)
+        SimPollHandler.pending_messages.append(msg)
+        
+    elif test_mode == 'place_coop':
+        print_skill_list("Place Test - UGV & Humanoid Cooperation", SKILL_LIST_PLACE_COOP)
+        msg = create_skill_list_message(SKILL_LIST_PLACE_COOP)
+        SimPollHandler.pending_messages.append(msg)
+    
     print(f"\nWaiting for UE5 to poll...")
     print(f"Press Ctrl+C to stop\n")
     
@@ -301,8 +476,9 @@ def main():
     parser.add_argument('--server', action='store_true', help='Run as HTTP server')
     parser.add_argument('--port', type=int, default=8080, help='Server port')
     parser.add_argument('--test', type=str, default='single', 
-                        choices=['single', 'double', 'triple'],
-                        help='Test mode: single, double (2 lists), triple (3 lists)')
+                        choices=['single', 'double', 'triple', 
+                                 'place_load', 'place_unload', 'place_stack', 'place_coop'],
+                        help='Test mode: single, double, triple, place_load, place_unload, place_stack, place_coop')
     parser.add_argument('--interval', type=float, default=15.0,
                         help='Interval between skill lists in seconds (default: 15)')
     parser.add_argument('--print', action='store_true', help='Print skill list JSON')
@@ -334,4 +510,16 @@ if __name__ == '__main__':
 
 # # 自定义间隔时间（10秒）
 # python scripts/send_skill_list.py --server --test double --interval 10
+
+# # Place 技能测试 - 装货到 UGV
+# python scripts/send_skill_list.py --server --test place_load
+
+# # Place 技能测试 - 从 UGV 卸货到地面
+# python scripts/send_skill_list.py --server --test place_unload
+
+# # Place 技能测试 - 堆叠物体
+# python scripts/send_skill_list.py --server --test place_stack
+
+# # Place 技能测试 - UGV 和 Humanoid 协作搬运
+# python scripts/send_skill_list.py --server --test place_coop
 

@@ -1,5 +1,8 @@
 // MASceneQuery.h
 // 场景查询辅助工具 - 根据语义标签查找场景对象
+//
+// 临时实现版本 - 用于测试 Place 技能
+// TODO: 后续需要对接正式的场景图结构
 
 #pragma once
 
@@ -14,9 +17,9 @@ struct FMASemanticLabel
 {
     FString Class;      // object, robot, ground
     FString Type;       // boat, box, UGV
-    TMap<FString, FString> Features;  // color, subtype 等
+    TMap<FString, FString> Features;  // color, subtype, name 等
     
-    bool IsEmpty() const { return Class.IsEmpty() && Type.IsEmpty(); }
+    bool IsEmpty() const { return Class.IsEmpty() && Type.IsEmpty() && Features.Num() == 0; }
     bool IsGround() const { return Class.Equals(TEXT("ground"), ESearchCase::IgnoreCase); }
     bool IsRobot() const { return Class.Equals(TEXT("robot"), ESearchCase::IgnoreCase) || Type.Equals(TEXT("UGV"), ESearchCase::IgnoreCase); }
 };
@@ -51,4 +54,16 @@ public:
     
     // 查找机器人
     static AMACharacter* FindRobotByName(UWorld* World, const FString& RobotName);
+
+private:
+    //=========================================================================
+    // 临时匹配逻辑 - 基于 ItemName 的模糊匹配
+    // TODO: 后续对接正式场景图时替换
+    //=========================================================================
+    
+    /** 临时匹配逻辑：基于 ItemName 进行模糊匹配 */
+    static bool MatchesLabel_Temp(AMAPickupItem* Item, const FMASemanticLabel& Label);
+    
+    /** 临时提取逻辑：从 ItemName 提取语义标签 */
+    static FMASemanticLabel ExtractLabel_Temp(AMAPickupItem* Item);
 };

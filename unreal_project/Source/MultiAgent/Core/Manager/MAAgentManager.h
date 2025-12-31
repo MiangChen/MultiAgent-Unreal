@@ -10,6 +10,7 @@
 
 class AMACharacter;
 class UMAConfigManager;
+class AMAPickupItem;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAgentSpawned, AMACharacter*, Agent);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAgentDestroyed, AMACharacter*, Agent);
@@ -76,11 +77,15 @@ private:
     UPROPERTY()
     TArray<AMACharacter*> SpawnedAgents;
 
+    UPROPERTY()
+    TArray<AMAPickupItem*> SpawnedPickupItems;
+
     int32 NextAgentIndex = 0;
     
     UMAConfigManager* GetConfigManager() const;
     AMACharacter* SpawnAgentInternal(const FString& TypeName, const FString& ID, FVector Location, FRotator Rotation, bool bAutoPosition, int32 Index, int32 TotalCount);
     void SpawnChargingStations();
+    void SpawnPickupItems();
     FVector CalculateAutoPosition(int32 Index, int32 TotalCount) const;
     FVector AdjustSpawnHeight(FVector Location, bool bIsFlying) const;
     

@@ -54,6 +54,15 @@ struct FMAFeedbackContext
     UPROPERTY(BlueprintReadOnly)
     FString PlaceTargetName;
     
+    UPROPERTY(BlueprintReadOnly)
+    FVector PlaceFinalLocation = FVector::ZeroVector;
+    
+    UPROPERTY(BlueprintReadOnly)
+    FString PlaceErrorReason;
+    
+    UPROPERTY(BlueprintReadOnly)
+    FString PlaceCancelledPhase;
+    
     void Reset() { *this = FMAFeedbackContext(); }
 };
 

@@ -10,17 +10,26 @@
 #include "../Core/Types/MATaskGraphTypes.h"
 #include "MAEmergencyWidget.h"
 #include "MAModifyWidget.h"
+#include "MAEditWidget.h"
+#include "MASceneListWidget.h"
 #include "../Input/MAPlayerController.h"
 #include "../Core/Comm/MACommSubsystem.h"
 #include "../Core/Types/MASimTypes.h"
 #include "../Core/MASubsystem.h"
 #include "../Core/Manager/MAEmergencyManager.h"
+#include "../Core/Manager/MAEditModeManager.h"
 #include "../Core/Manager/MASceneGraphManager.h"
 #include "../Agent/Character/MACharacter.h"
 #include "../Agent/Component/Sensor/MACameraSensorComponent.h"
+#include "../Environment/MAPointOfInterest.h"
+#include "../Environment/MAZoneActor.h"
+#include "../Environment/MAGoalActor.h"
 #include "Blueprint/UserWidget.h"
 #include "Engine/Canvas.h"
 #include "DrawDebugHelpers.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMAHUD, Log, All);
 
@@ -35,6 +44,8 @@ AMAHUD::AMAHUD()
     EmergencyWidget = nullptr;
     TaskPlannerWidget = nullptr;
     ModifyWidget = nullptr;
+    EditWidget = nullptr;
+    SceneListWidget = nullptr;
 }
 
 //=============================================================================
@@ -55,6 +66,12 @@ void AMAHUD::BeginPlay()
 
     // 绑定 EmergencyManager 事件
     BindEmergencyManagerEvents();
+
+    // 绑定 EditModeManager 事件
+    BindEditModeManagerEvents();
+
+    // 绑定 EditWidget 委托
+    BindEditWidgetDelegates();
 }
 
 //=============================================================================
@@ -361,6 +378,9 @@ void AMAHUD::DrawHUD()
     // 绘制场景标签 (Modify 模式)
     DrawSceneLabels();
 
+    // 绘制 Edit 模式指示器和 POI 坐标
+    DrawEditModeIndicator();
+
     // 绘制通知消息
     DrawNotification();
 }
@@ -568,6 +588,53 @@ void AMAHUD::CreateWidgets()
     else
     {
         UE_LOG(LogMAHUD, Error, TEXT("Failed to create ModifyWidget"));
+    }
+
+    // 创建 EditWidget
+    UE_LOG(LogMAHUD, Log, TEXT("Creating EditWidget..."));
+    
+    EditWidget = CreateWidget<UMAEditWidget>(PC, UMAEditWidget::StaticClass());
+    if (EditWidget)
+    {
+        EditWidget->AddToViewport(11);
+        EditWidget->SetVisibility(ESlateVisibility::Collapsed);
+        
+        UE_LOG(LogMAHUD, Log, TEXT("EditWidget created successfully"));
+    }
+    else
+    {
+        UE_LOG(LogMAHUD, Error, TEXT("Failed to create EditWidget"));
+    }
+
+    // 创建 SceneListWidget
+    UE_LOG(LogMAHUD, Log, TEXT("Creating SceneListWidget..."));
+    
+    SceneListWidget = CreateWidget<UMASceneListWidget>(PC, UMASceneListWidget::StaticClass());
+    if (SceneListWidget)
+    {
+        SceneListWidget->AddToViewport(11);
+        SceneListWidget->SetVisibility(ESlateVisibility::Collapsed);
+        
+        // 设置 EditModeManager 引用
+        UWorld* World = GetWorld();
+        if (World)
+        {
+            UMAEditModeManager* EditModeManager = World->GetSubsystem<UMAEditModeManager>();
+            if (EditModeManager)
+            {
+                SceneListWidget->SetEditModeManager(EditModeManager);
+            }
+        }
+        
+        // 绑定列表项点击委托
+        SceneListWidget->OnGoalItemClicked.AddDynamic(this, &AMAHUD::OnSceneListGoalClicked);
+        SceneListWidget->OnZoneItemClicked.AddDynamic(this, &AMAHUD::OnSceneListZoneClicked);
+        
+        UE_LOG(LogMAHUD, Log, TEXT("SceneListWidget created successfully"));
+    }
+    else
+    {
+        UE_LOG(LogMAHUD, Error, TEXT("Failed to create SceneListWidget"));
     }
 }
 
@@ -1162,4 +1229,759 @@ void AMAHUD::StopSceneLabelVisualization()
     CachedSceneNodes.Empty();
     
     UE_LOG(LogMAHUD, Log, TEXT("StopSceneLabelVisualization: Stopped"));
+}
+
+//=============================================================================
+// Edit 模式 UI 控制
+//=============================================================================
+
+void AMAHUD::ShowEditWidget()
+{
+    if (!EditWidget)
+    {
+        UE_LOG(LogMAHUD, Warning, TEXT("ShowEditWidget: EditWidget is null"));
+        return;
+    }
+
+    if (IsEditWidgetVisible())
+    {
+        return;
+    }
+
+    EditWidget->SetVisibility(ESlateVisibility::Visible);
+
+    APlayerController* PC = GetOwningPlayerController();
+    if (PC)
+    {
+        FInputModeGameAndUI InputMode;
+        InputMode.SetWidgetToFocus(EditWidget->TakeWidget());
+        InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+        InputMode.SetHideCursorDuringCapture(false);
+        PC->SetInputMode(InputMode);
+        PC->SetShowMouseCursor(true);
+    }
+
+    UE_LOG(LogMAHUD, Log, TEXT("EditWidget shown"));
+}
+
+void AMAHUD::HideEditWidget()
+{
+    if (!EditWidget)
+    {
+        UE_LOG(LogMAHUD, Warning, TEXT("HideEditWidget: EditWidget is null"));
+        return;
+    }
+
+    if (!IsEditWidgetVisible())
+    {
+        return;
+    }
+
+    EditWidget->SetVisibility(ESlateVisibility::Collapsed);
+    EditWidget->ClearSelection();
+
+    APlayerController* PC = GetOwningPlayerController();
+    if (PC)
+    {
+        FInputModeGameOnly InputMode;
+        PC->SetInputMode(InputMode);
+        PC->SetShowMouseCursor(true);
+    }
+
+    UE_LOG(LogMAHUD, Log, TEXT("EditWidget hidden"));
+}
+
+bool AMAHUD::IsEditWidgetVisible() const
+{
+    if (!EditWidget)
+    {
+        return false;
+    }
+    return EditWidget->IsVisible();
+}
+
+bool AMAHUD::IsMouseOverEditWidget() const
+{
+    if (!IsEditWidgetVisible())
+    {
+        return false;
+    }
+    
+    APlayerController* PC = GetOwningPlayerController();
+    if (!PC)
+    {
+        return false;
+    }
+    
+    float MouseX, MouseY;
+    if (!PC->GetMousePosition(MouseX, MouseY))
+    {
+        return false;
+    }
+    
+    int32 ViewportSizeX, ViewportSizeY;
+    PC->GetViewportSize(ViewportSizeX, ViewportSizeY);
+    
+    if (EditWidget)
+    {
+        float EditWidgetLeft = ViewportSizeX - 20.0f - 380.0f;
+        float EditWidgetRight = ViewportSizeX - 20.0f;
+        float EditWidgetTop = 60.0f;
+        float EditWidgetBottom = 60.0f + 600.0f;
+        
+        if (MouseX >= EditWidgetLeft && MouseX <= EditWidgetRight &&
+            MouseY >= EditWidgetTop && MouseY <= EditWidgetBottom)
+        {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+//=============================================================================
+// Edit 模式集成
+//=============================================================================
+
+void AMAHUD::BindEditModeManagerEvents()
+{
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        UE_LOG(LogMAHUD, Warning, TEXT("BindEditModeManagerEvents: World not found"));
+        return;
+    }
+    
+    UMAEditModeManager* EditModeManager = World->GetSubsystem<UMAEditModeManager>();
+    if (!EditModeManager)
+    {
+        UE_LOG(LogMAHUD, Warning, TEXT("BindEditModeManagerEvents: EditModeManager not found"));
+        return;
+    }
+    
+    if (!EditModeManager->OnSelectionChanged.IsAlreadyBound(this, &AMAHUD::OnEditModeSelectionChanged))
+    {
+        EditModeManager->OnSelectionChanged.AddDynamic(this, &AMAHUD::OnEditModeSelectionChanged);
+    }
+    
+    if (!EditModeManager->OnTempSceneGraphChanged.IsAlreadyBound(this, &AMAHUD::OnTempSceneGraphChanged))
+    {
+        EditModeManager->OnTempSceneGraphChanged.AddDynamic(this, &AMAHUD::OnTempSceneGraphChanged);
+    }
+    
+    UE_LOG(LogMAHUD, Log, TEXT("BindEditModeManagerEvents: Bound to EditModeManager"));
+}
+
+void AMAHUD::BindEditWidgetDelegates()
+{
+    if (!EditWidget)
+    {
+        UE_LOG(LogMAHUD, Warning, TEXT("BindEditWidgetDelegates: EditWidget is null"));
+        return;
+    }
+    
+    if (!EditWidget->OnEditConfirmed.IsAlreadyBound(this, &AMAHUD::OnEditConfirmed))
+    {
+        EditWidget->OnEditConfirmed.AddDynamic(this, &AMAHUD::OnEditConfirmed);
+    }
+    
+    if (!EditWidget->OnDeleteActor.IsAlreadyBound(this, &AMAHUD::OnEditDeleteActor))
+    {
+        EditWidget->OnDeleteActor.AddDynamic(this, &AMAHUD::OnEditDeleteActor);
+    }
+    
+    if (!EditWidget->OnCreateGoal.IsAlreadyBound(this, &AMAHUD::OnEditCreateGoal))
+    {
+        EditWidget->OnCreateGoal.AddDynamic(this, &AMAHUD::OnEditCreateGoal);
+    }
+    
+    if (!EditWidget->OnCreateZone.IsAlreadyBound(this, &AMAHUD::OnEditCreateZone))
+    {
+        EditWidget->OnCreateZone.AddDynamic(this, &AMAHUD::OnEditCreateZone);
+    }
+    
+    if (!EditWidget->OnAddPresetActor.IsAlreadyBound(this, &AMAHUD::OnEditAddPresetActor))
+    {
+        EditWidget->OnAddPresetActor.AddDynamic(this, &AMAHUD::OnEditAddPresetActor);
+    }
+    
+    if (!EditWidget->OnDeletePOIs.IsAlreadyBound(this, &AMAHUD::OnEditDeletePOIs))
+    {
+        EditWidget->OnDeletePOIs.AddDynamic(this, &AMAHUD::OnEditDeletePOIs);
+    }
+    
+    if (!EditWidget->OnSetAsGoal.IsAlreadyBound(this, &AMAHUD::OnEditSetAsGoal))
+    {
+        EditWidget->OnSetAsGoal.AddDynamic(this, &AMAHUD::OnEditSetAsGoal);
+    }
+    
+    if (!EditWidget->OnUnsetAsGoal.IsAlreadyBound(this, &AMAHUD::OnEditUnsetAsGoal))
+    {
+        EditWidget->OnUnsetAsGoal.AddDynamic(this, &AMAHUD::OnEditUnsetAsGoal);
+    }
+    
+    UE_LOG(LogMAHUD, Log, TEXT("BindEditWidgetDelegates: Bound all EditWidget delegates"));
+}
+
+void AMAHUD::DrawEditModeIndicator()
+{
+    if (!Canvas)
+    {
+        return;
+    }
+    
+    AMAPlayerController* MAPC = GetMAPlayerController();
+    if (!MAPC || MAPC->CurrentMouseMode != EMAMouseMode::Edit)
+    {
+        return;
+    }
+    
+    float ScreenWidth = Canvas->SizeX;
+    float ScreenHeight = Canvas->SizeY;
+    
+    FString ModeText = TEXT("Mode: Edit (M)");
+    float ModeTextWidth = ModeText.Len() * 10.0f;
+    float ModeTextX = ScreenWidth - ModeTextWidth - 30.0f;
+    float ModeTextY = 30.0f;
+    
+    FLinearColor BlueColor = FLinearColor(0.3f, 0.6f, 1.0f);
+    
+    FCanvasTextItem ModeTextItem(FVector2D(ModeTextX, ModeTextY), FText::FromString(ModeText), GEngine->GetLargeFont(), BlueColor);
+    ModeTextItem.Scale = FVector2D(1.2f, 1.2f);
+    ModeTextItem.bOutlined = true;
+    ModeTextItem.OutlineColor = FLinearColor::Black;
+    Canvas->DrawItem(ModeTextItem);
+    
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return;
+    }
+    
+    UMAEditModeManager* EditModeManager = World->GetSubsystem<UMAEditModeManager>();
+    if (!EditModeManager)
+    {
+        return;
+    }
+    
+    float CurrentY = ScreenHeight - 30.0f;
+    const float LineHeight = 18.0f;
+    
+    FLinearColor GreenColor = FLinearColor(0.3f, 0.8f, 0.3f);
+    FLinearColor RedColor = FLinearColor(1.0f, 0.4f, 0.4f);
+    FLinearColor CyanColor = FLinearColor(0.3f, 0.8f, 1.0f);
+    
+    TArray<AMAPointOfInterest*> POIs = EditModeManager->GetAllPOIs();
+    if (POIs.Num() > 0)
+    {
+        FString POIText = TEXT("POI: ");
+        for (int32 i = 0; i < POIs.Num(); ++i)
+        {
+            if (POIs[i])
+            {
+                FVector Loc = POIs[i]->GetActorLocation();
+                POIText += FString::Printf(TEXT("[%d](%.0f, %.0f, %.0f) "), i + 1, Loc.X, Loc.Y, Loc.Z);
+            }
+        }
+        
+        FCanvasTextItem POITextItem(FVector2D(20.0f, CurrentY), FText::FromString(POIText), GEngine->GetSmallFont(), GreenColor);
+        POITextItem.Scale = FVector2D(1.0f, 1.0f);
+        POITextItem.bOutlined = true;
+        POITextItem.OutlineColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.5f);
+        Canvas->DrawItem(POITextItem);
+        CurrentY -= LineHeight;
+    }
+}
+
+void AMAHUD::OnEditModeSelectionChanged()
+{
+    UE_LOG(LogMAHUD, Log, TEXT("OnEditModeSelectionChanged"));
+    
+    if (!EditWidget)
+    {
+        return;
+    }
+    
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return;
+    }
+    
+    UMAEditModeManager* EditModeManager = World->GetSubsystem<UMAEditModeManager>();
+    if (!EditModeManager)
+    {
+        return;
+    }
+    
+    if (EditModeManager->HasSelectedActor())
+    {
+        EditWidget->SetSelectedActor(EditModeManager->GetSelectedActor());
+    }
+    else if (EditModeManager->HasSelectedPOIs())
+    {
+        EditWidget->SetSelectedPOIs(EditModeManager->GetSelectedPOIs());
+    }
+    else
+    {
+        EditWidget->ClearSelection();
+    }
+}
+
+void AMAHUD::OnTempSceneGraphChanged()
+{
+    UE_LOG(LogMAHUD, Log, TEXT("OnTempSceneGraphChanged"));
+    
+    if (EditWidget)
+    {
+        EditWidget->RefreshSceneGraphPreview();
+    }
+}
+
+void AMAHUD::OnEditConfirmed(AActor* Actor, const FString& JsonContent)
+{
+    UE_LOG(LogMAHUD, Log, TEXT("OnEditConfirmed: Actor=%s"), Actor ? *Actor->GetName() : TEXT("null"));
+    
+    if (!Actor)
+    {
+        ShowNotification(TEXT("请先选中一个 Actor"), true);
+        return;
+    }
+    
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        ShowNotification(TEXT("修改失败: 无法获取 World"), true);
+        return;
+    }
+    
+    UMAEditModeManager* EditModeManager = World->GetSubsystem<UMAEditModeManager>();
+    if (!EditModeManager)
+    {
+        ShowNotification(TEXT("修改失败: EditModeManager 未找到"), true);
+        return;
+    }
+    
+    TSharedPtr<FJsonObject> JsonObject;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonContent);
+    if (!FJsonSerializer::Deserialize(Reader, JsonObject) || !JsonObject.IsValid())
+    {
+        ShowNotification(TEXT("JSON 格式无效"), true);
+        return;
+    }
+    
+    FString NodeId;
+    if (!JsonObject->TryGetStringField(TEXT("id"), NodeId))
+    {
+        ShowNotification(TEXT("JSON 中缺少 id 字段"), true);
+        return;
+    }
+    
+    FString OutError;
+    if (!EditModeManager->EditNode(NodeId, JsonContent, OutError))
+    {
+        ShowNotification(OutError, true);
+        return;
+    }
+    
+    ShowNotification(TEXT("修改已保存"), false);
+    EditModeManager->ClearSelection();
+}
+
+void AMAHUD::OnEditDeleteActor(AActor* Actor)
+{
+    UE_LOG(LogMAHUD, Log, TEXT("OnEditDeleteActor: Actor=%s"), Actor ? *Actor->GetName() : TEXT("null"));
+    
+    if (!Actor)
+    {
+        ShowNotification(TEXT("请先选中一个 Actor"), true);
+        return;
+    }
+    
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        ShowNotification(TEXT("删除失败: 无法获取 World"), true);
+        return;
+    }
+    
+    UMAEditModeManager* EditModeManager = World->GetSubsystem<UMAEditModeManager>();
+    if (!EditModeManager)
+    {
+        ShowNotification(TEXT("删除失败: EditModeManager 未找到"), true);
+        return;
+    }
+    
+    UGameInstance* GI = World->GetGameInstance();
+    if (!GI)
+    {
+        ShowNotification(TEXT("删除失败: 无法获取 GameInstance"), true);
+        return;
+    }
+    
+    UMASceneGraphManager* SceneGraphManager = GI->GetSubsystem<UMASceneGraphManager>();
+    if (!SceneGraphManager)
+    {
+        ShowNotification(TEXT("删除失败: SceneGraphManager 未找到"), true);
+        return;
+    }
+    
+    FString ActorGuid = Actor->GetActorGuid().ToString();
+    TArray<FMASceneGraphNode> Nodes = SceneGraphManager->FindNodesByGuid(ActorGuid);
+    
+    if (Nodes.Num() == 0)
+    {
+        ShowNotification(TEXT("未找到对应的场景图节点"), true);
+        return;
+    }
+    
+    FString OutError;
+    if (!EditModeManager->DeleteNode(Nodes[0].Id, OutError))
+    {
+        ShowNotification(OutError, true);
+        return;
+    }
+    
+    Actor->Destroy();
+    ShowNotification(TEXT("Actor 已删除"), false);
+    EditModeManager->ClearSelection();
+}
+
+void AMAHUD::OnEditCreateGoal(AMAPointOfInterest* POI, const FString& Description)
+{
+    UE_LOG(LogMAHUD, Log, TEXT("OnEditCreateGoal: POI=%s, Description=%s"), 
+        POI ? *POI->GetName() : TEXT("null"), *Description);
+    
+    if (!POI)
+    {
+        ShowNotification(TEXT("请先选中一个 POI"), true);
+        return;
+    }
+    
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        ShowNotification(TEXT("创建失败: 无法获取 World"), true);
+        return;
+    }
+    
+    UMAEditModeManager* EditModeManager = World->GetSubsystem<UMAEditModeManager>();
+    if (!EditModeManager)
+    {
+        ShowNotification(TEXT("创建失败: EditModeManager 未找到"), true);
+        return;
+    }
+    
+    FVector Location = POI->GetActorLocation();
+    
+    FString OutError;
+    if (!EditModeManager->CreateGoal(Location, Description, OutError))
+    {
+        ShowNotification(OutError, true);
+        return;
+    }
+    
+    EditModeManager->DestroyPOI(POI);
+    ShowNotification(TEXT("Goal 已创建"), false);
+    EditModeManager->ClearSelection();
+}
+
+void AMAHUD::OnEditCreateZone(const TArray<AMAPointOfInterest*>& POIs, const FString& Description)
+{
+    UE_LOG(LogMAHUD, Log, TEXT("OnEditCreateZone: %d POIs, Description=%s"), POIs.Num(), *Description);
+    
+    if (POIs.Num() < 3)
+    {
+        ShowNotification(TEXT("创建区域需要至少 3 个 POI"), true);
+        return;
+    }
+    
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        ShowNotification(TEXT("创建失败: 无法获取 World"), true);
+        return;
+    }
+    
+    UMAEditModeManager* EditModeManager = World->GetSubsystem<UMAEditModeManager>();
+    if (!EditModeManager)
+    {
+        ShowNotification(TEXT("创建失败: EditModeManager 未找到"), true);
+        return;
+    }
+    
+    TArray<FVector> Vertices;
+    for (AMAPointOfInterest* POI : POIs)
+    {
+        if (POI)
+        {
+            Vertices.Add(POI->GetActorLocation());
+        }
+    }
+    
+    if (Vertices.Num() < 3)
+    {
+        ShowNotification(TEXT("有效 POI 数量不足"), true);
+        return;
+    }
+    
+    FString OutError;
+    if (!EditModeManager->CreateZone(Vertices, Description, OutError))
+    {
+        ShowNotification(OutError, true);
+        return;
+    }
+    
+    for (AMAPointOfInterest* POI : POIs)
+    {
+        if (POI)
+        {
+            EditModeManager->DestroyPOI(POI);
+        }
+    }
+    
+    ShowNotification(TEXT("区域已创建"), false);
+    EditModeManager->ClearSelection();
+}
+
+void AMAHUD::OnEditAddPresetActor(AMAPointOfInterest* POI, const FString& ActorType)
+{
+    UE_LOG(LogMAHUD, Log, TEXT("OnEditAddPresetActor: POI=%s, ActorType=%s"), 
+        POI ? *POI->GetName() : TEXT("null"), *ActorType);
+    
+    if (!POI)
+    {
+        ShowNotification(TEXT("请先选中一个 POI"), true);
+        return;
+    }
+    
+    if (ActorType.IsEmpty() || ActorType == TEXT("(暂无预设 Actor)"))
+    {
+        ShowNotification(TEXT("请选择一个有效的预设 Actor 类型"), true);
+        return;
+    }
+    
+    ShowNotification(TEXT("预设 Actor 功能暂未实现"), false, true);
+    UE_LOG(LogMAHUD, Warning, TEXT("OnEditAddPresetActor: Preset Actor feature not yet implemented"));
+}
+
+void AMAHUD::OnEditDeletePOIs(const TArray<AMAPointOfInterest*>& POIs)
+{
+    UE_LOG(LogMAHUD, Log, TEXT("OnEditDeletePOIs: %d POIs to delete"), POIs.Num());
+    
+    if (POIs.Num() == 0)
+    {
+        ShowNotification(TEXT("请先选中 POI"), true);
+        return;
+    }
+    
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        ShowNotification(TEXT("删除失败: 无法获取 World"), true);
+        return;
+    }
+    
+    UMAEditModeManager* EditModeManager = World->GetSubsystem<UMAEditModeManager>();
+    if (!EditModeManager)
+    {
+        ShowNotification(TEXT("删除失败: EditModeManager 未找到"), true);
+        return;
+    }
+    
+    int32 DeletedCount = 0;
+    for (AMAPointOfInterest* POI : POIs)
+    {
+        if (POI)
+        {
+            EditModeManager->DestroyPOI(POI);
+            DeletedCount++;
+        }
+    }
+    
+    ShowNotification(FString::Printf(TEXT("已删除 %d 个 POI"), DeletedCount), false);
+}
+
+void AMAHUD::OnEditSetAsGoal(AActor* Actor)
+{
+    UE_LOG(LogMAHUD, Log, TEXT("OnEditSetAsGoal: Actor=%s"), Actor ? *Actor->GetName() : TEXT("null"));
+    
+    if (!Actor)
+    {
+        ShowNotification(TEXT("请先选中一个 Actor"), true);
+        return;
+    }
+    
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        ShowNotification(TEXT("设置失败: 无法获取 World"), true);
+        return;
+    }
+    
+    UMAEditModeManager* EditModeManager = World->GetSubsystem<UMAEditModeManager>();
+    if (!EditModeManager)
+    {
+        ShowNotification(TEXT("设置失败: EditModeManager 未找到"), true);
+        return;
+    }
+    
+    UGameInstance* GI = World->GetGameInstance();
+    if (!GI)
+    {
+        ShowNotification(TEXT("设置失败: 无法获取 GameInstance"), true);
+        return;
+    }
+    
+    UMASceneGraphManager* SceneGraphManager = GI->GetSubsystem<UMASceneGraphManager>();
+    if (!SceneGraphManager)
+    {
+        ShowNotification(TEXT("设置失败: SceneGraphManager 未找到"), true);
+        return;
+    }
+    
+    FString ActorGuid = Actor->GetActorGuid().ToString();
+    TArray<FMASceneGraphNode> Nodes = SceneGraphManager->FindNodesByGuid(ActorGuid);
+    
+    if (Nodes.Num() == 0)
+    {
+        ShowNotification(TEXT("未找到对应的场景图节点"), true);
+        return;
+    }
+    
+    FString OutError;
+    if (!EditModeManager->SetNodeAsGoal(Nodes[0].Id, OutError))
+    {
+        ShowNotification(OutError, true);
+        return;
+    }
+    
+    ShowNotification(FString::Printf(TEXT("已将 %s 设为 Goal"), *Nodes[0].Label), false);
+    
+    if (SceneListWidget)
+    {
+        SceneListWidget->RefreshLists();
+    }
+    
+    if (EditWidget)
+    {
+        EditWidget->SetSelectedActor(Actor);
+    }
+}
+
+void AMAHUD::OnEditUnsetAsGoal(AActor* Actor)
+{
+    UE_LOG(LogMAHUD, Log, TEXT("OnEditUnsetAsGoal: Actor=%s"), Actor ? *Actor->GetName() : TEXT("null"));
+    
+    if (!Actor)
+    {
+        ShowNotification(TEXT("请先选中一个 Actor"), true);
+        return;
+    }
+    
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        ShowNotification(TEXT("取消失败: 无法获取 World"), true);
+        return;
+    }
+    
+    UMAEditModeManager* EditModeManager = World->GetSubsystem<UMAEditModeManager>();
+    if (!EditModeManager)
+    {
+        ShowNotification(TEXT("取消失败: EditModeManager 未找到"), true);
+        return;
+    }
+    
+    UGameInstance* GI = World->GetGameInstance();
+    if (!GI)
+    {
+        ShowNotification(TEXT("取消失败: 无法获取 GameInstance"), true);
+        return;
+    }
+    
+    UMASceneGraphManager* SceneGraphManager = GI->GetSubsystem<UMASceneGraphManager>();
+    if (!SceneGraphManager)
+    {
+        ShowNotification(TEXT("取消失败: SceneGraphManager 未找到"), true);
+        return;
+    }
+    
+    FString ActorGuid = Actor->GetActorGuid().ToString();
+    TArray<FMASceneGraphNode> Nodes = SceneGraphManager->FindNodesByGuid(ActorGuid);
+    
+    if (Nodes.Num() == 0)
+    {
+        ShowNotification(TEXT("未找到对应的场景图节点"), true);
+        return;
+    }
+    
+    FString OutError;
+    if (!EditModeManager->UnsetNodeAsGoal(Nodes[0].Id, OutError))
+    {
+        ShowNotification(OutError, true);
+        return;
+    }
+    
+    ShowNotification(FString::Printf(TEXT("已取消 %s 的 Goal 状态"), *Nodes[0].Label), false);
+    
+    if (SceneListWidget)
+    {
+        SceneListWidget->RefreshLists();
+    }
+    
+    if (EditWidget)
+    {
+        EditWidget->SetSelectedActor(Actor);
+    }
+}
+
+void AMAHUD::OnSceneListGoalClicked(const FString& GoalId)
+{
+    UE_LOG(LogMAHUD, Log, TEXT("OnSceneListGoalClicked: GoalId=%s"), *GoalId);
+    
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return;
+    }
+    
+    UMAEditModeManager* EditModeManager = World->GetSubsystem<UMAEditModeManager>();
+    if (!EditModeManager)
+    {
+        return;
+    }
+    
+    AMAGoalActor* GoalActor = EditModeManager->GetGoalActorByNodeId(GoalId);
+    if (GoalActor)
+    {
+        EditModeManager->SelectActor(GoalActor);
+    }
+}
+
+void AMAHUD::OnSceneListZoneClicked(const FString& ZoneId)
+{
+    UE_LOG(LogMAHUD, Log, TEXT("OnSceneListZoneClicked: ZoneId=%s"), *ZoneId);
+    
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return;
+    }
+    
+    UMAEditModeManager* EditModeManager = World->GetSubsystem<UMAEditModeManager>();
+    if (!EditModeManager)
+    {
+        return;
+    }
+    
+    AMAZoneActor* ZoneActor = EditModeManager->GetZoneActorByNodeId(ZoneId);
+    if (ZoneActor)
+    {
+        EditModeManager->SelectActor(ZoneActor);
+    }
+    else
+    {
+        ShowNotification(FString::Printf(TEXT("Zone %s 没有可视化 Actor"), *ZoneId), false, true);
+    }
 }

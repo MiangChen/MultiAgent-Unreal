@@ -8,6 +8,98 @@
 #include "../../../Core/Comm/MACommTypes.h"
 #include "../../../Core/Manager/MACommandManager.h"
 #include "../../../Utils/MAWorldQuery.h"
+#include "Dom/JsonObject.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
+
+//=============================================================================
+// Place 技能辅助方法实现
+//=============================================================================
+
+void FMASkillParamsProcessor::ParseSemanticTargetFromJson(const FString& JsonStr, FMASemanticTarget& OutTarget)
+{
+    // 重置输出
+    OutTarget = FMASemanticTarget();
+    
+    if (JsonStr.IsEmpty())
+    {
+        return;
+    }
+    
+    TSharedPtr<FJsonObject> JsonObject;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonStr);
+    
+    if (!FJsonSerializer::Deserialize(Reader, JsonObject) || !JsonObject.IsValid())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ParseSemanticTargetFromJson] Failed to parse JSON: %s"), *JsonStr);
+        return;
+    }
+    
+    // 解析 class 字段
+    JsonObject->TryGetStringField(TEXT("class"), OutTarget.Class);
+    
+    // 解析 type 字段
+    JsonObject->TryGetStringField(TEXT("type"), OutTarget.Type);
+    
+    // 解析 features 字段 (键值对)
+    const TSharedPtr<FJsonObject>* FeaturesObject;
+    if (JsonObject->TryGetObjectField(TEXT("features"), FeaturesObject))
+    {
+        for (const auto& Pair : (*FeaturesObject)->Values)
+        {
+            FString FeatureValue;
+            if (Pair.Value->TryGetString(FeatureValue))
+            {
+                OutTarget.Features.Add(Pair.Key, FeatureValue);
+            }
+        }
+    }
+    
+    UE_LOG(LogTemp, Verbose, TEXT("[ParseSemanticTargetFromJson] Parsed: Class=%s, Type=%s, Features=%d"), 
+        *OutTarget.Class, *OutTarget.Type, OutTarget.Features.Num());
+}
+
+EPlaceMode FMASkillParamsProcessor::DeterminePlaceMode(const FMASemanticTarget& Object2)
+{
+    // Requirements: 1.3 - 检查是否为 UGV 机器人
+    // 如果 type 或 features 中包含 "UGV" 或 "ugv"，则为装货模式
+    if (Object2.Type.Contains(TEXT("UGV"), ESearchCase::IgnoreCase) ||
+        Object2.Type.Contains(TEXT("ugv"), ESearchCase::IgnoreCase))
+    {
+        return EPlaceMode::LoadToUGV;
+    }
+    
+    // 检查 features 中是否有 UGV 相关标识
+    for (const auto& Pair : Object2.Features)
+    {
+        if (Pair.Key.Contains(TEXT("UGV"), ESearchCase::IgnoreCase) ||
+            Pair.Value.Contains(TEXT("UGV"), ESearchCase::IgnoreCase))
+        {
+            return EPlaceMode::LoadToUGV;
+        }
+    }
+    
+    // 检查 class 是否为 robot
+    if (Object2.Class.Equals(TEXT("robot"), ESearchCase::IgnoreCase))
+    {
+        return EPlaceMode::LoadToUGV;
+    }
+    
+    // Requirements: 1.4 - 检查是否为地面放置模式
+    // 如果 class 包含 "ground"，则为卸货模式
+    if (Object2.Class.Contains(TEXT("ground"), ESearchCase::IgnoreCase) ||
+        Object2.IsGround())
+    {
+        return EPlaceMode::UnloadToGround;
+    }
+    
+    // 默认为堆叠模式
+    return EPlaceMode::StackOnObject;
+}
+
+//=============================================================================
+// 主处理入口
+//=============================================================================
 
 void FMASkillParamsProcessor::Process(AMACharacter* Agent, EMACommand Command, const FMAAgentSkillCommand* Cmd)
 {
@@ -252,50 +344,124 @@ void FMASkillParamsProcessor::ProcessPlace(AMACharacter* Agent, UMASkillComponen
     FMASearchResults& SearchResults = SkillComp->GetSearchResultsMutable();
     SearchResults.Reset();
     
-    // 查找 Object1
+    //=========================================================================
+    // Step 1: 解析 object1/object2 语义标签 JSON 到 FMASemanticTarget
+    // Requirements: 1.1, 1.2
+    //=========================================================================
+    if (Cmd)
+    {
+        // 解析 Object1 JSON
+        if (!Cmd->Params.Object1Json.IsEmpty())
+        {
+            ParseSemanticTargetFromJson(Cmd->Params.Object1Json, Params.PlaceObject1);
+            UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Parsed Object1 - Class=%s, Type=%s"), 
+                *Agent->AgentName, *Params.PlaceObject1.Class, *Params.PlaceObject1.Type);
+        }
+        
+        // 解析 Object2 JSON
+        if (!Cmd->Params.Object2Json.IsEmpty())
+        {
+            ParseSemanticTargetFromJson(Cmd->Params.Object2Json, Params.PlaceObject2);
+            UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Parsed Object2 - Class=%s, Type=%s"), 
+                *Agent->AgentName, *Params.PlaceObject2.Class, *Params.PlaceObject2.Type);
+        }
+    }
+    
+    //=========================================================================
+    // Step 2: 确定 PlaceMode (Requirements: 1.3, 1.4)
+    // - LoadToUGV: object2 是 UGV 机器人
+    // - UnloadToGround: object2 是 ground
+    // - StackOnObject: object2 是其他物体
+    //=========================================================================
+    EPlaceMode PlaceMode = DeterminePlaceMode(Params.PlaceObject2);
+    UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: PlaceMode=%d"), *Agent->AgentName, (int32)PlaceMode);
+    
+    //=========================================================================
+    // Step 3: 查找 Object1 (Requirements: 2.1, 2.5, 2.6)
+    //=========================================================================
     FMASemanticLabel Label1;
     Label1.Class = Params.PlaceObject1.Class;
     Label1.Type = Params.PlaceObject1.Type;
     Label1.Features = Params.PlaceObject1.Features;
     
-    FMASceneQueryResult Result1 = FMASceneQuery::FindNearestObject(Agent->GetWorld(), Label1, Agent->GetActorLocation());
-    if (Result1.bFound)
+    if (Label1.IsEmpty())
     {
-        Context.PlacedObjectName = Result1.Name;
-        SearchResults.Object1Actor = Result1.Actor;
-        SearchResults.Object1Location = Result1.Location;
+        UE_LOG(LogTemp, Warning, TEXT("[ProcessPlace] %s: Object1 semantic label is empty"), *Agent->AgentName);
+    }
+    else
+    {
+        FMASceneQueryResult Result1 = FMASceneQuery::FindNearestObject(Agent->GetWorld(), Label1, Agent->GetActorLocation());
+        if (Result1.bFound)
+        {
+            Context.PlacedObjectName = Result1.Name;
+            SearchResults.Object1Actor = Result1.Actor;
+            SearchResults.Object1Location = Result1.Location;
+            UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Found Object1 '%s' at (%.0f, %.0f, %.0f)"), 
+                *Agent->AgentName, *Result1.Name, Result1.Location.X, Result1.Location.Y, Result1.Location.Z);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[ProcessPlace] %s: Object1 not found in scene"), *Agent->AgentName);
+        }
     }
     
-    // 查找 Object2
+    //=========================================================================
+    // Step 4: 查找 Object2 (Requirements: 2.2, 2.3, 2.4)
+    //=========================================================================
     FMASemanticLabel Label2;
     Label2.Class = Params.PlaceObject2.Class;
     Label2.Type = Params.PlaceObject2.Type;
     Label2.Features = Params.PlaceObject2.Features;
     
-    if (Label2.IsGround())
+    switch (PlaceMode)
     {
-        Context.PlaceTargetName = TEXT("ground");
-        SearchResults.Object2Location = Agent->GetActorLocation();
-    }
-    else if (Label2.IsRobot())
-    {
-        FString RobotName = Label2.Features.Contains(TEXT("name")) ? Label2.Features[TEXT("name")] : TEXT("");
-        AMACharacter* Robot = FMASceneQuery::FindRobotByName(Agent->GetWorld(), RobotName);
-        if (Robot)
+        case EPlaceMode::UnloadToGround:
         {
-            Context.PlaceTargetName = Robot->AgentName;
-            SearchResults.Object2Actor = Robot;
-            SearchResults.Object2Location = Robot->GetActorLocation();
+            // 卸货到地面：使用 Humanoid 当前位置作为放置位置
+            Context.PlaceTargetName = TEXT("ground");
+            SearchResults.Object2Location = Agent->GetActorLocation();
+            UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Target is ground at (%.0f, %.0f, %.0f)"), 
+                *Agent->AgentName, SearchResults.Object2Location.X, SearchResults.Object2Location.Y, SearchResults.Object2Location.Z);
+            break;
         }
-    }
-    else
-    {
-        FMASceneQueryResult Result2 = FMASceneQuery::FindNearestObject(Agent->GetWorld(), Label2, Agent->GetActorLocation());
-        if (Result2.bFound)
+        
+        case EPlaceMode::LoadToUGV:
         {
-            Context.PlaceTargetName = Result2.Name;
-            SearchResults.Object2Actor = Result2.Actor;
-            SearchResults.Object2Location = Result2.Location;
+            // 装货到 UGV：根据 name 特征查找 UGV
+            FString RobotName = Label2.Features.Contains(TEXT("name")) ? Label2.Features[TEXT("name")] : TEXT("");
+            AMACharacter* Robot = FMASceneQuery::FindRobotByName(Agent->GetWorld(), RobotName);
+            if (Robot)
+            {
+                Context.PlaceTargetName = Robot->AgentName;
+                SearchResults.Object2Actor = Robot;
+                SearchResults.Object2Location = Robot->GetActorLocation();
+                UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Found UGV '%s' at (%.0f, %.0f, %.0f)"), 
+                    *Agent->AgentName, *Robot->AgentName, SearchResults.Object2Location.X, SearchResults.Object2Location.Y, SearchResults.Object2Location.Z);
+            }
+            else
+            {
+                UE_LOG(LogTemp, Warning, TEXT("[ProcessPlace] %s: UGV '%s' not found"), *Agent->AgentName, *RobotName);
+            }
+            break;
+        }
+        
+        case EPlaceMode::StackOnObject:
+        {
+            // 堆叠到另一个物体：查找最近的匹配物体
+            FMASceneQueryResult Result2 = FMASceneQuery::FindNearestObject(Agent->GetWorld(), Label2, Agent->GetActorLocation());
+            if (Result2.bFound)
+            {
+                Context.PlaceTargetName = Result2.Name;
+                SearchResults.Object2Actor = Result2.Actor;
+                SearchResults.Object2Location = Result2.Location;
+                UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Found Object2 '%s' at (%.0f, %.0f, %.0f)"), 
+                    *Agent->AgentName, *Result2.Name, Result2.Location.X, Result2.Location.Y, Result2.Location.Z);
+            }
+            else
+            {
+                UE_LOG(LogTemp, Warning, TEXT("[ProcessPlace] %s: Object2 not found in scene"), *Agent->AgentName);
+            }
+            break;
         }
     }
 }

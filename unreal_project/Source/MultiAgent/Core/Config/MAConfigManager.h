@@ -52,6 +52,30 @@ struct FMAChargingStationConfig
 };
 
 /**
+ * 可拾取物品配置数据
+ */
+USTRUCT(BlueprintType)
+struct FMAPickupItemConfig
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly)
+    FString ID;
+
+    UPROPERTY(BlueprintReadOnly)
+    FString Name;
+
+    UPROPERTY(BlueprintReadOnly)
+    FString Type;
+
+    UPROPERTY(BlueprintReadOnly)
+    FVector Position = FVector::ZeroVector;
+
+    UPROPERTY(BlueprintReadOnly)
+    TMap<FString, FString> Features;
+};
+
+/**
  * 统一配置管理器
  * 
  * 职责:
@@ -163,6 +187,9 @@ public:
 
     UPROPERTY(BlueprintReadOnly, Category = "Config|Environment")
     TArray<FMAChargingStationConfig> ChargingStations;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Config|Environment")
+    TArray<FMAPickupItemConfig> PickupItems;
 
     //=========================================================================
     // 状态查询

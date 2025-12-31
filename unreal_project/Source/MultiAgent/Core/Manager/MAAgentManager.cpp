@@ -10,6 +10,7 @@
 #include "../../Agent/Character/MAHumanoidCharacter.h"
 #include "../../Agent/Component/Sensor/MACameraSensorComponent.h"
 #include "../../Environment/MAChargingStation.h"
+#include "../../Environment/MAPickupItem.h"
 #include "GameFramework/PlayerStart.h"
 #include "Kismet/GameplayStatics.h"
 
@@ -50,6 +51,9 @@ void UMAAgentManager::SpawnAgentsFromConfig()
     // 生成充电站
     SpawnChargingStations();
     
+    // 生成可拾取物品
+    SpawnPickupItems();
+    
     // 生成 Agents
     const TArray<FMAAgentConfigData>& Configs = ConfigMgr->AgentConfigs;
     int32 TotalCount = Configs.Num();
@@ -85,6 +89,46 @@ void UMAAgentManager::SpawnChargingStations()
             UE_LOG(LogMAAgentManager, Log, TEXT("Spawned charging station: %s"), *Config.ID);
         }
     }
+}
+
+void UMAAgentManager::SpawnPickupItems()
+{
+    UMAConfigManager* ConfigMgr = GetConfigManager();
+    if (!ConfigMgr) return;
+    
+    for (const FMAPickupItemConfig& Config : ConfigMgr->PickupItems)
+    {
+        FActorSpawnParameters SpawnParams;
+        SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+        
+        // 调整生成高度（贴地）
+        FVector SpawnLocation = Config.Position;
+        FHitResult HitResult;
+        FVector TraceStart = FVector(SpawnLocation.X, SpawnLocation.Y, 10000.f);
+        FVector TraceEnd = FVector(SpawnLocation.X, SpawnLocation.Y, -20000.f);
+        
+        if (GetWorld()->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, ECC_Visibility))
+        {
+            SpawnLocation.Z = HitResult.Location.Z + 50.f; // 稍微抬高避免穿模
+        }
+        
+        AMAPickupItem* Item = GetWorld()->SpawnActor<AMAPickupItem>(
+            AMAPickupItem::StaticClass(), 
+            SpawnLocation, 
+            FRotator::ZeroRotator, 
+            SpawnParams
+        );
+        
+        if (Item)
+        {
+            Item->ItemName = Config.Name;
+            SpawnedPickupItems.Add(Item);
+            UE_LOG(LogMAAgentManager, Log, TEXT("Spawned pickup item: %s (%s) at (%.0f, %.0f, %.0f)"), 
+                *Config.Name, *Config.Type, SpawnLocation.X, SpawnLocation.Y, SpawnLocation.Z);
+        }
+    }
+    
+    UE_LOG(LogMAAgentManager, Log, TEXT("Spawned %d pickup items from config"), SpawnedPickupItems.Num());
 }
 
 AMACharacter* UMAAgentManager::SpawnAgentByType(const FString& TypeName, FVector Location, FRotator Rotation, bool bAutoPosition)

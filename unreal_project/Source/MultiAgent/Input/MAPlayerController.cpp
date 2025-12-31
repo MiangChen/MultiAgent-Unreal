@@ -13,6 +13,8 @@
 #include "../Core/Manager/MASelectionManager.h"
 #include "../Core/Manager/MAViewportManager.h"
 #include "../Core/Manager/MAEmergencyManager.h"
+#include "../Core/Manager/MAEditModeManager.h"
+#include "../Environment/MAPointOfInterest.h"
 #include "../UI/MASelectionHUD.h"
 #include "../Agent/Character/MACharacter.h"
 #include "../Agent/Character/MAQuadrupedCharacter.h"
@@ -70,6 +72,7 @@ bool AMAPlayerController::InitializeSubsystems()
     SquadManager = World->GetSubsystem<UMASquadManager>();
     ViewportManager = World->GetSubsystem<UMAViewportManager>();
     EmergencyManager = World->GetSubsystem<UMAEmergencyManager>();
+    EditModeManager = World->GetSubsystem<UMAEditModeManager>();
 
     return AgentManager && CommandManager && SelectionManager && SquadManager && ViewportManager && EmergencyManager;
 }
@@ -172,6 +175,10 @@ void AMAPlayerController::OnLeftClick(const FInputActionValue& Value)
         
     case EMAMouseMode::Modify:
         OnModifyLeftClick();
+        return;
+        
+    case EMAMouseMode::Edit:
+        OnEditLeftClick();
         return;
         
     case EMAMouseMode::Select:
@@ -628,30 +635,32 @@ void AMAPlayerController::OnDisbandSquad(const FInputActionValue& Value)
 
 void AMAPlayerController::OnToggleMouseMode(const FInputActionValue& Value)
 {
-    // 切换: Select -> Modify -> Deployment (如果有待部署单位) -> Select
+    // 切换: Select -> Deployment (如果有待部署单位) -> Modify -> Edit -> Select
     EMAMouseMode NewMode;
     
     switch (CurrentMouseMode)
     {
     case EMAMouseMode::Select:
-        // Select -> Modify
-        NewMode = EMAMouseMode::Modify;
-        break;
-        
-    case EMAMouseMode::Modify:
-        // Modify -> Deployment (如果有待部署单位) 或 Select
+        // 如果背包有待部署单位，切换到部署模式，否则跳过到 Modify
         if (HasPendingDeployments())
         {
             NewMode = EMAMouseMode::Deployment;
         }
         else
         {
-            NewMode = EMAMouseMode::Select;
+            NewMode = EMAMouseMode::Modify;
         }
         break;
         
     case EMAMouseMode::Deployment:
-        // Deployment -> Select
+        NewMode = EMAMouseMode::Modify;
+        break;
+        
+    case EMAMouseMode::Modify:
+        NewMode = EMAMouseMode::Edit;
+        break;
+        
+    case EMAMouseMode::Edit:
         NewMode = EMAMouseMode::Select;
         break;
         
@@ -673,6 +682,10 @@ void AMAPlayerController::OnToggleMouseMode(const FInputActionValue& Value)
     {
         ExitModifyMode();
     }
+    else if (CurrentMouseMode == EMAMouseMode::Edit)
+    {
+        ExitEditMode();
+    }
 
     // 进入新模式
     if (NewMode == EMAMouseMode::Deployment)
@@ -683,6 +696,10 @@ void AMAPlayerController::OnToggleMouseMode(const FInputActionValue& Value)
     else if (NewMode == EMAMouseMode::Modify)
     {
         EnterModifyMode();
+    }
+    else if (NewMode == EMAMouseMode::Edit)
+    {
+        EnterEditMode();
     }
 
     PreviousMouseMode = CurrentMouseMode;
@@ -699,6 +716,10 @@ void AMAPlayerController::OnToggleMouseMode(const FInputActionValue& Value)
     else if (CurrentMouseMode == EMAMouseMode::Modify)
     {
         ExtraInfo = TEXT(" [Click to select Actor, Shift+Click for multi-select]");
+    }
+    else if (CurrentMouseMode == EMAMouseMode::Edit)
+    {
+        ExtraInfo = TEXT(" [Click to create POI, Shift+Click to select]");
     }
 
     GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan,
@@ -1352,5 +1373,144 @@ void AMAPlayerController::OnJumpPressed(const FInputActionValue& Value)
     if (JumpCount > 0)
     {
         UE_LOG(LogTemp, Log, TEXT("[PlayerController] Jump: %d agents jumped"), JumpCount);
+    }
+}
+
+
+// ========== Edit 模式 ==========
+
+void AMAPlayerController::OnEditLeftClick()
+{
+    // 检查鼠标是否在 UI 上，如果是则不处理场景交互
+    if (AMAHUD* HUD = Cast<AMAHUD>(GetHUD()))
+    {
+        if (HUD->IsMouseOverEditWidget())
+        {
+            UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnEditLeftClick: Mouse over UI, skipping scene interaction"));
+            return;
+        }
+    }
+    
+    // 检测 Shift 键状态
+    bool bShiftPressed = IsInputKeyDown(EKeys::LeftShift) || IsInputKeyDown(EKeys::RightShift);
+    
+    if (bShiftPressed)
+    {
+        // Shift+Click: 选择 Actor 或 POI
+        FHitResult HitResult;
+        if (GetHitResultUnderCursor(ECC_Visibility, false, HitResult))
+        {
+            AActor* HitActor = HitResult.GetActor();
+            
+            if (HitActor)
+            {
+                // 检查是否点击了 POI
+                AMAPointOfInterest* POI = Cast<AMAPointOfInterest>(HitActor);
+                if (POI)
+                {
+                    // 点击 POI: 切换选择状态
+                    if (EditModeManager)
+                    {
+                        if (EditModeManager->GetSelectedPOIs().Contains(POI))
+                        {
+                            EditModeManager->DeselectObject(POI);
+                            UE_LOG(LogTemp, Log, TEXT("[PlayerController] Edit Mode: Deselected POI at %s"), 
+                                *POI->GetActorLocation().ToString());
+                        }
+                        else
+                        {
+                            EditModeManager->SelectPOI(POI);
+                            UE_LOG(LogTemp, Log, TEXT("[PlayerController] Edit Mode: Selected POI at %s"), 
+                                *POI->GetActorLocation().ToString());
+                        }
+                    }
+                    return;
+                }
+                
+                // 点击普通 Actor: 选择 Actor (单选)
+                if (EditModeManager)
+                {
+                    if (EditModeManager->GetSelectedActor() == HitActor)
+                    {
+                        EditModeManager->DeselectObject(HitActor);
+                        UE_LOG(LogTemp, Log, TEXT("[PlayerController] Edit Mode: Deselected Actor %s"), 
+                            *HitActor->GetName());
+                    }
+                    else
+                    {
+                        EditModeManager->SelectActor(HitActor);
+                        UE_LOG(LogTemp, Log, TEXT("[PlayerController] Edit Mode: Selected Actor %s"), 
+                            *HitActor->GetName());
+                    }
+                }
+                return;
+            }
+        }
+        
+        // 点击空白区域，清除选择
+        if (EditModeManager)
+        {
+            EditModeManager->ClearSelection();
+            UE_LOG(LogTemp, Log, TEXT("[PlayerController] Edit Mode: Cleared selection"));
+        }
+    }
+    else
+    {
+        // 普通 Click: 创建 POI
+        FVector HitLocation;
+        if (GetMouseHitLocation(HitLocation))
+        {
+            if (EditModeManager)
+            {
+                AMAPointOfInterest* NewPOI = EditModeManager->CreatePOI(HitLocation);
+                if (NewPOI)
+                {
+                    UE_LOG(LogTemp, Log, TEXT("[PlayerController] Edit Mode: Created POI at %s"), 
+                        *HitLocation.ToString());
+                    
+                    GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green,
+                        FString::Printf(TEXT("POI: (%.0f, %.0f, %.0f)"), 
+                            HitLocation.X, HitLocation.Y, HitLocation.Z));
+                }
+            }
+        }
+    }
+}
+
+void AMAPlayerController::EnterEditMode()
+{
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] EnterEditMode"));
+    
+    // 检查 Edit Mode 是否可用
+    if (EditModeManager && !EditModeManager->IsEditModeAvailable())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Edit Mode is not available (source scene graph not found)"));
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, 
+            TEXT("Edit Mode 不可用: 源场景图文件未找到"));
+        return;
+    }
+    
+    // 通知 HUD 显示 EditWidget
+    if (AMAHUD* HUD = Cast<AMAHUD>(GetHUD()))
+    {
+        HUD->ShowEditWidget();
+    }
+}
+
+void AMAPlayerController::ExitEditMode()
+{
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] ExitEditMode"));
+    
+    // 清除所有 POI 和选择
+    if (EditModeManager)
+    {
+        EditModeManager->ClearSelection();
+        EditModeManager->DestroyAllPOIs();
+    }
+    
+    // 通知 HUD 隐藏 EditWidget
+    if (AMAHUD* HUD = Cast<AMAHUD>(GetHUD()))
+    {
+        HUD->HideEditWidget();
     }
 }

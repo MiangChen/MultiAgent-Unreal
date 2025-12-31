@@ -5,6 +5,8 @@
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "../Agent/Character/MACharacter.h"
+#include "../Agent/Character/MAHumanoidCharacter.h"
+#include "../Agent/Character/MAUGVCharacter.h"
 
 AMAPickupItem::AMAPickupItem()
 {
@@ -90,4 +92,178 @@ void AMAPickupItem::SetPhysicsEnabled(bool bEnabled)
     {
         MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     }
+}
+
+// ========== 附着/分离系统实现 ==========
+
+void AMAPickupItem::AttachToHand(AMACharacter* Character)
+{
+    if (!Character)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[MAPickupItem] AttachToHand: Character is null"));
+        return;
+    }
+    
+    // 如果已经被其他承载者持有，先分离
+    if (CurrentCarrier.IsValid())
+    {
+        DetachFromCarrier();
+    }
+    
+    // 禁用物理模拟 (Requirements 8.1)
+    SetPhysicsEnabled(false);
+    
+    // 附着到角色 (Requirements 8.2)
+    AttachToActor(Character, FAttachmentTransformRules::KeepWorldTransform);
+    
+    // 设置相对位置到手部位置
+    // 使用 Humanoid 的 HandAttachOffset，如果是其他角色类型则使用默认偏移
+    // 默认偏移：身体前方 60cm，高度 -20cm（大约在腰部/手部位置）
+    FVector AttachOffset = FVector(60.f, 0.f, -0.f);
+    if (AMAHumanoidCharacter* Humanoid = Cast<AMAHumanoidCharacter>(Character))
+    {
+        AttachOffset = Humanoid->HandAttachOffset;
+    }
+    SetActorRelativeLocation(AttachOffset);
+    
+    // 记录承载者
+    CurrentCarrier = Character;
+    bCanBePickedUp = false;
+    
+    UE_LOG(LogTemp, Log, TEXT("[MAPickupItem] %s attached to hand of %s at offset (%.1f, %.1f, %.1f)"), 
+        *ItemName, *Character->AgentName, AttachOffset.X, AttachOffset.Y, AttachOffset.Z);
+    
+    // 调用 OnPickedUp 回调
+    OnPickedUp(Character);
+}
+
+void AMAPickupItem::AttachToUGV(AMAUGVCharacter* UGV)
+{
+    if (!UGV)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[MAPickupItem] AttachToUGV: UGV is null"));
+        return;
+    }
+    
+    // 如果已经被其他承载者持有，先分离
+    if (CurrentCarrier.IsValid())
+    {
+        DetachFromCarrier();
+    }
+    
+    // 禁用物理模拟 (Requirements 8.1)
+    SetPhysicsEnabled(false);
+    
+    // 使用 UGV 的 LoadCargo 方法附着 (Requirements 8.5)
+    // LoadCargo 会处理附着和添加到 CarriedItems 列表
+    if (UGV->LoadCargo(this))
+    {
+        // 记录承载者
+        CurrentCarrier = UGV;
+        bCanBePickedUp = false;
+        
+        UE_LOG(LogTemp, Log, TEXT("[MAPickupItem] %s attached to UGV %s"), 
+            *ItemName, *UGV->AgentName);
+    }
+    else
+    {
+        // LoadCargo 失败，恢复物理
+        SetPhysicsEnabled(true);
+        UE_LOG(LogTemp, Warning, TEXT("[MAPickupItem] Failed to attach %s to UGV %s"), 
+            *ItemName, *UGV->AgentName);
+    }
+}
+
+void AMAPickupItem::PlaceOnGround(FVector Location)
+{
+    // 从当前承载者分离 (Requirements 8.3)
+    DetachFromCarrier();
+    
+    // 设置位置
+    SetActorLocation(Location);
+    
+    // 重新启用物理模拟 (Requirements 8.4)
+    SetPhysicsEnabled(true);
+    
+    bCanBePickedUp = true;
+    
+    UE_LOG(LogTemp, Log, TEXT("[MAPickupItem] %s placed on ground at %s"), 
+        *ItemName, *Location.ToString());
+    
+    // 调用 OnDropped 回调
+    OnDropped(Location);
+}
+
+void AMAPickupItem::PlaceOnObject(AMAPickupItem* TargetObject)
+{
+    if (!TargetObject)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[MAPickupItem] PlaceOnObject: TargetObject is null"));
+        return;
+    }
+    
+    // 从当前承载者分离 (Requirements 8.3)
+    DetachFromCarrier();
+    
+    // 计算目标位置：在目标物体上方
+    // 获取目标物体的边界框来确定堆叠高度
+    FVector TargetLocation = TargetObject->GetActorLocation();
+    FVector TargetBoundsExtent = FVector::ZeroVector;
+    FVector MyBoundsExtent = FVector::ZeroVector;
+    
+    if (TargetObject->MeshComponent)
+    {
+        TargetBoundsExtent = TargetObject->MeshComponent->Bounds.BoxExtent;
+    }
+    if (MeshComponent)
+    {
+        MyBoundsExtent = MeshComponent->Bounds.BoxExtent;
+    }
+    
+    // 放置在目标物体顶部
+    FVector PlaceLocation = TargetLocation;
+    PlaceLocation.Z += TargetBoundsExtent.Z + MyBoundsExtent.Z;
+    
+    SetActorLocation(PlaceLocation);
+    
+    // 重新启用物理模拟 (Requirements 8.4)
+    SetPhysicsEnabled(true);
+    
+    bCanBePickedUp = true;
+    
+    UE_LOG(LogTemp, Log, TEXT("[MAPickupItem] %s placed on object %s at %s"), 
+        *ItemName, *TargetObject->ItemName, *PlaceLocation.ToString());
+    
+    // 调用 OnDropped 回调
+    OnDropped(PlaceLocation);
+}
+
+void AMAPickupItem::DetachFromCarrier()
+{
+    if (!CurrentCarrier.IsValid())
+    {
+        return;
+    }
+    
+    AActor* Carrier = CurrentCarrier.Get();
+    
+    // 如果承载者是 UGV，使用 UnloadCargo 方法
+    if (AMAUGVCharacter* UGV = Cast<AMAUGVCharacter>(Carrier))
+    {
+        // UnloadCargo 会处理分离和从 CarriedItems 列表移除
+        // 但我们不想让它设置位置，所以直接操作
+        if (UGV->CarriedItems.Contains(this))
+        {
+            UGV->CarriedItems.Remove(this);
+        }
+    }
+    
+    // 从父 Actor 分离 (Requirements 8.3)
+    DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+    
+    // 清除承载者引用
+    CurrentCarrier.Reset();
+    
+    UE_LOG(LogTemp, Log, TEXT("[MAPickupItem] %s detached from carrier %s"), 
+        *ItemName, *Carrier->GetName());
 }

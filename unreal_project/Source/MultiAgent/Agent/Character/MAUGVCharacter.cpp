@@ -134,7 +134,26 @@ bool AMAUGVCharacter::LoadCargo(AActor* Item)
     
     // 附着到 UGV
     Item->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
-    Item->SetActorRelativeLocation(FVector(0.f, 0.f, 100.f));
+    
+    // 计算物体放置高度：UGV 顶部甲板
+    // UGV 模型向下偏移了 88cm（与胶囊体底部对齐）
+    // UGV 模型高度大约 50-60cm，所以顶部甲板大约在 -88 + 50 = -38cm
+    // 再加上物体自身的半高（假设 25cm 的方块）
+    // 最终高度约 -38 + 25 = -13cm，取整为 -10cm
+    // 
+    // 但实际上我们需要根据物体的边界来计算
+    float CargoHeight = -30.f;  // UGV 顶部甲板高度（相对于角色原点）
+    
+    // 如果物体有边界信息，加上物体的半高
+    if (UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(Item->GetRootComponent()))
+    {
+        FVector BoundsExtent = PrimComp->Bounds.BoxExtent;
+        CargoHeight += BoundsExtent.Z;  // 加上物体半高，使物体底部贴在甲板上
+    }
+    
+    Item->SetActorRelativeLocation(FVector(0.f, 0.f, CargoHeight));
+    
+    UE_LOG(LogTemp, Log, TEXT("[UGV %s] Loaded cargo at relative Z=%.1f"), *AgentName, CargoHeight);
     
     return true;
 }
