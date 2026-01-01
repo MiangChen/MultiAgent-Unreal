@@ -126,6 +126,9 @@ protected:
 
     // 跳跃 (空格键)
     void OnJumpPressed(const FInputActionValue& Value);
+    
+    // Viewport 录制 (F9 键)
+    void OnToggleViewportRecording(const FInputActionValue& Value);
 
     // 获取鼠标点击位置
     bool GetMouseHitLocation(FVector& OutLocation);

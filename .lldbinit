@@ -1,0 +1,19 @@
+# UE5 LLDB 格式化脚本
+
+# FVector 格式化
+type summary add -x "^FVector$" --summary-string "(X=${var.X}, Y=${var.Y}, Z=${var.Z})"
+
+# FVector2D 格式化
+type summary add -x "^FVector2D$" --summary-string "(X=${var.X}, Y=${var.Y})"
+
+# FRotator 格式化
+type summary add -x "^FRotator$" --summary-string "(Pitch=${var.Pitch}, Yaw=${var.Yaw}, Roll=${var.Roll})"
+
+# FString 格式化 (简化版)
+type summary add -x "^FString$" --summary-string "${var.Data.AllocatorInstance.Data}"
+
+# FName 格式化
+type summary add -x "^FName$" --summary-string "${var.DisplayIndex}"
+
+# bool 格式化
+type summary add -x "^bool$" --summary-string "${var}"

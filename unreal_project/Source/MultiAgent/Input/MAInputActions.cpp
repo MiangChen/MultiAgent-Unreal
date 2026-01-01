@@ -66,6 +66,7 @@ void UMAInputActions::Initialize()
     IA_MoveUp = CreateInputAction(TEXT("IA_MoveUp"));
     IA_MoveDown = CreateInputAction(TEXT("IA_MoveDown"));
     IA_Jump = CreateInputAction(TEXT("IA_Jump"));
+    IA_ToggleViewportRecording = CreateInputAction(TEXT("IA_ToggleViewportRecording"));
 
     // 创建 Input Mapping Contexts
     IMC_RTS = NewObject<UInputMappingContext>(this, TEXT("IMC_RTS"));
@@ -119,6 +120,9 @@ void UMAInputActions::Initialize()
 
     // 跳跃 (空格键)
     AddKeyMapping(IMC_RTS, IA_Jump, EKeys::SpaceBar);
+    
+    // Viewport 录制 (F9 键)
+    AddKeyMapping(IMC_RTS, IA_ToggleViewportRecording, EKeys::F9);
 
     // ========== IMC_AgentControl 按键映射 (WASD、视角) ==========
     // 仅在 Agent View Mode 时由 MAAgentInputComponent 添加

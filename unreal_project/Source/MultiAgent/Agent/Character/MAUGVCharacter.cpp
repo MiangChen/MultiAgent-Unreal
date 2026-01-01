@@ -20,7 +20,7 @@ AMAUGVCharacter::AMAUGVCharacter()
     // 地面移动设置
     UCharacterMovementComponent* MovementComp = GetCharacterMovement();
     MovementComp->SetMovementMode(MOVE_Walking);
-    MovementComp->MaxWalkSpeed = 300.f;
+    MovementComp->MaxWalkSpeed = 500.f;
     MovementComp->bOrientRotationToMovement = true;
     MovementComp->RotationRate = FRotator(0.f, 120.f, 0.f);
     // MovementComp->GravityScale = 1.f;
@@ -38,7 +38,7 @@ AMAUGVCharacter::AMAUGVCharacter()
         UGVMeshComponent->SetStaticMesh(MeshAsset.Object);
         // 调整模型位置，使其底部与胶囊体底部对齐
         // 胶囊体半高默认 88cm，模型需要向下偏移
-        UGVMeshComponent->SetRelativeLocation(FVector(0.f, 0.f, -88.f));
+        // UGVMeshComponent->SetRelativeLocation(FVector(0.f, 0.f, -8.f));
         UGVMeshComponent->SetRelativeScale3D(FVector(1.f, 1.f, 1.f));
     }
     else
@@ -142,7 +142,7 @@ bool AMAUGVCharacter::LoadCargo(AActor* Item)
     // 最终高度约 -38 + 25 = -13cm，取整为 -10cm
     // 
     // 但实际上我们需要根据物体的边界来计算
-    float CargoHeight = -30.f;  // UGV 顶部甲板高度（相对于角色原点）
+    float CargoHeight = 58.f;  // UGV 顶部甲板高度（相对于角色原点）
     
     // 如果物体有边界信息，加上物体的半高
     if (UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(Item->GetRootComponent()))

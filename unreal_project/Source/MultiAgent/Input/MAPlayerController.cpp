@@ -6,6 +6,7 @@
 #include "MAPlayerController.h"
 #include "MAInputActions.h"
 #include "../Core/Manager/MAAgentManager.h"
+#include "../Core/Manager/MAViewportRecorder.h"
 #include "../UI/MAHUD.h"
 #include "../Core/Manager/MACommandManager.h"
 #include "../Core/Manager/MASquadManager.h"
@@ -146,6 +147,9 @@ void AMAPlayerController::SetupInputComponent()
 
         // 跳跃 (空格键)
         EIC->BindAction(InputActions->IA_Jump, ETriggerEvent::Started, this, &AMAPlayerController::OnJumpPressed);
+        
+        // Viewport 录制 (F9 键)
+        EIC->BindAction(InputActions->IA_ToggleViewportRecording, ETriggerEvent::Started, this, &AMAPlayerController::OnToggleViewportRecording);
     }
 }
 
@@ -1512,5 +1516,23 @@ void AMAPlayerController::ExitEditMode()
     if (AMAHUD* HUD = Cast<AMAHUD>(GetHUD()))
     {
         HUD->HideEditWidget();
+    }
+}
+
+// ========== Viewport 录制 (F9 键) ==========
+
+void AMAPlayerController::OnToggleViewportRecording(const FInputActionValue& Value)
+{
+    UWorld* World = GetWorld();
+    if (!World) return;
+    
+    UMAViewportRecorder* Recorder = World->GetSubsystem<UMAViewportRecorder>();
+    if (Recorder)
+    {
+        Recorder->ToggleRecording();
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] ViewportRecorder not found!"));
     }
 }

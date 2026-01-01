@@ -106,6 +106,9 @@ private:
     
     /** 发送时间步反馈到 Python 端 */
     void SendTimeStepFeedbackToPython(const FMATimeStepFeedback& Feedback);
+    
+    /** 发送技能列表执行完成/中断反馈到 Python 端 */
+    void SendSkillListCompletedFeedbackToPython(bool bCompleted, bool bInterrupted, int32 CompletedSteps, int32 TotalSteps);
 
     TMap<EMACommand, FGameplayTag> CommandTagCache;
     

@@ -3,7 +3,7 @@
 #include "SK_Search.h"
 #include "../MASkillTags.h"
 #include "../MASkillComponent.h"
-#include "../Utils/MAGeometryUtils.h"
+#include "../Utils/MASkillGeometryUtils.h"
 #include "../../Character/MACharacter.h"
 #include "TimerManager.h"
 
@@ -21,6 +21,7 @@ void USK_Search::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const 
     CachedHandle = Handle;
     CachedActivationInfo = ActivationInfo;
     CurrentWaypointIndex = 0;
+    LastUIUpdateIndex = -1;
     
     // 重置结果状态
     bSearchSucceeded = false;
@@ -63,11 +64,84 @@ void USK_Search::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const 
     Character->ShowAbilityStatus(TEXT("Search"), FString::Printf(TEXT("0/%d waypoints"), SearchPath.Num()));
     Character->bIsMoving = true;
     
-    // 使用定时器平滑移动，而不是逐航点导航
+    // 使用 Tick 而不是定时器，更平滑且性能更好
     if (UWorld* World = Character->GetWorld())
     {
-        World->GetTimerManager().SetTimer(UpdateTimerHandle, this, &USK_Search::UpdateSearch, 0.05f, true);
+        // 绑定到 Tick
+        TickDelegateHandle = FTSTicker::GetCoreTicker().AddTicker(
+            FTickerDelegate::CreateUObject(this, &USK_Search::TickSearch), 0.0f);
     }
+}
+
+bool USK_Search::TickSearch(float DeltaTime)
+{
+    AMACharacter* Character = GetOwningCharacter();
+    if (!Character)
+    {
+        bSearchSucceeded = false;
+        SearchResultMessage = TEXT("Search failed: Character lost during search");
+        EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
+        return false; // 停止 Tick
+    }
+    
+    if (CurrentWaypointIndex >= SearchPath.Num())
+    {
+        // 搜索完成
+        UMASkillComponent* SkillComp = Character->GetSkillComponent();
+        int32 FoundCount = SkillComp ? SkillComp->GetFeedbackContext().FoundObjects.Num() : 0;
+        
+        bSearchSucceeded = true;
+        SearchResultMessage = FoundCount > 0 ? 
+            FString::Printf(TEXT("Search succeeded: Completed %d waypoints, found %d objects"), SearchPath.Num(), FoundCount) :
+            FString::Printf(TEXT("Search succeeded: Completed %d waypoints, no objects found"), SearchPath.Num());
+        
+        Character->ShowAbilityStatus(TEXT("Search"), TEXT("Complete!"));
+        EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, false);
+        return false; // 停止 Tick
+    }
+    
+    FVector CurrentLocation = Character->GetActorLocation();
+    FVector TargetLocation = SearchPath[CurrentWaypointIndex];
+    TargetLocation.Z = CurrentLocation.Z;  // 保持高度
+    
+    float Distance = FVector::Dist2D(CurrentLocation, TargetLocation);
+    
+    if (Distance < 100.f)
+    {
+        // 到达当前航点，切换到下一个（阈值放宽到 100cm 加快转弯）
+        CurrentWaypointIndex++;
+        
+        // 每 5 个航点更新一次 UI，减少 UI 更新频率
+        if (CurrentWaypointIndex - LastUIUpdateIndex >= 5 || CurrentWaypointIndex >= SearchPath.Num())
+        {
+            LastUIUpdateIndex = CurrentWaypointIndex;
+            if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
+            {
+                SkillComp->UpdateFeedback(CurrentWaypointIndex, SearchPath.Num());
+            }
+            Character->ShowAbilityStatus(TEXT("Search"), 
+                FString::Printf(TEXT("%d/%d waypoints"), CurrentWaypointIndex, SearchPath.Num()));
+        }
+        return true; // 继续 Tick
+    }
+    
+    // 平滑移动到目标航点
+    FVector Direction = (TargetLocation - CurrentLocation).GetSafeNormal2D();
+    float MoveSpeed = 600.f;  // cm/s (10 m/s)，大幅提高搜索速度
+    FVector NewLocation = CurrentLocation + Direction * MoveSpeed * DeltaTime;
+    NewLocation.Z = CurrentLocation.Z;
+    Character->SetActorLocation(NewLocation);
+    
+    // 平滑朝向移动方向
+    if (!Direction.IsNearlyZero())
+    {
+        FRotator CurrentRotation = Character->GetActorRotation();
+        FRotator TargetRotation = FRotator(0.f, Direction.Rotation().Yaw, 0.f);
+        FRotator NewRotation = FMath::RInterpTo(CurrentRotation, TargetRotation, DeltaTime, 8.f);
+        Character->SetActorRotation(NewRotation);
+    }
+    
+    return true; // 继续 Tick
 }
 
 void USK_Search::GenerateSearchPath()
@@ -86,7 +160,7 @@ void USK_Search::GenerateSearchPath()
     if (Boundary.Num() < 3) return;
     
     // 使用几何工具生成割草机航线
-    SearchPath = FMAGeometryUtils::GenerateLawnmowerPath(Boundary, ScanWidth);
+    SearchPath = FMASkillGeometryUtils::GenerateLawnmowerPath(Boundary, ScanWidth);
     
     // 保存到搜索结果缓存
     SkillComp->GetSearchResultsMutable().SearchPath = SearchPath;
@@ -94,68 +168,7 @@ void USK_Search::GenerateSearchPath()
 
 void USK_Search::UpdateSearch()
 {
-    AMACharacter* Character = GetOwningCharacter();
-    if (!Character)
-    {
-        bSearchSucceeded = false;
-        SearchResultMessage = TEXT("Search failed: Character lost during search");
-        EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
-        return;
-    }
-    
-    if (CurrentWaypointIndex >= SearchPath.Num())
-    {
-        // 搜索完成
-        UMASkillComponent* SkillComp = Character->GetSkillComponent();
-        int32 FoundCount = SkillComp ? SkillComp->GetFeedbackContext().FoundObjects.Num() : 0;
-        
-        bSearchSucceeded = true;
-        SearchResultMessage = FoundCount > 0 ? 
-            FString::Printf(TEXT("Search succeeded: Completed %d waypoints, found %d objects"), SearchPath.Num(), FoundCount) :
-            FString::Printf(TEXT("Search succeeded: Completed %d waypoints, no objects found"), SearchPath.Num());
-        
-        Character->ShowAbilityStatus(TEXT("Search"), TEXT("Complete!"));
-        EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, false);
-        return;
-    }
-    
-    FVector CurrentLocation = Character->GetActorLocation();
-    FVector TargetLocation = SearchPath[CurrentWaypointIndex];
-    TargetLocation.Z = CurrentLocation.Z;  // 保持高度
-    
-    float Distance = FVector::Dist2D(CurrentLocation, TargetLocation);
-    
-    if (Distance < 50.f)
-    {
-        // 到达当前航点，切换到下一个
-        CurrentWaypointIndex++;
-        
-        // 更新进度显示
-        if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
-        {
-            SkillComp->UpdateFeedback(CurrentWaypointIndex, SearchPath.Num());
-        }
-        Character->ShowAbilityStatus(TEXT("Search"), 
-            FString::Printf(TEXT("%d/%d waypoints"), CurrentWaypointIndex, SearchPath.Num()));
-        return;
-    }
-    
-    // 平滑移动到目标航点
-    FVector Direction = (TargetLocation - CurrentLocation).GetSafeNormal2D();
-    float MoveSpeed = 300.f;  // cm/s
-    float DeltaTime = 0.05f;  // 定时器间隔
-    FVector NewLocation = CurrentLocation + Direction * MoveSpeed * DeltaTime;
-    NewLocation.Z = CurrentLocation.Z;
-    Character->SetActorLocation(NewLocation);
-    
-    // 平滑朝向移动方向
-    if (!Direction.IsNearlyZero())
-    {
-        FRotator CurrentRotation = Character->GetActorRotation();
-        FRotator TargetRotation = FRotator(0.f, Direction.Rotation().Yaw, 0.f);
-        FRotator NewRotation = FMath::RInterpTo(CurrentRotation, TargetRotation, DeltaTime, 8.f);
-        Character->SetActorRotation(NewRotation);
-    }
+    // 保留此方法以兼容，但不再使用（已改用 TickSearch）
 }
 
 void USK_Search::NavigateToNextWaypoint()
@@ -177,6 +190,13 @@ void USK_Search::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGame
     bool bSuccessToNotify = bSearchSucceeded;
     FString MessageToNotify = SearchResultMessage;
     UMASkillComponent* SkillCompToNotify = nullptr;
+    
+    // 移除 Ticker
+    if (TickDelegateHandle.IsValid())
+    {
+        FTSTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
+        TickDelegateHandle.Reset();
+    }
     
     if (Character)
     {

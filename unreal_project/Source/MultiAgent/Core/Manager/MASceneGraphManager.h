@@ -1,27 +1,40 @@
 // MASceneGraphManager.h
 // 场景图管理器 - 负责场景标签数据的解析、验证和持久化
-// Requirements: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 2.3, 2.4, 3.1, 3.3, 4.1, 4.2, 4.3, 4.4, 6.1, 6.2, 6.3, 6.4, 6.5, 7.1, 7.2, 7.3, 7.4, 8.1
+// Requirements: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 2.3, 2.4, 2.5, 3.1, 3.3, 4.1, 4.2, 4.3, 4.4, 6.1, 6.2, 6.3, 6.4, 6.5, 7.1, 7.2, 7.3, 7.4, 8.1, 10.3, 10.4
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Dom/JsonObject.h"
+#include "MASceneGraphTypes.h"
 #include "MASceneGraphManager.generated.h"
 
 /**
  * 场景图节点数据结构
- * Requirements: 7.1, 7.2, 7.3, 7.4
+ * Requirements: 7.1, 7.2, 7.3, 7.4, 10.1, 10.2, 10.6
  * 
  * 支持三种形状类型:
  * - point: 单个 Actor，使用 Guid 字段和 shape.center
  * - polygon: 多个 Actor 组成的多边形，使用 GuidArray 和 shape.vertices
  * - linestring: 多个 Actor 组成的线串，使用 GuidArray 和 shape.points
+ * 
+ * 支持的节点类别:
+ * - building: 建筑物
+ * - trans_facility: 交通设施 (道路、路口)
+ * - prop: 道具 (雕像、天线、水塔等)
+ * - robot: 机器人 (UAV, UGV, Quadruped, Humanoid)
+ * - pickup_item: 可拾取物品
+ * - charging_station: 充电站
  */
 USTRUCT(BlueprintType)
 struct FMASceneGraphNode
 {
     GENERATED_BODY()
+
+    //=========================================================================
+    // 基础字段 (现有)
+    //=========================================================================
 
     /** 节点唯一标识 */
     UPROPERTY(BlueprintReadWrite, Category = "SceneGraph")
@@ -31,11 +44,11 @@ struct FMASceneGraphNode
     UPROPERTY(BlueprintReadWrite, Category = "SceneGraph")
     FString Guid;
 
-    /** 节点类型 (intersection, building, etc.) */
+    /** 节点类型 (intersection, building, robot, pickup_item, etc.) */
     UPROPERTY(BlueprintReadWrite, Category = "SceneGraph")
     FString Type;
 
-    /** 自动生成的标签 (Intersection-12) */
+    /** 自动生成的标签 (Intersection-12, UAV-1, RedBox) */
     UPROPERTY(BlueprintReadWrite, Category = "SceneGraph")
     FString Label;
 
@@ -43,7 +56,7 @@ struct FMASceneGraphNode
     UPROPERTY(BlueprintReadWrite, Category = "SceneGraph")
     FVector Center;
 
-    /** 形状类型: "point", "polygon", "linestring" */
+    /** 形状类型: "point", "polygon", "linestring", "prism" */
     UPROPERTY(BlueprintReadWrite, Category = "SceneGraph")
     FString ShapeType;
 
@@ -55,10 +68,91 @@ struct FMASceneGraphNode
     UPROPERTY(BlueprintReadWrite, Category = "SceneGraph")
     FString RawJson;
 
+    //=========================================================================
+    // 新增字段 - 分类 (Requirements: 10.1, 10.2, 10.6)
+    //=========================================================================
+
+    /** 节点类别: building, trans_facility, prop, robot, pickup_item, charging_station */
+    UPROPERTY(BlueprintReadWrite, Category = "SceneGraph")
+    FString Category;
+
+    //=========================================================================
+    // 新增字段 - 动态节点专用 (Requirements: 10.1, 10.2)
+    //=========================================================================
+
+    /** 是否为动态节点 (机器人、可移动物体等) */
+    UPROPERTY(BlueprintReadWrite, Category = "SceneGraph")
+    bool bIsDynamic = false;
+
+    /** Agent 类型: UAV, UGV, Quadruped, Humanoid (仅机器人节点) */
+    UPROPERTY(BlueprintReadWrite, Category = "SceneGraph")
+    FString AgentType;
+
+    /** 旋转角度 (仅动态节点) */
+    UPROPERTY(BlueprintReadWrite, Category = "SceneGraph")
+    FRotator Rotation;
+
+    //=========================================================================
+    // 新增字段 - PickupItem 专用 (Requirements: 10.2)
+    //=========================================================================
+
+    /** 特征属性: color, name, item_type 等 */
+    UPROPERTY(BlueprintReadWrite, Category = "SceneGraph")
+    TMap<FString, FString> Features;
+
+    /** 是否被携带 */
+    UPROPERTY(BlueprintReadWrite, Category = "SceneGraph")
+    bool bIsCarried = false;
+
+    /** 携带者 ID (机器人 ID) */
+    UPROPERTY(BlueprintReadWrite, Category = "SceneGraph")
+    FString CarrierId;
+
+    //=========================================================================
+    // 构造函数
+    //=========================================================================
+
     FMASceneGraphNode()
         : Center(FVector::ZeroVector)
+        , bIsDynamic(false)
+        , Rotation(FRotator::ZeroRotator)
+        , bIsCarried(false)
     {
     }
+
+    //=========================================================================
+    // 辅助方法 - 类型判断 (Requirements: 10.1, 10.2, 10.6)
+    //=========================================================================
+
+    /** 是否为机器人节点 */
+    bool IsRobot() const { return Category == TEXT("robot") || Type == TEXT("robot"); }
+
+    /** 是否为可拾取物品节点 */
+    bool IsPickupItem() const { return Category == TEXT("pickup_item") || Type == TEXT("pickup_item"); }
+
+    /** 是否为充电站节点 */
+    bool IsChargingStation() const { return Category == TEXT("charging_station") || Type == TEXT("charging_station"); }
+
+    /** 是否为建筑物节点 */
+    bool IsBuilding() const { return Category == TEXT("building") || Type == TEXT("building"); }
+
+    /** 是否为道路节点 */
+    bool IsRoad() const { return Type == TEXT("road_segment") || Type == TEXT("street_segment"); }
+
+    /** 是否为路口节点 */
+    bool IsIntersection() const { return Type == TEXT("intersection"); }
+
+    /** 是否为道具节点 */
+    bool IsProp() const { return Category == TEXT("prop"); }
+
+    /** 是否为交通设施节点 (道路或路口) */
+    bool IsTransFacility() const { return Category == TEXT("trans_facility"); }
+
+    /** 节点是否有效 (至少有 ID) */
+    bool IsValid() const { return !Id.IsEmpty(); }
+
+    /** 获取显示名称 (优先使用 Label，否则使用 Id) */
+    FString GetDisplayName() const { return Label.IsEmpty() ? Id : Label; }
 };
 
 /**
@@ -189,6 +283,138 @@ public:
     UFUNCTION(BlueprintCallable, Category = "SceneGraph")
     TArray<FMASceneGraphNode> GetAllNodes() const;
 
+    //=========================================================================
+    // 分类查询接口 (委托给 MASceneGraphQuery)
+    // Requirements: 2.2
+    //=========================================================================
+
+    /**
+     * 获取所有建筑物节点
+     * @return 建筑物节点数组
+     */
+    UFUNCTION(BlueprintCallable, Category = "SceneGraph|Query")
+    TArray<FMASceneGraphNode> GetAllBuildings() const;
+
+    /**
+     * 获取所有道路节点
+     * @return 道路节点数组
+     */
+    UFUNCTION(BlueprintCallable, Category = "SceneGraph|Query")
+    TArray<FMASceneGraphNode> GetAllRoads() const;
+
+    /**
+     * 获取所有路口节点
+     * @return 路口节点数组
+     */
+    UFUNCTION(BlueprintCallable, Category = "SceneGraph|Query")
+    TArray<FMASceneGraphNode> GetAllIntersections() const;
+
+    /**
+     * 获取所有道具节点
+     * @return 道具节点数组
+     */
+    UFUNCTION(BlueprintCallable, Category = "SceneGraph|Query")
+    TArray<FMASceneGraphNode> GetAllProps() const;
+
+    /**
+     * 获取所有机器人节点
+     * @return 机器人节点数组
+     */
+    UFUNCTION(BlueprintCallable, Category = "SceneGraph|Query")
+    TArray<FMASceneGraphNode> GetAllRobots() const;
+
+    /**
+     * 获取所有可拾取物品节点
+     * @return 可拾取物品节点数组
+     */
+    UFUNCTION(BlueprintCallable, Category = "SceneGraph|Query")
+    TArray<FMASceneGraphNode> GetAllPickupItems() const;
+
+    /**
+     * 获取所有充电站节点
+     * @return 充电站节点数组
+     */
+    UFUNCTION(BlueprintCallable, Category = "SceneGraph|Query")
+    TArray<FMASceneGraphNode> GetAllChargingStations() const;
+
+    //=========================================================================
+    // 语义查询接口 (委托给 MASceneGraphQuery)
+    // Requirements: 2.3
+    //=========================================================================
+
+    /**
+     * 根据语义标签查找节点
+     * @param Label 语义标签
+     * @return 第一个匹配的节点，如果未找到则返回无效节点
+     */
+    UFUNCTION(BlueprintCallable, Category = "SceneGraph|Query")
+    FMASceneGraphNode FindNodeByLabel(const FMASemanticLabel& Label) const;
+
+    /**
+     * 查找最近的匹配节点
+     * @param Label 语义标签
+     * @param FromLocation 起始位置
+     * @return 最近的匹配节点，如果未找到则返回无效节点
+     */
+    UFUNCTION(BlueprintCallable, Category = "SceneGraph|Query")
+    FMASceneGraphNode FindNearestNode(const FMASemanticLabel& Label, const FVector& FromLocation) const;
+
+    /**
+     * 在边界内查找匹配节点
+     * @param Label 语义标签
+     * @param BoundaryVertices 边界多边形顶点
+     * @return 在边界内且匹配标签的节点数组
+     */
+    UFUNCTION(BlueprintCallable, Category = "SceneGraph|Query")
+    TArray<FMASceneGraphNode> FindNodesInBoundary(const FMASemanticLabel& Label, const TArray<FVector>& BoundaryVertices) const;
+
+    /**
+     * 判断点是否在任意建筑物内部
+     * @param Point 要检查的点
+     * @return 是否在建筑物内部
+     */
+    UFUNCTION(BlueprintCallable, Category = "SceneGraph|Query")
+    bool IsPointInsideBuilding(const FVector& Point) const;
+
+    /**
+     * 查找最近的地标
+     * @param Location 起始位置
+     * @param MaxDistance 最大搜索距离
+     * @return 最近的地标节点，如果未找到则返回无效节点
+     */
+    UFUNCTION(BlueprintCallable, Category = "SceneGraph|Query")
+    FMASceneGraphNode FindNearestLandmark(const FVector& Location, float MaxDistance = 1000.f) const;
+
+    //=========================================================================
+    // 动态节点管理接口
+    // Requirements: 1.4, 10.3, 10.4
+    //=========================================================================
+
+    /**
+     * 更新机器人位置
+     * @param RobotId 机器人ID
+     * @param NewPosition 新位置
+     */
+    UFUNCTION(BlueprintCallable, Category = "SceneGraph|Dynamic")
+    void UpdateRobotPosition(const FString& RobotId, const FVector& NewPosition);
+
+    /**
+     * 更新可拾取物品位置
+     * @param ItemId 物品ID
+     * @param NewPosition 新位置
+     */
+    UFUNCTION(BlueprintCallable, Category = "SceneGraph|Dynamic")
+    void UpdatePickupItemPosition(const FString& ItemId, const FVector& NewPosition);
+
+    /**
+     * 更新可拾取物品携带状态
+     * @param ItemId 物品ID
+     * @param bIsCarried 是否被携带
+     * @param CarrierId 携带者ID
+     */
+    UFUNCTION(BlueprintCallable, Category = "SceneGraph|Dynamic")
+    void UpdatePickupItemCarrierStatus(const FString& ItemId, bool bIsCarried, const FString& CarrierId = TEXT(""));
+
     /**
      * 根据 Actor GUID 查找包含该 GUID 的所有节点
      * 
@@ -254,6 +480,34 @@ private:
     void CreateEmptySceneGraph();
 
     //=========================================================================
+    // 动态节点加载
+    // Requirements: 1.1, 1.5
+    //=========================================================================
+
+    /**
+     * 加载动态节点 (机器人、可拾取物品、充电站)
+     * 从 agents.json 和 environment.json 加载
+     */
+    void LoadDynamicNodes();
+
+    //=========================================================================
+    // 缓存管理
+    // Requirements: 2.5
+    //=========================================================================
+
+    /**
+     * 使缓存失效
+     * 当静态节点或动态节点发生变化时调用
+     */
+    void InvalidateCache();
+
+    /**
+     * 重建缓存
+     * 合并静态节点和动态节点到 CachedAllNodes
+     */
+    void RebuildCache() const;
+
+    //=========================================================================
     // 内部辅助方法
     //=========================================================================
 
@@ -290,12 +544,31 @@ private:
      */
     bool ValidateNodeJsonStructure(const TSharedPtr<FJsonObject>& NodeObject, FString& OutErrorMessage) const;
 
+    /**
+     * 在动态节点数组中查找节点
+     * @param NodeId 节点ID
+     * @return 节点指针，如果未找到则返回 nullptr
+     */
+    FMASceneGraphNode* FindDynamicNodeById(const FString& NodeId);
+
     //=========================================================================
     // 内部状态
     //=========================================================================
 
-    /** 内存中的场景图数据 */
+    /** 内存中的场景图数据 (原始 JSON) */
     TSharedPtr<FJsonObject> SceneGraphData;
+
+    /** 静态节点 (从 JSON 加载) - Requirements: 2.1 */
+    TArray<FMASceneGraphNode> StaticNodes;
+
+    /** 动态节点 (运行时创建) - Requirements: 2.1 */
+    TArray<FMASceneGraphNode> DynamicNodes;
+
+    /** 合并后的所有节点缓存 - Requirements: 2.5 */
+    mutable TArray<FMASceneGraphNode> CachedAllNodes;
+
+    /** 缓存是否有效 - Requirements: 2.5 */
+    mutable bool bCacheValid = false;
 
     /** 场景图文件名 */
     static const FString SceneGraphFileName;

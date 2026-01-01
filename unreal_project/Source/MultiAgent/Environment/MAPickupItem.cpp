@@ -4,6 +4,7 @@
 #include "MAPickupItem.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "../Agent/Character/MACharacter.h"
 #include "../Agent/Character/MAHumanoidCharacter.h"
 #include "../Agent/Character/MAUGVCharacter.h"
@@ -15,6 +16,7 @@ AMAPickupItem::AMAPickupItem()
     ItemName = TEXT("PickupItem");
     ItemID = 0;
     bCanBePickedUp = true;
+    ItemColor = FLinearColor::White;
 
     // 创建网格组件作为 Root (这样附着时整个物体会跟着移动)
     MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComponent"));
@@ -49,6 +51,34 @@ void AMAPickupItem::BeginPlay()
     // 绑定 Overlap 事件
     CollisionComponent->OnComponentBeginOverlap.AddDynamic(this, &AMAPickupItem::OnOverlapBegin);
     CollisionComponent->OnComponentEndOverlap.AddDynamic(this, &AMAPickupItem::OnOverlapEnd);
+    
+    // 如果颜色不是白色，应用颜色
+    if (!ItemColor.Equals(FLinearColor::White))
+    {
+        SetItemColor(ItemColor);
+    }
+}
+
+void AMAPickupItem::SetItemColor(FLinearColor NewColor)
+{
+    ItemColor = NewColor;
+    
+    if (MeshComponent)
+    {
+        // 创建动态材质实例
+        UMaterialInstanceDynamic* DynMaterial = MeshComponent->CreateAndSetMaterialInstanceDynamic(0);
+        if (DynMaterial)
+        {
+            // 设置基础颜色
+            DynMaterial->SetVectorParameterValue(TEXT("BaseColor"), NewColor);
+            // 也尝试设置其他常见的颜色参数名
+            DynMaterial->SetVectorParameterValue(TEXT("Color"), NewColor);
+            DynMaterial->SetVectorParameterValue(TEXT("Tint"), NewColor);
+            
+            UE_LOG(LogTemp, Log, TEXT("[MAPickupItem] %s color set to (R=%.2f, G=%.2f, B=%.2f)"), 
+                *ItemName, NewColor.R, NewColor.G, NewColor.B);
+        }
+    }
 }
 
 void AMAPickupItem::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
@@ -118,8 +148,8 @@ void AMAPickupItem::AttachToHand(AMACharacter* Character)
     
     // 设置相对位置到手部位置
     // 使用 Humanoid 的 HandAttachOffset，如果是其他角色类型则使用默认偏移
-    // 默认偏移：身体前方 60cm，高度 -20cm（大约在腰部/手部位置）
-    FVector AttachOffset = FVector(60.f, 0.f, -0.f);
+    // 默认偏移：身体前方 60cm，高度 20cm（大约在腰部/手部位置）
+    FVector AttachOffset = FVector(60.f, 0.f, 20.f);
     if (AMAHumanoidCharacter* Humanoid = Cast<AMAHumanoidCharacter>(Character))
     {
         AttachOffset = Humanoid->HandAttachOffset;

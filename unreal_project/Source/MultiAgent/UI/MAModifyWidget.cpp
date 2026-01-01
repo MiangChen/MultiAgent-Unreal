@@ -16,7 +16,7 @@
 #include "Components/ScrollBox.h"
 #include "Blueprint/WidgetTree.h"
 #include "../Core/Manager/MASceneGraphManager.h"
-#include "../Utils/MAUIGeometryUtils.h"
+#include "../Utils/MAGeometryUtils.h"
 #include "Kismet/GameplayStatics.h"
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonWriter.h"
@@ -971,10 +971,10 @@ FString UMAModifyWidget::GenerateSceneGraphNode(const FMAAnnotationInput& Input,
 TArray<FVector2D> UMAModifyWidget::ComputeConvexHull(const TArray<AActor*>& Actors)
 {
     // 收集所有边界框角点
-    TArray<FVector2D> AllCorners = FMAUIGeometryUtils::CollectBoundingBoxCorners(Actors);
+    TArray<FVector2D> AllCorners = FMAGeometryUtils::CollectBoundingBoxCorners(Actors);
     
     // 计算凸包
-    return FMAUIGeometryUtils::ComputeConvexHull2D(AllCorners);
+    return FMAGeometryUtils::ComputeConvexHull2D(AllCorners);
 }
 
 //=========================================================================

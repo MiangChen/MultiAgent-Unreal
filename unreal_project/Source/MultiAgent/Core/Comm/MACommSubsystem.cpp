@@ -4,7 +4,6 @@
 #include "MACommSubsystem.h"
 #include "../Config/MAConfigManager.h"
 #include "../Manager/MACommandManager.h"
-#include "../../Utils/MAWorldQuery.h"
 #include "MACommTypes.h"
 #include "HttpModule.h"
 #include "Interfaces/IHttpRequest.h"
@@ -275,6 +274,74 @@ void UMACommSubsystem::SendTimeStepFeedback(const FMATimeStepFeedbackMessage& Fe
     Envelope.Timestamp = FMAMessageEnvelope::GetCurrentTimestamp();
     Envelope.MessageId = FMAMessageEnvelope::GenerateMessageId();
     Envelope.PayloadJson = Feedback.ToJson();
+
+    // 发送消息信封
+    SendMessageEnvelope(Envelope);
+}
+
+void UMACommSubsystem::SendSceneChangeMessage(const FMASceneChangeMessage& Message)
+{
+    // Requirements: 11.1 - 发送场景变化消息
+    
+    UE_LOG(LogMACommSubsystem, Log, TEXT("UE5 -> Python: SceneChange Type=%s"), 
+        *FMASceneChangeMessage::ChangeTypeToString(Message.ChangeType));
+
+    // 创建消息信封
+    FMAMessageEnvelope Envelope;
+    Envelope.MessageType = EMACommMessageType::SceneChange;
+    Envelope.Timestamp = FMAMessageEnvelope::GetCurrentTimestamp();
+    Envelope.MessageId = FMAMessageEnvelope::GenerateMessageId();
+    Envelope.PayloadJson = Message.ToJson();
+
+    // 发送消息信封
+    SendMessageEnvelope(Envelope);
+}
+
+void UMACommSubsystem::SendSkillListCompletedFeedback(const FMASkillListCompletedMessage& Message)
+{
+    UE_LOG(LogMACommSubsystem, Log, TEXT("UE5 -> Python: SkillListCompleted - Completed=%s, Interrupted=%s, Steps=%d/%d"), 
+        Message.bCompleted ? TEXT("true") : TEXT("false"),
+        Message.bInterrupted ? TEXT("true") : TEXT("false"),
+        Message.CompletedTimeSteps, Message.TotalTimeSteps);
+
+    // 创建消息信封
+    FMAMessageEnvelope Envelope;
+    Envelope.MessageType = EMACommMessageType::TaskFeedback;  // 复用 TaskFeedback 类型
+    Envelope.Timestamp = FMAMessageEnvelope::GetCurrentTimestamp();
+    Envelope.MessageId = FMAMessageEnvelope::GenerateMessageId();
+    
+    // 构建特殊的 payload，包含 skill_list_completed 标识
+    TSharedPtr<FJsonObject> PayloadObject = MakeShareable(new FJsonObject());
+    PayloadObject->SetStringField(TEXT("feedback_type"), TEXT("skill_list_completed"));
+    PayloadObject->SetBoolField(TEXT("completed"), Message.bCompleted);
+    PayloadObject->SetBoolField(TEXT("interrupted"), Message.bInterrupted);
+    PayloadObject->SetNumberField(TEXT("completed_time_steps"), Message.CompletedTimeSteps);
+    PayloadObject->SetNumberField(TEXT("total_time_steps"), Message.TotalTimeSteps);
+    PayloadObject->SetStringField(TEXT("message"), Message.Message);
+    
+    // 添加所有时间步的反馈汇总
+    TArray<TSharedPtr<FJsonValue>> TimeStepFeedbacksArray;
+    for (const FMATimeStepFeedbackMessage& TSFeedback : Message.AllTimeStepFeedbacks)
+    {
+        TSharedPtr<FJsonObject> TSObject = MakeShareable(new FJsonObject());
+        TSObject->SetNumberField(TEXT("time_step"), TSFeedback.TimeStep);
+        
+        TArray<TSharedPtr<FJsonValue>> FeedbacksArray;
+        for (const FMASkillFeedback_Comm& Feedback : TSFeedback.Feedbacks)
+        {
+            FeedbacksArray.Add(MakeShareable(new FJsonValueObject(Feedback.ToJsonObject())));
+        }
+        TSObject->SetArrayField(TEXT("feedbacks"), FeedbacksArray);
+        
+        TimeStepFeedbacksArray.Add(MakeShareable(new FJsonValueObject(TSObject)));
+    }
+    PayloadObject->SetArrayField(TEXT("all_feedbacks"), TimeStepFeedbacksArray);
+    
+    FString PayloadJson;
+    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&PayloadJson);
+    FJsonSerializer::Serialize(PayloadObject.ToSharedRef(), Writer);
+    
+    Envelope.PayloadJson = PayloadJson;
 
     // 发送消息信封
     SendMessageEnvelope(Envelope);
@@ -818,119 +885,21 @@ void UMACommSubsystem::HandlePollResponse(const FString& ResponseJson)
 
 void UMACommSubsystem::HandleQueryRequest(const FString& QueryType, const TSharedPtr<FJsonObject>& Params)
 {
-    UWorld* World = GetWorld();
-    if (!World) return;
-    
-    FString ResponseJson;
-    
-    if (QueryType == TEXT("world_state"))
-    {
-        // 获取完整世界状态
-        FMAWorldQueryResult Result = FMAWorldQuery::GetWorldState(World);
-        ResponseJson = Result.ToJson();
-    }
-    else if (QueryType == TEXT("all_entities"))
-    {
-        // 获取所有实体
-        TArray<FMAEntityNode> Entities = FMAWorldQuery::GetAllEntities(World);
-        ResponseJson = EntitiesToJson(Entities);
-    }
-    else if (QueryType == TEXT("all_robots"))
-    {
-        // 获取所有机器人
-        TArray<FMAEntityNode> Robots = FMAWorldQuery::GetAllRobots(World);
-        ResponseJson = EntitiesToJson(Robots);
-    }
-    else if (QueryType == TEXT("all_props"))
-    {
-        // 获取所有道具
-        TArray<FMAEntityNode> Props = FMAWorldQuery::GetAllProps(World);
-        ResponseJson = EntitiesToJson(Props);
-    }
-    else if (QueryType == TEXT("boundaries"))
-    {
-        // 获取边界特征
-        TArray<FString> Categories;
-        const TArray<TSharedPtr<FJsonValue>>* CategoriesArray;
-        if (Params.IsValid() && Params->TryGetArrayField(TEXT("categories"), CategoriesArray))
-        {
-            for (const auto& Val : *CategoriesArray)
-            {
-                FString Cat;
-                if (Val->TryGetString(Cat))
-                {
-                    Categories.Add(Cat);
-                }
-            }
-        }
-        
-        TArray<FMABoundaryFeature> Boundaries = FMAWorldQuery::GetBoundaryFeatures(World, Categories);
-        ResponseJson = BoundariesToJson(Boundaries);
-    }
-    else if (QueryType == TEXT("entity_by_id"))
-    {
-        // 根据 ID 获取实体
-        FString EntityId;
-        if (Params.IsValid())
-        {
-            Params->TryGetStringField(TEXT("entity_id"), EntityId);
-        }
-        
-        FMAEntityNode Entity = FMAWorldQuery::GetEntityById(World, EntityId);
-        if (!Entity.Id.IsEmpty())
-        {
-            TSharedPtr<FJsonObject> JsonObj = Entity.ToJsonObject();
-            TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&ResponseJson);
-            FJsonSerializer::Serialize(JsonObj.ToSharedRef(), Writer);
-        }
-        else
-        {
-            ResponseJson = TEXT("{\"error\": \"Entity not found\"}");
-        }
-    }
-    else
-    {
-        ResponseJson = TEXT("{\"error\": \"Unknown query type\"}");
-    }
-    
-    // 发送响应
+    // 世界查询功能已移除，返回错误响应
+    FString ResponseJson = TEXT("{\"error\": \"World query not supported\"}");
     SendWorldStateResponse(QueryType, ResponseJson);
 }
 
 FString UMACommSubsystem::EntitiesToJson(const TArray<FMAEntityNode>& Entities)
 {
-    TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject());
-    
-    TArray<TSharedPtr<FJsonValue>> EntitiesArray;
-    for (const FMAEntityNode& Entity : Entities)
-    {
-        EntitiesArray.Add(MakeShareable(new FJsonValueObject(Entity.ToJsonObject())));
-    }
-    JsonObject->SetArrayField(TEXT("entities"), EntitiesArray);
-    
-    FString OutputString;
-    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
-    FJsonSerializer::Serialize(JsonObject.ToSharedRef(), Writer);
-    
-    return OutputString;
+    // 已移除 MAWorldQuery 依赖，返回空结果
+    return TEXT("{\"entities\": []}");
 }
 
 FString UMACommSubsystem::BoundariesToJson(const TArray<FMABoundaryFeature>& Boundaries)
 {
-    TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject());
-    
-    TArray<TSharedPtr<FJsonValue>> BoundariesArray;
-    for (const FMABoundaryFeature& Boundary : Boundaries)
-    {
-        BoundariesArray.Add(MakeShareable(new FJsonValueObject(Boundary.ToJsonObject())));
-    }
-    JsonObject->SetArrayField(TEXT("boundaries"), BoundariesArray);
-    
-    FString OutputString;
-    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
-    FJsonSerializer::Serialize(JsonObject.ToSharedRef(), Writer);
-    
-    return OutputString;
+    // 已移除 MAWorldQuery 依赖，返回空结果
+    return TEXT("{\"boundaries\": []}");
 }
 
 void UMACommSubsystem::SendWorldStateResponse(const FString& QueryType, const FString& DataJson)

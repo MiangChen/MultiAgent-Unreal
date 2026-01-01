@@ -28,9 +28,17 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
     int32 ItemID;
 
+    // 物品颜色
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
+    FLinearColor ItemColor = FLinearColor::White;
+
     // 是否可以被拾取
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
     bool bCanBePickedUp;
+
+    // 设置物品颜色
+    UFUNCTION(BlueprintCallable, Category = "Item")
+    void SetItemColor(FLinearColor NewColor);
 
     // 被拾取时调用
     UFUNCTION(BlueprintCallable, Category = "Item")

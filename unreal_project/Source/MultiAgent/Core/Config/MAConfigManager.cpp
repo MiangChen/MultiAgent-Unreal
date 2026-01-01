@@ -229,7 +229,7 @@ bool UMAConfigManager::LoadAgentsConfig()
                     
                     FMAAgentConfigData Config;
                     Config.TypeName = TypeName;
-                    InstanceObj->TryGetStringField(TEXT("name"), Config.ID);
+                    InstanceObj->TryGetStringField(TEXT("label"), Config.ID);
                     
                     // 解析 position
                     if (const TArray<TSharedPtr<FJsonValue>>* PosArray; InstanceObj->TryGetArrayField(TEXT("position"), PosArray))
@@ -328,7 +328,7 @@ bool UMAConfigManager::LoadEnvironmentConfig()
             
             FMAPickupItemConfig Config;
             ObjectObj->TryGetStringField(TEXT("id"), Config.ID);
-            ObjectObj->TryGetStringField(TEXT("name"), Config.Name);
+            ObjectObj->TryGetStringField(TEXT("label"), Config.Name);
             ObjectObj->TryGetStringField(TEXT("type"), Config.Type);
             
             // 解析 position

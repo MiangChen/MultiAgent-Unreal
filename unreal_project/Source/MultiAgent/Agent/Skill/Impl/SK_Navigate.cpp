@@ -142,20 +142,20 @@ void USK_Navigate::StartNavigation()
     Character->ShowAbilityStatus(TEXT("Navigate"), FString::Printf(TEXT("-> (%.0f, %.0f)"), TargetLocation.X, TargetLocation.Y));
     Character->bIsMoving = true;
     
-    // 将目标点投影到 NavMesh 上，确保目标可达
-    FNavLocation ProjectedLocation;
-    UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(Character->GetWorld());
-    if (NavSys)
-    {
-        FVector QueryExtent(500.f, 500.f, 500.f);
-        if (NavSys->ProjectPointToNavigation(TargetLocation, ProjectedLocation, QueryExtent))
-        {
-            if (!ProjectedLocation.Location.Equals(TargetLocation, 1.f))
-            {
-                TargetLocation = ProjectedLocation.Location;
-            }
-        }
-    }
+    // // 将目标点投影到 NavMesh 上，确保目标可达
+    // FNavLocation ProjectedLocation;
+    // UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(Character->GetWorld());
+    // if (NavSys)
+    // {
+    //     FVector QueryExtent(500.f, 500.f, 500.f);
+    //     if (NavSys->ProjectPointToNavigation(TargetLocation, ProjectedLocation, QueryExtent))
+    //     {
+    //         if (!ProjectedLocation.Location.Equals(TargetLocation, 1.f))
+    //         {
+    //             TargetLocation = ProjectedLocation.Location;
+    //         }
+    //     }
+    // }
     
     EPathFollowingRequestResult::Type Result = AICtrl->MoveToLocation(TargetLocation, AcceptanceRadius, true, true, false, true, nullptr);
     

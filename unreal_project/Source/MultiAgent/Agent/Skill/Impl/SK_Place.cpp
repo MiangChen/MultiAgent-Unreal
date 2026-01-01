@@ -8,6 +8,7 @@
 #include "../../Character/MAHumanoidCharacter.h"
 #include "../../Character/MAUGVCharacter.h"
 #include "../../../Environment/MAPickupItem.h"
+#include "../../../Core/Manager/MASceneGraphManager.h"
 #include "TimerManager.h"
 
 USK_Place::USK_Place()
@@ -492,6 +493,57 @@ void USK_Place::HandleComplete()
     // 更新反馈上下文
     Context.PlaceTargetName = TargetName;
     Context.PlaceFinalLocation = FinalLocation;
+    
+    //=========================================================================
+    // 更新场景图状态 (Requirements: 6.7, 6.8)
+    // Place 完成后调用 UpdatePickupItemPosition() 和 UpdatePickupItemCarrierStatus()
+    //=========================================================================
+    if (UWorld* World = Character->GetWorld())
+    {
+        if (UGameInstance* GameInstance = World->GetGameInstance())
+        {
+            if (UMASceneGraphManager* SceneGraphManager = GameInstance->GetSubsystem<UMASceneGraphManager>())
+            {
+                // 获取物品节点ID (从参数处理阶段存储的)
+                FString Object1NodeId = Context.ObjectAttributes.FindRef(TEXT("object1_node_id"));
+                
+                // 如果没有存储节点ID，尝试使用物品名称
+                if (Object1NodeId.IsEmpty() && !Context.PlacedObjectName.IsEmpty())
+                {
+                    Object1NodeId = Context.PlacedObjectName;
+                }
+                
+                if (!Object1NodeId.IsEmpty())
+                {
+                    // 更新物品位置
+                    SceneGraphManager->UpdatePickupItemPosition(Object1NodeId, FinalLocation);
+                    
+                    // 更新携带状态
+                    switch (CurrentMode)
+                    {
+                        case EPlaceMode::LoadToUGV:
+                            // 装货到 UGV：物品被 UGV 携带
+                            if (TargetUGV.IsValid())
+                            {
+                                SceneGraphManager->UpdatePickupItemCarrierStatus(Object1NodeId, true, TargetUGV->AgentID);
+                            }
+                            break;
+                        case EPlaceMode::UnloadToGround:
+                            // 卸货到地面：物品不再被携带
+                            SceneGraphManager->UpdatePickupItemCarrierStatus(Object1NodeId, false, TEXT(""));
+                            break;
+                        case EPlaceMode::StackOnObject:
+                            // 堆叠到另一个物体：物品不再被携带
+                            SceneGraphManager->UpdatePickupItemCarrierStatus(Object1NodeId, false, TEXT(""));
+                            break;
+                    }
+                    
+                    UE_LOG(LogTemp, Log, TEXT("[SK_Place] Updated scene graph for item '%s': Position=(%.0f, %.0f, %.0f), Mode=%d"),
+                        *Object1NodeId, FinalLocation.X, FinalLocation.Y, FinalLocation.Z, (int32)CurrentMode);
+                }
+            }
+        }
+    }
     
     PlaceResultMessage = FString::Printf(TEXT("Place succeeded: Moved %s to %s at (%.0f, %.0f, %.0f)"), 
         *Context.PlacedObjectName, *TargetName,

@@ -29,6 +29,7 @@ enum class EMACommMessageType : uint8
     ButtonEvent     UMETA(DisplayName = "Button Event"),
     TaskFeedback    UMETA(DisplayName = "Task Feedback"),
     WorldState      UMETA(DisplayName = "World State"),  // 世界状态响应
+    SceneChange     UMETA(DisplayName = "Scene Change"),  // 场景变化消息
     
     // 入站消息 (规划器 -> 仿真端)
     TaskPlanDAG     UMETA(DisplayName = "Task Plan DAG"),
@@ -437,6 +438,13 @@ struct MULTIAGENT_API FMASkillParams_Comm
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
     TMap<FString, FString> TargetFeatures;
 
+    /** 目标语义标签 JSON (用于 Search 技能)
+     * 格式: {"class": "...", "type": "...", "features": {"key": "value", ...}}
+     * Requirements: 11.5
+     */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
+    FString TargetJson;
+
     /** 目标实体名称 (用于智能参数调整) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
     FString TargetEntity;
@@ -579,6 +587,45 @@ struct MULTIAGENT_API FMATimeStepFeedbackMessage
     TArray<FMASkillFeedback_Comm> Feedbacks;
 
     FMATimeStepFeedbackMessage() {}
+
+    /** 序列化为 JSON */
+    FString ToJson() const;
+};
+
+/**
+ * 技能列表执行完成反馈消息
+ * 当整个技能列表执行完成或被中断时发送
+ */
+USTRUCT(BlueprintType)
+struct MULTIAGENT_API FMASkillListCompletedMessage
+{
+    GENERATED_BODY()
+
+    /** 是否成功完成所有时间步 */
+    UPROPERTY(BlueprintReadWrite)
+    bool bCompleted = false;
+
+    /** 是否被中断 */
+    UPROPERTY(BlueprintReadWrite)
+    bool bInterrupted = false;
+
+    /** 已完成的时间步数 */
+    UPROPERTY(BlueprintReadWrite)
+    int32 CompletedTimeSteps = 0;
+
+    /** 总时间步数 */
+    UPROPERTY(BlueprintReadWrite)
+    int32 TotalTimeSteps = 0;
+
+    /** 消息描述 */
+    UPROPERTY(BlueprintReadWrite)
+    FString Message;
+
+    /** 所有时间步的反馈汇总 */
+    UPROPERTY(BlueprintReadWrite)
+    TArray<FMATimeStepFeedbackMessage> AllTimeStepFeedbacks;
+
+    FMASkillListCompletedMessage() {}
 
     /** 序列化为 JSON */
     FString ToJson() const;

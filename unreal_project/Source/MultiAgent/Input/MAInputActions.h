@@ -151,6 +151,10 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "Input")
     TObjectPtr<UInputAction> IA_Jump;
 
+    /** 切换 Viewport 录制 (F9 键) */
+    UPROPERTY(BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_ToggleViewportRecording;
+
     // ========== Input Mapping Contexts ==========
     
     /** RTS 模式输入 (优先级 0, 始终激活) - 框选、编组、生成等 */

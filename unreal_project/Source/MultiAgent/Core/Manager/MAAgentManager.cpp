@@ -122,6 +122,14 @@ void UMAAgentManager::SpawnPickupItems()
         if (Item)
         {
             Item->ItemName = Config.Name;
+            
+            // 从 Features 中读取颜色并设置
+            if (const FString* ColorStr = Config.Features.Find(TEXT("color")))
+            {
+                FLinearColor ItemColor = ParseColorString(*ColorStr);
+                Item->SetItemColor(ItemColor);
+            }
+            
             SpawnedPickupItems.Add(Item);
             UE_LOG(LogMAAgentManager, Log, TEXT("Spawned pickup item: %s (%s) at (%.0f, %.0f, %.0f)"), 
                 *Config.Name, *Config.Type, SpawnLocation.X, SpawnLocation.Y, SpawnLocation.Z);
@@ -307,4 +315,40 @@ EMAAgentType UMAAgentManager::StringToAgentType(const FString& TypeString) const
     if (TypeString == TEXT("Quadruped")) return EMAAgentType::Quadruped;
     if (TypeString == TEXT("Humanoid")) return EMAAgentType::Humanoid;
     return EMAAgentType::Humanoid;
+}
+
+FLinearColor UMAAgentManager::ParseColorString(const FString& ColorString) const
+{
+    FString LowerColor = ColorString.ToLower();
+    
+    // 常用颜色映射
+    if (LowerColor == TEXT("red")) return FLinearColor::Red;
+    if (LowerColor == TEXT("green")) return FLinearColor::Green;
+    if (LowerColor == TEXT("blue")) return FLinearColor::Blue;
+    if (LowerColor == TEXT("yellow")) return FLinearColor::Yellow;
+    if (LowerColor == TEXT("white")) return FLinearColor::White;
+    if (LowerColor == TEXT("black")) return FLinearColor::Black;
+    if (LowerColor == TEXT("gray") || LowerColor == TEXT("grey")) return FLinearColor::Gray;
+    if (LowerColor == TEXT("orange")) return FLinearColor(1.0f, 0.5f, 0.0f);
+    if (LowerColor == TEXT("purple")) return FLinearColor(0.5f, 0.0f, 0.5f);
+    if (LowerColor == TEXT("cyan")) return FLinearColor(0.0f, 1.0f, 1.0f);
+    if (LowerColor == TEXT("magenta")) return FLinearColor(1.0f, 0.0f, 1.0f);
+    if (LowerColor == TEXT("pink")) return FLinearColor(1.0f, 0.75f, 0.8f);
+    if (LowerColor == TEXT("brown")) return FLinearColor(0.6f, 0.3f, 0.0f);
+    
+    // 尝试解析十六进制颜色 (如 "#FF0000" 或 "FF0000")
+    FString HexColor = ColorString;
+    if (HexColor.StartsWith(TEXT("#")))
+    {
+        HexColor = HexColor.RightChop(1);
+    }
+    
+    if (HexColor.Len() == 6)
+    {
+        FColor ParsedColor = FColor::FromHex(HexColor);
+        return FLinearColor(ParsedColor);
+    }
+    
+    UE_LOG(LogMAAgentManager, Warning, TEXT("Unknown color string: %s, using white"), *ColorString);
+    return FLinearColor::White;
 }

@@ -845,7 +845,7 @@ bool FMASkillListMessage::FromJson(const FString& Json, FMASkillListMessage& Out
                 // 解析 target_entity (目标实体名称)
                 (*ParamsObject)->TryGetStringField(TEXT("target_entity"), Cmd.Params.TargetEntity);
                 
-                // 解析 area (搜索区域多边形)
+                // 解析 area (搜索区域多边形) - 格式: { "area": { "coords": [[x,y], ...] } }
                 const TSharedPtr<FJsonObject>* AreaObject;
                 if ((*ParamsObject)->TryGetObjectField(TEXT("area"), AreaObject))
                 {
@@ -865,10 +865,40 @@ bool FMASkillListMessage::FromJson(const FString& Json, FMASkillListMessage& Out
                     }
                 }
                 
+                // 解析 search_area (搜索区域多边形) - 格式: { "search_area": [[x,y], ...] }
+                // 这是简化格式，直接是坐标数组
+                if (Cmd.Params.SearchArea.Num() == 0)
+                {
+                    const TArray<TSharedPtr<FJsonValue>>* SearchAreaArray;
+                    if ((*ParamsObject)->TryGetArrayField(TEXT("search_area"), SearchAreaArray))
+                    {
+                        for (const auto& CoordValue : *SearchAreaArray)
+                        {
+                            const TArray<TSharedPtr<FJsonValue>>* PointArray;
+                            if (CoordValue->TryGetArray(PointArray) && PointArray->Num() >= 2)
+                            {
+                                double PX = (*PointArray)[0]->AsNumber();
+                                double PY = (*PointArray)[1]->AsNumber();
+                                Cmd.Params.SearchArea.Add(FVector2D(PX, PY));
+                            }
+                        }
+                        UE_LOG(LogMACommTypes, Log, TEXT("  Parsed search_area with %d vertices"), Cmd.Params.SearchArea.Num());
+                    }
+                }
+                
                 // 解析 target.features
                 const TSharedPtr<FJsonObject>* TargetObject;
                 if ((*ParamsObject)->TryGetObjectField(TEXT("target"), TargetObject))
                 {
+                    // 保存完整的 target JSON 字符串 (用于 Search 技能)
+                    // Requirements: 11.5
+                    FString TargetJsonStr;
+                    TSharedRef<TJsonWriter<>> TargetWriter = TJsonWriterFactory<>::Create(&TargetJsonStr);
+                    FJsonSerializer::Serialize(TargetObject->ToSharedRef(), TargetWriter);
+                    Cmd.Params.TargetJson = TargetJsonStr;
+                    
+                    UE_LOG(LogMACommTypes, Verbose, TEXT("  Parsed target: %s"), *TargetJsonStr);
+                    
                     const TSharedPtr<FJsonObject>* FeaturesObject;
                     if ((*TargetObject)->TryGetObjectField(TEXT("features"), FeaturesObject))
                     {
@@ -1024,6 +1054,45 @@ FString FMATimeStepFeedbackMessage::ToJson() const
         FeedbacksArray.Add(MakeShareable(new FJsonValueObject(Feedback.ToJsonObject())));
     }
     JsonObject->SetArrayField(TEXT("feedbacks"), FeedbacksArray);
+    
+    FString OutputString;
+    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
+    FJsonSerializer::Serialize(JsonObject.ToSharedRef(), Writer);
+    
+    return OutputString;
+}
+
+//=============================================================================
+// FMASkillListCompletedMessage 实现
+//=============================================================================
+
+FString FMASkillListCompletedMessage::ToJson() const
+{
+    TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject());
+    
+    JsonObject->SetBoolField(TEXT("completed"), bCompleted);
+    JsonObject->SetBoolField(TEXT("interrupted"), bInterrupted);
+    JsonObject->SetNumberField(TEXT("completed_time_steps"), CompletedTimeSteps);
+    JsonObject->SetNumberField(TEXT("total_time_steps"), TotalTimeSteps);
+    JsonObject->SetStringField(TEXT("message"), Message);
+    
+    // 添加所有时间步的反馈汇总
+    TArray<TSharedPtr<FJsonValue>> TimeStepFeedbacksArray;
+    for (const FMATimeStepFeedbackMessage& TSFeedback : AllTimeStepFeedbacks)
+    {
+        TSharedPtr<FJsonObject> TSObject = MakeShareable(new FJsonObject());
+        TSObject->SetNumberField(TEXT("time_step"), TSFeedback.TimeStep);
+        
+        TArray<TSharedPtr<FJsonValue>> FeedbacksArray;
+        for (const FMASkillFeedback_Comm& Feedback : TSFeedback.Feedbacks)
+        {
+            FeedbacksArray.Add(MakeShareable(new FJsonValueObject(Feedback.ToJsonObject())));
+        }
+        TSObject->SetArrayField(TEXT("feedbacks"), FeedbacksArray);
+        
+        TimeStepFeedbacksArray.Add(MakeShareable(new FJsonValueObject(TSObject)));
+    }
+    JsonObject->SetArrayField(TEXT("all_feedbacks"), TimeStepFeedbacksArray);
     
     FString OutputString;
     TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);

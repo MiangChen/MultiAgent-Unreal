@@ -1,34 +1,35 @@
 {
     "charging_stations": [
         {
-            "id": "ChargingStation_1",
-            "position": [500, 0, 0]
+            "id": "2001",
+            "label": "ChargingStation_1",
+            "position": [-800, 500, 0]
         }
     ],
     "objects": [
         {
-            "id": "PickupItem_1",
-            "name": "RedBox",
+            "id": "1001",
+            "label": "RedBox",
             "type": "box",
-            "position": [300, 2400, 0],
+            "position": [800, 2300, 0],
             "features": {
                 "color": "red"
             }
         },
         {
-            "id": "PickupItem_2",
-            "name": "BlueBox",
+            "id": "1002",
+            "label": "BlueBox",
             "type": "box",
-            "position": [400, 2400, 0],
+            "position": [2600, 1400, 0],
             "features": {
                 "color": "blue"
             }
         },
         {
-            "id": "PickupItem_3",
-            "name": "GreenBox",
+            "id": "1003",
+            "label": "GreenBox",
             "type": "box",
-            "position": [500, 2400, 0],
+            "position": [5500, 2000, 0],
             "features": {
                 "color": "green"
             }

@@ -1,8 +1,8 @@
-// MAGeometryUtils.cpp
+// MASkillGeometryUtils.cpp
 
-#include "MAGeometryUtils.h"
+#include "MASkillGeometryUtils.h"
 
-bool FMAGeometryUtils::IsPointInPolygon(const FVector& Point, const TArray<FVector>& PolygonVertices)
+bool FMASkillGeometryUtils::IsPointInPolygon(const FVector& Point, const TArray<FVector>& PolygonVertices)
 {
     if (PolygonVertices.Num() < 3) return false;
     
@@ -24,7 +24,7 @@ bool FMAGeometryUtils::IsPointInPolygon(const FVector& Point, const TArray<FVect
     return bInside;
 }
 
-TArray<FVector> FMAGeometryUtils::GenerateLawnmowerPath(const TArray<FVector>& BoundaryVertices, float ScanWidth)
+TArray<FVector> FMASkillGeometryUtils::GenerateLawnmowerPath(const TArray<FVector>& BoundaryVertices, float ScanWidth)
 {
     TArray<FVector> Path;
     if (BoundaryVertices.Num() < 3 || ScanWidth <= 0.f) return Path;
@@ -69,7 +69,7 @@ TArray<FVector> FMAGeometryUtils::GenerateLawnmowerPath(const TArray<FVector>& B
     return Path;
 }
 
-void FMAGeometryUtils::GetPolygonBounds(const TArray<FVector>& Vertices, FVector& OutMin, FVector& OutMax)
+void FMASkillGeometryUtils::GetPolygonBounds(const TArray<FVector>& Vertices, FVector& OutMin, FVector& OutMax)
 {
     if (Vertices.Num() == 0)
     {
@@ -90,7 +90,7 @@ void FMAGeometryUtils::GetPolygonBounds(const TArray<FVector>& Vertices, FVector
     }
 }
 
-FVector FMAGeometryUtils::GetPolygonCenter(const TArray<FVector>& Vertices)
+FVector FMASkillGeometryUtils::GetPolygonCenter(const TArray<FVector>& Vertices)
 {
     if (Vertices.Num() == 0) return FVector::ZeroVector;
     

@@ -95,6 +95,22 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Communication")
     void SendTimeStepFeedback(const FMATimeStepFeedbackMessage& Feedback);
 
+    /**
+     * 发送场景变化消息
+     * @param Message 场景变化消息
+     * Requirements: 11.1
+     */
+    UFUNCTION(BlueprintCallable, Category = "Communication")
+    void SendSceneChangeMessage(const FMASceneChangeMessage& Message);
+
+    /**
+     * 发送技能列表执行完成反馈
+     * 当整个技能列表执行完成或被中断时调用
+     * @param Message 技能列表完成消息
+     */
+    UFUNCTION(BlueprintCallable, Category = "Communication")
+    void SendSkillListCompletedFeedback(const FMASkillListCompletedMessage& Message);
+
     //=========================================================================
     // 事件委托
     //=========================================================================
@@ -295,10 +311,10 @@ protected:
      */
     void SendWorldStateResponse(const FString& QueryType, const FString& DataJson);
 
-    /** 实体列表转 JSON */
+    /** 实体列表转 JSON (已废弃) */
     FString EntitiesToJson(const TArray<struct FMAEntityNode>& Entities);
 
-    /** 边界列表转 JSON */
+    /** 边界列表转 JSON (已废弃) */
     FString BoundariesToJson(const TArray<struct FMABoundaryFeature>& Boundaries);
 
 private:

@@ -80,7 +80,7 @@ AMAHumanoidCharacter::AMAHumanoidCharacter()
     }
     
     GetCharacterMovement()->bOrientRotationToMovement = true;
-    GetCharacterMovement()->MaxWalkSpeed = 300.f;
+    GetCharacterMovement()->MaxWalkSpeed = 500.f;
 }
 
 void AMAHumanoidCharacter::BeginPlay()

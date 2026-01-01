@@ -91,4 +91,7 @@ private:
     
     EMAAgentType StringToAgentType(const FString& TypeString) const;
     FString GetClassPathForType(const FString& TypeName) const;
+    
+    /** 解析颜色字符串为 FLinearColor */
+    FLinearColor ParseColorString(const FString& ColorString) const;
 };

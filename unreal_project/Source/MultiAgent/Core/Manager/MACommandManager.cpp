@@ -85,6 +85,10 @@ void UMACommandManager::InterruptCurrentExecution()
     UMAAgentManager* AgentManager = GetWorld()->GetSubsystem<UMAAgentManager>();
     if (!AgentManager) return;
     
+    // 保存中断前的状态用于反馈
+    int32 InterruptedAtTimeStep = CurrentTimeStep;
+    int32 TotalSteps = CurrentSkillList.TotalTimeSteps;
+    
     // 取消所有 Agent 的技能并解绑委托
     for (const auto& Pair : CurrentTimeStepCommands)
     {
@@ -99,6 +103,9 @@ void UMACommandManager::InterruptCurrentExecution()
         }
     }
     
+    // 发送技能列表中断反馈
+    SendSkillListCompletedFeedbackToPython(false, true, InterruptedAtTimeStep, TotalSteps);
+    
     // 重置执行状态
     CurrentTimeStepCommands.Empty();
     PendingSkillCount = 0;
@@ -112,6 +119,10 @@ void UMACommandManager::ExecuteCurrentTimeStep()
     {
         UE_LOG(LogMACommandManager, Log, TEXT("All time steps completed"));
         bIsExecuting = false;
+        
+        // 发送技能列表完成反馈
+        SendSkillListCompletedFeedbackToPython(true, false, CurrentSkillList.TotalTimeSteps, CurrentSkillList.TotalTimeSteps);
+        
         OnSkillListCompleted.Broadcast(AllFeedbacks);
         return;
     }
@@ -396,4 +407,56 @@ void UMACommandManager::SendTimeStepFeedbackToPython(const FMATimeStepFeedback& 
             CommSubsystem->SendTimeStepFeedback(CommFeedback);
         }
     }
+}
+
+void UMACommandManager::SendSkillListCompletedFeedbackToPython(bool bCompleted, bool bInterrupted, int32 CompletedSteps, int32 TotalSteps)
+{
+    FMASkillListCompletedMessage Message;
+    Message.bCompleted = bCompleted;
+    Message.bInterrupted = bInterrupted;
+    Message.CompletedTimeSteps = CompletedSteps;
+    Message.TotalTimeSteps = TotalSteps;
+    
+    if (bCompleted)
+    {
+        Message.Message = FString::Printf(TEXT("Skill list completed: %d/%d time steps executed successfully"), CompletedSteps, TotalSteps);
+    }
+    else if (bInterrupted)
+    {
+        Message.Message = FString::Printf(TEXT("Skill list interrupted at time step %d/%d"), CompletedSteps, TotalSteps);
+    }
+    else
+    {
+        Message.Message = FString::Printf(TEXT("Skill list execution ended: %d/%d time steps"), CompletedSteps, TotalSteps);
+    }
+    
+    // 转换 AllFeedbacks 到通信格式
+    for (const FMATimeStepFeedback& TSFeedback : AllFeedbacks)
+    {
+        FMATimeStepFeedbackMessage CommTSFeedback;
+        CommTSFeedback.TimeStep = TSFeedback.TimeStep;
+        
+        for (const FMASkillExecutionFeedback& SkillFeedback : TSFeedback.SkillFeedbacks)
+        {
+            FMASkillFeedback_Comm CommSkillFeedback;
+            CommSkillFeedback.AgentId = SkillFeedback.AgentId;
+            CommSkillFeedback.SkillName = SkillFeedback.SkillName;
+            CommSkillFeedback.bSuccess = SkillFeedback.bSuccess;
+            CommSkillFeedback.Message = SkillFeedback.Message;
+            CommSkillFeedback.Data = SkillFeedback.Data;
+            CommTSFeedback.Feedbacks.Add(CommSkillFeedback);
+        }
+        
+        Message.AllTimeStepFeedbacks.Add(CommTSFeedback);
+    }
+    
+    if (UGameInstance* GI = GetWorld()->GetGameInstance())
+    {
+        if (UMACommSubsystem* CommSubsystem = GI->GetSubsystem<UMACommSubsystem>())
+        {
+            CommSubsystem->SendSkillListCompletedFeedback(Message);
+        }
+    }
+    
+    UE_LOG(LogMACommandManager, Log, TEXT("Sent skill list completed feedback: %s"), *Message.Message);
 }
