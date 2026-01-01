@@ -16,7 +16,7 @@
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Blueprint/WidgetTree.h"
-#include "MACommSubsystem.h"
+#include "../Core/Comm/MACommSubsystem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMASimpleWidget, Log, All);
 

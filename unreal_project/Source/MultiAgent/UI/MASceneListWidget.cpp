@@ -16,7 +16,7 @@
 #include "Components/SizeBox.h"
 #include "Blueprint/WidgetTree.h"
 #include "Framework/Application/SlateApplication.h"
-#include "../Core/MAEditModeManager.h"
+#include "../Core/Manager/MAEditModeManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMASceneListWidget, Log, All);
 
@@ -32,10 +32,10 @@ UMASceneListWidget::UMASceneListWidget(const FObjectInitializer& ObjectInitializ
 void UMASceneListWidget::NativeConstruct()
 {
     Super::NativeConstruct();
-    
+
     // 初始刷新列表
     RefreshLists();
-    
+
     UE_LOG(LogMASceneListWidget, Log, TEXT("MASceneListWidget NativeConstruct completed"));
 }
 
@@ -110,7 +110,7 @@ void UMASceneListWidget::BuildUI()
     // =========================================================================
     // Goal 列表区域 - Requirements: 17.2
     // =========================================================================
-    
+
     // Goal 标题行
     UHorizontalBox* GoalHeaderBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("GoalHeaderBox"));
     
@@ -120,7 +120,7 @@ void UMASceneListWidget::BuildUI()
     GoalTitleFont.Size = 12;
     GoalTitleText->SetFont(GoalTitleFont);
     GoalTitleText->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.4f, 0.4f)));  // 红色
-    
+
     UHorizontalBoxSlot* GoalTitleSlot = GoalHeaderBox->AddChildToHorizontalBox(GoalTitleText);
     GoalTitleSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 
@@ -145,7 +145,7 @@ void UMASceneListWidget::BuildUI()
     // =========================================================================
     // Zone 列表区域 - Requirements: 17.3
     // =========================================================================
-    
+
     // Zone 标题行
     UHorizontalBox* ZoneHeaderBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("ZoneHeaderBox"));
     
@@ -155,7 +155,7 @@ void UMASceneListWidget::BuildUI()
     ZoneTitleFont.Size = 12;
     ZoneTitleText->SetFont(ZoneTitleFont);
     ZoneTitleText->SetColorAndOpacity(FSlateColor(FLinearColor(0.3f, 0.6f, 1.0f)));  // 蓝色
-    
+
     UHorizontalBoxSlot* ZoneTitleSlot = ZoneHeaderBox->AddChildToHorizontalBox(ZoneTitleText);
     ZoneTitleSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 
@@ -197,7 +197,7 @@ void UMASceneListWidget::RefreshLists()
 {
     PopulateGoalList();
     PopulateZoneList();
-    
+
     UE_LOG(LogMASceneListWidget, Log, TEXT("RefreshLists: Lists refreshed"));
 }
 

@@ -1,31 +1,33 @@
 // MAPlayerController.cpp (重构版)
 // 使用 Enhanced Input System + MACommandManager
 // 支持星际争霸风格的框选和编组
+// 支持 Modify 模式的场景标注
 
 #include "MAPlayerController.h"
 #include "MAInputActions.h"
-#include "../Core/MAAgentManager.h"
+#include "../Core/Manager/MAAgentManager.h"
+#include "../Core/Manager/MAViewportRecorder.h"
 #include "../UI/MAHUD.h"
-#include "../Core/MACommandManager.h"
-#include "../Core/MASquadManager.h"
+#include "../Core/Manager/MACommandManager.h"
+#include "../Core/Manager/MASquadManager.h"
 #include "../Core/MASquad.h"
-#include "../Core/MASelectionManager.h"
-#include "../Core/MAViewportManager.h"
-#include "../Core/MAEmergencyManager.h"
-#include "../Core/MAEditModeManager.h"
+#include "../Core/Manager/MASelectionManager.h"
+#include "../Core/Manager/MAViewportManager.h"
+#include "../Core/Manager/MAEmergencyManager.h"
+#include "../Core/Manager/MAEditModeManager.h"
 #include "../Environment/MAPointOfInterest.h"
 #include "../UI/MASelectionHUD.h"
-#include "MACharacter.h"
-#include "MARobotDogCharacter.h"
-#include "MADroneCharacter.h"
+#include "../Agent/Character/MACharacter.h"
+#include "../Agent/Character/MAQuadrupedCharacter.h"
+#include "../Agent/Character/MAUAVCharacter.h"
 #include "../Agent/Component/Sensor/MACameraSensorComponent.h"
-#include "MAPickupItem.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/Canvas.h"
+#include "Components/PrimitiveComponent.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/SWindow.h"
 
@@ -40,13 +42,13 @@ AMAPlayerController::AMAPlayerController()
 void AMAPlayerController::BeginPlay()
 {
     Super::BeginPlay();
-    
+
     // 缓存 Subsystem 引用
     if (!InitializeSubsystems())
     {
         UE_LOG(LogTemp, Error, TEXT("[PlayerController] Failed to initialize subsystems!"));
     }
-    
+
     // 初始为 Select 模式，禁用视角控制
     FInputModeGameAndUI InputMode;
     InputMode.SetHideCursorDuringCapture(false);
@@ -75,7 +77,7 @@ bool AMAPlayerController::InitializeSubsystems()
     ViewportManager = World->GetSubsystem<UMAViewportManager>();
     EmergencyManager = World->GetSubsystem<UMAEmergencyManager>();
     EditModeManager = World->GetSubsystem<UMAEditModeManager>();
-    
+
     return AgentManager && CommandManager && SelectionManager && SquadManager && ViewportManager && EmergencyManager;
 }
 
@@ -101,7 +103,7 @@ void AMAPlayerController::SetupInputComponent()
 
         // 生成
         EIC->BindAction(InputActions->IA_SpawnItem, ETriggerEvent::Started, this, &AMAPlayerController::OnSpawnPickupItem);
-        EIC->BindAction(InputActions->IA_SpawnRobotDog, ETriggerEvent::Started, this, &AMAPlayerController::OnSpawnRobotDog);
+        EIC->BindAction(InputActions->IA_SpawnQuadruped, ETriggerEvent::Started, this, &AMAPlayerController::OnSpawnQuadruped);
 
         // 调试
         EIC->BindAction(InputActions->IA_PrintInfo, ETriggerEvent::Started, this, &AMAPlayerController::OnPrintAgentInfo);
@@ -138,7 +140,7 @@ void AMAPlayerController::SetupInputComponent()
 
         // 鼠标模式切换
         EIC->BindAction(InputActions->IA_ToggleMouseMode, ETriggerEvent::Started, this, &AMAPlayerController::OnToggleMouseMode);
-        
+
         // UI 切换 (Z 键)
         EIC->BindAction(InputActions->IA_ToggleMainUI, ETriggerEvent::Started, this, &AMAPlayerController::OnToggleMainUI);
 
@@ -149,8 +151,8 @@ void AMAPlayerController::SetupInputComponent()
         // 跳跃 (空格键)
         EIC->BindAction(InputActions->IA_Jump, ETriggerEvent::Started, this, &AMAPlayerController::OnJumpPressed);
 
-        // Agent View Mode 输入由 MAAgentInputComponent 处理
-        // 进入 Agent View 时自动添加 IMC_AgentControl
+        // Viewport 录制 (F9 键)
+        EIC->BindAction(InputActions->IA_ToggleViewportRecording, ETriggerEvent::Started, this, &AMAPlayerController::OnToggleViewportRecording);
     }
 }
 
@@ -174,7 +176,7 @@ void AMAPlayerController::OnLeftClick(const FInputActionValue& Value)
     // 注意: 不再在这里检测 UI，因为 UMG 按钮的 OnClicked 事件是独立于 Enhanced Input 的
     // Modify 模式也没有 UI 检测，按钮点击仍然正常工作
     // Edit 模式采用相同的方式：让 OnEditLeftClick 处理场景交互，UMG 自己处理按钮点击
-    
+
     if (CurrentMouseMode == EMAMouseMode::Deployment)
     {
         // 部署模式：开始框选部署区域
@@ -188,14 +190,14 @@ void AMAPlayerController::OnLeftClick(const FInputActionValue& Value)
         OnModifyLeftClick();
         return;
     }
-    
+
     if (CurrentMouseMode == EMAMouseMode::Edit)
     {
         // Edit 模式：点击创建 POI 或选择对象
         OnEditLeftClick();
         return;
     }
-    
+
     // Select 模式：开始框选
     if (SelectionManager)
     {
@@ -372,20 +374,16 @@ void AMAPlayerController::OnMiddleClick(const FInputActionValue& Value)
         }
     }
 
-    // 导航所有已选中的 Agent
     for (AMACharacter* Agent : SelectedAgents)
     {
         if (!Agent) continue;
-        
+
         FVector Target = HitLocation;
-        // Drone: 如果在空中则保持高度
-        if (Agent->AgentType == EMAAgentType::Drone ||
-            Agent->AgentType == EMAAgentType::DronePhantom4 ||
-            Agent->AgentType == EMAAgentType::DroneInspire2)
+        if (Agent->AgentType == EMAAgentType::UAV)
         {
-            if (AMADroneCharacter* Drone = Cast<AMADroneCharacter>(Agent))
+            if (AMAUAVCharacter* UAV = Cast<AMAUAVCharacter>(Agent))
             {
-                if (Drone->IsInAir())
+                if (UAV->IsInAir())
                 {
                     Target.Z = Agent->GetActorLocation().Z;
                 }
@@ -399,75 +397,24 @@ void AMAPlayerController::OnMiddleClick(const FInputActionValue& Value)
 
 void AMAPlayerController::OnPickup(const FInputActionValue& Value)
 {
-    if (!AgentManager) return;
-
-    for (AMACharacter* Agent : AgentManager->GetAgentsByType(EMAAgentType::Human))
-    {
-        if (Agent && !Agent->IsHoldingItem())
-        {
-            if (Agent->TryPickup())
-            {
-                GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green,
-                    FString::Printf(TEXT("%s: Picking up"), *Agent->AgentName));
-            }
-        }
-    }
+    // Place 技能处理物品操作
 }
 
 void AMAPlayerController::OnDrop(const FInputActionValue& Value)
 {
-    if (!AgentManager) return;
-
-    for (AMACharacter* Agent : AgentManager->GetAgentsByType(EMAAgentType::Human))
-    {
-        if (Agent && Agent->IsHoldingItem())
-        {
-            Agent->TryDrop();
-        }
-    }
+    // Place 技能处理物品操作
 }
 
 // ========== 生成 ==========
 
 void AMAPlayerController::OnSpawnPickupItem(const FInputActionValue& Value)
 {
-    FVector HitLocation;
-    if (!GetMouseHitLocation(HitLocation)) return;
-
-    HitLocation.Z += 50.f;
-    
-    FActorSpawnParameters SpawnParams;
-    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-    
-    AMAPickupItem* Item = GetWorld()->SpawnActor<AMAPickupItem>(
-        AMAPickupItem::StaticClass(), HitLocation, FRotator::ZeroRotator, SpawnParams);
-    
-    if (Item)
-    {
-        static int32 ItemCounter = 0;
-        Item->ItemName = FString::Printf(TEXT("Cube_%d"), ItemCounter++);
-        Item->ItemID = ItemCounter;
-        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan, FString::Printf(TEXT("Spawned: %s"), *Item->ItemName));
-    }
+    GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Yellow, TEXT("SpawnItem disabled - use Place skill"));
 }
 
-void AMAPlayerController::OnSpawnRobotDog(const FInputActionValue& Value)
+void AMAPlayerController::OnSpawnQuadruped(const FInputActionValue& Value)
 {
-    if (!AgentManager) return;
-    
-    FVector SpawnLocation = GetPawn()->GetActorLocation() + GetPawn()->GetActorForwardVector() * 300.f;
-    
-    static int32 SpawnCounter = 0;
-    FString AgentID = FString::Printf(TEXT("robot_spawned_%d"), SpawnCounter++);
-    
-    AMACharacter* NewAgent = AgentManager->SpawnAgent(
-        AMARobotDogCharacter::StaticClass(), SpawnLocation, FRotator::ZeroRotator, AgentID, EMAAgentType::RobotDog);
-    
-    if (NewAgent)
-    {
-        NewAgent->AddCameraSensor(FVector(-150.f, 0.f, 80.f), FRotator(-15.f, 0.f, 0.f));
-        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green, FString::Printf(TEXT("Spawned: %s"), *NewAgent->AgentName));
-    }
+    GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Yellow, TEXT("SpawnQuadruped disabled - use config/agents.json"));
 }
 
 // ========== 调试 ==========
@@ -475,27 +422,21 @@ void AMAPlayerController::OnSpawnRobotDog(const FInputActionValue& Value)
 void AMAPlayerController::OnPrintAgentInfo(const FInputActionValue& Value)
 {
     if (!AgentManager) return;
-    
+
     int32 Total = AgentManager->GetAgentCount();
-    int32 Dogs = AgentManager->GetAgentsByType(EMAAgentType::RobotDog).Num();
-    int32 Humans = AgentManager->GetAgentsByType(EMAAgentType::Human).Num();
-    
-    int32 TotalSensors = 0;
-    for (AMACharacter* Agent : AgentManager->GetAllAgents())
-    {
-        if (Agent) TotalSensors += Agent->GetSensorCount();
-    }
-    
+    int32 Quadrupeds = AgentManager->GetAgentsByType(EMAAgentType::Quadruped).Num();
+    int32 Humanoids = AgentManager->GetAgentsByType(EMAAgentType::Humanoid).Num();
+    int32 UAVs = AgentManager->GetAgentsByType(EMAAgentType::UAV).Num();
+
     GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Cyan, 
-        FString::Printf(TEXT("=== Agents: %d | Dogs: %d | Humans: %d | Sensors: %d ==="), Total, Dogs, Humans, TotalSensors));
-    
+        FString::Printf(TEXT("=== Agents: %d | UAVs: %d | Quadrupeds: %d | Humanoids: %d ==="),
+            Total, UAVs, Quadrupeds, Humanoids));
+
     for (AMACharacter* Agent : AgentManager->GetAllAgents())
     {
         if (Agent)
         {
             FString Info = FString::Printf(TEXT("  [%s] %s"), *Agent->AgentID, *Agent->AgentName);
-            if (Agent->IsHoldingItem()) Info += TEXT(" [Holding]");
-            if (Agent->GetSensorCount() > 0) Info += FString::Printf(TEXT(" [%d sensors]"), Agent->GetSensorCount());
             GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, Info);
         }
     }
@@ -504,7 +445,7 @@ void AMAPlayerController::OnPrintAgentInfo(const FInputActionValue& Value)
 void AMAPlayerController::OnDestroyLastAgent(const FInputActionValue& Value)
 {
     if (!AgentManager) return;
-    
+
     TArray<AMACharacter*> AllAgents = AgentManager->GetAllAgents();
     if (AllAgents.Num() > 0)
     {
@@ -512,7 +453,8 @@ void AMAPlayerController::OnDestroyLastAgent(const FInputActionValue& Value)
         FString Name = LastAgent->AgentName;
         if (AgentManager->DestroyAgent(LastAgent))
         {
-            GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, FString::Printf(TEXT("Destroyed: %s"), *Name));
+            GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red,
+                FString::Printf(TEXT("Destroyed: %s"), *Name));
         }
     }
 }
@@ -533,30 +475,15 @@ void AMAPlayerController::OnReturnToSpectator(const FInputActionValue& Value)
 
 void AMAPlayerController::SendCommand(EMACommand Command)
 {
-    if (CommandManager) CommandManager->SendCommand(Command);
+    // 旧接口已移除
 }
 
-void AMAPlayerController::OnStartPatrol(const FInputActionValue& Value) { SendCommand(EMACommand::Patrol); }
+void AMAPlayerController::OnStartPatrol(const FInputActionValue& Value) { /* Patrol 已移除 */ }
 void AMAPlayerController::OnStartCharge(const FInputActionValue& Value) { SendCommand(EMACommand::Charge); }
 void AMAPlayerController::OnStopIdle(const FInputActionValue& Value) { SendCommand(EMACommand::Idle); }
-void AMAPlayerController::OnStartCoverage(const FInputActionValue& Value) { SendCommand(EMACommand::Coverage); }
+void AMAPlayerController::OnStartCoverage(const FInputActionValue& Value) { /* Coverage 已移除 */ }
 void AMAPlayerController::OnStartFollow(const FInputActionValue& Value) { SendCommand(EMACommand::Follow); }
-
-void AMAPlayerController::OnStartAvoid(const FInputActionValue& Value)
-{
-    if (!CommandManager) return;
-
-    FVector TargetLocation;
-    if (!GetMouseHitLocation(TargetLocation))
-    {
-        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, TEXT("Click on ground!"));
-        return;
-    }
-
-    FMACommandParams Params;
-    Params.TargetLocation = TargetLocation;
-    CommandManager->SendCommand(EMACommand::Avoid, Params);
-}
+void AMAPlayerController::OnStartAvoid(const FInputActionValue& Value) { /* Avoid 已移除 */ }
 
 void AMAPlayerController::OnStartFormation(const FInputActionValue& Value)
 {
@@ -573,7 +500,8 @@ void AMAPlayerController::OnTakePhoto(const FInputActionValue& Value)
     UMACameraSensorComponent* Camera = GetCurrentCamera();
     if (Camera && Camera->TakePhoto())
     {
-        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green, FString::Printf(TEXT("%s: Photo saved"), *Camera->SensorName));
+        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green,
+            FString::Printf(TEXT("%s: Photo saved"), *Camera->SensorName));
     }
 }
 
@@ -585,12 +513,14 @@ void AMAPlayerController::OnToggleRecording(const FInputActionValue& Value)
     if (Camera->bIsRecording)
     {
         Camera->StopRecording();
-        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green, FString::Printf(TEXT("%s: Recording stopped"), *Camera->SensorName));
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green,
+            FString::Printf(TEXT("%s: Recording stopped"), *Camera->SensorName));
     }
     else
     {
         Camera->StartRecording(Camera->StreamFPS);
-        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, FString::Printf(TEXT("%s: Recording started"), *Camera->SensorName));
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red,
+            FString::Printf(TEXT("%s: Recording started"), *Camera->SensorName));
     }
 }
 
@@ -620,13 +550,15 @@ void AMAPlayerController::OnToggleTCPStream(const FInputActionValue& Value)
     if (Camera->bIsStreaming)
     {
         Camera->StopTCPStream();
-        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Yellow, FString::Printf(TEXT("%s: TCP stopped"), *Camera->SensorName));
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Yellow,
+            FString::Printf(TEXT("%s: TCP stopped"), *Camera->SensorName));
     }
     else
     {
         if (Camera->StartTCPStream(9000, Camera->StreamFPS))
         {
-            GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("%s: TCP on port 9000"), *Camera->SensorName));
+            GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green,
+                FString::Printf(TEXT("%s: TCP on port 9000"), *Camera->SensorName));
         }
     }
 }
@@ -734,34 +666,38 @@ void AMAPlayerController::OnDisbandSquad(const FInputActionValue& Value)
 
 void AMAPlayerController::OnToggleMouseMode(const FInputActionValue& Value)
 {
-    // 切换: Select → Deployment (如果有待部署单位) → Modify → Edit → Select
+    // 切换: Select ↔ Deployment (如果有待部署单位)
     EMAMouseMode NewMode;
     
     switch (CurrentMouseMode)
     {
-        case EMAMouseMode::Select:
-            // 如果背包有待部署单位，切换到部署模式，否则跳过到 Modify
-            if (HasPendingDeployments())
-            {
-                NewMode = EMAMouseMode::Deployment;
-            }
-            else
-            {
-                NewMode = EMAMouseMode::Modify;
-            }
-            break;
-        case EMAMouseMode::Deployment:
+    case EMAMouseMode::Select:
+        // 如果背包有待部署单位，切换到部署模式，否则跳过到 Modify
+        if (HasPendingDeployments())
+        {
+            NewMode = EMAMouseMode::Deployment;
+        }
+        else
+        {
             NewMode = EMAMouseMode::Modify;
-            break;
-        case EMAMouseMode::Modify:
-            NewMode = EMAMouseMode::Edit;
-            break;
-        case EMAMouseMode::Edit:
-            NewMode = EMAMouseMode::Select;
-            break;
-        default:
-            NewMode = EMAMouseMode::Select;
-            break;
+        }
+        break;
+
+    case EMAMouseMode::Deployment:
+        NewMode = EMAMouseMode::Modify;
+        break;
+
+    case EMAMouseMode::Modify:
+        NewMode = EMAMouseMode::Edit;
+        break;
+
+    case EMAMouseMode::Edit:
+        NewMode = EMAMouseMode::Select;
+        break;
+
+    default:
+        NewMode = EMAMouseMode::Select;
+        break;
     }
     
     // 如果从部署模式切出，保存状态
@@ -774,25 +710,50 @@ void AMAPlayerController::OnToggleMouseMode(const FInputActionValue& Value)
         }
         CurrentDeploymentIndex = 0;
     }
-    
-    // 如果切入部署模式，重置部署索引
-    if (NewMode == EMAMouseMode::Deployment && CurrentMouseMode != EMAMouseMode::Deployment)
+    else if (CurrentMouseMode == EMAMouseMode::Modify)
+    {
+        ExitModifyMode();
+    }
+    else if (CurrentMouseMode == EMAMouseMode::Edit)
+    {
+        ExitEditMode();
+    }
+
+    // 进入新模式
+    if (NewMode == EMAMouseMode::Deployment)
     {
         CurrentDeploymentIndex = 0;
         DeployedCount = 0;
     }
-    
+    else if (NewMode == EMAMouseMode::Modify)
+    {
+        EnterModifyMode();
+    }
+    else if (NewMode == EMAMouseMode::Edit)
+    {
+        EnterEditMode();
+    }
+
     PreviousMouseMode = CurrentMouseMode;
     CurrentMouseMode = NewMode;
     ApplyMouseModeSettings(NewMode);
 
     FString ModeName = MouseModeToString(CurrentMouseMode);
     FString ExtraInfo;
+
     if (CurrentMouseMode == EMAMouseMode::Deployment)
     {
         ExtraInfo = FString::Printf(TEXT(" [%d pending]"), GetDeploymentQueueCount());
     }
-    
+    else if (CurrentMouseMode == EMAMouseMode::Modify)
+    {
+        ExtraInfo = TEXT(" [Click to select Actor, Shift+Click for multi-select]");
+    }
+    else if (CurrentMouseMode == EMAMouseMode::Edit)
+    {
+        ExtraInfo = TEXT(" [Click to create POI, Shift+Click to select]");
+    }
+
     GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan,
         FString::Printf(TEXT("Mode: %s%s (M to switch)"), *ModeName, *ExtraInfo));
 
@@ -808,7 +769,7 @@ void AMAPlayerController::ApplyMouseModeSettings(EMAMouseMode Mode)
     FInputModeGameAndUI InputMode;
     InputMode.SetHideCursorDuringCapture(false);
     SetInputMode(InputMode);
-    
+
     // 处理 Modify 模式的进入/退出
     if (Mode == EMAMouseMode::Modify && PreviousMouseMode != EMAMouseMode::Modify)
     {
@@ -820,7 +781,7 @@ void AMAPlayerController::ApplyMouseModeSettings(EMAMouseMode Mode)
         // 退出 Modify 模式
         ExitModifyMode();
     }
-    
+
     // 处理 Edit 模式的进入/退出
     if (Mode == EMAMouseMode::Edit && PreviousMouseMode != EMAMouseMode::Edit)
     {
@@ -1155,7 +1116,7 @@ TArray<FVector> AMAPlayerController::ProjectSelectionBoxToWorld(FVector2D Start,
             Spawned++;
         }
     }
-    
+
     return Points;
 }
 
@@ -1163,21 +1124,20 @@ FVector AMAPlayerController::ProjectToGround(FVector WorldLocation)
 {
     UWorld* World = GetWorld();
     if (!World) return WorldLocation;
-    
+
     FHitResult HitResult;
     // 从固定高空位置开始检测，确保能检测到任何高度的地面
     // 使用 XY 坐标，但 Z 从 10000 开始向下检测到 -20000
     FVector TraceStart = FVector(WorldLocation.X, WorldLocation.Y, 10000.f);
     FVector TraceEnd = FVector(WorldLocation.X, WorldLocation.Y, -20000.f);
-    
+
     if (World->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, ECC_Visibility))
     {
         return HitResult.Location;
     }
-    
+
     UE_LOG(LogTemp, Warning, TEXT("[PlayerController] ProjectToGround: No ground at (%.0f, %.0f)"), 
         WorldLocation.X, WorldLocation.Y);
-    
     return WorldLocation;
 }
 
@@ -1226,7 +1186,7 @@ void AMAPlayerController::OnToggleEmergencyUI(const FInputActionValue& Value)
         UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnToggleEmergencyUI: No active emergency event"));
         return;
     }
-    
+
     if (AMAHUD* HUD = Cast<AMAHUD>(GetHUD()))
     {
         HUD->ToggleEmergencyWidget();
@@ -1244,23 +1204,23 @@ void AMAPlayerController::OnJumpPressed(const FInputActionValue& Value)
     {
         return;
     }
-    
+
     TArray<AMACharacter*> SelectedAgents = SelectionManager->GetSelectedAgents();
     if (SelectedAgents.Num() == 0)
     {
         return;
     }
-    
+
     int32 JumpCount = 0;
     for (AMACharacter* Agent : SelectedAgents)
     {
-        if (Agent && Agent->CanPerformJump())
+        if (Agent && Agent->CanJump())
         {
-            Agent->PerformJump();
+            Agent->Jump();
             JumpCount++;
         }
     }
-    
+
     if (JumpCount > 0)
     {
         UE_LOG(LogTemp, Log, TEXT("[PlayerController] Jump: %d agents jumped"), JumpCount);
@@ -1273,17 +1233,17 @@ void AMAPlayerController::OnJumpPressed(const FInputActionValue& Value)
 static AActor* FindRootActor(AActor* Actor)
 {
     if (!Actor) return nullptr;
-    
+
     AActor* Current = Actor;
     AActor* Parent = Current->GetAttachParentActor();
-    
+
     // 向上遍历直到没有父 Actor
     while (Parent)
     {
         Current = Parent;
         Parent = Current->GetAttachParentActor();
     }
-    
+
     return Current;
 }
 
@@ -1291,13 +1251,13 @@ static AActor* FindRootActor(AActor* Actor)
 static void CollectActorAndChildren(AActor* Actor, TArray<AActor*>& OutActors)
 {
     if (!Actor) return;
-    
+
     OutActors.Add(Actor);
-    
+
     // 获取所有附加的子 Actor
     TArray<AActor*> AttachedActors;
     Actor->GetAttachedActors(AttachedActors);
-    
+
     for (AActor* Child : AttachedActors)
     {
         CollectActorAndChildren(Child, OutActors);
@@ -1308,11 +1268,11 @@ static void CollectActorAndChildren(AActor* Actor, TArray<AActor*>& OutActors)
 void AMAPlayerController::SetSingleActorHighlight(AActor* Actor, bool bHighlight)
 {
     if (!Actor) return;
-    
+
     // 获取所有 PrimitiveComponent
     TArray<UPrimitiveComponent*> Components;
     Actor->GetComponents<UPrimitiveComponent>(Components);
-    
+
     // 创建高亮材质的静态函数
     auto CreateHighlightMaterial = [](UObject* Outer, FLinearColor Color) -> UMaterialInstanceDynamic*
     {
@@ -1321,16 +1281,16 @@ void AMAPlayerController::SetSingleActorHighlight(AActor* Actor, bool bHighlight
         if (!UnlitMaterial)
         {
             // 尝试多个可能的材质路径
-            UnlitMaterial = LoadObject<UMaterial>(nullptr, 
+            UnlitMaterial = LoadObject<UMaterial>(nullptr,
                 TEXT("/Engine/EngineMaterials/DefaultDeferredDecalMaterial.DefaultDeferredDecalMaterial"));
-            
+
             if (!UnlitMaterial)
             {
-                UnlitMaterial = LoadObject<UMaterial>(nullptr, 
+                UnlitMaterial = LoadObject<UMaterial>(nullptr,
                     TEXT("/Engine/EngineMaterials/DefaultMaterial.DefaultMaterial"));
             }
         }
-        
+
         if (UnlitMaterial)
         {
             UMaterialInstanceDynamic* DynMat = UMaterialInstanceDynamic::Create(UnlitMaterial, Outer);
@@ -1344,7 +1304,7 @@ void AMAPlayerController::SetSingleActorHighlight(AActor* Actor, bool bHighlight
         }
         return nullptr;
     };
-    
+
     // ========== 高亮颜色配置 ==========
     // 可以修改这里的颜色来尝试不同效果：
     // 鲜艳橙色: FLinearColor(1.0f, 0.3f, 0.0f)
@@ -1356,7 +1316,7 @@ void AMAPlayerController::SetSingleActorHighlight(AActor* Actor, bool bHighlight
     // 纯白色:   FLinearColor(1.0f, 1.0f, 1.0f)
     FLinearColor HighlightColor(0.0f, 1.0f, 0.5f);  // 当前：亮青绿色
     // ====================================
-    
+
     for (UPrimitiveComponent* Comp : Components)
     {
         if (Comp)
@@ -1364,7 +1324,7 @@ void AMAPlayerController::SetSingleActorHighlight(AActor* Actor, bool bHighlight
             // 方式 1: Custom Depth (需要 Post Process 配合)
             Comp->SetRenderCustomDepth(bHighlight);
             Comp->SetCustomDepthStencilValue(bHighlight ? 1 : 0);
-            
+
             // 方式 2: 使用 Overlay Material 实现高亮
             UMeshComponent* MeshComp = Cast<UMeshComponent>(Comp);
             if (MeshComp)
@@ -1390,22 +1350,22 @@ void AMAPlayerController::SetSingleActorHighlight(AActor* Actor, bool bHighlight
 void AMAPlayerController::SetActorHighlight(AActor* Actor, bool bHighlight)
 {
     if (!Actor) return;
-    
+
     // 查找根 Actor
     AActor* RootActor = FindRootActor(Actor);
-    
+
     // 收集根 Actor 及其所有子 Actor
     TArray<AActor*> AllActors;
     CollectActorAndChildren(RootActor, AllActors);
-    
+
     // 对所有 Actor 设置高亮
     for (AActor* ActorToHighlight : AllActors)
     {
         SetSingleActorHighlight(ActorToHighlight, bHighlight);
     }
-    
-    UE_LOG(LogTemp, Log, TEXT("[PlayerController] SetActorHighlight: %s (Root: %s, Total: %d actors) -> %s"), 
-        *Actor->GetName(), 
+
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] SetActorHighlight: %s (Root: %s, Total: %d actors) -> %s"),
+        *Actor->GetName(),
         *RootActor->GetName(),
         AllActors.Num(),
         bHighlight ? TEXT("ON") : TEXT("OFF"));
@@ -1421,20 +1381,20 @@ void AMAPlayerController::ClearAllHighlights()
             SetActorHighlight(Actor, false);
         }
     }
-    
+
     // 清空数组
     HighlightedActors.Empty();
-    
+
     UE_LOG(LogTemp, Log, TEXT("[PlayerController] ClearAllHighlights: Cleared all selections"));
 }
 
 void AMAPlayerController::AddToSelection(AActor* Actor)
 {
     if (!Actor) return;
-    
+
     // 查找根 Actor
     AActor* RootActor = FindRootActor(Actor);
-    
+
     // 检查是否已在选择集中 - toggle 行为
     if (HighlightedActors.Contains(RootActor))
     {
@@ -1447,13 +1407,13 @@ void AMAPlayerController::AddToSelection(AActor* Actor)
         // 不存在则添加
         HighlightedActors.Add(RootActor);
         SetActorHighlight(RootActor, true);
-        UE_LOG(LogTemp, Log, TEXT("[PlayerController] AddToSelection: Added %s (total: %d)"), 
+        UE_LOG(LogTemp, Log, TEXT("[PlayerController] AddToSelection: Added %s (total: %d)"),
             *RootActor->GetName(), HighlightedActors.Num());
     }
-    
+
     // 广播多选委托
     OnModifyActorsSelected.Broadcast(HighlightedActors);
-    
+
     // 向后兼容：如果只有一个选中，也广播单选委托
     if (HighlightedActors.Num() == 1)
     {
@@ -1468,21 +1428,21 @@ void AMAPlayerController::AddToSelection(AActor* Actor)
 void AMAPlayerController::RemoveFromSelection(AActor* Actor)
 {
     if (!Actor) return;
-    
+
     // 查找根 Actor
     AActor* RootActor = FindRootActor(Actor);
-    
+
     // 从选择集移除
     if (HighlightedActors.Remove(RootActor) > 0)
     {
         // 移除该 Actor 的高亮
         SetActorHighlight(RootActor, false);
-        UE_LOG(LogTemp, Log, TEXT("[PlayerController] RemoveFromSelection: Removed %s (remaining: %d)"), 
+        UE_LOG(LogTemp, Log, TEXT("[PlayerController] RemoveFromSelection: Removed %s (remaining: %d)"),
             *RootActor->GetName(), HighlightedActors.Num());
-        
+
         // 广播多选委托
         OnModifyActorsSelected.Broadcast(HighlightedActors);
-        
+
         // 向后兼容
         if (HighlightedActors.Num() == 1)
         {
@@ -1499,7 +1459,7 @@ void AMAPlayerController::ClearAndSelect(AActor* Actor)
 {
     // 清除所有现有选择和高亮
     ClearAllHighlights();
-    
+
     if (!Actor)
     {
         // 广播空选中事件
@@ -1507,16 +1467,16 @@ void AMAPlayerController::ClearAndSelect(AActor* Actor)
         OnModifyActorsSelected.Broadcast(HighlightedActors);
         return;
     }
-    
+
     // 查找根 Actor
     AActor* RootActor = FindRootActor(Actor);
-    
+
     // 选中并高亮单个 Actor
     HighlightedActors.Add(RootActor);
     SetActorHighlight(RootActor, true);
-    
+
     UE_LOG(LogTemp, Log, TEXT("[PlayerController] ClearAndSelect: Selected %s"), *RootActor->GetName());
-    
+
     // 广播选中事件
     OnModifyActorSelected.Broadcast(RootActor);
     OnModifyActorsSelected.Broadcast(HighlightedActors);
@@ -1526,47 +1486,47 @@ void AMAPlayerController::OnModifyLeftClick()
 {
     // 检测 Shift 键状态
     bool bShiftPressed = IsInputKeyDown(EKeys::LeftShift) || IsInputKeyDown(EKeys::RightShift);
-    
+
     // 执行射线检测
     FHitResult HitResult;
     if (GetHitResultUnderCursor(ECC_Visibility, false, HitResult))
     {
         AActor* HitActor = HitResult.GetActor();
-        
+
         if (HitActor)
         {
             if (bShiftPressed)
             {
                 // Shift+Click: 添加到选择集 (toggle 行为)
                 AddToSelection(HitActor);
-                UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnModifyLeftClick: Shift+Click on %s"), 
+                UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnModifyLeftClick: Shift+Click on %s"),
                     *HitActor->GetName());
             }
             else
             {
                 // 普通 Click: 清除所有选择并选中单个 Actor
                 ClearAndSelect(HitActor);
-                UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnModifyLeftClick: Click on %s"), 
+                UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnModifyLeftClick: Click on %s"),
                     *HitActor->GetName());
             }
             return;
         }
     }
-    
+
     // 点击空白区域，清除所有选择（无论是否按 Shift）
     ClearAllHighlights();
-    
+
     // 广播空选中事件
     OnModifyActorSelected.Broadcast(nullptr);
     OnModifyActorsSelected.Broadcast(HighlightedActors);
-    
+
     UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnModifyLeftClick: Clicked empty area, cleared all selections"));
 }
 
 void AMAPlayerController::EnterModifyMode()
 {
     UE_LOG(LogTemp, Log, TEXT("[PlayerController] EnterModifyMode"));
-    
+
     // 通知 HUD 显示 ModifyWidget
     if (AMAHUD* HUD = Cast<AMAHUD>(GetHUD()))
     {
@@ -1577,10 +1537,10 @@ void AMAPlayerController::EnterModifyMode()
 void AMAPlayerController::ExitModifyMode()
 {
     UE_LOG(LogTemp, Log, TEXT("[PlayerController] ExitModifyMode"));
-    
+
     // 清除高亮
     ClearAllHighlights();
-    
+
     // 通知 HUD 隐藏 ModifyWidget
     if (AMAHUD* HUD = Cast<AMAHUD>(GetHUD()))
     {
@@ -1591,10 +1551,10 @@ void AMAPlayerController::ExitModifyMode()
 void AMAPlayerController::ClearModifyHighlight()
 {
     UE_LOG(LogTemp, Log, TEXT("[PlayerController] ClearModifyHighlight"));
-    
+
     // 清除所有高亮
     ClearAllHighlights();
-    
+
     // 广播空选中事件
     OnModifyActorSelected.Broadcast(nullptr);
     OnModifyActorsSelected.Broadcast(HighlightedActors);
@@ -1606,7 +1566,7 @@ void AMAPlayerController::ClearModifyHighlight()
 void AMAPlayerController::OnEditLeftClick()
 {
     // Requirements: 3.1, 4.1, 4.2, 4.7
-    
+
     // 检查鼠标是否在 UI 上，如果是则不处理场景交互
     // 这样 UMG 按钮可以正常接收点击，同时避免在 UI 区域创建 POI
     if (AMAHUD* HUD = Cast<AMAHUD>(GetHUD()))
@@ -1617,10 +1577,10 @@ void AMAPlayerController::OnEditLeftClick()
             return;
         }
     }
-    
+
     // 检测 Shift 键状态
     bool bShiftPressed = IsInputKeyDown(EKeys::LeftShift) || IsInputKeyDown(EKeys::RightShift);
-    
+
     if (bShiftPressed)
     {
         // Shift+Click: 选择 Actor 或 POI
@@ -1629,7 +1589,7 @@ void AMAPlayerController::OnEditLeftClick()
         if (GetHitResultUnderCursor(ECC_Visibility, false, HitResult))
         {
             AActor* HitActor = HitResult.GetActor();
-            
+
             if (HitActor)
             {
                 // 检查是否点击了 POI
@@ -1643,20 +1603,20 @@ void AMAPlayerController::OnEditLeftClick()
                         {
                             // 已选中，取消选择
                             EditModeManager->DeselectObject(POI);
-                            UE_LOG(LogTemp, Log, TEXT("[PlayerController] Edit Mode: Deselected POI at %s"), 
+                            UE_LOG(LogTemp, Log, TEXT("[PlayerController] Edit Mode: Deselected POI at %s"),
                                 *POI->GetActorLocation().ToString());
                         }
                         else
                         {
                             // 未选中，添加到选择
                             EditModeManager->SelectPOI(POI);
-                            UE_LOG(LogTemp, Log, TEXT("[PlayerController] Edit Mode: Selected POI at %s"), 
+                            UE_LOG(LogTemp, Log, TEXT("[PlayerController] Edit Mode: Selected POI at %s"),
                                 *POI->GetActorLocation().ToString());
                         }
                     }
                     return;
                 }
-                
+
                 // 点击普通 Actor: 选择 Actor (单选)
                 // Requirements: 4.1, 4.5, 4.6
                 if (EditModeManager)
@@ -1665,21 +1625,21 @@ void AMAPlayerController::OnEditLeftClick()
                     {
                         // 已选中，取消选择
                         EditModeManager->DeselectObject(HitActor);
-                        UE_LOG(LogTemp, Log, TEXT("[PlayerController] Edit Mode: Deselected Actor %s"), 
+                        UE_LOG(LogTemp, Log, TEXT("[PlayerController] Edit Mode: Deselected Actor %s"),
                             *HitActor->GetName());
                     }
                     else
                     {
                         // 选择新 Actor
                         EditModeManager->SelectActor(HitActor);
-                        UE_LOG(LogTemp, Log, TEXT("[PlayerController] Edit Mode: Selected Actor %s"), 
+                        UE_LOG(LogTemp, Log, TEXT("[PlayerController] Edit Mode: Selected Actor %s"),
                             *HitActor->GetName());
                     }
                 }
                 return;
             }
         }
-        
+
         // 点击空白区域，清除选择
         if (EditModeManager)
         {
@@ -1699,12 +1659,12 @@ void AMAPlayerController::OnEditLeftClick()
                 AMAPointOfInterest* NewPOI = EditModeManager->CreatePOI(HitLocation);
                 if (NewPOI)
                 {
-                    UE_LOG(LogTemp, Log, TEXT("[PlayerController] Edit Mode: Created POI at %s"), 
+                    UE_LOG(LogTemp, Log, TEXT("[PlayerController] Edit Mode: Created POI at %s"),
                         *HitLocation.ToString());
-                    
+
                     // 在屏幕上显示坐标
                     GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green,
-                        FString::Printf(TEXT("POI: (%.0f, %.0f, %.0f)"), 
+                        FString::Printf(TEXT("POI: (%.0f, %.0f, %.0f)"),
                             HitLocation.X, HitLocation.Y, HitLocation.Z));
                 }
             }
@@ -1716,16 +1676,16 @@ void AMAPlayerController::EnterEditMode()
 {
     // Requirements: 2.1, 2.3
     UE_LOG(LogTemp, Log, TEXT("[PlayerController] EnterEditMode"));
-    
+
     // 检查 Edit Mode 是否可用
     if (EditModeManager && !EditModeManager->IsEditModeAvailable())
     {
         UE_LOG(LogTemp, Warning, TEXT("[PlayerController] Edit Mode is not available (source scene graph not found)"));
-        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, 
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red,
             TEXT("Edit Mode unavailable: source scene graph file not found"));
         return;
     }
-    
+
     // 通知 HUD 显示 EditWidget
     if (AMAHUD* HUD = Cast<AMAHUD>(GetHUD()))
     {
@@ -1737,7 +1697,7 @@ void AMAPlayerController::ExitEditMode()
 {
     // Requirements: 2.4, 2.5, 3.5
     UE_LOG(LogTemp, Log, TEXT("[PlayerController] ExitEditMode"));
-    
+
     // 清除所有 POI 和选择
     // Requirements: 2.4, 3.5
     if (EditModeManager)
@@ -1745,7 +1705,7 @@ void AMAPlayerController::ExitEditMode()
         EditModeManager->ClearSelection();
         EditModeManager->DestroyAllPOIs();
     }
-    
+
     // 通知 HUD 隐藏 EditWidget
     if (AMAHUD* HUD = Cast<AMAHUD>(GetHUD()))
     {

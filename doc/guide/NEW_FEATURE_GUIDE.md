@@ -2,34 +2,47 @@
 
 本文档帮助开发者快速定位开发某类功能需要修改的文件。
 
-## 功能类型 → 代码位置
-
-### 1. 添加新的 Agent 命令 (如巡逻、跟随)
+## 三层架构
 
 ```
-1. Core/MACommandManager.h       - 添加 EMACommand 枚举
-2. Core/MACommandManager.cpp     - 实现 SendCommand() 分支
-3. Input/MAPlayerController.cpp  - 绑定快捷键
-4. Agent/StateTree/Task/         - 创建 MASTTask_XXX.h/cpp 实现具体行为
-5. doc/KEYBINDINGS.md            - 更新按键文档
+指令调度层 (MACommandManager)
+    │ SendCommandToAgent()
+    ▼
+技能管理层 (MASkillComponent + StateTree)
+    │ SkillParams → StateTree Tag → 技能激活
+    ▼
+技能内核层 (SK_Navigate, SK_Follow, SK_Charge, SK_Place)
+```
+
+## 功能类型 → 代码位置
+
+### 1. 添加新的 Agent 命令/技能
+
+```
+1. Core/Manager/MACommandManager.h   - 添加 EMACommand 枚举
+2. Core/Manager/MACommandManager.cpp - 实现参数预处理分支
+3. Agent/Skill/MASkillComponent.h    - 添加 FMASkillParams 参数、技能激活接口
+4. Agent/Skill/Impl/                 - 创建 SK_XXX.h/cpp 技能实现
+5. Agent/Skill/MASkillTags.h/cpp     - 注册新 Tag
+6. Agent/StateTree/Task/             - 创建 MASTTask_XXX.h/cpp 实现具体行为
+7. Agent/Skill/MAFeedbackSystem.h/cpp - 添加反馈模板
 ```
 
 ### 2. 添加新的 Agent 类型 (如新无人机)
 
 ```
 1. Agent/Character/              - 创建新 Character 类
-2. Agent/Interface/MAAgentInterfaces.h - 实现需要的 Interface
-3. Core/MATypes.h                - 添加 EMAAgentType 枚举
-4. UI/MASetupWidget.cpp          - 添加到 AvailableAgentTypes
-5. config/SimConfig.json         - 添加配置 (可选)
+2. Core/Types/MATypes.h          - 添加 EMAAgentType 枚举
+3. UI/MASetupWidget.cpp          - 添加到 AvailableAgentTypes
+4. config/agents.json            - 添加配置 (可选)
 ```
 
-### 3. 添加新的 GAS 技能
+### 3. 添加新的技能实现
 
 ```
-1. Agent/GAS/Ability/            - 创建 GA_XXX.h/cpp
-2. Agent/GAS/MAGameplayTags.cpp  - 注册新 Tag
-3. Agent/GAS/MAAbilitySystemComponent.cpp - 注册 Ability
+1. Agent/Skill/Impl/             - 创建 SK_XXX.h/cpp
+2. Agent/Skill/MASkillTags.cpp   - 注册新 Tag
+3. Agent/Skill/MASkillComponent.cpp - 在 InitializeSkills() 中注册技能
 4. Config/DefaultGameplayTags.ini - 配置 Tag
 ```
 
@@ -64,28 +77,12 @@
 3. config/SimConfig.json         - 配置传感器参数
 ```
 
-### 8. 添加新的能力组件 (Capability)
-
-```
-1. Agent/Component/Capability/   - 创建 Component 类
-2. Agent/Interface/MAAgentInterfaces.h - 定义对应 Interface
-3. Agent/Character/              - 在需要的 Character 中添加组件
-```
-
-### 9. 添加新的环境实体 (如充电站、巡逻路径)
+### 8. 添加新的环境实体 (如充电站)
 
 ```
 1. Environment/                  - 创建 Actor 类
 2. UE 编辑器中放置到地图
-3. 相关 Task/Ability 中添加查找逻辑
-```
-
-### 10. 添加新的快捷键
-
-```
-1. Input/MAInputActions.cpp      - 创建 UInputAction 并绑定按键
-2. Input/MAPlayerController.cpp  - 添加回调函数
-3. doc/KEYBINDINGS.md            - 更新文档
+3. 相关 Task/Skill 中添加查找逻辑
 ```
 
 ## 常用代码模式
@@ -94,23 +91,61 @@
 
 ```cpp
 // 使用 MA_SUBS 宏
-MA_SUBS.CommandManager->SendCommand(EMACommand::Patrol);
+MA_SUBS.CommandManager->SendCommandToAgent(Agent, EMACommand::Navigate);
 MA_SUBS.SelectionManager->GetSelectedAgents();
 MA_SUBS.AgentManager->GetAllAgents();
 ```
 
-### 通过 Interface 获取能力
+### 发送指令（指令调度层）
 
 ```cpp
-if (IMAChargeable* Chargeable = GetCapabilityInterface<IMAChargeable>(Actor))
-{
-    float Energy = Chargeable->GetEnergy();
-}
+// 先设置技能参数
+UMASkillComponent* SkillComp = Agent->GetSkillComponent();
+FMASkillParams& Params = SkillComp->GetSkillParamsMutable();
+Params.TargetLocation = FVector(1000, 0, 0);
+
+// 发送命令
+CommandManager->SendCommandToAgent(Agent, EMACommand::Navigate);
+```
+
+### 技能激活（技能管理层）
+
+```cpp
+UMASkillComponent* SkillComp = Character->GetSkillComponent();
+SkillComp->TryActivateNavigate(TargetLocation);
+SkillComp->TryActivateFollow(TargetCharacter, 200.f);
+SkillComp->TryActivateCharge();
+SkillComp->TryActivatePlace();
 ```
 
 ### 设置 Gameplay Tag
 
 ```cpp
-ASC->AddLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Patrol")));
-ASC->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Idle")));
+SkillComp->AddLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Navigate")));
+SkillComp->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Idle")));
+SkillComp->ClearAllCommands();  // 清除所有 Command.* Tag
+```
+
+### 能量系统
+
+```cpp
+UMASkillComponent* SkillComp = Character->GetSkillComponent();
+float Energy = SkillComp->GetEnergy();
+float Percent = SkillComp->GetEnergyPercent();
+bool bLow = SkillComp->IsLowEnergy();
+bool bHas = SkillComp->HasEnergy();
+SkillComp->DrainEnergy(DeltaTime);
+SkillComp->RestoreEnergy(Amount);
+```
+
+### 反馈系统
+
+```cpp
+// 获取反馈上下文
+FMAFeedbackContext& Context = SkillComp->GetFeedbackContextMutable();
+Context.TargetLocation = TargetLocation;
+
+// 生成反馈消息
+FString Message = FMAFeedbackTemplates::Get().GenerateMessage(
+    AgentName, Command, bSuccess, Context);
 ```

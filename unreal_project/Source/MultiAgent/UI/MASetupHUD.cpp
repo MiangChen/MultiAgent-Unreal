@@ -2,7 +2,8 @@
 
 #include "MASetupHUD.h"
 #include "MASetupWidget.h"
-#include "../Core/MAGameInstance.h"
+#include "../Core/Config/MAConfigManager.h"
+#include "../Core/GameFlow/MAGameInstance.h"
 #include "Kismet/GameplayStatics.h"
 #include "Blueprint/UserWidget.h"
 
@@ -14,7 +15,15 @@ void AMASetupHUD::BeginPlay()
 {
     Super::BeginPlay();
 
-    // 延迟一帧创建 Widget，确保 PlayerController 已初始化
+    // 检查是否需要显示 Setup UI
+    UMAConfigManager* ConfigMgr = GetGameInstance()->GetSubsystem<UMAConfigManager>();
+    if (!ConfigMgr || !ConfigMgr->bUseSetupUI)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[MASetupHUD] bUseSetupUI=false, skipping Setup UI"));
+        return;
+    }
+    
+    // 延迟一帧创建 Widget
     GetWorld()->GetTimerManager().SetTimerForNextTick([this]()
     {
         CreateSetupWidget();

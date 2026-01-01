@@ -17,7 +17,7 @@
           "required_skills": [
             {
               "skill_name": "navigate_to(building_A_roof)",
-              "assigned_robot_type": ["DronePhantom4", "DroneInspire2"],
+              "assigned_robot_type": ["UAV"],
               "assigned_robot_count": 1
             }
           ],
@@ -30,7 +30,7 @@
           "required_skills": [
             {
               "skill_name": "perceive(thermal_scan)",
-              "assigned_robot_type": ["DronePhantom4", "DroneInspire2"],
+              "assigned_robot_type": ["UAV"],
               "assigned_robot_count": 1
             }
           ],
@@ -56,7 +56,7 @@
           "required_skills": [
             {
               "skill_name": "broadcast(fire_location_data)",
-              "assigned_robot_type": ["DronePhantom4", "DroneInspire2"],
+              "assigned_robot_type": ["UAV"],
               "assigned_robot_count": 1
             }
           ],
@@ -82,12 +82,12 @@
           "required_skills": [
             {
               "skill_name": "navigate_to(victim_location)",
-              "assigned_robot_type": ["Human"],
+              "assigned_robot_type": ["Humanoid"],
               "assigned_robot_count": 1
             },
             {
               "skill_name": "manipulate(assist_evacuation)",
-              "assigned_robot_type": ["Human"],
+              "assigned_robot_type": ["Humanoid"],
               "assigned_robot_count": 1
             }
           ],
@@ -121,7 +121,7 @@
           "required_skills": [
             {
               "skill_name": "navigate_to(search_zone_alpha)",
-              "assigned_robot_type": ["DroneInspire2"],
+              "assigned_robot_type": ["UAV"],
               "assigned_robot_count": 1
             }
           ],
@@ -134,7 +134,7 @@
           "required_skills": [
             {
               "skill_name": "perceive(visual_search)",
-              "assigned_robot_type": ["DroneInspire2"],
+              "assigned_robot_type": ["UAV"],
               "assigned_robot_count": 1
             }
           ],
@@ -147,7 +147,7 @@
           "required_skills": [
             {
               "skill_name": "broadcast(target_coordinates)",
-              "assigned_robot_type": ["DroneInspire2"],
+              "assigned_robot_type": ["UAV"],
               "assigned_robot_count": 1
             }
           ],
@@ -199,12 +199,12 @@
           "required_skills": [
             {
               "skill_name": "navigate_to(target_location)",
-              "assigned_robot_type": ["Human"],
+              "assigned_robot_type": ["Humanoid"],
               "assigned_robot_count": 2
             },
             {
               "skill_name": "manipulate(carry_person)",
-              "assigned_robot_type": ["Human"],
+              "assigned_robot_type": ["Humanoid"],
               "assigned_robot_count": 2
             }
           ],
@@ -264,7 +264,7 @@
           "required_skills": [
             {
               "skill_name": "navigate_to(object_location)",
-              "assigned_robot_type": ["DronePhantom4"],
+              "assigned_robot_type": ["UAV"],
               "assigned_robot_count": 1
             }
           ],
@@ -277,7 +277,7 @@
           "required_skills": [
             {
               "skill_name": "perceive(high_res_capture)",
-              "assigned_robot_type": ["DronePhantom4"],
+              "assigned_robot_type": ["UAV"],
               "assigned_robot_count": 1
             }
           ],
@@ -307,7 +307,7 @@
   },
   {
     "meta": {
-      "description": "物资配送任务：无人机侦察路线，机器狗运送物资。",
+      "description": "物资配送任务：无人机侦察路线，UGV运送物资。",
       "shared_skill_groups": [
         ["T1.0", "T2.0"],
         ["T3.0", "T4.0", "T5.0"]
@@ -322,7 +322,7 @@
           "required_skills": [
             {
               "skill_name": "navigate_to(route_checkpoint_1)",
-              "assigned_robot_type": ["DronePhantom4"],
+              "assigned_robot_type": ["UAV"],
               "assigned_robot_count": 1
             }
           ],
@@ -335,7 +335,7 @@
           "required_skills": [
             {
               "skill_name": "perceive(obstacle_detection)",
-              "assigned_robot_type": ["DronePhantom4"],
+              "assigned_robot_type": ["UAV"],
               "assigned_robot_count": 1
             }
           ],
@@ -343,12 +343,12 @@
         },
         {
           "task_id": "T3",
-          "description": "机器狗在仓库装载物资",
+          "description": "UGV在仓库装载物资",
           "location": "warehouse_A",
           "required_skills": [
             {
               "skill_name": "manipulate(load_cargo)",
-              "assigned_robot_type": ["RobotDog"],
+              "assigned_robot_type": ["UGV"],
               "assigned_robot_count": 2
             }
           ],
@@ -356,12 +356,12 @@
         },
         {
           "task_id": "T4",
-          "description": "机器狗沿安全路线配送物资",
+          "description": "UGV沿安全路线配送物资",
           "location": "destination_B",
           "required_skills": [
             {
               "skill_name": "navigate_to(destination_B)",
-              "assigned_robot_type": ["RobotDog"],
+              "assigned_robot_type": ["UGV"],
               "assigned_robot_count": 2
             }
           ],
@@ -369,12 +369,12 @@
         },
         {
           "task_id": "T5",
-          "description": "机器狗卸载物资",
+          "description": "UGV卸载物资",
           "location": "destination_B",
           "required_skills": [
             {
               "skill_name": "manipulate(unload_cargo)",
-              "assigned_robot_type": ["RobotDog"],
+              "assigned_robot_type": ["UGV"],
               "assigned_robot_count": 2
             }
           ],
@@ -406,7 +406,7 @@
           "required_skills": [
             {
               "skill_name": "navigate_to(building_C_exterior)",
-              "assigned_robot_type": ["DroneInspire2"],
+              "assigned_robot_type": ["UAV"],
               "assigned_robot_count": 1
             }
           ],
@@ -419,7 +419,7 @@
           "required_skills": [
             {
               "skill_name": "perceive(structural_scan)",
-              "assigned_robot_type": ["DroneInspire2"],
+              "assigned_robot_type": ["UAV"],
               "assigned_robot_count": 1
             }
           ],
@@ -458,7 +458,7 @@
           "required_skills": [
             {
               "skill_name": "broadcast(inspection_report)",
-              "assigned_robot_type": ["DroneInspire2"],
+              "assigned_robot_type": ["UAV"],
               "assigned_robot_count": 1
             }
           ],

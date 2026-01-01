@@ -48,7 +48,7 @@ enum class EMAShapeType : uint8
     
     /** 矩形类型 - 用于简单的矩形区域 */
     Rectangle   UMETA(DisplayName = "Rectangle"),
-    
+
     /** 棱柱类型 - 用于建筑物的 3D 表示 (底面多边形 + 高度) */
     Prism       UMETA(DisplayName = "Prism")
 };

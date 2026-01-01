@@ -3,7 +3,7 @@
 #include "MAAgentInputComponent.h"
 #include "MAInputActions.h"
 #include "../Agent/Character/MACharacter.h"
-#include "../Agent/Character/MADroneCharacter.h"
+#include "../Agent/Character/MAUAVCharacter.h"
 #include "../Agent/Component/Sensor/MACameraSensorComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -145,18 +145,18 @@ void UMAAgentInputComponent::OnMoveUp(const FInputActionValue& Value)
 {
     if (!ControlledAgent.IsValid()) return;
     
-    // E 键用于 Drone 上升（需要在空中）
-    if (AMADroneCharacter* Drone = Cast<AMADroneCharacter>(ControlledAgent.Get()))
+    // E 键用于 UAV 上升
+    if (AMAUAVCharacter* UAV = Cast<AMAUAVCharacter>(ControlledAgent.Get()))
     {
-        if (Drone->IsLanded())
+        if (UAV->FlightState == EMAFlightState::Landed)
         {
-            // 在地面时，E 键起飞
-            Drone->TakeOff();
+            UAV->TakeOff();
         }
         else
         {
-            // 在空中时，E 键上升
-            Drone->ApplyVerticalMovement(1.0f);
+            // 在空中时上升
+            FVector Loc = UAV->GetActorLocation();
+            UAV->FlyTo(Loc + FVector(0.f, 0.f, 100.f));
         }
     }
 }
@@ -165,12 +165,13 @@ void UMAAgentInputComponent::OnMoveDown(const FInputActionValue& Value)
 {
     if (!ControlledAgent.IsValid()) return;
     
-    // Q 键用于 Drone 下降/降落
-    if (AMADroneCharacter* Drone = Cast<AMADroneCharacter>(ControlledAgent.Get()))
+    // Q 键用于 UAV 下降/降落
+    if (AMAUAVCharacter* UAV = Cast<AMAUAVCharacter>(ControlledAgent.Get()))
     {
-        if (Drone->IsInAir())
+        if (UAV->IsInAir())
         {
-            Drone->ApplyVerticalMovement(-1.0f);
+            FVector Loc = UAV->GetActorLocation();
+            UAV->FlyTo(Loc - FVector(0.f, 0.f, 100.f));
         }
     }
 }
@@ -181,27 +182,23 @@ void UMAAgentInputComponent::OnJump(const FInputActionValue& Value)
     
     AMACharacter* Agent = ControlledAgent.Get();
     
-    // Drone: Space 起飞或上升
-    if (AMADroneCharacter* Drone = Cast<AMADroneCharacter>(Agent))
+    // UAV: Space 起飞或上升
+    if (AMAUAVCharacter* UAV = Cast<AMAUAVCharacter>(Agent))
     {
-        if (Drone->IsLanded())
+        if (UAV->FlightState == EMAFlightState::Landed)
         {
-            // 在地面时，Space 起飞
-            Drone->TakeOff();
+            UAV->TakeOff();
         }
         else
         {
-            // 在空中时，Space 上升
-            Drone->ApplyVerticalMovement(1.0f);
+            FVector Loc = UAV->GetActorLocation();
+            UAV->FlyTo(Loc + FVector(0.f, 0.f, 100.f));
         }
     }
     else
     {
         // 地面单位执行跳跃
-        if (Agent->CanPerformJump())
-        {
-            Agent->PerformJump();
-        }
+        Agent->Jump();
     }
 }
 

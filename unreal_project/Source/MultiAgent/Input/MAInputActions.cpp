@@ -26,7 +26,7 @@ void UMAInputActions::Initialize()
     IA_Pickup = CreateInputAction(TEXT("IA_Pickup"));
     IA_Drop = CreateInputAction(TEXT("IA_Drop"));
     IA_SpawnItem = CreateInputAction(TEXT("IA_SpawnItem"));
-    IA_SpawnRobotDog = CreateInputAction(TEXT("IA_SpawnRobotDog"));
+    IA_SpawnQuadruped = CreateInputAction(TEXT("IA_SpawnQuadruped"));
     IA_PrintInfo = CreateInputAction(TEXT("IA_PrintInfo"));
     IA_DestroyLast = CreateInputAction(TEXT("IA_DestroyLast"));
     IA_SwitchCamera = CreateInputAction(TEXT("IA_SwitchCamera"));
@@ -66,6 +66,7 @@ void UMAInputActions::Initialize()
     IA_MoveUp = CreateInputAction(TEXT("IA_MoveUp"));
     IA_MoveDown = CreateInputAction(TEXT("IA_MoveDown"));
     IA_Jump = CreateInputAction(TEXT("IA_Jump"));
+    IA_ToggleViewportRecording = CreateInputAction(TEXT("IA_ToggleViewportRecording"));
 
     // 创建 Input Mapping Contexts
     IMC_RTS = NewObject<UInputMappingContext>(this, TEXT("IMC_RTS"));
@@ -81,7 +82,7 @@ void UMAInputActions::Initialize()
     AddKeyMapping(IMC_RTS, IA_Pickup, EKeys::P);
     AddKeyMapping(IMC_RTS, IA_Drop, EKeys::O);
     AddKeyMapping(IMC_RTS, IA_SpawnItem, EKeys::I);
-    AddKeyMapping(IMC_RTS, IA_SpawnRobotDog, EKeys::T);
+    AddKeyMapping(IMC_RTS, IA_SpawnQuadruped, EKeys::T);
     AddKeyMapping(IMC_RTS, IA_PrintInfo, EKeys::Y);
     AddKeyMapping(IMC_RTS, IA_DestroyLast, EKeys::U);
     AddKeyMapping(IMC_RTS, IA_SwitchCamera, EKeys::Tab);
@@ -119,6 +120,9 @@ void UMAInputActions::Initialize()
 
     // 跳跃 (空格键)
     AddKeyMapping(IMC_RTS, IA_Jump, EKeys::SpaceBar);
+    
+    // Viewport 录制 (F9 键)
+    AddKeyMapping(IMC_RTS, IA_ToggleViewportRecording, EKeys::F9);
 
     // ========== IMC_AgentControl 按键映射 (WASD、视角) ==========
     // 仅在 Agent View Mode 时由 MAAgentInputComponent 添加

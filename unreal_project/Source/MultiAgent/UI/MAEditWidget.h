@@ -8,7 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "../Core/MASceneGraphManager.h"  // For FMASceneGraphNode
+#include "../Core/Manager/MASceneGraphManager.h"  // For FMASceneGraphNode
 #include "MAEditWidget.generated.h"
 
 class UMultiLineEditableTextBox;
@@ -217,6 +217,7 @@ protected:
     virtual void NativePreConstruct() override;
     virtual void NativeConstruct() override;
     virtual TSharedRef<SWidget> RebuildWidget() override;
+
 
     //=========================================================================
     // UI 控件 (动态创建)

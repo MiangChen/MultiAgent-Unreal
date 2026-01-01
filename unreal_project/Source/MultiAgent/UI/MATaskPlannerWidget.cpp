@@ -6,6 +6,7 @@
 #include "MADAGCanvasWidget.h"
 #include "MANodePaletteWidget.h"
 #include "MATaskGraphModel.h"
+#include "../Core/Config/MAConfigManager.h"
 #include "MACommSubsystem.h"
 #include "Components/MultiLineEditableTextBox.h"
 #include "Components/Button.h"
@@ -79,7 +80,7 @@ void UMATaskPlannerWidget::NativeConstruct()
         SubmitTaskGraphButton->OnClicked.AddDynamic(this, &UMATaskPlannerWidget::OnSubmitTaskGraphButtonClicked);
         UE_LOG(LogMATaskPlanner, Log, TEXT("SubmitTaskGraphButton event bound"));
     }
-    
+
     // Bind data model event
     if (GraphModel && !GraphModel->OnDataChanged.IsAlreadyBound(this, &UMATaskPlannerWidget::OnModelDataChanged))
     {
@@ -356,12 +357,12 @@ UVerticalBox* UMATaskPlannerWidget::CreateJsonEditorSection()
 
     // "Submit Task Graph" button
     SubmitTaskGraphButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("SubmitTaskGraphButton"));
-    
+
     UTextBlock* SubmitButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SubmitButtonText"));
     SubmitButtonText->SetText(FText::FromString(TEXT(" Submit Task Graph ")));
     SubmitButtonText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
     SubmitTaskGraphButton->AddChild(SubmitButtonText);
-    
+
     UVerticalBoxSlot* SubmitButtonSlot = Section->AddChildToVerticalBox(SubmitTaskGraphButton);
     SubmitButtonSlot->SetHorizontalAlignment(HAlign_Left);
 
@@ -457,7 +458,7 @@ void UMATaskPlannerWidget::LoadTaskGraph(const FMATaskGraphData& Data)
         DAGCanvas->RefreshFromModel();
     }
     
-    AppendStatusLog(FString::Printf(TEXT("Task graph loaded: %d nodes, %d edges"), 
+    AppendStatusLog(FString::Printf(TEXT("Task graph loaded: %d nodes, %d edges"),
         Data.Nodes.Num(), Data.Edges.Num()));
     
     OnTaskGraphChanged.Broadcast(Data);
@@ -486,7 +487,7 @@ bool UMATaskPlannerWidget::LoadTaskGraphFromJson(const FString& JsonString)
     }
     
     FMATaskGraphData Data = GraphModel->GetWorkingData();
-    AppendStatusLog(FString::Printf(TEXT("Task graph loaded: %d nodes, %d edges"), 
+    AppendStatusLog(FString::Printf(TEXT("Task graph loaded: %d nodes, %d edges"),
         Data.Nodes.Num(), Data.Edges.Num()));
     
     OnTaskGraphChanged.Broadcast(Data);
@@ -620,22 +621,22 @@ void UMATaskPlannerWidget::OnSendCommandButtonClicked()
 void UMATaskPlannerWidget::OnSubmitTaskGraphButtonClicked()
 {
     UE_LOG(LogMATaskPlanner, Log, TEXT("SubmitTaskGraphButton clicked"));
-    
+
     if (!GraphModel)
     {
         AppendStatusLog(TEXT("[Error] Task graph model not initialized"));
         return;
     }
-    
+
     // Get task graph JSON
     FString TaskGraphJson = GraphModel->ToJson();
-    
+
     if (TaskGraphJson.IsEmpty())
     {
         AppendStatusLog(TEXT("[Warning] Task graph is empty"));
         return;
     }
-    
+
     // Get CommSubsystem and send task graph
     UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
     if (!GameInstance)
@@ -643,22 +644,22 @@ void UMATaskPlannerWidget::OnSubmitTaskGraphButtonClicked()
         AppendStatusLog(TEXT("[Error] Unable to get GameInstance"));
         return;
     }
-    
+
     UMACommSubsystem* CommSubsystem = GameInstance->GetSubsystem<UMACommSubsystem>();
     if (!CommSubsystem)
     {
         AppendStatusLog(TEXT("[Error] Unable to get communication subsystem"));
         return;
     }
-    
+
     // Send task graph to backend
     CommSubsystem->SendTaskGraphSubmitMessage(TaskGraphJson);
-    
+
     // Log
     FMATaskGraphData Data = GraphModel->GetWorkingData();
-    AppendStatusLog(FString::Printf(TEXT("[Submitted] Task graph sent: %d nodes, %d edges"), 
+    AppendStatusLog(FString::Printf(TEXT("[Submitted] Task graph sent: %d nodes, %d edges"),
         Data.Nodes.Num(), Data.Edges.Num()));
-    
+
     UE_LOG(LogMATaskPlanner, Log, TEXT("Task graph submitted: %s"), *TaskGraphJson);
 }
 

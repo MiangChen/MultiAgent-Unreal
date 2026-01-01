@@ -18,8 +18,8 @@ struct FMASTTask_FollowInstanceData
     UPROPERTY()
     TWeakObjectPtr<AMACharacter> TargetCharacter;
 
-    // 是否已激活 Follow ability
-    bool bAbilityActivated = false;
+    // 是否已激活跟随技能
+    bool bSkillActivated = false;
 };
 
 /**

@@ -44,7 +44,7 @@ public:
     TObjectPtr<UInputAction> IA_SpawnItem;
 
     UPROPERTY(BlueprintReadOnly, Category = "Input")
-    TObjectPtr<UInputAction> IA_SpawnRobotDog;
+    TObjectPtr<UInputAction> IA_SpawnQuadruped;
 
     UPROPERTY(BlueprintReadOnly, Category = "Input")
     TObjectPtr<UInputAction> IA_PrintInfo;
@@ -150,6 +150,10 @@ public:
     /** 跳跃输入 (空格键，用于地面单位跳跃) */
     UPROPERTY(BlueprintReadOnly, Category = "Input")
     TObjectPtr<UInputAction> IA_Jump;
+
+    /** 切换 Viewport 录制 (F9 键) */
+    UPROPERTY(BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_ToggleViewportRecording;
 
     // ========== Input Mapping Contexts ==========
     

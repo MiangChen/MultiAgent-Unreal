@@ -16,7 +16,7 @@
           "required_skills": [
             {
               "skill_name": "navigate_to(building_A_roof)",
-              "assigned_robot_type": ["DronePhantom4", "DroneInspire2"],
+              "assigned_robot_type": ["UAV"],
               "assigned_robot_count": 1
             }
           ],
@@ -29,7 +29,7 @@
           "required_skills": [
             {
               "skill_name": "perceive(thermal_scan)",
-              "assigned_robot_type": ["DronePhantom4", "DroneInspire2"],
+              "assigned_robot_type": ["UAV"],
               "assigned_robot_count": 1
             }
           ],
@@ -42,7 +42,7 @@
           "required_skills": [
             {
               "skill_name": "navigate_to(building_A_entrance)",
-              "assigned_robot_type": ["RobotDog"],
+              "assigned_robot_type": ["Quadruped"],
               "assigned_robot_count": 2
             }
           ],
@@ -55,7 +55,7 @@
           "required_skills": [
             {
               "skill_name": "broadcast(fire_location_data)",
-              "assigned_robot_type": ["DronePhantom4", "DroneInspire2"],
+              "assigned_robot_type": ["UAV"],
               "assigned_robot_count": 1
             }
           ],
@@ -68,7 +68,7 @@
           "required_skills": [
             {
               "skill_name": "manipulate(fire_extinguisher)",
-              "assigned_robot_type": ["RobotDog"],
+              "assigned_robot_type": ["Quadruped"],
               "assigned_robot_count": 2
             }
           ],
@@ -81,12 +81,12 @@
           "required_skills": [
             {
               "skill_name": "navigate_to(victim_location)",
-              "assigned_robot_type": ["Human"],
+              "assigned_robot_type": ["Humanoid"],
               "assigned_robot_count": 1
             },
             {
               "skill_name": "manipulate(assist_evacuation)",
-              "assigned_robot_type": ["Human"],
+              "assigned_robot_type": ["Humanoid"],
               "assigned_robot_count": 1
             }
           ],

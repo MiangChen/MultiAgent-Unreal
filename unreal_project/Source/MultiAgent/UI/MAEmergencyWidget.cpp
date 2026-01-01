@@ -20,7 +20,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "MACameraSensorComponent.h"
-#include "MACommSubsystem.h"
+#include "../Core/Comm/MACommSubsystem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMAEmergencyWidget, Log, All);
 

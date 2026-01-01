@@ -47,6 +47,11 @@ public class MultiAgent : ModuleRules
         // 添加子文件夹的 include 路径
         PublicIncludePaths.AddRange(new string[] {
             Path.Combine(ModuleDirectory, "Core"),
+            Path.Combine(ModuleDirectory, "Core/Manager"),
+            Path.Combine(ModuleDirectory, "Core/Types"),
+            Path.Combine(ModuleDirectory, "Core/Config"),
+            Path.Combine(ModuleDirectory, "Core/GameFlow"),
+            Path.Combine(ModuleDirectory, "Core/Comm"),
             Path.Combine(ModuleDirectory, "Input"),
             Path.Combine(ModuleDirectory, "Environment"),
             Path.Combine(ModuleDirectory, "UI"),

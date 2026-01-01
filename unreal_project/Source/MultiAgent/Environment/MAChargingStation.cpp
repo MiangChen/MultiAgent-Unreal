@@ -4,7 +4,7 @@
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "MACharacter.h"
-#include "MARobotDogCharacter.h"
+#include "MAQuadrupedCharacter.h"
 #include "UObject/ConstructorHelpers.h"
 
 AMAChargingStation::AMAChargingStation()
@@ -111,23 +111,25 @@ void AMAChargingStation::BeginPlay()
 void AMAChargingStation::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
     UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-    if (AMARobotDogCharacter* Robot = Cast<AMARobotDogCharacter>(OtherActor))
+    if (AMACharacter* Robot = Cast<AMACharacter>(OtherActor))
     {
         RobotsInRange.AddUnique(Robot);
         
-        // Auto trigger charge
-        Robot->TryCharge();
+        // 充电由 Charge 技能处理
+        UE_LOG(LogTemp, Log, TEXT("[ChargingStation] %s entered range"), *Robot->AgentName);
     }
 }
 
 void AMAChargingStation::OnOverlapEnd(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
     UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
-    if (AMARobotDogCharacter* Robot = Cast<AMARobotDogCharacter>(OtherActor))
+    if (AMACharacter* Robot = Cast<AMACharacter>(OtherActor))
     {
         RobotsInRange.RemoveAll([Robot](const TWeakObjectPtr<AMACharacter>& Ptr) {
             return Ptr.Get() == Robot;
         });
+        
+        UE_LOG(LogTemp, Log, TEXT("[ChargingStation] %s left range"), *Robot->AgentName);
     }
 }
 

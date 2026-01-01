@@ -1,0 +1,69 @@
+{
+  "entities": [
+    {
+      "id": "UAV_01",
+      "category": "robot",
+      "type": "UAV",
+      "properties": {
+        "name": "UAV_01",
+        "x": "2.5",
+        "y": "519.5",
+        "z": "153.0",
+        "yaw": "0.0",
+        "is_moving": "false"
+      }
+    },
+    {
+      "id": "UAV_02",
+      "category": "robot",
+      "type": "UAV",
+      "properties": {
+        "name": "UAV_02",
+        "x": "0.0",
+        "y": "700.0",
+        "z": "175.0",
+        "yaw": "0.0",
+        "is_moving": "false"
+      }
+    },
+    {
+      "id": "Quadruped_01",
+      "category": "robot",
+      "type": "Quadruped",
+      "properties": {
+        "name": "Quadruped_01",
+        "x": "200.0",
+        "y": "500.0",
+        "z": "-3.7",
+        "yaw": "0.0",
+        "is_moving": "false"
+      }
+    },
+    {
+      "id": "Quadruped_02",
+      "category": "robot",
+      "type": "Quadruped",
+      "properties": {
+        "name": "Quadruped_02",
+        "x": "200.0",
+        "y": "700.0",
+        "z": "-3.7",
+        "yaw": "0.0",
+        "is_moving": "false"
+      }
+    },
+    {
+      "id": "Humanoid_01",
+      "category": "robot",
+      "type": "Humanoid",
+      "properties": {
+        "name": "Humanoid_01",
+        "x": "400.0",
+        "y": "600.0",
+        "z": "53.9",
+        "yaw": "0.0",
+        "is_moving": "false"
+      }
+    }
+  ]
+}

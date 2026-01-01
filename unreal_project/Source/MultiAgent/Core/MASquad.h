@@ -7,7 +7,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
-#include "MATypes.h"
+#include "Types/MATypes.h"
 #include "MASquad.generated.h"
 
 class AMACharacter;

@@ -1,13 +1,13 @@
 // MASubsystem.cpp
 
 #include "MASubsystem.h"
-#include "MAAgentManager.h"
-#include "MACommandManager.h"
-#include "MASelectionManager.h"
-#include "MASquadManager.h"
-#include "MAViewportManager.h"
-#include "MAEmergencyManager.h"
-#include "MAEditModeManager.h"
+#include "Manager/MAAgentManager.h"
+#include "Manager/MACommandManager.h"
+#include "Manager/MASelectionManager.h"
+#include "Manager/MASquadManager.h"
+#include "Manager/MAViewportManager.h"
+#include "Manager/MAEmergencyManager.h"
+#include "Manager/MAEditModeManager.h"
 #include "Engine/World.h"
 
 FMASubsystem FMASubsystem::Get(UWorld* World)

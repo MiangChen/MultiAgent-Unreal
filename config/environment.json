@@ -1,0 +1,38 @@
+{
+    "charging_stations": [
+        {
+            "id": "2001",
+            "label": "ChargingStation_1",
+            "position": [-800, 500, 0]
+        }
+    ],
+    "objects": [
+        {
+            "id": "1001",
+            "label": "RedBox",
+            "type": "box",
+            "position": [800, 2300, 0],
+            "features": {
+                "color": "red"
+            }
+        },
+        {
+            "id": "1002",
+            "label": "BlueBox",
+            "type": "box",
+            "position": [2600, 1400, 0],
+            "features": {
+                "color": "blue"
+            }
+        },
+        {
+            "id": "1003",
+            "label": "GreenBox",
+            "type": "box",
+            "position": [5500, 2000, 0],
+            "features": {
+                "color": "green"
+            }
+        }
+    ]
+}

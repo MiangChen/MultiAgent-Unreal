@@ -24,7 +24,7 @@ struct FMAAgentSetupConfig
 {
     GENERATED_BODY()
 
-    /** 智能体类型: DronePhantom4, DroneInspire2, RobotDog, Human */
+    /** 智能体类型: UAV, FixedWingUAV, UGV, Quadruped, Humanoid */
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FString AgentType;
 
@@ -36,7 +36,7 @@ struct FMAAgentSetupConfig
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     int32 Count = 1;
 
-    FMAAgentSetupConfig() : AgentType(TEXT("DronePhantom4")), DisplayName(TEXT("Phantom 4")), Count(1) {}
+    FMAAgentSetupConfig() : AgentType(TEXT("UAV")), DisplayName(TEXT("UAV")), Count(1) {}
     FMAAgentSetupConfig(const FString& InType, const FString& InName, int32 InCount = 1)
         : AgentType(InType), DisplayName(InName), Count(InCount) {}
 };

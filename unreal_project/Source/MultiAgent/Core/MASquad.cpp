@@ -3,7 +3,7 @@
 
 #include "MASquad.h"
 #include "../Agent/Character/MACharacter.h"
-#include "../Agent/Character/MARobotDogCharacter.h"
+#include "../Agent/Character/MAQuadrupedCharacter.h"
 #include "TimerManager.h"
 #include "Engine/Engine.h"
 
@@ -263,7 +263,7 @@ TArray<FString> UMASquad::GetAvailableSkills() const
     Skills.Add(TEXT("Formation"));
     
     // 未来可以根据成员类型动态添加技能
-    // if (HasMemberOfType(EMAAgentType::RobotDog)) Skills.Add(TEXT("Suppress"));
+    // if (HasMemberOfType(EMAAgentType::Quadruped)) Skills.Add(TEXT("Suppress"));
     
     return Skills;
 }
@@ -457,10 +457,6 @@ bool UMASquad::HasEnergy(AMACharacter* Agent) const
 {
     if (!Agent) return false;
 
-    if (AMARobotDogCharacter* Robot = Cast<AMARobotDogCharacter>(Agent))
-    {
-        return Robot->HasEnergy();
-    }
-
+    // 所有 Agent 默认有能量，能量系统由 Charge 技能管理
     return true;
 }

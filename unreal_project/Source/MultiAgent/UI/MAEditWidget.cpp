@@ -18,7 +18,8 @@
 #include "Components/ComboBoxString.h"
 #include "Blueprint/WidgetTree.h"
 #include "Framework/Application/SlateApplication.h"
-#include "../Core/MAEditModeManager.h"
+#include "../Core/Manager/MAEditModeManager.h"
+#include "../Core/Manager/MASceneGraphManager.h"
 #include "../Environment/MAPointOfInterest.h"
 #include "../Environment/MAGoalActor.h"
 #include "../Environment/MAZoneActor.h"
@@ -57,6 +58,7 @@ void UMAEditWidget::NativePreConstruct()
     }
 }
 
+
 void UMAEditWidget::NativeConstruct()
 {
     Super::NativeConstruct();
@@ -74,7 +76,7 @@ void UMAEditWidget::NativeConstruct()
     {
         UE_LOG(LogMAEditWidget, Warning, TEXT("ConfirmButton is null!"));
     }
-    
+
     if (DeleteButton)
     {
         if (!DeleteButton->OnClicked.IsAlreadyBound(this, &UMAEditWidget::OnDeleteButtonClicked))
@@ -87,7 +89,7 @@ void UMAEditWidget::NativeConstruct()
     {
         UE_LOG(LogMAEditWidget, Warning, TEXT("DeleteButton is null!"));
     }
-    
+
     if (CreateGoalButton)
     {
         if (!CreateGoalButton->OnClicked.IsAlreadyBound(this, &UMAEditWidget::OnCreateGoalButtonClicked))
@@ -100,7 +102,7 @@ void UMAEditWidget::NativeConstruct()
     {
         UE_LOG(LogMAEditWidget, Warning, TEXT("CreateGoalButton is null!"));
     }
-    
+
     if (CreateZoneButton)
     {
         if (!CreateZoneButton->OnClicked.IsAlreadyBound(this, &UMAEditWidget::OnCreateZoneButtonClicked))
@@ -113,7 +115,7 @@ void UMAEditWidget::NativeConstruct()
     {
         UE_LOG(LogMAEditWidget, Warning, TEXT("CreateZoneButton is null!"));
     }
-    
+
     if (AddActorButton)
     {
         if (!AddActorButton->OnClicked.IsAlreadyBound(this, &UMAEditWidget::OnAddActorButtonClicked))
@@ -126,7 +128,7 @@ void UMAEditWidget::NativeConstruct()
     {
         UE_LOG(LogMAEditWidget, Warning, TEXT("AddActorButton is null!"));
     }
-    
+
     if (DeletePOIButton)
     {
         if (!DeletePOIButton->OnClicked.IsAlreadyBound(this, &UMAEditWidget::OnDeletePOIButtonClicked))
@@ -139,7 +141,7 @@ void UMAEditWidget::NativeConstruct()
     {
         UE_LOG(LogMAEditWidget, Warning, TEXT("DeletePOIButton is null!"));
     }
-    
+
     if (SetAsGoalButton)
     {
         if (!SetAsGoalButton->OnClicked.IsAlreadyBound(this, &UMAEditWidget::OnSetAsGoalButtonClicked))
@@ -152,7 +154,7 @@ void UMAEditWidget::NativeConstruct()
     {
         UE_LOG(LogMAEditWidget, Warning, TEXT("SetAsGoalButton is null!"));
     }
-    
+
     if (UnsetAsGoalButton)
     {
         if (!UnsetAsGoalButton->OnClicked.IsAlreadyBound(this, &UMAEditWidget::OnUnsetAsGoalButtonClicked))
@@ -165,10 +167,10 @@ void UMAEditWidget::NativeConstruct()
     {
         UE_LOG(LogMAEditWidget, Warning, TEXT("UnsetAsGoalButton is null!"));
     }
-    
+
     // 初始化为未选中状态
     ClearSelection();
-    
+
     // 刷新场景图预览
     RefreshSceneGraphPreview();
     
@@ -199,7 +201,7 @@ void UMAEditWidget::BuildUI()
         UE_LOG(LogMAEditWidget, Error, TEXT("BuildUI: WidgetTree is null!"));
         return;
     }
-    
+
     UE_LOG(LogMAEditWidget, Log, TEXT("BuildUI: Starting UI construction..."));
 
     // 创建根 CanvasPanel
@@ -238,7 +240,7 @@ void UMAEditWidget::BuildUI()
     TitleFont.Size = 16;
     TitleText->SetFont(TitleFont);
     TitleText->SetColorAndOpacity(FSlateColor(FLinearColor(0.3f, 0.6f, 1.0f)));  // 蓝色
-    
+
     UVerticalBoxSlot* TitleSlot = MainVBox->AddChildToVerticalBox(TitleText);
     TitleSlot->SetPadding(FMargin(0, 0, 0, 8));
 
@@ -295,7 +297,7 @@ void UMAEditWidget::BuildUI()
     // JSON edit text box - Requirements: 5.1
     JsonEditBox = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(UMultiLineEditableTextBox::StaticClass(), TEXT("JsonEditBox"));
     JsonEditBox->SetHintText(FText::FromString(TEXT("Select an Actor to display JSON")));
-    
+
     FEditableTextBoxStyle JsonTextBoxStyle;
     JsonTextBoxStyle.SetForegroundColor(FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f)));
     JsonEditBox->WidgetStyle = JsonTextBoxStyle;
@@ -388,7 +390,7 @@ void UMAEditWidget::BuildUI()
     // Description input text box - Requirements: 9.2, 10.2
     DescriptionBox = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(UMultiLineEditableTextBox::StaticClass(), TEXT("DescriptionBox"));
     DescriptionBox->SetHintText(FText::FromString(TEXT("Enter description for Goal/Zone...")));
-    
+
     FEditableTextBoxStyle DescTextBoxStyle;
     DescTextBoxStyle.SetForegroundColor(FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f)));
     DescriptionBox->WidgetStyle = DescTextBoxStyle;
@@ -536,7 +538,7 @@ void UMAEditWidget::SetSelectedActor(AActor* Actor)
             if (FJsonSerializer::Deserialize(Reader, NodeJson) && NodeJson.IsValid())
             {
                 Node.Id = NodeId;
-                
+
                 // 获取 properties
                 if (NodeJson->HasField(TEXT("properties")))
                 {
@@ -547,7 +549,7 @@ void UMAEditWidget::SetSelectedActor(AActor* Actor)
                         Node.Label = Props->GetStringField(TEXT("label"));
                     }
                 }
-                
+
                 // 获取 shape
                 if (NodeJson->HasField(TEXT("shape")))
                 {
@@ -555,7 +557,7 @@ void UMAEditWidget::SetSelectedActor(AActor* Actor)
                     if (Shape.IsValid())
                     {
                         Node.ShapeType = Shape->GetStringField(TEXT("type"));
-                        
+
                         if (Shape->HasField(TEXT("center")))
                         {
                             TArray<TSharedPtr<FJsonValue>> CenterArray = Shape->GetArrayField(TEXT("center"));
@@ -570,7 +572,7 @@ void UMAEditWidget::SetSelectedActor(AActor* Actor)
                         }
                     }
                 }
-                
+
                 // 获取 guid (point 类型使用小写 guid 字符串)
                 if (NodeJson->HasField(TEXT("guid")))
                 {
@@ -594,13 +596,13 @@ void UMAEditWidget::SetSelectedActor(AActor* Actor)
                         }
                     }
                 }
-                
+
                 // 存储 RawJson
                 Node.RawJson = NodeJsonStr;
             }
             return Node;
         };
-        
+
         // 对于 Goal/Zone Actor，从 MAEditModeManager 的临时场景图中查找
         if (bIsGoalOrZone && EditModeManager && !SearchId.IsEmpty())
         {
@@ -625,7 +627,7 @@ void UMAEditWidget::SetSelectedActor(AActor* Actor)
             // 通过 GUID 从临时场景图查找 Node ID
             FString ActorGuid = Actor->GetActorGuid().ToString();
             TArray<FString> NodeIds = EditModeManager->FindNodeIdsByGuid(ActorGuid);
-            
+
             // 对于每个找到的 Node ID，获取完整的 Node 数据
             for (const FString& NodeId : NodeIds)
             {
@@ -640,7 +642,7 @@ void UMAEditWidget::SetSelectedActor(AActor* Actor)
                     }
                 }
             }
-            
+
             if (NodeIds.Num() == 0)
             {
                 UE_LOG(LogMAEditWidget, Warning, TEXT("SetSelectedActor: No nodes found in temp scene graph for GUID %s"), *ActorGuid);
@@ -847,7 +849,7 @@ void UMAEditWidget::UpdateUIState()
     if (DeleteButton && bHasActor)
     {
         bool bCanDelete = false;
-        
+
         // 检查是否为 GoalActor 或 ZoneActor (这些始终可删除)
         if (CurrentActor->IsA<AMAGoalActor>() || CurrentActor->IsA<AMAZoneActor>())
         {
@@ -873,7 +875,7 @@ void UMAEditWidget::UpdateUIState()
     {
         bIsGoalOrZoneActor = CurrentActor->IsA<AMAGoalActor>() || CurrentActor->IsA<AMAZoneActor>();
     }
-    
+
     // 检查当前 Node 是否已经是 Goal (通过 is_goal 字段)
     bool bIsCurrentNodeGoal = false;
     bool bCanSetAsGoal = false;  // 是否可以设为 Goal（所有类型都可以）
@@ -882,10 +884,10 @@ void UMAEditWidget::UpdateUIState()
         // 检查 properties 中是否有 is_goal: true
         const FMASceneGraphNode& Node = ActorNodes[CurrentNodeIndex];
         // 通过 RawJson 检查 is_goal 字段
-        bIsCurrentNodeGoal = Node.RawJson.Contains(TEXT("\"is_goal\"")) && 
+        bIsCurrentNodeGoal = Node.RawJson.Contains(TEXT("\"is_goal\"")) &&
                              (Node.RawJson.Contains(TEXT("\"is_goal\": true")) || 
                               Node.RawJson.Contains(TEXT("\"is_goal\":true")));
-        
+
         // 所有类型的节点都可以设为 Goal（移除 point 类型限制）
         bCanSetAsGoal = true;
     }
@@ -893,14 +895,14 @@ void UMAEditWidget::UpdateUIState()
     if (SetAsGoalButton)
     {
         // 如果是普通 Actor、是 point 类型、且还不是 Goal，显示 "设为 Goal" 按钮
-        SetAsGoalButton->SetVisibility((bHasActor && !bIsGoalOrZoneActor && bCanSetAsGoal && !bIsCurrentNodeGoal) 
+        SetAsGoalButton->SetVisibility((bHasActor && !bIsGoalOrZoneActor && bCanSetAsGoal && !bIsCurrentNodeGoal)
             ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
     }
     
     if (UnsetAsGoalButton)
     {
         // 如果是普通 Actor、是 point 类型、且已经是 Goal，显示 "取消 Goal" 按钮
-        UnsetAsGoalButton->SetVisibility((bHasActor && !bIsGoalOrZoneActor && bCanSetAsGoal && bIsCurrentNodeGoal) 
+        UnsetAsGoalButton->SetVisibility((bHasActor && !bIsGoalOrZoneActor && bCanSetAsGoal && bIsCurrentNodeGoal)
             ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
     }
 }
@@ -948,7 +950,7 @@ void UMAEditWidget::UpdateJsonEditBox()
     }
     
     JsonEditBox->SetText(FText::FromString(JsonContent));
-    
+
     // Requirements: 5.3, 5.4, 5.5 - 所有类型都允许编辑
     // point 类型: 可编辑 properties 和 shape.center
     // polygon/linestring 类型: 仅可编辑 properties (在提交时验证)
@@ -1023,17 +1025,17 @@ void UMAEditWidget::UpdateNodeSwitchButtons()
         ButtonText->SetFont(ButtonFont);
         
         NodeButton->AddChild(ButtonText);
-        
+
         // 存储按钮引用以便后续查找索引
         NodeSwitchButtons.Add(NodeButton);
-        
+
         // 绑定到统一的处理函数
         NodeButton->OnClicked.AddDynamic(this, &UMAEditWidget::OnNodeSwitchButtonClickedInternal);
         
         UHorizontalBoxSlot* ButtonSlot = NodeSwitchContainer->AddChildToHorizontalBox(NodeButton);
         ButtonSlot->SetPadding(FMargin(0, 0, 5, 0));
     }
-    
+
     UE_LOG(LogMAEditWidget, Log, TEXT("UpdateNodeSwitchButtons: Created %d buttons, current index: %d"), ActorNodes.Num(), CurrentNodeIndex);
 }
 
@@ -1136,7 +1138,7 @@ void UMAEditWidget::OnConfirmButtonClicked()
     
     // 保存 Actor 名称用于日志（因为 Broadcast 后 CurrentActor 可能被清空）
     FString ActorName = CurrentActor->GetName();
-    
+
     // 获取 JSON 内容
     FString JsonContent = GetJsonEditContent();
     
@@ -1149,12 +1151,12 @@ void UMAEditWidget::OnConfirmButtonClicked()
     }
     
     ClearError();
-    
+
     // 广播确认委托
     // 注意: Broadcast 会触发 MAHUD::OnEditConfirmed，其中会调用 ClearSelection，
     // 这会将 CurrentActor 设置为 nullptr
     OnEditConfirmed.Broadcast(CurrentActor, JsonContent);
-    
+
     // 刷新场景图预览
     RefreshSceneGraphPreview();
     
@@ -1178,7 +1180,7 @@ void UMAEditWidget::OnDeleteButtonClicked()
     
     // GoalActor and ZoneActor can always be deleted, skip point type check
     bool bIsGoalOrZone = CurrentActor->IsA<AMAGoalActor>() || CurrentActor->IsA<AMAZoneActor>();
-    
+
     // Regular Actor: check if it's point type
     if (!bIsGoalOrZone && ActorNodes.Num() > 0 && CurrentNodeIndex < ActorNodes.Num())
     {
@@ -1190,13 +1192,13 @@ void UMAEditWidget::OnDeleteButtonClicked()
     }
     
     ClearError();
-    
+
     // 广播删除委托
     OnDeleteActor.Broadcast(CurrentActor);
-    
+
     // 清除选择
     ClearSelection();
-    
+
     // 刷新场景图预览
     RefreshSceneGraphPreview();
     
@@ -1226,13 +1228,13 @@ void UMAEditWidget::OnCreateGoalButtonClicked()
     }
     
     ClearError();
-    
+
     // 广播创建 Goal 委托 (使用第一个 POI)
     OnCreateGoal.Broadcast(CurrentPOIs[0], Description);
-    
+
     // 清除选择
     ClearSelection();
-    
+
     // 刷新场景图预览
     RefreshSceneGraphPreview();
     
@@ -1262,13 +1264,13 @@ void UMAEditWidget::OnCreateZoneButtonClicked()
     }
     
     ClearError();
-    
+
     // 广播创建 Zone 委托
     OnCreateZone.Broadcast(CurrentPOIs, Description);
-    
+
     // 清除选择
     ClearSelection();
-    
+
     // 刷新场景图预览
     RefreshSceneGraphPreview();
     
@@ -1304,10 +1306,10 @@ void UMAEditWidget::OnAddActorButtonClicked()
     }
     
     ClearError();
-    
+
     // 广播添加预设 Actor 委托
     OnAddPresetActor.Broadcast(CurrentPOIs[0], ActorType);
-    
+
     // 刷新场景图预览
     RefreshSceneGraphPreview();
     
@@ -1327,12 +1329,12 @@ void UMAEditWidget::OnNodeSwitchButtonClicked(int32 NodeIndex)
     }
     
     CurrentNodeIndex = NodeIndex;
-    
+
     // 更新 UI
     UpdateJsonEditBox();
     UpdateNodeSwitchButtons();
     UpdateUIState();
-    
+
     // 高亮预览中的 Node
     HighlightNodeInPreview(ActorNodes[CurrentNodeIndex].Id);
     
@@ -1387,7 +1389,7 @@ void UMAEditWidget::OnNodeSwitchButtonClickedInternal()
             }
         }
     }
-    
+
     UE_LOG(LogMAEditWidget, Warning, TEXT("OnNodeSwitchButtonClickedInternal: Could not determine which button was clicked"));
 }
 
@@ -1407,10 +1409,10 @@ void UMAEditWidget::OnSetAsGoalButtonClicked()
     }
     
     ClearError();
-    
+
     // 广播设为 Goal 委托
     OnSetAsGoal.Broadcast(CurrentActor);
-    
+
     // 刷新 UI 状态
     UpdateUIState();
     
@@ -1433,10 +1435,10 @@ void UMAEditWidget::OnUnsetAsGoalButtonClicked()
     }
     
     ClearError();
-    
+
     // 广播取消 Goal 委托
     OnUnsetAsGoal.Broadcast(CurrentActor);
-    
+
     // 刷新 UI 状态
     UpdateUIState();
     
@@ -1459,13 +1461,13 @@ void UMAEditWidget::OnDeletePOIButtonClicked()
     }
     
     ClearError();
-    
+
     // 广播删除 POI 委托
     OnDeletePOIs.Broadcast(CurrentPOIs);
-    
+
     // 清除选择
     ClearSelection();
-    
+
     // 刷新场景图预览
     RefreshSceneGraphPreview();
     

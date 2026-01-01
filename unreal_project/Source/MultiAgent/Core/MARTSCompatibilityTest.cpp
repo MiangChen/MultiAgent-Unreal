@@ -5,9 +5,9 @@
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
-#include "MASelectionManager.h"
-#include "MACommandManager.h"
-#include "MATypes.h"
+#include "Manager/MASelectionManager.h"
+#include "Manager/MACommandManager.h"
+#include "Types/MATypes.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -60,11 +60,11 @@ namespace MARTSTestHelpers
     {
         TArray<EMACommand> Commands = {
             EMACommand::Idle,
-            EMACommand::Patrol,
-            EMACommand::Charge,
+            EMACommand::Navigate,
             EMACommand::Follow,
-            EMACommand::Coverage,
-            EMACommand::Navigate
+            EMACommand::Charge,
+            EMACommand::Search,
+            EMACommand::Place
         };
         return Commands[FMath::RandRange(0, Commands.Num() - 1)];
     }
@@ -366,12 +366,11 @@ bool FMARTSCommandConversionPropertyTest::RunTest(const FString& Parameters)
     TArray<EMACommand> AllCommands = {
         EMACommand::None,
         EMACommand::Idle,
-        EMACommand::Patrol,
-        EMACommand::Charge,
+        EMACommand::Navigate,
         EMACommand::Follow,
-        EMACommand::Coverage,
-        EMACommand::Avoid,
-        EMACommand::Navigate
+        EMACommand::Charge,
+        EMACommand::Search,
+        EMACommand::Place
     };
     
     int32 PassedCount = 0;
@@ -422,12 +421,11 @@ bool FMARTSCommandStringUniquenessPropertyTest::RunTest(const FString& Parameter
     TArray<EMACommand> AllCommands = {
         EMACommand::None,
         EMACommand::Idle,
-        EMACommand::Patrol,
-        EMACommand::Charge,
+        EMACommand::Navigate,
         EMACommand::Follow,
-        EMACommand::Coverage,
-        EMACommand::Avoid,
-        EMACommand::Navigate
+        EMACommand::Charge,
+        EMACommand::Search,
+        EMACommand::Place
     };
     
     TSet<FString> SeenStrings;
