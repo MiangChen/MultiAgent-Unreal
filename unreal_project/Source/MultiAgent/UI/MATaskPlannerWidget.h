@@ -182,6 +182,10 @@ protected:
     UFUNCTION()
     void OnSendCommandButtonClicked();
 
+    /** "提交任务图" 按钮点击回调 */
+    UFUNCTION()
+    void OnSubmitTaskGraphButtonClicked();
+
     /** 数据模型变更回调 */
     UFUNCTION()
     void OnModelDataChanged();
@@ -243,6 +247,10 @@ protected:
     /** "发送指令" 按钮 */
     UPROPERTY()
     UButton* SendCommandButton;
+
+    /** "提交任务图" 按钮 */
+    UPROPERTY()
+    UButton* SubmitTaskGraphButton;
 
     /** DAG 画布 Widget */
     UPROPERTY()
