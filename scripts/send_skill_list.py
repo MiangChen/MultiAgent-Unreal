@@ -517,7 +517,9 @@ def print_skill_list(label: str, skill_list: dict):
             if dest:
                 print(f"    {agent}: {skill} -> ({dest['x']:.0f}, {dest['y']:.0f}, {dest['z']:.0f})")
             elif search_area and target:
-                target_label = target.get('label', target.get('id', 'unknown'))
+                # target 的 label 在 features 里面
+                target_features = target.get('features', {})
+                target_label = target_features.get('label', target.get('label', target.get('id', 'unknown')))
                 print(f"    {agent}: {skill} (area: {len(search_area)} vertices, target: {target_label})")
             elif object1 and object2:
                 obj1_label = object1.get('features', {}).get('label', object1.get('type', 'unknown'))
@@ -597,7 +599,7 @@ def run_server(port: int, test_mode: str, interval: float):
 def main():
     parser = argparse.ArgumentParser(description='Send skill list to UE5')
     parser.add_argument('--server', action='store_true', help='Run as HTTP server')
-    parser.add_argument('--port', type=int, default=8080, help='Server port')
+    parser.add_argument('--port', type=int, default=8081, help='Server port')
     parser.add_argument('--test', type=str, default='single', 
                         choices=['single', 'uav_search', 'transport_auto',
                                  'place_load', 'place_unload', 'place_coop'],
