@@ -109,7 +109,7 @@ unreal_project/
 
 ```bash
 cp example_compile.sh compile.sh
-cp example_start.sh start.sh
+cp example_start_mac.sh start.sh
 chmod +x compile.sh start.sh
 ```
 

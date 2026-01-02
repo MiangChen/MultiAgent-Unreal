@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 设置引擎根目录变量
-export UE5_ROOT="/home/zhugb/Software/UnrealEngine"
+export UE5_ROOT="/Users/Shared/Epic Games/UE_5.5"
 
 # 获取脚本所在目录
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -10,7 +10,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_PATH="$SCRIPT_DIR/unreal_project/MultiAgent.uproject"
 
 # 配置文件路径
-CONFIG_PATH="$SCRIPT_DIR/config/SimConfig.json"
+CONFIG_PATH="$SCRIPT_DIR/config/simulation.json"
 
 # 默认地图
 DEFAULT_MAP=""
@@ -34,4 +34,4 @@ if [ -n "$DEFAULT_MAP" ]; then
 fi
 
 # 启动 UE5 编辑器并打开项目
-"$UE5_ROOT/Engine/Binaries/Linux/UnrealEditor" "$PROJECT_PATH" $LAUNCH_ARGS "$@"
+"$UE5_ROOT/Engine/Binaries/Mac/UnrealEditor.app/Contents/MacOS/UnrealEditor" "$PROJECT_PATH" $LAUNCH_ARGS "$@"
