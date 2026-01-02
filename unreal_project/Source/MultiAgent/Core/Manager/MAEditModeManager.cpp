@@ -837,6 +837,92 @@ AActor* UMAEditModeManager::FindActorByGuid(const FString& Guid) const
     return nullptr;
 }
 
+TArray<FString> UMAEditModeManager::FindNodeIdsByGuid(const FString& ActorGuid) const
+{
+    TArray<FString> Result;
+    
+    if (ActorGuid.IsEmpty() || !TempSceneGraphData.IsValid())
+    {
+        return Result;
+    }
+    
+    // 规范化输入的 GUID（移除连字符，转为大写）
+    FString NormalizedInputGuid = ActorGuid.Replace(TEXT("-"), TEXT("")).ToUpper();
+    
+    UE_LOG(LogMAEditMode, Verbose, TEXT("FindNodeIdsByGuid: Searching for GUID %s"), *NormalizedInputGuid);
+    
+    // 获取 nodes 数组
+    const TArray<TSharedPtr<FJsonValue>>* NodesArray;
+    if (!TempSceneGraphData->TryGetArrayField(TEXT("nodes"), NodesArray))
+    {
+        return Result;
+    }
+    
+    // 遍历所有节点查找匹配的 GUID
+    for (const TSharedPtr<FJsonValue>& NodeValue : *NodesArray)
+    {
+        if (!NodeValue.IsValid())
+        {
+            continue;
+        }
+        
+        const TSharedPtr<FJsonObject>* NodeObject;
+        if (!NodeValue->TryGetObject(NodeObject) || !NodeObject->IsValid())
+        {
+            continue;
+        }
+        
+        // 获取节点 ID
+        FString NodeId;
+        if (!(*NodeObject)->TryGetStringField(TEXT("id"), NodeId))
+        {
+            continue;
+        }
+        
+        // 检查单个 GUID (point 类型)
+        FString NodeGuid;
+        if ((*NodeObject)->TryGetStringField(TEXT("guid"), NodeGuid))
+        {
+            FString NormalizedNodeGuid = NodeGuid.Replace(TEXT("-"), TEXT("")).ToUpper();
+            if (NormalizedNodeGuid == NormalizedInputGuid)
+            {
+                UE_LOG(LogMAEditMode, Verbose, TEXT("FindNodeIdsByGuid: Found node %s with matching guid"), *NodeId);
+                Result.Add(NodeId);
+                continue;
+            }
+        }
+        
+        // 检查 GUID 数组 (polygon/linestring 类型) - 支持 "Guid" 和 "guid_array" 两种字段名
+        const TArray<TSharedPtr<FJsonValue>>* GuidArray = nullptr;
+        if (!(*NodeObject)->TryGetArrayField(TEXT("Guid"), GuidArray))
+        {
+            (*NodeObject)->TryGetArrayField(TEXT("guid_array"), GuidArray);
+        }
+        
+        if (GuidArray)
+        {
+            for (const TSharedPtr<FJsonValue>& GuidValue : *GuidArray)
+            {
+                FString GuidStr;
+                if (GuidValue.IsValid() && GuidValue->TryGetString(GuidStr))
+                {
+                    FString NormalizedGuid = GuidStr.Replace(TEXT("-"), TEXT("")).ToUpper();
+                    if (NormalizedGuid == NormalizedInputGuid)
+                    {
+                        UE_LOG(LogMAEditMode, Verbose, TEXT("FindNodeIdsByGuid: Found node %s with matching guid in array"), *NodeId);
+                        Result.Add(NodeId);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    
+    UE_LOG(LogMAEditMode, Log, TEXT("FindNodeIdsByGuid: Found %d nodes for GUID %s"), Result.Num(), *ActorGuid);
+    
+    return Result;
+}
+
 void UMAEditModeManager::SyncActorPositionFromNode(const TSharedPtr<FJsonObject>& NodeObject)
 {
     // Requirements: 6.5, 12.2, 12.3 - 同步更新虚幻场景中 Actor 的位置

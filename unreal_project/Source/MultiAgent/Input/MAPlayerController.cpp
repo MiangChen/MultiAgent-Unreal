@@ -1712,3 +1712,35 @@ void AMAPlayerController::ExitEditMode()
         HUD->HideEditWidget();
     }
 }
+
+void AMAPlayerController::OnToggleViewportRecording(const FInputActionValue& Value)
+{
+    // Requirements: Viewport 录制切换
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnToggleViewportRecording"));
+
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return;
+    }
+
+    UMAViewportRecorder* ViewportRecorder = World->GetSubsystem<UMAViewportRecorder>();
+    if (ViewportRecorder)
+    {
+        ViewportRecorder->ToggleRecording();
+        
+        if (ViewportRecorder->IsRecording())
+        {
+            GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green, TEXT("Viewport Recording Started"));
+        }
+        else
+        {
+            GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Yellow, 
+                FString::Printf(TEXT("Viewport Recording Stopped (%d frames)"), ViewportRecorder->GetRecordedFrameCount()));
+        }
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] ViewportRecorder subsystem not found"));
+    }
+}

@@ -452,6 +452,15 @@ public:
     AActor* FindActorByGuid(const FString& Guid) const;
 
     /**
+     * 根据 Actor GUID 查找临时场景图中的 Node ID 列表
+     * 
+     * @param ActorGuid Actor 的 GUID
+     * @return 包含该 GUID 的 Node ID 数组
+     */
+    UFUNCTION(BlueprintPure, Category = "EditMode|Query")
+    TArray<FString> FindNodeIdsByGuid(const FString& ActorGuid) const;
+
+    /**
      * 根据 ID 查找 Node JSON (公共接口)
      * 
      * @param NodeId Node ID

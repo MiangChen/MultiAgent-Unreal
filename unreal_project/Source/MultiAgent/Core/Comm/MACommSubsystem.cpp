@@ -1016,3 +1016,58 @@ void UMACommSubsystem::SendWorldStateResponse(const FString& QueryType, const FS
     // 发送
     SendMessageEnvelope(Envelope);
 }
+
+//=============================================================================
+// 反馈发送接口
+// Requirements: 4.3
+//=============================================================================
+
+void UMACommSubsystem::SendTimeStepFeedback(const FMATimeStepFeedbackMessage& Feedback)
+{
+    UE_LOG(LogMACommSubsystem, Log, TEXT("SendTimeStepFeedback: TimeStep=%d, FeedbackCount=%d"), 
+        Feedback.TimeStep, Feedback.Feedbacks.Num());
+
+    // 创建消息信封
+    FMAMessageEnvelope Envelope;
+    Envelope.MessageType = EMACommMessageType::TaskFeedback;
+    Envelope.Timestamp = FMAMessageEnvelope::GetCurrentTimestamp();
+    Envelope.MessageId = FMAMessageEnvelope::GenerateMessageId();
+
+    // 使用 Feedback.ToJson() 序列化
+    Envelope.PayloadJson = Feedback.ToJson();
+
+    // 发送
+    SendMessageEnvelope(Envelope);
+}
+
+void UMACommSubsystem::SendSkillListCompletedFeedback(const FMASkillListCompletedMessage& Message)
+{
+    UE_LOG(LogMACommSubsystem, Log, TEXT("SendSkillListCompletedFeedback: bCompleted=%s, bInterrupted=%s, TotalTimeSteps=%d, CompletedTimeSteps=%d"),
+        Message.bCompleted ? TEXT("true") : TEXT("false"),
+        Message.bInterrupted ? TEXT("true") : TEXT("false"),
+        Message.TotalTimeSteps,
+        Message.CompletedTimeSteps);
+
+    // 创建消息信封
+    FMAMessageEnvelope Envelope;
+    Envelope.MessageType = EMACommMessageType::TaskFeedback;
+    Envelope.Timestamp = FMAMessageEnvelope::GetCurrentTimestamp();
+    Envelope.MessageId = FMAMessageEnvelope::GenerateMessageId();
+
+    // 构建 payload
+    TSharedPtr<FJsonObject> PayloadObject = MakeShareable(new FJsonObject());
+    PayloadObject->SetStringField(TEXT("feedback_type"), TEXT("skill_list_completed"));
+    PayloadObject->SetBoolField(TEXT("completed"), Message.bCompleted);
+    PayloadObject->SetBoolField(TEXT("interrupted"), Message.bInterrupted);
+    PayloadObject->SetNumberField(TEXT("total_time_steps"), Message.TotalTimeSteps);
+    PayloadObject->SetNumberField(TEXT("completed_time_steps"), Message.CompletedTimeSteps);
+
+    FString PayloadJson;
+    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&PayloadJson);
+    FJsonSerializer::Serialize(PayloadObject.ToSharedRef(), Writer);
+
+    Envelope.PayloadJson = PayloadJson;
+
+    // 发送
+    SendMessageEnvelope(Envelope);
+}
