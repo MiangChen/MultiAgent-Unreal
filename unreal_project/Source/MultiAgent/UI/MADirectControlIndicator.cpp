@@ -1,6 +1,5 @@
 // MADirectControlIndicator.cpp
 // Direct Control 指示器 Widget 实现
-// Requirements: 3.3
 
 #include "MADirectControlIndicator.h"
 #include "Components/TextBlock.h"

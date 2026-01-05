@@ -1,7 +1,6 @@
 // MAModifyWidget.cpp
 // Modify Mode Panel Widget - Pure C++ Implementation
 // Supports single and multi-select modes
-// Requirements: 2.4, 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 5.1, 5.2, 5.3, 5.4, 8.1, 8.2, 8.3, 9.3, 9.4
 
 #include "MAModifyWidget.h"
 #include "Components/MultiLineEditableTextBox.h"
@@ -27,7 +26,6 @@
 DEFINE_LOG_CATEGORY_STATIC(LogMAModifyWidget, Log, All);
 
 // Hint text constants
-// Requirements: 1.4, 10.1 - Updated to new format hints, display different hints based on Category
 static const FString DefaultHintText = TEXT("Input format: cate:building/trans_facility/prop,type:xxx\n• building: Buildings (prism modeling, single-select only)\n• trans_facility: Transport facilities (OBB rectangle)\n• prop: Props (point modeling)");
 static const FString MultiSelectHintText = TEXT("Multi-select mode - Input format: cate:trans_facility/prop,type:xxx\nNote: building type only supports single-select");
 static const FString BuildingHintText = TEXT("Building type (prism modeling)\nInput format: cate:building,type:xxx\n• Single-select only\n• Auto-calculates base polygon and height");
@@ -109,7 +107,6 @@ void UMAModifyWidget::BuildUI()
     WidgetTree->RootWidget = RootCanvas;
 
     // 创建背景 Border - 位于屏幕右侧
-    // Requirements: 3.5 - 修改面板宽度约为屏幕宽度的 20%
     UBorder* BackgroundBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("BackgroundBorder"));
     BackgroundBorder->SetBrushColor(FLinearColor(0.02f, 0.02f, 0.05f, 0.95f));
     BackgroundBorder->SetPadding(FMargin(15.0f));
@@ -126,7 +123,7 @@ void UMAModifyWidget::BuildUI()
     UVerticalBox* MainVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("MainVBox"));
     BackgroundBorder->AddChild(MainVBox);
 
-    // Title - Requirements: 3.1
+    // Title
     TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TitleText"));
     TitleText->SetText(FText::FromString(TEXT("Modify Panel")));
     FSlateFontInfo TitleFont = TitleText->GetFont();
@@ -137,7 +134,7 @@ void UMAModifyWidget::BuildUI()
     UVerticalBoxSlot* TitleSlot = MainVBox->AddChildToVerticalBox(TitleText);
     TitleSlot->SetPadding(FMargin(0, 0, 0, 10));
 
-    // Hint text - Requirements: 4.3
+    // Hint text
     HintText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("HintText"));
     HintText->SetText(FText::FromString(DefaultHintText));
     FSlateFontInfo HintFont = HintText->GetFont();
@@ -173,9 +170,8 @@ void UMAModifyWidget::BuildUI()
     UVerticalBoxSlot* JsonPreviewSlot = MainVBox->AddChildToVerticalBox(JsonPreviewSizeBox);
     JsonPreviewSlot->SetPadding(FMargin(0, 0, 0, 10));
 
-    // Multi-line text box - Requirements: 3.2, 4.4
+    // Multi-line text box
     LabelTextBox = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(UMultiLineEditableTextBox::StaticClass(), TEXT("LabelTextBox"));
-    // Requirements: 2.5, 10.3 - Display new format input hint
     LabelTextBox->SetHintText(FText::FromString(DefaultHintText));
     
     // Set text color to strict black - via WidgetStyle property
@@ -192,7 +188,7 @@ void UMAModifyWidget::BuildUI()
     TextBoxSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
     TextBoxSlot->SetPadding(FMargin(0, 0, 0, 15));
 
-    // Confirm button - Requirements: 3.3
+    // Confirm button
     ConfirmButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("ConfirmButton"));
     
     UTextBlock* ButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ButtonText"));
@@ -212,7 +208,6 @@ void UMAModifyWidget::BuildUI()
 
 //=========================================================================
 // GenerateActorLabel - 占位符实现
-// Requirements: 4.2
 //=========================================================================
 
 FString UMAModifyWidget::GenerateActorLabel(AActor* Actor) const
@@ -229,14 +224,12 @@ FString UMAModifyWidget::GenerateActorLabel(AActor* Actor) const
     FString Label = TEXT("[placeholder]");
     
     // 格式: "Actor: [ActorName]\nLabel: [placeholder]"
-    // Requirements: 4.2
     return FString::Printf(TEXT("Actor: %s\nLabel: %s"), *ActorName, *Label);
 }
 
 
 //=========================================================================
 // SetSelectedActor - 设置选中的 Actor (单选模式)
-// Requirements: 4.1, 9.1, 9.2
 //=========================================================================
 
 void UMAModifyWidget::SetSelectedActor(AActor* Actor)
@@ -253,7 +246,6 @@ void UMAModifyWidget::SetSelectedActor(AActor* Actor)
     SelectedActors.Add(Actor);
     
     // Clear text box, let user input new label
-    // Requirements: 2.5, 10.3 - Display new format input hint
     if (LabelTextBox)
     {
         LabelTextBox->SetText(FText::GetEmpty());
@@ -275,7 +267,6 @@ void UMAModifyWidget::SetSelectedActor(AActor* Actor)
 
 //=========================================================================
 // SetSelectedActors - Set multiple selected Actors (multi-select mode)
-// Requirements: 2.4
 //=========================================================================
 
 void UMAModifyWidget::SetSelectedActors(const TArray<AActor*>& Actors)
@@ -297,7 +288,6 @@ void UMAModifyWidget::SetSelectedActors(const TArray<AActor*>& Actors)
     }
     
     // Update hint text to display selection count
-    // Requirements: 2.4 - Update HintText to display selection count
     if (HintText)
     {
         if (SelectedActors.Num() == 1)
@@ -315,7 +305,6 @@ void UMAModifyWidget::SetSelectedActors(const TArray<AActor*>& Actors)
     if (LabelTextBox)
     {
         LabelTextBox->SetText(FText::GetEmpty());
-        // Requirements: 10.3 - Multi-select mode shows different input format hint
         if (SelectedActors.Num() > 1)
         {
             LabelTextBox->SetHintText(FText::FromString(MultiSelectHintText));
@@ -341,7 +330,6 @@ void UMAModifyWidget::SetSelectedActors(const TArray<AActor*>& Actors)
 
 //=========================================================================
 // ClearSelection - Clear selection state
-// Requirements: 4.3
 //=========================================================================
 
 void UMAModifyWidget::ClearSelection()
@@ -394,7 +382,6 @@ void UMAModifyWidget::SetLabelText(const FString& Text)
 
 //=========================================================================
 // OnConfirmButtonClicked - 确认按钮点击处理
-// Requirements: 2.1, 2.2, 5.1, 5.2, 5.3, 5.4, 8.1, 8.2, 8.3
 //=========================================================================
 
 void UMAModifyWidget::OnConfirmButtonClicked()
@@ -421,8 +408,6 @@ void UMAModifyWidget::OnConfirmButtonClicked()
         OnModifyConfirmed.Broadcast(SelectedActors[0], LabelContent);
         return;
     }
-    
-    // Requirements: 2.1, 2.2, 8.1, 8.2 - 验证选择是否符合分类约束
     if (ParsedInput.HasCategory())
     {
         FString ValidationError;
@@ -441,7 +426,6 @@ void UMAModifyWidget::OnConfirmButtonClicked()
     if (ParsedInput.HasCategory())
     {
         // 新格式 (cate:xxx,type:xxx) - 使用 GenerateSceneGraphNodeV2
-        // Requirements: 2.5, 2.6, 2.7, 3.4, 3.5, 3.6, 4.3, 4.4
         GeneratedJson = GenerateSceneGraphNodeV2(ParsedInput, SelectedActors);
         UE_LOG(LogMAModifyWidget, Log, TEXT("OnConfirmButtonClicked: Using GenerateSceneGraphNodeV2 for Category=%s"), 
             *ParsedInput.GetCategoryString());
@@ -471,7 +455,6 @@ void UMAModifyWidget::OnConfirmButtonClicked()
 //=========================================================================
 // UpdateJsonPreview - 更新 JSON 预览文本
 // 显示选中 Actor 对应的 JSON 片段
-// Requirements: 2.3, 2.5, 2.6
 //
 // 改进逻辑:
 // 1. 获取选中 Actor 的 GUID
@@ -601,7 +584,6 @@ void UMAModifyWidget::UpdateJsonPreview(AActor* Actor)
 
 //=========================================================================
 // UpdateJsonPreviewMultiSelect - Update JSON preview text (multi-select mode)
-// Requirements: 8.3
 //=========================================================================
 
 void UMAModifyWidget::UpdateJsonPreviewMultiSelect(const TArray<AActor*>& Actors)
@@ -645,7 +627,6 @@ void UMAModifyWidget::UpdateJsonPreviewMultiSelect(const TArray<AActor*>& Actors
 
 //=========================================================================
 // FormatJsonPreviewWithHighlight - Format JSON preview and highlight selected Actor's GUID
-// Requirements: 3.1, 3.2, 3.3, 3.4
 //
 // Features:
 // - Add node type title (Polygon/LineString/Point)
@@ -656,8 +637,6 @@ void UMAModifyWidget::UpdateJsonPreviewMultiSelect(const TArray<AActor*>& Actors
 FString UMAModifyWidget::FormatJsonPreviewWithHighlight(const FMASceneGraphNode& Node, const FString& ActorGuid) const
 {
     FString Result;
-    
-    // Requirements: 3.4 - Add node type title
     FString TypeTitle;
     if (Node.ShapeType == TEXT("polygon"))
     {
@@ -672,8 +651,6 @@ FString UMAModifyWidget::FormatJsonPreviewWithHighlight(const FMASceneGraphNode&
         TypeTitle = TEXT("=== Point Node ===");
     }
     Result += TypeTitle + TEXT("\n\n");
-    
-    // Requirements: 3.1, 3.2 - Format JSON display
     // Use RawJson field, but simplify display to fit preview box
     
     // Basic info
@@ -684,8 +661,6 @@ FString UMAModifyWidget::FormatJsonPreviewWithHighlight(const FMASceneGraphNode&
     // Display center point
     Result += FString::Printf(TEXT("center: [%.0f, %.0f, %.0f]\n"), 
         Node.Center.X, Node.Center.Y, Node.Center.Z);
-    
-    // Requirements: 3.3 - Highlight selected Actor's GUID
     if (Node.GuidArray.Num() > 0)
     {
         Result += TEXT("\nGuid Array:\n");
@@ -722,7 +697,6 @@ FString UMAModifyWidget::FormatJsonPreviewWithHighlight(const FMASceneGraphNode&
 //=========================================================================
 // ParseAnnotationInput - Parse annotation input string
 // Supports backward compatibility: detect input format, new format calls ParseAnnotationInputV2
-// Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 10.1, 10.2
 //=========================================================================
 
 bool UMAModifyWidget::ParseAnnotationInput(const FString& Input, FMAAnnotationInput& OutResult, FString& OutError)
@@ -738,7 +712,6 @@ bool UMAModifyWidget::ParseAnnotationInput(const FString& Input, FMAAnnotationIn
     }
     
     // Detect input format: new format contains "cate:" or "category:"
-    // Requirements: 10.1, 10.2 - Backward compatibility
     FString InputLower = Input.ToLower();
     if (InputLower.Contains(TEXT("cate:")) || InputLower.Contains(TEXT("category:")))
     {
@@ -832,7 +805,6 @@ bool UMAModifyWidget::ParseAnnotationInput(const FString& Input, FMAAnnotationIn
 
 //=========================================================================
 // GenerateSceneGraphNode - Generate scene graph node JSON
-// Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 5.1, 5.2, 5.3, 5.4, 5.5, 6.1, 6.2, 7.1, 7.2, 8.1, 8.2
 //=========================================================================
 
 FString UMAModifyWidget::GenerateSceneGraphNode(const FMAAnnotationInput& Input, const TArray<AActor*>& Actors)
@@ -863,7 +835,6 @@ FString UMAModifyWidget::GenerateSceneGraphNode(const FMAAnnotationInput& Input,
     PropertiesObject->SetStringField(TEXT("type"), Input.Type);
     
     // 生成标签 - 使用 MASceneGraphManager::GenerateLabel() 生成 Type-N 格式
-    // Requirements: 1.1, 2.1, 2.2, 2.3, 2.4
     FString Label;
     UWorld* World = GetWorld();
     UGameInstance* GI = World ? World->GetGameInstance() : nullptr;
@@ -885,8 +856,6 @@ FString UMAModifyWidget::GenerateSceneGraphNode(const FMAAnnotationInput& Input,
         UE_LOG(LogMAModifyWidget, Warning, TEXT("GenerateSceneGraphNode: MASceneGraphManager not available, using fallback label: %s"), *Label);
     }
     PropertiesObject->SetStringField(TEXT("label"), Label);
-    
-    // Requirements: 6.1, 6.2, 7.1, 7.2, 8.1, 8.2 - 集成默认字段
     // 如果有 Category，先添加默认字段
     if (Input.HasCategory())
     {
@@ -998,7 +967,6 @@ FString UMAModifyWidget::GenerateSceneGraphNode(const FMAAnnotationInput& Input,
 // - Building: ComputePrismFromActors → Prism JSON
 // - TransFacility: ComputeOBBFromActors → LineString + Vertices JSON
 // - Prop: ComputeCenterFromActors → Point JSON
-// Requirements: 2.5, 2.6, 2.7, 3.4, 3.5, 3.6, 4.3, 4.4
 //=========================================================================
 
 FString UMAModifyWidget::GenerateSceneGraphNodeV2(const FMAAnnotationInput& Input, const TArray<AActor*>& Actors)
@@ -1030,7 +998,6 @@ FString UMAModifyWidget::GenerateSceneGraphNodeV2(const FMAAnnotationInput& Inpu
     PropertiesObject->SetStringField(TEXT("type"), Input.Type);
     
     // 生成标签 - 使用 MASceneGraphManager::GenerateLabel() 生成 Type-N 格式
-    // Requirements: 1.1, 2.1, 2.2, 2.3, 2.5
     FString Label;
     UWorld* World = GetWorld();
     UGameInstance* GI = World ? World->GetGameInstance() : nullptr;
@@ -1110,7 +1077,6 @@ FString UMAModifyWidget::GenerateSceneGraphNodeV2(const FMAAnnotationInput& Inpu
     case EMANodeCategory::Building:
         {
             // Building 类型 - Prism (棱柱)
-            // Requirements: 2.5, 2.6, 2.7
             ShapeObject->SetStringField(TEXT("type"), TEXT("prism"));
             
             // 调用 ComputePrismFromActors 获取几何数据
@@ -1179,7 +1145,6 @@ FString UMAModifyWidget::GenerateSceneGraphNodeV2(const FMAAnnotationInput& Inpu
             // - 如果 type 为 "intersection"，shape.type = "point"，center 是矩形 vertices 的几何中心
             // - 如果 type 为其他值，shape.type = "linestring"，points 是矩形短边的两个中点
             // - 两种情况都包含 vertices 字段 (OBB 矩形的四个角点)
-            // Requirements: 3.4, 3.5, 3.6
             
             // 调用 ComputeOBBFromActors 获取 OBB 几何数据
             FMAOBBGeometry OBBGeometry = FMAGeometryUtils::ComputeOBBFromActors(Actors);
@@ -1310,7 +1275,6 @@ FString UMAModifyWidget::GenerateSceneGraphNodeV2(const FMAAnnotationInput& Inpu
     case EMANodeCategory::Prop:
         {
             // Prop 类型 - Point (几何中心)
-            // Requirements: 4.3, 4.4
             ShapeObject->SetStringField(TEXT("type"), TEXT("point"));
             
             // 调用 ComputeCenterFromActors 获取几何中心
@@ -1394,7 +1358,6 @@ FString UMAModifyWidget::GenerateSceneGraphNodeV2(const FMAAnnotationInput& Inpu
 
 //=========================================================================
 // ComputeConvexHull - 计算凸包顶点
-// Requirements: 6.1, 6.2, 6.3
 //=========================================================================
 
 TArray<FVector2D> UMAModifyWidget::ComputeConvexHull(const TArray<AActor*>& Actors)
@@ -1408,7 +1371,6 @@ TArray<FVector2D> UMAModifyWidget::ComputeConvexHull(const TArray<AActor*>& Acto
 
 //=========================================================================
 // ComputeLineString - 计算线串端点
-// Requirements: 7.1, 7.2, 7.3
 // 
 // 算法：找到点集的主方向（线段走向），返回首尾两个端点
 // 1. 收集所有 Actor 的中心点
@@ -1513,7 +1475,6 @@ TArray<FVector2D> UMAModifyWidget::ComputeLineString(const TArray<AActor*>& Acto
 
 //=========================================================================
 // CollectActorGuids - 收集所有选中 Actor 的 GUID
-// Requirements: 4.3, 5.4
 //=========================================================================
 
 TArray<FString> UMAModifyWidget::CollectActorGuids(const TArray<AActor*>& Actors)
@@ -1532,7 +1493,6 @@ TArray<FString> UMAModifyWidget::CollectActorGuids(const TArray<AActor*>& Actors
 //=========================================================================
 // GetNextAvailableId - 获取下一个可用的节点 ID
 // 读取 scene_graph_cyberworld.json，找到最大 ID 并返回 +1
-// Requirements: 9.1, 9.2, 9.3, 9.4
 //=========================================================================
 
 FString UMAModifyWidget::GetNextAvailableId()
@@ -1604,7 +1564,6 @@ FString UMAModifyWidget::GetNextAvailableId()
 
 //=========================================================================
 // GetDefaultPropertiesForCategory - 根据分类获取默认属性字段
-// Requirements: 6.1, 7.1, 8.1
 //=========================================================================
 
 TMap<FString, FString> UMAModifyWidget::GetDefaultPropertiesForCategory(EMANodeCategory Category)
@@ -1655,7 +1614,6 @@ TMap<FString, FString> UMAModifyWidget::GetDefaultPropertiesForCategory(EMANodeC
 
 //=========================================================================
 // ValidateSelectionForCategory - 验证选择是否符合分类约束
-// Requirements: 2.1, 2.2, 3.1, 4.1
 //=========================================================================
 
 bool UMAModifyWidget::ValidateSelectionForCategory(EMANodeCategory Category, int32 SelectionCount, FString& OutError)
@@ -1673,7 +1631,6 @@ bool UMAModifyWidget::ValidateSelectionForCategory(EMANodeCategory Category, int
     switch (Category)
     {
     case EMANodeCategory::Building:
-        // Requirements: 2.1, 2.2 - Building type only allows single-select
         if (SelectionCount != 1)
         {
             OutError = TEXT("Building type only supports single-select, please select only one Actor");
@@ -1683,12 +1640,10 @@ bool UMAModifyWidget::ValidateSelectionForCategory(EMANodeCategory Category, int
         break;
         
     case EMANodeCategory::TransFacility:
-        // Requirements: 3.1 - TransFacility type allows single or multi-select
         // Any count is valid
         break;
         
     case EMANodeCategory::Prop:
-        // Requirements: 4.1 - Prop type allows single or multi-select
         // Any count is valid
         break;
         
@@ -1705,7 +1660,6 @@ bool UMAModifyWidget::ValidateSelectionForCategory(EMANodeCategory Category, int
 
 //=========================================================================
 // ParseAnnotationInputV2 - Parse new format annotation input (cate:xxx,type:xxx)
-// Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 5.1, 5.2, 5.3, 5.4, 5.5
 //
 // Auto-set default shape based on cate value:
 // - building → prism
@@ -1719,7 +1673,6 @@ bool UMAModifyWidget::ParseAnnotationInputV2(const FString& Input, FMAAnnotation
     OutError.Empty();
     
     // Check for empty input
-    // Requirements: 1.4 - Display error message when input format is invalid
     if (Input.IsEmpty())
     {
         OutError = TEXT("Input cannot be empty");
@@ -1727,7 +1680,6 @@ bool UMAModifyWidget::ParseAnnotationInputV2(const FString& Input, FMAAnnotation
     }
     
     // Parse "key:value, key:value" format
-    // Requirements: 1.1 - Accept cate:xxxx,type:xxxxxx format
     TArray<FString> Pairs;
     Input.ParseIntoArray(Pairs, TEXT(","), true);
     
@@ -1767,10 +1719,8 @@ bool UMAModifyWidget::ParseAnnotationInputV2(const FString& Input, FMAAnnotation
         }
         
         // Parse known fields
-        // Requirements: 1.5 - Support case-insensitive parsing of cate and type field names
         if (Key == TEXT("cate") || Key == TEXT("category"))
         {
-            // Requirements: 1.2 - Extract cate field value as category
             EMANodeCategory ParsedCategory = FMAAnnotationInput::ParseCategoryFromString(Value);
             if (ParsedCategory == EMANodeCategory::None)
             {
@@ -1786,7 +1736,6 @@ bool UMAModifyWidget::ParseAnnotationInputV2(const FString& Input, FMAAnnotation
         }
         else if (Key == TEXT("type"))
         {
-            // Requirements: 1.3 - Extract type field value as entity type
             OutResult.Type = Value;
             bHasType = true;
         }
@@ -1814,7 +1763,6 @@ bool UMAModifyWidget::ParseAnnotationInputV2(const FString& Input, FMAAnnotation
     // Validate required fields
     if (!bHasCate)
     {
-        // Requirements: 1.4 - Display error message explaining expected format
         OutError = TEXT("Missing required field: cate (expected building, trans_facility or prop)");
         return false;
     }
@@ -1831,8 +1779,6 @@ bool UMAModifyWidget::ParseAnnotationInputV2(const FString& Input, FMAAnnotation
         OutResult.Id = GetNextAvailableId();
         UE_LOG(LogMAModifyWidget, Log, TEXT("ParseAnnotationInputV2: Auto-assigned ID = %s"), *OutResult.Id);
     }
-    
-    // Requirements: Auto-set default shape based on cate value
     // If user didn't explicitly specify shape, auto-set based on category
     // - building → prism
     // - trans_facility → linestring
@@ -1870,7 +1816,6 @@ bool UMAModifyWidget::ParseAnnotationInputV2(const FString& Input, FMAAnnotation
 
 //=========================================================================
 // GetHintTextForCategory - Get corresponding hint text based on category
-// Requirements: 1.4
 //=========================================================================
 
 FString UMAModifyWidget::GetHintTextForCategory(EMANodeCategory Category) const

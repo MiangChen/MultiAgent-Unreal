@@ -6,7 +6,6 @@
 // 1. 场景图中未找到对象时的回退查询
 // 2. 需要获取实际 Actor 引用时的查询
 //
-// Requirements: 2.4
 
 #pragma once
 
@@ -33,7 +32,6 @@ struct FMASceneQueryResult
  * 提供基于 UE5 场景的对象查询功能
  * 作为 MASceneGraphQuery 的回退方案
  * 
- * Requirements: 2.4
  */
 class MULTIAGENT_API FMASceneQuery
 {

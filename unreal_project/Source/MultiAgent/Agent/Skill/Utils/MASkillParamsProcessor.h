@@ -13,7 +13,6 @@ enum class EMACommand : uint8;
 
 /**
  * Place 技能操作模式
- * Requirements: 1.3, 1.4
  */
 enum class EPlaceMode : uint8
 {
@@ -44,15 +43,13 @@ public:
     // Place 技能辅助方法 (public for testing)
     /**
      * 从 JSON 字符串解析语义标签到 FMASemanticTarget
-     * Requirements: 1.1, 1.2
      */
     static void ParseSemanticTargetFromJson(const FString& JsonStr, FMASemanticTarget& OutTarget);
     
     /**
-     * 根据 Object2 语义标签确定 Place 操作模式
-     * Requirements: 1.3, 1.4
+     * 根据 surface_target 语义标签确定 Place 操作模式
      */
-    static EPlaceMode DeterminePlaceMode(const FMASemanticTarget& Object2);
+    static EPlaceMode DeterminePlaceMode(const FMASemanticTarget& surface_target);
 
 private:
     // 各技能的参数处理

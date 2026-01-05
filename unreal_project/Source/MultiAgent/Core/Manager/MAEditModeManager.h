@@ -4,9 +4,6 @@
 // Edit Mode 用于模拟任务执行过程中发生的"新情况"（动态变化）
 // 与 Modify Mode（持久化修改源场景图文件）不同，Edit Mode 的所有操作仅针对临时场景图文件进行
 //
-// Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 3.1, 3.2, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7
-// Requirements: 6.4, 7.4, 8.4, 9.6, 10.7, 11.1
-// Requirements: 14.1, 14.6, 15.2, 15.6, 16.1-16.6, 17.2, 17.3
 
 #pragma once
 
@@ -44,7 +41,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnTempSceneGraphChanged);
  * - Zone/Goal Actor 可视化管理
  * - 后端通信 (场景变化通知)
  * 
- * Requirements: 1.1, 1.2, 1.3, 1.4, 1.5
  */
 UCLASS()
 class MULTIAGENT_API UMAEditModeManager : public UWorldSubsystem
@@ -61,12 +57,10 @@ public:
 
     //=========================================================================
     // 临时场景图管理
-    // Requirements: 1.1, 1.2, 1.3, 1.4, 1.5
     //=========================================================================
     
     /**
      * 创建临时场景图 (从源文件复制)
-     * Requirements: 1.1, 1.5
      * 
      * @return 创建是否成功
      */
@@ -75,14 +69,12 @@ public:
     
     /**
      * 删除临时场景图
-     * Requirements: 1.4
      */
     UFUNCTION(BlueprintCallable, Category = "EditMode")
     void DeleteTempSceneGraph();
     
     /**
      * 获取临时场景图文件路径
-     * Requirements: 1.2
      * 
      * @return 临时文件路径
      */
@@ -91,7 +83,6 @@ public:
     
     /**
      * 检查 Edit Mode 是否可用
-     * Requirements: 1.3
      * 
      * @return Edit Mode 是否可用
      */
@@ -108,12 +99,10 @@ public:
 
     //=========================================================================
     // POI 管理
-    // Requirements: 3.1, 3.2, 3.4, 3.5
     //=========================================================================
     
     /**
      * 在指定位置创建 POI
-     * Requirements: 3.1, 3.2
      * 
      * @param WorldLocation 世界坐标
      * @return 创建的 POI Actor，失败返回 nullptr
@@ -131,7 +120,6 @@ public:
     
     /**
      * 销毁所有 POI
-     * Requirements: 3.5
      */
     UFUNCTION(BlueprintCallable, Category = "EditMode|POI")
     void DestroyAllPOIs();
@@ -146,12 +134,10 @@ public:
 
     //=========================================================================
     // 选择管理
-    // Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7
     //=========================================================================
     
     /**
      * 选择 Actor (单选，自动取消之前选择)
-     * Requirements: 4.1, 4.5, 4.6
      * 
      * @param Actor 要选择的 Actor
      */
@@ -160,7 +146,6 @@ public:
     
     /**
      * 选择 POI (多选)
-     * Requirements: 4.2, 4.4, 4.6
      * 
      * @param POI 要选择的 POI
      */
@@ -169,7 +154,6 @@ public:
     
     /**
      * 从选择集合移除对象
-     * Requirements: 4.7
      * 
      * @param Object 要移除的对象
      */
@@ -178,7 +162,6 @@ public:
     
     /**
      * 清除所有选择
-     * Requirements: 4.3
      */
     UFUNCTION(BlueprintCallable, Category = "EditMode|Selection")
     void ClearSelection();
@@ -275,12 +258,10 @@ public:
 
     //=========================================================================
     // 后端通信
-    // Requirements: 6.4, 7.4, 8.4, 9.6, 10.7, 11.1
     //=========================================================================
     
     /**
      * 发送场景变化消息到后端规划器
-     * Requirements: 11.1
      * 
      * @param ChangeType 变化类型字符串 (add_node, delete_node, edit_node, add_goal, add_zone 等)
      * @param Payload 负载数据 (JSON 格式)
@@ -289,7 +270,6 @@ public:
     
     /**
      * 发送场景变化消息 (使用枚举类型)
-     * Requirements: 11.1
      * 
      * @param ChangeType 变化类型枚举
      * @param Payload 负载数据 (JSON 格式)
@@ -298,12 +278,10 @@ public:
 
     //=========================================================================
     // Zone/Goal Actor 管理
-    // Requirements: 14.1, 14.6, 15.2, 15.6
     //=========================================================================
     
     /**
      * 为 Zone Node 创建可视化 Actor
-     * Requirements: 14.1
      * 
      * @param NodeId Node ID
      * @param Vertices 顶点数组
@@ -322,7 +300,6 @@ public:
     
     /**
      * 销毁所有 Zone Actor
-     * Requirements: 14.6
      */
     UFUNCTION(BlueprintCallable, Category = "EditMode|Zone")
     void DestroyAllZoneActors();
@@ -338,7 +315,6 @@ public:
     
     /**
      * 为 Goal Node 创建可视化 Actor
-     * Requirements: 15.2
      * 
      * @param NodeId Node ID
      * @param Location 位置
@@ -358,7 +334,6 @@ public:
     
     /**
      * 销毁所有 Goal Actor
-     * Requirements: 15.6
      */
     UFUNCTION(BlueprintCallable, Category = "EditMode|Goal")
     void DestroyAllGoalActors();
@@ -375,12 +350,10 @@ public:
 
     //=========================================================================
     // 设为 Goal 功能
-    // Requirements: 16.1, 16.2, 16.3, 16.4, 16.5, 16.6
     //=========================================================================
     
     /**
      * 将 Node 设为 Goal (添加 is_goal: true)
-     * Requirements: 16.2, 16.3, 16.4
      * 
      * @param NodeId Node ID
      * @param OutError 错误信息
@@ -391,7 +364,6 @@ public:
     
     /**
      * 取消 Node 的 Goal 状态 (移除 is_goal)
-     * Requirements: 16.6
      * 
      * @param NodeId Node ID
      * @param OutError 错误信息
@@ -402,7 +374,6 @@ public:
     
     /**
      * 检查 Node 是否为 Goal
-     * Requirements: 16.5
      * 
      * @param NodeId Node ID
      * @return 是否为 Goal
@@ -412,12 +383,10 @@ public:
 
     //=========================================================================
     // 列表查询
-    // Requirements: 17.2, 17.3
     //=========================================================================
     
     /**
      * 获取所有 Goal Node ID 列表
-     * Requirements: 17.2
      * 
      * @return Goal Node ID 数组
      */
@@ -426,7 +395,6 @@ public:
     
     /**
      * 获取所有 Zone Node ID 列表
-     * Requirements: 17.3
      * 
      * @return Zone Node ID 数组
      */
@@ -570,7 +538,6 @@ private:
     
     /**
      * 检查 Node 是否为 point 类型
-     * Requirements: 5.3, 5.5, 7.5, 12.5
      * 
      * @param NodeObject Node JSON 对象
      * @return 是否为 point 类型
@@ -595,7 +562,6 @@ private:
     
     /**
      * 删除与指定 Node 相关的所有 Edge
-     * Requirements: 7.3
      * 
      * @param NodeId Node ID
      * @return 删除的 Edge 数量
@@ -604,7 +570,6 @@ private:
     
     /**
      * 同步 Actor 位置到场景
-     * Requirements: 6.5, 12.2, 12.3
      * 
      * @param NodeObject Node JSON 对象
      */
@@ -612,7 +577,6 @@ private:
     
     /**
      * 计算凸包
-     * Requirements: 10.3
      * 
      * @param Points 输入点集
      * @return 凸包顶点（逆时针顺序）

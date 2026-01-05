@@ -1,6 +1,5 @@
 // MADynamicNodeManager.cpp
 // 动态节点管理模块实现
-// Requirements: 1.1, 1.2, 1.3, 1.4, 10.3, 10.4
 
 #include "MADynamicNodeManager.h"
 #include "Misc/FileHelper.h"
@@ -16,7 +15,6 @@ DEFINE_LOG_CATEGORY_STATIC(LogMADynamicNodeManager, Log, All);
 
 TArray<FMASceneGraphNode> FMADynamicNodeManager::CreateRobotNodes(const FString& AgentsJsonPath)
 {
-    // Requirements: 1.1, 1.2 - 从 agents.json 创建机器人节点
 
     TArray<FMASceneGraphNode> Result;
 
@@ -107,11 +105,11 @@ TArray<FMASceneGraphNode> FMADynamicNodeManager::CreateRobotNodes(const FString&
                 Rotation = ParseRotationFromArray(*RotationArray);
             }
 
-            // 生成数字 ID (格式: 机器人从 101 开始)
+            // 生成数字 ID (格式: 机器人从 5001 开始)
             int32& TypeCount = TypeCountMap.FindOrAdd(AgentType);
             TypeCount++;
             int32 GlobalRobotIndex = Result.Num() + 1;
-            FString NumericId = FString::Printf(TEXT("%d"), 100 + GlobalRobotIndex);
+            FString NumericId = FString::Printf(TEXT("%d"), 5000 + GlobalRobotIndex);
 
             // 创建机器人节点 (使用数字 ID 和 label)
             FMASceneGraphNode Node = CreateRobotNode(NumericId, AgentType, Position, Rotation);
@@ -121,7 +119,7 @@ TArray<FMASceneGraphNode> FMADynamicNodeManager::CreateRobotNodes(const FString&
             Result.Add(Node);
 
             UE_LOG(LogMADynamicNodeManager, Log, TEXT("CreateRobotNodes: Created robot node - Id: %s, Type: %s, Label: %s, Position: %s"),
-                *Node.Id, *Node.AgentType, *Node.Label, *Position.ToString());
+                *Node.Id, *Node.Type, *Node.Label, *Position.ToString());
         }
     }
 
@@ -131,7 +129,6 @@ TArray<FMASceneGraphNode> FMADynamicNodeManager::CreateRobotNodes(const FString&
 
 TArray<FMASceneGraphNode> FMADynamicNodeManager::CreatePickupItemNodes(const FString& EnvironmentJsonPath)
 {
-    // Requirements: 1.1, 1.3 - 从 environment.json 创建可拾取物品节点
 
     TArray<FMASceneGraphNode> Result;
 
@@ -223,7 +220,6 @@ TArray<FMASceneGraphNode> FMADynamicNodeManager::CreatePickupItemNodes(const FSt
 
 TArray<FMASceneGraphNode> FMADynamicNodeManager::CreateChargingStationNodes(const FString& EnvironmentJsonPath)
 {
-    // Requirements: 1.1, 10.6 - 从 environment.json 创建充电站节点
 
     TArray<FMASceneGraphNode> Result;
 
@@ -300,18 +296,16 @@ TArray<FMASceneGraphNode> FMADynamicNodeManager::CreateChargingStationNodes(cons
 
 FMASceneGraphNode FMADynamicNodeManager::CreateRobotNode(
     const FString& Id,
-    const FString& AgentType,
+    const FString& RobotType,
     const FVector& Position,
     const FRotator& Rotation)
 {
-    // Requirements: 1.2, 10.1 - 创建机器人节点
 
     FMASceneGraphNode Node;
 
     Node.Id = Id;
-    Node.Type = TEXT("robot");
+    Node.Type = RobotType;  // 使用具体的机器人类型 (UAV, UGV, Quadruped, Humanoid)
     Node.Category = TEXT("robot");
-    Node.AgentType = AgentType;
     Node.Label = Id;  // 默认使用 ID 作为标签，可以后续更新
     Node.Center = Position;
     Node.Rotation = Rotation;
@@ -320,7 +314,6 @@ FMASceneGraphNode FMADynamicNodeManager::CreateRobotNode(
     Node.bIsCarried = false;
 
     // 添加 Features
-    Node.Features.Add(TEXT("agent_type"), AgentType);
     Node.Features.Add(TEXT("status"), TEXT("idle"));
 
     return Node;
@@ -333,13 +326,12 @@ FMASceneGraphNode FMADynamicNodeManager::CreatePickupItemNode(
     const FVector& Position,
     const TMap<FString, FString>& Features)
 {
-    // Requirements: 1.3, 10.2 - 创建可拾取物品节点
 
     FMASceneGraphNode Node;
 
     Node.Id = Id;
-    Node.Type = TEXT("pickup_item");
-    Node.Category = TEXT("pickup_item");
+    Node.Type = TEXT("cargo");  // 统一使用 cargo 作为类型
+    Node.Category = TEXT("prop");  // 使用 prop 作为类别，与静态道具一致
     Node.Label = ItemLabel.IsEmpty() ? Id : ItemLabel;
     Node.Center = Position;
     Node.ShapeType = TEXT("point");
@@ -350,14 +342,27 @@ FMASceneGraphNode FMADynamicNodeManager::CreatePickupItemNode(
     // 复制 Features
     Node.Features = Features;
 
-    // 确保 label 和 item_type 在 Features 中
+    // 确保 label 在 Features 中
     if (!ItemLabel.IsEmpty() && !Node.Features.Contains(TEXT("label")))
     {
         Node.Features.Add(TEXT("label"), ItemLabel);
     }
-    if (!ItemType.IsEmpty() && !Node.Features.Contains(TEXT("item_type")))
+
+    // 如果没有 subtype，尝试从 label 推断 (例如 "RedBox" -> "box")
+    if (!Node.Features.Contains(TEXT("subtype")) && !ItemLabel.IsEmpty())
     {
-        Node.Features.Add(TEXT("item_type"), ItemType);
+        // 常见的物品类型后缀
+        TArray<FString> KnownSubtypes = { TEXT("Box"), TEXT("Crate"), TEXT("Container"), TEXT("Package") };
+        for (const FString& Subtype : KnownSubtypes)
+        {
+            if (ItemLabel.EndsWith(Subtype, ESearchCase::IgnoreCase))
+            {
+                Node.Features.Add(TEXT("subtype"), Subtype.ToLower());
+                UE_LOG(LogMADynamicNodeManager, Verbose, TEXT("CreatePickupItemNode: Inferred subtype '%s' from label '%s'"),
+                    *Subtype.ToLower(), *ItemLabel);
+                break;
+            }
+        }
     }
 
     return Node;
@@ -368,13 +373,12 @@ FMASceneGraphNode FMADynamicNodeManager::CreateChargingStationNode(
     const FString& StationLabel,
     const FVector& Position)
 {
-    // Requirements: 10.6 - 创建充电站节点
 
     FMASceneGraphNode Node;
 
     Node.Id = Id;
     Node.Type = TEXT("charging_station");
-    Node.Category = TEXT("charging_station");
+    Node.Category = TEXT("prop");  // 充电站归类为 prop
     Node.Label = StationLabel.IsEmpty() ? Id : StationLabel;
     Node.Center = Position;
     Node.ShapeType = TEXT("point");
@@ -398,7 +402,6 @@ FMASceneGraphNode FMADynamicNodeManager::CreateChargingStationNode(
 
 bool FMADynamicNodeManager::UpdateNodePosition(FMASceneGraphNode& Node, const FVector& NewPosition)
 {
-    // Requirements: 1.4 - 更新节点位置
 
     // 验证节点有效性
     if (!Node.IsValid())
@@ -460,7 +463,6 @@ bool FMADynamicNodeManager::UpdatePickupItemCarrierStatus(
     bool bIsCarried,
     const FString& CarrierId)
 {
-    // Requirements: 10.3, 10.4 - 更新可拾取物品的携带状态
 
     // 验证节点有效性
     if (!Node.IsValid())

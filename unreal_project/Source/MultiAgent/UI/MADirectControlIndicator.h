@@ -1,6 +1,5 @@
 // MADirectControlIndicator.h
 // Direct Control 指示器 Widget - 显示当前直接控制的 Agent 名称
-// Requirements: 3.3
 
 #pragma once
 
@@ -18,7 +17,6 @@ class UCanvasPanel;
  * 在 Agent View Mode 时显示 "Direct Control: [Agent Name]"
  * 纯 C++ 实现，不需要蓝图
  * 
- * Requirements: 3.3
  */
 UCLASS()
 class MULTIAGENT_API UMADirectControlIndicator : public UUserWidget

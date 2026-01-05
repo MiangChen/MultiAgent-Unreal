@@ -1,6 +1,5 @@
 // MAContextMenuWidget.cpp
 // 上下文菜单 Widget 实现
-// Requirements: 6.4, 7.3
 
 #include "MAContextMenuWidget.h"
 #include "Components/Border.h"

@@ -1,5 +1,5 @@
 // MAPickupItem.cpp
-// 可拾取物品 - 物理/碰撞处理由 GA_Pickup/GA_Drop 负责
+// 可拾取物品 - 物理/碰撞处理由 GA_Place 负责
 
 #include "MAPickupItem.h"
 #include "Components/SphereComponent.h"
@@ -140,10 +140,10 @@ void AMAPickupItem::AttachToHand(AMACharacter* Character)
         DetachFromCarrier();
     }
     
-    // 禁用物理模拟 (Requirements 8.1)
+    // 禁用物理模拟
     SetPhysicsEnabled(false);
     
-    // 附着到角色 (Requirements 8.2)
+    // 附着到角色
     AttachToActor(Character, FAttachmentTransformRules::KeepWorldTransform);
     
     // 设置相对位置到手部位置
@@ -181,10 +181,10 @@ void AMAPickupItem::AttachToUGV(AMAUGVCharacter* UGV)
         DetachFromCarrier();
     }
     
-    // 禁用物理模拟 (Requirements 8.1)
+    // 禁用物理模拟
     SetPhysicsEnabled(false);
     
-    // 使用 UGV 的 LoadCargo 方法附着 (Requirements 8.5)
+    // 使用 UGV 的 LoadCargo 方法附着
     // LoadCargo 会处理附着和添加到 CarriedItems 列表
     if (UGV->LoadCargo(this))
     {
@@ -206,13 +206,13 @@ void AMAPickupItem::AttachToUGV(AMAUGVCharacter* UGV)
 
 void AMAPickupItem::PlaceOnGround(FVector Location)
 {
-    // 从当前承载者分离 (Requirements 8.3)
+    // 从当前承载者分离
     DetachFromCarrier();
     
     // 设置位置
     SetActorLocation(Location);
     
-    // 重新启用物理模拟 (Requirements 8.4)
+    // 重新启用物理模拟
     SetPhysicsEnabled(true);
     
     bCanBePickedUp = true;
@@ -232,7 +232,7 @@ void AMAPickupItem::PlaceOnObject(AMAPickupItem* TargetObject)
         return;
     }
     
-    // 从当前承载者分离 (Requirements 8.3)
+    // 从当前承载者分离
     DetachFromCarrier();
     
     // 计算目标位置：在目标物体上方
@@ -256,7 +256,7 @@ void AMAPickupItem::PlaceOnObject(AMAPickupItem* TargetObject)
     
     SetActorLocation(PlaceLocation);
     
-    // 重新启用物理模拟 (Requirements 8.4)
+    // 重新启用物理模拟
     SetPhysicsEnabled(true);
     
     bCanBePickedUp = true;
@@ -288,7 +288,7 @@ void AMAPickupItem::DetachFromCarrier()
         }
     }
     
-    // 从父 Actor 分离 (Requirements 8.3)
+    // 从父 Actor 分离
     DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
     
     // 清除承载者引用

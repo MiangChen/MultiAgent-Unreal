@@ -1,7 +1,6 @@
 // MAEmergencyWidget.h
 // Emergency Event Details Widget - Pure C++ Implementation
 // Displays camera feed, info text, action buttons and input box
-// Requirements: 2.2, 2.3, 3.1, 3.2, 3.3, 3.4
 
 #pragma once
 
@@ -39,7 +38,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMessageSent, const FString&, Mess
  * - Right side: Three action buttons (ActionButton1/2/3)
  * - Bottom: Input box and send button (InputTextBox, SendButton)
  * 
- * Requirements: 2.2, 2.3, 3.1, 3.2, 3.3, 3.4
  */
 UCLASS()
 class MULTIAGENT_API UMAEmergencyWidget : public UUserWidget
@@ -56,14 +54,12 @@ public:
     /**
      * Set camera source, connect to render target
      * @param Camera Camera sensor component
-     * Requirements: 2.2, 2.3, 4.4
      */
     UFUNCTION(BlueprintCallable, Category = "Emergency|Camera")
     void SetCameraSource(UMACameraSensorComponent* Camera);
 
     /**
      * Clear camera source, show black screen
-     * Requirements: 2.5
      */
     UFUNCTION(BlueprintCallable, Category = "Emergency|Camera")
     void ClearCameraSource();
@@ -75,7 +71,6 @@ public:
     /**
      * Set info display text
      * @param Text Text to display
-     * Requirements: 3.1
      */
     UFUNCTION(BlueprintCallable, Category = "Emergency|Info")
     void SetInfoText(const FString& Text);
@@ -83,14 +78,12 @@ public:
     /**
      * Append info text (append mode)
      * @param Text Text to append
-     * Requirements: 3.1
      */
     UFUNCTION(BlueprintCallable, Category = "Emergency|Info")
     void AppendInfoText(const FString& Text);
 
     /**
      * Clear info display
-     * Requirements: 3.1
      */
     UFUNCTION(BlueprintCallable, Category = "Emergency|Info")
     void ClearInfoText();
@@ -101,14 +94,12 @@ public:
 
     /**
      * Set focus to input box
-     * Requirements: 3.3
      */
     UFUNCTION(BlueprintCallable, Category = "Emergency|Input")
     void FocusInputBox();
 
     /**
      * Clear input box content
-     * Requirements: 3.3
      */
     UFUNCTION(BlueprintCallable, Category = "Emergency|Input")
     void ClearInputBox();
@@ -116,7 +107,6 @@ public:
     /**
      * Get current text from input box
      * @return Text content in input box
-     * Requirements: 3.4
      */
     UFUNCTION(BlueprintPure, Category = "Emergency|Input")
     FString GetInputText() const;
@@ -201,19 +191,16 @@ private:
 
     /**
      * Build UI layout
-     * Requirements: 2.2, 2.3, 3.1, 3.2, 3.3
      */
     void BuildUI();
 
     /**
      * Create camera render resources
-     * Requirements: 2.2, 2.3, 4.4
      */
     void CreateCameraRenderResources();
 
     /**
      * Bind button events
-     * Requirements: 3.2, 3.4
      */
     void BindButtonEvents();
 

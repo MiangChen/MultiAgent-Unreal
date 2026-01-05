@@ -1,7 +1,6 @@
 // MAModifyTypes.h
 // Modify 模式相关类型定义
 // 用于多选标注功能的数据结构
-// Requirements: 3.1, 3.2, 3.3, 4.1, 5.1, 5.2, 5.3
 
 #pragma once
 
@@ -11,7 +10,6 @@
 /**
  * 节点分类枚举
  * 用于标识场景图节点的分类类型
- * Requirements: 5.1, 5.2, 5.3
  */
 UENUM(BlueprintType)
 enum class EMANodeCategory : uint8
@@ -32,7 +30,6 @@ enum class EMANodeCategory : uint8
 /**
  * 形状类型枚举
  * 用于标识多选标注的几何形状类型
- * Requirements: 4.1, 5.1, 2.5
  */
 UENUM(BlueprintType)
 enum class EMAShapeType : uint8
@@ -64,7 +61,6 @@ enum class EMAShapeType : uint8
  * - 新格式: "cate:building, type:value" (自动分配 ID)
  * - 新格式: "cate:trans_facility, type:value, shape:polygon"
  * 
- * Requirements: 3.1, 3.2, 3.3, 5.1, 5.2, 5.3
  */
 USTRUCT(BlueprintType)
 struct MULTIAGENT_API FMAAnnotationInput
@@ -124,7 +120,6 @@ struct MULTIAGENT_API FMAAnnotationInput
      * 从字符串解析 Category
      * @param CategoryStr 分类字符串 (building, trans_facility, prop)
      * @return 对应的 EMANodeCategory 枚举值
-     * Requirements: 5.1, 5.2, 5.3
      */
     static EMANodeCategory ParseCategoryFromString(const FString& CategoryStr)
     {
@@ -147,7 +142,6 @@ struct MULTIAGENT_API FMAAnnotationInput
      * 将 Category 枚举转换为字符串
      * @param InCategory 分类枚举值
      * @return 对应的字符串表示
-     * Requirements: 5.1, 5.2, 5.3
      */
     static FString CategoryToString(EMANodeCategory InCategory)
     {
@@ -268,7 +262,6 @@ struct MULTIAGENT_API FMAAnnotationInput
     /**
      * 检查是否为 Prism 类型
      * @return 如果 Shape 为 "prism" (不区分大小写)
-     * Requirements: 2.5
      */
     FORCEINLINE bool IsPrism() const
     {

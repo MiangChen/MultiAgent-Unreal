@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 设置引擎根目录变量
-export UE5_ROOT="/Users/Shared/Epic Games/UE_5.5"
+export UE5_ROOT="/path_to_your_ue/UnrealEngine"
 
 # 获取脚本所在目录
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

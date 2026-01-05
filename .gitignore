@@ -73,3 +73,7 @@ unreal_project/Content/
 .vs/
 *.sln
 *.VC.db
+
+# 自定义脚本
+compile.sh
+start.sh

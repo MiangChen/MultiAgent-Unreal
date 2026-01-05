@@ -1,6 +1,5 @@
 // MATaskPlannerWidget.cpp
 // Task Planner Workbench main container Widget - Pure C++ implementation
-// Requirements: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 2.3, 3.1, 3.2, 3.3, 3.4
 
 #include "MATaskPlannerWidget.h"
 #include "MADAGCanvasWidget.h"
@@ -514,7 +513,7 @@ void UMATaskPlannerWidget::AppendStatusLog(const FString& Message)
         StatusLogBox->SetText(FText::FromString(CurrentText + TEXT("\n") + NewLine));
     }
     
-    // Auto-scroll to latest content (Requirements: 2.2)
+    // Auto-scroll to latest content
     if (StatusLogScrollBox)
     {
         StatusLogScrollBox->ScrollToEnd();

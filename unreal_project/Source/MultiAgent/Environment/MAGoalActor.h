@@ -2,7 +2,6 @@
 // Goal 可视化 Actor - 用于显示和选择 Goal
 // 
 // 用于在 Edit Mode 中显示 Goal，支持选择和编辑
-// Requirements: 15.2, 15.3, 15.4, 15.5, 15.6
 
 #pragma once
 
@@ -20,7 +19,6 @@ class UTextRenderComponent;
  * 
  * 用于在场景中显示 Goal，支持选择和编辑
  * 使用与 POI 不同的视觉样式以区分
- * Requirements: 15.2, 15.3, 15.4, 15.5, 15.6
  */
 UCLASS()
 class MULTIAGENT_API AMAGoalActor : public AActor

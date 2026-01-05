@@ -1,6 +1,5 @@
 // MATaskGraphModel.cpp
 // 任务图数据模型实现
-// Requirements: 7.2, 8.5
 
 #include "MATaskGraphModel.h"
 

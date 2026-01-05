@@ -72,6 +72,8 @@ bool UMAConfigManager::LoadAllConfigs()
         UE_LOG(LogMAConfig, Log, TEXT("  bUseMockData: %s"), bUseMockData ? TEXT("true") : TEXT("false"));
         UE_LOG(LogMAConfig, Log, TEXT("  bEnablePolling: %s"), bEnablePolling ? TEXT("true") : TEXT("false"));
         UE_LOG(LogMAConfig, Log, TEXT("  PollIntervalSeconds: %.2f"), PollIntervalSeconds);
+        UE_LOG(LogMAConfig, Log, TEXT("  LocalServerPort: %d"), LocalServerPort);
+        UE_LOG(LogMAConfig, Log, TEXT("  bEnableLocalServer: %s"), bEnableLocalServer ? TEXT("true") : TEXT("false"));
         UE_LOG(LogMAConfig, Log, TEXT("  AgentConfigs: %d"), AgentConfigs.Num());
         UE_LOG(LogMAConfig, Log, TEXT("  ChargingStations: %d"), ChargingStations.Num());
         UE_LOG(LogMAConfig, Log, TEXT("  PickupItems: %d"), PickupItems.Num());
@@ -133,6 +135,14 @@ bool UMAConfigManager::LoadSimulationConfig()
         {
             PollIntervalSeconds = static_cast<float>(PollInterval);
         }
+        
+        // 解析本地HTTP服务器配置
+        int32 ServerPort = 8080;
+        if ((*ServerObj)->TryGetNumberField(TEXT("local_server_port"), ServerPort))
+        {
+            LocalServerPort = ServerPort;
+        }
+        (*ServerObj)->TryGetBoolField(TEXT("enable_local_server"), bEnableLocalServer);
     }
     
     // 解析 spectator 部分

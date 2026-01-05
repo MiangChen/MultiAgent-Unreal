@@ -1,6 +1,5 @@
 // MASceneGraphManager.h
 // 场景图管理器 - 负责场景标签数据的解析、验证和持久化
-// Requirements: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 2.3, 2.4, 2.5, 3.1, 3.3, 4.1, 4.2, 4.3, 4.4, 6.1, 6.2, 6.3, 6.4, 6.5, 7.1, 7.2, 7.3, 7.4, 8.1, 10.3, 10.4
 
 #pragma once
 
@@ -12,7 +11,6 @@
 
 /**
  * 场景图节点数据结构
- * Requirements: 7.1, 7.2, 7.3, 7.4, 10.1, 10.2, 10.6
  * 
  * 支持三种形状类型:
  * - point: 单个 Actor，使用 Guid 字段和 shape.center
@@ -69,31 +67,27 @@ struct FMASceneGraphNode
     FString RawJson;
 
     //=========================================================================
-    // 新增字段 - 分类 (Requirements: 10.1, 10.2, 10.6)
+    // 新增字段 - 分类
     //=========================================================================
 
-    /** 节点类别: building, trans_facility, prop, robot, pickup_item, charging_station */
+    /** 节点类别: building, trans_facility, prop, robot */
     UPROPERTY(BlueprintReadWrite, Category = "SceneGraph")
     FString Category;
 
     //=========================================================================
-    // 新增字段 - 动态节点专用 (Requirements: 10.1, 10.2)
+    // 新增字段 - 动态节点专用
     //=========================================================================
 
     /** 是否为动态节点 (机器人、可移动物体等) */
     UPROPERTY(BlueprintReadWrite, Category = "SceneGraph")
     bool bIsDynamic = false;
 
-    /** Agent 类型: UAV, UGV, Quadruped, Humanoid (仅机器人节点) */
-    UPROPERTY(BlueprintReadWrite, Category = "SceneGraph")
-    FString AgentType;
-
     /** 旋转角度 (仅动态节点) */
     UPROPERTY(BlueprintReadWrite, Category = "SceneGraph")
     FRotator Rotation;
 
     //=========================================================================
-    // 新增字段 - PickupItem 专用 (Requirements: 10.2)
+    // 新增字段 - PickupItem 专用
     //=========================================================================
 
     /** 特征属性: color, name, item_type 等 */
@@ -109,6 +103,16 @@ struct FMASceneGraphNode
     FString CarrierId;
 
     //=========================================================================
+    // 新增字段 - 位置标签
+    //=========================================================================
+
+    /** 所在地点标签（如Building-3, Intersection-1）
+     *  对于非地点节点（机器人、道具、货物等），表示其当前所在的最近地点
+     */
+    UPROPERTY(BlueprintReadWrite, Category = "SceneGraph")
+    FString LocationLabel;
+
+    //=========================================================================
     // 构造函数
     //=========================================================================
 
@@ -121,17 +125,17 @@ struct FMASceneGraphNode
     }
 
     //=========================================================================
-    // 辅助方法 - 类型判断 (Requirements: 10.1, 10.2, 10.6)
+    // 辅助方法 - 类型判断
     //=========================================================================
 
     /** 是否为机器人节点 */
-    bool IsRobot() const { return Category == TEXT("robot") || Type == TEXT("robot"); }
+    bool IsRobot() const { return Category == TEXT("robot"); }
 
-    /** 是否为可拾取物品节点 */
-    bool IsPickupItem() const { return Category == TEXT("pickup_item") || Type == TEXT("pickup_item"); }
+    /** 是否为可拾取物品节点 (Type == "cargo") */
+    bool IsPickupItem() const { return Type == TEXT("cargo"); }
 
     /** 是否为充电站节点 */
-    bool IsChargingStation() const { return Category == TEXT("charging_station") || Type == TEXT("charging_station"); }
+    bool IsChargingStation() const { return Type == TEXT("charging_station"); }
 
     /** 是否为建筑物节点 */
     bool IsBuilding() const { return Category == TEXT("building") || Type == TEXT("building"); }
@@ -165,7 +169,6 @@ struct FMASceneGraphNode
  * - 自动生成标签 (Type-N 格式)
  * - 将场景节点持久化到 JSON 文件
  * 
- * Requirements: 8.1 - 实现为 UGameInstanceSubsystem 以便全局访问
  */
 UCLASS()
 class MULTIAGENT_API UMASceneGraphManager : public UGameInstanceSubsystem
@@ -196,7 +199,6 @@ public:
      * @param OutErrorMessage 错误信息（如果解析失败）
      * @return 解析是否成功
      * 
-     * Requirements: 1.1, 1.2, 1.3, 1.4
      */
     UFUNCTION(BlueprintCallable, Category = "SceneGraph")
     bool ParseLabelInput(const FString& InputText, FString& OutId, FString& OutType, FString& OutErrorMessage);
@@ -212,7 +214,6 @@ public:
      * @param OutErrorMessage 错误信息
      * @return 添加是否成功
      * 
-     * Requirements: 3.1, 3.3, 6.3, 7.1, 7.2, 7.3, 7.4
      */
     UFUNCTION(BlueprintCallable, Category = "SceneGraph")
     bool AddSceneNode(const FString& Id, const FString& Type, const FVector& WorldLocation,
@@ -224,7 +225,6 @@ public:
      * @param Id 要检查的 ID
      * @return ID 是否已存在
      * 
-     * Requirements: 3.1
      */
     UFUNCTION(BlueprintPure, Category = "SceneGraph")
     bool IsIdExists(const FString& Id) const;
@@ -236,7 +236,6 @@ public:
      * @param OutErrorMessage 错误信息
      * @return 添加是否成功
      * 
-     * Requirements: 4.1, 4.2, 5.1, 5.2, 8.1
      */
     UFUNCTION(BlueprintCallable, Category = "SceneGraph")
     bool AddMultiSelectNode(const FString& JsonString, FString& OutErrorMessage);
@@ -247,7 +246,6 @@ public:
      * @param Type 节点类型
      * @return 生成的标签，格式: "Type-N"
      * 
-     * Requirements: 4.1, 4.2, 4.3, 4.4
      */
     UFUNCTION(BlueprintPure, Category = "SceneGraph")
     FString GenerateLabel(const FString& Type) const;
@@ -258,7 +256,6 @@ public:
      * @param Type 节点类型
      * @return 该类型的节点数量
      * 
-     * Requirements: 4.3
      */
     UFUNCTION(BlueprintPure, Category = "SceneGraph")
     int32 GetTypeCount(const FString& Type) const;
@@ -268,7 +265,6 @@ public:
      * 
      * @return JSON 文件的完整路径
      * 
-     * Requirements: 6.1
      */
     UFUNCTION(BlueprintPure, Category = "SceneGraph")
     FString GetSceneGraphFilePath() const;
@@ -278,14 +274,12 @@ public:
      * 
      * @return 所有节点的数组
      * 
-     * Requirements: 3.4, 6.1, 6.2
      */
     UFUNCTION(BlueprintCallable, Category = "SceneGraph")
     TArray<FMASceneGraphNode> GetAllNodes() const;
 
     //=========================================================================
     // 分类查询接口 (委托给 MASceneGraphQuery)
-    // Requirements: 2.2
     //=========================================================================
 
     /**
@@ -339,7 +333,6 @@ public:
 
     //=========================================================================
     // 语义查询接口 (委托给 MASceneGraphQuery)
-    // Requirements: 2.3
     //=========================================================================
 
     /**
@@ -387,7 +380,6 @@ public:
 
     //=========================================================================
     // 动态节点管理接口
-    // Requirements: 1.4, 10.3, 10.4
     //=========================================================================
 
     /**
@@ -424,7 +416,6 @@ public:
      * @param ActorGuid Actor 的 GUID 字符串 (通过 Actor->GetActorGuid().ToString() 获取)
      * @return 包含该 GUID 的所有节点数组，如果未找到则返回空数组
      * 
-     * Requirements: 2.1, 2.2, 2.4
      */
     UFUNCTION(BlueprintCallable, Category = "SceneGraph")
     TArray<FMASceneGraphNode> FindNodesByGuid(const FString& ActorGuid) const;
@@ -435,7 +426,6 @@ public:
      * @param Vertices 顶点数组 (每个顶点为 [x, y, z] 的 JSON 数组)
      * @return 几何中心点
      * 
-     * Requirements: 1.1
      */
     static FVector CalculatePolygonCentroid(const TArray<TSharedPtr<FJsonValue>>& Vertices);
 
@@ -445,9 +435,40 @@ public:
      * @param Points 端点数组 (每个点为 [x, y, z] 的 JSON 数组)
      * @return 几何中心点
      * 
-     * Requirements: 1.2
      */
     static FVector CalculateLineStringCentroid(const TArray<TSharedPtr<FJsonValue>>& Points);
+
+    //=========================================================================
+    // HTTP API 支持 - 世界状态查询
+    //=========================================================================
+
+    /**
+     * 将场景图节点转换为JSON对象
+     * 
+     * 根据节点类型正确构建shape对象:
+     * - prism (building): type, vertices, height
+     * - linestring (street): type, points, vertices
+     * - point (intersection): type, center, vertices
+     * - point (prop): type, center
+     * - point (robot/dynamic): type, center
+     * 
+     * @param Node 场景图节点
+     * @return JSON对象
+     * 
+     */
+    TSharedPtr<FJsonObject> NodeToJsonObject(const FMASceneGraphNode& Node) const;
+
+    /**
+     * 构建世界状态JSON响应
+     * 
+     * @param CategoryFilter 类别过滤条件 (可选)
+     * @param TypeFilter 类型过滤条件 (可选)
+     * @param LabelFilter 标签过滤条件 (可选)
+     * @return JSON字符串，包含nodes和edges数组
+     * 
+     */
+    UFUNCTION(BlueprintCallable, Category = "SceneGraph|API")
+    FString BuildWorldStateJson(const FString& CategoryFilter = TEXT(""), const FString& TypeFilter = TEXT(""), const FString& LabelFilter = TEXT("")) const;
 
 private:
     //=========================================================================
@@ -459,7 +480,6 @@ private:
      * 
      * @return 加载是否成功
      * 
-     * Requirements: 6.1, 6.2
      */
     bool LoadSceneGraph();
 
@@ -468,20 +488,17 @@ private:
      * 
      * @return 保存是否成功
      * 
-     * Requirements: 6.4
      */
     bool SaveSceneGraph();
 
     /**
      * 创建空的场景图结构
      * 
-     * Requirements: 6.2
      */
     void CreateEmptySceneGraph();
 
     //=========================================================================
     // 动态节点加载
-    // Requirements: 1.1, 1.5
     //=========================================================================
 
     /**
@@ -492,7 +509,6 @@ private:
 
     //=========================================================================
     // 缓存管理
-    // Requirements: 2.5
     //=========================================================================
 
     /**
@@ -517,7 +533,6 @@ private:
      * @param Type 原始类型字符串
      * @return 首字母大写的类型字符串
      * 
-     * Requirements: 4.2
      */
     FString CapitalizeFirstLetter(const FString& Type) const;
 
@@ -540,7 +555,6 @@ private:
      * @param OutErrorMessage 验证失败时的错误信息
      * @return 验证是否通过
      * 
-     * Requirements: 7.4, 8.3, 8.4
      */
     bool ValidateNodeJsonStructure(const TSharedPtr<FJsonObject>& NodeObject, FString& OutErrorMessage) const;
 
@@ -558,16 +572,16 @@ private:
     /** 内存中的场景图数据 (原始 JSON) */
     TSharedPtr<FJsonObject> SceneGraphData;
 
-    /** 静态节点 (从 JSON 加载) - Requirements: 2.1 */
+    /** 静态节点 (从 JSON 加载) */
     TArray<FMASceneGraphNode> StaticNodes;
 
-    /** 动态节点 (运行时创建) - Requirements: 2.1 */
+    /** 动态节点 (运行时创建) */
     TArray<FMASceneGraphNode> DynamicNodes;
 
-    /** 合并后的所有节点缓存 - Requirements: 2.5 */
+    /** 合并后的所有节点缓存 */
     mutable TArray<FMASceneGraphNode> CachedAllNodes;
 
-    /** 缓存是否有效 - Requirements: 2.5 */
+    /** 缓存是否有效 */
     mutable bool bCacheValid = false;
 
     /** 场景图文件名 */

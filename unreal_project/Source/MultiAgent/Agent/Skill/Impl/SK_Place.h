@@ -25,10 +25,10 @@ enum class EPlaceMode : uint8
 UENUM(BlueprintType)
 enum class EPlacePhase : uint8
 {
-    MoveToSource,      // 移动到源对象（object1 或 UGV）
+    MoveToSource,      // 移动到源对象（target 或 UGV）
     BendDownPickup,    // 俯身拾取
     StandUpWithItem,   // 起身（持有物体）
-    MoveToTarget,      // 移动到目标（UGV、地面或 object2）
+    MoveToTarget,      // 移动到目标（UGV、地面或 surface_target）
     BendDownPlace,     // 俯身放置
     StandUpEmpty,      // 起身（空手）
     Complete           // 完成

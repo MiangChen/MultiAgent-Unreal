@@ -177,7 +177,7 @@ void UMAViewportManager::EnterAgentViewMode(AMACharacter* Agent)
         {
             CreateAgentInputComponent(PC, Agent);
             
-            // 显示 Direct Control 指示器 (Requirements: 3.3)
+            // 显示 Direct Control 指示器
             if (AMAHUD* HUD = Cast<AMAHUD>(PC->GetHUD()))
             {
                 HUD->ShowDirectControlIndicator(Agent);
@@ -208,7 +208,7 @@ void UMAViewportManager::ExitAgentViewMode()
     // 销毁 Agent 输入组件，移除 IMC_AgentControl
     DestroyAgentInputComponent();
     
-    // 隐藏 Direct Control 指示器 (Requirements: 3.3)
+    // 隐藏 Direct Control 指示器
     if (UWorld* World = GetWorld())
     {
         if (APlayerController* PC = World->GetFirstPlayerController())

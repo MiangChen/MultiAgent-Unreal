@@ -1,6 +1,5 @@
 // MATaskGraphTypes.cpp
 // 任务图数据类型实现
-// Requirements: 3.1, 9.2
 
 #include "MATaskGraphTypes.h"
 #include "Dom/JsonObject.h"

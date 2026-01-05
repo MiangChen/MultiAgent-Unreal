@@ -1,6 +1,5 @@
 // MAFeedbackGenerator.cpp
 // 反馈生成器实现
-// Requirements: 9.1, 9.2, 9.3, 9.4, 9.5
 
 #include "MAFeedbackGenerator.h"
 #include "../MASkillComponent.h"
@@ -10,9 +9,122 @@
 #include "../../../Core/Manager/MASceneGraphQuery.h"
 #include "MASceneQuery.h"
 #include "EngineUtils.h"  // For TActorIterator
+#include "Serialization/JsonSerializer.h"
 
 //=============================================================================
-// 场景图查询辅助方法实现 (Requirements: 9.1, 9.2)
+// 场景图节点 JSON 构建方法实现
+//=============================================================================
+
+TSharedPtr<FJsonObject> FMAFeedbackGenerator::BuildNodeJsonFromSceneGraph(const FMASceneGraphNode& Node)
+{
+    TSharedPtr<FJsonObject> NodeObject = MakeShareable(new FJsonObject());
+    
+    // 设置 id
+    NodeObject->SetStringField(TEXT("id"), Node.Id);
+    
+    // 构建 properties 对象
+    TSharedPtr<FJsonObject> PropertiesObject = MakeShareable(new FJsonObject());
+    PropertiesObject->SetStringField(TEXT("category"), Node.Category);
+    PropertiesObject->SetStringField(TEXT("type"), Node.Type);
+    PropertiesObject->SetStringField(TEXT("label"), Node.Label);
+    
+    // 添加 location_label
+    if (!Node.LocationLabel.IsEmpty())
+    {
+        PropertiesObject->SetStringField(TEXT("location_label"), Node.LocationLabel);
+    }
+    
+    // 添加可拾取物品特有属性
+    if (Node.IsPickupItem())
+    {
+        PropertiesObject->SetBoolField(TEXT("is_carried"), Node.bIsCarried);
+        if (!Node.CarrierId.IsEmpty())
+        {
+            PropertiesObject->SetStringField(TEXT("carrier_id"), Node.CarrierId);
+        }
+    }
+    
+    // 添加动态节点标记
+    if (Node.bIsDynamic)
+    {
+        PropertiesObject->SetBoolField(TEXT("is_dynamic"), true);
+    }
+    
+    // 添加 Features
+    for (const auto& Feature : Node.Features)
+    {
+        PropertiesObject->SetStringField(Feature.Key, Feature.Value);
+    }
+    
+    NodeObject->SetObjectField(TEXT("properties"), PropertiesObject);
+    
+    // 构建 shape 对象
+    TSharedPtr<FJsonObject> ShapeObject = MakeShareable(new FJsonObject());
+    ShapeObject->SetStringField(TEXT("type"), Node.ShapeType.IsEmpty() ? TEXT("point") : Node.ShapeType);
+    
+    // 设置 center
+    TArray<TSharedPtr<FJsonValue>> CenterArray;
+    CenterArray.Add(MakeShareable(new FJsonValueNumber(Node.Center.X)));
+    CenterArray.Add(MakeShareable(new FJsonValueNumber(Node.Center.Y)));
+    CenterArray.Add(MakeShareable(new FJsonValueNumber(Node.Center.Z)));
+    ShapeObject->SetArrayField(TEXT("center"), CenterArray);
+    
+    NodeObject->SetObjectField(TEXT("shape"), ShapeObject);
+    
+    return NodeObject;
+}
+
+TSharedPtr<FJsonObject> FMAFeedbackGenerator::BuildNodeJsonFromUE5Data(
+    const FString& Id,
+    const FString& Label,
+    const FVector& Location,
+    const FString& Type,
+    const FString& Category,
+    const TMap<FString, FString>& Features)
+{
+    TSharedPtr<FJsonObject> NodeObject = MakeShareable(new FJsonObject());
+    
+    // 设置 id
+    NodeObject->SetStringField(TEXT("id"), Id);
+    
+    // 构建 properties 对象
+    TSharedPtr<FJsonObject> PropertiesObject = MakeShareable(new FJsonObject());
+    if (!Category.IsEmpty())
+    {
+        PropertiesObject->SetStringField(TEXT("category"), Category);
+    }
+    if (!Type.IsEmpty())
+    {
+        PropertiesObject->SetStringField(TEXT("type"), Type);
+    }
+    PropertiesObject->SetStringField(TEXT("label"), Label);
+    
+    // 添加 Features
+    for (const auto& Feature : Features)
+    {
+        PropertiesObject->SetStringField(Feature.Key, Feature.Value);
+    }
+    
+    NodeObject->SetObjectField(TEXT("properties"), PropertiesObject);
+    
+    // 构建 shape 对象
+    TSharedPtr<FJsonObject> ShapeObject = MakeShareable(new FJsonObject());
+    ShapeObject->SetStringField(TEXT("type"), TEXT("point"));
+    
+    // 设置 center
+    TArray<TSharedPtr<FJsonValue>> CenterArray;
+    CenterArray.Add(MakeShareable(new FJsonValueNumber(Location.X)));
+    CenterArray.Add(MakeShareable(new FJsonValueNumber(Location.Y)));
+    CenterArray.Add(MakeShareable(new FJsonValueNumber(Location.Z)));
+    ShapeObject->SetArrayField(TEXT("center"), CenterArray);
+    
+    NodeObject->SetObjectField(TEXT("shape"), ShapeObject);
+    
+    return NodeObject;
+}
+
+//=============================================================================
+// 场景图查询辅助方法实现
 //=============================================================================
 
 UMASceneGraphManager* FMAFeedbackGenerator::GetSceneGraphManager(AMACharacter* Agent)
@@ -49,7 +161,7 @@ bool FMAFeedbackGenerator::GetEntityInfoWithFallback(
         return false;
     }
     
-    // 1. 首先尝试从场景图获取 (Requirements: 9.1)
+    // 1. 首先尝试从场景图获取
     UMASceneGraphManager* SceneGraphManager = GetSceneGraphManager(Agent);
     if (SceneGraphManager)
     {
@@ -67,7 +179,7 @@ bool FMAFeedbackGenerator::GetEntityInfoWithFallback(
         }
     }
     
-    // 2. 场景图未找到，回退到 UE5 场景查询 (Requirements: 9.2)
+    // 2. 场景图未找到，回退到 UE5 场景查询
     UE_LOG(LogTemp, Verbose, TEXT("[FMAFeedbackGenerator] Entity '%s' not found in scene graph, falling back to UE5 scene query"), *EntityId);
     
     UWorld* World = Agent->GetWorld();
@@ -105,7 +217,7 @@ bool FMAFeedbackGenerator::GetRobotInfoFromSceneGraph(
         return false;
     }
     
-    // 1. 首先尝试从场景图获取 (Requirements: 9.1)
+    // 1. 首先尝试从场景图获取
     UMASceneGraphManager* SceneGraphManager = GetSceneGraphManager(Agent);
     if (SceneGraphManager)
     {
@@ -116,8 +228,8 @@ bool FMAFeedbackGenerator::GetRobotInfoFromSceneGraph(
         {
             OutLabel = Node.Label.IsEmpty() ? Node.Id : Node.Label;
             OutLocation = Node.Center;
-            OutAgentType = Node.AgentType;
-            UE_LOG(LogTemp, Verbose, TEXT("[FMAFeedbackGenerator] Found robot '%s' in scene graph: Label=%s, AgentType=%s"),
+            OutAgentType = Node.Type;  // 机器人类型存储在 Type 字段
+            UE_LOG(LogTemp, Verbose, TEXT("[FMAFeedbackGenerator] Found robot '%s' in scene graph: Label=%s, Type=%s"),
                 *RobotId, *OutLabel, *OutAgentType);
             return true;
         }
@@ -128,12 +240,12 @@ bool FMAFeedbackGenerator::GetRobotInfoFromSceneGraph(
         {
             OutLabel = Node.Label.IsEmpty() ? Node.Id : Node.Label;
             OutLocation = Node.Center;
-            OutAgentType = Node.AgentType;
+            OutAgentType = Node.Type;  // 机器人类型存储在 Type 字段
             return true;
         }
     }
     
-    // 2. 回退到 UE5 场景查询 (Requirements: 9.2)
+    // 2. 回退到 UE5 场景查询
     UE_LOG(LogTemp, Verbose, TEXT("[FMAFeedbackGenerator] Robot '%s' not found in scene graph, falling back to UE5 scene query"), *RobotId);
     
     UWorld* World = Agent->GetWorld();
@@ -167,7 +279,7 @@ bool FMAFeedbackGenerator::GetPickupItemInfoFromSceneGraph(
         return false;
     }
     
-    // 1. 首先尝试从场景图获取 (Requirements: 9.1)
+    // 1. 首先尝试从场景图获取
     UMASceneGraphManager* SceneGraphManager = GetSceneGraphManager(Agent);
     if (SceneGraphManager)
     {
@@ -195,7 +307,7 @@ bool FMAFeedbackGenerator::GetPickupItemInfoFromSceneGraph(
         }
     }
     
-    // 2. 回退到 UE5 场景查询 (Requirements: 9.2)
+    // 2. 回退到 UE5 场景查询
     UE_LOG(LogTemp, Verbose, TEXT("[FMAFeedbackGenerator] Pickup item '%s' not found in scene graph, falling back to UE5 scene query"), *ItemId);
     
     UWorld* World = Agent->GetWorld();
@@ -230,7 +342,7 @@ bool FMAFeedbackGenerator::GetChargingStationInfoFromSceneGraph(
         return false;
     }
     
-    // 1. 首先尝试从场景图获取 (Requirements: 9.1)
+    // 1. 首先尝试从场景图获取
     UMASceneGraphManager* SceneGraphManager = GetSceneGraphManager(Agent);
     if (SceneGraphManager)
     {
@@ -256,7 +368,7 @@ bool FMAFeedbackGenerator::GetChargingStationInfoFromSceneGraph(
         }
     }
     
-    // 2. 回退到 UE5 场景查询 (Requirements: 9.2)
+    // 2. 回退到 UE5 场景查询
     UE_LOG(LogTemp, Verbose, TEXT("[FMAFeedbackGenerator] Charging station '%s' not found in scene graph, falling back to UE5 scene query"), *StationId);
     
     // 充电站通常在场景图中，如果没找到则返回失败
@@ -270,13 +382,13 @@ void FMAFeedbackGenerator::AddEntityInfoToFeedback(
     const FVector& Location,
     const FString& Type)
 {
-    // 添加实体标签 (Requirements: 9.3)
+    // 添加实体标签
     if (!Label.IsEmpty())
     {
         Feedback.Data.Add(FString::Printf(TEXT("%s_label"), *Prefix), Label);
     }
     
-    // 添加实体位置 (Requirements: 9.4)
+    // 添加实体位置
     if (!Location.IsZero())
     {
         Feedback.Data.Add(FString::Printf(TEXT("%s_x"), *Prefix), FString::Printf(TEXT("%.1f"), Location.X));
@@ -293,8 +405,58 @@ void FMAFeedbackGenerator::AddEntityInfoToFeedback(
     }
 }
 
+void FMAFeedbackGenerator::AddCommonFieldsToFeedback(
+    FMASkillExecutionFeedback& Feedback,
+    UMASkillComponent* SkillComp)
+{
+    if (!SkillComp)
+    {
+        return;
+    }
+    
+    const FMAFeedbackContext& Context = SkillComp->GetFeedbackContext();
+    
+    // 添加 task_id (如果存在)
+    if (!Context.TaskId.IsEmpty())
+    {
+        Feedback.Data.Add(TEXT("task_id"), Context.TaskId);
+    }
+    
+    // 添加 robot_id 和 robot_label (Python feedback_processor 需要)
+    if (!Feedback.AgentId.IsEmpty())
+    {
+        Feedback.Data.Add(TEXT("robot_id"), Feedback.AgentId);
+        
+        // 尝试从场景图获取机器人的 Label
+        AMACharacter* Agent = Cast<AMACharacter>(SkillComp->GetOwner());
+        if (Agent)
+        {
+            FString RobotLabel;
+            FVector RobotLocation;
+            FString RobotType;
+            
+            if (GetRobotInfoFromSceneGraph(Agent, Feedback.AgentId, RobotLabel, RobotLocation, RobotType))
+            {
+                // 使用场景图中的 Label
+                Feedback.Data.Add(TEXT("robot_label"), RobotLabel);
+            }
+            else
+            {
+                // 回退：使用 AgentName，如果为空则使用 AgentId
+                FString FallbackLabel = Agent->AgentName.IsEmpty() ? Feedback.AgentId : Agent->AgentName;
+                Feedback.Data.Add(TEXT("robot_label"), FallbackLabel);
+            }
+        }
+        else
+        {
+            // 无法获取 Agent，使用 AgentId 作为回退
+            Feedback.Data.Add(TEXT("robot_label"), Feedback.AgentId);
+        }
+    }
+}
+
 //=============================================================================
-// 场景图状态更新实现 (Requirements: 9.5)
+// 场景图状态更新实现
 //=============================================================================
 
 void FMAFeedbackGenerator::UpdateSceneGraphEntityPosition(
@@ -409,6 +571,9 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateNavigateFeedback(AMAChar
     Feedback.SkillName = TEXT("Navigate");
     Feedback.bSuccess = bSuccess;
     
+    // 添加通用字段 (task_id 等)
+    AddCommonFieldsToFeedback(Feedback, SkillComp);
+    
     if (SkillComp)
     {
         const FMASkillParams& Params = SkillComp->GetSkillParams();
@@ -418,17 +583,17 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateNavigateFeedback(AMAChar
         Feedback.Data.Add(TEXT("target_x"), FString::Printf(TEXT("%.1f"), Loc.X));
         Feedback.Data.Add(TEXT("target_y"), FString::Printf(TEXT("%.1f"), Loc.Y));
         
-        // 添加附近地标信息 (Requirements: 3.3, 3.4, 9.3, 9.4)
+        // 添加附近地标信息
         if (!Context.NearbyLandmarkLabel.IsEmpty())
         {
-            // 使用统一格式添加地标信息 (Requirements: 9.3, 9.4)
+            // 使用统一格式添加地标信息
             AddEntityInfoToFeedback(Feedback, TEXT("nearby_landmark"), 
                 Context.NearbyLandmarkLabel, FVector::ZeroVector, Context.NearbyLandmarkType);
             Feedback.Data.Add(TEXT("nearby_landmark_distance"), FString::Printf(TEXT("%.1f"), Context.NearbyLandmarkDistance));
         }
         
         //=========================================================================
-        // 从场景图获取当前位置附近的地标信息 (Requirements: 9.1, 9.2)
+        // 从场景图获取当前位置附近的地标信息
         //=========================================================================
         if (bSuccess && Context.NearbyLandmarkLabel.IsEmpty())
         {
@@ -450,7 +615,7 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateNavigateFeedback(AMAChar
         }
         
         //=========================================================================
-        // 更新场景图中机器人位置 (Requirements: 9.5)
+        // 更新场景图中机器人位置
         //=========================================================================
         if (bSuccess)
         {
@@ -513,17 +678,39 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateSearchFeedback(AMACharac
     Feedback.SkillName = TEXT("Search");
     Feedback.bSuccess = bSuccess;
     
+    // 添加通用字段 (task_id 等)
+    AddCommonFieldsToFeedback(Feedback, SkillComp);
+    
     if (SkillComp)
     {
         const FMAFeedbackContext& Context = SkillComp->GetFeedbackContext();
         int32 FoundCount = Context.FoundObjects.Num();
         Feedback.Data.Add(TEXT("found_count"), FString::FromInt(FoundCount));
+        Feedback.Data.Add(TEXT("found"), FoundCount > 0 ? TEXT("true") : TEXT("false"));
         
+        // 添加 area_token (搜索区域标识)
+        if (!Context.SearchAreaToken.IsEmpty())
+        {
+            Feedback.Data.Add(TEXT("area_token"), Context.SearchAreaToken);
+        }
+        
+        // 添加 duration_s (搜索持续时间)
+        if (Context.SearchDurationSeconds > 0.f)
+        {
+            Feedback.Data.Add(TEXT("duration_s"), FString::Printf(TEXT("%.1f"), Context.SearchDurationSeconds));
+        }
+        
+        // 添加 target_spec (搜索目标规格)
+        if (!Context.SearchTargetSpec.IsEmpty())
+        {
+            Feedback.Data.Add(TEXT("target_spec"), Context.SearchTargetSpec);
+        }
+        
+        //=========================================================================
+        // 构建 discovered_nodes JSON 数组
+        //=========================================================================
         if (FoundCount > 0)
         {
-            //=========================================================================
-            // 从场景图获取对象详细信息 (Requirements: 9.1, 9.2, 9.3, 9.4)
-            //=========================================================================
             UMASceneGraphManager* SceneGraphManager = GetSceneGraphManager(Agent);
             TArray<FMASceneGraphNode> AllNodes;
             if (SceneGraphManager)
@@ -531,14 +718,16 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateSearchFeedback(AMACharac
                 AllNodes = SceneGraphManager->GetAllNodes();
             }
             
+            // 构建 discovered_nodes JSON 数组
+            TArray<TSharedPtr<FJsonValue>> DiscoveredNodesArray;
+            FString FirstFoundObjectId;
+            
             for (int32 i = 0; i < FoundCount; ++i)
             {
                 FString ObjectName = Context.FoundObjects[i];
                 FVector ObjectLocation = Context.FoundLocations.IsValidIndex(i) ? Context.FoundLocations[i] : FVector::ZeroVector;
-                FString ObjectType;
-                FString ObjectLabel = ObjectName;
                 
-                // 尝试从场景图获取更详细的信息 (Requirements: 9.1)
+                TSharedPtr<FJsonObject> NodeJson;
                 if (SceneGraphManager && AllNodes.Num() > 0)
                 {
                     // 先尝试通过名称查找
@@ -551,28 +740,97 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateSearchFeedback(AMACharac
                     
                     if (Node.IsValid())
                     {
-                        ObjectLabel = Node.Label.IsEmpty() ? Node.Id : Node.Label;
-                        ObjectLocation = Node.Center;
-                        ObjectType = Node.Type;
+                        NodeJson = BuildNodeJsonFromSceneGraph(Node);
                         
-                        // 添加节点特征信息
-                        for (const auto& Feature : Node.Features)
+                        // 记录第一个找到的对象 ID
+                        if (i == 0)
                         {
-                            Feedback.Data.Add(FString::Printf(TEXT("object_%d_%s"), i, *Feature.Key), Feature.Value);
+                            FirstFoundObjectId = Node.Id;
+                        }
+                        
+                        UE_LOG(LogTemp, Verbose, TEXT("[FMAFeedbackGenerator] Search found object '%s' in scene graph: Id=%s, Label=%s"),
+                            *ObjectName, *Node.Id, *Node.Label);
+                    }
+                }
+                if (!NodeJson.IsValid())
+                {
+                    // 从 ObjectAttributes 中提取特征
+                    TMap<FString, FString> Features;
+                    for (const auto& AttrPair : Context.ObjectAttributes)
+                    {
+                        // 提取与当前对象相关的属性
+                        if (AttrPair.Key.Contains(ObjectName) || AttrPair.Key.StartsWith(FString::Printf(TEXT("object_%d_"), i)))
+                        {
+                            // 移除前缀，只保留属性名
+                            FString Key = AttrPair.Key;
+                            Key.RemoveFromStart(FString::Printf(TEXT("object_%d_"), i));
+                            Features.Add(Key, AttrPair.Value);
+                        }
+                    }
+                    
+                    // 生成一个临时 ID
+                    FString TempId = FString::Printf(TEXT("temp_%s_%d"), *ObjectName, i);
+                    if (i == 0)
+                    {
+                        FirstFoundObjectId = TempId;
+                    }
+                    
+                    NodeJson = BuildNodeJsonFromUE5Data(
+                        TempId,
+                        ObjectName,
+                        ObjectLocation,
+                        TEXT(""),  // Type 未知
+                        TEXT(""),  // Category 未知
+                        Features
+                    );
+                    
+                    UE_LOG(LogTemp, Verbose, TEXT("[FMAFeedbackGenerator] Search object '%s' not in scene graph, using fallback"),
+                        *ObjectName);
+                }
+                
+                if (NodeJson.IsValid())
+                {
+                    DiscoveredNodesArray.Add(MakeShareable(new FJsonValueObject(NodeJson)));
+                }
+            }
+            
+            // 将 discovered_nodes 数组序列化为 JSON 字符串并存入 Data
+            if (DiscoveredNodesArray.Num() > 0)
+            {
+                FString DiscoveredNodesJsonString;
+                TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&DiscoveredNodesJsonString);
+                FJsonSerializer::Serialize(DiscoveredNodesArray, Writer);
+                Feedback.Data.Add(TEXT("discovered_nodes"), DiscoveredNodesJsonString);
+                
+                // 构建 found_ids 数组 (Python feedback_processor 需要)
+                TArray<TSharedPtr<FJsonValue>> FoundIdsArray;
+                for (const TSharedPtr<FJsonValue>& NodeValue : DiscoveredNodesArray)
+                {
+                    if (NodeValue.IsValid() && NodeValue->Type == EJson::Object)
+                    {
+                        TSharedPtr<FJsonObject> NodeObj = NodeValue->AsObject();
+                        if (NodeObj.IsValid())
+                        {
+                            FString NodeId = NodeObj->GetStringField(TEXT("id"));
+                            if (!NodeId.IsEmpty())
+                            {
+                                FoundIdsArray.Add(MakeShareable(new FJsonValueString(NodeId)));
+                            }
                         }
                     }
                 }
                 
-                // 使用统一格式添加对象信息 (Requirements: 9.3, 9.4)
-                FString Prefix = FString::Printf(TEXT("object_%d"), i);
-                Feedback.Data.Add(FString::Printf(TEXT("%s_name"), *Prefix), ObjectLabel);
-                AddEntityInfoToFeedback(Feedback, Prefix, ObjectLabel, ObjectLocation, ObjectType);
+                if (FoundIdsArray.Num() > 0)
+                {
+                    FString FoundIdsJsonString;
+                    TSharedRef<TJsonWriter<>> IdsWriter = TJsonWriterFactory<>::Create(&FoundIdsJsonString);
+                    FJsonSerializer::Serialize(FoundIdsArray, IdsWriter);
+                    Feedback.Data.Add(TEXT("found_ids"), FoundIdsJsonString);
+                }
             }
-            
-            // 添加对象属性 (从 ObjectAttributes 中提取)
-            for (const auto& AttrPair : Context.ObjectAttributes)
+            if (!FirstFoundObjectId.IsEmpty())
             {
-                Feedback.Data.Add(AttrPair.Key, AttrPair.Value);
+                Feedback.Data.Add(TEXT("object_id"), FirstFoundObjectId);
             }
             
             // 构建找到的对象列表字符串 (用于消息)
@@ -585,7 +843,7 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateSearchFeedback(AMACharac
         }
         
         //=========================================================================
-        // 更新场景图中机器人位置 (Requirements: 9.5)
+        // 更新场景图中机器人位置
         //=========================================================================
         if (bSuccess)
         {
@@ -594,7 +852,6 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateSearchFeedback(AMACharac
     }
     
     // 生成消息
-    // Requirements: 4.7 - 如果未找到对象，指示 "search completed, no target found"
     if (!Message.IsEmpty())
     {
         Feedback.Message = Message;
@@ -653,12 +910,47 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateFollowFeedback(AMACharac
     Feedback.SkillName = TEXT("Follow");
     Feedback.bSuccess = bSuccess;
     
+    // 添加通用字段 (task_id 等)
+    AddCommonFieldsToFeedback(Feedback, SkillComp);
+    
     if (SkillComp)
     {
         const FMAFeedbackContext& Context = SkillComp->GetFeedbackContext();
         
         //=========================================================================
-        // 添加目标机器人信息 (Requirements: 5.4, 9.1, 9.2, 9.3, 9.4)
+        //=========================================================================
+        
+        // 添加 robot_id (执行 Follow 的机器人 ID)
+        if (!Context.FollowRobotId.IsEmpty())
+        {
+            Feedback.Data.Add(TEXT("robot_id"), Context.FollowRobotId);
+        }
+        else
+        {
+            // 回退：使用 Agent 的 ID
+            Feedback.Data.Add(TEXT("robot_id"), Agent->AgentID);
+        }
+        
+        // 添加 target_id (被跟随目标的 ID)
+        if (!Context.FollowTargetId.IsEmpty())
+        {
+            Feedback.Data.Add(TEXT("target_id"), Context.FollowTargetId);
+        }
+        
+        // 添加 duration_s (跟随持续时间)
+        if (Context.FollowDurationSeconds > 0.f)
+        {
+            Feedback.Data.Add(TEXT("duration_s"), FString::Printf(TEXT("%.1f"), Context.FollowDurationSeconds));
+        }
+        
+        // 添加 target_spec (跟随目标规格)
+        if (!Context.FollowTargetSpec.IsEmpty())
+        {
+            Feedback.Data.Add(TEXT("target_spec"), Context.FollowTargetSpec);
+        }
+        
+        //=========================================================================
+        // 添加目标机器人信息
         //=========================================================================
         FString TargetRobotName = Context.FollowTargetRobotName;
         if (TargetRobotName.IsEmpty())
@@ -668,33 +960,67 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateFollowFeedback(AMACharac
         
         if (!TargetRobotName.IsEmpty())
         {
-            // 尝试从场景图获取目标机器人的详细信息 (Requirements: 9.1)
-            FString RobotLabel, RobotAgentType;
-            FVector RobotLocation;
-            
-            if (GetRobotInfoFromSceneGraph(Agent, TargetRobotName, RobotLabel, RobotLocation, RobotAgentType))
+            // 尝试从场景图获取目标机器人的详细信息
+            UMASceneGraphManager* SceneGraphManager = GetSceneGraphManager(Agent);
+            TArray<FMASceneGraphNode> AllNodes;
+            if (SceneGraphManager)
             {
-                // 使用统一格式添加目标机器人信息 (Requirements: 9.3, 9.4)
-                AddEntityInfoToFeedback(Feedback, TEXT("target_robot"), RobotLabel, RobotLocation, RobotAgentType);
+                AllNodes = SceneGraphManager->GetAllNodes();
+            }
+            
+            FMASceneGraphNode TargetNode;
+            if (SceneGraphManager && AllNodes.Num() > 0)
+            {
+                // 先尝试通过名称查找
+                TargetNode = FMASceneGraphQuery::FindNodeByLabelString(AllNodes, TargetRobotName);
+                if (!TargetNode.IsValid())
+                {
+                    // 再尝试通过 ID 查找
+                    TargetNode = FMASceneGraphQuery::FindNodeById(AllNodes, TargetRobotName);
+                }
+            }
+            
+            if (TargetNode.IsValid())
+            {
+                TSharedPtr<FJsonObject> TargetNodeJson = BuildNodeJsonFromSceneGraph(TargetNode);
+                if (TargetNodeJson.IsValid())
+                {
+                    FString TargetNodeJsonString;
+                    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&TargetNodeJsonString);
+                    FJsonSerializer::Serialize(TargetNodeJson.ToSharedRef(), Writer);
+                    Feedback.Data.Add(TEXT("target_node"), TargetNodeJsonString);
+                }
+                
+                // 同时保留旧格式以保持兼容性
+                FString RobotLabel = TargetNode.Label.IsEmpty() ? TargetNode.Id : TargetNode.Label;
+                AddEntityInfoToFeedback(Feedback, TEXT("target_robot"), RobotLabel, TargetNode.Center, TargetNode.Type);
+                
+                // 如果没有设置 target_id，使用场景图节点的 ID
+                if (Context.FollowTargetId.IsEmpty())
+                {
+                    Feedback.Data.Add(TEXT("target_id"), TargetNode.Id);
+                }
             }
             else
             {
-                // 回退：使用 Context 中的信息 (Requirements: 9.2)
+                // 回退：使用 Context 中的信息
                 Feedback.Data.Add(TEXT("target_robot_label"), TargetRobotName);
             }
         }
         
-        // 添加距离信息
+        // 添加距离信息 (同时提供 distance 和 robot_target_distance 以保持兼容)
         if (Context.FollowTargetDistance > 0.f)
         {
-            Feedback.Data.Add(TEXT("distance"), FString::Printf(TEXT("%.1f"), Context.FollowTargetDistance));
+            FString DistanceStr = FString::Printf(TEXT("%.1f"), Context.FollowTargetDistance);
+            Feedback.Data.Add(TEXT("distance"), DistanceStr);
+            Feedback.Data.Add(TEXT("robot_target_distance"), DistanceStr);  // Python goal_progress_monitor 需要
         }
         
         // 添加目标是否找到的标志
         Feedback.Data.Add(TEXT("target_found"), Context.bFollowTargetFound ? TEXT("true") : TEXT("false"));
         
         //=========================================================================
-        // 处理目标未找到的错误情况 (Requirements: 5.5)
+        // 处理目标未找到的错误情况
         //=========================================================================
         if (!Context.bFollowTargetFound && !Context.FollowErrorReason.IsEmpty())
         {
@@ -702,7 +1028,7 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateFollowFeedback(AMACharac
         }
         
         //=========================================================================
-        // 更新场景图中机器人位置 (Requirements: 9.5)
+        // 更新场景图中机器人位置
         //=========================================================================
         if (bSuccess)
         {
@@ -723,7 +1049,7 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateFollowFeedback(AMACharac
         
         if (!Context.bFollowTargetFound)
         {
-            // 目标未找到的错误消息 (Requirements: 5.5)
+            // 目标未找到的错误消息
             if (!Context.FollowErrorReason.IsEmpty())
             {
                 Feedback.Message = FString::Printf(TEXT("Follow failed: %s"), *Context.FollowErrorReason);
@@ -736,7 +1062,7 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateFollowFeedback(AMACharac
         }
         else if (bSuccess)
         {
-            // 成功消息：包含目标机器人名称和距离 (Requirements: 5.4)
+            // 成功消息：包含目标机器人名称和距离
             FString TargetName = Context.FollowTargetRobotName;
             if (TargetName.IsEmpty())
             {
@@ -795,6 +1121,9 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateChargeFeedback(AMACharac
     Feedback.SkillName = TEXT("Charge");
     Feedback.bSuccess = bSuccess;
     
+    // 添加通用字段 (task_id 等)
+    AddCommonFieldsToFeedback(Feedback, SkillComp);
+    
     if (SkillComp)
     {
         const FMAFeedbackContext& Context = SkillComp->GetFeedbackContext();
@@ -806,22 +1135,48 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateChargeFeedback(AMACharac
         Feedback.Data.Add(TEXT("energy_after"), FString::Printf(TEXT("%.1f%%"), Context.EnergyAfter));
         
         //=========================================================================
-        // 添加充电站信息 (Requirements: 7.3, 9.1, 9.2, 9.3, 9.4)
+        // 添加充电站信息
         //=========================================================================
         if (!Context.ChargingStationId.IsEmpty())
         {
-            // 尝试从场景图获取充电站详细信息 (Requirements: 9.1)
-            FString StationLabel;
-            FVector StationLocation;
-            
-            if (GetChargingStationInfoFromSceneGraph(Agent, Context.ChargingStationId, StationLabel, StationLocation))
+            // 尝试从场景图获取充电站详细信息
+            UMASceneGraphManager* SceneGraphManager = GetSceneGraphManager(Agent);
+            TArray<FMASceneGraphNode> AllNodes;
+            if (SceneGraphManager)
             {
-                // 使用统一格式添加充电站信息 (Requirements: 9.3, 9.4)
-                AddEntityInfoToFeedback(Feedback, TEXT("charging_station"), StationLabel, StationLocation, TEXT("charging_station"));
+                AllNodes = SceneGraphManager->GetAllNodes();
+            }
+            
+            FMASceneGraphNode StationNode;
+            if (SceneGraphManager && AllNodes.Num() > 0)
+            {
+                // 先尝试通过 ID 查找
+                StationNode = FMASceneGraphQuery::FindNodeById(AllNodes, Context.ChargingStationId);
+                if (!StationNode.IsValid())
+                {
+                    // 再尝试通过名称查找
+                    StationNode = FMASceneGraphQuery::FindNodeByLabelString(AllNodes, Context.ChargingStationId);
+                }
+            }
+            
+            if (StationNode.IsValid())
+            {
+                TSharedPtr<FJsonObject> StationNodeJson = BuildNodeJsonFromSceneGraph(StationNode);
+                if (StationNodeJson.IsValid())
+                {
+                    FString StationNodeJsonString;
+                    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&StationNodeJsonString);
+                    FJsonSerializer::Serialize(StationNodeJson.ToSharedRef(), Writer);
+                    Feedback.Data.Add(TEXT("charging_station_node"), StationNodeJsonString);
+                }
+                
+                // 同时保留旧格式以保持兼容性
+                FString StationLabel = StationNode.Label.IsEmpty() ? StationNode.Id : StationNode.Label;
+                AddEntityInfoToFeedback(Feedback, TEXT("charging_station"), StationLabel, StationNode.Center, TEXT("charging_station"));
             }
             else
             {
-                // 回退：使用 Context 中的信息 (Requirements: 9.2)
+                // 回退：使用 Context 中的信息
                 Feedback.Data.Add(TEXT("charging_station_label"), Context.ChargingStationId);
                 if (!Context.ChargingStationLocation.IsZero())
                 {
@@ -835,7 +1190,7 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateChargeFeedback(AMACharac
         Feedback.Data.Add(TEXT("charging_station_found"), Context.bChargingStationFound ? TEXT("true") : TEXT("false"));
         
         //=========================================================================
-        // 处理充电站未找到的错误情况 (Requirements: 7.4)
+        // 处理充电站未找到的错误情况
         //=========================================================================
         if (!Context.bChargingStationFound && !Context.ChargeErrorReason.IsEmpty())
         {
@@ -843,7 +1198,7 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateChargeFeedback(AMACharac
         }
         
         //=========================================================================
-        // 更新场景图中机器人位置 (Requirements: 9.5)
+        // 更新场景图中机器人位置
         //=========================================================================
         if (bSuccess)
         {
@@ -864,7 +1219,7 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateChargeFeedback(AMACharac
         
         if (!Context.bChargingStationFound)
         {
-            // 充电站未找到的错误消息 (Requirements: 7.4)
+            // 充电站未找到的错误消息
             if (!Context.ChargeErrorReason.IsEmpty())
             {
                 Feedback.Message = FString::Printf(TEXT("Charge failed: %s"), *Context.ChargeErrorReason);
@@ -877,7 +1232,7 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateChargeFeedback(AMACharac
         }
         else if (bSuccess)
         {
-            // 成功消息：包含充电站ID和能量等级 (Requirements: 7.3)
+            // 成功消息：包含充电站ID和能量等级
             FString StationLabel = Feedback.Data.FindRef(TEXT("charging_station_label"));
             if (StationLabel.IsEmpty())
             {
@@ -934,12 +1289,15 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GeneratePlaceFeedback(AMACharact
     Feedback.SkillName = TEXT("Place");
     Feedback.bSuccess = bSuccess;
     
+    // 添加通用字段 (task_id 等)
+    AddCommonFieldsToFeedback(Feedback, SkillComp);
+    
     if (SkillComp)
     {
         const FMAFeedbackContext& Context = SkillComp->GetFeedbackContext();
         
         //=========================================================================
-        // 从场景图获取对象信息 (Requirements: 6.7, 9.1, 9.2, 9.3, 9.4)
+        // 从场景图获取对象信息
         //=========================================================================
         UMASceneGraphManager* SceneGraphManager = GetSceneGraphManager(Agent);
         TArray<FMASceneGraphNode> AllNodes;
@@ -948,7 +1306,7 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GeneratePlaceFeedback(AMACharact
             AllNodes = SceneGraphManager->GetAllNodes();
         }
         
-        // 获取 Object1 (放置的对象) 信息
+        // 获取 target (放置的对象) 信息
         FString Object1NodeId = Context.ObjectAttributes.FindRef(TEXT("object1_node_id"));
         FString Object1Name = Context.PlacedObjectName;
         if (!Object1NodeId.IsEmpty() && SceneGraphManager)
@@ -956,6 +1314,16 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GeneratePlaceFeedback(AMACharact
             FMASceneGraphNode Object1Node = FMASceneGraphQuery::FindNodeById(AllNodes, Object1NodeId);
             if (Object1Node.IsValid())
             {
+                TSharedPtr<FJsonObject> Object1NodeJson = BuildNodeJsonFromSceneGraph(Object1Node);
+                if (Object1NodeJson.IsValid())
+                {
+                    FString Object1NodeJsonString;
+                    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Object1NodeJsonString);
+                    FJsonSerializer::Serialize(Object1NodeJson.ToSharedRef(), Writer);
+                    Feedback.Data.Add(TEXT("object_node"), Object1NodeJsonString);
+                }
+                
+                // 同时保留旧格式以保持兼容性
                 FString Label = Object1Node.Label.IsEmpty() ? Object1Node.Id : Object1Node.Label;
                 AddEntityInfoToFeedback(Feedback, TEXT("object"), Label, Object1Node.Center, Object1Node.Type);
                 
@@ -974,7 +1342,7 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GeneratePlaceFeedback(AMACharact
             Feedback.Data.Add(TEXT("object_label"), Object1Name);
         }
         
-        // 获取 Object2 (目标) 信息
+        // 获取 surface_target (目标) 信息
         FString Object2NodeId = Context.ObjectAttributes.FindRef(TEXT("object2_node_id"));
         FString Object2Name = Context.PlaceTargetName;
         if (!Object2NodeId.IsEmpty() && SceneGraphManager)
@@ -982,13 +1350,23 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GeneratePlaceFeedback(AMACharact
             FMASceneGraphNode Object2Node = FMASceneGraphQuery::FindNodeById(AllNodes, Object2NodeId);
             if (Object2Node.IsValid())
             {
+                TSharedPtr<FJsonObject> Object2NodeJson = BuildNodeJsonFromSceneGraph(Object2Node);
+                if (Object2NodeJson.IsValid())
+                {
+                    FString Object2NodeJsonString;
+                    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Object2NodeJsonString);
+                    FJsonSerializer::Serialize(Object2NodeJson.ToSharedRef(), Writer);
+                    Feedback.Data.Add(TEXT("target_node"), Object2NodeJsonString);
+                }
+                
+                // 同时保留旧格式以保持兼容性
                 FString Label = Object2Node.Label.IsEmpty() ? Object2Node.Id : Object2Node.Label;
                 AddEntityInfoToFeedback(Feedback, TEXT("target"), Label, Object2Node.Center, Object2Node.Type);
                 
-                // 如果是机器人，添加 agent_type
-                if (Object2Node.IsRobot() && !Object2Node.AgentType.IsEmpty())
+                // 如果是机器人，添加 robot_type (机器人类型存储在 Type 字段)
+                if (Object2Node.IsRobot())
                 {
-                    Feedback.Data.Add(TEXT("target_agent_type"), Object2Node.AgentType);
+                    Feedback.Data.Add(TEXT("target_robot_type"), Object2Node.Type);
                 }
                 
                 Object2Name = Label;
@@ -1023,7 +1401,7 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GeneratePlaceFeedback(AMACharact
         }
         
         //=========================================================================
-        // 更新场景图状态 (Requirements: 6.8, 9.5)
+        // 更新场景图状态
         //=========================================================================
         if (bSuccess && SceneGraphManager)
         {
@@ -1139,13 +1517,16 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateTakeOffFeedback(AMAChara
     Feedback.SkillName = TEXT("TakeOff");
     Feedback.bSuccess = bSuccess;
     
+    // 添加通用字段 (task_id 等)
+    AddCommonFieldsToFeedback(Feedback, SkillComp);
+    
     if (SkillComp)
     {
         const FMASkillParams& Params = SkillComp->GetSkillParams();
         const FMAFeedbackContext& Context = SkillComp->GetFeedbackContext();
         
         //=========================================================================
-        // 添加高度信息 (Requirements: 8.4)
+        // 添加高度信息
         //=========================================================================
         Feedback.Data.Add(TEXT("target_height"), FString::Printf(TEXT("%.1f"), Params.TakeOffHeight));
         Feedback.Data.Add(TEXT("final_height"), FString::Printf(TEXT("%.1f"), Context.TakeOffTargetHeight));
@@ -1160,7 +1541,7 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateTakeOffFeedback(AMAChara
         Feedback.Data.Add(TEXT("height_adjusted"), Context.bTakeOffHeightAdjusted ? TEXT("true") : TEXT("false"));
         
         //=========================================================================
-        // 添加空域信息 (附近建筑物) (Requirements: 8.4, 9.1, 9.3, 9.4)
+        // 添加空域信息 (附近建筑物)
         //=========================================================================
         if (!Context.TakeOffNearbyBuildingLabel.IsEmpty())
         {
@@ -1171,7 +1552,7 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateTakeOffFeedback(AMAChara
         }
         else
         {
-            // 尝试从场景图获取附近建筑物信息 (Requirements: 9.1)
+            // 尝试从场景图获取附近建筑物信息
             UMASceneGraphManager* SceneGraphManager = GetSceneGraphManager(Agent);
             if (SceneGraphManager)
             {
@@ -1193,7 +1574,7 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateTakeOffFeedback(AMAChara
         Feedback.Data.Add(TEXT("current_z"), FString::Printf(TEXT("%.1f"), CurrentLoc.Z));
         
         //=========================================================================
-        // 更新场景图中机器人位置 (Requirements: 9.5)
+        // 更新场景图中机器人位置
         //=========================================================================
         if (bSuccess)
         {
@@ -1261,13 +1642,16 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateLandFeedback(AMACharacte
     Feedback.SkillName = TEXT("Land");
     Feedback.bSuccess = bSuccess;
     
+    // 添加通用字段 (task_id 等)
+    AddCommonFieldsToFeedback(Feedback, SkillComp);
+    
     if (SkillComp)
     {
         const FMASkillParams& Params = SkillComp->GetSkillParams();
         const FMAFeedbackContext& Context = SkillComp->GetFeedbackContext();
         
         //=========================================================================
-        // 添加着陆位置信息 (Requirements: 8.5, 9.3, 9.4)
+        // 添加着陆位置信息
         //=========================================================================
         Feedback.Data.Add(TEXT("target_height"), FString::Printf(TEXT("%.1f"), Params.LandHeight));
         
@@ -1278,7 +1662,7 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateLandFeedback(AMACharacte
         }
         
         //=========================================================================
-        // 添加地面类型信息 (Requirements: 8.5, 9.1)
+        // 添加地面类型信息
         //=========================================================================
         if (!Context.LandGroundType.IsEmpty())
         {
@@ -1286,7 +1670,7 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateLandFeedback(AMACharacte
         }
         else
         {
-            // 尝试从场景图获取地面类型 (Requirements: 9.1)
+            // 尝试从场景图获取地面类型
             UMASceneGraphManager* SceneGraphManager = GetSceneGraphManager(Agent);
             if (SceneGraphManager)
             {
@@ -1315,7 +1699,7 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateLandFeedback(AMACharacte
             }
         }
         
-        // 添加附近地标信息 (Requirements: 9.1, 9.3, 9.4)
+        // 添加附近地标信息
         if (!Context.LandNearbyLandmarkLabel.IsEmpty())
         {
             AddEntityInfoToFeedback(Feedback, TEXT("nearby_landmark"), 
@@ -1323,7 +1707,7 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateLandFeedback(AMACharacte
         }
         else
         {
-            // 尝试从场景图获取附近地标 (Requirements: 9.1)
+            // 尝试从场景图获取附近地标
             UMASceneGraphManager* SceneGraphManager = GetSceneGraphManager(Agent);
             if (SceneGraphManager)
             {
@@ -1342,7 +1726,7 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateLandFeedback(AMACharacte
         Feedback.Data.Add(TEXT("location_safe"), Context.bLandLocationSafe ? TEXT("true") : TEXT("false"));
         
         //=========================================================================
-        // 更新场景图中机器人位置 (Requirements: 9.5)
+        // 更新场景图中机器人位置
         //=========================================================================
         if (bSuccess)
         {
@@ -1423,19 +1807,22 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateReturnHomeFeedback(AMACh
     Feedback.SkillName = TEXT("ReturnHome");
     Feedback.bSuccess = bSuccess;
     
+    // 添加通用字段 (task_id 等)
+    AddCommonFieldsToFeedback(Feedback, SkillComp);
+    
     if (SkillComp)
     {
         const FMASkillParams& Params = SkillComp->GetSkillParams();
         const FMAFeedbackContext& Context = SkillComp->GetFeedbackContext();
         
         //=========================================================================
-        // 添加家位置信息 (Requirements: 8.6, 9.3, 9.4)
+        // 添加家位置信息
         //=========================================================================
         AddEntityInfoToFeedback(Feedback, TEXT("home"), TEXT(""), Params.HomeLocation, TEXT(""));
         Feedback.Data.Add(TEXT("land_height"), FString::Printf(TEXT("%.1f"), Params.LandHeight));
         
         //=========================================================================
-        // 添加家位置标签信息 (Requirements: 8.6, 9.1, 9.3)
+        // 添加家位置标签信息
         //=========================================================================
         if (!Context.HomeLandmarkLabel.IsEmpty())
         {
@@ -1443,7 +1830,7 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateReturnHomeFeedback(AMACh
         }
         else
         {
-            // 尝试从场景图获取家位置附近的地标 (Requirements: 9.1)
+            // 尝试从场景图获取家位置附近的地标
             UMASceneGraphManager* SceneGraphManager = GetSceneGraphManager(Agent);
             if (SceneGraphManager)
             {
@@ -1462,7 +1849,7 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateReturnHomeFeedback(AMACh
         Feedback.Data.Add(TEXT("from_scene_graph"), Context.bHomeLocationFromSceneGraph ? TEXT("true") : TEXT("false"));
         
         //=========================================================================
-        // 更新场景图中机器人位置 (Requirements: 9.5)
+        // 更新场景图中机器人位置
         //=========================================================================
         if (bSuccess)
         {
@@ -1525,6 +1912,13 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateIdleFeedback(AMACharacte
     Feedback.AgentId = Agent->AgentID;
     Feedback.SkillName = TEXT("Idle");
     Feedback.bSuccess = true;
+    
+    // 添加通用字段 (task_id 等)
+    if (UMASkillComponent* SkillComp = Agent->GetSkillComponent())
+    {
+        AddCommonFieldsToFeedback(Feedback, SkillComp);
+    }
+    
     Feedback.Message = Message.IsEmpty() ? TEXT("Idle") : Message;
     return Feedback;
 }

@@ -1,7 +1,5 @@
 // MAEditModeManager.cpp
 // Edit Mode 管理器实现
-// Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 3.1, 3.2, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7
-// Requirements: 6.4, 7.4, 8.4, 9.6, 10.7, 11.1
 
 #include "MAEditModeManager.h"
 #include "../Comm/MACommSubsystem.h"
@@ -80,7 +78,6 @@ void UMAEditModeManager::Deinitialize()
 
 //=============================================================================
 // 临时场景图管理
-// Requirements: 1.1, 1.2, 1.3, 1.4, 1.5
 //=============================================================================
 
 FString UMAEditModeManager::GetSourceSceneGraphPath() const
@@ -91,7 +88,6 @@ FString UMAEditModeManager::GetSourceSceneGraphPath() const
 
 bool UMAEditModeManager::CreateTempSceneGraph()
 {
-    // Requirements: 1.1, 1.5
     
     if (!bEditModeAvailable)
     {
@@ -108,8 +104,6 @@ bool UMAEditModeManager::CreateTempSceneGraph()
         bEditModeAvailable = false;
         return false;
     }
-    
-    // Requirements: 1.5 - 生成临时文件路径，包含时间戳
     FString Timestamp = FDateTime::Now().ToString(TEXT("%Y%m%d_%H%M%S"));
     FString TempDir = FPaths::ProjectSavedDir() / TEXT("Temp");
     TempSceneGraphPath = TempDir / FString::Printf(TEXT("temp_scene_graph_%s.json"), *Timestamp);
@@ -128,8 +122,6 @@ bool UMAEditModeManager::CreateTempSceneGraph()
             *SourcePath, *TempSceneGraphPath);
         return false;
     }
-    
-    // Requirements: 1.2 - 加载临时场景图数据
     if (!LoadTempSceneGraph())
     {
         UE_LOG(LogMAEditMode, Error, TEXT("CreateTempSceneGraph: Failed to load temp scene graph"));
@@ -147,7 +139,6 @@ bool UMAEditModeManager::CreateTempSceneGraph()
 
 void UMAEditModeManager::DeleteTempSceneGraph()
 {
-    // Requirements: 1.4
     
     if (TempSceneGraphPath.IsEmpty())
     {
@@ -174,7 +165,6 @@ void UMAEditModeManager::DeleteTempSceneGraph()
 
 FString UMAEditModeManager::GetTempSceneGraphPath() const
 {
-    // Requirements: 1.2
     return TempSceneGraphPath;
 }
 
@@ -301,12 +291,10 @@ FString UMAEditModeManager::GenerateNextId()
 
 //=============================================================================
 // POI 管理
-// Requirements: 3.1, 3.2, 3.4, 3.5
 //=============================================================================
 
 AMAPointOfInterest* UMAEditModeManager::CreatePOI(const FVector& WorldLocation)
 {
-    // Requirements: 3.1, 3.2
     
     UWorld* World = GetWorld();
     if (!World)
@@ -327,7 +315,6 @@ AMAPointOfInterest* UMAEditModeManager::CreatePOI(const FVector& WorldLocation)
     
     if (POI)
     {
-        // Requirements: 3.4 - POI 仅作为临时对象存在，不写入 Temp_Scene_Graph
         POIs.Add(POI);
         UE_LOG(LogMAEditMode, Log, TEXT("CreatePOI: Created POI at (%f, %f, %f)"), 
             WorldLocation.X, WorldLocation.Y, WorldLocation.Z);
@@ -361,7 +348,6 @@ void UMAEditModeManager::DestroyPOI(AMAPointOfInterest* POI)
 
 void UMAEditModeManager::DestroyAllPOIs()
 {
-    // Requirements: 3.5
     
     // 清除选择
     SelectedPOIs.Empty();
@@ -382,26 +368,20 @@ void UMAEditModeManager::DestroyAllPOIs()
 
 //=============================================================================
 // 选择管理
-// Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7
 //=============================================================================
 
 void UMAEditModeManager::SelectActor(AActor* Actor)
 {
-    // Requirements: 4.1, 4.5, 4.6
     
     if (!Actor)
     {
         return;
     }
-    
-    // Requirements: 4.6 - 互斥选择：选择 Actor 时清除 POI 选择
     if (SelectedPOIs.Num() > 0)
     {
         ClearPOIHighlight();
         SelectedPOIs.Empty();
     }
-    
-    // Requirements: 4.5 - Actor 单选：选中新 Actor 时自动取消之前的选择
     if (SelectedActor && SelectedActor != Actor)
     {
         ClearActorHighlight();
@@ -409,8 +389,6 @@ void UMAEditModeManager::SelectActor(AActor* Actor)
     
     // 设置新选择
     SelectedActor = Actor;
-    
-    // Requirements: 4.3 - 高亮显示选中状态
     SetActorHighlight(Actor, true);
     
     UE_LOG(LogMAEditMode, Log, TEXT("SelectActor: Selected %s"), *Actor->GetName());
@@ -421,26 +399,19 @@ void UMAEditModeManager::SelectActor(AActor* Actor)
 
 void UMAEditModeManager::SelectPOI(AMAPointOfInterest* POI)
 {
-    // Requirements: 4.2, 4.4, 4.6
     
     if (!POI)
     {
         return;
     }
-    
-    // Requirements: 4.6 - 互斥选择：选择 POI 时清除 Actor 选择
     if (SelectedActor)
     {
         ClearActorHighlight();
         SelectedActor = nullptr;
     }
-    
-    // Requirements: 4.4 - POI 多选
     if (!SelectedPOIs.Contains(POI))
     {
         SelectedPOIs.Add(POI);
-        
-        // Requirements: 4.3 - 高亮显示选中状态
         POI->SetHighlighted(true);
         
         UE_LOG(LogMAEditMode, Log, TEXT("SelectPOI: Added POI to selection, total=%d"), SelectedPOIs.Num());
@@ -452,7 +423,6 @@ void UMAEditModeManager::SelectPOI(AMAPointOfInterest* POI)
 
 void UMAEditModeManager::DeselectObject(UObject* Object)
 {
-    // Requirements: 4.7
     
     if (!Object)
     {
@@ -486,7 +456,6 @@ void UMAEditModeManager::DeselectObject(UObject* Object)
 
 void UMAEditModeManager::ClearSelection()
 {
-    // Requirements: 4.3
     
     // 清除 Actor 选择
     ClearActorHighlight();
@@ -647,12 +616,10 @@ void UMAEditModeManager::ClearPOIHighlight()
 
 //=============================================================================
 // Node 操作
-// Requirements: 6.3, 7.2, 7.3, 8.3, 9.3, 9.4, 9.5, 10.3, 10.4, 10.5, 10.6
 //=============================================================================
 
 bool UMAEditModeManager::IsPointTypeNode(const TSharedPtr<FJsonObject>& NodeObject) const
 {
-    // Requirements: 5.3, 5.5, 7.5, 12.5
     if (!NodeObject.IsValid())
     {
         return false;
@@ -752,7 +719,6 @@ int32 UMAEditModeManager::FindNodeIndexById(const FString& NodeId) const
 
 int32 UMAEditModeManager::DeleteEdgesForNode(const FString& NodeId)
 {
-    // Requirements: 7.3 - 自动删除与该 Node 相连的所有 Edge
     
     if (!TempSceneGraphData.IsValid() || NodeId.IsEmpty())
     {
@@ -925,7 +891,6 @@ TArray<FString> UMAEditModeManager::FindNodeIdsByGuid(const FString& ActorGuid) 
 
 void UMAEditModeManager::SyncActorPositionFromNode(const TSharedPtr<FJsonObject>& NodeObject)
 {
-    // Requirements: 6.5, 12.2, 12.3 - 同步更新虚幻场景中 Actor 的位置
     
     if (!NodeObject.IsValid())
     {
@@ -992,7 +957,6 @@ void UMAEditModeManager::SyncActorPositionFromNode(const TSharedPtr<FJsonObject>
 
 bool UMAEditModeManager::AddNode(const FString& NodeJson, FString& OutError)
 {
-    // Requirements: 8.3 - 在 Temp_Scene_Graph 中创建对应的 Node
     
     if (!TempSceneGraphData.IsValid())
     {
@@ -1062,7 +1026,6 @@ bool UMAEditModeManager::AddNode(const FString& NodeJson, FString& OutError)
 
 bool UMAEditModeManager::DeleteNode(const FString& NodeId, FString& OutError)
 {
-    // Requirements: 7.2, 7.3, 7.5 - 从 Temp_Scene_Graph 中删除对应的 Node
     
     if (!TempSceneGraphData.IsValid())
     {
@@ -1079,8 +1042,6 @@ bool UMAEditModeManager::DeleteNode(const FString& NodeId, FString& OutError)
         UE_LOG(LogMAEditMode, Error, TEXT("DeleteNode: %s"), *OutError);
         return false;
     }
-    
-    // Requirements: 7.5 - 仅允许删除 shape 类型为 point 的 Node
     if (!IsPointTypeNode(NodeObject))
     {
         OutError = TEXT("Only point type nodes can be deleted");
@@ -1096,8 +1057,6 @@ bool UMAEditModeManager::DeleteNode(const FString& NodeId, FString& OutError)
         UE_LOG(LogMAEditMode, Error, TEXT("DeleteNode: %s"), *OutError);
         return false;
     }
-    
-    // Requirements: 7.3 - 自动删除与该 Node 相连的所有 Edge
     int32 DeletedEdges = DeleteEdgesForNode(NodeId);
     UE_LOG(LogMAEditMode, Log, TEXT("DeleteNode: Deleted %d edges for node %s"), DeletedEdges, *NodeId);
     
@@ -1129,7 +1088,6 @@ bool UMAEditModeManager::DeleteNode(const FString& NodeId, FString& OutError)
 
 bool UMAEditModeManager::EditNode(const FString& NodeId, const FString& NewNodeJson, FString& OutError)
 {
-    // Requirements: 6.3, 5.3, 5.5, 12.5 - 更新 Temp_Scene_Graph 中对应的 Node
     
     if (!TempSceneGraphData.IsValid())
     {
@@ -1159,8 +1117,6 @@ bool UMAEditModeManager::EditNode(const FString& NodeId, const FString& NewNodeJ
     
     // 检查 shape 类型编辑约束
     bool bIsPointType = IsPointTypeNode(ExistingNode);
-    
-    // Requirements: 5.3, 5.5, 12.5 - 根据 shape 类型限制可编辑字段
     if (!bIsPointType)
     {
         // polygon 或 linestring 类型仅允许编辑 properties
@@ -1207,8 +1163,6 @@ bool UMAEditModeManager::EditNode(const FString& NodeId, const FString& NewNodeJ
         NodesArray[NodeIndex] = MakeShareable(new FJsonValueObject(NewNodeObject));
         TempSceneGraphData->SetArrayField(TEXT("nodes"), NodesArray);
     }
-    
-    // Requirements: 6.5, 12.2, 12.3 - 如果是 point 类型且修改了 shape.center，同步更新 Actor 位置
     if (bIsPointType)
     {
         SyncActorPositionFromNode(NewNodeObject);
@@ -1233,7 +1187,6 @@ bool UMAEditModeManager::EditNode(const FString& NodeId, const FString& NewNodeJ
 
 bool UMAEditModeManager::CreateGoal(const FVector& Location, const FString& Description, FString& OutError)
 {
-    // Requirements: 9.3, 9.4, 9.5, 9.6, 9.7 - 在 Temp_Scene_Graph 中创建 Goal Node
     
     if (!TempSceneGraphData.IsValid())
     {
@@ -1244,8 +1197,6 @@ bool UMAEditModeManager::CreateGoal(const FVector& Location, const FString& Desc
     
     // 生成新的 ID
     FString GoalId = FString::Printf(TEXT("goal_%s"), *GenerateNextId());
-    
-    // Requirements: 9.4, 9.5 - 设置正确的属性
     // 构建 Goal Node JSON
     TSharedPtr<FJsonObject> GoalNode = MakeShareable(new FJsonObject());
     GoalNode->SetStringField(TEXT("id"), GoalId);
@@ -1296,11 +1247,7 @@ bool UMAEditModeManager::CreateGoal(const FVector& Location, const FString& Desc
     
     UE_LOG(LogMAEditMode, Log, TEXT("CreateGoal: Created Goal node %s at (%f, %f, %f)"),
         *GoalId, Location.X, Location.Y, Location.Z);
-    
-    // Requirements: 15.2 - 创建 Goal Actor 可视化
     CreateGoalActor(GoalId, Location, Description);
-    
-    // Requirements: 9.6 - 发送 add_goal 消息通知后端
     SendSceneChangeMessage(TEXT("add_goal"), GoalJson);
     
     return true;
@@ -1308,7 +1255,6 @@ bool UMAEditModeManager::CreateGoal(const FVector& Location, const FString& Desc
 
 bool UMAEditModeManager::CreateZone(const TArray<FVector>& Vertices, const FString& Description, FString& OutError)
 {
-    // Requirements: 10.3, 10.4, 10.5, 10.6, 10.7, 10.8 - 根据 POI 点创建 Zone Node
     
     if (!TempSceneGraphData.IsValid())
     {
@@ -1324,8 +1270,6 @@ bool UMAEditModeManager::CreateZone(const TArray<FVector>& Vertices, const FStri
         UE_LOG(LogMAEditMode, Error, TEXT("CreateZone: %s"), *OutError);
         return false;
     }
-    
-    // Requirements: 10.3 - 计算凸包作为 Zone 边界
     TArray<FVector> ConvexHull = ComputeConvexHull(Vertices);
     
     if (ConvexHull.Num() < 3)
@@ -1337,8 +1281,6 @@ bool UMAEditModeManager::CreateZone(const TArray<FVector>& Vertices, const FStri
     
     // 生成新的 ID
     FString ZoneId = FString::Printf(TEXT("zone_%s"), *GenerateNextId());
-    
-    // Requirements: 10.5, 10.6 - 设置正确的属性
     // 构建 Zone Node JSON
     TSharedPtr<FJsonObject> ZoneNode = MakeShareable(new FJsonObject());
     ZoneNode->SetStringField(TEXT("id"), ZoneId);
@@ -1395,11 +1337,7 @@ bool UMAEditModeManager::CreateZone(const TArray<FVector>& Vertices, const FStri
     
     UE_LOG(LogMAEditMode, Log, TEXT("CreateZone: Created Zone node %s with %d vertices"),
         *ZoneId, ConvexHull.Num());
-    
-    // Requirements: 14.1 - 创建 Zone Actor 可视化
     CreateZoneActor(ZoneId, ConvexHull);
-    
-    // Requirements: 10.7 - 发送 add_zone 消息通知后端
     SendSceneChangeMessage(TEXT("add_zone"), ZoneJson);
     
     return true;
@@ -1407,12 +1345,10 @@ bool UMAEditModeManager::CreateZone(const TArray<FVector>& Vertices, const FStri
 
 //=============================================================================
 // 后端通信
-// Requirements: 6.4, 7.4, 8.4, 9.6, 10.7, 11.1
 //=============================================================================
 
 void UMAEditModeManager::SendSceneChangeMessage(const FString& ChangeType, const FString& Payload)
 {
-    // Requirements: 11.1 - 通过 MACommSubsystem 发送场景变化消息
     
     UE_LOG(LogMAEditMode, Log, TEXT("SendSceneChangeMessage: Type=%s"), *ChangeType);
     UE_LOG(LogMAEditMode, Verbose, TEXT("Payload: %s"), *Payload);
@@ -1454,7 +1390,6 @@ void UMAEditModeManager::SendSceneChangeMessage(const FString& ChangeType, const
 
 void UMAEditModeManager::SendSceneChangeMessageByType(EMASceneChangeType ChangeType, const FString& Payload)
 {
-    // Requirements: 11.1 - 使用枚举类型发送消息
     
     FString ChangeTypeStr = FMASceneChangeMessage::ChangeTypeToString(ChangeType);
     SendSceneChangeMessage(ChangeTypeStr, Payload);
@@ -1467,7 +1402,6 @@ void UMAEditModeManager::SendSceneChangeMessageByType(EMASceneChangeType ChangeT
 
 TArray<FVector> UMAEditModeManager::ComputeConvexHull(const TArray<FVector>& Points) const
 {
-    // Requirements: 10.3 - 计算凸包
     // 使用 Graham Scan 算法，返回逆时针顺序的凸包顶点
     
     TArray<FVector> Result;
@@ -1608,12 +1542,10 @@ TArray<FVector> UMAEditModeManager::ComputeConvexHull(const TArray<FVector>& Poi
 
 //=============================================================================
 // Zone/Goal Actor 管理
-// Requirements: 14.1, 14.6, 15.2, 15.6
 //=============================================================================
 
 AMAZoneActor* UMAEditModeManager::CreateZoneActor(const FString& NodeId, const TArray<FVector>& Vertices)
 {
-    // Requirements: 14.1 - 为 Zone Node 创建可视化 Actor
     
     UWorld* World = GetWorld();
     if (!World)
@@ -1685,7 +1617,6 @@ void UMAEditModeManager::DestroyZoneActor(const FString& NodeId)
 
 void UMAEditModeManager::DestroyAllZoneActors()
 {
-    // Requirements: 14.6 - Edit Mode 退出时销毁所有 Zone Actor
     
     for (auto& Pair : ZoneActors)
     {
@@ -1710,7 +1641,6 @@ AMAZoneActor* UMAEditModeManager::GetZoneActorByNodeId(const FString& NodeId) co
 
 AMAGoalActor* UMAEditModeManager::CreateGoalActor(const FString& NodeId, const FVector& Location, const FString& Description)
 {
-    // Requirements: 15.2 - 为 Goal Node 创建可视化 Actor
     
     UWorld* World = GetWorld();
     if (!World)
@@ -1769,7 +1699,6 @@ void UMAEditModeManager::DestroyGoalActor(const FString& NodeId)
 
 void UMAEditModeManager::DestroyAllGoalActors()
 {
-    // Requirements: 15.6 - Edit Mode 退出时销毁所有 Goal Actor
     
     for (auto& Pair : GoalActors)
     {
@@ -1795,12 +1724,10 @@ AMAGoalActor* UMAEditModeManager::GetGoalActorByNodeId(const FString& NodeId) co
 
 //=============================================================================
 // 设为 Goal 功能
-// Requirements: 16.1, 16.2, 16.3, 16.4, 16.5, 16.6
 //=============================================================================
 
 bool UMAEditModeManager::SetNodeAsGoal(const FString& NodeId, FString& OutError)
 {
-    // Requirements: 16.2, 16.3, 16.4 - 将 Node 设为 Goal
     
     if (!TempSceneGraphData.IsValid())
     {
@@ -1857,7 +1784,6 @@ bool UMAEditModeManager::SetNodeAsGoal(const FString& NodeId, FString& OutError)
 
 bool UMAEditModeManager::UnsetNodeAsGoal(const FString& NodeId, FString& OutError)
 {
-    // Requirements: 16.6 - 取消 Node 的 Goal 状态
     
     if (!TempSceneGraphData.IsValid())
     {
@@ -1912,7 +1838,6 @@ bool UMAEditModeManager::UnsetNodeAsGoal(const FString& NodeId, FString& OutErro
 
 bool UMAEditModeManager::IsNodeGoal(const FString& NodeId) const
 {
-    // Requirements: 16.5 - 检查 Node 是否为 Goal
     
     if (!TempSceneGraphData.IsValid())
     {
@@ -1941,12 +1866,10 @@ bool UMAEditModeManager::IsNodeGoal(const FString& NodeId) const
 
 //=============================================================================
 // 列表查询
-// Requirements: 17.2, 17.3
 //=============================================================================
 
 TArray<FString> UMAEditModeManager::GetAllGoalNodeIds() const
 {
-    // Requirements: 17.2 - 获取所有 Goal Node ID
     
     TArray<FString> GoalIds;
     
@@ -1996,7 +1919,6 @@ TArray<FString> UMAEditModeManager::GetAllGoalNodeIds() const
 
 TArray<FString> UMAEditModeManager::GetAllZoneNodeIds() const
 {
-    // Requirements: 17.3 - 获取所有 Zone Node ID
     
     TArray<FString> ZoneIds;
     

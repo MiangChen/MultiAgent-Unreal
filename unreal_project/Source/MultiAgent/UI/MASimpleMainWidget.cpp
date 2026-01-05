@@ -1,6 +1,5 @@
 // MASimpleMainWidget.cpp
 // 简单的主界面 Widget - 纯 C++ 实现
-// Requirements: 2.2, 2.3, 3.2, 3.3, 3.4
 
 #include "MASimpleMainWidget.h"
 #include "Components/EditableTextBox.h"
@@ -222,8 +221,6 @@ FString UMASimpleMainWidget::GetInputText() const
 void UMASimpleMainWidget::OnSendButtonClicked()
 {
     UE_LOG(LogMASimpleWidget, Log, TEXT("SendButton clicked"));
-    
-    // Requirements: 3.2, 3.3, 3.4 - Send button event message
     // Use "SimpleMainWidget", "btn_send", "Send" as parameters
     if (UGameInstance* GameInstance = GetGameInstance())
     {
@@ -260,8 +257,6 @@ void UMASimpleMainWidget::SubmitCommand()
     }
     
     UE_LOG(LogMASimpleWidget, Log, TEXT("Submitting command: %s"), *Command);
-    
-    // Requirements: 2.2, 2.3 - 使用新的 SendUIInputMessage 接口
     // 使用 "SimpleMainWidget_InputBox" 作为 input_source_id
     if (UGameInstance* GameInstance = GetGameInstance())
     {

@@ -1,7 +1,6 @@
 // MAHUD.cpp
 // HUD 管理器实现
 // 继承自 MASelectionHUD 以保留框选绘制功能
-// Requirements: 7.1, 2.1, 2.2, 3.3
 
 #include "MAHUD.h"
 #include "MASimpleMainWidget.h"
@@ -68,11 +67,9 @@ void AMAHUD::BeginPlay()
     BindEmergencyManagerEvents();
 
     // 绑定 EditModeManager 事件
-    // Requirements: 13.2
     BindEditModeManagerEvents();
 
     // 绑定 EditWidget 委托
-    // Requirements: 6.3, 7.2, 9.3, 10.4
     BindEditWidgetDelegates();
 }
 
@@ -379,11 +376,9 @@ void AMAHUD::DrawHUD()
     }
 
     // Draw scene labels (Modify mode)
-    // Requirements: 5.3 - Refresh display every frame
     DrawSceneLabels();
 
     // 绘制 Edit 模式指示器和 POI 坐标
-    // Requirements: 2.2, 3.3
     DrawEditModeIndicator();
 
     // 绘制通知消息
@@ -554,7 +549,7 @@ void AMAHUD::CreateWidgets()
         }
     }
 
-    // 创建 DirectControlIndicator (Requirements: 3.3)
+    // 创建 DirectControlIndicator
     UE_LOG(LogMAHUD, Log, TEXT("Creating DirectControlIndicator..."));
     
     DirectControlIndicator = CreateWidget<UMADirectControlIndicator>(PC, UMADirectControlIndicator::StaticClass());
@@ -569,7 +564,7 @@ void AMAHUD::CreateWidgets()
         UE_LOG(LogMAHUD, Error, TEXT("Failed to create DirectControlIndicator"));
     }
 
-    // 创建 EmergencyWidget (Requirements: 2.1, 2.4, 2.5, 4.3)
+    // 创建 EmergencyWidget
     UE_LOG(LogMAHUD, Log, TEXT("Creating EmergencyWidget..."));
     
     EmergencyWidget = CreateWidget<UMAEmergencyWidget>(PC, UMAEmergencyWidget::StaticClass());
@@ -584,7 +579,7 @@ void AMAHUD::CreateWidgets()
         UE_LOG(LogMAHUD, Error, TEXT("Failed to create EmergencyWidget"));
     }
 
-    // 创建 ModifyWidget (Requirements: 3.1, 3.2, 3.3)
+    // 创建 ModifyWidget
     UE_LOG(LogMAHUD, Log, TEXT("Creating ModifyWidget..."));
 
     ModifyWidget = CreateWidget<UMAModifyWidget>(PC, UMAModifyWidget::StaticClass());
@@ -606,7 +601,7 @@ void AMAHUD::CreateWidgets()
         UE_LOG(LogMAHUD, Error, TEXT("Failed to create ModifyWidget"));
     }
 
-    // 创建 EditWidget (Requirements: 2.3)
+    // 创建 EditWidget
     UE_LOG(LogMAHUD, Log, TEXT("Creating EditWidget..."));
 
     EditWidget = CreateWidget<UMAEditWidget>(PC, UMAEditWidget::StaticClass());
@@ -622,7 +617,7 @@ void AMAHUD::CreateWidgets()
         UE_LOG(LogMAHUD, Error, TEXT("Failed to create EditWidget"));
     }
 
-    // 创建 SceneListWidget (Requirements: 17.1)
+    // 创建 SceneListWidget
     UE_LOG(LogMAHUD, Log, TEXT("Creating SceneListWidget..."));
 
     SceneListWidget = CreateWidget<UMASceneListWidget>(PC, UMASceneListWidget::StaticClass());
@@ -815,8 +810,6 @@ void AMAHUD::ShowModifyWidget()
         PC->SetInputMode(InputMode);
         PC->SetShowMouseCursor(true);
     }
-
-    // Requirements: 5.1 - 进入 Modify 模式时开始场景标签可视化
     StartSceneLabelVisualization();
 
     UE_LOG(LogMAHUD, Log, TEXT("ModifyWidget shown"));
@@ -834,8 +827,6 @@ void AMAHUD::HideModifyWidget()
     {
         return;
     }
-
-    // Requirements: 5.2 - 退出 Modify 模式时停止场景标签可视化
     StopSceneLabelVisualization();
 
     // 隐藏 Widget
@@ -868,7 +859,6 @@ bool AMAHUD::IsModifyWidgetVisible() const
 
 //=============================================================================
 // Edit 模式 UI 控制
-// Requirements: 2.3
 //=============================================================================
 
 void AMAHUD::ShowEditWidget()
@@ -1026,8 +1016,6 @@ void AMAHUD::OnModifyConfirmed(AActor* Actor, const FString& LabelText)
 {
     UE_LOG(LogMAHUD, Log, TEXT("OnModifyConfirmed: Actor=%s, LabelText=%s"),
         Actor ? *Actor->GetName() : TEXT("null"), *LabelText);
-
-    // Requirements: 5.1 - 检查是否有选中的 Actor
     if (!Actor)
     {
         ShowNotification(TEXT("Please select an Actor first"), true);
@@ -1035,7 +1023,6 @@ void AMAHUD::OnModifyConfirmed(AActor* Actor, const FString& LabelText)
     }
 
     // 获取 SceneGraphManager
-    // Requirements: 8.2, 8.3
     UGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
     if (!GI)
     {
@@ -1049,15 +1036,10 @@ void AMAHUD::OnModifyConfirmed(AActor* Actor, const FString& LabelText)
         ShowNotification(TEXT("Save failed: SceneGraphManager not found"), true);
         return;
     }
-
-    // Requirements: 1.1, 1.2, 1.3, 1.4 - 解析输入
     FString Id, Type, ErrorMessage;
     if (!SceneGraphManager->ParseLabelInput(LabelText, Id, Type, ErrorMessage))
     {
-        // Requirements: 2.1, 2.2, 2.3 - 显示错误消息
         ShowNotification(ErrorMessage, true);
-
-        // Requirements: 2.5 - 验证失败时保留输入文本
         // ModifyWidget 不清空，由 ModifyWidget 自己处理
         // 重新设置选中的 Actor 以保留状态
         if (ModifyWidget)
@@ -1067,22 +1049,16 @@ void AMAHUD::OnModifyConfirmed(AActor* Actor, const FString& LabelText)
         }
         return;
     }
-
-    // Requirements: 5.1, 5.3 - 获取 Actor 世界坐标
     FVector WorldLocation = Actor->GetActorLocation();
     UE_LOG(LogMAHUD, Log, TEXT("OnModifyConfirmed: Actor location = (%f, %f, %f)"),
         WorldLocation.X, WorldLocation.Y, WorldLocation.Z);
-
-    // Requirements: 3.1, 3.2, 6.3, 6.5, 7.1, 7.2, 7.3, 7.4 - 添加场景节点
     FString GeneratedLabel;
     if (!SceneGraphManager->AddSceneNode(Id, Type, WorldLocation, Actor, GeneratedLabel, ErrorMessage))
     {
-        // Requirements: 3.2 - ID 重复或其他错误
         // 检查是否是 ID 重复的警告
         if (ErrorMessage.Contains(TEXT("ID already exists")))
         {
             ShowNotification(ErrorMessage, false, true);  // 警告样式
-            // Requirements: 2.5 - ID 重复时清空输入（因为用户需要输入新的 ID）
             if (ModifyWidget)
             {
                 ModifyWidget->ClearSelection();
@@ -1092,7 +1068,6 @@ void AMAHUD::OnModifyConfirmed(AActor* Actor, const FString& LabelText)
         else
         {
             ShowNotification(ErrorMessage, true);  // 错误样式
-            // Requirements: 2.5 - 其他错误时保留输入文本
             if (ModifyWidget)
             {
                 ModifyWidget->SetSelectedActor(Actor);
@@ -1101,16 +1076,10 @@ void AMAHUD::OnModifyConfirmed(AActor* Actor, const FString& LabelText)
         }
         return;
     }
-
-    // Requirements: 6.5 - 显示成功消息
     FString SuccessMessage = FString::Printf(TEXT("Label saved: %s"), *GeneratedLabel);
     ShowNotification(SuccessMessage, false);
-
-    // Requirements: 5.4 - 成功添加节点后刷新可视化
     // 重新加载场景图数据以显示新添加的节点
     LoadSceneGraphForVisualization();
-
-    // Requirements: 2.5 - 成功时清空输入并取消选择
     if (ModifyWidget)
     {
         ModifyWidget->ClearSelection();
@@ -1147,8 +1116,6 @@ void AMAHUD::OnMultiSelectModifyConfirmed(const TArray<AActor*>& Actors, const F
 {
     UE_LOG(LogMAHUD, Log, TEXT("OnMultiSelectModifyConfirmed: %d actors, LabelText=%s"),
         Actors.Num(), *LabelText);
-
-    // Requirements: 8.1 - 检查是否有选中的 Actor
     if (Actors.Num() == 0)
     {
         ShowNotification(TEXT("Please select at least one Actor first"), true);
@@ -1241,7 +1208,6 @@ void AMAHUD::OnMultiSelectModifyConfirmed(const TArray<AActor*>& Actors, const F
 
 //=============================================================================
 // 通知系统
-// Requirements: 2.1, 3.2, 6.5
 //=============================================================================
 
 void AMAHUD::ShowNotification(const FString& Message, bool bIsError, bool bIsWarning)
@@ -1334,14 +1300,10 @@ void AMAHUD::ClearHighlightedActor()
 
 //=============================================================================
 // 场景标签可视化
-// Requirements: 3.1, 3.2, 3.3, 3.4, 4.1, 4.2, 4.3, 4.4, 4.5, 5.1, 5.2, 5.3, 6.1
 //=============================================================================
 
 void AMAHUD::LoadSceneGraphForVisualization()
 {
-    // Requirements: 3.1 - 读取场景图数据
-    // Requirements: 3.2 - 如果文件不存在，跳过可视化
-    // Requirements: 3.3 - 如果数据无效，记录警告并跳过
 
     // 清空缓存
     CachedSceneNodes.Empty();
@@ -1369,8 +1331,6 @@ void AMAHUD::LoadSceneGraphForVisualization()
 
 void AMAHUD::DrawSceneLabels()
 {
-    // Requirements: 4.1 - 在 Modify 模式激活时显示绿色文本
-    // Requirements: 5.3 - 每帧刷新显示
 
     // 检查是否应该显示
     if (!bShowingSceneLabels)
@@ -1388,7 +1348,6 @@ void AMAHUD::DrawSceneLabels()
     // 遍历缓存的节点
     for (const FMASceneGraphNode& Node : CachedSceneNodes)
     {
-        // Requirements: 4.3 - 跳过缺少 center 的节点 (Center 为零向量表示无效)
         // 注意: 实际上 (0,0,0) 可能是有效坐标，但根据设计文档，缺少 center 字段时跳过
         // 这里我们假设如果节点被成功解析，Center 就是有效的
 
@@ -1397,11 +1356,7 @@ void AMAHUD::DrawSceneLabels()
         FString IdDisplay = Node.Id.IsEmpty() ? TEXT("N/A") : Node.Id;
         FString LabelDisplay = Node.Label.IsEmpty() ? TEXT("N/A") : Node.Label;
         FString DisplayText = FString::Printf(TEXT("id: %s\nLabel: %s"), *IdDisplay, *LabelDisplay);
-
-        // Requirements: 4.5 - 位置: Center + FVector(0, 0, 100) 垂直偏移
         FVector TextPosition = Node.Center + FVector(0.0f, 0.0f, 100.0f);
-
-        // Requirements: 4.4 - 使用 DrawDebugString 绘制绿色文本
         // Duration = 0.0f 表示每帧重绘
         DrawDebugString(
             World,
@@ -1417,7 +1372,6 @@ void AMAHUD::DrawSceneLabels()
 
 void AMAHUD::StartSceneLabelVisualization()
 {
-    // Requirements: 5.1 - 进入 Modify 模式时开始显示标签
 
     if (bShowingSceneLabels)
     {
@@ -1437,7 +1391,6 @@ void AMAHUD::StartSceneLabelVisualization()
 
 void AMAHUD::StopSceneLabelVisualization()
 {
-    // Requirements: 5.2 - 退出 Modify 模式时停止显示标签
 
     if (!bShowingSceneLabels)
     {
@@ -1455,12 +1408,10 @@ void AMAHUD::StopSceneLabelVisualization()
 
 //=============================================================================
 // Edit 模式集成
-// Requirements: 2.2, 3.3, 6.3, 7.2, 9.3, 10.4, 13.2
 //=============================================================================
 
 void AMAHUD::BindEditModeManagerEvents()
 {
-    // Requirements: 13.2 - 绑定 EditModeManager 事件
 
     UWorld* World = GetWorld();
     if (!World)
@@ -1493,7 +1444,6 @@ void AMAHUD::BindEditModeManagerEvents()
 
 void AMAHUD::BindEditWidgetDelegates()
 {
-    // Requirements: 6.3, 7.2, 9.3, 10.4, 16.2, 16.6 - 绑定 EditWidget 委托
 
     if (!EditWidget)
     {
@@ -1537,13 +1487,13 @@ void AMAHUD::BindEditWidgetDelegates()
         EditWidget->OnDeletePOIs.AddDynamic(this, &AMAHUD::OnEditDeletePOIs);
     }
 
-    // 绑定设为 Goal 委托 - Requirements: 16.2
+    // 绑定设为 Goal 委托
     if (!EditWidget->OnSetAsGoal.IsAlreadyBound(this, &AMAHUD::OnEditSetAsGoal))
     {
         EditWidget->OnSetAsGoal.AddDynamic(this, &AMAHUD::OnEditSetAsGoal);
     }
 
-    // 绑定取消 Goal 委托 - Requirements: 16.6
+    // 绑定取消 Goal 委托
     if (!EditWidget->OnUnsetAsGoal.IsAlreadyBound(this, &AMAHUD::OnEditUnsetAsGoal))
     {
         EditWidget->OnUnsetAsGoal.AddDynamic(this, &AMAHUD::OnEditUnsetAsGoal);
@@ -1554,7 +1504,6 @@ void AMAHUD::BindEditWidgetDelegates()
 
 void AMAHUD::DrawEditModeIndicator()
 {
-    // Requirements: 2.2, 3.3 - 绘制 Edit 模式指示器和 POI/Goal/Zone 坐标
 
     if (!Canvas)
     {
@@ -1571,8 +1520,6 @@ void AMAHUD::DrawEditModeIndicator()
     // 获取屏幕尺寸
     float ScreenWidth = Canvas->SizeX;
     float ScreenHeight = Canvas->SizeY;
-
-    // Requirements: 2.2 - 在屏幕右上角显示蓝色 "Mode: Edit (M)" 指示器
     FString ModeText = TEXT("Mode: Edit (M)");
     float ModeTextWidth = ModeText.Len() * 10.0f;  // 估算文字宽度
     float ModeTextX = ScreenWidth - ModeTextWidth - 30.0f;  // 右边距 30 像素
@@ -1606,8 +1553,6 @@ void AMAHUD::DrawEditModeIndicator()
     FLinearColor GreenColor = FLinearColor(0.3f, 0.8f, 0.3f);  // 绿色 - POI
     FLinearColor RedColor = FLinearColor(1.0f, 0.4f, 0.4f);    // 红色 - Goal
     FLinearColor CyanColor = FLinearColor(0.3f, 0.8f, 1.0f);   // 青色 - Zone
-
-    // Requirements: 3.3 - 在屏幕下方显示 POI 坐标 (绿色小字)
     TArray<AMAPointOfInterest*> POIs = EditModeManager->GetAllPOIs();
     if (POIs.Num() > 0)
     {
@@ -1688,7 +1633,6 @@ void AMAHUD::DrawEditModeIndicator()
 
 void AMAHUD::OnEditModeSelectionChanged()
 {
-    // Requirements: 13.2 - 选择变化时更新 EditWidget
 
     UE_LOG(LogMAHUD, Log, TEXT("OnEditModeSelectionChanged"));
 
@@ -1729,7 +1673,6 @@ void AMAHUD::OnEditModeSelectionChanged()
 
 void AMAHUD::OnTempSceneGraphChanged()
 {
-    // Requirements: 13.2 - 临时场景图变化时刷新预览
 
     UE_LOG(LogMAHUD, Log, TEXT("OnTempSceneGraphChanged"));
 
@@ -1741,7 +1684,6 @@ void AMAHUD::OnTempSceneGraphChanged()
 
 void AMAHUD::OnEditConfirmed(AActor* Actor, const FString& JsonContent)
 {
-    // Requirements: 6.3 - 处理确认修改
 
     UE_LOG(LogMAHUD, Log, TEXT("OnEditConfirmed: Actor=%s"), Actor ? *Actor->GetName() : TEXT("null"));
 
@@ -1799,7 +1741,6 @@ void AMAHUD::OnEditConfirmed(AActor* Actor, const FString& JsonContent)
 
 void AMAHUD::OnEditDeleteActor(AActor* Actor)
 {
-    // Requirements: 7.2 - 处理删除 Actor
 
     UE_LOG(LogMAHUD, Log, TEXT("OnEditDeleteActor: Actor=%s"), Actor ? *Actor->GetName() : TEXT("null"));
 
@@ -1904,7 +1845,6 @@ void AMAHUD::OnEditDeleteActor(AActor* Actor)
 
 void AMAHUD::OnEditCreateGoal(AMAPointOfInterest* POI, const FString& Description)
 {
-    // Requirements: 9.3 - 处理创建 Goal
 
     UE_LOG(LogMAHUD, Log, TEXT("OnEditCreateGoal: POI=%s, Description=%s"),
         POI ? *POI->GetName() : TEXT("null"), *Description);
@@ -1941,7 +1881,6 @@ void AMAHUD::OnEditCreateGoal(AMAPointOfInterest* POI, const FString& Descriptio
     }
 
     // 销毁 POI
-    // Requirements: 9.7 - Goal 创建成功后销毁对应的 POI 标记
     EditModeManager->DestroyPOI(POI);
 
     // 成功
@@ -1953,7 +1892,6 @@ void AMAHUD::OnEditCreateGoal(AMAPointOfInterest* POI, const FString& Descriptio
 
 void AMAHUD::OnEditCreateZone(const TArray<AMAPointOfInterest*>& POIs, const FString& Description)
 {
-    // Requirements: 10.4 - 处理创建 Zone
 
     UE_LOG(LogMAHUD, Log, TEXT("OnEditCreateZone: %d POIs, Description=%s"), POIs.Num(), *Description);
 
@@ -2002,7 +1940,6 @@ void AMAHUD::OnEditCreateZone(const TArray<AMAPointOfInterest*>& POIs, const FSt
     }
 
     // 销毁所有参与创建的 POI
-    // Requirements: 10.8 - Zone 创建成功后销毁所有参与创建的 POI 标记
     for (AMAPointOfInterest* POI : POIs)
     {
         if (POI)
@@ -2020,7 +1957,6 @@ void AMAHUD::OnEditCreateZone(const TArray<AMAPointOfInterest*>& POIs, const FSt
 
 void AMAHUD::OnEditAddPresetActor(AMAPointOfInterest* POI, const FString& ActorType)
 {
-    // Requirements: 8.2 - 处理添加预设 Actor
 
     UE_LOG(LogMAHUD, Log, TEXT("OnEditAddPresetActor: POI=%s, ActorType=%s"),
         POI ? *POI->GetName() : TEXT("null"), *ActorType);
@@ -2052,7 +1988,6 @@ void AMAHUD::OnEditAddPresetActor(AMAPointOfInterest* POI, const FString& ActorT
     }
 
     // TODO: 实现预设 Actor 生成逻辑
-    // Requirements: 8.3, 8.4 - 在 POI 位置生成 Actor 并创建对应的 Node
     // 当前为占位实现，等待预设 Actor 列表定义
 
     ShowNotification(TEXT("Preset Actor feature not yet implemented"), false, true);
@@ -2104,7 +2039,6 @@ void AMAHUD::OnEditDeletePOIs(const TArray<AMAPointOfInterest*>& POIs)
 
 void AMAHUD::OnEditSetAsGoal(AActor* Actor)
 {
-    // Requirements: 16.2 - 处理设为 Goal
 
     UE_LOG(LogMAHUD, Log, TEXT("OnEditSetAsGoal: Actor=%s"), Actor ? *Actor->GetName() : TEXT("null"));
 
@@ -2171,7 +2105,6 @@ void AMAHUD::OnEditSetAsGoal(AActor* Actor)
 
 void AMAHUD::OnEditUnsetAsGoal(AActor* Actor)
 {
-    // Requirements: 16.6 - 处理取消 Goal
 
     UE_LOG(LogMAHUD, Log, TEXT("OnEditUnsetAsGoal: Actor=%s"), Actor ? *Actor->GetName() : TEXT("null"));
 
@@ -2238,7 +2171,6 @@ void AMAHUD::OnEditUnsetAsGoal(AActor* Actor)
 
 void AMAHUD::OnSceneListGoalClicked(const FString& GoalId)
 {
-    // Requirements: 17.4 - 处理 Goal 列表项点击
 
     UE_LOG(LogMAHUD, Log, TEXT("OnSceneListGoalClicked: GoalId=%s"), *GoalId);
 
@@ -2292,7 +2224,6 @@ void AMAHUD::OnSceneListGoalClicked(const FString& GoalId)
 
 void AMAHUD::OnSceneListZoneClicked(const FString& ZoneId)
 {
-    // Requirements: 17.5 - 处理 Zone 列表项点击
 
     UE_LOG(LogMAHUD, Log, TEXT("OnSceneListZoneClicked: ZoneId=%s"), *ZoneId);
 

@@ -78,7 +78,7 @@ struct FMASkillParams
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FVector HomeLocation = FVector::ZeroVector;  // 返航点
 
-    // Charge (Requirements: 7.1, 7.2)
+    // Charge
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FVector ChargingStationLocation = FVector::ZeroVector;  // 充电站位置
     

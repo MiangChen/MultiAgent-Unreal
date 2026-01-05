@@ -152,6 +152,18 @@ public:
     float PollIntervalSeconds = 1.0f;
 
     //=========================================================================
+    // Local HTTP Server 配置
+    //=========================================================================
+
+    /** 本地HTTP服务器端口 (默认8080) */
+    UPROPERTY(BlueprintReadOnly, Category = "Config|Server")
+    int32 LocalServerPort = 8080;
+
+    /** 是否启用本地HTTP服务器 (默认true) */
+    UPROPERTY(BlueprintReadOnly, Category = "Config|Server")
+    bool bEnableLocalServer = true;
+
+    //=========================================================================
     // Spectator 配置
     //=========================================================================
 

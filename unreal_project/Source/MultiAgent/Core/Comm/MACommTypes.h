@@ -1,6 +1,5 @@
 // MACommTypes.h
 // 通信协议消息类型定义
-// Requirements: 1.1, 1.2, 1.3, 2.1, 3.1, 4.2, 6.1, 6.3, 6.4, 7.1, 7.2, 7.3
 
 #pragma once
 
@@ -14,7 +13,6 @@ DECLARE_LOG_CATEGORY_EXTERN(LogMACommTypes, Log, All);
 
 //=============================================================================
 // 消息类型枚举
-// Requirements: 1.1, 1.2, 1.3
 //=============================================================================
 
 /**
@@ -44,7 +42,6 @@ enum class EMACommMessageType : uint8
 
 //=============================================================================
 // 消息信封结构
-// Requirements: 1.1
 //=============================================================================
 
 /**
@@ -89,7 +86,6 @@ struct MULTIAGENT_API FMAMessageEnvelope
 
 //=============================================================================
 // 出站消息结构 - UI 输入消息
-// Requirements: 2.1
 //=============================================================================
 
 /**
@@ -123,7 +119,6 @@ struct MULTIAGENT_API FMAUIInputMessage
 
 //=============================================================================
 // 出站消息结构 - 按钮事件消息
-// Requirements: 3.1
 //=============================================================================
 
 /**
@@ -161,7 +156,6 @@ struct MULTIAGENT_API FMAButtonEventMessage
 
 //=============================================================================
 // 出站消息结构 - 任务反馈消息
-// Requirements: 4.2
 //=============================================================================
 
 /**
@@ -205,7 +199,6 @@ struct MULTIAGENT_API FMATaskFeedbackMessage
 
 //=============================================================================
 // 入站消息结构 - 任务规划 DAG
-// Requirements: 6.1, 6.3, 6.4
 //=============================================================================
 
 /**
@@ -302,7 +295,6 @@ struct MULTIAGENT_API FMATaskPlanDAG
 
 //=============================================================================
 // 入站消息结构 - 世界模型图
-// Requirements: 7.1, 7.2, 7.3
 //=============================================================================
 
 /**
@@ -441,7 +433,6 @@ struct MULTIAGENT_API FMASkillParams_Comm
 
     /** 目标语义标签 JSON (用于 Search 技能)
      * 格式: {"class": "...", "type": "...", "features": {"key": "value", ...}}
-     * Requirements: 11.5
      */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
     FString TargetJson;
@@ -455,14 +446,14 @@ struct MULTIAGENT_API FMASkillParams_Comm
     FString RawParamsJson;
 
     //=========================================================================
-    // Place 技能参数 (Requirements: 10.1, 10.2)
+    // Place 技能参数
     //=========================================================================
 
-    /** object1 语义标签 JSON (Place 技能源对象) */
+    /** target 语义标签 JSON (Place 技能源对象) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill|Place")
     FString Object1Json;
 
-    /** object2 语义标签 JSON (Place 技能目标对象) */
+    /** surface_target 语义标签 JSON (Place 技能目标对象) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill|Place")
     FString Object2Json;
 
@@ -638,7 +629,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMASkillListReceived, const FMASki
 
 //=============================================================================
 // 场景变化消息类型 (Edit Mode)
-// Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7, 11.8
 //=============================================================================
 
 /**

@@ -1,6 +1,5 @@
 // MATaskNodeWidget.h
 // 任务节点 Widget - DAG 画布中的单个任务节点可视化组件
-// Requirements: 4.1, 5.1, 5.2
 
 #pragma once
 

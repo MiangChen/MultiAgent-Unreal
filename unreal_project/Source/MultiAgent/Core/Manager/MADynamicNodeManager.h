@@ -1,6 +1,5 @@
 // MADynamicNodeManager.h
 // 动态节点管理模块 - 负责创建和更新动态节点（机器人、可拾取物品、充电站）
-// Requirements: 1.1, 1.2, 1.3, 1.4, 10.3, 10.4
 
 #pragma once
 
@@ -16,7 +15,6 @@
  * - 更新动态节点的位置
  * - 更新可拾取物品的携带状态
  * 
- * Requirements: 1.1, 1.2, 1.3, 1.4, 10.3, 10.4
  */
 class MULTIAGENT_API FMADynamicNodeManager
 {
@@ -45,7 +43,6 @@ public:
      * @param AgentsJsonPath agents.json 文件的完整路径
      * @return 创建的机器人节点数组
      * 
-     * Requirements: 1.1, 1.2
      */
     static TArray<FMASceneGraphNode> CreateRobotNodes(const FString& AgentsJsonPath);
 
@@ -60,7 +57,7 @@ public:
      *     {
      *       "id": "1001",
      *       "label": "RedBox",
-     *       "type": "box",
+     *       "type": "cargo",
      *       "position": [x, y, z],
      *       "features": {"color": "red"}
      *     }
@@ -70,7 +67,6 @@ public:
      * @param EnvironmentJsonPath environment.json 文件的完整路径
      * @return 创建的可拾取物品节点数组
      * 
-     * Requirements: 1.1, 1.3
      */
     static TArray<FMASceneGraphNode> CreatePickupItemNodes(const FString& EnvironmentJsonPath);
 
@@ -93,7 +89,6 @@ public:
      * @param EnvironmentJsonPath environment.json 文件的完整路径
      * @return 创建的充电站节点数组
      * 
-     * Requirements: 1.1, 10.6
      */
     static TArray<FMASceneGraphNode> CreateChargingStationNodes(const FString& EnvironmentJsonPath);
 
@@ -104,17 +99,16 @@ public:
     /**
      * 创建单个机器人节点
      * 
-     * @param Id 机器人唯一标识 (如 "UAV_01")
-     * @param AgentType 机器人类型 (UAV, UGV, Quadruped, Humanoid)
+     * @param Id 机器人唯一标识 (如 "5001")
+     * @param RobotType 机器人类型 (UAV, UGV, Quadruped, Humanoid)
      * @param Position 世界坐标位置
      * @param Rotation 旋转角度
      * @return 创建的机器人节点
      * 
-     * Requirements: 1.2, 10.1
      */
     static FMASceneGraphNode CreateRobotNode(
         const FString& Id,
-        const FString& AgentType,
+        const FString& RobotType,
         const FVector& Position,
         const FRotator& Rotation = FRotator::ZeroRotator);
 
@@ -128,7 +122,6 @@ public:
      * @param Features 特征属性 (color, label 等)
      * @return 创建的可拾取物品节点
      * 
-     * Requirements: 1.3, 10.2
      */
     static FMASceneGraphNode CreatePickupItemNode(
         const FString& Id,
@@ -145,7 +138,6 @@ public:
      * @param Position 世界坐标位置
      * @return 创建的充电站节点
      * 
-     * Requirements: 10.6
      */
     static FMASceneGraphNode CreateChargingStationNode(
         const FString& Id,
@@ -165,7 +157,6 @@ public:
      * @param NewPosition 新的世界坐标位置
      * @return 更新是否成功 (如果节点无效或位置无效则返回 false)
      * 
-     * Requirements: 1.4
      */
     static bool UpdateNodePosition(FMASceneGraphNode& Node, const FVector& NewPosition);
 
@@ -189,7 +180,6 @@ public:
      * @param CarrierId 携带者 ID (机器人 ID)，放下时传空字符串
      * @return 更新是否成功 (如果节点不是 PickupItem 则返回 false)
      * 
-     * Requirements: 10.3, 10.4
      */
     static bool UpdatePickupItemCarrierStatus(
         FMASceneGraphNode& Node,

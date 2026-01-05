@@ -1,6 +1,5 @@
 // MANodePaletteWidget.h
 // 节点工具栏 Widget - 提供可拖拽的节点模板
-// Requirements: 7.1
 
 #pragma once
 

@@ -1,6 +1,5 @@
 // MATaskPlannerWidget.h
 // 任务规划工作台主容器 Widget - 纯 C++ 实现
-// Requirements: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 2.3, 3.1, 3.2, 3.3, 3.4
 
 #pragma once
 
@@ -66,7 +65,6 @@ DECLARE_LOG_CATEGORY_EXTERN(LogMATaskPlanner, Log, All);
  * │                     │  └─────────────────────────────────────────┘ │
  * └─────────────────────┴───────────────────────────────────────────────┘
  * 
- * Requirements: 1.1, 1.2, 1.3, 1.4
  */
 UCLASS()
 class MULTIAGENT_API UMATaskPlannerWidget : public UUserWidget

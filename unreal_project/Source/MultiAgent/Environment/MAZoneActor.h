@@ -2,7 +2,6 @@
 // Zone 可视化 Actor - 使用 Spline 组件显示区域边界
 // 
 // 用于在 Edit Mode 中显示 Zone 的边界曲线，支持选择和编辑
-// Requirements: 14.1, 14.2, 14.3, 14.4, 14.5, 14.6
 
 #pragma once
 
@@ -18,7 +17,6 @@ class UBoxComponent;
  * Zone 可视化 Actor
  * 
  * 用于在场景中显示 Zone 的边界曲线，支持选择和编辑
- * Requirements: 14.1, 14.2, 14.3, 14.4, 14.5, 14.6
  */
 UCLASS()
 class MULTIAGENT_API AMAZoneActor : public AActor

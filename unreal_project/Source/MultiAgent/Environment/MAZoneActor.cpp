@@ -1,6 +1,5 @@
 // MAZoneActor.cpp
 // Zone 可视化 Actor 实现
-// Requirements: 14.1, 14.2, 14.3, 14.4, 14.5, 14.6
 
 #include "MAZoneActor.h"
 #include "Components/SplineComponent.h"

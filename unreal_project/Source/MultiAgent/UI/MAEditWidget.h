@@ -2,7 +2,6 @@
 // Edit Mode 编辑面板 Widget - 纯 C++ 实现
 // 用于 Edit Mode 下查看和编辑选中 Actor/POI 的信息
 // 支持 Actor 属性编辑、Goal 创建、Zone 创建
-// Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 6.1, 6.2, 6.3, 6.4, 7.1, 8.1, 8.2, 8.5, 9.1, 9.2, 9.6, 10.1, 10.2, 10.7, 13.1, 13.2, 13.3, 13.4
 
 #pragma once
 
@@ -29,14 +28,12 @@ class AMAPointOfInterest;
  * 确认修改委托
  * @param Actor 当前选中的 Actor
  * @param JsonContent JSON 编辑内容
- * Requirements: 6.4
  */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnEditConfirmed, AActor*, Actor, const FString&, JsonContent);
 
 /**
  * 删除 Actor 委托
  * @param Actor 要删除的 Actor
- * Requirements: 7.1
  */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDeleteActor, AActor*, Actor);
 
@@ -44,7 +41,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDeleteActor, AActor*, Actor);
  * 创建 Goal 委托
  * @param POI 用于创建 Goal 的 POI
  * @param Description Goal 描述
- * Requirements: 9.6
  */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnCreateGoal, AMAPointOfInterest*, POI, const FString&, Description);
 
@@ -52,7 +48,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnCreateGoal, AMAPointOfInterest*,
  * 创建 Zone 委托
  * @param POIs 用于创建 Zone 的 POI 数组
  * @param Description Zone 描述
- * Requirements: 10.7
  */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnCreateZone, const TArray<AMAPointOfInterest*>&, POIs, const FString&, Description);
 
@@ -60,7 +55,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnCreateZone, const TArray<AMAPoin
  * 添加预设 Actor 委托
  * @param POI 目标 POI
  * @param ActorType 预设 Actor 类型
- * Requirements: 8.2
  */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAddPresetActor, AMAPointOfInterest*, POI, const FString&, ActorType);
 
@@ -73,14 +67,12 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDeletePOIs, const TArray<AMAPoint
 /**
  * 设为 Goal 委托
  * @param Actor 目标 Actor
- * Requirements: 16.2
  */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSetAsGoal, AActor*, Actor);
 
 /**
  * 取消 Goal 委托
  * @param Actor 目标 Actor
- * Requirements: 16.6
  */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnUnsetAsGoal, AActor*, Actor);
 
@@ -96,7 +88,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnUnsetAsGoal, AActor*, Actor);
  * - 支持预设 Actor 添加
  * - 临时场景图预览
  * 
- * Requirements: 5.1, 5.6
  */
 UCLASS()
 class MULTIAGENT_API UMAEditWidget : public UUserWidget
@@ -108,13 +99,11 @@ public:
 
     //=========================================================================
     // 公共接口 - Actor 选择
-    // Requirements: 5.1, 5.2, 5.3, 5.4, 5.5
     //=========================================================================
 
     /**
      * 设置选中的 Actor
      * @param Actor 选中的 Actor，nullptr 表示清除选择
-     * Requirements: 5.1
      */
     UFUNCTION(BlueprintCallable, Category = "UI")
     void SetSelectedActor(AActor* Actor);
@@ -128,13 +117,11 @@ public:
 
     //=========================================================================
     // 公共接口 - POI 选择
-    // Requirements: 8.1, 9.1, 10.1
     //=========================================================================
 
     /**
      * 设置选中的 POI 列表
      * @param POIs 选中的 POI 数组
-     * Requirements: 8.1, 9.1, 10.1
      */
     UFUNCTION(BlueprintCallable, Category = "UI")
     void SetSelectedPOIs(const TArray<AMAPointOfInterest*>& POIs);
@@ -158,7 +145,6 @@ public:
 
     /**
      * 刷新临时场景图预览
-     * Requirements: 13.2
      */
     UFUNCTION(BlueprintCallable, Category = "UI")
     void RefreshSceneGraphPreview();
@@ -181,23 +167,23 @@ public:
     // 事件委托
     //=========================================================================
 
-    /** 确认修改委托 - Requirements: 6.4 */
+    /** 确认修改委托 */
     UPROPERTY(BlueprintAssignable, Category = "Events")
     FOnEditConfirmed OnEditConfirmed;
 
-    /** 删除 Actor 委托 - Requirements: 7.1 */
+    /** 删除 Actor 委托 */
     UPROPERTY(BlueprintAssignable, Category = "Events")
     FOnDeleteActor OnDeleteActor;
 
-    /** 创建 Goal 委托 - Requirements: 9.6 */
+    /** 创建 Goal 委托 */
     UPROPERTY(BlueprintAssignable, Category = "Events")
     FOnCreateGoal OnCreateGoal;
 
-    /** 创建 Zone 委托 - Requirements: 10.7 */
+    /** 创建 Zone 委托 */
     UPROPERTY(BlueprintAssignable, Category = "Events")
     FOnCreateZone OnCreateZone;
 
-    /** 添加预设 Actor 委托 - Requirements: 8.2 */
+    /** 添加预设 Actor 委托 */
     UPROPERTY(BlueprintAssignable, Category = "Events")
     FOnAddPresetActor OnAddPresetActor;
 
@@ -205,11 +191,11 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Events")
     FOnDeletePOIs OnDeletePOIs;
 
-    /** 设为 Goal 委托 - Requirements: 16.2 */
+    /** 设为 Goal 委托 */
     UPROPERTY(BlueprintAssignable, Category = "Events")
     FOnSetAsGoal OnSetAsGoal;
 
-    /** 取消 Goal 委托 - Requirements: 16.6 */
+    /** 取消 Goal 委托 */
     UPROPERTY(BlueprintAssignable, Category = "Events")
     FOnUnsetAsGoal OnUnsetAsGoal;
 
@@ -263,11 +249,11 @@ protected:
     UPROPERTY()
     UButton* DeletePOIButton;
 
-    /** 设为 Goal 按钮 - Requirements: 16.1 */
+    /** 设为 Goal 按钮 */
     UPROPERTY()
     UButton* SetAsGoalButton;
 
-    /** 取消 Goal 按钮 - Requirements: 16.5 */
+    /** 取消 Goal 按钮 */
     UPROPERTY()
     UButton* UnsetAsGoalButton;
 
@@ -324,7 +310,6 @@ private:
 
     /**
      * 构建 UI 布局
-     * Requirements: 5.1, 5.6, 8.1, 9.1, 10.1
      */
     void BuildUI();
 
@@ -336,13 +321,11 @@ private:
 
     /**
      * 更新 JSON 编辑框内容
-     * Requirements: 5.1, 5.2
      */
     void UpdateJsonEditBox();
 
     /**
      * 更新 Node 切换按钮
-     * Requirements: 5.2
      */
     void UpdateNodeSwitchButtons();
 
@@ -351,7 +334,6 @@ private:
      * @param Json JSON 字符串
      * @param OutError 错误信息
      * @return 是否有效
-     * Requirements: 6.1, 6.2
      */
     bool ValidateJson(const FString& Json, FString& OutError);
 
@@ -359,7 +341,6 @@ private:
      * 检查是否为 point 类型 Node
      * @param Node 场景图节点
      * @return 是否为 point 类型
-     * Requirements: 5.3, 5.5
      */
     bool IsPointTypeNode(const FMASceneGraphNode& Node) const;
 
@@ -384,23 +365,23 @@ private:
     // 按钮点击处理
     //=========================================================================
 
-    /** 确认按钮点击 - Requirements: 6.4 */
+    /** 确认按钮点击 */
     UFUNCTION()
     void OnConfirmButtonClicked();
 
-    /** 删除按钮点击 - Requirements: 7.1 */
+    /** 删除按钮点击 */
     UFUNCTION()
     void OnDeleteButtonClicked();
 
-    /** 创建 Goal 按钮点击 - Requirements: 9.6 */
+    /** 创建 Goal 按钮点击 */
     UFUNCTION()
     void OnCreateGoalButtonClicked();
 
-    /** 创建 Zone 按钮点击 - Requirements: 10.7 */
+    /** 创建 Zone 按钮点击 */
     UFUNCTION()
     void OnCreateZoneButtonClicked();
 
-    /** 添加 Actor 按钮点击 - Requirements: 8.2 */
+    /** 添加 Actor 按钮点击 */
     UFUNCTION()
     void OnAddActorButtonClicked();
 
@@ -408,11 +389,11 @@ private:
     UFUNCTION()
     void OnDeletePOIButtonClicked();
 
-    /** 设为 Goal 按钮点击 - Requirements: 16.2 */
+    /** 设为 Goal 按钮点击 */
     UFUNCTION()
     void OnSetAsGoalButtonClicked();
 
-    /** 取消 Goal 按钮点击 - Requirements: 16.6 */
+    /** 取消 Goal 按钮点击 */
     UFUNCTION()
     void OnUnsetAsGoalButtonClicked();
 

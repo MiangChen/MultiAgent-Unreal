@@ -1,6 +1,5 @@
 // MAEmergencyWidget.cpp
 // Emergency Event Details Widget Implementation
-// Requirements: 2.2, 2.3, 3.1, 3.2, 3.3, 3.4
 
 #include "MAEmergencyWidget.h"
 #include "Components/CanvasPanel.h"

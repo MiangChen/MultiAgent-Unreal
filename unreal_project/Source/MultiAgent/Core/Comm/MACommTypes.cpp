@@ -1,6 +1,5 @@
 // MACommTypes.cpp
 // 通信协议消息类型 JSON 序列化/反序列化实现
-// Requirements: 1.5, 6.2
 
 #include "MACommTypes.h"
 #include "Dom/JsonObject.h"
@@ -891,7 +890,6 @@ bool FMASkillListMessage::FromJson(const FString& Json, FMASkillListMessage& Out
                 if ((*ParamsObject)->TryGetObjectField(TEXT("target"), TargetObject))
                 {
                     // 保存完整的 target JSON 字符串 (用于 Search 技能)
-                    // Requirements: 11.5
                     FString TargetJsonStr;
                     TSharedRef<TJsonWriter<>> TargetWriter = TJsonWriterFactory<>::Create(&TargetJsonStr);
                     FJsonSerializer::Serialize(TargetObject->ToSharedRef(), TargetWriter);
@@ -914,30 +912,30 @@ bool FMASkillListMessage::FromJson(const FString& Json, FMASkillListMessage& Out
                 }
 
                 //=============================================================
-                // 解析 Place 技能参数: object1 和 object2 (Requirements: 10.1, 10.2)
-                // 格式: { "object1": { "class": "...", "type": "...", "features": {...} },
-                //         "object2": { "class": "...", "type": "...", "features": {...} } }
+                // 解析 Place 技能参数: target 和 surface_target
+                // 格式: { "target": { "class": "...", "type": "...", "features": {...} },
+                //         "surface_target": { "class": "...", "type": "...", "features": {...} } }
                 //=============================================================
                 const TSharedPtr<FJsonObject>* Object1JsonObj;
-                if ((*ParamsObject)->TryGetObjectField(TEXT("object1"), Object1JsonObj))
+                if ((*ParamsObject)->TryGetObjectField(TEXT("target"), Object1JsonObj))
                 {
                     FString Object1JsonStr;
                     TSharedRef<TJsonWriter<>> Object1Writer = TJsonWriterFactory<>::Create(&Object1JsonStr);
                     FJsonSerializer::Serialize(Object1JsonObj->ToSharedRef(), Object1Writer);
                     Cmd.Params.Object1Json = Object1JsonStr;
 
-                    UE_LOG(LogMACommTypes, Verbose, TEXT("  Parsed object1: %s"), *Object1JsonStr);
+                    UE_LOG(LogMACommTypes, Verbose, TEXT("  Parsed target: %s"), *Object1JsonStr);
                 }
 
                 const TSharedPtr<FJsonObject>* Object2JsonObj;
-                if ((*ParamsObject)->TryGetObjectField(TEXT("object2"), Object2JsonObj))
+                if ((*ParamsObject)->TryGetObjectField(TEXT("surface_target"), Object2JsonObj))
                 {
                     FString Object2JsonStr;
                     TSharedRef<TJsonWriter<>> Object2Writer = TJsonWriterFactory<>::Create(&Object2JsonStr);
                     FJsonSerializer::Serialize(Object2JsonObj->ToSharedRef(), Object2Writer);
                     Cmd.Params.Object2Json = Object2JsonStr;
 
-                    UE_LOG(LogMACommTypes, Verbose, TEXT("  Parsed object2: %s"), *Object2JsonStr);
+                    UE_LOG(LogMACommTypes, Verbose, TEXT("  Parsed surface_target: %s"), *Object2JsonStr);
                 }
             }
 
@@ -1030,7 +1028,55 @@ TSharedPtr<FJsonObject> FMASkillFeedback_Comm::ToJsonObject() const
         TSharedPtr<FJsonObject> DataObject = MakeShareable(new FJsonObject());
         for (const auto& Pair : Data)
         {
-            DataObject->SetStringField(Pair.Key, Pair.Value);
+            const FString& Key = Pair.Key;
+            const FString& Value = Pair.Value;
+            
+            // 智能类型转换：尝试解析为正确的 JSON 类型
+            
+            // 1. 检查是否为布尔值
+            if (Value.Equals(TEXT("true"), ESearchCase::IgnoreCase))
+            {
+                DataObject->SetBoolField(Key, true);
+            }
+            else if (Value.Equals(TEXT("false"), ESearchCase::IgnoreCase))
+            {
+                DataObject->SetBoolField(Key, false);
+            }
+            // 2. 检查是否为 JSON 数组或对象
+            else if ((Value.StartsWith(TEXT("[")) && Value.EndsWith(TEXT("]"))) ||
+                     (Value.StartsWith(TEXT("{")) && Value.EndsWith(TEXT("}"))))
+            {
+                // 尝试解析为 JSON
+                TSharedPtr<FJsonValue> ParsedValue;
+                TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Value);
+                if (FJsonSerializer::Deserialize(Reader, ParsedValue) && ParsedValue.IsValid())
+                {
+                    DataObject->SetField(Key, ParsedValue);
+                }
+                else
+                {
+                    // 解析失败，保持为字符串
+                    DataObject->SetStringField(Key, Value);
+                }
+            }
+            // 3. 检查是否为纯数字（整数或浮点数）
+            else if (Value.IsNumeric())
+            {
+                // 检查是否包含小数点
+                if (Value.Contains(TEXT(".")))
+                {
+                    DataObject->SetNumberField(Key, FCString::Atod(*Value));
+                }
+                else
+                {
+                    DataObject->SetNumberField(Key, FCString::Atoi(*Value));
+                }
+            }
+            // 4. 默认为字符串
+            else
+            {
+                DataObject->SetStringField(Key, Value);
+            }
         }
         JsonObject->SetObjectField(TEXT("data"), DataObject);
     }
@@ -1046,6 +1092,9 @@ FString FMATimeStepFeedbackMessage::ToJson() const
 {
     TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject());
 
+    // 添加 feedback_type 字段
+    JsonObject->SetStringField(TEXT("feedback_type"), TEXT("timestep"));
+    
     JsonObject->SetNumberField(TEXT("time_step"), TimeStep);
 
     TArray<TSharedPtr<FJsonValue>> FeedbacksArray;
@@ -1104,7 +1153,6 @@ FString FMASkillListCompletedMessage::ToJson() const
 
 //=============================================================================
 // FMASceneChangeMessage 实现
-// Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7, 11.8
 //=============================================================================
 
 FString FMASceneChangeMessage::ChangeTypeToString(EMASceneChangeType Type)

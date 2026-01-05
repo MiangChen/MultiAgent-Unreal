@@ -53,7 +53,7 @@ void USK_Place::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const F
     // 确定操作模式
     if (Params.PlaceObject2.IsRobot())
     {
-        // 装货模式：将 object1 放到 UGV 上
+        // 装货模式：将 target 放到 UGV 上
         CurrentMode = EPlaceMode::LoadToUGV;
         
         if (!Results.Object1Actor.IsValid())
@@ -123,14 +123,14 @@ void USK_Place::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const F
     }
     else
     {
-        // 堆叠模式：将 object1 放到 object2 上
+        // 堆叠模式：将 target 放到 surface_target 上
         CurrentMode = EPlaceMode::StackOnObject;
         
         if (!Results.Object1Actor.IsValid())
         {
             bPlaceSucceeded = false;
             PlaceResultMessage = TEXT("Place failed: Source object not found");
-            SkillComp->GetFeedbackContextMutable().PlaceErrorReason = TEXT("Source object (object1) not found");
+            SkillComp->GetFeedbackContextMutable().PlaceErrorReason = TEXT("Source object (target) not found");
             Character->ShowStatus(TEXT("[Place] Source object not found"), 2.f);
             EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
             return;
@@ -140,7 +140,7 @@ void USK_Place::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const F
         {
             bPlaceSucceeded = false;
             PlaceResultMessage = TEXT("Place failed: Target object not found");
-            SkillComp->GetFeedbackContextMutable().PlaceErrorReason = TEXT("Target object (object2) not found");
+            SkillComp->GetFeedbackContextMutable().PlaceErrorReason = TEXT("Target object (surface_target) not found");
             Character->ShowStatus(TEXT("[Place] Target object not found"), 2.f);
             EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
             return;
@@ -495,7 +495,7 @@ void USK_Place::HandleComplete()
     Context.PlaceFinalLocation = FinalLocation;
     
     //=========================================================================
-    // 更新场景图状态 (Requirements: 6.7, 6.8)
+    // 更新场景图状态
     // Place 完成后调用 UpdatePickupItemPosition() 和 UpdatePickupItemCarrierStatus()
     //=========================================================================
     if (UWorld* World = Character->GetWorld())

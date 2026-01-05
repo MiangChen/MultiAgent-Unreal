@@ -1,7 +1,6 @@
 // MAHUD.h
 // HUD 管理器 - 管理所有 UI Widget 的创建、显示和隐藏
 // 继承自 MASelectionHUD 以保留框选绘制功能
-// Requirements: 7.1, 2.1, 2.2, 3.3
 
 #pragma once
 
@@ -36,7 +35,6 @@ struct FMASceneGraphNode;
  * - 管理 Widget 的显示/隐藏状态
  * - 处理输入框焦点重置
  * 
- * Requirements: 7.1, 2.1, 2.2
  */
 UCLASS()
 class MULTIAGENT_API AMAHUD : public AMASelectionHUD
@@ -116,28 +114,24 @@ public:
 
     /**
      * 切换 MainWidget 的显示/隐藏
-     * Requirements: 2.1, 2.2
      */
     UFUNCTION(BlueprintCallable, Category = "UI Control")
     void ToggleMainUI();
 
     /**
      * 显示 MainWidget
-     * Requirements: 2.1
      */
     UFUNCTION(BlueprintCallable, Category = "UI Control")
     void ShowMainUI();
 
     /**
      * 隐藏 MainWidget
-     * Requirements: 2.2
      */
     UFUNCTION(BlueprintCallable, Category = "UI Control")
     void HideMainUI();
 
     /**
      * 切换语义地图 Widget 的显示/隐藏 (后续阶段)
-     * Requirements: 7.2
      */
     UFUNCTION(BlueprintCallable, Category = "UI Control")
     void ToggleSemanticMap();
@@ -145,14 +139,12 @@ public:
     /**
      * 显示 Direct Control 指示器
      * @param Agent 当前控制的 Agent
-     * Requirements: 3.3
      */
     UFUNCTION(BlueprintCallable, Category = "UI Control")
     void ShowDirectControlIndicator(AMACharacter* Agent);
 
     /**
      * 隐藏 Direct Control 指示器
-     * Requirements: 3.3
      */
     UFUNCTION(BlueprintCallable, Category = "UI Control")
     void HideDirectControlIndicator();
@@ -198,14 +190,12 @@ public:
 
     /**
      * 显示突发事件指示器 (红色 "突发事件" 文字)
-     * Requirements: 1.1, 1.2
      */
     UFUNCTION(BlueprintCallable, Category = "UI Control|Emergency")
     void ShowEmergencyIndicator();
 
     /**
      * 隐藏突发事件指示器
-     * Requirements: 1.3
      */
     UFUNCTION(BlueprintCallable, Category = "UI Control|Emergency")
     void HideEmergencyIndicator();
@@ -219,21 +209,18 @@ public:
 
     /**
      * 显示突发事件详情界面
-     * Requirements: 2.1
      */
     UFUNCTION(BlueprintCallable, Category = "UI Control|Emergency")
     void ShowEmergencyWidget();
 
     /**
      * 隐藏突发事件详情界面
-     * Requirements: 2.4
      */
     UFUNCTION(BlueprintCallable, Category = "UI Control|Emergency")
     void HideEmergencyWidget();
 
     /**
      * 切换突发事件详情界面的显示/隐藏
-     * Requirements: 2.1, 2.4
      */
     UFUNCTION(BlueprintCallable, Category = "UI Control|Emergency")
     void ToggleEmergencyWidget();
@@ -248,7 +235,6 @@ public:
     /**
      * 更新突发事件相机源
      * @param Camera 相机传感器组件，nullptr 表示清除相机源
-     * Requirements: 2.5, 4.4
      */
     UFUNCTION(BlueprintCallable, Category = "UI Control|Emergency")
     void UpdateEmergencyCameraSource(UMACameraSensorComponent* Camera);
@@ -259,14 +245,12 @@ public:
 
     /**
      * 显示 ModifyWidget
-     * Requirements: 3.1
      */
     UFUNCTION(BlueprintCallable, Category = "UI Control|Modify")
     void ShowModifyWidget();
 
     /**
      * 隐藏 ModifyWidget
-     * Requirements: 3.4
      */
     UFUNCTION(BlueprintCallable, Category = "UI Control|Modify")
     void HideModifyWidget();
@@ -280,19 +264,16 @@ public:
 
     //=========================================================================
     // Edit 模式 UI 控制
-    // Requirements: 2.3
     //=========================================================================
 
     /**
      * 显示 EditWidget
-     * Requirements: 2.3
      */
     UFUNCTION(BlueprintCallable, Category = "UI Control|Edit")
     void ShowEditWidget();
 
     /**
      * 隐藏 EditWidget
-     * Requirements: 2.3
      */
     UFUNCTION(BlueprintCallable, Category = "UI Control|Edit")
     void HideEditWidget();
@@ -314,13 +295,11 @@ public:
 
     //=========================================================================
     // 场景标签可视化
-    // Requirements: 3.1, 3.2, 3.3, 3.4, 4.1, 4.2, 4.3, 4.4, 4.5, 5.1, 5.2, 5.3, 6.1
     //=========================================================================
 
     /**
      * 开始场景标签可视化
      * 加载场景图数据并开始显示标签
-     * Requirements: 5.1
      */
     UFUNCTION(BlueprintCallable, Category = "UI Control|SceneLabel")
     void StartSceneLabelVisualization();
@@ -328,7 +307,6 @@ public:
     /**
      * 停止场景标签可视化
      * 停止显示标签并清空缓存
-     * Requirements: 5.2
      */
     UFUNCTION(BlueprintCallable, Category = "UI Control|SceneLabel")
     void StopSceneLabelVisualization();
@@ -349,7 +327,6 @@ public:
      * @param Message 通知消息内容
      * @param bIsError 是否为错误消息 (红色)，false 为成功消息 (绿色)
      * @param bIsWarning 是否为警告消息 (黄色)，优先级低于 bIsError
-     * Requirements: 2.1, 3.2, 6.5
      */
     UFUNCTION(BlueprintCallable, Category = "UI|Notification")
     void ShowNotification(const FString& Message, bool bIsError = false, bool bIsWarning = false);
@@ -369,14 +346,12 @@ protected:
     /**
      * PlayerController 的 MainUI 切换事件回调
      * @param bVisible 是否显示
-     * Requirements: 2.1, 2.2
      */
     UFUNCTION()
     void OnMainUIToggled(bool bVisible);
 
     /**
      * PlayerController 的重新聚焦事件回调
-     * Requirements: 2.5
      */
     UFUNCTION()
     void OnRefocusMainUI();
@@ -384,7 +359,6 @@ protected:
     /**
      * EmergencyManager 状态变化回调
      * @param bIsActive 新的事件状态
-     * Requirements: 1.1, 1.2, 1.3
      */
     UFUNCTION()
     void OnEmergencyStateChanged(bool bIsActive);
@@ -396,7 +370,6 @@ private:
 
     /**
      * 创建所有 Widget 实例
-     * Requirements: 7.1
      */
     void CreateWidgets();
 
@@ -407,7 +380,6 @@ private:
 
     /**
      * 绑定 EmergencyManager 事件
-     * Requirements: 1.1, 1.2, 1.3
      */
     void BindEmergencyManagerEvents();
 
@@ -435,7 +407,6 @@ private:
      * ModifyWidget 确认修改回调 (单选模式)
      * @param Actor 选中的 Actor
      * @param LabelText 文本框内容
-     * Requirements: 5.1, 5.2
      */
     UFUNCTION()
     void OnModifyConfirmed(AActor* Actor, const FString& LabelText);
@@ -445,7 +416,6 @@ private:
      * @param Actors 选中的 Actor 数组
      * @param LabelText 文本框内容
      * @param GeneratedJson 生成的 JSON 字符串
-     * Requirements: 4.1, 4.2, 5.1, 8.1
      */
     UFUNCTION()
     void OnMultiSelectModifyConfirmed(const TArray<AActor*>& Actors, const FString& LabelText, const FString& GeneratedJson);
@@ -453,7 +423,6 @@ private:
     /**
      * PlayerController 的 Actor 选中回调 (单选模式)
      * @param SelectedActor 选中的 Actor
-     * Requirements: 4.1
      */
     UFUNCTION()
     void OnModifyActorSelected(AActor* SelectedActor);
@@ -461,7 +430,6 @@ private:
     /**
      * PlayerController 的 Actor 选中回调 (多选模式)
      * @param SelectedActors 选中的 Actor 数组
-     * Requirements: 2.1, 2.2
      */
     UFUNCTION()
     void OnModifyActorsSelected(const TArray<AActor*>& SelectedActors);
@@ -487,26 +455,22 @@ private:
 
     /**
      * 绘制通知消息
-     * Requirements: 2.1, 3.2, 6.5
      */
     void DrawNotification();
 
     //=========================================================================
     // 场景标签可视化内部方法
-    // Requirements: 3.1, 3.2, 3.3, 3.4, 4.1, 4.2, 4.3, 4.4, 4.5, 6.1
     //=========================================================================
 
     /**
      * 加载场景图数据用于可视化
      * 从 SceneGraphManager 获取所有节点并缓存
-     * Requirements: 3.1, 3.2, 3.3
      */
     void LoadSceneGraphForVisualization();
 
     /**
      * 绘制场景标签
      * 在 DrawHUD() 中调用，遍历缓存的节点并绘制绿色文本
-     * Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 5.3, 6.1
      */
     void DrawSceneLabels();
 
@@ -518,37 +482,31 @@ private:
 
     //=========================================================================
     // Edit 模式内部方法
-    // Requirements: 2.2, 3.3, 6.3, 7.2, 9.3, 10.4, 13.2
     //=========================================================================
 
     /**
      * 绑定 EditModeManager 事件
-     * Requirements: 13.2
      */
     void BindEditModeManagerEvents();
 
     /**
      * 绑定 EditWidget 委托
-     * Requirements: 6.3, 7.2, 9.3, 10.4
      */
     void BindEditWidgetDelegates();
 
     /**
      * 绘制 Edit 模式指示器和 POI 坐标
-     * Requirements: 2.2, 3.3
      */
     void DrawEditModeIndicator();
 
     /**
      * EditModeManager 选择变化回调
-     * Requirements: 13.2
      */
     UFUNCTION()
     void OnEditModeSelectionChanged();
 
     /**
      * EditModeManager 临时场景图变化回调
-     * Requirements: 13.2
      */
     UFUNCTION()
     void OnTempSceneGraphChanged();
@@ -557,7 +515,6 @@ private:
      * EditWidget 确认修改回调
      * @param Actor 选中的 Actor
      * @param JsonContent JSON 编辑内容
-     * Requirements: 6.3
      */
     UFUNCTION()
     void OnEditConfirmed(AActor* Actor, const FString& JsonContent);
@@ -565,7 +522,6 @@ private:
     /**
      * EditWidget 删除 Actor 回调
      * @param Actor 要删除的 Actor
-     * Requirements: 7.2
      */
     UFUNCTION()
     void OnEditDeleteActor(AActor* Actor);
@@ -574,7 +530,6 @@ private:
      * EditWidget 创建 Goal 回调
      * @param POI 用于创建 Goal 的 POI
      * @param Description Goal 描述
-     * Requirements: 9.3
      */
     UFUNCTION()
     void OnEditCreateGoal(AMAPointOfInterest* POI, const FString& Description);
@@ -583,7 +538,6 @@ private:
      * EditWidget 创建 Zone 回调
      * @param POIs 用于创建 Zone 的 POI 数组
      * @param Description Zone 描述
-     * Requirements: 10.4
      */
     UFUNCTION()
     void OnEditCreateZone(const TArray<AMAPointOfInterest*>& POIs, const FString& Description);
@@ -592,7 +546,6 @@ private:
      * EditWidget 添加预设 Actor 回调
      * @param POI 目标 POI
      * @param ActorType 预设 Actor 类型
-     * Requirements: 8.2
      */
     UFUNCTION()
     void OnEditAddPresetActor(AMAPointOfInterest* POI, const FString& ActorType);
@@ -607,7 +560,6 @@ private:
     /**
      * EditWidget 设为 Goal 回调
      * @param Actor 目标 Actor
-     * Requirements: 16.2
      */
     UFUNCTION()
     void OnEditSetAsGoal(AActor* Actor);
@@ -615,7 +567,6 @@ private:
     /**
      * EditWidget 取消 Goal 回调
      * @param Actor 目标 Actor
-     * Requirements: 16.6
      */
     UFUNCTION()
     void OnEditUnsetAsGoal(AActor* Actor);
@@ -623,7 +574,6 @@ private:
     /**
      * SceneListWidget Goal 项点击回调
      * @param GoalId Goal Node ID
-     * Requirements: 17.4
      */
     UFUNCTION()
     void OnSceneListGoalClicked(const FString& GoalId);
@@ -631,7 +581,6 @@ private:
     /**
      * SceneListWidget Zone 项点击回调
      * @param ZoneId Zone Node ID
-     * Requirements: 17.5
      */
     UFUNCTION()
     void OnSceneListZoneClicked(const FString& ZoneId);

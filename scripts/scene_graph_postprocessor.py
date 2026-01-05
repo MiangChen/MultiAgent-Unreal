@@ -5,7 +5,6 @@ Scene Graph Post-Processor
 This script processes scene_graph_cyberworld.json to automatically add
 category and default property fields based on node type.
 
-Requirements: 1.1, 2.1, 3.1, 1.2, 2.2, 3.2, 1.3, 2.3, 3.3, 4.1, 4.2, 4.3, 4.4
 """
 
 import json
@@ -14,7 +13,6 @@ import sys
 from typing import Optional, Dict, Any
 
 # Type to Category mapping
-# Requirements: 1.1, 2.1, 3.1
 TYPE_CATEGORY_MAP: Dict[str, str] = {
     # Building types (category: "building")
     "building": "building",
@@ -43,7 +41,6 @@ TYPE_CATEGORY_MAP: Dict[str, str] = {
 }
 
 # Default fields for Building and Trans_Facility categories
-# Requirements: 1.1, 2.1
 BUILDING_TRANS_DEFAULT_FIELDS: Dict[str, Any] = {
     "status": "undiscovered",
     "visibility": "high",
@@ -54,7 +51,6 @@ BUILDING_TRANS_DEFAULT_FIELDS: Dict[str, Any] = {
 }
 
 # Default fields for Prop category
-# Requirements: 3.1
 PROP_DEFAULT_FIELDS: Dict[str, Any] = {
     "is_abnormal": False,
 }
@@ -69,8 +65,7 @@ def classify_type(node_type: str) -> Optional[str]:
         
     Returns:
         The category string ("building", "trans_facility", "prop") or None if unknown
-        
-    Requirements: 1.1, 2.1, 3.1
+
     """
     return TYPE_CATEGORY_MAP.get(node_type)
 
@@ -87,7 +82,6 @@ def inject_fields(properties: Dict[str, Any], category: str) -> Dict[str, Any]:
     Returns:
         Updated properties dictionary
         
-    Requirements: 1.2, 2.2, 3.2
     """
     # Add category field if not exists
     if "category" not in properties:
@@ -119,7 +113,6 @@ def process_node(node: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         The processed node (modified in place)
         
-    Requirements: 1.3, 2.3, 3.3
     """
     # Get properties, create if not exists
     properties = node.get("properties", {})
@@ -150,8 +143,7 @@ def process_scene_graph(input_path: str, output_path: Optional[str] = None) -> D
         
     Returns:
         Statistics dictionary with processing counts
-        
-    Requirements: 4.1, 4.2, 4.3, 4.4
+
     """
     if output_path is None:
         output_path = input_path
@@ -214,8 +206,7 @@ def process_scene_graph(input_path: str, output_path: Optional[str] = None) -> D
 def main():
     """
     Command-line entry point.
-    
-    Requirements: 4.1
+
     """
     parser = argparse.ArgumentParser(
         description="Post-process scene graph JSON files to add category and default fields."

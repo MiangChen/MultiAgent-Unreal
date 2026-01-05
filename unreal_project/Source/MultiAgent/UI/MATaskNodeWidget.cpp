@@ -1,6 +1,5 @@
 // MATaskNodeWidget.cpp
 // 任务节点 Widget - DAG 画布中的单个任务节点可视化组件
-// Requirements: 4.1, 5.1, 5.2
 
 #include "MATaskNodeWidget.h"
 #include "Components/Border.h"
@@ -219,7 +218,7 @@ FReply UMATaskNodeWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, c
         }
         else if (IsPointOnInputPort(LocalPosition))
         {
-            // 输入端口不能开始拖拽连线 (Requirements: 6.2)
+            // 输入端口不能开始拖拽连线
             UE_LOG(LogMATaskNodeWidget, Verbose, TEXT("Input port click ignored: %s"), *NodeData.TaskId);
             return FReply::Handled();
         }

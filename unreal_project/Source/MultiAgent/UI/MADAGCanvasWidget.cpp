@@ -1,6 +1,5 @@
 // MADAGCanvasWidget.cpp
 // DAG 画布 Widget 实现
-// Requirements: 4.1, 4.2, 7.1, 7.4, 10.1, 10.2, 10.3
 
 #include "MADAGCanvasWidget.h"
 #include "MATaskNodeWidget.h"
@@ -879,7 +878,7 @@ void UMADAGCanvasWidget::OnNodePortDragStarted(const FString& NodeId, bool bIsOu
 {
     if (!bIsOutputPort)
     {
-        // 只能从输出端口开始拖拽 (Requirements: 6.2)
+        // 只能从输出端口开始拖拽
         return;
     }
 

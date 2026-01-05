@@ -78,7 +78,7 @@ SKILL_LIST_UAV_SEARCH = {
                 ],
                 "target": {
                     "class": "object",
-                    "type": "box",
+                    "type": "cargo",
                     "features": {"color": "red", "label": "RedBox"}
                 }
             }
@@ -95,7 +95,7 @@ SKILL_LIST_UAV_SEARCH = {
                 ],
                 "target": {
                     "class": "object",
-                    "type": "box",
+                    "type": "cargo",
                     "features": {"color": "red", "label": "RedBox"}
                 }
             }
@@ -136,12 +136,12 @@ def create_transport_skill_list_phase1(redbox_position=None):
             "Humanoid_01": {
                 "skill": "place",
                 "params": {
-                    "object1": {
+                    "target": {
                         "class": "object",
-                        "type": "box",
+                        "type": "cargo",
                         "features": {"color": "red", "label": "RedBox"}
                     },
-                    "object2": {
+                    "surface_target": {
                         "class": "robot",
                         "type": "UGV",
                         "features": {"label": "UGV_01"}
@@ -170,16 +170,145 @@ SKILL_LIST_TRANSPORT_PHASE2 = {
         "Humanoid_01": {
             "skill": "place",
             "params": {
-                "object1": {
+                "target": {
                     "class": "object",
-                    "type": "box",
+                    "type": "cargo",
                     "features": {"color": "red", "label": "RedBox"}
                 },
-                "object2": {
+                "surface_target": {
                     "class": "ground",
                     "type": "",
                     "features": {}
                 }
+            }
+        }
+    }
+}
+
+# ========== 规划层下发的真实技能列表示例 ==========
+
+# 示例1: UGV+Humanoid 协作搬运任务（导航 -> 装货 -> 导航 -> 卸货）
+SKILL_LIST_PLANNER_EXAMPLE_1 = {
+    "0": {
+        "UGV_01": {
+            "skill": "navigate",
+            "params": {
+                "area_token": "Red_Box",
+                "dest": {"x": -9249.13092208624, "y": -4359.999976826766, "z": 0.0}
+            }
+        },
+        "Humanoid_01": {
+            "skill": "navigate",
+            "params": {
+                "area_token": "Red_Box",
+                "dest": {"x": -9249.13092208624, "y": -4359.999976826766, "z": 0.0}
+            }
+        }
+    },
+    "1": {
+        "Humanoid_01": {
+            "skill": "place",
+            "params": {
+                "target": {
+                    "class": "object",
+                    "type": "cargo",
+                    "features": {"subtype": "box", "color": "red", "label": "RedBox"},
+                    "conf_ge": 0.85,
+                    "persist_ge_s": 1.0
+                },
+                "target_token": "Red_Box",
+                "surface_token": "UGV",
+                "surface_target": {
+                    "class": "robot",
+                    "type": "UGV",
+                    "features": {"label": "UGV_01"}
+                }
+            }
+        }
+    },
+    "2": {
+        "UGV_01": {
+            "skill": "navigate",
+            "params": {
+                "area_token": "Building-58",
+                "area": {
+                    "kind": "area",
+                    "coords": [
+                        [-9810.987036961951, -4924.24515198758, 0.0],
+                        [-8687.27480721053, -4924.24515198758, 0.0],
+                        [-8687.27480721053, -3795.754801665952, 0.0],
+                        [-9810.987036961951, -3795.754801665952, 0.0]
+                    ]
+                },
+                "dest": {"x": -9249.13092208624, "y": -4359.999976826766, "z": 0.0}
+            }
+        },
+        "Humanoid_01": {
+            "skill": "navigate",
+            "params": {
+                "area_token": "Building-58",
+                "area": {
+                    "kind": "area",
+                    "coords": [
+                        [-9810.987036961951, -4924.24515198758, 0.0],
+                        [-8687.27480721053, -4924.24515198758, 0.0],
+                        [-8687.27480721053, -3795.754801665952, 0.0],
+                        [-9810.987036961951, -3795.754801665952, 0.0]
+                    ]
+                },
+                "dest": {"x": -9249.13092208624, "y": -4359.999976826766, "z": 0.0}
+            }
+        }
+    },
+    "3": {
+        "Humanoid_01": {
+            "skill": "place",
+            "params": {
+                "target": {
+                    "class": "object",
+                    "type": "cargo",
+                    "features": {"subtype": "box", "color": "red", "label": "RedBox"},
+                    "conf_ge": 0.85,
+                    "persist_ge_s": 1.0
+                },
+                "target_token": "Red_Box",
+                "surface_token": "ground",
+                "surface_target": {
+                    "class": "ground",
+                    "type": "",
+                    "features": {}
+                }
+            }
+        }
+    }
+}
+
+# 示例2: Quadruped 搜索任务
+SKILL_LIST_PLANNER_EXAMPLE_2 = {
+    "0": {
+        "Quadruped_01": {
+            "skill": "search",
+            "params": {
+                "area": {
+                    "kind": "area",
+                    "coords": [
+                        [-10000.0, -10000.0, 0.0],
+                        [10000.0, -10000.0, 0.0],
+                        [10000.0, 10000.0, 0.0],
+                        [-10000.0, 10000.0, 0.0]
+                    ]
+                },
+                "area_token": "cybertown",
+                "target": {
+                    "class": "object",
+                    "type": "cargo",
+                    "features": {"subtype": "box", "color": "red", "label": "RedBox"},
+                    "conf_ge": 0.85,
+                    "persist_ge_s": 1.0
+                },
+                "target_token": "Red_Box",
+                "conf_ge": 0.85,
+                "persist_ge_s": 1.0
             }
         }
     }
@@ -193,12 +322,12 @@ SKILL_LIST_PLACE_LOAD = {
         "Humanoid_01": {
             "skill": "place",
             "params": {
-                "object1": {
+                "target": {
                     "class": "object",
-                    "type": "box",
+                    "type": "cargo",
                     "features": {"color": "red", "label": "RedBox"}
                 },
-                "object2": {
+                "surface_target": {
                     "class": "robot",
                     "type": "UGV",
                     "features": {"label": "UGV_01"}
@@ -214,12 +343,12 @@ SKILL_LIST_PLACE_UNLOAD = {
         "Humanoid_01": {
             "skill": "place",
             "params": {
-                "object1": {
+                "target": {
                     "class": "object",
-                    "type": "box",
+                    "type": "cargo",
                     "features": {"color": "red", "label": "RedBox"}
                 },
-                "object2": {
+                "surface_target": {
                     "class": "ground",
                     "type": "",
                     "features": {}
@@ -245,12 +374,12 @@ SKILL_LIST_PLACE_COOP = {
         "Humanoid_01": {
             "skill": "place",
             "params": {
-                "object1": {
+                "target": {
                     "class": "object",
-                    "type": "box",
+                    "type": "cargo",
                     "features": {"color": "red", "label": "RedBox"}
                 },
-                "object2": {
+                "surface_target": {
                     "class": "robot",
                     "type": "UGV",
                     "features": {"label": "UGV_01"}
@@ -274,12 +403,12 @@ SKILL_LIST_PLACE_COOP = {
         "Humanoid_01": {
             "skill": "place",
             "params": {
-                "object1": {
+                "target": {
                     "class": "object",
-                    "type": "box",
+                    "type": "cargo",
                     "features": {"color": "red", "label": "RedBox"}
                 },
-                "object2": {
+                "surface_target": {
                     "class": "ground",
                     "type": "",
                     "features": {}
@@ -509,8 +638,8 @@ def print_skill_list(label: str, skill_list: dict):
             skill = cmd.get('skill')
             params = cmd.get('params', {})
             dest = params.get('dest')
-            object1 = params.get('object1')
-            object2 = params.get('object2')
+            target = params.get('target')
+            surface_target = params.get('surface_target')
             search_area = params.get('search_area')
             target = params.get('target')
             
@@ -521,15 +650,15 @@ def print_skill_list(label: str, skill_list: dict):
                 target_features = target.get('features', {})
                 target_label = target_features.get('label', target.get('label', target.get('id', 'unknown')))
                 print(f"    {agent}: {skill} (area: {len(search_area)} vertices, target: {target_label})")
-            elif object1 and object2:
-                obj1_label = object1.get('features', {}).get('label', object1.get('type', 'unknown'))
-                obj2_class = object2.get('class', '')
+            elif target and surface_target:
+                obj1_label = target.get('features', {}).get('label', target.get('type', 'unknown'))
+                obj2_class = surface_target.get('class', '')
                 if obj2_class == 'ground':
                     obj2_label = 'ground'
                 elif obj2_class == 'robot':
-                    obj2_label = object2.get('features', {}).get('label', 'UGV')
+                    obj2_label = surface_target.get('features', {}).get('label', 'UGV')
                 else:
-                    obj2_label = object2.get('features', {}).get('label', object2.get('type', 'unknown'))
+                    obj2_label = surface_target.get('features', {}).get('label', surface_target.get('type', 'unknown'))
                 print(f"    {agent}: {skill} ({obj1_label} -> {obj2_label})")
             else:
                 print(f"    {agent}: {skill}")
@@ -586,6 +715,16 @@ def run_server(port: int, test_mode: str, interval: float):
         msg = create_skill_list_message(SKILL_LIST_PLACE_COOP)
         SimPollHandler.pending_messages.append(msg)
     
+    elif test_mode == 'planner_example_1':
+        print_skill_list("Planner Example 1 - UGV+Humanoid Transport", SKILL_LIST_PLANNER_EXAMPLE_1)
+        msg = create_skill_list_message(SKILL_LIST_PLANNER_EXAMPLE_1)
+        SimPollHandler.pending_messages.append(msg)
+    
+    elif test_mode == 'planner_example_2':
+        print_skill_list("Planner Example 2 - Quadruped Search", SKILL_LIST_PLANNER_EXAMPLE_2)
+        msg = create_skill_list_message(SKILL_LIST_PLANNER_EXAMPLE_2)
+        SimPollHandler.pending_messages.append(msg)
+    
     print(f"\nWaiting for UE5 to poll...")
     print(f"Press Ctrl+C to stop\n")
     
@@ -602,7 +741,8 @@ def main():
     parser.add_argument('--port', type=int, default=8081, help='Server port')
     parser.add_argument('--test', type=str, default='single', 
                         choices=['single', 'uav_search', 'transport_auto',
-                                 'place_load', 'place_unload', 'place_coop'],
+                                 'place_load', 'place_unload', 'place_coop',
+                                 'planner_example_1', 'planner_example_2'],
                         help='Test mode')
     parser.add_argument('--interval', type=float, default=15.0,
                         help='Interval between skill lists in seconds (default: 15)')
@@ -640,6 +780,12 @@ if __name__ == '__main__':
 #
 # # 测试 Place 技能 - UGV 和 Humanoid 协作搬运
 # python scripts/send_skill_list.py --server --test place_coop
+#
+# # 测试规划层示例1 - UGV+Humanoid 协作搬运任务
+# python scripts/send_skill_list.py --server --test planner_example_1
+#
+# # 测试规划层示例2 - Quadruped 搜索任务
+# python scripts/send_skill_list.py --server --test planner_example_2
 #
 # # 打印技能列表 JSON
 # python scripts/send_skill_list.py --print

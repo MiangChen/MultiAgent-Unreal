@@ -4,7 +4,6 @@
 // POI 用于在 Edit Mode 中标记用户感兴趣的位置
 // 可用于创建 Goal 或 Zone
 //
-// Requirements: 3.1, 3.2
 
 #pragma once
 
@@ -22,7 +21,6 @@ class UStaticMeshComponent;
  * 
  * Edit Mode 中的临时标记点，包含 Niagara 粒子效果作为视觉标记
  * 
- * Requirements: 3.1, 3.2
  */
 UCLASS()
 class MULTIAGENT_API AMAPointOfInterest : public AActor
@@ -58,7 +56,6 @@ public:
     
     /**
      * 设置高亮状态
-     * Requirements: 4.3
      * 
      * @param bHighlight 是否高亮
      */

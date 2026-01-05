@@ -1,6 +1,5 @@
 // MAGoalActor.cpp
 // Goal 可视化 Actor 实现
-// Requirements: 15.2, 15.3, 15.4, 15.5, 15.6
 
 #include "MAGoalActor.h"
 #include "Components/StaticMeshComponent.h"

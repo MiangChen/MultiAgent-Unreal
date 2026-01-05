@@ -1,6 +1,5 @@
 // MADAGCanvasWidget.h
 // DAG 画布 Widget - 可视化任务图的画布组件
-// Requirements: 4.1, 4.2, 7.1, 7.4, 10.1, 10.2, 10.3
 
 #pragma once
 

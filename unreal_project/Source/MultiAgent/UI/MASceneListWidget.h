@@ -3,7 +3,6 @@
 // 
 // 用于在 Edit Mode 中显示当前场景的 Goal 列表和 Zone 列表
 // 支持点击列表项选中对应的 Actor
-// Requirements: 17.1, 17.2, 17.3, 17.4, 17.5, 17.6, 17.7
 
 #pragma once
 
@@ -32,7 +31,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnZoneItemClicked, const FString&, 
  * 场景列表面板 Widget
  * 
  * 显示当前场景的 Goal 列表和 Zone 列表
- * Requirements: 17.1, 17.2, 17.3, 17.4, 17.5, 17.6, 17.7
  */
 UCLASS()
 class MULTIAGENT_API UMASceneListWidget : public UUserWidget
@@ -48,7 +46,6 @@ public:
     
     /**
      * 刷新列表内容
-     * Requirements: 17.6
      */
     UFUNCTION(BlueprintCallable, Category = "UI")
     void RefreshLists();
@@ -64,11 +61,11 @@ public:
     // 委托
     //=========================================================================
     
-    /** Goal 项点击委托 - Requirements: 17.4 */
+    /** Goal 项点击委托 */
     UPROPERTY(BlueprintAssignable, Category = "Events")
     FOnGoalItemClicked OnGoalItemClicked;
 
-    /** Zone 项点击委托 - Requirements: 17.5 */
+    /** Zone 项点击委托 */
     UPROPERTY(BlueprintAssignable, Category = "Events")
     FOnZoneItemClicked OnZoneItemClicked;
 

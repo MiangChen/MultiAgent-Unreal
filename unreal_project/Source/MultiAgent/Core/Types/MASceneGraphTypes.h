@@ -1,6 +1,5 @@
 // MASceneGraphTypes.h
 // 场景图相关类型定义
-// Requirements: 11.5, 11.6, 11.7
 
 #pragma once
 
@@ -13,12 +12,11 @@
  * 
  * JSON 格式: {"class": "...", "type": "...", "features": {"key": "value", ...}}
  * 
- * Requirements: 11.5, 11.6, 11.7
  * 
  * 使用示例:
  * - 引用机器人: {"class": "robot", "type": "UGV", "features": {"label": "UGV_01"}}
  * - 引用地面: {"class": "ground"}
- * - 引用物品: {"class": "pickup_item", "type": "box", "features": {"color": "red"}}
+ * - 引用物品: {"class": "pickup_item", "type": "cargo", "features": {"color": "red"}}
  */
 USTRUCT(BlueprintType)
 struct FMASemanticLabel
@@ -82,10 +80,12 @@ struct FMASemanticLabel
         return Class.Equals(TEXT("ground"), ESearchCase::IgnoreCase);
     }
 
-    /** 是否引用可拾取物品 */
+    /** 是否引用可拾取物品 (class 为 "pickup_item", "object", 或 "cargo") */
     bool IsPickupItem() const
     {
-        return Class.Equals(TEXT("pickup_item"), ESearchCase::IgnoreCase);
+        return Class.Equals(TEXT("pickup_item"), ESearchCase::IgnoreCase) ||
+               Class.Equals(TEXT("object"), ESearchCase::IgnoreCase) ||
+               Class.Equals(TEXT("cargo"), ESearchCase::IgnoreCase);
     }
 
     /** 是否引用建筑物 */

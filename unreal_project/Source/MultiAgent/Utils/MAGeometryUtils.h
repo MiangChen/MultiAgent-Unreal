@@ -1,7 +1,6 @@
 // MAGeometryUtils.h
 // 几何计算工具类
 // 用于多选模式的凸包计算和点排序
-// Requirements: 6.1, 6.2, 7.1, 3.2, 4.2, 5.2, 5.3, 5.4
 
 #pragma once
 
@@ -11,7 +10,6 @@
 /**
  * Prism 几何数据结构
  * 用于存储棱柱几何信息 (底面多边形 + 高度)
- * Requirements: 6.1, 2.3, 2.4
  */
 struct MULTIAGENT_API FMAPrismGeometry
 {
@@ -34,7 +32,6 @@ struct MULTIAGENT_API FMAPrismGeometry
 /**
  * OBB (有向包围盒) 几何数据结构
  * 用于存储 OBB 几何信息
- * Requirements: 3.2, 5.2, 5.3, 5.4
  */
 struct MULTIAGENT_API FMAOBBGeometry
 {
@@ -71,7 +68,7 @@ class MULTIAGENT_API FMAGeometryUtils
 {
 public:
     //=========================================================================
-    // 凸包计算 (Requirements: 6.2, 6.3)
+    // 凸包计算
     //=========================================================================
 
     /**
@@ -88,7 +85,7 @@ public:
     static TArray<FVector2D> ComputeConvexHull2D(const TArray<FVector2D>& Points);
 
     //=========================================================================
-    // 边界框角点收集 (Requirements: 6.1)
+    // 边界框角点收集
     //=========================================================================
 
     /**
@@ -102,7 +99,7 @@ public:
     static TArray<FVector2D> CollectBoundingBoxCorners(const TArray<AActor*>& Actors);
 
     //=========================================================================
-    // 最近邻排序 (Requirements: 7.1, 7.2, 7.3)
+    // 最近邻排序
     //=========================================================================
 
     /**
@@ -133,7 +130,7 @@ public:
     static float CrossProduct2D(const FVector2D& O, const FVector2D& A, const FVector2D& B);
 
     //=========================================================================
-    // Prism 几何计算 (Requirements: 6.1, 2.3, 2.4, 6.2, 6.3, 6.4)
+    // Prism 几何计算
     //=========================================================================
 
     /**
@@ -148,12 +145,11 @@ public:
      * 4. 计算凸包作为底面多边形
      * 5. 确保顶点为逆时针顺序
      * 
-     * Requirements: 2.3, 2.4, 6.2, 6.3, 6.4
      */
     static FMAPrismGeometry ComputePrismFromActors(const TArray<AActor*>& Actors);
 
     //=========================================================================
-    // OBB 几何计算 (Requirements: 3.2, 5.2, 5.3, 5.4)
+    // OBB 几何计算
     //=========================================================================
 
     /**
@@ -166,7 +162,6 @@ public:
      * 2. 使用 FOrientedBox3d 拟合最小 OBB
      * 3. 提取底面四个角点
      * 
-     * Requirements: 3.2, 5.2, 5.3
      */
     static FMAOBBGeometry ComputeOBBFromActors(const TArray<AActor*>& Actors);
 
@@ -180,7 +175,6 @@ public:
      * 2. 筛选 Z 坐标最小的 4 个点
      * 3. 按逆时针顺序排列
      * 
-     * Requirements: 5.4
      */
     static TArray<FVector> ExtractBottomCorners(const UE::Geometry::TOrientedBox3<double>& OBB);
 
@@ -199,7 +193,7 @@ public:
     static TArray<FVector> ComputeShortEdgeMidpoints(const TArray<FVector>& CornerPoints);
 
     //=========================================================================
-    // 几何中心计算 (Requirements: 4.2)
+    // 几何中心计算
     //=========================================================================
 
     /**
@@ -207,12 +201,11 @@ public:
      * @param Actors Actor 列表
      * @return 所有 Actor 位置的算术平均值
      * 
-     * Requirements: 4.2
      */
     static FVector ComputeCenterFromActors(const TArray<AActor*>& Actors);
 
     //=========================================================================
-    // 3D 边界框顶点收集 (Requirements: 3.3, 6.2)
+    // 3D 边界框顶点收集
     //=========================================================================
 
     /**
@@ -222,7 +215,6 @@ public:
      * 
      * 每个 Actor 的边界框有 8 个角点
      * 
-     * Requirements: 3.3, 6.2
      */
     static TArray<FVector> CollectBoundingBoxVertices3D(const TArray<AActor*>& Actors);
 

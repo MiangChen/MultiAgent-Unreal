@@ -1,6 +1,5 @@
 // MASceneGraphIO.h
 // 场景图文件IO模块 - 负责场景图JSON文件的加载、解析和序列化
-// Requirements: 1.1, 10.1, 10.2, 10.6
 
 #pragma once
 
@@ -16,7 +15,6 @@
  * - 解析节点数组为FMASceneGraphNode结构
  * - 序列化节点为JSON格式
  * 
- * Requirements: 1.1, 10.1, 10.2, 10.6
  */
 class MULTIAGENT_API FMASceneGraphIO
 {
@@ -32,7 +30,6 @@ public:
      * @param OutData 输出的JSON对象
      * @return 加载是否成功
      * 
-     * Requirements: 1.1
      */
     static bool LoadBaseSceneGraph(const FString& FilePath, TSharedPtr<FJsonObject>& OutData);
 
@@ -63,7 +60,6 @@ public:
      * @param NodesArray JSON节点数组
      * @return 解析后的节点数组
      * 
-     * Requirements: 10.1, 10.2, 10.6
      */
     static TArray<FMASceneGraphNode> ParseNodes(const TArray<TSharedPtr<FJsonValue>>& NodesArray);
 
@@ -85,7 +81,6 @@ public:
      * @param Node 要序列化的节点
      * @return JSON对象，如果序列化失败则返回nullptr
      * 
-     * Requirements: 10.1, 10.2, 10.6
      */
     static TSharedPtr<FJsonObject> SerializeNode(const FMASceneGraphNode& Node);
 

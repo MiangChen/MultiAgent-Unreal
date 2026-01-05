@@ -1,6 +1,5 @@
 // MAEditWidget.cpp
 // Edit Mode 编辑面板 Widget - 纯 C++ 实现
-// Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 6.1, 6.2, 6.3, 6.4, 7.1, 8.1, 8.2, 8.5, 9.1, 9.2, 9.6, 10.1, 10.2, 10.7, 13.1, 13.2, 13.3, 13.4
 
 #include "MAEditWidget.h"
 #include "Components/MultiLineEditableTextBox.h"
@@ -268,7 +267,7 @@ void UMAEditWidget::BuildUI()
     ErrorSlot->SetPadding(FMargin(0, 0, 0, 8));
 
     // =========================================================================
-    // Actor 操作区域 - Requirements: 5.1, 5.2, 5.6
+    // Actor 操作区域
     // =========================================================================
     ActorOperationBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("ActorOperationBox"));
     ActorOperationBox->SetVisibility(ESlateVisibility::Collapsed);
@@ -276,7 +275,7 @@ void UMAEditWidget::BuildUI()
     UVerticalBoxSlot* ActorOpSlot = MainVBox->AddChildToVerticalBox(ActorOperationBox);
     ActorOpSlot->SetPadding(FMargin(0, 0, 0, 10));
 
-    // Node 切换按钮容器 - Requirements: 5.2
+    // Node 切换按钮容器
     NodeSwitchContainer = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("NodeSwitchContainer"));
     NodeSwitchContainer->SetVisibility(ESlateVisibility::Collapsed);
     
@@ -294,7 +293,7 @@ void UMAEditWidget::BuildUI()
     UVerticalBoxSlot* JsonLabelSlot = ActorOperationBox->AddChildToVerticalBox(JsonLabel);
     JsonLabelSlot->SetPadding(FMargin(0, 0, 0, 4));
 
-    // JSON edit text box - Requirements: 5.1
+    // JSON edit text box
     JsonEditBox = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(UMultiLineEditableTextBox::StaticClass(), TEXT("JsonEditBox"));
     JsonEditBox->SetHintText(FText::FromString(TEXT("Select an Actor to display JSON")));
 
@@ -313,7 +312,7 @@ void UMAEditWidget::BuildUI()
     // Actor 操作按钮区域
     UHorizontalBox* ActorButtonBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("ActorButtonBox"));
     
-    // Confirm button - Requirements: 6.4
+    // Confirm button
     ConfirmButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("ConfirmButton"));
     UTextBlock* ConfirmText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ConfirmText"));
     ConfirmText->SetText(FText::FromString(TEXT("  Confirm  ")));
@@ -326,7 +325,7 @@ void UMAEditWidget::BuildUI()
     UHorizontalBoxSlot* ConfirmSlot = ActorButtonBox->AddChildToHorizontalBox(ConfirmButton);
     ConfirmSlot->SetPadding(FMargin(0, 0, 10, 0));
 
-    // Delete button - Requirements: 7.1
+    // Delete button
     DeleteButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("DeleteButton"));
     UTextBlock* DeleteText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("DeleteText"));
     DeleteText->SetText(FText::FromString(TEXT("  Delete  ")));
@@ -339,7 +338,7 @@ void UMAEditWidget::BuildUI()
     UHorizontalBoxSlot* DeleteSlot = ActorButtonBox->AddChildToHorizontalBox(DeleteButton);
     DeleteSlot->SetPadding(FMargin(0, 0, 10, 0));
 
-    // Set as Goal button - Requirements: 16.1
+    // Set as Goal button
     SetAsGoalButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("SetAsGoalButton"));
     UTextBlock* SetGoalText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SetGoalText"));
     SetGoalText->SetText(FText::FromString(TEXT(" Set as Goal ")));
@@ -352,7 +351,7 @@ void UMAEditWidget::BuildUI()
     UHorizontalBoxSlot* SetGoalSlot = ActorButtonBox->AddChildToHorizontalBox(SetAsGoalButton);
     SetGoalSlot->SetPadding(FMargin(0, 0, 10, 0));
 
-    // Unset Goal button - Requirements: 16.5
+    // Unset Goal button
     UnsetAsGoalButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("UnsetAsGoalButton"));
     UTextBlock* UnsetGoalText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("UnsetGoalText"));
     UnsetGoalText->SetText(FText::FromString(TEXT(" Unset Goal ")));
@@ -368,7 +367,7 @@ void UMAEditWidget::BuildUI()
     ActorButtonSlot->SetHorizontalAlignment(HAlign_Left);
 
     // =========================================================================
-    // POI 操作区域 - Requirements: 8.1, 9.1, 10.1
+    // POI 操作区域
     // =========================================================================
     POIOperationBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("POIOperationBox"));
     POIOperationBox->SetVisibility(ESlateVisibility::Collapsed);
@@ -387,7 +386,7 @@ void UMAEditWidget::BuildUI()
     UVerticalBoxSlot* DescLabelSlot = POIOperationBox->AddChildToVerticalBox(DescLabel);
     DescLabelSlot->SetPadding(FMargin(0, 0, 0, 4));
 
-    // Description input text box - Requirements: 9.2, 10.2
+    // Description input text box
     DescriptionBox = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(UMultiLineEditableTextBox::StaticClass(), TEXT("DescriptionBox"));
     DescriptionBox->SetHintText(FText::FromString(TEXT("Enter description for Goal/Zone...")));
 
@@ -406,7 +405,7 @@ void UMAEditWidget::BuildUI()
     // POI 操作按钮区域
     UHorizontalBox* POIButtonBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("POIButtonBox"));
     
-    // Create Goal button - Requirements: 9.1
+    // Create Goal button
     CreateGoalButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("CreateGoalButton"));
     UTextBlock* GoalText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("GoalText"));
     GoalText->SetText(FText::FromString(TEXT(" Create Goal ")));
@@ -419,7 +418,7 @@ void UMAEditWidget::BuildUI()
     UHorizontalBoxSlot* GoalSlot = POIButtonBox->AddChildToHorizontalBox(CreateGoalButton);
     GoalSlot->SetPadding(FMargin(0, 0, 10, 0));
 
-    // Create Zone button - Requirements: 10.1
+    // Create Zone button
     CreateZoneButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("CreateZoneButton"));
     UTextBlock* ZoneText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ZoneText"));
     ZoneText->SetText(FText::FromString(TEXT(" Create Zone ")));
@@ -447,12 +446,11 @@ void UMAEditWidget::BuildUI()
     UVerticalBoxSlot* POIButtonSlot = POIOperationBox->AddChildToVerticalBox(POIButtonBox);
     POIButtonSlot->SetPadding(FMargin(0, 0, 0, 10));
 
-    // 预设 Actor 区域 - Requirements: 8.1, 8.5
+    // 预设 Actor 区域
     UHorizontalBox* PresetActorBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("PresetActorBox"));
     
     // Preset Actor dropdown
     PresetActorComboBox = WidgetTree->ConstructWidget<UComboBoxString>(UComboBoxString::StaticClass(), TEXT("PresetActorComboBox"));
-    // Requirements: 8.5 - Reserve Actor selection UI even if preset Actor list is empty
     PresetActorComboBox->AddOption(TEXT("(No preset Actors)"));
     PresetActorComboBox->SetSelectedIndex(0);
     
@@ -460,7 +458,7 @@ void UMAEditWidget::BuildUI()
     ComboSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
     ComboSlot->SetPadding(FMargin(0, 0, 10, 0));
 
-    // Add Actor button - Requirements: 8.2
+    // Add Actor button
     AddActorButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("AddActorButton"));
     UTextBlock* AddActorText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("AddActorText"));
     AddActorText->SetText(FText::FromString(TEXT(" Add ")));
@@ -482,7 +480,6 @@ void UMAEditWidget::BuildUI()
 
 //=========================================================================
 // SetSelectedActor - 设置选中的 Actor
-// Requirements: 5.1, 5.2, 5.3, 5.4, 5.5
 //=========================================================================
 
 void UMAEditWidget::SetSelectedActor(AActor* Actor)
@@ -668,7 +665,6 @@ void UMAEditWidget::SetSelectedActor(AActor* Actor)
 
 //=========================================================================
 // SetSelectedPOIs - 设置选中的 POI 列表
-// Requirements: 8.1, 9.1, 10.1
 //=========================================================================
 
 void UMAEditWidget::SetSelectedPOIs(const TArray<AMAPointOfInterest*>& POIs)
@@ -867,7 +863,7 @@ void UMAEditWidget::UpdateUIState()
         DeleteButton->SetVisibility(ESlateVisibility::Collapsed);
     }
     
-    // 设为 Goal / 取消 Goal 按钮 - Requirements: 16.1, 16.5
+    // 设为 Goal / 取消 Goal 按钮
     // 仅对普通 Actor（非 GoalActor/ZoneActor）显示这些按钮
     // 所有类型的节点（point, prism, linestring 等）都可以设为 Goal
     bool bIsGoalOrZoneActor = false;
@@ -909,7 +905,6 @@ void UMAEditWidget::UpdateUIState()
 
 //=========================================================================
 // UpdateJsonEditBox - 更新 JSON 编辑框内容
-// Requirements: 5.1, 5.2, 5.3, 5.4, 5.5
 //=========================================================================
 
 void UMAEditWidget::UpdateJsonEditBox()
@@ -950,8 +945,6 @@ void UMAEditWidget::UpdateJsonEditBox()
     }
     
     JsonEditBox->SetText(FText::FromString(JsonContent));
-
-    // Requirements: 5.3, 5.4, 5.5 - 所有类型都允许编辑
     // point 类型: 可编辑 properties 和 shape.center
     // polygon/linestring 类型: 仅可编辑 properties (在提交时验证)
     JsonEditBox->SetIsReadOnly(false);
@@ -978,7 +971,6 @@ void UMAEditWidget::UpdateJsonEditBox()
 
 //=========================================================================
 // UpdateNodeSwitchButtons - 更新 Node 切换按钮
-// Requirements: 5.2
 //=========================================================================
 
 void UMAEditWidget::UpdateNodeSwitchButtons()
@@ -1041,7 +1033,6 @@ void UMAEditWidget::UpdateNodeSwitchButtons()
 
 //=========================================================================
 // ValidateJson - 验证 JSON 格式
-// Requirements: 6.1, 6.2
 //=========================================================================
 
 bool UMAEditWidget::ValidateJson(const FString& Json, FString& OutError)
@@ -1075,7 +1066,6 @@ bool UMAEditWidget::ValidateJson(const FString& Json, FString& OutError)
 
 //=========================================================================
 // IsPointTypeNode - 检查是否为 point 类型 Node
-// Requirements: 5.3, 5.5
 //=========================================================================
 
 bool UMAEditWidget::IsPointTypeNode(const FMASceneGraphNode& Node) const
@@ -1123,7 +1113,6 @@ void UMAEditWidget::HighlightNodeInPreview(const FString& NodeId)
 
 //=========================================================================
 // OnConfirmButtonClicked - 确认按钮点击处理
-// Requirements: 6.4
 //=========================================================================
 
 void UMAEditWidget::OnConfirmButtonClicked()
@@ -1165,7 +1154,6 @@ void UMAEditWidget::OnConfirmButtonClicked()
 
 //=========================================================================
 // OnDeleteButtonClicked - 删除按钮点击处理
-// Requirements: 7.1
 //=========================================================================
 
 void UMAEditWidget::OnDeleteButtonClicked()
@@ -1207,7 +1195,6 @@ void UMAEditWidget::OnDeleteButtonClicked()
 
 //=========================================================================
 // OnCreateGoalButtonClicked - 创建 Goal 按钮点击处理
-// Requirements: 9.6
 //=========================================================================
 
 void UMAEditWidget::OnCreateGoalButtonClicked()
@@ -1243,7 +1230,6 @@ void UMAEditWidget::OnCreateGoalButtonClicked()
 
 //=========================================================================
 // OnCreateZoneButtonClicked - 创建 Zone 按钮点击处理
-// Requirements: 10.7
 //=========================================================================
 
 void UMAEditWidget::OnCreateZoneButtonClicked()
@@ -1279,7 +1265,6 @@ void UMAEditWidget::OnCreateZoneButtonClicked()
 
 //=========================================================================
 // OnAddActorButtonClicked - 添加预设 Actor 按钮点击处理
-// Requirements: 8.2
 //=========================================================================
 
 void UMAEditWidget::OnAddActorButtonClicked()
@@ -1395,7 +1380,6 @@ void UMAEditWidget::OnNodeSwitchButtonClickedInternal()
 
 //=========================================================================
 // OnSetAsGoalButtonClicked - 设为 Goal 按钮点击处理
-// Requirements: 16.2
 //=========================================================================
 
 void UMAEditWidget::OnSetAsGoalButtonClicked()
@@ -1421,7 +1405,6 @@ void UMAEditWidget::OnSetAsGoalButtonClicked()
 
 //=========================================================================
 // OnUnsetAsGoalButtonClicked - 取消 Goal 按钮点击处理
-// Requirements: 16.6
 //=========================================================================
 
 void UMAEditWidget::OnUnsetAsGoalButtonClicked()

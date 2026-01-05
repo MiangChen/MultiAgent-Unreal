@@ -1,6 +1,5 @@
 // MASceneGraphQuery.cpp
 // 场景图查询模块实现
-// Requirements: 2.2, 2.3, 3.1, 3.2
 
 #include "MASceneGraphQuery.h"
 #include "Serialization/JsonReader.h"
@@ -9,7 +8,7 @@
 DEFINE_LOG_CATEGORY_STATIC(LogMASceneGraphQuery, Log, All);
 
 //=============================================================================
-// 分类查询 (Requirements: 2.2)
+// 分类查询
 //=============================================================================
 
 TArray<FMASceneGraphNode> FMASceneGraphQuery::GetNodesByCategory(
@@ -144,7 +143,7 @@ TArray<FMASceneGraphNode> FMASceneGraphQuery::GetAllChargingStations(const TArra
 
 
 //=============================================================================
-// 语义查询 (Requirements: 2.3)
+// 语义查询
 //=============================================================================
 
 bool FMASceneGraphQuery::MatchesLabel(const FMASceneGraphNode& Node, const FMASemanticLabel& Label)
@@ -173,13 +172,13 @@ bool FMASceneGraphQuery::MatchesLabel(const FMASceneGraphNode& Node, const FMASe
             bClassMatches = true;
         }
 
-        // 特殊处理: "pickup_item" 类别
+        // 特殊处理: "pickup_item" 或 "cargo" 类别
         if (Label.IsPickupItem() && Node.IsPickupItem())
         {
             bClassMatches = true;
         }
 
-        // 特殊处理: "object" 类别 - 匹配 pickup_item 节点
+        // 特殊处理: "object" 类别 - 匹配 cargo 节点
         // 这是因为外部系统可能使用 "object" 来表示可拾取物品
         if (Label.Class.Equals(TEXT("object"), ESearchCase::IgnoreCase) && Node.IsPickupItem())
         {
@@ -207,17 +206,15 @@ bool FMASceneGraphQuery::MatchesLabel(const FMASceneGraphNode& Node, const FMASe
     // 检查 Type 匹配
     if (!Label.Type.IsEmpty())
     {
-        // Type 可以匹配 Type, AgentType, 或 Features["item_type"]
-        bool bTypeMatches = 
-            Label.Type.Equals(Node.Type, ESearchCase::IgnoreCase) ||
-            Label.Type.Equals(Node.AgentType, ESearchCase::IgnoreCase);
+        // Type 可以匹配 Node.Type 或 Features["subtype"]
+        bool bTypeMatches = Label.Type.Equals(Node.Type, ESearchCase::IgnoreCase);
         
-        // 对于 PickupItem，Type 也可以匹配 Features["item_type"]
-        // 例如: Label.Type="box" 可以匹配 Node.Features["item_type"]="box"
+        // 对于 cargo 类型节点，Type 也可以匹配 Features["subtype"]
+        // 例如: Label.Type="box" 可以匹配 Node.Features["subtype"]="box"
         if (!bTypeMatches && Node.IsPickupItem())
         {
-            const FString* ItemType = Node.Features.Find(TEXT("item_type"));
-            if (ItemType && Label.Type.Equals(*ItemType, ESearchCase::IgnoreCase))
+            const FString* Subtype = Node.Features.Find(TEXT("subtype"));
+            if (Subtype && Label.Type.Equals(*Subtype, ESearchCase::IgnoreCase))
             {
                 bTypeMatches = true;
             }
@@ -376,7 +373,7 @@ TArray<FMASceneGraphNode> FMASceneGraphQuery::FindAllNodesByLabel(
 
 
 //=============================================================================
-// 边界查询 (Requirements: 2.3, 3.1, 3.2)
+// 边界查询
 //=============================================================================
 
 TArray<FMASceneGraphNode> FMASceneGraphQuery::FindNodesInBoundary(

@@ -23,7 +23,6 @@ DECLARE_LOG_CATEGORY_EXTERN(LogMASimTypes, Log, All);
 /**
  * 机器人状态数据 (用于 UI 显示和通信)
  * 基于 UIRef 的 FRobotData 适配
- * Requirements: 6.2
  */
 USTRUCT(BlueprintType)
 struct MULTIAGENT_API FMARobotData
@@ -75,7 +74,6 @@ struct MULTIAGENT_API FMARobotData
 /**
  * 规划器响应数据 (简化版，用于 UI 显示)
  * 基于 UIRef 的 FPlannerResponse 适配
- * Requirements: 6.3
  */
 USTRUCT(BlueprintType)
 struct MULTIAGENT_API FMAPlannerResponse
@@ -122,7 +120,6 @@ struct MULTIAGENT_API FMAPlannerResponse
 
 /**
  * 规划器响应委托
- * Requirements: 6.4
  */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMAPlannerResponse, const FMAPlannerResponse&, Response);
 
@@ -133,13 +130,11 @@ struct FMAWorldModelGraph;
 /**
  * 任务规划 DAG 接收委托
  * 当从规划器收到任务规划 DAG 时广播
- * Requirements: 6.5
  */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMATaskPlanReceived, const FMATaskPlanDAG&, TaskPlan);
 
 /**
  * 世界模型图接收委托
  * 当从规划器收到世界模型图时广播
- * Requirements: 7.4
  */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMAWorldModelReceived, const FMAWorldModelGraph&, WorldModel);

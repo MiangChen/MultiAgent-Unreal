@@ -1,6 +1,5 @@
 // MAContextMenuWidget.h
 // 上下文菜单 Widget - 用于节点和边的右键菜单
-// Requirements: 6.4, 7.3
 
 #pragma once
 

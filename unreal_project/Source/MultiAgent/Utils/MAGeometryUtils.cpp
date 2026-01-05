@@ -1,6 +1,5 @@
 // MAGeometryUtils.cpp
 // 几何计算工具类实现
-// Requirements: 6.1, 6.2, 6.3, 7.1, 7.2, 7.3, 3.2, 4.2, 5.2, 5.3, 5.4
 
 #include "MAGeometryUtils.h"
 #include "GameFramework/Actor.h"
@@ -32,7 +31,7 @@ bool FMAGeometryUtils::CompareByPolarAngle(const FVector2D& Pivot, const FVector
 }
 
 //=============================================================================
-// 边界框角点收集 (Requirements: 6.1)
+// 边界框角点收集
 //=============================================================================
 
 TArray<FVector2D> FMAGeometryUtils::CollectBoundingBoxCorners(const TArray<AActor*>& Actors)
@@ -69,7 +68,7 @@ TArray<FVector2D> FMAGeometryUtils::CollectBoundingBoxCorners(const TArray<AActo
 }
 
 //=============================================================================
-// 凸包计算 - Graham Scan 算法 (Requirements: 6.2, 6.3)
+// 凸包计算 - Graham Scan 算法
 //=============================================================================
 
 TArray<FVector2D> FMAGeometryUtils::ComputeConvexHull2D(const TArray<FVector2D>& Points)
@@ -162,7 +161,7 @@ TArray<FVector2D> FMAGeometryUtils::ComputeConvexHull2D(const TArray<FVector2D>&
 
 
 //=============================================================================
-// 最近邻排序 (Requirements: 7.1, 7.2, 7.3)
+// 最近邻排序
 //=============================================================================
 
 TArray<FVector2D> FMAGeometryUtils::SortByNearestNeighbor(const TArray<FVector2D>& Points)
@@ -217,7 +216,7 @@ TArray<FVector2D> FMAGeometryUtils::SortByNearestNeighbor(const TArray<FVector2D
 
 
 //=============================================================================
-// 3D 边界框顶点收集 (Requirements: 3.3, 6.2)
+// 3D 边界框顶点收集
 //=============================================================================
 
 TArray<FVector> FMAGeometryUtils::CollectBoundingBoxVertices3D(const TArray<AActor*>& Actors)
@@ -246,7 +245,7 @@ TArray<FVector> FMAGeometryUtils::CollectBoundingBoxVertices3D(const TArray<AAct
 }
 
 //=============================================================================
-// Prism 几何计算 (Requirements: 2.3, 2.4, 6.2, 6.3, 6.4)
+// Prism 几何计算
 //=============================================================================
 
 FMAPrismGeometry FMAGeometryUtils::ComputePrismFromActors(const TArray<AActor*>& Actors)
@@ -293,7 +292,7 @@ FMAPrismGeometry FMAGeometryUtils::ComputePrismFromActors(const TArray<AActor*>&
 }
 
 //=============================================================================
-// OBB 底面角点提取 (Requirements: 5.4)
+// OBB 底面角点提取
 //=============================================================================
 
 TArray<FVector> FMAGeometryUtils::ExtractBottomCorners(const UE::Geometry::TOrientedBox3<double>& OBB)
@@ -376,7 +375,7 @@ TArray<FVector> FMAGeometryUtils::ExtractBottomCorners(const UE::Geometry::TOrie
 
 
 //=============================================================================
-// OBB 几何计算 (Requirements: 3.2, 5.2, 5.3)
+// OBB 几何计算
 //=============================================================================
 
 FMAOBBGeometry FMAGeometryUtils::ComputeOBBFromActors(const TArray<AActor*>& Actors)
@@ -428,7 +427,7 @@ FMAOBBGeometry FMAGeometryUtils::ComputeOBBFromActors(const TArray<AActor*>& Act
 
 
 //=============================================================================
-// 几何中心计算 (Requirements: 4.2)
+// 几何中心计算
 //=============================================================================
 
 FVector FMAGeometryUtils::ComputeCenterFromActors(const TArray<AActor*>& Actors)

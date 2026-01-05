@@ -2,7 +2,6 @@
 // 场景查询辅助工具实现
 //
 // 本模块提供基于 UE5 场景的对象查询功能，作为场景图查询的回退方案
-// Requirements: 2.4
 
 #include "MASceneQuery.h"
 #include "MASkillGeometryUtils.h"
@@ -17,15 +16,15 @@ DEFINE_LOG_CATEGORY_STATIC(LogMASceneQuery, Log, All);
 // 
 // 输入语义标签格式 (来自 Python 端):
 // {
-//     "class": "object" 或 "pickup_item",
-//     "type": "box",
-//     "features": {"color": "red", "name": "RedBox"}
+//     "class": "object",
+//     "type": "cargo",
+//     "features": {"color": "red", "label": "RedBox", "subtype": "box"}
 // }
 //
 // 场景中 MAPickupItem 的 ItemName 格式: "RedBox", "BlueBox", "GreenBox"
 //
 // 匹配策略:
-// 1. 如果 features 中有 "name"，直接用 name 匹配 ItemName
+// 1. 如果 features 中有 "label"，直接用 label 匹配 ItemName
 // 2. 如果 features 中有 "color"，检查 ItemName 是否包含该颜色
 // 3. 如果有 type，检查 ItemName 是否包含该类型（如 "box" -> "Box"）
 //=============================================================================
@@ -101,7 +100,8 @@ FMASemanticLabel FMASceneQuery::ExtractPickupItemLabel(AMAPickupItem* Item)
     FMASemanticLabel Label;
     if (!Item) return Label;
     
-    Label.Class = TEXT("pickup_item");
+    Label.Class = TEXT("object");
+    Label.Type = TEXT("cargo");
     
     FString ItemName = Item->ItemName;
     

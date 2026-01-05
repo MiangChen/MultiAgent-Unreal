@@ -16,6 +16,10 @@ struct FMAFeedbackContext
 {
     GENERATED_BODY()
 
+    // 任务 ID (从技能参数传入)
+    UPROPERTY(BlueprintReadOnly)
+    FString TaskId;
+
     // 通用
     UPROPERTY(BlueprintReadOnly)
     FVector TargetLocation = FVector::ZeroVector;
@@ -46,6 +50,16 @@ struct FMAFeedbackContext
     
     UPROPERTY(BlueprintReadOnly)
     TArray<FVector> FoundLocations;
+    
+    // 搜索技能扩展字段
+    UPROPERTY(BlueprintReadOnly)
+    FString SearchAreaToken;  // 搜索区域标识 (如 Building-3)
+    
+    UPROPERTY(BlueprintReadOnly)
+    float SearchDurationSeconds = 0.f;  // 搜索持续时间（秒）
+    
+    UPROPERTY(BlueprintReadOnly)
+    FString SearchTargetSpec;  // 搜索目标规格 (JSON 字符串)
 
     // Place 结果
     UPROPERTY(BlueprintReadOnly)
@@ -63,7 +77,7 @@ struct FMAFeedbackContext
     UPROPERTY(BlueprintReadOnly)
     FString PlaceCancelledPhase;
 
-    // Navigate 附近地标信息 (Requirements: 3.3, 3.4)
+    // Navigate 附近地标信息
     UPROPERTY(BlueprintReadOnly)
     FString NearbyLandmarkLabel;
     
@@ -73,7 +87,7 @@ struct FMAFeedbackContext
     UPROPERTY(BlueprintReadOnly)
     float NearbyLandmarkDistance = 0.f;
 
-    // Follow 技能信息 (Requirements: 5.1, 5.2, 5.3, 5.4, 5.5)
+    // Follow 技能信息
     UPROPERTY(BlueprintReadOnly)
     FString FollowTargetRobotName;
     
@@ -85,8 +99,20 @@ struct FMAFeedbackContext
     
     UPROPERTY(BlueprintReadOnly)
     FString FollowErrorReason;
+    
+    UPROPERTY(BlueprintReadOnly)
+    FString FollowRobotId;  // 执行 Follow 的机器人 ID
+    
+    UPROPERTY(BlueprintReadOnly)
+    FString FollowTargetId;  // 被跟随目标的 ID
+    
+    UPROPERTY(BlueprintReadOnly)
+    float FollowDurationSeconds = 0.f;  // 跟随持续时间（秒）
+    
+    UPROPERTY(BlueprintReadOnly)
+    FString FollowTargetSpec;  // 跟随目标规格 (JSON 字符串)
 
-    // Charge 技能信息 (Requirements: 7.1, 7.2, 7.3, 7.4)
+    // Charge 技能信息
     UPROPERTY(BlueprintReadOnly)
     FString ChargingStationId;
     
@@ -99,7 +125,7 @@ struct FMAFeedbackContext
     UPROPERTY(BlueprintReadOnly)
     FString ChargeErrorReason;
 
-    // TakeOff 技能信息 (Requirements: 8.1, 8.4)
+    // TakeOff 技能信息
     UPROPERTY(BlueprintReadOnly)
     float TakeOffTargetHeight = 0.f;
     
@@ -115,7 +141,7 @@ struct FMAFeedbackContext
     UPROPERTY(BlueprintReadOnly)
     bool bTakeOffHeightAdjusted = false;  // 高度是否被调整
 
-    // Land 技能信息 (Requirements: 8.2, 8.5)
+    // Land 技能信息
     UPROPERTY(BlueprintReadOnly)
     FVector LandTargetLocation = FVector::ZeroVector;
     
@@ -128,7 +154,7 @@ struct FMAFeedbackContext
     UPROPERTY(BlueprintReadOnly)
     bool bLandLocationSafe = true;  // 着陆位置是否安全
 
-    // ReturnHome 技能信息 (Requirements: 8.3, 8.6)
+    // ReturnHome 技能信息
     UPROPERTY(BlueprintReadOnly)
     FVector HomeLocationFromSceneGraph = FVector::ZeroVector;
     

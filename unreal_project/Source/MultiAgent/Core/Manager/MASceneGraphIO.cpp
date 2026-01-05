@@ -1,6 +1,5 @@
 // MASceneGraphIO.cpp
 // 场景图文件IO模块实现
-// Requirements: 1.1, 10.1, 10.2, 10.6
 
 #include "MASceneGraphIO.h"
 #include "Misc/FileHelper.h"
@@ -17,7 +16,6 @@ DEFINE_LOG_CATEGORY_STATIC(LogMASceneGraphIO, Log, All);
 
 bool FMASceneGraphIO::LoadBaseSceneGraph(const FString& FilePath, TSharedPtr<FJsonObject>& OutData)
 {
-    // Requirements: 1.1 - 加载基础场景图JSON文件
 
     OutData.Reset();
 
@@ -92,7 +90,6 @@ bool FMASceneGraphIO::SaveSceneGraph(const FString& FilePath, const TSharedPtr<F
 
 TArray<FMASceneGraphNode> FMASceneGraphIO::ParseNodes(const TArray<TSharedPtr<FJsonValue>>& NodesArray)
 {
-    // Requirements: 10.1, 10.2, 10.6 - 解析所有节点类型
 
     TArray<FMASceneGraphNode> Result;
 
@@ -123,7 +120,6 @@ TArray<FMASceneGraphNode> FMASceneGraphIO::ParseNodes(const TArray<TSharedPtr<FJ
 
 FMASceneGraphNode FMASceneGraphIO::ParseSingleNode(const TSharedPtr<FJsonObject>& NodeObject)
 {
-    // Requirements: 10.1, 10.2, 10.6 - 解析单个节点
 
     FMASceneGraphNode Node;
 
@@ -166,9 +162,6 @@ FMASceneGraphNode FMASceneGraphIO::ParseSingleNode(const TSharedPtr<FJsonObject>
 
         // 解析category字段
         Node.Category = ParseCategory(*PropertiesObject);
-
-        // 解析agent_type字段 (机器人专用)
-        (*PropertiesObject)->TryGetStringField(TEXT("agent_type"), Node.AgentType);
 
         // 解析is_carried字段 (PickupItem专用)
         (*PropertiesObject)->TryGetBoolField(TEXT("is_carried"), Node.bIsCarried);
@@ -217,7 +210,6 @@ FMASceneGraphNode FMASceneGraphIO::ParseSingleNode(const TSharedPtr<FJsonObject>
 
 TSharedPtr<FJsonObject> FMASceneGraphIO::SerializeNode(const FMASceneGraphNode& Node)
 {
-    // Requirements: 10.1, 10.2, 10.6 - 序列化节点为JSON
 
     if (!Node.IsValid())
     {
@@ -264,13 +256,12 @@ TSharedPtr<FJsonObject> FMASceneGraphIO::SerializeNode(const FMASceneGraphNode& 
     }
 
     // 机器人专用字段
-    if (Node.IsRobot() && !Node.AgentType.IsEmpty())
+    if (Node.IsRobot())
     {
-        Properties->SetStringField(TEXT("agent_type"), Node.AgentType);
         Properties->SetStringField(TEXT("status"), TEXT("idle"));
     }
 
-    // PickupItem专用字段
+    // PickupItem专用字段 (Type == "cargo")
     if (Node.IsPickupItem())
     {
         Properties->SetBoolField(TEXT("is_carried"), Node.bIsCarried);
@@ -527,17 +518,14 @@ FString FMASceneGraphIO::ParseCategory(const TSharedPtr<FJsonObject>& Properties
         {
             return TEXT("trans_facility");
         }
-        else if (Type == TEXT("robot"))
+        else if (Type == TEXT("robot") || Type == TEXT("uav") || Type == TEXT("ugv") || 
+                 Type == TEXT("quadruped") || Type == TEXT("humanoid") || Type == TEXT("fixedwinguav"))
         {
             return TEXT("robot");
         }
-        else if (Type == TEXT("pickup_item"))
+        else if (Type == TEXT("cargo") || Type == TEXT("charging_station"))
         {
-            return TEXT("pickup_item");
-        }
-        else if (Type == TEXT("charging_station"))
-        {
-            return TEXT("charging_station");
+            return TEXT("prop");  // cargo 和 charging_station 归类为 prop
         }
         else
         {

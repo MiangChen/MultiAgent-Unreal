@@ -1,6 +1,5 @@
 // MATaskGraphTypes.h
 // 任务图数据类型定义 - Task Planner Workbench
-// Requirements: 3.1, 9.2
 
 #pragma once
 

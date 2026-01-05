@@ -36,6 +36,7 @@ public class MultiAgent : ModuleRules
             "JsonUtilities",
             // HTTP 模块 (通信子系统)
             "HTTP",
+            "HTTPServer",
             // Niagara (特效系统)
             "Niagara",
             // GeometryCore (几何计算模块 - OBB, Prism 等)

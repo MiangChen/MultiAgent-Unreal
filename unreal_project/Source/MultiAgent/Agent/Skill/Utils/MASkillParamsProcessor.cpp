@@ -62,18 +62,17 @@ void FMASkillParamsProcessor::ParseSemanticTargetFromJson(const FString& JsonStr
         *OutTarget.Class, *OutTarget.Type, OutTarget.Features.Num());
 }
 
-EPlaceMode FMASkillParamsProcessor::DeterminePlaceMode(const FMASemanticTarget& Object2)
+EPlaceMode FMASkillParamsProcessor::DeterminePlaceMode(const FMASemanticTarget& surface_target)
 {
-    // Requirements: 1.3 - 检查是否为 UGV 机器人
     // 如果 type 或 features 中包含 "UGV" 或 "ugv"，则为装货模式
-    if (Object2.Type.Contains(TEXT("UGV"), ESearchCase::IgnoreCase) ||
-        Object2.Type.Contains(TEXT("ugv"), ESearchCase::IgnoreCase))
+    if (surface_target.Type.Contains(TEXT("UGV"), ESearchCase::IgnoreCase) ||
+        surface_target.Type.Contains(TEXT("ugv"), ESearchCase::IgnoreCase))
     {
         return EPlaceMode::LoadToUGV;
     }
     
     // 检查 features 中是否有 UGV 相关标识
-    for (const auto& Pair : Object2.Features)
+    for (const auto& Pair : surface_target.Features)
     {
         if (Pair.Key.Contains(TEXT("UGV"), ESearchCase::IgnoreCase) ||
             Pair.Value.Contains(TEXT("UGV"), ESearchCase::IgnoreCase))
@@ -83,15 +82,13 @@ EPlaceMode FMASkillParamsProcessor::DeterminePlaceMode(const FMASemanticTarget& 
     }
     
     // 检查 class 是否为 robot
-    if (Object2.Class.Equals(TEXT("robot"), ESearchCase::IgnoreCase))
+    if (surface_target.Class.Equals(TEXT("robot"), ESearchCase::IgnoreCase))
     {
         return EPlaceMode::LoadToUGV;
     }
-    
-    // Requirements: 1.4 - 检查是否为地面放置模式
     // 如果 class 包含 "ground"，则为卸货模式
-    if (Object2.Class.Contains(TEXT("ground"), ESearchCase::IgnoreCase) ||
-        Object2.IsGround())
+    if (surface_target.Class.Contains(TEXT("ground"), ESearchCase::IgnoreCase) ||
+        surface_target.IsGround())
     {
         return EPlaceMode::UnloadToGround;
     }
@@ -113,6 +110,12 @@ void FMASkillParamsProcessor::Process(AMACharacter* Agent, EMACommand Command, c
     
     // 重置反馈上下文
     SkillComp->ResetFeedbackContext();
+    
+    // 设置 TaskId
+    if (Cmd && !Cmd->Params.TaskId.IsEmpty())
+    {
+        SkillComp->GetFeedbackContextMutable().TaskId = Cmd->Params.TaskId;
+    }
     
     // 根据指令类型分发处理
     switch (Command)
@@ -267,7 +270,6 @@ void FMASkillParamsProcessor::ProcessNavigate(UMASkillComponent* SkillComp, cons
     
     //=========================================================================
     // Step 1: 使用场景图查询验证目标点是否在建筑物内
-    // Requirements: 3.1, 3.2
     //=========================================================================
     UGameInstance* GameInstance = World->GetGameInstance();
     UMASceneGraphManager* SceneGraphManager = GameInstance ? GameInstance->GetSubsystem<UMASceneGraphManager>() : nullptr;
@@ -346,113 +348,112 @@ void FMASkillParamsProcessor::ProcessNavigate(UMASkillComponent* SkillComp, cons
         }
     }
     
-    //=========================================================================
-    // Step 2: 回退到 UE5 射线检测（如果场景图未处理）
-    //=========================================================================
-    if (!bAdjustedXY)
-    {
-        FVector TraceStart = FVector(TargetLocation.X, TargetLocation.Y, 50000.f);
-        FVector TraceEnd = FVector(TargetLocation.X, TargetLocation.Y, -10000.f);
+    // //=========================================================================
+    // // Step 2: 回退到 UE5 射线检测（如果场景图未处理）
+    // //=========================================================================
+    // if (!bAdjustedXY)
+    // {
+    //     FVector TraceStart = FVector(TargetLocation.X, TargetLocation.Y, 50000.f);
+    //     FVector TraceEnd = FVector(TargetLocation.X, TargetLocation.Y, -10000.f);
         
-        FHitResult HitResult;
-        if (World->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, ECC_WorldStatic, QueryParams))
-        {
-            AActor* HitActor = HitResult.GetActor();
+    //     FHitResult HitResult;
+    //     if (World->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, ECC_WorldStatic, QueryParams))
+    //     {
+    //         AActor* HitActor = HitResult.GetActor();
             
-            if (HitActor)
-            {
-                FVector Origin, BoxExtent;
-                HitActor->GetActorBounds(false, Origin, BoxExtent);
+    //         if (HitActor)
+    //         {
+    //             FVector Origin, BoxExtent;
+    //             HitActor->GetActorBounds(false, Origin, BoxExtent);
                 
-                UE_LOG(LogTemp, Verbose, TEXT("[ProcessNavigate] %s: Ray hit actor '%s', Origin=(%.1f, %.1f, %.1f), BoxExtent=(%.1f, %.1f, %.1f)"),
-                    *Agent->AgentName, *HitActor->GetName(), Origin.X, Origin.Y, Origin.Z, BoxExtent.X, BoxExtent.Y, BoxExtent.Z);
+    //             UE_LOG(LogTemp, Verbose, TEXT("[ProcessNavigate] %s: Ray hit actor '%s', Origin=(%.1f, %.1f, %.1f), BoxExtent=(%.1f, %.1f, %.1f)"),
+    //                 *Agent->AgentName, *HitActor->GetName(), Origin.X, Origin.Y, Origin.Z, BoxExtent.X, BoxExtent.Y, BoxExtent.Z);
                 
-                // 检查是否是有高度的障碍物（不是地面）
-                // 使用更严格的判断：障碍物高度应该明显大于地面厚度
-                // 同时检查 Actor 是否是 Landscape 或地面类型
-                bool bIsObstacle = BoxExtent.Z > 100.f;  // 半高度 > 100 意味着实际高度 > 200
+    //             // 检查是否是有高度的障碍物（不是地面）
+    //             // 使用更严格的判断：障碍物高度应该明显大于地面厚度
+    //             // 同时检查 Actor 是否是 Landscape 或地面类型
+    //             bool bIsObstacle = BoxExtent.Z > 100.f;  // 半高度 > 100 意味着实际高度 > 200
                 
-                // 额外检查：如果 Actor 名称包含 "floor"、"ground"、"landscape" 则不是障碍物
-                FString ActorName = HitActor->GetName().ToLower();
-                if (ActorName.Contains(TEXT("floor")) || 
-                    ActorName.Contains(TEXT("ground")) || 
-                    ActorName.Contains(TEXT("landscape")) ||
-                    ActorName.Contains(TEXT("terrain")))
-                {
-                    bIsObstacle = false;
-                }
+    //             // 额外检查：如果 Actor 名称包含 "floor"、"ground"、"landscape" 则不是障碍物
+    //             FString ActorName = HitActor->GetName().ToLower();
+    //             if (ActorName.Contains(TEXT("floor")) || 
+    //                 ActorName.Contains(TEXT("ground")) || 
+    //                 ActorName.Contains(TEXT("landscape")) ||
+    //                 ActorName.Contains(TEXT("terrain")))
+    //             {
+    //                 bIsObstacle = false;
+    //             }
                 
-                if (bIsObstacle)
-                {
-                    bool bInsideX = FMath::Abs(TargetLocation.X - Origin.X) < BoxExtent.X;
-                    bool bInsideY = FMath::Abs(TargetLocation.Y - Origin.Y) < BoxExtent.Y;
+    //             if (bIsObstacle)
+    //             {
+    //                 bool bInsideX = FMath::Abs(TargetLocation.X - Origin.X) < BoxExtent.X;
+    //                 bool bInsideY = FMath::Abs(TargetLocation.Y - Origin.Y) < BoxExtent.Y;
                     
-                    if (bInsideX && bInsideY)
-                    {
-                        if (bIsFlying)
-                        {
-                            // 飞行器：调整 Z 高度
-                            float ObstacleTopZ = Origin.Z + BoxExtent.Z;
-                            float MinSafeAltitude = ObstacleTopZ + SafetyMargin;
-                            if (TargetLocation.Z < MinSafeAltitude)
-                            {
-                                TargetLocation.Z = MinSafeAltitude;
-                                UE_LOG(LogTemp, Log, TEXT("[ProcessNavigate] %s: Flying robot - adjusted Z to %.0f above obstacle"),
-                                    *Agent->AgentName, TargetLocation.Z);
-                            }
-                        }
-                        else
-                        {
-                            // 地面机器人：找到最近的边缘并推出
-                            // 计算到四个边的距离，选择最近的边
-                            float DistToMinX = FMath::Abs(TargetLocation.X - (Origin.X - BoxExtent.X));
-                            float DistToMaxX = FMath::Abs(TargetLocation.X - (Origin.X + BoxExtent.X));
-                            float DistToMinY = FMath::Abs(TargetLocation.Y - (Origin.Y - BoxExtent.Y));
-                            float DistToMaxY = FMath::Abs(TargetLocation.Y - (Origin.Y + BoxExtent.Y));
+    //                 if (bInsideX && bInsideY)
+    //                 {
+    //                     if (bIsFlying)
+    //                     {
+    //                         // 飞行器：调整 Z 高度
+    //                         float ObstacleTopZ = Origin.Z + BoxExtent.Z;
+    //                         float MinSafeAltitude = ObstacleTopZ + SafetyMargin;
+    //                         if (TargetLocation.Z < MinSafeAltitude)
+    //                         {
+    //                             TargetLocation.Z = MinSafeAltitude;
+    //                             UE_LOG(LogTemp, Log, TEXT("[ProcessNavigate] %s: Flying robot - adjusted Z to %.0f above obstacle"),
+    //                                 *Agent->AgentName, TargetLocation.Z);
+    //                         }
+    //                     }
+    //                     else
+    //                     {
+    //                         // 地面机器人：找到最近的边缘并推出
+    //                         // 计算到四个边的距离，选择最近的边
+    //                         float DistToMinX = FMath::Abs(TargetLocation.X - (Origin.X - BoxExtent.X));
+    //                         float DistToMaxX = FMath::Abs(TargetLocation.X - (Origin.X + BoxExtent.X));
+    //                         float DistToMinY = FMath::Abs(TargetLocation.Y - (Origin.Y - BoxExtent.Y));
+    //                         float DistToMaxY = FMath::Abs(TargetLocation.Y - (Origin.Y + BoxExtent.Y));
                             
-                            float MinDist = FMath::Min(FMath::Min(DistToMinX, DistToMaxX), FMath::Min(DistToMinY, DistToMaxY));
+    //                         float MinDist = FMath::Min(FMath::Min(DistToMinX, DistToMaxX), FMath::Min(DistToMinY, DistToMaxY));
                             
-                            if (MinDist == DistToMinX)
-                            {
-                                TargetLocation.X = Origin.X - BoxExtent.X - GroundOffset;
-                            }
-                            else if (MinDist == DistToMaxX)
-                            {
-                                TargetLocation.X = Origin.X + BoxExtent.X + GroundOffset;
-                            }
-                            else if (MinDist == DistToMinY)
-                            {
-                                TargetLocation.Y = Origin.Y - BoxExtent.Y - GroundOffset;
-                            }
-                            else
-                            {
-                                TargetLocation.Y = Origin.Y + BoxExtent.Y + GroundOffset;
-                            }
+    //                         if (MinDist == DistToMinX)
+    //                         {
+    //                             TargetLocation.X = Origin.X - BoxExtent.X - GroundOffset;
+    //                         }
+    //                         else if (MinDist == DistToMaxX)
+    //                         {
+    //                             TargetLocation.X = Origin.X + BoxExtent.X + GroundOffset;
+    //                         }
+    //                         else if (MinDist == DistToMinY)
+    //                         {
+    //                             TargetLocation.Y = Origin.Y - BoxExtent.Y - GroundOffset;
+    //                         }
+    //                         else
+    //                         {
+    //                             TargetLocation.Y = Origin.Y + BoxExtent.Y + GroundOffset;
+    //                         }
                             
-                            bAdjustedXY = true;
-                            UE_LOG(LogTemp, Log, TEXT("[ProcessNavigate] %s: Ground robot - adjusted XY to (%.0f, %.0f) outside obstacle"),
-                                *Agent->AgentName, TargetLocation.X, TargetLocation.Y);
-                        }
-                    }
-                }
-            }
-        }
-    }
+    //                         bAdjustedXY = true;
+    //                         UE_LOG(LogTemp, Log, TEXT("[ProcessNavigate] %s: Ground robot - adjusted XY to (%.0f, %.0f) outside obstacle"),
+    //                             *Agent->AgentName, TargetLocation.X, TargetLocation.Y);
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
     
     //=========================================================================
     // Step 3: 地面机器人始终调整 Z 到实际地面高度
     //=========================================================================
-    if (!bIsFlying)
-    {
-        float GroundZ = GetGroundHeightAt(TargetLocation.X, TargetLocation.Y);
-        TargetLocation.Z = GroundZ;
-        UE_LOG(LogTemp, Verbose, TEXT("[ProcessNavigate] %s: Ground robot - adjusted Z to ground height %.0f"),
-            *Agent->AgentName, TargetLocation.Z);
-    }
+    // if (!bIsFlying)
+    // {
+    //     float GroundZ = GetGroundHeightAt(TargetLocation.X, TargetLocation.Y);
+    //     TargetLocation.Z = GroundZ;
+    //     UE_LOG(LogTemp, Verbose, TEXT("[ProcessNavigate] %s: Ground robot - adjusted Z to ground height %.0f"),
+    //         *Agent->AgentName, TargetLocation.Z);
+    // }
     
     //=========================================================================
     // Step 4: 存储附近地标信息到反馈上下文（用于反馈生成）
-    // Requirements: 3.3, 3.4
     //=========================================================================
     if (SceneGraphManager)
     {
@@ -481,7 +482,6 @@ void FMASkillParamsProcessor::ProcessSearch(AMACharacter* Agent, UMASkillCompone
     
     //=========================================================================
     // Step 1: 解析搜索区域边界坐标
-    // Requirements: 4.1
     //=========================================================================
     if (Cmd && Cmd->Params.SearchArea.Num() > 0)
     {
@@ -500,7 +500,6 @@ void FMASkillParamsProcessor::ProcessSearch(AMACharacter* Agent, UMASkillCompone
     
     //=========================================================================
     // Step 2: 解析目标语义标签 (class, type, features)
-    // Requirements: 4.2
     //=========================================================================
     FMASemanticLabel SearchLabel;
     
@@ -557,7 +556,6 @@ void FMASkillParamsProcessor::ProcessSearch(AMACharacter* Agent, UMASkillCompone
     
     //=========================================================================
     // Step 3: 使用场景图查询匹配对象
-    // Requirements: 4.3, 4.4
     //=========================================================================
     UWorld* World = Agent->GetWorld();
     if (!World) return;
@@ -618,7 +616,6 @@ void FMASkillParamsProcessor::ProcessSearch(AMACharacter* Agent, UMASkillCompone
     
     //=========================================================================
     // Step 4: 回退到 UE5 场景查询 (如果场景图未找到)
-    // Requirements: 4.5
     //=========================================================================
     if (!bFoundInSceneGraph && Params.SearchBoundary.Num() >= 3)
     {
@@ -673,7 +670,6 @@ void FMASkillParamsProcessor::ProcessFollow(UMASkillComponent* SkillComp, const 
     
     //=========================================================================
     // Step 1: 解析目标机器人名称
-    // Requirements: 5.1
     //=========================================================================
     FString TargetRobotName;
     
@@ -716,7 +712,6 @@ void FMASkillParamsProcessor::ProcessFollow(UMASkillComponent* SkillComp, const 
     
     //=========================================================================
     // Step 2: 使用场景图查询查找目标机器人
-    // Requirements: 5.2, 5.3
     //=========================================================================
     UWorld* World = Agent->GetWorld();
     UGameInstance* GameInstance = World->GetGameInstance();
@@ -782,7 +777,6 @@ void FMASkillParamsProcessor::ProcessFollow(UMASkillComponent* SkillComp, const 
     
     //=========================================================================
     // Step 4: 处理未找到目标的情况
-    // Requirements: 5.5
     //=========================================================================
     if (!TargetRobot)
     {
@@ -814,7 +808,6 @@ void FMASkillParamsProcessor::ProcessCharge(UMASkillComponent* SkillComp, const 
     
     //=========================================================================
     // Step 1: 使用场景图查询查找最近的充电站
-    // Requirements: 7.1, 7.2
     //=========================================================================
     UWorld* World = Agent->GetWorld();
     UGameInstance* GameInstance = World->GetGameInstance();
@@ -907,7 +900,6 @@ void FMASkillParamsProcessor::ProcessCharge(UMASkillComponent* SkillComp, const 
     
     //=========================================================================
     // Step 3: 处理未找到充电站的情况
-    // Requirements: 7.4
     //=========================================================================
     if (!Params.bChargingStationFound)
     {
@@ -927,40 +919,38 @@ void FMASkillParamsProcessor::ProcessPlace(AMACharacter* Agent, UMASkillComponen
     SearchResults.Reset();
     
     //=========================================================================
-    // Step 1: 解析 object1/object2 语义标签 JSON 到 FMASemanticTarget
-    // Requirements: 6.1, 6.2
+    // Step 1: 解析 target/surface_target 语义标签 JSON 到 FMASemanticTarget
     //=========================================================================
     if (Cmd)
     {
-        // 解析 Object1 JSON
+        // 解析 target JSON
         if (!Cmd->Params.Object1Json.IsEmpty())
         {
             ParseSemanticTargetFromJson(Cmd->Params.Object1Json, Params.PlaceObject1);
-            UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Parsed Object1 - Class=%s, Type=%s"), 
+            UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Parsed target - Class=%s, Type=%s"), 
                 *Agent->AgentName, *Params.PlaceObject1.Class, *Params.PlaceObject1.Type);
         }
         
-        // 解析 Object2 JSON
+        // 解析 surface_target JSON
         if (!Cmd->Params.Object2Json.IsEmpty())
         {
             ParseSemanticTargetFromJson(Cmd->Params.Object2Json, Params.PlaceObject2);
-            UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Parsed Object2 - Class=%s, Type=%s"), 
+            UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Parsed surface_target - Class=%s, Type=%s"), 
                 *Agent->AgentName, *Params.PlaceObject2.Class, *Params.PlaceObject2.Type);
         }
     }
     
     //=========================================================================
-    // Step 2: 确定 PlaceMode (Requirements: 6.2, 6.3)
-    // - LoadToUGV: object2 是 UGV 机器人
-    // - UnloadToGround: object2 是 ground
-    // - StackOnObject: object2 是其他物体
+    // Step 2: 确定 PlaceMode
+    // - LoadToUGV: surface_target 是 UGV 机器人
+    // - UnloadToGround: surface_target 是 ground
+    // - StackOnObject: surface_target 是其他物体
     //=========================================================================
     EPlaceMode PlaceMode = DeterminePlaceMode(Params.PlaceObject2);
     UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: PlaceMode=%d"), *Agent->AgentName, (int32)PlaceMode);
     
     //=========================================================================
     // Step 3: 获取场景图管理器
-    // Requirements: 6.4, 6.5, 6.6
     //=========================================================================
     UWorld* World = Agent->GetWorld();
     if (!World) return;
@@ -990,7 +980,7 @@ void FMASkillParamsProcessor::ProcessPlace(AMACharacter* Agent, UMASkillComponen
     }
     
     //=========================================================================
-    // Step 4: 查找 Object1 (Requirements: 6.4)
+    // Step 4: 查找 target
     // 使用 MASceneGraphQuery 替换 FMASceneQuery
     //=========================================================================
     FMASemanticLabel Label1;
@@ -1000,7 +990,7 @@ void FMASkillParamsProcessor::ProcessPlace(AMACharacter* Agent, UMASkillComponen
     
     if (Label1.IsEmpty())
     {
-        UE_LOG(LogTemp, Warning, TEXT("[ProcessPlace] %s: Object1 semantic label is empty"), *Agent->AgentName);
+        UE_LOG(LogTemp, Warning, TEXT("[ProcessPlace] %s: target semantic label is empty"), *Agent->AgentName);
     }
     else
     {
@@ -1019,7 +1009,7 @@ void FMASkillParamsProcessor::ProcessPlace(AMACharacter* Agent, UMASkillComponen
                 // 存储场景图节点ID到Context，用于后续状态更新
                 Context.ObjectAttributes.Add(TEXT("object1_node_id"), Object1Node.Id);
                 
-                UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Found Object1 '%s' in scene graph at (%.0f, %.0f, %.0f)"), 
+                UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Found target '%s' in scene graph at (%.0f, %.0f, %.0f)"), 
                     *Agent->AgentName, *Context.PlacedObjectName, 
                     Object1Node.Center.X, Object1Node.Center.Y, Object1Node.Center.Z);
                 
@@ -1037,7 +1027,7 @@ void FMASkillParamsProcessor::ProcessPlace(AMACharacter* Agent, UMASkillComponen
         // 回退到 UE5 场景查询
         if (!bFoundInSceneGraph)
         {
-            UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Falling back to UE5 scene query for Object1"), *Agent->AgentName);
+            UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Falling back to UE5 scene query for target"), *Agent->AgentName);
             
             FMASceneQueryResult Result1 = FMASceneQuery::FindNearestObject(World, Label1, Agent->GetActorLocation());
             if (Result1.bFound)
@@ -1045,18 +1035,18 @@ void FMASkillParamsProcessor::ProcessPlace(AMACharacter* Agent, UMASkillComponen
                 Context.PlacedObjectName = Result1.Name;
                 SearchResults.Object1Actor = Result1.Actor;
                 SearchResults.Object1Location = Result1.Location;
-                UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Found Object1 '%s' via UE5 query at (%.0f, %.0f, %.0f)"), 
+                UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Found target '%s' via UE5 query at (%.0f, %.0f, %.0f)"), 
                     *Agent->AgentName, *Result1.Name, Result1.Location.X, Result1.Location.Y, Result1.Location.Z);
             }
             else
             {
-                UE_LOG(LogTemp, Warning, TEXT("[ProcessPlace] %s: Object1 not found in scene"), *Agent->AgentName);
+                UE_LOG(LogTemp, Warning, TEXT("[ProcessPlace] %s: target not found in scene"), *Agent->AgentName);
             }
         }
     }
     
     //=========================================================================
-    // Step 5: 查找 Object2 (Requirements: 6.5, 6.6)
+    // Step 5: 查找 surface_target
     // 使用 MASceneGraphQuery 替换 FMASceneQuery
     //=========================================================================
     FMASemanticLabel Label2;
@@ -1079,7 +1069,6 @@ void FMASkillParamsProcessor::ProcessPlace(AMACharacter* Agent, UMASkillComponen
         case EPlaceMode::LoadToUGV:
         {
             // 装货到 UGV：根据 label 特征查找 UGV
-            // Requirements: 6.5 - 使用场景图查找机器人
             FString RobotName = Label2.Features.Contains(TEXT("label")) ? Label2.Features[TEXT("label")] : TEXT("");
             bool bFoundInSceneGraph = false;
             
@@ -1139,7 +1128,6 @@ void FMASkillParamsProcessor::ProcessPlace(AMACharacter* Agent, UMASkillComponen
         case EPlaceMode::StackOnObject:
         {
             // 堆叠到另一个物体：查找最近的匹配物体
-            // Requirements: 6.6 - 使用场景图查找可拾取物品
             bool bFoundInSceneGraph = false;
             
             if (SceneGraphManager && AllNodes.Num() > 0)
@@ -1154,7 +1142,7 @@ void FMASkillParamsProcessor::ProcessPlace(AMACharacter* Agent, UMASkillComponen
                     // 存储场景图节点ID到Context
                     Context.ObjectAttributes.Add(TEXT("object2_node_id"), Object2Node.Id);
                     
-                    UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Found Object2 '%s' in scene graph at (%.0f, %.0f, %.0f)"), 
+                    UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Found surface_target '%s' in scene graph at (%.0f, %.0f, %.0f)"), 
                         *Agent->AgentName, *Context.PlaceTargetName, 
                         Object2Node.Center.X, Object2Node.Center.Y, Object2Node.Center.Z);
                     
@@ -1172,7 +1160,7 @@ void FMASkillParamsProcessor::ProcessPlace(AMACharacter* Agent, UMASkillComponen
             // 回退到 UE5 场景查询
             if (!bFoundInSceneGraph)
             {
-                UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Falling back to UE5 scene query for Object2"), *Agent->AgentName);
+                UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Falling back to UE5 scene query for surface_target"), *Agent->AgentName);
                 
                 FMASceneQueryResult Result2 = FMASceneQuery::FindNearestObject(World, Label2, Agent->GetActorLocation());
                 if (Result2.bFound)
@@ -1180,12 +1168,12 @@ void FMASkillParamsProcessor::ProcessPlace(AMACharacter* Agent, UMASkillComponen
                     Context.PlaceTargetName = Result2.Name;
                     SearchResults.Object2Actor = Result2.Actor;
                     SearchResults.Object2Location = Result2.Location;
-                    UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Found Object2 '%s' via UE5 query at (%.0f, %.0f, %.0f)"), 
+                    UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Found surface_target '%s' via UE5 query at (%.0f, %.0f, %.0f)"), 
                         *Agent->AgentName, *Result2.Name, Result2.Location.X, Result2.Location.Y, Result2.Location.Z);
                 }
                 else
                 {
-                    UE_LOG(LogTemp, Warning, TEXT("[ProcessPlace] %s: Object2 not found in scene"), *Agent->AgentName);
+                    UE_LOG(LogTemp, Warning, TEXT("[ProcessPlace] %s: surface_target not found in scene"), *Agent->AgentName);
                 }
             }
             break;
@@ -1213,7 +1201,7 @@ void FMASkillParamsProcessor::ProcessTakeOff(UMASkillComponent* SkillComp, const
     }
     
     //=========================================================================
-    // Step 1: 使用场景图验证目标高度 (Requirements: 8.1)
+    // Step 1: 使用场景图验证目标高度
     // 确保高度高于附近建筑物
     //=========================================================================
     UWorld* World = Agent->GetWorld();
@@ -1325,7 +1313,7 @@ void FMASkillParamsProcessor::ProcessTakeOff(UMASkillComponent* SkillComp, const
     //=========================================================================
     Params.TakeOffHeight = FinalHeight;
     
-    // 存储到反馈上下文 (Requirements: 8.4)
+    // 存储到反馈上下文
     Context.TakeOffTargetHeight = FinalHeight;
     Context.TakeOffMinSafeHeight = MinSafeHeight;
     Context.TakeOffNearbyBuildingLabel = TallestBuildingLabel;
@@ -1355,7 +1343,7 @@ void FMASkillParamsProcessor::ProcessLand(UMASkillComponent* SkillComp, const FM
     bool bLocationSafe = true;
     
     //=========================================================================
-    // Step 1: 使用场景图查找安全着陆区 (Requirements: 8.2)
+    // Step 1: 使用场景图查找安全着陆区
     //=========================================================================
     UGameInstance* GameInstance = World->GetGameInstance();
     UMASceneGraphManager* SceneGraphManager = GameInstance ? GameInstance->GetSubsystem<UMASceneGraphManager>() : nullptr;
@@ -1498,7 +1486,7 @@ void FMASkillParamsProcessor::ProcessLand(UMASkillComponent* SkillComp, const FM
     //=========================================================================
     Params.LandHeight = LandHeight;
     
-    // 存储到反馈上下文 (Requirements: 8.5)
+    // 存储到反馈上下文
     Context.LandTargetLocation = FVector(LandLocation.X, LandLocation.Y, LandHeight);
     Context.LandGroundType = GroundType;
     Context.LandNearbyLandmarkLabel = NearbyLandmark;
@@ -1524,7 +1512,7 @@ void FMASkillParamsProcessor::ProcessReturnHome(UMASkillComponent* SkillComp, co
     FString HomeLandmark;
     
     //=========================================================================
-    // Step 1: 从场景图获取机器人初始位置 (Requirements: 8.3)
+    // Step 1: 从场景图获取机器人初始位置
     //=========================================================================
     UGameInstance* GameInstance = World->GetGameInstance();
     UMASceneGraphManager* SceneGraphManager = GameInstance ? GameInstance->GetSubsystem<UMASceneGraphManager>() : nullptr;
@@ -1564,7 +1552,7 @@ void FMASkillParamsProcessor::ProcessReturnHome(UMASkillComponent* SkillComp, co
             }
         }
         
-        // 查找家位置附近的地标 (Requirements: 8.6)
+        // 查找家位置附近的地标
         FMASceneGraphNode NearestLandmark = SceneGraphManager->FindNearestLandmark(HomeLocation, 2000.f);
         if (NearestLandmark.IsValid())
         {
@@ -1619,7 +1607,7 @@ void FMASkillParamsProcessor::ProcessReturnHome(UMASkillComponent* SkillComp, co
     Params.HomeLocation = HomeLocation;
     Params.LandHeight = LandHeight;
     
-    // 存储到反馈上下文 (Requirements: 8.6)
+    // 存储到反馈上下文
     Context.HomeLocationFromSceneGraph = HomeLocation;
     Context.HomeLandmarkLabel = HomeLandmark;
     Context.bHomeLocationFromSceneGraph = bFromSceneGraph;

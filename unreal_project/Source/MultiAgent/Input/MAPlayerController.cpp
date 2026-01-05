@@ -1565,7 +1565,6 @@ void AMAPlayerController::ClearModifyHighlight()
 
 void AMAPlayerController::OnEditLeftClick()
 {
-    // Requirements: 3.1, 4.1, 4.2, 4.7
 
     // 检查鼠标是否在 UI 上，如果是则不处理场景交互
     // 这样 UMG 按钮可以正常接收点击，同时避免在 UI 区域创建 POI
@@ -1584,7 +1583,6 @@ void AMAPlayerController::OnEditLeftClick()
     if (bShiftPressed)
     {
         // Shift+Click: 选择 Actor 或 POI
-        // Requirements: 4.1, 4.2, 4.7
         FHitResult HitResult;
         if (GetHitResultUnderCursor(ECC_Visibility, false, HitResult))
         {
@@ -1618,7 +1616,6 @@ void AMAPlayerController::OnEditLeftClick()
                 }
 
                 // 点击普通 Actor: 选择 Actor (单选)
-                // Requirements: 4.1, 4.5, 4.6
                 if (EditModeManager)
                 {
                     if (EditModeManager->GetSelectedActor() == HitActor)
@@ -1650,7 +1647,6 @@ void AMAPlayerController::OnEditLeftClick()
     else
     {
         // 普通 Click: 创建 POI
-        // Requirements: 3.1
         FVector HitLocation;
         if (GetMouseHitLocation(HitLocation))
         {
@@ -1674,7 +1670,6 @@ void AMAPlayerController::OnEditLeftClick()
 
 void AMAPlayerController::EnterEditMode()
 {
-    // Requirements: 2.1, 2.3
     UE_LOG(LogTemp, Log, TEXT("[PlayerController] EnterEditMode"));
 
     // 检查 Edit Mode 是否可用
@@ -1695,11 +1690,9 @@ void AMAPlayerController::EnterEditMode()
 
 void AMAPlayerController::ExitEditMode()
 {
-    // Requirements: 2.4, 2.5, 3.5
     UE_LOG(LogTemp, Log, TEXT("[PlayerController] ExitEditMode"));
 
     // 清除所有 POI 和选择
-    // Requirements: 2.4, 3.5
     if (EditModeManager)
     {
         EditModeManager->ClearSelection();
@@ -1715,7 +1708,6 @@ void AMAPlayerController::ExitEditMode()
 
 void AMAPlayerController::OnToggleViewportRecording(const FInputActionValue& Value)
 {
-    // Requirements: Viewport 录制切换
     UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnToggleViewportRecording"));
 
     UWorld* World = GetWorld();

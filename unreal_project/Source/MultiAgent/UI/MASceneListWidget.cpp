@@ -1,6 +1,5 @@
 // MASceneListWidget.cpp
 // 场景列表面板 Widget 实现
-// Requirements: 17.1, 17.2, 17.3, 17.4, 17.5, 17.6, 17.7
 
 #include "MASceneListWidget.h"
 #include "Components/VerticalBox.h"
@@ -108,7 +107,7 @@ void UMASceneListWidget::BuildUI()
     TitleSlot->SetPadding(FMargin(0, 0, 0, 10));
 
     // =========================================================================
-    // Goal 列表区域 - Requirements: 17.2
+    // Goal 列表区域
     // =========================================================================
 
     // Goal 标题行
@@ -143,7 +142,7 @@ void UMASceneListWidget::BuildUI()
     GoalListSlot->SetPadding(FMargin(5, 0, 0, 10));
 
     // =========================================================================
-    // Zone 列表区域 - Requirements: 17.3
+    // Zone 列表区域
     // =========================================================================
 
     // Zone 标题行

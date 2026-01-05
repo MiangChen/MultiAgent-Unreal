@@ -1,11 +1,11 @@
 // MAFeedbackGenerator.h
 // 反馈生成器 - 统一生成各类技能的执行反馈
-// Requirements: 9.1, 9.2, 9.3, 9.4, 9.5
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "../MAFeedbackSystem.h"
+#include "Dom/JsonObject.h"
 #include "MAFeedbackGenerator.generated.h"
 
 class AMACharacter;
@@ -43,9 +43,10 @@ struct FMASkillExecutionFeedback
  * 职责:
  * - 统一的反馈生成接口
  * - 根据技能类型和执行结果生成反馈
- * - 优先使用场景图数据，回退到 UE5 场景查询 (Requirements: 9.1, 9.2)
- * - 确保反馈包含实体标签和位置 (Requirements: 9.3, 9.4)
- * - 技能完成后更新场景图状态 (Requirements: 9.5)
+ * - 优先使用场景图数据，回退到 UE5 场景查询
+ * - 确保反馈包含实体标签和位置
+ * - 技能完成后更新场景图状态
+ * - 使用场景图节点格式返回发现的目标
  */
 class MULTIAGENT_API FMAFeedbackGenerator
 {
@@ -59,6 +60,40 @@ public:
      * @return 完整的反馈结构
      */
     static FMASkillExecutionFeedback Generate(AMACharacter* Agent, EMACommand Command, bool bSuccess, const FString& Message);
+
+    //=========================================================================
+    // 场景图节点 JSON 构建方法
+    //=========================================================================
+
+    /**
+     * 从场景图节点构建 JSON 对象
+     * 包含 id, properties, shape 字段
+     * 
+     * @param Node 场景图节点
+     * @return JSON 对象，包含完整的节点信息
+     * 
+     */
+    static TSharedPtr<FJsonObject> BuildNodeJsonFromSceneGraph(const FMASceneGraphNode& Node);
+
+    /**
+     * 从 UE5 场景数据构建 JSON 对象（场景图查询失败时的回退方案）
+     * 
+     * @param Id 实体 ID
+     * @param Label 实体标签
+     * @param Location 实体位置
+     * @param Type 实体类型
+     * @param Category 实体类别
+     * @param Features 实体特征属性
+     * @return JSON 对象，包含最小化的节点信息
+     * 
+     */
+    static TSharedPtr<FJsonObject> BuildNodeJsonFromUE5Data(
+        const FString& Id,
+        const FString& Label,
+        const FVector& Location,
+        const FString& Type,
+        const FString& Category = TEXT(""),
+        const TMap<FString, FString>& Features = TMap<FString, FString>());
 
 private:
     // 各技能的反馈生成
@@ -80,7 +115,7 @@ private:
     static FString CommandToSkillName(EMACommand Command);
     
     //=========================================================================
-    // 场景图查询辅助方法 (Requirements: 9.1, 9.2)
+    // 场景图查询辅助方法
     //=========================================================================
     
     /**
@@ -101,7 +136,6 @@ private:
      * @param OutType 输出的实体类型
      * @return 是否成功获取实体信息
      * 
-     * Requirements: 9.1, 9.2
      */
     static bool GetEntityInfoWithFallback(
         AMACharacter* Agent,
@@ -120,7 +154,6 @@ private:
      * @param OutAgentType 输出的机器人类型 (UAV, UGV, etc.)
      * @return 是否成功获取机器人信息
      * 
-     * Requirements: 9.1, 9.2
      */
     static bool GetRobotInfoFromSceneGraph(
         AMACharacter* Agent,
@@ -139,7 +172,6 @@ private:
      * @param OutFeatures 输出的物品特征
      * @return 是否成功获取物品信息
      * 
-     * Requirements: 9.1, 9.2
      */
     static bool GetPickupItemInfoFromSceneGraph(
         AMACharacter* Agent,
@@ -157,7 +189,6 @@ private:
      * @param OutLocation 输出的充电站位置
      * @return 是否成功获取充电站信息
      * 
-     * Requirements: 9.1, 9.2
      */
     static bool GetChargingStationInfoFromSceneGraph(
         AMACharacter* Agent,
@@ -175,7 +206,6 @@ private:
      * @param Location 实体位置
      * @param Type 实体类型
      * 
-     * Requirements: 9.3, 9.4
      */
     static void AddEntityInfoToFeedback(
         FMASkillExecutionFeedback& Feedback,
@@ -184,8 +214,19 @@ private:
         const FVector& Location,
         const FString& Type);
     
+    /**
+     * 添加通用字段到反馈数据
+     * 包括 task_id 等所有技能共用的字段
+     * 
+     * @param Feedback 反馈结构
+     * @param SkillComp 技能组件（用于获取 FeedbackContext）
+     */
+    static void AddCommonFieldsToFeedback(
+        FMASkillExecutionFeedback& Feedback,
+        UMASkillComponent* SkillComp);
+    
     //=========================================================================
-    // 场景图状态更新 (Requirements: 9.5)
+    // 场景图状态更新
     //=========================================================================
     
     /**
@@ -197,7 +238,6 @@ private:
      * @param NewLocation 新位置
      * @param bIsRobot 是否为机器人
      * 
-     * Requirements: 9.5
      */
     static void UpdateSceneGraphEntityPosition(
         AMACharacter* Agent,
@@ -214,7 +254,6 @@ private:
      * @param bIsCarried 是否被携带
      * @param CarrierId 携带者 ID
      * 
-     * Requirements: 9.5
      */
     static void UpdateSceneGraphItemCarrierStatus(
         AMACharacter* Agent,

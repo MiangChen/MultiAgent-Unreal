@@ -10,28 +10,31 @@
         {
             "id": "1001",
             "label": "RedBox",
-            "type": "box",
+            "type": "cargo",
             "position": [800, 2300, 0],
             "features": {
-                "color": "red"
+                "color": "red",
+                "subtype": "box"
             }
         },
         {
             "id": "1002",
             "label": "BlueBox",
-            "type": "box",
+            "type": "cargo",
             "position": [2600, 1400, 0],
             "features": {
-                "color": "blue"
+                "color": "blue",
+                "subtype": "box"
             }
         },
         {
             "id": "1003",
             "label": "GreenBox",
-            "type": "box",
+            "type": "cargo",
             "position": [5500, 2000, 0],
             "features": {
-                "color": "green"
+                "color": "green",
+                "subtype": "box"
             }
         }
     ]

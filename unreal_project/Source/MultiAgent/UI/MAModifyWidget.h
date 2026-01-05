@@ -2,7 +2,6 @@
 // Modify 模式修改面板 Widget - 纯 C++ 实现
 // 用于查看和编辑选中 Actor 的标签信息
 // 支持单选和多选模式
-// Requirements: 2.4, 3.2, 3.3, 5.1, 9.3, 9.4
 
 #pragma once
 
@@ -24,7 +23,6 @@ struct FMASceneGraphNode;
  * 确认修改委托 (单选模式)
  * @param Actor 当前选中的 Actor
  * @param LabelText 文本框内容
- * Requirements: 5.1, 5.2
  */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnModifyConfirmed, AActor*, Actor, const FString&, LabelText);
 
@@ -33,7 +31,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnModifyConfirmed, AActor*, Actor,
  * @param Actors 当前选中的 Actor 数组
  * @param LabelText 文本框内容
  * @param GeneratedJson 生成的 JSON 字符串
- * Requirements: 4.1, 4.2, 5.1, 8.1
  */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnMultiSelectModifyConfirmed, const TArray<AActor*>&, Actors, const FString&, LabelText, const FString&, GeneratedJson);
 
@@ -46,7 +43,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnMultiSelectModifyConfirmed, co
  * - 确认按钮提交修改
  * - 支持多选模式 (Shift+Click)
  * 
- * Requirements: 2.4, 3.2, 3.3, 5.1, 9.3, 9.4
  */
 UCLASS()
 class MULTIAGENT_API UMAModifyWidget : public UUserWidget
@@ -63,7 +59,6 @@ public:
     /**
      * 设置选中的 Actor (单选模式)
      * @param Actor 选中的 Actor，nullptr 表示清除选择
-     * Requirements: 4.1, 9.1, 9.2
      */
     UFUNCTION(BlueprintCallable, Category = "UI")
     void SetSelectedActor(AActor* Actor);
@@ -71,7 +66,6 @@ public:
     /**
      * 清除选中状态
      * 显示提示文字 "点击场景中的 Actor 进行选择"
-     * Requirements: 4.3
      */
     UFUNCTION(BlueprintCallable, Category = "UI")
     void ClearSelection();
@@ -93,20 +87,17 @@ public:
     /**
      * 获取当前选中的 Actor (单选模式)
      * @return 当前选中的 Actor，可能为 nullptr
-     * Requirements: 9.3
      */
     UFUNCTION(BlueprintPure, Category = "UI")
     AActor* GetSelectedActor() const { return SelectedActors.Num() > 0 ? SelectedActors[0] : nullptr; }
 
     //=========================================================================
     // 公共接口 - 多选模式
-    // Requirements: 2.4, 9.3, 9.4
     //=========================================================================
 
     /**
      * 设置多个选中的 Actor (多选模式)
      * @param Actors 选中的 Actor 数组
-     * Requirements: 2.4
      */
     UFUNCTION(BlueprintCallable, Category = "UI|MultiSelect")
     void SetSelectedActors(const TArray<AActor*>& Actors);
@@ -114,7 +105,6 @@ public:
     /**
      * 获取所有选中的 Actor
      * @return 选中的 Actor 数组
-     * Requirements: 9.4
      */
     UFUNCTION(BlueprintPure, Category = "UI|MultiSelect")
     TArray<AActor*> GetSelectedActors() const { return SelectedActors; }
@@ -122,7 +112,6 @@ public:
     /**
      * 是否处于多选模式
      * @return true 如果选中了多个 Actor
-     * Requirements: 9.3, 9.4
      */
     UFUNCTION(BlueprintPure, Category = "UI|MultiSelect")
     bool IsMultiSelectMode() const { return SelectedActors.Num() > 1; }
@@ -136,21 +125,18 @@ public:
 
     //=========================================================================
     // ID 分配
-    // Requirements: 9.1, 9.2, 9.3, 9.4
     //=========================================================================
 
     /**
      * 获取下一个可用的节点 ID
      * 读取 scene_graph_cyberworld.json，找到最大 ID 并返回 +1
      * @return 下一个可用的 ID 字符串
-     * Requirements: 9.1, 9.2, 9.3, 9.4
      */
     UFUNCTION(BlueprintCallable, Category = "UI|ID")
     FString GetNextAvailableId();
 
     //=========================================================================
     // 选择验证
-    // Requirements: 2.1, 2.2, 3.1, 4.1
     //=========================================================================
 
     /**
@@ -162,14 +148,12 @@ public:
      * @param SelectionCount 选中的 Actor 数量
      * @param OutError 错误信息 (如果验证失败)
      * @return 验证是否通过
-     * Requirements: 2.1, 2.2, 3.1, 4.1
      */
     UFUNCTION(BlueprintCallable, Category = "UI|Validation")
     bool ValidateSelectionForCategory(EMANodeCategory Category, int32 SelectionCount, FString& OutError);
 
     //=========================================================================
     // 默认属性
-    // Requirements: 6.1, 7.1, 8.1
     //=========================================================================
 
     /**
@@ -179,14 +163,12 @@ public:
      * - Prop: category, is_abnormal
      * @param Category 节点分类
      * @return 默认属性的键值对映射
-     * Requirements: 6.1, 7.1, 8.1
      */
     UFUNCTION(BlueprintCallable, Category = "UI|Properties")
     TMap<FString, FString> GetDefaultPropertiesForCategory(EMANodeCategory Category);
 
     //=========================================================================
     // 输入解析
-    // Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 5.1, 5.2, 5.3, 5.4, 5.5
     //=========================================================================
 
     /**
@@ -195,7 +177,6 @@ public:
      * @param OutResult 解析结果
      * @param OutError 错误信息
      * @return 解析是否成功
-     * Requirements: 3.1, 3.2, 3.3, 3.4, 3.5
      */
     UFUNCTION(BlueprintCallable, Category = "UI|Parse")
     bool ParseAnnotationInput(const FString& Input, FMAAnnotationInput& OutResult, FString& OutError);
@@ -210,14 +191,12 @@ public:
      * @param OutResult 解析结果
      * @param OutError 错误信息
      * @return 解析是否成功
-     * Requirements: 5.1, 5.2, 5.3, 5.4, 5.5
      */
     UFUNCTION(BlueprintCallable, Category = "UI|Parse")
     bool ParseAnnotationInputV2(const FString& Input, FMAAnnotationInput& OutResult, FString& OutError);
 
     //=========================================================================
     // JSON 生成
-    // Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 5.1, 5.2, 5.3, 5.4, 5.5
     //=========================================================================
 
     /**
@@ -225,7 +204,6 @@ public:
      * @param Input 解析后的标注输入
      * @param Actors 选中的 Actor 数组
      * @return 生成的 JSON 字符串
-     * Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 5.1, 5.2, 5.3, 5.4, 5.5
      */
     UFUNCTION(BlueprintCallable, Category = "UI|JSON")
     FString GenerateSceneGraphNode(const FMAAnnotationInput& Input, const TArray<AActor*>& Actors);
@@ -239,7 +217,6 @@ public:
      * @param Input 解析后的标注输入
      * @param Actors 选中的 Actor 数组
      * @return 生成的 JSON 字符串
-     * Requirements: 2.5, 2.6, 2.7, 3.4, 3.5, 3.6, 4.3, 4.4
      */
     UFUNCTION(BlueprintCallable, Category = "UI|JSON")
     FString GenerateSceneGraphNodeV2(const FMAAnnotationInput& Input, const TArray<AActor*>& Actors);
@@ -251,7 +228,6 @@ public:
     /**
      * 确认修改委托 (单选模式)
      * 当用户点击确认按钮时广播
-     * Requirements: 5.1, 5.2
      */
     UPROPERTY(BlueprintAssignable, Category = "Events")
     FOnModifyConfirmed OnModifyConfirmed;
@@ -259,7 +235,6 @@ public:
     /**
      * 确认修改委托 (多选模式)
      * 当用户在多选模式下点击确认按钮时广播
-     * Requirements: 4.1, 4.2, 5.1, 8.1
      */
     UPROPERTY(BlueprintAssignable, Category = "Events")
     FOnMultiSelectModifyConfirmed OnMultiSelectModifyConfirmed;
@@ -308,14 +283,12 @@ private:
 
     /**
      * 确认按钮点击处理
-     * Requirements: 5.1, 5.2, 5.3, 5.4, 8.1, 8.2, 8.3
      */
     UFUNCTION()
     void OnConfirmButtonClicked();
 
     /**
      * 构建 UI 布局
-     * Requirements: 3.2, 3.3
      */
     void BuildUI();
 
@@ -323,7 +296,6 @@ private:
      * 生成 Actor 标签文本（占位符实现）
      * @param Actor 要生成标签的 Actor
      * @return 格式化的标签文本 "Actor: [ActorName]\nLabel: [placeholder]"
-     * Requirements: 4.2
      */
     FString GenerateActorLabel(AActor* Actor) const;
 
@@ -331,7 +303,6 @@ private:
      * 更新 JSON 预览文本 (单选模式)
      * 显示选中 Actor 对应的 JSON 片段
      * @param Actor 选中的 Actor
-     * Requirements: 2.3, 2.5, 2.6
      */
     void UpdateJsonPreview(AActor* Actor);
 
@@ -340,7 +311,6 @@ private:
      * @param Node 场景图节点
      * @param ActorGuid 选中 Actor 的 GUID
      * @return 格式化后的 JSON 字符串
-     * Requirements: 3.1, 3.2, 3.3, 3.4
      */
     FString FormatJsonPreviewWithHighlight(const FMASceneGraphNode& Node, const FString& ActorGuid) const;
 
@@ -348,7 +318,6 @@ private:
      * 根据分类获取对应的提示文本
      * @param Category 节点分类
      * @return 对应的提示文本
-     * Requirements: 1.4
      */
     FString GetHintTextForCategory(EMANodeCategory Category) const;
 
@@ -356,7 +325,6 @@ private:
      * 更新 JSON 预览文本 (多选模式)
      * 显示将要生成的 JSON 结构预览
      * @param Actors 选中的 Actor 数组
-     * Requirements: 8.3
      */
     void UpdateJsonPreviewMultiSelect(const TArray<AActor*>& Actors);
 
@@ -364,7 +332,6 @@ private:
      * 计算凸包顶点 (用于 Polygon 类型)
      * @param Actors 选中的 Actor 数组
      * @return 凸包顶点数组 (2D, 逆时针顺序)
-     * Requirements: 6.1, 6.2, 6.3
      */
     TArray<FVector2D> ComputeConvexHull(const TArray<AActor*>& Actors);
 
@@ -372,7 +339,6 @@ private:
      * 计算线串点序列 (用于 LineString 类型)
      * @param Actors 选中的 Actor 数组
      * @return 排序后的点序列 (2D)
-     * Requirements: 7.1, 7.2, 7.3
      */
     TArray<FVector2D> ComputeLineString(const TArray<AActor*>& Actors);
 
@@ -380,7 +346,6 @@ private:
      * 收集所有选中 Actor 的 GUID
      * @param Actors 选中的 Actor 数组
      * @return GUID 字符串数组
-     * Requirements: 4.3, 5.4
      */
     TArray<FString> CollectActorGuids(const TArray<AActor*>& Actors);
 };
