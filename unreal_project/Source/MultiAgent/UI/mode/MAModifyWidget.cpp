@@ -25,12 +25,15 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogMAModifyWidget, Log, All);
 
-// Hint text constants
-static const FString DefaultHintText = TEXT("Input format: cate:building/trans_facility/prop,type:xxx\n• building: Buildings (prism modeling, single-select only)\n• trans_facility: Transport facilities (OBB rectangle)\n• prop: Props (point modeling)");
-static const FString MultiSelectHintText = TEXT("Multi-select mode - Input format: cate:trans_facility/prop,type:xxx\nNote: building type only supports single-select");
-static const FString BuildingHintText = TEXT("Building type (prism modeling)\nInput format: cate:building,type:xxx\n• Single-select only\n• Auto-calculates base polygon and height");
-static const FString TransFacilityHintText = TEXT("TransFacility type (OBB rectangle modeling)\nInput format: cate:trans_facility,type:xxx\n• Supports single or multi-select\n• Auto-calculates minimum bounding rectangle");
-static const FString PropHintText = TEXT("Prop type (point modeling)\nInput format: cate:prop,type:xxx\n• Supports single or multi-select\n• Auto-calculates geometric center");
+// Hint text constants - use anonymous namespace to avoid Unity Build conflicts
+namespace
+{
+    const FString ModifyDefaultHintText = TEXT("Input format: cate:building/trans_facility/prop,type:xxx\n• building: Buildings (prism modeling, single-select only)\n• trans_facility: Transport facilities (OBB rectangle)\n• prop: Props (point modeling)");
+    const FString MultiSelectHintText = TEXT("Multi-select mode - Input format: cate:trans_facility/prop,type:xxx\nNote: building type only supports single-select");
+    const FString BuildingHintText = TEXT("Building type (prism modeling)\nInput format: cate:building,type:xxx\n• Single-select only\n• Auto-calculates base polygon and height");
+    const FString TransFacilityHintText = TEXT("TransFacility type (OBB rectangle modeling)\nInput format: cate:trans_facility,type:xxx\n• Supports single or multi-select\n• Auto-calculates minimum bounding rectangle");
+    const FString PropHintText = TEXT("Prop type (point modeling)\nInput format: cate:prop,type:xxx\n• Supports single or multi-select\n• Auto-calculates geometric center");
+}
 
 UMAModifyWidget::UMAModifyWidget(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
@@ -136,7 +139,7 @@ void UMAModifyWidget::BuildUI()
 
     // Hint text
     HintText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("HintText"));
-    HintText->SetText(FText::FromString(DefaultHintText));
+    HintText->SetText(FText::FromString(ModifyDefaultHintText));
     FSlateFontInfo HintFont = HintText->GetFont();
     HintFont.Size = 11;
     HintText->SetFont(HintFont);
@@ -172,7 +175,7 @@ void UMAModifyWidget::BuildUI()
 
     // Multi-line text box
     LabelTextBox = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(UMultiLineEditableTextBox::StaticClass(), TEXT("LabelTextBox"));
-    LabelTextBox->SetHintText(FText::FromString(DefaultHintText));
+    LabelTextBox->SetHintText(FText::FromString(ModifyDefaultHintText));
     
     // Set text color to strict black - via WidgetStyle property
     FEditableTextBoxStyle TextBoxStyle;
@@ -249,7 +252,7 @@ void UMAModifyWidget::SetSelectedActor(AActor* Actor)
     if (LabelTextBox)
     {
         LabelTextBox->SetText(FText::GetEmpty());
-        LabelTextBox->SetHintText(FText::FromString(DefaultHintText));
+        LabelTextBox->SetHintText(FText::FromString(ModifyDefaultHintText));
     }
     
     // Update hint text
@@ -311,7 +314,7 @@ void UMAModifyWidget::SetSelectedActors(const TArray<AActor*>& Actors)
         }
         else
         {
-            LabelTextBox->SetHintText(FText::FromString(DefaultHintText));
+            LabelTextBox->SetHintText(FText::FromString(ModifyDefaultHintText));
         }
     }
     
@@ -345,7 +348,7 @@ void UMAModifyWidget::ClearSelection()
     // Display hint text
     if (HintText)
     {
-        HintText->SetText(FText::FromString(DefaultHintText));
+        HintText->SetText(FText::FromString(ModifyDefaultHintText));
         HintText->SetColorAndOpacity(FSlateColor(FLinearColor(0.6f, 0.6f, 0.6f)));  // Gray
     }
     
@@ -1833,6 +1836,6 @@ FString UMAModifyWidget::GetHintTextForCategory(EMANodeCategory Category) const
         
     case EMANodeCategory::None:
     default:
-        return DefaultHintText;
+        return ModifyDefaultHintText;
     }
 }

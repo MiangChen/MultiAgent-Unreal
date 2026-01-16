@@ -4,7 +4,7 @@
 // 本模块提供基于 UE5 场景的对象查询功能，作为场景图查询的回退方案
 
 #include "MASceneQuery.h"
-#include "MASkillGeometryUtils.h"
+#include "../../../Utils/MAGeometryUtils.h"
 #include "../../../Environment/MAPickupItem.h"
 #include "../../Character/MACharacter.h"
 #include "Kismet/GameplayStatics.h"
@@ -212,7 +212,7 @@ TArray<FMASceneQueryResult> FMASceneQuery::FindObjectsInBoundary(UWorld* World, 
         if (!Label.IsEmpty() && !MatchesPickupItemLabel(Item, Label)) continue;
         
         FVector Location = Actor->GetActorLocation();
-        if (FMASkillGeometryUtils::IsPointInPolygon(Location, BoundaryVertices))
+        if (FMAGeometryUtils::IsPointInPolygon2D(Location, BoundaryVertices))
         {
             FMASceneQueryResult Result;
             Result.Actor = Actor;

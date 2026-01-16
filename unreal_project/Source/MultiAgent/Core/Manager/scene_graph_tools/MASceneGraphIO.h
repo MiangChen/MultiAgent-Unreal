@@ -93,6 +93,26 @@ public:
      */
     static FString SerializeNodeToString(const FMASceneGraphNode& Node, bool bPrettyPrint = true);
 
+    //=========================================================================
+    // 几何中心计算 (公开接口，供 MASceneGraphManager 使用)
+    //=========================================================================
+
+    /**
+     * 计算多边形顶点的几何中心 (从 JSON 数组)
+     * 
+     * @param Vertices 顶点数组 (每个顶点为 [x, y, z] 的 JSON 数组)
+     * @return 几何中心点
+     */
+    static FVector CalculatePolygonCentroid(const TArray<TSharedPtr<FJsonValue>>& Vertices);
+
+    /**
+     * 计算线串端点的几何中心 (从 JSON 数组)
+     * 
+     * @param Points 端点数组 (每个点为 [x, y, z] 的 JSON 数组)
+     * @return 几何中心点
+     */
+    static FVector CalculateLineStringCentroid(const TArray<TSharedPtr<FJsonValue>>& Points);
+
 private:
     //=========================================================================
     // 内部辅助方法
@@ -106,22 +126,6 @@ private:
      * @return 中心点坐标
      */
     static FVector ParseCenterFromShape(const TSharedPtr<FJsonObject>& ShapeObject, const FString& ShapeType);
-
-    /**
-     * 计算多边形顶点的几何中心
-     * 
-     * @param Vertices 顶点数组
-     * @return 几何中心点
-     */
-    static FVector CalculatePolygonCentroid(const TArray<TSharedPtr<FJsonValue>>& Vertices);
-
-    /**
-     * 计算线串端点的几何中心
-     * 
-     * @param Points 端点数组
-     * @return 几何中心点
-     */
-    static FVector CalculateLineStringCentroid(const TArray<TSharedPtr<FJsonValue>>& Points);
 
     /**
      * 从properties对象解析节点类别

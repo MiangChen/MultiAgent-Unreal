@@ -420,24 +420,6 @@ public:
     UFUNCTION(BlueprintCallable, Category = "SceneGraph")
     TArray<FMASceneGraphNode> FindNodesByGuid(const FString& ActorGuid) const;
 
-    /**
-     * 计算多边形顶点的几何中心 (算术平均值)
-     * 
-     * @param Vertices 顶点数组 (每个顶点为 [x, y, z] 的 JSON 数组)
-     * @return 几何中心点
-     * 
-     */
-    static FVector CalculatePolygonCentroid(const TArray<TSharedPtr<FJsonValue>>& Vertices);
-
-    /**
-     * 计算线串端点的几何中心 (算术平均值)
-     * 
-     * @param Points 端点数组 (每个点为 [x, y, z] 的 JSON 数组)
-     * @return 几何中心点
-     * 
-     */
-    static FVector CalculateLineStringCentroid(const TArray<TSharedPtr<FJsonValue>>& Points);
-
     //=========================================================================
     // HTTP API 支持 - 世界状态查询
     //=========================================================================

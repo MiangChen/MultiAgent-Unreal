@@ -10,6 +10,7 @@
 #include "../../../Core/Manager/MACommandManager.h"
 #include "../../../Core/Manager/MASceneGraphManager.h"
 #include "../../../Core/Manager/scene_graph_tools/MASceneGraphQuery.h"
+#include "../../../Utils/MAGeometryUtils.h"
 #include "../../../Environment/MAChargingStation.h"
 #include "Kismet/GameplayStatics.h"
 #include "Dom/JsonObject.h"
@@ -298,7 +299,7 @@ void FMASkillParamsProcessor::ProcessNavigate(UMASkillComponent* SkillComp, cons
                 }
                 
                 // 检查点是否在此建筑物多边形内
-                if (FMASceneGraphQuery::IsPointInPolygon2D(TargetLocation, Vertices))
+                if (FMAGeometryUtils::IsPointInPolygon2D(TargetLocation, Vertices))
                 {
                     if (bIsFlying)
                     {
