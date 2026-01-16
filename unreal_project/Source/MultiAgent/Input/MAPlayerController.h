@@ -117,6 +117,9 @@ protected:
     // 切换主 UI 显示/隐藏 (Z 键)
     void OnToggleMainUI(const FInputActionValue& Value);
 
+    // 切换技能分配查看器显示/隐藏 (N 键)
+    void OnToggleSkillAllocationViewer(const FInputActionValue& Value);
+
     // ========== 突发事件系统 ==========
     // 触发/结束突发事件 ("-" 键)
     void OnTriggerEmergency(const FInputActionValue& Value);

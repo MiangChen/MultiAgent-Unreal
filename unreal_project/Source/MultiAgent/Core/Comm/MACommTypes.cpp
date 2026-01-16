@@ -29,6 +29,8 @@ namespace MACommTypeHelpers
         case EMACommMessageType::WorldModelGraph: return TEXT("world_model_graph");
         case EMACommMessageType::SkillList:       return TEXT("skill_list");
         case EMACommMessageType::QueryRequest:    return TEXT("query_request");
+        case EMACommMessageType::SkillAllocation: return TEXT("skill_allocation");
+        case EMACommMessageType::SkillStatusUpdate: return TEXT("skill_status_update");
         case EMACommMessageType::Custom:
         default:                                  return TEXT("custom");
         }
@@ -44,6 +46,8 @@ namespace MACommTypeHelpers
         if (TypeStr == TEXT("world_model_graph"))  return EMACommMessageType::WorldModelGraph;
         if (TypeStr == TEXT("skill_list"))         return EMACommMessageType::SkillList;
         if (TypeStr == TEXT("query_request"))      return EMACommMessageType::QueryRequest;
+        if (TypeStr == TEXT("skill_allocation"))   return EMACommMessageType::SkillAllocation;
+        if (TypeStr == TEXT("skill_status_update")) return EMACommMessageType::SkillStatusUpdate;
         return EMACommMessageType::Custom;
     }
 }
@@ -1255,6 +1259,142 @@ bool FMASceneChangeMessage::FromJson(const FString& Json, FMASceneChangeMessage&
     {
         // 尝试作为字符串读取
         JsonObject->TryGetStringField(TEXT("payload"), Out.Payload);
+    }
+
+    return true;
+}
+
+//=============================================================================
+// FMASkillAllocationMessage 实现
+//=============================================================================
+
+FString FMASkillAllocationMessage::ToJson() const
+{
+    TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject());
+
+    JsonObject->SetStringField(TEXT("name"), Name);
+    JsonObject->SetStringField(TEXT("description"), Description);
+    JsonObject->SetNumberField(TEXT("timestamp"), static_cast<double>(Timestamp));
+    JsonObject->SetStringField(TEXT("message_id"), MessageId);
+
+    // 解析 DataJson 为 JSON 对象并嵌入
+    TSharedPtr<FJsonObject> DataObject;
+    TSharedRef<TJsonReader<>> DataReader = TJsonReaderFactory<>::Create(DataJson);
+    if (FJsonSerializer::Deserialize(DataReader, DataObject) && DataObject.IsValid())
+    {
+        JsonObject->SetObjectField(TEXT("data"), DataObject);
+    }
+    else
+    {
+        // 如果 DataJson 不是有效 JSON，作为字符串存储
+        JsonObject->SetStringField(TEXT("data"), DataJson);
+    }
+
+    FString OutputString;
+    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
+    FJsonSerializer::Serialize(JsonObject.ToSharedRef(), Writer);
+
+    return OutputString;
+}
+
+bool FMASkillAllocationMessage::FromJson(const FString& Json, FMASkillAllocationMessage& Out)
+{
+    TSharedPtr<FJsonObject> JsonObject;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Json);
+
+    if (!FJsonSerializer::Deserialize(Reader, JsonObject) || !JsonObject.IsValid())
+    {
+        UE_LOG(LogMACommTypes, Warning, TEXT("FMASkillAllocationMessage::FromJson - Failed to parse JSON"));
+        return false;
+    }
+
+    // 解析 name
+    JsonObject->TryGetStringField(TEXT("name"), Out.Name);
+
+    // 解析 description
+    JsonObject->TryGetStringField(TEXT("description"), Out.Description);
+
+    // 解析 timestamp
+    double TimestampDouble = 0;
+    if (JsonObject->TryGetNumberField(TEXT("timestamp"), TimestampDouble))
+    {
+        Out.Timestamp = static_cast<int64>(TimestampDouble);
+    }
+
+    // 解析 message_id
+    JsonObject->TryGetStringField(TEXT("message_id"), Out.MessageId);
+
+    // 解析 data - 将其序列化回 JSON 字符串
+    const TSharedPtr<FJsonObject>* DataObject;
+    if (JsonObject->TryGetObjectField(TEXT("data"), DataObject))
+    {
+        FString DataString;
+        TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&DataString);
+        FJsonSerializer::Serialize(DataObject->ToSharedRef(), Writer);
+        Out.DataJson = DataString;
+    }
+    else
+    {
+        // 尝试作为字符串读取
+        JsonObject->TryGetStringField(TEXT("data"), Out.DataJson);
+    }
+
+    return true;
+}
+
+//=============================================================================
+// FMASkillStatusUpdateMessage 实现
+//=============================================================================
+
+FString FMASkillStatusUpdateMessage::ToJson() const
+{
+    TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject());
+
+    JsonObject->SetNumberField(TEXT("time_step"), TimeStep);
+    JsonObject->SetStringField(TEXT("robot_id"), RobotId);
+    JsonObject->SetStringField(TEXT("status"), Status);
+    JsonObject->SetStringField(TEXT("error_message"), ErrorMessage);
+    JsonObject->SetNumberField(TEXT("timestamp"), static_cast<double>(Timestamp));
+
+    FString OutputString;
+    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
+    FJsonSerializer::Serialize(JsonObject.ToSharedRef(), Writer);
+
+    return OutputString;
+}
+
+bool FMASkillStatusUpdateMessage::FromJson(const FString& Json, FMASkillStatusUpdateMessage& Out)
+{
+    TSharedPtr<FJsonObject> JsonObject;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Json);
+
+    if (!FJsonSerializer::Deserialize(Reader, JsonObject) || !JsonObject.IsValid())
+    {
+        UE_LOG(LogMACommTypes, Warning, TEXT("FMASkillStatusUpdateMessage::FromJson - Failed to parse JSON"));
+        return false;
+    }
+
+    // 解析 time_step
+    double TimeStepDouble = 0;
+    if (JsonObject->TryGetNumberField(TEXT("time_step"), TimeStepDouble))
+    {
+        Out.TimeStep = static_cast<int32>(TimeStepDouble);
+    }
+
+    // 解析 robot_id
+    JsonObject->TryGetStringField(TEXT("robot_id"), Out.RobotId);
+
+    // 解析 status
+    JsonObject->TryGetStringField(TEXT("status"), Out.Status);
+
+    // 解析 error_message
+    JsonObject->TryGetStringField(TEXT("error_message"), Out.ErrorMessage);
+
+    // 解析 timestamp
+    double TimestampDouble = 0;
+    if (JsonObject->TryGetNumberField(TEXT("timestamp"), TimestampDouble))
+    {
+        Out.Timestamp = static_cast<int64>(TimestampDouble);
     }
 
     return true;

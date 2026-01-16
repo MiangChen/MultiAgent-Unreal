@@ -70,6 +70,9 @@ private:
     /** 处理技能列表消息 */
     void HandleSkillList(const TSharedPtr<FJsonObject>& PayloadObject);
 
+    /** 处理技能状态更新消息 */
+    void HandleSkillStatusUpdate(const TSharedPtr<FJsonObject>& PayloadObject);
+
     /** 处理查询请求消息 */
     void HandleQueryRequest(const TSharedPtr<FJsonObject>& PayloadObject);
 

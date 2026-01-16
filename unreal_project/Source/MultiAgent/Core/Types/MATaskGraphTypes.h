@@ -242,3 +242,191 @@ struct MULTIAGENT_API FMANodeTemplate
     FMANodeTemplate(const FString& InName, const FString& InDesc, const FString& InLocation)
         : TemplateName(InName), DefaultDescription(InDesc), DefaultLocation(InLocation) {}
 };
+
+//=============================================================================
+// Skill Allocation Viewer Types
+//=============================================================================
+
+/**
+ * 技能执行状态枚举
+ * 表示技能的当前执行状态
+ */
+UENUM(BlueprintType)
+enum class ESkillExecutionStatus : uint8
+{
+    Pending     UMETA(DisplayName = "Pending"),
+    InProgress  UMETA(DisplayName = "In Progress"),
+    Completed   UMETA(DisplayName = "Completed"),
+    Failed      UMETA(DisplayName = "Failed")
+};
+
+/**
+ * 技能分配
+ * 表示在特定时间步为特定机器人分配的单个技能
+ */
+USTRUCT(BlueprintType)
+struct MULTIAGENT_API FMASkillAssignment
+{
+    GENERATED_BODY()
+
+    /** 技能名称 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkillAllocation")
+    FString SkillName;
+
+    /** 技能参数 (JSON 字符串格式) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkillAllocation")
+    FString ParamsJson;
+
+    /** 执行状态 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkillAllocation")
+    ESkillExecutionStatus Status = ESkillExecutionStatus::Pending;
+
+    FMASkillAssignment() {}
+
+    FMASkillAssignment(const FString& InSkillName, const FString& InParamsJson)
+        : SkillName(InSkillName), ParamsJson(InParamsJson) {}
+
+    /** 从 JSON 对象解析 */
+    static bool FromJson(const TSharedPtr<FJsonObject>& JsonObject, FMASkillAssignment& Out);
+
+    /** 从 JSON 对象解析，带详细错误信息 */
+    static bool FromJsonWithError(const TSharedPtr<FJsonObject>& JsonObject, FMASkillAssignment& Out, FString& OutError, const FString& Context);
+
+    /** 序列化为 JSON 对象 */
+    TSharedPtr<FJsonObject> ToJsonObject() const;
+
+    /** 获取参数作为 JSON 对象 */
+    TSharedPtr<FJsonObject> GetParamsAsJson() const;
+
+    /** 相等比较 */
+    bool operator==(const FMASkillAssignment& Other) const;
+};
+
+/**
+ * 时间步数据
+ * 包含特定时间步的所有机器人技能分配
+ */
+USTRUCT(BlueprintType)
+struct MULTIAGENT_API FMATimeStepData
+{
+    GENERATED_BODY()
+
+    /** 机器人 ID -> 技能分配映射 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkillAllocation")
+    TMap<FString, FMASkillAssignment> RobotSkills;
+
+    FMATimeStepData() {}
+
+    /** 从 JSON 对象解析 */
+    static bool FromJson(const TSharedPtr<FJsonObject>& JsonObject, FMATimeStepData& Out);
+
+    /** 从 JSON 对象解析，带详细错误信息 */
+    static bool FromJsonWithError(const TSharedPtr<FJsonObject>& JsonObject, FMATimeStepData& Out, FString& OutError, int32 TimeStep);
+
+    /** 序列化为 JSON 对象 */
+    TSharedPtr<FJsonObject> ToJsonObject() const;
+
+    /** 相等比较 */
+    bool operator==(const FMATimeStepData& Other) const;
+
+    /** 获取 JSON 类型名称 (用于错误消息) */
+    static FString GetJsonTypeName(EJson Type);
+};
+
+/**
+ * 技能分配数据
+ * 完整的技能分配数据结构，包含所有时间步的技能分配
+ */
+USTRUCT(BlueprintType)
+struct MULTIAGENT_API FMASkillAllocationData
+{
+    GENERATED_BODY()
+
+    /** 技能分配名称 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkillAllocation")
+    FString Name;
+
+    /** 技能分配描述 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkillAllocation")
+    FString Description;
+
+    /** 时间步 -> 时间步数据映射 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkillAllocation")
+    TMap<int32, FMATimeStepData> Data;
+
+    FMASkillAllocationData() {}
+
+    /** 从 JSON 字符串解析 */
+    static bool FromJson(const FString& JsonString, FMASkillAllocationData& OutData, FString& OutError);
+
+    /** 序列化为格式化的 JSON 字符串 */
+    FString ToJson() const;
+
+    /** 获取所有机器人 ID */
+    TArray<FString> GetAllRobotIds() const;
+
+    /** 获取所有时间步 */
+    TArray<int32> GetAllTimeSteps() const;
+
+    /** 查找特定技能分配 */
+    FMASkillAssignment* FindSkill(int32 TimeStep, const FString& RobotId);
+    const FMASkillAssignment* FindSkill(int32 TimeStep, const FString& RobotId) const;
+
+    /** 验证机器人 ID 一致性 */
+    bool ValidateRobotIds(TArray<FString>& OutUndefinedRobots) const;
+
+    /** 相等比较 */
+    bool operator==(const FMASkillAllocationData& Other) const;
+};
+
+/**
+ * 技能条渲染数据
+ * 用于在甘特图中渲染技能条的数据
+ */
+USTRUCT(BlueprintType)
+struct MULTIAGENT_API FMASkillBarRenderData
+{
+    GENERATED_BODY()
+
+    /** 时间步 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkillAllocation")
+    int32 TimeStep = 0;
+
+    /** 机器人 ID */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkillAllocation")
+    FString RobotId;
+
+    /** 技能名称 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkillAllocation")
+    FString SkillName;
+
+    /** 技能参数 (JSON 字符串) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkillAllocation")
+    FString ParamsJson;
+
+    /** 执行状态 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkillAllocation")
+    ESkillExecutionStatus Status = ESkillExecutionStatus::Pending;
+
+    /** 渲染位置 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkillAllocation")
+    FVector2D Position = FVector2D::ZeroVector;
+
+    /** 渲染大小 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkillAllocation")
+    FVector2D Size = FVector2D::ZeroVector;
+
+    /** 渲染颜色 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkillAllocation")
+    FLinearColor Color = FLinearColor::White;
+
+    /** 是否被选中 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkillAllocation")
+    bool bIsSelected = false;
+
+    FMASkillBarRenderData() {}
+
+    FMASkillBarRenderData(int32 InTimeStep, const FString& InRobotId, const FMASkillAssignment& InSkill)
+        : TimeStep(InTimeStep), RobotId(InRobotId), SkillName(InSkill.SkillName), 
+          ParamsJson(InSkill.ParamsJson), Status(InSkill.Status) {}
+};

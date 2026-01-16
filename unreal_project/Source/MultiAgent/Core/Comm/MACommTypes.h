@@ -35,6 +35,8 @@ enum class EMACommMessageType : uint8
     WorldModelGraph UMETA(DisplayName = "World Model Graph"),
     SkillList       UMETA(DisplayName = "Skill List"),
     QueryRequest    UMETA(DisplayName = "Query Request"),  // 查询请求
+    SkillAllocation UMETA(DisplayName = "Skill Allocation"),  // 技能分配
+    SkillStatusUpdate UMETA(DisplayName = "Skill Status Update"),  // 技能状态更新
 
     // 预留扩展
     Custom          UMETA(DisplayName = "Custom")
@@ -708,3 +710,120 @@ struct MULTIAGENT_API FMASceneChangeMessage
     /** 从字符串解析变化类型 */
     static EMASceneChangeType StringToChangeType(const FString& TypeStr);
 };
+
+//=============================================================================
+// 技能分配消息结构
+//=============================================================================
+
+/**
+ * 技能分配消息
+ * 用于向后端发送技能分配数据，启动执行
+ * 
+ * 消息格式与 skill_allocation_example.json 一致:
+ * {
+ *   "name": "...",
+ *   "description": "...",
+ *   "data": {
+ *     "0": { "robot_id": { "skill": "...", "params": {...} } },
+ *     "1": { ... }
+ *   }
+ * }
+ */
+USTRUCT(BlueprintType)
+struct MULTIAGENT_API FMASkillAllocationMessage
+{
+    GENERATED_BODY()
+
+    /** 分配名称 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkillAllocation")
+    FString Name;
+
+    /** 分配描述 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkillAllocation")
+    FString Description;
+
+    /** 技能分配数据 (JSON 格式) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkillAllocation")
+    FString DataJson;
+
+    /** 时间戳 (Unix timestamp in milliseconds) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkillAllocation")
+    int64 Timestamp = 0;
+
+    /** 消息 ID (UUID) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkillAllocation")
+    FString MessageId;
+
+    FMASkillAllocationMessage()
+    {
+        Timestamp = FMAMessageEnvelope::GetCurrentTimestamp();
+        MessageId = FMAMessageEnvelope::GenerateMessageId();
+    }
+
+    FMASkillAllocationMessage(const FString& InName, const FString& InDescription, const FString& InDataJson)
+        : Name(InName), Description(InDescription), DataJson(InDataJson)
+    {
+        Timestamp = FMAMessageEnvelope::GetCurrentTimestamp();
+        MessageId = FMAMessageEnvelope::GenerateMessageId();
+    }
+
+    /** 序列化为 JSON */
+    FString ToJson() const;
+
+    /** 从 JSON 解析 */
+    static bool FromJson(const FString& Json, FMASkillAllocationMessage& Out);
+};
+
+/**
+ * 技能状态更新消息
+ * 从后端接收的技能执行状态更新
+ * 
+ * 消息格式:
+ * {
+ *   "time_step": 0,
+ *   "robot_id": "UAV_01",
+ *   "status": "InProgress" | "Completed" | "Failed"
+ * }
+ */
+USTRUCT(BlueprintType)
+struct MULTIAGENT_API FMASkillStatusUpdateMessage
+{
+    GENERATED_BODY()
+
+    /** 时间步索引 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkillStatus")
+    int32 TimeStep = 0;
+
+    /** 机器人 ID */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkillStatus")
+    FString RobotId;
+
+    /** 执行状态: Pending, InProgress, Completed, Failed */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkillStatus")
+    FString Status;
+
+    /** 可选的错误消息 (失败时) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkillStatus")
+    FString ErrorMessage;
+
+    /** 时间戳 (Unix timestamp in milliseconds) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkillStatus")
+    int64 Timestamp = 0;
+
+    FMASkillStatusUpdateMessage()
+    {
+        Timestamp = FMAMessageEnvelope::GetCurrentTimestamp();
+    }
+
+    /** 序列化为 JSON */
+    FString ToJson() const;
+
+    /** 从 JSON 解析 */
+    static bool FromJson(const FString& Json, FMASkillStatusUpdateMessage& Out);
+};
+
+// 委托声明 - 收到技能分配时广播
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMASkillAllocationReceived, const FMASkillAllocationMessage&, SkillAllocation);
+
+// 委托声明 - 收到技能状态更新时广播
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMASkillStatusUpdateReceived, const FMASkillStatusUpdateMessage&, StatusUpdate);

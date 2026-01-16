@@ -103,6 +103,10 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Communication|SceneChange")
     void SendSceneChangeMessageByType(EMASceneChangeType ChangeType, const FString& Payload);
 
+    /** 发送技能分配消息 */
+    UFUNCTION(BlueprintCallable, Category = "Communication|SkillAllocation")
+    void SendSkillAllocationMessage(const FMASkillAllocationMessage& Message);
+
     //=========================================================================
     // 轮询控制接口 (委托给 MACommInbound)
     //=========================================================================
@@ -154,6 +158,10 @@ public:
     /** 收到技能列表委托 */
     UPROPERTY(BlueprintAssignable, Category = "Events")
     FOnMASkillListReceived OnSkillListReceived;
+
+    /** 收到技能状态更新委托 */
+    UPROPERTY(BlueprintAssignable, Category = "Events")
+    FOnMASkillStatusUpdateReceived OnSkillStatusUpdateReceived;
 
     //=========================================================================
     // 状态查询

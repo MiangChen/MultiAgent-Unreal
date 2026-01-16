@@ -117,6 +117,10 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "Input")
     TObjectPtr<UInputAction> IA_ToggleMainUI;
 
+    /** 切换技能分配查看器显示/隐藏 (N 键) */
+    UPROPERTY(BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_ToggleSkillAllocationViewer;
+
     // ========== 突发事件系统 ==========
     /** 触发/结束突发事件 ("-" 键) */
     UPROPERTY(BlueprintReadOnly, Category = "Input|Emergency")

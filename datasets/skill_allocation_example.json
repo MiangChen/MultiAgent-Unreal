@@ -1,0 +1,143 @@
+{
+  "name": "Multi-Robot Patrol Mission",
+  "description": "Coordinated patrol and surveillance mission with multiple robot types",
+  "data": {
+    "0": {
+      "UAV_01": {
+        "skill": "navigate",
+        "params": {
+          "target": "waypoint_A",
+          "altitude": 50.0,
+          "speed": 5.0
+        }
+      },
+      "UAV_02": {
+        "skill": "navigate",
+        "params": {
+          "target": "waypoint_B",
+          "altitude": 50.0,
+          "speed": 5.0
+        }
+      },
+      "UGV_01": {
+        "skill": "navigate",
+        "params": {
+          "target": "patrol_start",
+          "speed": 2.0
+        }
+      }
+    },
+    "1": {
+      "UAV_01": {
+        "skill": "search",
+        "params": {
+          "area": "zone_A",
+          "pattern": "grid",
+          "altitude": 50.0
+        }
+      },
+      "UAV_02": {
+        "skill": "search",
+        "params": {
+          "area": "zone_B",
+          "pattern": "spiral",
+          "altitude": 50.0
+        }
+      },
+      "UGV_01": {
+        "skill": "patrol",
+        "params": {
+          "path": "patrol_route_1",
+          "speed": 2.0
+        }
+      },
+      "Humanoid_01": {
+        "skill": "navigate",
+        "params": {
+          "target": "building_entrance",
+          "speed": 1.5
+        }
+      }
+    },
+    "2": {
+      "UAV_01": {
+        "skill": "follow",
+        "params": {
+          "target": "Humanoid_01",
+          "distance": 10.0,
+          "altitude": 30.0
+        }
+      },
+      "UAV_02": {
+        "skill": "navigate",
+        "params": {
+          "target": "charging_station",
+          "altitude": 20.0,
+          "speed": 3.0
+        }
+      },
+      "UGV_01": {
+        "skill": "patrol",
+        "params": {
+          "path": "patrol_route_2",
+          "speed": 2.0
+        }
+      },
+      "Humanoid_01": {
+        "skill": "place",
+        "params": {
+          "object": "sensor_package",
+          "location": "building_roof"
+        }
+      }
+    },
+    "3": {
+      "UAV_01": {
+        "skill": "follow",
+        "params": {
+          "target": "Humanoid_01",
+          "distance": 10.0,
+          "altitude": 30.0
+        }
+      },
+      "UAV_02": {
+        "skill": "charge",
+        "params": {
+          "station": "charging_station_A"
+        }
+      },
+      "UGV_01": {
+        "skill": "navigate",
+        "params": {
+          "target": "base",
+          "speed": 2.0
+        }
+      },
+      "Humanoid_01": {
+        "skill": "navigate",
+        "params": {
+          "target": "extraction_point",
+          "speed": 1.5
+        }
+      }
+    },
+    "4": {
+      "UAV_01": {
+        "skill": "navigate",
+        "params": {
+          "target": "base",
+          "altitude": 50.0,
+          "speed": 5.0
+        }
+      },
+      "UGV_01": {
+        "skill": "idle",
+        "params": {}
+      },
+      "Humanoid_01": {
+        "skill": "idle",
+        "params": {}
+      }
+    }
+  }
+}

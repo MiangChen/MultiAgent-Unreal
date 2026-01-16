@@ -184,6 +184,22 @@ void UMACommSubsystem::SendSceneChangeMessageByType(EMASceneChangeType ChangeTyp
     }
 }
 
+void UMACommSubsystem::SendSkillAllocationMessage(const FMASkillAllocationMessage& Message)
+{
+    UE_LOG(LogMACommSubsystem, Log, TEXT("SendSkillAllocationMessage: Name=%s, Description=%s"), 
+        *Message.Name, *Message.Description);
+
+    // 创建消息信封
+    FMAMessageEnvelope Envelope;
+    Envelope.MessageType = EMACommMessageType::SkillAllocation;
+    Envelope.Timestamp = Message.Timestamp;
+    Envelope.MessageId = Message.MessageId;
+    Envelope.PayloadJson = Message.ToJson();
+
+    // 发送消息
+    SendMessageEnvelopeInternal(Envelope);
+}
+
 //=============================================================================
 // 轮询控制接口 (委托给 MACommInbound)
 //=============================================================================

@@ -738,7 +738,7 @@ def run_server(port: int, test_mode: str, interval: float):
 def main():
     parser = argparse.ArgumentParser(description='Send skill list to UE5')
     parser.add_argument('--server', action='store_true', help='Run as HTTP server')
-    parser.add_argument('--port', type=int, default=8081, help='Server port')
+    parser.add_argument('--port', type=int, default=8082, help='Server port')
     parser.add_argument('--test', type=str, default='single', 
                         choices=['single', 'uav_search', 'transport_auto',
                                  'place_load', 'place_unload', 'place_coop',

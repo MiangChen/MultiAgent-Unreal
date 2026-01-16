@@ -10,6 +10,7 @@
 
 class UMASimpleMainWidget;
 class UMATaskPlannerWidget;
+class UMASkillAllocationViewer;
 class UMADirectControlIndicator;
 class UMAEmergencyWidget;
 class UMAModifyWidget;
@@ -63,6 +64,10 @@ public:
     /** TaskPlannerWidget 实例 (任务规划工作台) */
     UPROPERTY(BlueprintReadOnly, Category = "UI Instances")
     UMATaskPlannerWidget* TaskPlannerWidget;
+
+    /** SkillAllocationViewer 实例 (技能分配查看器) */
+    UPROPERTY(BlueprintReadOnly, Category = "UI Instances")
+    UMASkillAllocationViewer* SkillAllocationViewer;
 
     /** SemanticMap Widget 实例 (后续阶段) */
     UPROPERTY(BlueprintReadOnly, Category = "UI Instances")
@@ -169,6 +174,31 @@ public:
      */
     UFUNCTION(BlueprintPure, Category = "UI")
     UMATaskPlannerWidget* GetTaskPlannerWidget() const { return TaskPlannerWidget; }
+
+    /**
+     * 切换技能分配查看器的显示/隐藏
+     */
+    UFUNCTION(BlueprintCallable, Category = "UI Control")
+    void ToggleSkillAllocationViewer();
+
+    /**
+     * 显示技能分配查看器
+     */
+    UFUNCTION(BlueprintCallable, Category = "UI Control")
+    void ShowSkillAllocationViewer();
+
+    /**
+     * 隐藏技能分配查看器
+     */
+    UFUNCTION(BlueprintCallable, Category = "UI Control")
+    void HideSkillAllocationViewer();
+
+    /**
+     * 检查技能分配查看器是否可见
+     * @return true 如果查看器当前可见
+     */
+    UFUNCTION(BlueprintPure, Category = "UI")
+    bool IsSkillAllocationViewerVisible() const;
 
     /**
      * 加载任务图数据到 TaskPlannerWidget

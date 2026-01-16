@@ -144,6 +144,9 @@ void AMAPlayerController::SetupInputComponent()
         // UI 切换 (Z 键)
         EIC->BindAction(InputActions->IA_ToggleMainUI, ETriggerEvent::Started, this, &AMAPlayerController::OnToggleMainUI);
 
+        // 技能分配查看器切换 (N 键)
+        EIC->BindAction(InputActions->IA_ToggleSkillAllocationViewer, ETriggerEvent::Started, this, &AMAPlayerController::OnToggleSkillAllocationViewer);
+
         // 突发事件系统
         EIC->BindAction(InputActions->IA_TriggerEmergency, ETriggerEvent::Started, this, &AMAPlayerController::OnTriggerEmergency);
         EIC->BindAction(InputActions->IA_ToggleEmergencyUI, ETriggerEvent::Started, this, &AMAPlayerController::OnToggleEmergencyUI);
@@ -1149,6 +1152,19 @@ void AMAPlayerController::OnToggleMainUI(const FInputActionValue& Value)
     {
         HUD->ToggleMainUI();
         UE_LOG(LogTemp, Log, TEXT("[PlayerController] ToggleMainUI called"));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] MAHUD not found!"));
+    }
+}
+
+void AMAPlayerController::OnToggleSkillAllocationViewer(const FInputActionValue& Value)
+{
+    if (AMAHUD* HUD = Cast<AMAHUD>(GetHUD()))
+    {
+        HUD->ToggleSkillAllocationViewer();
+        UE_LOG(LogTemp, Log, TEXT("[PlayerController] ToggleSkillAllocationViewer called"));
     }
     else
     {

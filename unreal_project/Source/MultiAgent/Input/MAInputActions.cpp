@@ -54,6 +54,7 @@ void UMAInputActions::Initialize()
     
     // UI 切换
     IA_ToggleMainUI = CreateInputAction(TEXT("IA_ToggleMainUI"));
+    IA_ToggleSkillAllocationViewer = CreateInputAction(TEXT("IA_ToggleSkillAllocationViewer"));
 
     // 突发事件系统
     IA_TriggerEmergency = CreateInputAction(TEXT("IA_TriggerEmergency"));
@@ -113,6 +114,7 @@ void UMAInputActions::Initialize()
     AddKeyMapping(IMC_RTS, IA_DisbandSquad, EKeys::Q);  // Shift+Q 解散 (Shift 在代码中检测)
     AddKeyMapping(IMC_RTS, IA_ToggleMouseMode, EKeys::M);  // M for Mode
     AddKeyMapping(IMC_RTS, IA_ToggleMainUI, EKeys::Z);  // Z for UI toggle
+    AddKeyMapping(IMC_RTS, IA_ToggleSkillAllocationViewer, EKeys::N);  // N for skil(N) allocation
 
     // 突发事件系统
     AddKeyMapping(IMC_RTS, IA_TriggerEmergency, EKeys::Hyphen);  // "-" 键触发/结束事件

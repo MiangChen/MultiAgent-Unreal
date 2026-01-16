@@ -5,6 +5,7 @@
 #include "MAHUD.h"
 #include "MASimpleMainWidget.h"
 #include "MATaskPlannerWidget.h"
+#include "MASkillAllocationViewer.h"
 #include "MADirectControlIndicator.h"
 #include "../Core/Types/MATaskGraphTypes.h"
 #include "MAEmergencyWidget.h"
@@ -42,6 +43,7 @@ AMAHUD::AMAHUD()
     bMainUIVisible = false;
     EmergencyWidget = nullptr;
     TaskPlannerWidget = nullptr;
+    SkillAllocationViewer = nullptr;
     ModifyWidget = nullptr;
     EditWidget = nullptr;
     SceneListWidget = nullptr;
@@ -432,6 +434,92 @@ bool AMAHUD::IsDirectControlIndicatorVisible() const
 }
 
 //=============================================================================
+// 技能分配查看器控制
+//=============================================================================
+
+void AMAHUD::ToggleSkillAllocationViewer()
+{
+    if (IsSkillAllocationViewerVisible())
+    {
+        HideSkillAllocationViewer();
+    }
+    else
+    {
+        ShowSkillAllocationViewer();
+    }
+}
+
+void AMAHUD::ShowSkillAllocationViewer()
+{
+    if (!SkillAllocationViewer)
+    {
+        UE_LOG(LogMAHUD, Warning, TEXT("ShowSkillAllocationViewer: SkillAllocationViewer is null"));
+        return;
+    }
+
+    if (IsSkillAllocationViewerVisible())
+    {
+        // 已经显示
+        return;
+    }
+
+    // 显示 Widget
+    SkillAllocationViewer->SetVisibility(ESlateVisibility::Visible);
+
+    // 设置输入模式为 UI 和游戏混合
+    APlayerController* PC = GetOwningPlayerController();
+    if (PC)
+    {
+        FInputModeGameAndUI InputMode;
+        InputMode.SetWidgetToFocus(SkillAllocationViewer->TakeWidget());
+        InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+        InputMode.SetHideCursorDuringCapture(false);
+        PC->SetInputMode(InputMode);
+        PC->SetShowMouseCursor(true);
+    }
+
+    UE_LOG(LogMAHUD, Log, TEXT("SkillAllocationViewer shown"));
+}
+
+void AMAHUD::HideSkillAllocationViewer()
+{
+    if (!SkillAllocationViewer)
+    {
+        UE_LOG(LogMAHUD, Warning, TEXT("HideSkillAllocationViewer: SkillAllocationViewer is null"));
+        return;
+    }
+
+    if (!IsSkillAllocationViewerVisible())
+    {
+        return;
+    }
+
+    // 隐藏 Widget
+    SkillAllocationViewer->SetVisibility(ESlateVisibility::Collapsed);
+
+    // 恢复输入模式为纯游戏
+    APlayerController* PC = GetOwningPlayerController();
+    if (PC)
+    {
+        FInputModeGameOnly InputMode;
+        PC->SetInputMode(InputMode);
+        PC->SetShowMouseCursor(true);  // 保持鼠标可见用于 RTS 操作
+    }
+
+    UE_LOG(LogMAHUD, Log, TEXT("SkillAllocationViewer hidden"));
+}
+
+bool AMAHUD::IsSkillAllocationViewerVisible() const
+{
+    if (!SkillAllocationViewer)
+    {
+        return false;
+    }
+    
+    return SkillAllocationViewer->IsVisible();
+}
+
+//=============================================================================
 // 事件回调
 //=============================================================================
 
@@ -515,6 +603,25 @@ void AMAHUD::CreateWidgets()
     else
     {
         UE_LOG(LogMAHUD, Error, TEXT("Failed to create TaskPlannerWidget"));
+    }
+
+    // 创建 SkillAllocationViewer (技能分配查看器)
+    UE_LOG(LogMAHUD, Log, TEXT("Creating SkillAllocationViewer..."));
+    
+    SkillAllocationViewer = CreateWidget<UMASkillAllocationViewer>(PC, UMASkillAllocationViewer::StaticClass());
+    if (SkillAllocationViewer)
+    {
+        SkillAllocationViewer->AddToViewport(10);  // 与 TaskPlannerWidget 同优先级
+        SkillAllocationViewer->SetVisibility(ESlateVisibility::Collapsed);
+        
+        // 尝试加载 Mock 数据
+        SkillAllocationViewer->LoadMockData();
+        
+        UE_LOG(LogMAHUD, Log, TEXT("SkillAllocationViewer created successfully"));
+    }
+    else
+    {
+        UE_LOG(LogMAHUD, Error, TEXT("Failed to create SkillAllocationViewer"));
     }
 
     // 创建 SimpleMainWidget (保留向后兼容，但默认不使用)

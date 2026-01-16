@@ -245,6 +245,10 @@ void FMACommInbound::HandlePollResponse(const FString& ResponseJson)
         {
             HandleSkillList(*PayloadObject);
         }
+        else if (MessageTypeStr == TEXT("skill_status_update"))
+        {
+            HandleSkillStatusUpdate(*PayloadObject);
+        }
         else if (MessageTypeStr == TEXT("query_request"))
         {
             HandleQueryRequest(*PayloadObject);
@@ -352,6 +356,33 @@ void FMACommInbound::HandleSkillList(const TSharedPtr<FJsonObject>& PayloadObjec
     else
     {
         UE_LOG(LogMACommInbound, Warning, TEXT("HandleSkillList: Failed to parse SkillList payload"));
+    }
+}
+
+void FMACommInbound::HandleSkillStatusUpdate(const TSharedPtr<FJsonObject>& PayloadObject)
+{
+    if (!Owner)
+    {
+        return;
+    }
+
+    // 将 payload 对象序列化回 JSON 字符串
+    FString PayloadJson;
+    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&PayloadJson);
+    FJsonSerializer::Serialize(PayloadObject.ToSharedRef(), Writer);
+
+    FMASkillStatusUpdateMessage StatusUpdate;
+    if (FMASkillStatusUpdateMessage::FromJson(PayloadJson, StatusUpdate))
+    {
+        UE_LOG(LogMACommInbound, Log, TEXT("HandleSkillStatusUpdate: TimeStep=%d, RobotId=%s, Status=%s"),
+            StatusUpdate.TimeStep, *StatusUpdate.RobotId, *StatusUpdate.Status);
+
+        // 广播委托
+        Owner->OnSkillStatusUpdateReceived.Broadcast(StatusUpdate);
+    }
+    else
+    {
+        UE_LOG(LogMACommInbound, Warning, TEXT("HandleSkillStatusUpdate: Failed to parse SkillStatusUpdate payload"));
     }
 }
 
