@@ -5,11 +5,12 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "../Core/Types/MATaskGraphTypes.h"
+#include "../../Core/Types/MATaskGraphTypes.h"
 #include "MASkillAllocationViewer.generated.h"
 
 class UMAGanttCanvas;
 class UMASkillAllocationModel;
+class UMATempDataManager;
 class UMultiLineEditableTextBox;
 class UButton;
 class UTextBlock;
@@ -181,6 +182,10 @@ protected:
     /** 技能状态更新回调 */
     UFUNCTION()
     void OnSkillStatusUpdated(int32 TimeStep, const FString& RobotId, ESkillExecutionStatus Status);
+
+    /** TempDataManager 技能列表变更回调 */
+    UFUNCTION()
+    void OnTempSkillListChanged(const FMASkillAllocationData& NewData);
 
     //=========================================================================
     // 辅助方法

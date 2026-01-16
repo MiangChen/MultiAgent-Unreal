@@ -4,11 +4,18 @@
 #include "MACommInbound.h"
 #include "MACommSubsystem.h"
 #include "../Manager/MACommandManager.h"
+#include "../Manager/MATempDataManager.h"
+#include "../Types/MATaskGraphTypes.h"
 #include "HttpModule.h"
 #include "Interfaces/IHttpRequest.h"
 #include "Interfaces/IHttpResponse.h"
 #include "TimerManager.h"
 #include "Engine/World.h"
+#include "Engine/GameInstance.h"
+#include "Dom/JsonObject.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonWriter.h"
+#include "Serialization/JsonSerializer.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMACommInbound, Log, All);
 
@@ -285,6 +292,53 @@ void FMACommInbound::HandleTaskPlanDAG(const TSharedPtr<FJsonObject>& PayloadObj
             UE_LOG(LogMACommInbound, Log, TEXT("HandleTaskPlanDAG: Broadcasting TaskPlanDAG with %d nodes, %d edges"),
                 TaskPlan.Nodes.Num(), TaskPlan.Edges.Num());
             
+            // 保存到 TempDataManager (需求 3.1)
+            if (UGameInstance* GameInstance = Owner->GetGameInstance())
+            {
+                if (UMATempDataManager* TempDataMgr = GameInstance->GetSubsystem<UMATempDataManager>())
+                {
+                    // 将 FMATaskPlanDAG 转换为 FMATaskGraphData 格式
+                    FMATaskGraphData TaskGraphData;
+                    TaskGraphData.Description = TEXT("Task plan received from backend");
+                    
+                    // 转换节点
+                    for (const FMATaskPlanNode& PlanNode : TaskPlan.Nodes)
+                    {
+                        FMATaskNodeData NodeData;
+                        NodeData.TaskId = PlanNode.NodeId;
+                        NodeData.Description = PlanNode.TaskType;
+                        
+                        // 从参数中提取位置信息
+                        if (const FString* LocationParam = PlanNode.Parameters.Find(TEXT("location")))
+                        {
+                            NodeData.Location = *LocationParam;
+                        }
+                        
+                        TaskGraphData.Nodes.Add(NodeData);
+                    }
+                    
+                    // 转换边
+                    for (const FMATaskPlanEdge& PlanEdge : TaskPlan.Edges)
+                    {
+                        FMATaskEdgeData EdgeData;
+                        EdgeData.FromNodeId = PlanEdge.FromNodeId;
+                        EdgeData.ToNodeId = PlanEdge.ToNodeId;
+                        EdgeData.EdgeType = TEXT("sequential");
+                        TaskGraphData.Edges.Add(EdgeData);
+                    }
+                    
+                    // 保存到临时文件
+                    if (TempDataMgr->SaveTaskGraph(TaskGraphData))
+                    {
+                        UE_LOG(LogMACommInbound, Log, TEXT("HandleTaskPlanDAG: Saved task graph to temp file"));
+                    }
+                    else
+                    {
+                        UE_LOG(LogMACommInbound, Warning, TEXT("HandleTaskPlanDAG: Failed to save task graph to temp file"));
+                    }
+                }
+            }
+            
             // 广播委托
             Owner->OnTaskPlanReceived.Broadcast(TaskPlan);
         }
@@ -344,14 +398,59 @@ void FMACommInbound::HandleSkillList(const TSharedPtr<FJsonObject>& PayloadObjec
         UE_LOG(LogMACommInbound, Log, TEXT("HandleSkillList: Received SkillList with %d time steps"),
             SkillList.TotalTimeSteps);
 
-        // 直接调用 CommandManager 执行
-        if (UWorld* World = Owner->GetWorld())
+        // 保存到 TempDataManager (需求 3.2)
+        if (UGameInstance* GameInstance = Owner->GetGameInstance())
         {
-            if (UMACommandManager* CommandManager = World->GetSubsystem<UMACommandManager>())
+            if (UMATempDataManager* TempDataMgr = GameInstance->GetSubsystem<UMATempDataManager>())
             {
-                CommandManager->ExecuteSkillList(SkillList);
+                // 将 FMASkillListMessage 转换为 FMASkillAllocationData 格式
+                // 构建完整的 JSON 格式: { "name": "...", "description": "...", "data": {...} }
+                FString SkillListJson = SkillList.ToJson();
+                
+                // 创建包含 name, description, data 的完整 JSON
+                TSharedPtr<FJsonObject> FullJsonObject = MakeShareable(new FJsonObject());
+                FullJsonObject->SetStringField(TEXT("name"), TEXT("Received Skill List"));
+                FullJsonObject->SetStringField(TEXT("description"), TEXT("Skill list received from backend"));
+                
+                // 解析 SkillListJson 为 JSON 对象
+                TSharedPtr<FJsonObject> DataObject;
+                TSharedRef<TJsonReader<>> DataReader = TJsonReaderFactory<>::Create(SkillListJson);
+                if (FJsonSerializer::Deserialize(DataReader, DataObject) && DataObject.IsValid())
+                {
+                    FullJsonObject->SetObjectField(TEXT("data"), DataObject);
+                }
+                
+                // 序列化完整 JSON
+                FString FullJson;
+                TSharedRef<TJsonWriter<>> FullWriter = TJsonWriterFactory<>::Create(&FullJson);
+                FJsonSerializer::Serialize(FullJsonObject.ToSharedRef(), FullWriter);
+                
+                // 解析为 FMASkillAllocationData
+                FMASkillAllocationData AllocationData;
+                FString ErrorMessage;
+                if (FMASkillAllocationData::FromJson(FullJson, AllocationData, ErrorMessage))
+                {
+                    // 保存到临时文件
+                    if (TempDataMgr->SaveSkillList(AllocationData))
+                    {
+                        UE_LOG(LogMACommInbound, Log, TEXT("HandleSkillList: Saved skill list to temp file"));
+                    }
+                    else
+                    {
+                        UE_LOG(LogMACommInbound, Warning, TEXT("HandleSkillList: Failed to save skill list to temp file"));
+                    }
+                }
+                else
+                {
+                    UE_LOG(LogMACommInbound, Warning, TEXT("HandleSkillList: Failed to convert to FMASkillAllocationData: %s"), *ErrorMessage);
+                }
             }
         }
+
+        // 注意：根据需求 6.3，不再直接触发技能执行
+        // 用户需要手动点击 "Start Executing" 按钮来执行
+        // 原代码: CommandManager->ExecuteSkillList(SkillList);
+        UE_LOG(LogMACommInbound, Log, TEXT("HandleSkillList: Skill list saved. User should click 'Start Executing' to run."));
     }
     else
     {

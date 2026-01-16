@@ -68,6 +68,7 @@ void UMASkillAllocationModel::LoadFromData(const FMASkillAllocationData& Data)
     BroadcastDataChanged();
 }
 
+
 void UMASkillAllocationModel::ResetToOriginal()
 {
     WorkingData = OriginalData;
@@ -192,7 +193,6 @@ bool UMASkillAllocationModel::UpdateSkillStatus(int32 TimeStep, const FString& R
     ESkillExecutionStatus OldStatus = Skill->Status;
     
     // Validate status transition (optional: can be made stricter)
-    // For now, we allow any transition but log unusual ones
     if (OldStatus == ESkillExecutionStatus::Completed && NewStatus == ESkillExecutionStatus::Pending)
     {
         UE_LOG(LogMASkillAllocationModel, Warning, 

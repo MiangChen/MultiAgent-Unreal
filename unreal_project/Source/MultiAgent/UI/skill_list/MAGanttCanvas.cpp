@@ -380,11 +380,11 @@ void UMAGanttCanvas::DrawTimelineHeader(const FGeometry& AllottedGeometry, FSlat
         FVector2D TextPosition(X + 5.0f, 5.0f);
         FVector2D TextSize(TimeStepWidth - 10.0f, HeaderHeight - 10.0f);
         
-        // 使用正确的位置绘制文本 - ToPaintGeometry(LocalOffset, LocalSize, LocalScale)
+        // 使用正确的位置绘制文本 - ToPaintGeometry(LocalSize, LayoutTransform)
         FSlateDrawElement::MakeText(
             OutDrawElements,
             LayerId,
-            AllottedGeometry.ToPaintGeometry(TextPosition, TextSize),
+            AllottedGeometry.ToPaintGeometry(FVector2f(TextSize), FSlateLayoutTransform(FVector2f(TextPosition))),
             Label,
             FontInfo,
             ESlateDrawEffect::None,
@@ -412,11 +412,11 @@ void UMAGanttCanvas::DrawRobotLabels(const FGeometry& AllottedGeometry, FSlateWi
         FVector2D TextPosition(5.0f, Y + RobotRowHeight / 2.0f - 7.0f);
         FVector2D TextSize(LabelWidth - 10.0f, RobotRowHeight - 4.0f);
         
-        // 使用正确的位置绘制文本 - ToPaintGeometry(LocalOffset, LocalSize, LocalScale)
+        // 使用正确的位置绘制文本 - ToPaintGeometry(LocalSize, LayoutTransform)
         FSlateDrawElement::MakeText(
             OutDrawElements,
             LayerId,
-            AllottedGeometry.ToPaintGeometry(TextPosition, TextSize),
+            AllottedGeometry.ToPaintGeometry(FVector2f(TextSize), FSlateLayoutTransform(FVector2f(TextPosition))),
             RobotId,
             FontInfo,
             ESlateDrawEffect::None,
@@ -442,11 +442,11 @@ void UMAGanttCanvas::DrawSkillBars(const FGeometry& AllottedGeometry, FSlateWind
             continue;
         }
         
-        // 绘制技能条矩形 - ToPaintGeometry(LocalOffset, LocalSize)
+        // 绘制技能条矩形 - ToPaintGeometry(LocalSize, LayoutTransform)
         FSlateDrawElement::MakeBox(
             OutDrawElements,
             LayerId,
-            AllottedGeometry.ToPaintGeometry(RenderData.Position, RenderData.Size),
+            AllottedGeometry.ToPaintGeometry(FVector2f(RenderData.Size), FSlateLayoutTransform(FVector2f(RenderData.Position))),
             FCoreStyle::Get().GetBrush("WhiteBrush"),
             ESlateDrawEffect::None,
             RenderData.Color
@@ -462,7 +462,7 @@ void UMAGanttCanvas::DrawSkillBars(const FGeometry& AllottedGeometry, FSlateWind
         FSlateDrawElement::MakeText(
             OutDrawElements,
             LayerId + 1,
-            AllottedGeometry.ToPaintGeometry(TextPosition, TextSize),
+            AllottedGeometry.ToPaintGeometry(FVector2f(TextSize), FSlateLayoutTransform(FVector2f(TextPosition))),
             RenderData.SkillName,
             FontInfo,
             ESlateDrawEffect::None,

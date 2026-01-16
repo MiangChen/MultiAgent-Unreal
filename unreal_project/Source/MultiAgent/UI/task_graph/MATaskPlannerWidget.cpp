@@ -5,8 +5,9 @@
 #include "MADAGCanvasWidget.h"
 #include "MANodePaletteWidget.h"
 #include "MATaskGraphModel.h"
-#include "../Core/Config/MAConfigManager.h"
-#include "MACommSubsystem.h"
+#include "../../Core/Config/MAConfigManager.h"
+#include "../../Core/Comm/MACommSubsystem.h"
+#include "../../Core/Manager/MATempDataManager.h"
 #include "Components/MultiLineEditableTextBox.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
@@ -119,6 +120,12 @@ void UMATaskPlannerWidget::NativeConstruct()
     // Initialize status log
     AppendStatusLog(TEXT("Task Planner Workbench started"));
     AppendStatusLog(TEXT("Tip: Drag nodes from the left toolbar to the canvas to create tasks"));
+    
+    // Try to load task graph from temp file (Requirement 4.1)
+    LoadFromTempFile();
+    
+    // Bind TempDataManager data change event (Requirement 4.4)
+    BindTempDataManagerEvents();
     
     UE_LOG(LogMATaskPlanner, Log, TEXT("MATaskPlannerWidget NativeConstruct completed"));
 }
@@ -585,6 +592,9 @@ void UMATaskPlannerWidget::OnUpdateGraphButtonClicked()
     
     AppendStatusLog(TEXT("[Success] Task graph updated"));
     
+    // Save to temp file (Requirement 4.3)
+    SaveToTempFile();
+    
     OnTaskGraphChanged.Broadcast(GraphModel->GetWorkingData());
 }
 
@@ -684,6 +694,9 @@ void UMATaskPlannerWidget::OnNodeTemplateSelected(const FMANodeTemplate& Templat
     {
         DAGCanvas->RefreshFromModel();
     }
+    
+    // Save to temp file (Requirement 4.3)
+    SaveToTempFile();
 }
 
 void UMATaskPlannerWidget::OnNodeDeleteRequested(const FString& NodeId)
@@ -701,6 +714,9 @@ void UMATaskPlannerWidget::OnNodeDeleteRequested(const FString& NodeId)
         {
             DAGCanvas->RefreshFromModel();
         }
+        
+        // Save to temp file (Requirement 4.3)
+        SaveToTempFile();
     }
 }
 
@@ -742,6 +758,9 @@ void UMATaskPlannerWidget::OnEdgeCreated(const FString& FromNodeId, const FStrin
     if (GraphModel->AddEdge(FromNodeId, ToNodeId))
     {
         AppendStatusLog(FString::Printf(TEXT("Edge created: %s -> %s"), *FromNodeId, *ToNodeId));
+        
+        // Save to temp file (Requirement 4.3)
+        SaveToTempFile();
     }
 }
 
@@ -760,6 +779,9 @@ void UMATaskPlannerWidget::OnEdgeDeleteRequested(const FString& FromNodeId, cons
         {
             DAGCanvas->RefreshFromModel();
         }
+        
+        // Save to temp file (Requirement 4.3)
+        SaveToTempFile();
     }
 }
 
@@ -821,4 +843,141 @@ bool UMATaskPlannerWidget::LoadMockData()
     AppendStatusLog(TEXT("[Success] Mock data loaded"));
     
     return true;
+}
+
+//=============================================================================
+// TempDataManager Integration
+//=============================================================================
+
+void UMATaskPlannerWidget::LoadFromTempFile()
+{
+    // Get TempDataManager
+    UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+    if (!GameInstance)
+    {
+        UE_LOG(LogMATaskPlanner, Warning, TEXT("LoadFromTempFile: Unable to get GameInstance"));
+        return;
+    }
+
+    UMATempDataManager* TempDataMgr = GameInstance->GetSubsystem<UMATempDataManager>();
+    if (!TempDataMgr)
+    {
+        UE_LOG(LogMATaskPlanner, Warning, TEXT("LoadFromTempFile: Unable to get TempDataManager"));
+        return;
+    }
+
+    // Check if temp file exists
+    if (!TempDataMgr->TaskGraphFileExists())
+    {
+        UE_LOG(LogMATaskPlanner, Log, TEXT("LoadFromTempFile: Temp file does not exist, skipping load"));
+        return;
+    }
+
+    // Load task graph from temp file
+    FMATaskGraphData Data;
+    if (TempDataMgr->LoadTaskGraph(Data))
+    {
+        // Load data to model without broadcasting (to avoid recursive save)
+        if (GraphModel)
+        {
+            GraphModel->LoadFromData(Data);
+            SyncJsonEditorFromModel();
+            
+            if (DAGCanvas)
+            {
+                DAGCanvas->RefreshFromModel();
+            }
+            
+            AppendStatusLog(FString::Printf(TEXT("[Loaded] Task graph from temp file: %d nodes, %d edges"),
+                Data.Nodes.Num(), Data.Edges.Num()));
+        }
+    }
+    else
+    {
+        UE_LOG(LogMATaskPlanner, Warning, TEXT("LoadFromTempFile: Failed to load task graph from temp file"));
+    }
+}
+
+void UMATaskPlannerWidget::BindTempDataManagerEvents()
+{
+    // Get TempDataManager
+    UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+    if (!GameInstance)
+    {
+        UE_LOG(LogMATaskPlanner, Warning, TEXT("BindTempDataManagerEvents: Unable to get GameInstance"));
+        return;
+    }
+
+    UMATempDataManager* TempDataMgr = GameInstance->GetSubsystem<UMATempDataManager>();
+    if (!TempDataMgr)
+    {
+        UE_LOG(LogMATaskPlanner, Warning, TEXT("BindTempDataManagerEvents: Unable to get TempDataManager"));
+        return;
+    }
+
+    // Bind task graph data change event
+    if (!TempDataMgr->OnTaskGraphChanged.IsAlreadyBound(this, &UMATaskPlannerWidget::OnTempDataTaskGraphChanged))
+    {
+        TempDataMgr->OnTaskGraphChanged.AddDynamic(this, &UMATaskPlannerWidget::OnTempDataTaskGraphChanged);
+        UE_LOG(LogMATaskPlanner, Log, TEXT("BindTempDataManagerEvents: Bound OnTaskGraphChanged event"));
+    }
+}
+
+void UMATaskPlannerWidget::OnTempDataTaskGraphChanged(const FMATaskGraphData& NewData)
+{
+    UE_LOG(LogMATaskPlanner, Log, TEXT("OnTempDataTaskGraphChanged: Received data update (Nodes: %d, Edges: %d)"),
+        NewData.Nodes.Num(), NewData.Edges.Num());
+
+    // Load data to model
+    if (GraphModel)
+    {
+        GraphModel->LoadFromData(NewData);
+        SyncJsonEditorFromModel();
+        
+        if (DAGCanvas)
+        {
+            DAGCanvas->RefreshFromModel();
+        }
+        
+        AppendStatusLog(FString::Printf(TEXT("[Updated] Task graph refreshed: %d nodes, %d edges"),
+            NewData.Nodes.Num(), NewData.Edges.Num()));
+    }
+}
+
+void UMATaskPlannerWidget::SaveToTempFile()
+{
+    if (!GraphModel)
+    {
+        UE_LOG(LogMATaskPlanner, Warning, TEXT("SaveToTempFile: GraphModel is null"));
+        return;
+    }
+
+    // Get TempDataManager
+    UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+    if (!GameInstance)
+    {
+        UE_LOG(LogMATaskPlanner, Warning, TEXT("SaveToTempFile: Unable to get GameInstance"));
+        return;
+    }
+
+    UMATempDataManager* TempDataMgr = GameInstance->GetSubsystem<UMATempDataManager>();
+    if (!TempDataMgr)
+    {
+        UE_LOG(LogMATaskPlanner, Warning, TEXT("SaveToTempFile: Unable to get TempDataManager"));
+        return;
+    }
+
+    // Get current data from model
+    FMATaskGraphData Data = GraphModel->GetWorkingData();
+
+    // Save to temp file
+    if (TempDataMgr->SaveTaskGraph(Data))
+    {
+        UE_LOG(LogMATaskPlanner, Log, TEXT("SaveToTempFile: Successfully saved task graph to temp file"));
+    }
+    else
+    {
+        UE_LOG(LogMATaskPlanner, Error, TEXT("SaveToTempFile: Failed to save task graph to temp file"));
+        AppendStatusLog(TEXT("[Error] Failed to save task graph to temp file"));
+    }
 }

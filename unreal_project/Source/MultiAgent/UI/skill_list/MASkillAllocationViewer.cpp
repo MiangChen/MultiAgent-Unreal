@@ -4,7 +4,9 @@
 #include "MASkillAllocationViewer.h"
 #include "MAGanttCanvas.h"
 #include "MASkillAllocationModel.h"
-#include "../Core/Comm/MACommSubsystem.h"
+#include "../../Core/Comm/MACommSubsystem.h"
+#include "../../Core/Manager/MATempDataManager.h"
+#include "Kismet/GameplayStatics.h"
 #include "Components/MultiLineEditableTextBox.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
@@ -82,6 +84,19 @@ void UMASkillAllocationViewer::NativeConstruct()
     {
         AllocationModel->OnSkillStatusChanged.AddDynamic(this, &UMASkillAllocationViewer::OnSkillStatusUpdated);
         UE_LOG(LogMASkillAllocationViewer, Log, TEXT("AllocationModel OnSkillStatusChanged event bound"));
+    }
+    
+    // Bind TempDataManager skill list change event
+    if (UGameInstance* GameInstance = UGameplayStatics::GetGameInstance(GetWorld()))
+    {
+        if (UMATempDataManager* TempDataMgr = GameInstance->GetSubsystem<UMATempDataManager>())
+        {
+            if (!TempDataMgr->OnSkillListChanged.IsAlreadyBound(this, &UMASkillAllocationViewer::OnTempSkillListChanged))
+            {
+                TempDataMgr->OnSkillListChanged.AddDynamic(this, &UMASkillAllocationViewer::OnTempSkillListChanged);
+                UE_LOG(LogMASkillAllocationViewer, Log, TEXT("TempDataManager OnSkillListChanged event bound"));
+            }
+        }
     }
     
     // Initialize status log
@@ -473,17 +488,67 @@ void UMASkillAllocationViewer::StartExecution()
         return;
     }
     
-    if (!AllocationModel->IsValidData())
-    {
-        AppendStatusLog(TEXT("[Error] Cannot start execution: No valid skill allocation loaded"));
-        return;
-    }
-    
     if (bIsExecuting)
     {
         AppendStatusLog(TEXT("[Warning] Execution already in progress"));
         return;
     }
+    
+    // 从 TempDataManager 读取技能列表
+    UGameInstance* GameInstance = UGameplayStatics::GetGameInstance(GetWorld());
+    if (!GameInstance)
+    {
+        AppendStatusLog(TEXT("[Error] Failed to get GameInstance"));
+        UE_LOG(LogMASkillAllocationViewer, Error, TEXT("StartExecution: Failed to get GameInstance"));
+        return;
+    }
+    
+    UMATempDataManager* TempDataMgr = GameInstance->GetSubsystem<UMATempDataManager>();
+    if (!TempDataMgr)
+    {
+        AppendStatusLog(TEXT("[Error] TempDataManager not available"));
+        UE_LOG(LogMASkillAllocationViewer, Error, TEXT("StartExecution: TempDataManager not available"));
+        return;
+    }
+    
+    // 检查技能列表文件是否存在
+    if (!TempDataMgr->SkillListFileExists())
+    {
+        AppendStatusLog(TEXT("[Error] Skill list file not found. Please send skill list from backend first."));
+        UE_LOG(LogMASkillAllocationViewer, Warning, TEXT("StartExecution: skill_list_temp.json does not exist"));
+        return;
+    }
+    
+    // 从临时文件加载技能列表
+    FMASkillAllocationData Data;
+    if (!TempDataMgr->LoadSkillList(Data))
+    {
+        AppendStatusLog(TEXT("[Error] Failed to load skill list from temp file"));
+        UE_LOG(LogMASkillAllocationViewer, Error, TEXT("StartExecution: Failed to load skill list from temp file"));
+        return;
+    }
+    
+    // 检查数据是否为空
+    if (Data.Data.Num() == 0)
+    {
+        AppendStatusLog(TEXT("[Error] Skill list is empty. Please send skill list from backend first."));
+        UE_LOG(LogMASkillAllocationViewer, Warning, TEXT("StartExecution: Skill list is empty"));
+        return;
+    }
+    
+    // 加载数据到模型
+    AllocationModel->LoadFromData(Data);
+    
+    // 同步 JSON 编辑器
+    SyncJsonEditorFromModel();
+    
+    // 刷新甘特图
+    if (GanttCanvas)
+    {
+        GanttCanvas->RefreshFromModel();
+    }
+    
+    AppendStatusLog(FString::Printf(TEXT("[Info] Loaded skill list from temp file: %s"), *Data.Name));
     
     // 使用模拟执行模式
     StartSimulatedExecution();
@@ -602,36 +667,11 @@ void UMASkillAllocationViewer::AdvanceSimulation()
 
 bool UMASkillAllocationViewer::LoadMockData()
 {
-    // Build mock data file path
-    // datasets folder is in the parent directory of the UE project
-    FString FilePath = FPaths::ProjectDir() / TEXT("../datasets/skill_allocation_example.json");
-    
-    // Check if file exists
-    if (!FPaths::FileExists(FilePath))
-    {
-        AppendStatusLog(FString::Printf(TEXT("[Error] Mock data file not found: %s"), *FilePath));
-        UE_LOG(LogMASkillAllocationViewer, Warning, TEXT("Mock data file not found: %s"), *FilePath);
-        return false;
-    }
-    
-    // Read file content
-    FString JsonContent;
-    if (!FFileHelper::LoadFileToString(JsonContent, *FilePath))
-    {
-        AppendStatusLog(FString::Printf(TEXT("[Error] Unable to read file: %s"), *FilePath));
-        UE_LOG(LogMASkillAllocationViewer, Error, TEXT("Failed to read file: %s"), *FilePath);
-        return false;
-    }
-    
-    // Load JSON
-    if (!LoadSkillAllocationFromJson(JsonContent))
-    {
-        return false;
-    }
-    
-    AppendStatusLog(TEXT("[Success] Mock data loaded"));
-    
-    return true;
+    // 已废弃: 不再从 datasets/skill_allocation_example.json 读取
+    // 请使用 TempDataManager 从 skill_list_temp.json 读取数据
+    AppendStatusLog(TEXT("[Warning] LoadMockData is deprecated. Use TempDataManager instead."));
+    UE_LOG(LogMASkillAllocationViewer, Warning, TEXT("LoadMockData is deprecated. Data should be loaded from skill_list_temp.json via TempDataManager."));
+    return false;
 }
 
 //=============================================================================
@@ -761,6 +801,36 @@ void UMASkillAllocationViewer::OnSkillStatusUpdated(int32 TimeStep, const FStrin
     
     AppendStatusLog(FString::Printf(TEXT("[Status] TimeStep %d, Robot %s: %s"),
         TimeStep, *RobotId, *StatusStr));
+}
+
+void UMASkillAllocationViewer::OnTempSkillListChanged(const FMASkillAllocationData& NewData)
+{
+    UE_LOG(LogMASkillAllocationViewer, Log, TEXT("OnTempSkillListChanged: Received new skill list data"));
+    
+    // 如果正在执行，不自动刷新
+    if (bIsExecuting)
+    {
+        AppendStatusLog(TEXT("[Info] Skill list updated in temp file (execution in progress, not auto-refreshing)"));
+        return;
+    }
+    
+    // 加载新数据到模型
+    if (AllocationModel)
+    {
+        AllocationModel->LoadFromData(NewData);
+        
+        // 同步 JSON 编辑器
+        SyncJsonEditorFromModel();
+        
+        // 刷新甘特图
+        if (GanttCanvas)
+        {
+            GanttCanvas->RefreshFromModel();
+        }
+        
+        AppendStatusLog(FString::Printf(TEXT("[Info] Skill list auto-refreshed: %s (%d time steps, %d robots)"),
+            *NewData.Name, NewData.Data.Num(), AllocationModel->GetRobotCount()));
+    }
 }
 
 //=============================================================================

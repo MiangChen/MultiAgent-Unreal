@@ -4,8 +4,8 @@
 
 #include "MAHUD.h"
 #include "MASimpleMainWidget.h"
-#include "MATaskPlannerWidget.h"
-#include "MASkillAllocationViewer.h"
+#include "task_graph/MATaskPlannerWidget.h"
+#include "skill_list/MASkillAllocationViewer.h"
 #include "MADirectControlIndicator.h"
 #include "../Core/Types/MATaskGraphTypes.h"
 #include "MAEmergencyWidget.h"

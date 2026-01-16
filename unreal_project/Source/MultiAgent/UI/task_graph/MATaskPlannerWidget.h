@@ -5,7 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "../Core/Types/MATaskGraphTypes.h"
+#include "../../Core/Types/MATaskGraphTypes.h"
 #include "MATaskPlannerWidget.generated.h"
 
 class UMADAGCanvasWidget;
@@ -217,6 +217,19 @@ protected:
 
     /** 获取当前时间戳字符串 */
     FString GetTimestamp() const;
+
+    /** 从临时文件加载任务图数据 */
+    void LoadFromTempFile();
+
+    /** 绑定 TempDataManager 数据变更事件 */
+    void BindTempDataManagerEvents();
+
+    /** TempDataManager 任务图数据变更回调 */
+    UFUNCTION()
+    void OnTempDataTaskGraphChanged(const FMATaskGraphData& NewData);
+
+    /** 保存任务图到临时文件 */
+    void SaveToTempFile();
 
     //=========================================================================
     // UI 组件

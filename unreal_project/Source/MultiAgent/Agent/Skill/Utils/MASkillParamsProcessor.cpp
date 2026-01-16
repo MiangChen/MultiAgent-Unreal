@@ -4,6 +4,7 @@
 #include "MASkillParamsProcessor.h"
 #include "MASceneQuery.h"
 #include "../MASkillComponent.h"
+#include "../Impl/SK_Place.h"  // For EPlaceMode definition
 #include "../../Character/MACharacter.h"
 #include "../../../Core/Comm/MACommTypes.h"
 #include "../../../Core/Manager/MACommandManager.h"

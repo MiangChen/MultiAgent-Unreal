@@ -10,16 +10,7 @@ class UMASkillComponent;
 struct FMAAgentSkillCommand;
 struct FMASemanticTarget;
 enum class EMACommand : uint8;
-
-/**
- * Place 技能操作模式
- */
-enum class EPlaceMode : uint8
-{
-    LoadToUGV,       // 装货到 UGV
-    UnloadToGround,  // 从 UGV 卸货到地面
-    StackOnObject    // 堆叠到另一个物体
-};
+enum class EPlaceMode : uint8;  // Forward declaration - defined in SK_Place.h
 
 /**
  * 技能参数处理器

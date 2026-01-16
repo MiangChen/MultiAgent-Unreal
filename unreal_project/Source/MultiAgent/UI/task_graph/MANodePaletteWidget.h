@@ -5,7 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "../Core/Types/MATaskGraphTypes.h"
+#include "../../Core/Types/MATaskGraphTypes.h"
 #include "MANodePaletteWidget.generated.h"
 
 class UVerticalBox;

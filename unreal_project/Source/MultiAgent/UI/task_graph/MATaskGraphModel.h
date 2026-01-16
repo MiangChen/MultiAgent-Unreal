@@ -5,7 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
-#include "../Core/Types/MATaskGraphTypes.h"
+#include "../../Core/Types/MATaskGraphTypes.h"
 #include "MATaskGraphModel.generated.h"
 
 //=============================================================================

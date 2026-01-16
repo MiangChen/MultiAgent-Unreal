@@ -40,7 +40,9 @@ public class MultiAgent : ModuleRules
             // Niagara (特效系统)
             "Niagara",
             // GeometryCore (几何计算模块 - OBB, Prism 等)
-            "GeometryCore"
+            "GeometryCore",
+            // DirectoryWatcher (文件监听模块 - TempDataManager)
+            "DirectoryWatcher"
         });
 
         PrivateDependencyModuleNames.AddRange(new string[] { });

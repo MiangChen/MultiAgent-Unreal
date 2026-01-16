@@ -6,7 +6,7 @@ For testing the communication module of MultiAgent-Unreal simulation platform
 
 Features:
 - Web UI at http://localhost:8080
-- Left panel: Skill list buttons to send commands to UE5
+- Left panel: Skill list buttons and Task Graph buttons to send commands to UE5
 - Right panel: Real-time display of messages from UE5
 - WebSocket for real-time updates
 
@@ -16,6 +16,7 @@ API Endpoints:
 - POST /api/sim/message      - Receive messages from UE5
 - POST /api/sim/scene_change - Receive scene change messages
 - POST /api/send_skill       - Send skill list (from Web UI)
+- POST /api/send_task_graph  - Send task graph (from Web UI)
 - GET  /api/messages         - Get received messages (SSE stream)
 
 Usage:
@@ -43,18 +44,50 @@ message_queue = queue.Queue()  # For SSE streaming
 
 # ========== 技能列表定义 ==========
 SKILL_LISTS = {
-    "single": {
-        "name": "Single Test",
-        "description": "UAV 起飞 -> 导航 -> Humanoid 导航",
+    "complete_test": {
+        "name": "Complete Test",
+        "description": "完整测试: UAV 搜索 → 导航装载 → 运输卸载",
         "data": {
-            "0": {"UAV_01": {"skill": "take_off", "params": {}}},
-            "1": {"UAV_01": {"skill": "navigate", "params": {"dest": {"x": 1350, "y": -450, "z": 545}}}},
-            "2": {"Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": -1200, "y": 1200, "z": 0}}}},
-            "3": {"Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": 0, "y": 2400, "z": 0}}}}
+            "0": {
+                "UAV_01": {"skill": "take_off", "params": {}},
+                "UAV_02": {"skill": "take_off", "params": {}}
+            },
+            "1": {
+                "UAV_01": {"skill": "search", "params": {
+                    "search_area": [[-500, 1000], [1500, 1000], [1500, 2500], [-500, 2500]],
+                    "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}}
+                }},
+                "UAV_02": {"skill": "search", "params": {
+                    "search_area": [[-1000, 1000], [-2000, 1000], [-2000, 2500], [-500, 2500]],
+                    "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}}
+                }}
+            },
+            "2": {
+                "UGV_01": {"skill": "navigate", "params": {"dest": {"x": "redbox_x + 100", "y": "redbox_y - 400", "z": 0}}},
+                "Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": "redbox_x - 100", "y": "redbox_y - 200", "z": 0}}},
+                "UAV_01": {"skill": "return_home", "params": {}},
+                "UAV_02": {"skill": "return_home", "params": {}}
+            },
+            "3": {
+                "Humanoid_01": {"skill": "place", "params": {
+                    "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}},
+                    "surface_target": {"class": "robot", "type": "UGV", "features": {"label": "UGV_01"}}
+                }}
+            },
+            "4": {
+                "UGV_01": {"skill": "navigate", "params": {"dest": {"x": -5100, "y": 2200, "z": 0}}},
+                "Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": -5200, "y": 2100, "z": 0}}}
+            },
+            "5": {
+                "Humanoid_01": {"skill": "place", "params": {
+                    "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}},
+                    "surface_target": {"class": "ground", "type": "", "features": {}}
+                }}
+            }
         }
     },
     "uav_search": {
-        "name": "UAV Search",
+        "name": "UAV Cooperative Search",
         "description": "2个 UAV 协同搜索 RedBox",
         "data": {
             "0": {
@@ -71,6 +104,50 @@ SKILL_LISTS = {
                     "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}}
                 }}
             }
+        }
+    },
+    "navigate_load": {
+        "name": "Navigate to RedBox and Load to UGV",
+        "description": "UGV 和 Humanoid 导航到 RedBox 位置，Humanoid 将 RedBox 装载到 UGV 上",
+        "data": {
+            "0": {
+                "UGV_01": {"skill": "navigate", "params": {"dest": {"x": "redbox_x + 100", "y": "redbox_y - 400", "z": 0}}},
+                "Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": "redbox_x - 100", "y": "redbox_y - 200", "z": 0}}},
+                "UAV_01": {"skill": "return_home", "params": {}},
+                "UAV_02": {"skill": "return_home", "params": {}}
+            },
+            "1": {
+                "Humanoid_01": {"skill": "place", "params": {
+                    "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}},
+                    "surface_target": {"class": "robot", "type": "UGV", "features": {"label": "UGV_01"}}
+                }}
+            }
+        }
+    },
+    "transport_unload": {
+        "name": "Transport to Destination and Unload",
+        "description": "UGV 和 Humanoid 导航到目的地，Humanoid 将 RedBox 从 UGV 卸载到地面",
+        "data": {
+            "0": {
+                "UGV_01": {"skill": "navigate", "params": {"dest": {"x": -5100, "y": 2200, "z": 0}}},
+                "Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": -5200, "y": 2100, "z": 0}}}
+            },
+            "1": {
+                "Humanoid_01": {"skill": "place", "params": {
+                    "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}},
+                    "surface_target": {"class": "ground", "type": "", "features": {}}
+                }}
+            }
+        }
+    },
+    "single": {
+        "name": "Single Test",
+        "description": "UAV 起飞 -> 导航 -> Humanoid 导航",
+        "data": {
+            "0": {"UAV_01": {"skill": "take_off", "params": {}}},
+            "1": {"UAV_01": {"skill": "navigate", "params": {"dest": {"x": 1350, "y": -450, "z": 545}}}},
+            "2": {"Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": -1200, "y": 1200, "z": 0}}}},
+            "3": {"Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": 0, "y": 2400, "z": 0}}}}
         }
     },
     "place_coop": {
@@ -96,31 +173,194 @@ SKILL_LISTS = {
                 }}
             }
         }
-    },
-    "navigate_test": {
-        "name": "Navigate Test",
-        "description": "单个 Humanoid 导航测试",
+    }
+}
+
+# ========== 预设任务图定义 ==========
+TASK_GRAPHS = {
+    "fire_rescue": {
+        "name": "Fire Rescue Mission",
+        "description": "派遣无人机侦察火灾区域，机器狗前往灭火，人形机器人疏散人员",
         "data": {
-            "0": {"Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": 1000, "y": 1000, "z": 0}}}}
-        }
-    },
-    "all_takeoff": {
-        "name": "All UAV TakeOff",
-        "description": "所有 UAV 起飞",
-        "data": {
-            "0": {
-                "UAV_01": {"skill": "take_off", "params": {}},
-                "UAV_02": {"skill": "take_off", "params": {}}
+            "meta": {
+                "description": "派遣无人机侦察火灾区域，机器狗前往灭火，人形机器人疏散人员。",
+                "shared_skill_groups": [["T1.0", "T4.0"], ["T2.0", "T5.0"], ["T3.0", "T6.0"]]
+            },
+            "task_graph": {
+                "nodes": [
+                    {"task_id": "T1", "description": "无人机飞往火灾区域进行空中侦察", "location": "building_A_roof",
+                     "required_skills": [{"skill_name": "navigate_to(building_A_roof)", "assigned_robot_type": ["UAV"], "assigned_robot_count": 1}],
+                     "produces": ["drone_at_fire_zone"]},
+                    {"task_id": "T2", "description": "无人机扫描火灾区域获取热成像数据", "location": "building_A_roof",
+                     "required_skills": [{"skill_name": "perceive(thermal_scan)", "assigned_robot_type": ["UAV"], "assigned_robot_count": 1}],
+                     "produces": ["fire_location_data", "victim_locations"]},
+                    {"task_id": "T3", "description": "机器狗导航至火灾现场入口", "location": "building_A_entrance",
+                     "required_skills": [{"skill_name": "navigate_to(building_A_entrance)", "assigned_robot_type": ["RobotDog"], "assigned_robot_count": 2}],
+                     "produces": ["dogs_at_entrance"]},
+                    {"task_id": "T4", "description": "无人机广播火灾位置给地面机器人", "location": "building_A_roof",
+                     "required_skills": [{"skill_name": "broadcast(fire_location_data)", "assigned_robot_type": ["UAV"], "assigned_robot_count": 1}],
+                     "produces": ["fire_info_shared"]},
+                    {"task_id": "T5", "description": "机器狗执行灭火操作", "location": "tbd:fire_point",
+                     "required_skills": [{"skill_name": "manipulate(fire_extinguisher)", "assigned_robot_type": ["RobotDog"], "assigned_robot_count": 2}],
+                     "produces": ["fire_suppressed"]},
+                    {"task_id": "T6", "description": "人形机器人疏散被困人员", "location": "tbd:victim_location",
+                     "required_skills": [
+                         {"skill_name": "navigate_to(victim_location)", "assigned_robot_type": ["Humanoid"], "assigned_robot_count": 1},
+                         {"skill_name": "manipulate(assist_evacuation)", "assigned_robot_type": ["Humanoid"], "assigned_robot_count": 1}
+                     ],
+                     "produces": ["victims_evacuated"]}
+                ],
+                "edges": [
+                    {"from": "T1", "to": "T2", "type": "sequential"},
+                    {"from": "T2", "to": "T4", "type": "sequential"},
+                    {"from": "T2", "to": "T3", "type": "parallel"},
+                    {"from": "T4", "to": "T5", "type": "conditional", "condition": "fire_info_shared != null"},
+                    {"from": "T3", "to": "T5", "type": "sequential"},
+                    {"from": "T2", "to": "T6", "type": "conditional", "condition": "victim_locations != null"}
+                ]
             }
         }
     },
-    "all_land": {
-        "name": "All UAV Land",
-        "description": "所有 UAV 降落",
+    "warehouse_patrol": {
+        "name": "Warehouse Patrol",
+        "description": "仓库巡逻任务：UAV 空中监控，RobotDog 地面巡逻",
         "data": {
-            "0": {
-                "UAV_01": {"skill": "land", "params": {}},
-                "UAV_02": {"skill": "land", "params": {}}
+            "meta": {
+                "description": "仓库安全巡逻任务，UAV 进行空中监控，RobotDog 进行地面巡逻检查。",
+                "shared_skill_groups": [["T1.0", "T2.0"]]
+            },
+            "task_graph": {
+                "nodes": [
+                    {"task_id": "T1", "description": "UAV 起飞并飞往仓库上空", "location": "warehouse_center",
+                     "required_skills": [{"skill_name": "navigate_to(warehouse_center)", "assigned_robot_type": ["UAV"], "assigned_robot_count": 1}],
+                     "produces": ["uav_at_position"]},
+                    {"task_id": "T2", "description": "UAV 执行区域监控扫描", "location": "warehouse_center",
+                     "required_skills": [{"skill_name": "perceive(area_scan)", "assigned_robot_type": ["UAV"], "assigned_robot_count": 1}],
+                     "produces": ["surveillance_data"]},
+                    {"task_id": "T3", "description": "RobotDog 导航至仓库入口", "location": "warehouse_entrance",
+                     "required_skills": [{"skill_name": "navigate_to(warehouse_entrance)", "assigned_robot_type": ["RobotDog"], "assigned_robot_count": 1}],
+                     "produces": ["dog_at_entrance"]},
+                    {"task_id": "T4", "description": "RobotDog 执行地面巡逻", "location": "warehouse_interior",
+                     "required_skills": [{"skill_name": "patrol(warehouse_route)", "assigned_robot_type": ["RobotDog"], "assigned_robot_count": 1}],
+                     "produces": ["patrol_complete"]}
+                ],
+                "edges": [
+                    {"from": "T1", "to": "T2", "type": "sequential"},
+                    {"from": "T3", "to": "T4", "type": "sequential"},
+                    {"from": "T1", "to": "T3", "type": "parallel"}
+                ]
+            }
+        }
+    },
+    "cargo_delivery": {
+        "name": "Cargo Delivery",
+        "description": "货物配送任务：UAV 搜索货物，Humanoid 装载，UGV 运输",
+        "data": {
+            "meta": {
+                "description": "协同货物配送任务，UAV 搜索定位货物，Humanoid 负责装卸，UGV 负责运输。",
+                "shared_skill_groups": [["T1.0", "T2.0"], ["T3.0", "T4.0", "T5.0"]]
+            },
+            "task_graph": {
+                "nodes": [
+                    {"task_id": "T1", "description": "UAV 起飞搜索目标货物", "location": "search_area",
+                     "required_skills": [{"skill_name": "search(cargo)", "assigned_robot_type": ["UAV"], "assigned_robot_count": 1}],
+                     "produces": ["cargo_location"]},
+                    {"task_id": "T2", "description": "UAV 广播货物位置", "location": "search_area",
+                     "required_skills": [{"skill_name": "broadcast(cargo_location)", "assigned_robot_type": ["UAV"], "assigned_robot_count": 1}],
+                     "produces": ["location_shared"]},
+                    {"task_id": "T3", "description": "UGV 导航至货物位置", "location": "tbd:cargo_location",
+                     "required_skills": [{"skill_name": "navigate_to(cargo_location)", "assigned_robot_type": ["UGV"], "assigned_robot_count": 1}],
+                     "produces": ["ugv_at_cargo"]},
+                    {"task_id": "T4", "description": "Humanoid 导航至货物位置", "location": "tbd:cargo_location",
+                     "required_skills": [{"skill_name": "navigate_to(cargo_location)", "assigned_robot_type": ["Humanoid"], "assigned_robot_count": 1}],
+                     "produces": ["humanoid_at_cargo"]},
+                    {"task_id": "T5", "description": "Humanoid 将货物装载到 UGV", "location": "tbd:cargo_location",
+                     "required_skills": [{"skill_name": "place(cargo, UGV)", "assigned_robot_type": ["Humanoid"], "assigned_robot_count": 1}],
+                     "produces": ["cargo_loaded"]},
+                    {"task_id": "T6", "description": "UGV 运输货物到目的地", "location": "destination",
+                     "required_skills": [{"skill_name": "navigate_to(destination)", "assigned_robot_type": ["UGV"], "assigned_robot_count": 1}],
+                     "produces": ["cargo_delivered"]}
+                ],
+                "edges": [
+                    {"from": "T1", "to": "T2", "type": "sequential"},
+                    {"from": "T2", "to": "T3", "type": "sequential"},
+                    {"from": "T2", "to": "T4", "type": "parallel"},
+                    {"from": "T3", "to": "T5", "type": "sequential"},
+                    {"from": "T4", "to": "T5", "type": "sequential"},
+                    {"from": "T5", "to": "T6", "type": "sequential"}
+                ]
+            }
+        }
+    },
+    "search_rescue": {
+        "name": "Search and Rescue",
+        "description": "搜救任务：多 UAV 协同搜索，RobotDog 救援",
+        "data": {
+            "meta": {
+                "description": "搜救任务，多架 UAV 协同搜索失踪人员，RobotDog 前往救援。",
+                "shared_skill_groups": [["T1.0", "T2.0"], ["T3.0", "T4.0"]]
+            },
+            "task_graph": {
+                "nodes": [
+                    {"task_id": "T1", "description": "UAV_01 搜索区域 A", "location": "search_zone_A",
+                     "required_skills": [{"skill_name": "search(zone_A)", "assigned_robot_type": ["UAV"], "assigned_robot_count": 1}],
+                     "produces": ["zone_A_scanned"]},
+                    {"task_id": "T2", "description": "UAV_02 搜索区域 B", "location": "search_zone_B",
+                     "required_skills": [{"skill_name": "search(zone_B)", "assigned_robot_type": ["UAV"], "assigned_robot_count": 1}],
+                     "produces": ["zone_B_scanned"]},
+                    {"task_id": "T3", "description": "汇总搜索结果确定目标位置", "location": "command_center",
+                     "required_skills": [{"skill_name": "analyze(search_results)", "assigned_robot_type": ["UAV"], "assigned_robot_count": 1}],
+                     "produces": ["target_location"]},
+                    {"task_id": "T4", "description": "RobotDog 导航至目标位置", "location": "tbd:target_location",
+                     "required_skills": [{"skill_name": "navigate_to(target_location)", "assigned_robot_type": ["RobotDog"], "assigned_robot_count": 2}],
+                     "produces": ["dogs_at_target"]},
+                    {"task_id": "T5", "description": "RobotDog 执行救援操作", "location": "tbd:target_location",
+                     "required_skills": [{"skill_name": "rescue(target)", "assigned_robot_type": ["RobotDog"], "assigned_robot_count": 2}],
+                     "produces": ["rescue_complete"]}
+                ],
+                "edges": [
+                    {"from": "T1", "to": "T3", "type": "sequential"},
+                    {"from": "T2", "to": "T3", "type": "sequential"},
+                    {"from": "T3", "to": "T4", "type": "conditional", "condition": "target_location != null"},
+                    {"from": "T4", "to": "T5", "type": "sequential"}
+                ]
+            }
+        }
+    },
+    "perimeter_security": {
+        "name": "Perimeter Security",
+        "description": "周界安防任务：UAV 高空监控，多 RobotDog 分区巡逻",
+        "data": {
+            "meta": {
+                "description": "周界安防任务，UAV 进行高空全局监控，多个 RobotDog 分区域进行地面巡逻。",
+                "shared_skill_groups": [["T1.0"], ["T2.0", "T3.0", "T4.0"]]
+            },
+            "task_graph": {
+                "nodes": [
+                    {"task_id": "T1", "description": "UAV 起飞至监控高度", "location": "perimeter_center",
+                     "required_skills": [{"skill_name": "navigate_to(altitude_100m)", "assigned_robot_type": ["UAV"], "assigned_robot_count": 1}],
+                     "produces": ["uav_monitoring"]},
+                    {"task_id": "T2", "description": "RobotDog_01 巡逻北区", "location": "north_sector",
+                     "required_skills": [{"skill_name": "patrol(north_route)", "assigned_robot_type": ["RobotDog"], "assigned_robot_count": 1}],
+                     "produces": ["north_patrolled"]},
+                    {"task_id": "T3", "description": "RobotDog_02 巡逻东区", "location": "east_sector",
+                     "required_skills": [{"skill_name": "patrol(east_route)", "assigned_robot_type": ["RobotDog"], "assigned_robot_count": 1}],
+                     "produces": ["east_patrolled"]},
+                    {"task_id": "T4", "description": "RobotDog_03 巡逻南区", "location": "south_sector",
+                     "required_skills": [{"skill_name": "patrol(south_route)", "assigned_robot_type": ["RobotDog"], "assigned_robot_count": 1}],
+                     "produces": ["south_patrolled"]},
+                    {"task_id": "T5", "description": "汇报巡逻结果", "location": "command_center",
+                     "required_skills": [{"skill_name": "report(patrol_status)", "assigned_robot_type": ["UAV"], "assigned_robot_count": 1}],
+                     "produces": ["patrol_report"]}
+                ],
+                "edges": [
+                    {"from": "T1", "to": "T2", "type": "parallel"},
+                    {"from": "T1", "to": "T3", "type": "parallel"},
+                    {"from": "T1", "to": "T4", "type": "parallel"},
+                    {"from": "T2", "to": "T5", "type": "sequential"},
+                    {"from": "T3", "to": "T5", "type": "sequential"},
+                    {"from": "T4", "to": "T5", "type": "sequential"}
+                ]
             }
         }
     }
@@ -143,10 +383,16 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
         
         /* Left Panel - Controls */
         .left-panel {
-            width: 320px; background: #16213e; padding: 20px;
+            width: 380px; background: #16213e; padding: 20px;
             border-right: 1px solid #0f3460; overflow-y: auto;
         }
         .left-panel h2 { color: #e94560; margin-bottom: 20px; font-size: 18px; }
+        .hint-box {
+            background: #0a3d62; border: 1px solid #00d9ff; border-radius: 8px;
+            padding: 12px; margin-bottom: 15px; font-size: 12px; color: #aaa;
+        }
+        .hint-box .hint-icon { color: #00d9ff; margin-right: 6px; }
+        .hint-box strong { color: #00d9ff; }
         .skill-btn {
             width: 100%; padding: 12px 16px; margin-bottom: 10px;
             background: #0f3460; border: 1px solid #e94560; border-radius: 8px;
@@ -157,10 +403,21 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
         .skill-btn .desc { font-size: 12px; color: #aaa; margin-top: 4px; }
         .skill-btn:hover .desc { color: #fff; }
         
+        .task-btn {
+            width: 100%; padding: 12px 16px; margin-bottom: 10px;
+            background: #0f3460; border: 1px solid #00d9ff; border-radius: 8px;
+            color: #fff; cursor: pointer; text-align: left; transition: all 0.2s;
+        }
+        .task-btn:hover { background: #00d9ff; color: #0f3460; transform: translateX(5px); }
+        .task-btn .name { font-weight: bold; font-size: 14px; }
+        .task-btn .desc { font-size: 12px; color: #aaa; margin-top: 4px; }
+        .task-btn:hover .desc { color: #0f3460; }
+        
         .section-title { 
             color: #00d9ff; font-size: 14px; margin: 20px 0 10px; 
             padding-bottom: 5px; border-bottom: 1px solid #0f3460;
         }
+        .section-title.skill { color: #e94560; }
         
         .status { 
             padding: 10px; background: #0a0a1a; border-radius: 8px; 
@@ -246,20 +503,20 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
 <body>
     <div class="container">
         <div class="left-panel">
-            <h2>🎮 Skill Commands</h2>
+            <h2>🎮 Mock Backend Control</h2>
             
-            <div class="section-title">📋 预设技能列表</div>
+            <div class="hint-box">
+                <span class="hint-icon">💡</span>
+                <span>点击按钮后，数据将发送到 UE5。</span><br>
+                <strong>技能列表：请在 UE5 中点击 "Start Executing" 按钮执行。</strong><br>
+                <strong>任务图：将显示在任务规划工作台中。</strong>
+            </div>
+            
+            <div class="section-title">📊 预设任务图</div>
+            <div id="task-buttons"></div>
+            
+            <div class="section-title skill">📋 预设技能列表</div>
             <div id="skill-buttons"></div>
-            
-            <div class="section-title">⚡ 快捷命令</div>
-            <button class="skill-btn" onclick="sendSkill('all_takeoff')">
-                <div class="name">🚁 All UAV TakeOff</div>
-                <div class="desc">所有无人机起飞</div>
-            </button>
-            <button class="skill-btn" onclick="sendSkill('all_land')">
-                <div class="name">🛬 All UAV Land</div>
-                <div class="desc">所有无人机降落</div>
-            </button>
             
             <div class="status">
                 <span class="dot connected" id="status-dot"></span>
@@ -290,19 +547,47 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
     
     <script>
         const skillLists = {{SKILL_LISTS}};
+        const taskGraphs = {{TASK_GRAPHS}};
         const messagesDiv = document.getElementById('messages');
         const emptyState = document.getElementById('empty-state');
         let messageCount = 0;
         
+        // Generate task graph buttons
+        const taskButtonsDiv = document.getElementById('task-buttons');
+        for (const [key, task] of Object.entries(taskGraphs)) {
+            const btn = document.createElement('button');
+            btn.className = 'task-btn';
+            btn.onclick = () => sendTaskGraph(key);
+            btn.innerHTML = `<div class="name">📊 ${task.name}</div><div class="desc">${task.description}</div>`;
+            taskButtonsDiv.appendChild(btn);
+        }
+        
         // Generate skill buttons
         const skillButtonsDiv = document.getElementById('skill-buttons');
         for (const [key, skill] of Object.entries(skillLists)) {
-            if (key === 'all_takeoff' || key === 'all_land') continue;
             const btn = document.createElement('button');
             btn.className = 'skill-btn';
             btn.onclick = () => sendSkill(key);
-            btn.innerHTML = `<div class="name">${skill.name}</div><div class="desc">${skill.description}</div>`;
+            btn.innerHTML = `<div class="name">⚡ ${skill.name}</div><div class="desc">${skill.description}</div>`;
             skillButtonsDiv.appendChild(btn);
+        }
+        
+        // Send task graph
+        async function sendTaskGraph(taskKey) {
+            try {
+                const response = await fetch('/api/send_task_graph', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ task_key: taskKey })
+                });
+                const result = await response.json();
+                const displayContent = result.note 
+                    ? { ...result, "⚠️ Note": result.note }
+                    : result;
+                addMessage('sent', `Sent Task Graph: ${taskGraphs[taskKey]?.name || taskKey}`, displayContent, 'outgoing');
+            } catch (e) {
+                console.error('Failed to send task graph:', e);
+            }
         }
         
         // Send skill list
@@ -314,7 +599,10 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
                     body: JSON.stringify({ skill_key: skillKey })
                 });
                 const result = await response.json();
-                addMessage('sent', `Sent: ${skillLists[skillKey]?.name || skillKey}`, result);
+                const displayContent = result.note 
+                    ? { ...result, "⚠️ Note": result.note }
+                    : result;
+                addMessage('sent', `Sent Skill List: ${skillLists[skillKey]?.name || skillKey}`, displayContent, 'outgoing');
             } catch (e) {
                 console.error('Failed to send skill:', e);
             }
@@ -400,6 +688,16 @@ def create_skill_list_message(skill_list: dict) -> dict:
     }
 
 
+def create_task_graph_message(task_graph: dict) -> dict:
+    """创建任务图消息"""
+    return {
+        "message_type": "task_graph",
+        "timestamp": int(datetime.now().timestamp() * 1000),
+        "message_id": str(uuid.uuid4()),
+        "payload": task_graph
+    }
+
+
 class MockBackendHandler(BaseHTTPRequestHandler):
     """Mock backend request handler with Web UI"""
     
@@ -444,6 +742,8 @@ class MockBackendHandler(BaseHTTPRequestHandler):
             self.handle_scene_change(body)
         elif parsed_path.path == '/api/send_skill':
             self.handle_send_skill(body)
+        elif parsed_path.path == '/api/send_task_graph':
+            self.handle_send_task_graph(body)
         else:
             self.send_response(404)
             self.end_headers()
@@ -453,6 +753,7 @@ class MockBackendHandler(BaseHTTPRequestHandler):
         global server_port
         html = HTML_TEMPLATE.replace('{{PORT}}', str(server_port))
         html = html.replace('{{SKILL_LISTS}}', json.dumps(SKILL_LISTS, ensure_ascii=False))
+        html = html.replace('{{TASK_GRAPHS}}', json.dumps(TASK_GRAPHS, ensure_ascii=False))
         
         self.send_response(200)
         self.send_header('Content-Type', 'text/html; charset=utf-8')
@@ -469,7 +770,8 @@ class MockBackendHandler(BaseHTTPRequestHandler):
                 self.send_header('Content-Type', 'application/json')
                 self.end_headers()
                 self.wfile.write(json.dumps([msg], ensure_ascii=False).encode('utf-8'))
-                broadcast_message('sent', 'skill_list', msg, 'outgoing')
+                msg_type = msg.get('message_type', 'unknown')
+                broadcast_message('sent', msg_type, msg, 'outgoing')
             else:
                 self.send_response(204)
                 self.end_headers()
@@ -520,7 +822,13 @@ class MockBackendHandler(BaseHTTPRequestHandler):
             self.send_json_response(400, {"error": str(e)})
     
     def handle_send_skill(self, body):
-        """Handle skill send request from Web UI"""
+        """Handle skill send request from Web UI
+        
+        Note: This method only queues the skill list message for UE5 to poll.
+        The skill list will be saved to skill_list_temp.json by UE5's TempDataManager.
+        Users must manually click "Start Executing" in UE5 to execute the skills.
+        This method does NOT directly trigger skill execution.
+        """
         global pending_messages
         try:
             data = json.loads(body)
@@ -536,16 +844,49 @@ class MockBackendHandler(BaseHTTPRequestHandler):
                 self.send_json_response(200, {
                     "status": "queued",
                     "skill": skill_key,
-                    "message_id": msg['message_id']
+                    "message_id": msg['message_id'],
+                    "note": "Skill list queued. Click 'Start Executing' in UE5 to run."
                 })
             else:
                 self.send_json_response(400, {"error": f"Unknown skill: {skill_key}"})
                 
         except json.JSONDecodeError as e:
             self.send_json_response(400, {"error": str(e)})
+    
+    def handle_send_task_graph(self, body):
+        """Handle task graph send request from Web UI
+        
+        Note: This method queues the task graph message for UE5 to poll.
+        The task graph will be saved to task_graph_temp.json by UE5's TempDataManager.
+        The task graph will be displayed in the Task Planner Widget.
+        """
+        global pending_messages
+        try:
+            data = json.loads(body)
+            task_key = data.get('task_key', '')
+            
+            if task_key in TASK_GRAPHS:
+                task_data = TASK_GRAPHS[task_key]['data']
+                msg = create_task_graph_message(task_data)
+                
+                with message_lock:
+                    pending_messages.append(msg)
+                
+                self.send_json_response(200, {
+                    "status": "queued",
+                    "task_graph": task_key,
+                    "message_id": msg['message_id'],
+                    "note": "Task graph queued. It will be displayed in Task Planner Widget."
+                })
+            else:
+                self.send_json_response(400, {"error": f"Unknown task graph: {task_key}"})
+                
+        except json.JSONDecodeError as e:
+            self.send_json_response(400, {"error": str(e)})
 
 
 server_port = 8080
+
 
 def main():
     global server_port
