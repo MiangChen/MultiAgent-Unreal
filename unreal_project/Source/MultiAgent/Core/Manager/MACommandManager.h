@@ -44,6 +44,9 @@ struct FMATimeStepFeedback
     TArray<FMASkillExecutionFeedback> SkillFeedbacks;
 };
 
+// ========== 时间步完成委托 ==========
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTimeStepCompleted, const FMATimeStepFeedback&, Feedback);
+
 // ========== 技能列表执行完成委托 ==========
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSkillListCompleted, const TArray<FMATimeStepFeedback>&, AllFeedbacks);
 
@@ -69,6 +72,10 @@ public:
     /** 技能列表执行完成委托 */
     UPROPERTY(BlueprintAssignable, Category = "Command")
     FOnSkillListCompleted OnSkillListCompleted;
+
+    /** 时间步完成委托 */
+    UPROPERTY(BlueprintAssignable, Category = "Command")
+    FOnTimeStepCompleted OnTimeStepCompleted;
 
     /** 辅助方法 */
     UFUNCTION(BlueprintCallable, Category = "Command")

@@ -6,6 +6,8 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "../../Core/Types/MATaskGraphTypes.h"
+#include "../../Core/Comm/MACommTypes.h"
+#include "../../Core/Manager/MACommandManager.h"
 #include "MASkillAllocationViewer.generated.h"
 
 class UMAGanttCanvas;
@@ -29,6 +31,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSkillAllocationChanged, const FMA
 
 /** 执行开始委托 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnExecutionStarted);
+
+/** 执行完成委托 */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnExecutionCompleted);
 
 //=============================================================================
 // 日志类别
@@ -120,6 +125,18 @@ public:
     UFUNCTION(BlueprintCallable, Category = "SkillAllocation")
     bool LoadMockData();
 
+    /** 将 FMASkillAllocationData 转换为 FMASkillListMessage 格式
+     * @param InData 输入的技能分配数据
+     * @param OutMessage 输出的技能列表消息
+     * @param OutErrorMessage 错误信息（如果转换失败）
+     * @return 转换是否成功
+     */
+    UFUNCTION(BlueprintCallable, Category = "SkillAllocation")
+    static bool ConvertToSkillListMessage(
+        const FMASkillAllocationData& InData,
+        FMASkillListMessage& OutMessage,
+        FString& OutErrorMessage);
+
     //=========================================================================
     // 委托
     //=========================================================================
@@ -131,6 +148,10 @@ public:
     /** 执行开始委托 */
     UPROPERTY(BlueprintAssignable, Category = "SkillAllocation|Events")
     FOnExecutionStarted OnExecutionStarted;
+
+    /** 执行完成委托 */
+    UPROPERTY(BlueprintAssignable, Category = "SkillAllocation|Events")
+    FOnExecutionCompleted OnExecutionCompletedDelegate;
 
 protected:
     //=========================================================================
@@ -175,6 +196,10 @@ protected:
     UFUNCTION()
     void OnStartExecuteButtonClicked();
 
+    /** "重置" 按钮点击回调 */
+    UFUNCTION()
+    void OnResetButtonClicked();
+
     /** 数据模型变更回调 */
     UFUNCTION()
     void OnModelDataChanged();
@@ -210,17 +235,29 @@ protected:
     void ResetExecution();
 
     //=========================================================================
-    // 模拟执行
+    // MACommandManager 事件绑定
     //=========================================================================
 
-    /** 开始模拟执行 */
-    void StartSimulatedExecution();
+    /** 绑定 MACommandManager 事件 */
+    void BindCommandManagerEvents();
 
-    /** 模拟执行定时器回调 */
-    void OnSimulationTick();
+    /** 解绑 MACommandManager 事件 */
+    void UnbindCommandManagerEvents();
 
-    /** 推进模拟到下一个状态 */
-    void AdvanceSimulation();
+    /** MACommandManager 时间步完成回调 */
+    UFUNCTION()
+    void OnCommandManagerTimeStepCompleted(const FMATimeStepFeedback& Feedback);
+
+    /** MACommandManager 技能列表完成回调 */
+    UFUNCTION()
+    void OnCommandManagerSkillListCompleted(const TArray<FMATimeStepFeedback>& AllFeedbacks);
+
+    //=========================================================================
+    // 模拟执行 (已废弃 - 现在使用真实执行)
+    //=========================================================================
+
+    // 注意: StartSimulatedExecution(), OnSimulationTick(), AdvanceSimulation() 已移除
+    // 现在通过 MACommandManager::ExecuteSkillList() 进行真实执行
 
     //=========================================================================
     // UI 组件
@@ -246,6 +283,10 @@ protected:
     UPROPERTY()
     UButton* StartExecuteButton;
 
+    /** "重置" 按钮 */
+    UPROPERTY()
+    UButton* ResetButton;
+
     /** 甘特图画布 Widget */
     UPROPERTY()
     UMAGanttCanvas* GanttCanvas;
@@ -262,19 +303,19 @@ protected:
     bool bIsExecuting = false;
 
     //=========================================================================
-    // 模拟执行状态
+    // 模拟执行状态 (已废弃 - 保留变量以避免编译错误，但不再使用)
     //=========================================================================
 
-    /** 模拟执行定时器句柄 */
+    /** 模拟执行定时器句柄 (已废弃) */
     FTimerHandle SimulationTimerHandle;
 
-    /** 当前模拟的时间步 */
+    /** 当前模拟的时间步 (已废弃) */
     int32 CurrentSimulationTimeStep = 0;
 
-    /** 当前时间步的状态 (0=设为InProgress, 1=设为Completed) */
+    /** 当前时间步的状态 (已废弃) */
     int32 CurrentSimulationPhase = 0;
 
-    /** 模拟执行间隔 (秒) */
+    /** 模拟执行间隔 (已废弃) */
     float SimulationTickInterval = 1.0f;
 
     //=========================================================================

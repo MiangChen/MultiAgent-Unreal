@@ -64,6 +64,9 @@ private:
     /** 处理任务规划 DAG 消息 */
     void HandleTaskPlanDAG(const TSharedPtr<FJsonObject>& PayloadObject);
 
+    /** 处理任务图消息 (新格式，来自 mock_backend) */
+    void HandleTaskGraph(const TSharedPtr<FJsonObject>& PayloadObject);
+
     /** 处理世界模型图消息 (已废弃，保留兼容) */
     void HandleWorldModelGraph(const TSharedPtr<FJsonObject>& PayloadObject);
 

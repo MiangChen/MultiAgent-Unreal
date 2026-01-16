@@ -30,11 +30,14 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogMAEditWidget, Log, All);
 
-// Hint text constants
-static const FString DefaultHintText = TEXT("Select an Actor or POI to operate");
-static const FString ActorSelectedHintText = TEXT("Edit JSON and click Confirm to save");
-static const FString POISingleHintText = TEXT("Can create Goal or add preset Actor");
-static const FString POIMultiHintText = TEXT("Select 3+ POIs to create a zone");
+// Hint text constants (in anonymous namespace to avoid linker conflicts)
+namespace
+{
+    const FString DefaultHintText = TEXT("Select an Actor or POI to operate");
+    const FString ActorSelectedHintText = TEXT("Edit JSON and click Confirm to save");
+    const FString POISingleHintText = TEXT("Can create Goal or add preset Actor");
+    const FString POIMultiHintText = TEXT("Select 3+ POIs to create a zone");
+}
 
 UMAEditWidget::UMAEditWidget(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)

@@ -234,6 +234,10 @@ void UMACommandManager::OnSkillCompleted(AMACharacter* Agent, bool bSuccess, con
     {
         SendTimeStepFeedbackToPython(CurrentTimeStepFeedback);
         AllFeedbacks.Add(CurrentTimeStepFeedback);
+        
+        // 广播时间步完成事件
+        OnTimeStepCompleted.Broadcast(CurrentTimeStepFeedback);
+        
         CurrentTimeStep++;
         ExecuteCurrentTimeStep();
     }
@@ -259,7 +263,14 @@ void UMACommandManager::SendCommandToAgent(AMACharacter* Agent, EMACommand Comma
     // 2) 清除旧命令 Tag（旧技能的 EndAbility 检测不到 Tag，不会通知完成）
     SkillComp->ClearAllCommands();
     
-    // 3) 激活技能（会先取消旧的同类型技能，此时 Tag 已清除，不会错误通知）
+    // 3) 先设置新命令 Tag（确保技能激活后立即失败时也能正确通知）
+    FGameplayTag CommandTag = CommandToTag(Command);
+    if (CommandTag.IsValid())
+    {
+        SkillComp->AddLooseGameplayTag(CommandTag);
+    }
+    
+    // 4) 激活技能（会先取消旧的同类型技能，此时 Tag 已清除，不会错误通知）
     bool bHasStateTree = HasActiveStateTree(Agent);
     bool bActivated = false;
     
@@ -268,14 +279,10 @@ void UMACommandManager::SendCommandToAgent(AMACharacter* Agent, EMACommand Comma
         bActivated = ActivateSkillDirectly(Agent, SkillComp, Command);
     }
     
-    // 4) 激活成功后才设置新命令 Tag
-    if (bActivated)
+    // 5) 如果激活失败，移除刚设置的 Tag（避免残留）
+    if (!bActivated && CommandTag.IsValid())
     {
-        FGameplayTag CommandTag = CommandToTag(Command);
-        if (CommandTag.IsValid())
-        {
-            SkillComp->AddLooseGameplayTag(CommandTag);
-        }
+        SkillComp->RemoveLooseGameplayTag(CommandTag);
     }
 }
 
