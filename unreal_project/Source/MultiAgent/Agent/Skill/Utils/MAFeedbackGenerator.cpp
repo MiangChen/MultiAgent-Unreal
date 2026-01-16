@@ -6,7 +6,7 @@
 #include "../../Character/MACharacter.h"
 #include "../../../Core/Manager/MACommandManager.h"
 #include "../../../Core/Manager/MASceneGraphManager.h"
-#include "../../../Core/Manager/MASceneGraphQuery.h"
+#include "../../../Core/Manager/scene_graph_tools/MASceneGraphQuery.h"
 #include "MASceneQuery.h"
 #include "EngineUtils.h"  // For TActorIterator
 #include "Serialization/JsonSerializer.h"

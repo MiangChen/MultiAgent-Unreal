@@ -2,9 +2,9 @@
 // 场景图管理器实现
 
 #include "MASceneGraphManager.h"
-#include "MASceneGraphIO.h"
-#include "MASceneGraphQuery.h"
-#include "MADynamicNodeManager.h"
+#include "scene_graph_tools/MASceneGraphIO.h"
+#include "scene_graph_tools/MASceneGraphQuery.h"
+#include "scene_graph_tools/MADynamicNodeManager.h"
 #include "../../Agent/Skill/Utils/MALocationUtils.h"
 #include "GameFramework/Actor.h"
 #include "Misc/FileHelper.h"

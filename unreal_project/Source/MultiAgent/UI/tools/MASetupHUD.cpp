@@ -2,8 +2,8 @@
 
 #include "MASetupHUD.h"
 #include "MASetupWidget.h"
-#include "../Core/Config/MAConfigManager.h"
-#include "../Core/GameFlow/MAGameInstance.h"
+#include "../../Core/Config/MAConfigManager.h"
+#include "../../Core/GameFlow/MAGameInstance.h"
 #include "Kismet/GameplayStatics.h"
 #include "Blueprint/UserWidget.h"
 

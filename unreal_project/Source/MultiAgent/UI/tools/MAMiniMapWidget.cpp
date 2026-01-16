@@ -2,9 +2,9 @@
 // 小地图 Widget 实现
 
 #include "MAMiniMapWidget.h"
-#include "../Core/Manager/MAAgentManager.h"
-#include "../Core/Manager/MASelectionManager.h"
-#include "../Agent/Character/MACharacter.h"
+#include "../../Core/Manager/MAAgentManager.h"
+#include "../../Core/Manager/MASelectionManager.h"
+#include "../../Agent/Character/MACharacter.h"
 #include "Components/Image.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"

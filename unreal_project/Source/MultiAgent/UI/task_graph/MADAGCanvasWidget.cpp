@@ -4,7 +4,7 @@
 #include "MADAGCanvasWidget.h"
 #include "MATaskNodeWidget.h"
 #include "MATaskGraphModel.h"
-#include "../MAContextMenuWidget.h"
+#include "../tools/MAContextMenuWidget.h"
 #include "Components/Border.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"

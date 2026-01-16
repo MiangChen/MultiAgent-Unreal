@@ -1,17 +1,19 @@
 // MAHUD.cpp
 // HUD 管理器实现
 // 继承自 MASelectionHUD 以保留框选绘制功能
+// Widget 管理职责已委托给 UMAUIManager
 
 #include "MAHUD.h"
+#include "MAUIManager.h"
 #include "MASimpleMainWidget.h"
 #include "task_graph/MATaskPlannerWidget.h"
 #include "skill_list/MASkillAllocationViewer.h"
-#include "MADirectControlIndicator.h"
+#include "tools/MADirectControlIndicator.h"
 #include "../Core/Types/MATaskGraphTypes.h"
-#include "MAEmergencyWidget.h"
-#include "MAModifyWidget.h"
-#include "MAEditWidget.h"
-#include "MASceneListWidget.h"
+#include "mode/MAEmergencyWidget.h"
+#include "mode/MAModifyWidget.h"
+#include "mode/MAEditWidget.h"
+#include "mode/MASceneListWidget.h"
 #include "../Input/MAPlayerController.h"
 #include "../Core/Comm/MACommSubsystem.h"
 #include "../Core/Types/MASimTypes.h"
@@ -41,12 +43,7 @@ AMAHUD::AMAHUD()
 {
     // 默认值
     bMainUIVisible = false;
-    EmergencyWidget = nullptr;
-    TaskPlannerWidget = nullptr;
-    SkillAllocationViewer = nullptr;
-    ModifyWidget = nullptr;
-    EditWidget = nullptr;
-    SceneListWidget = nullptr;
+    UIManager = nullptr;
 }
 
 //=============================================================================
@@ -59,8 +56,32 @@ void AMAHUD::BeginPlay()
 
     UE_LOG(LogMAHUD, Log, TEXT("MAHUD BeginPlay"));
 
-    // 创建所有 Widget
-    CreateWidgets();
+    // 创建并初始化 UIManager
+    APlayerController* PC = GetOwningPlayerController();
+    if (PC)
+    {
+        UIManager = NewObject<UMAUIManager>(this);
+        if (UIManager)
+        {
+            // 传递 SemanticMapWidgetClass 给 UIManager
+            UIManager->SemanticMapWidgetClass = SemanticMapWidgetClass;
+            
+            UIManager->Initialize(PC);
+            UIManager->CreateAllWidgets();
+            UE_LOG(LogMAHUD, Log, TEXT("UIManager created and initialized"));
+        }
+        else
+        {
+            UE_LOG(LogMAHUD, Error, TEXT("Failed to create UIManager"));
+        }
+    }
+    else
+    {
+        UE_LOG(LogMAHUD, Error, TEXT("BeginPlay: No owning PlayerController"));
+    }
+
+    // 绑定 Widget 委托 (在 UIManager 创建 Widget 后)
+    BindWidgetDelegates();
 
     // 绑定 PlayerController 事件
     BindControllerEvents();
@@ -93,66 +114,32 @@ void AMAHUD::ToggleMainUI()
 
 void AMAHUD::ShowMainUI()
 {
-    // 优先使用 TaskPlannerWidget
-    UUserWidget* ActiveWidget = TaskPlannerWidget ? Cast<UUserWidget>(TaskPlannerWidget) : Cast<UUserWidget>(SimpleMainWidget);
-    
-    if (!ActiveWidget)
+    if (!UIManager)
     {
-        UE_LOG(LogMAHUD, Warning, TEXT("ShowMainUI: No MainWidget available"));
+        UE_LOG(LogMAHUD, Warning, TEXT("ShowMainUI: UIManager is null"));
         return;
     }
 
     if (bMainUIVisible)
     {
         // 已经显示，只需重新聚焦
-        if (TaskPlannerWidget)
-        {
-            TaskPlannerWidget->FocusJsonEditor();
-        }
-        else if (SimpleMainWidget)
-        {
-            SimpleMainWidget->FocusInputBox();
-        }
+        UIManager->SetWidgetFocus(EMAWidgetType::TaskPlanner);
         return;
     }
 
-    // 显示 Widget
-    ActiveWidget->SetVisibility(ESlateVisibility::Visible);
-    bMainUIVisible = true;
-
-    // 聚焦
-    if (TaskPlannerWidget)
+    // 通过 UIManager 显示 TaskPlannerWidget
+    if (UIManager->ShowWidget(EMAWidgetType::TaskPlanner, true))
     {
-        TaskPlannerWidget->FocusJsonEditor();
+        bMainUIVisible = true;
+        UE_LOG(LogMAHUD, Log, TEXT("MainUI shown via UIManager"));
     }
-    else if (SimpleMainWidget)
-    {
-        SimpleMainWidget->FocusInputBox();
-    }
-
-    // 设置输入模式为 UI 和游戏混合
-    APlayerController* PC = GetOwningPlayerController();
-    if (PC)
-    {
-        FInputModeGameAndUI InputMode;
-        InputMode.SetWidgetToFocus(ActiveWidget->TakeWidget());
-        InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-        InputMode.SetHideCursorDuringCapture(false);
-        PC->SetInputMode(InputMode);
-        PC->SetShowMouseCursor(true);
-    }
-
-    UE_LOG(LogMAHUD, Log, TEXT("MainUI shown (TaskPlannerWidget: %s)"), TaskPlannerWidget ? TEXT("Yes") : TEXT("No"));
 }
 
 void AMAHUD::HideMainUI()
 {
-    // 优先使用 TaskPlannerWidget
-    UUserWidget* ActiveWidget = TaskPlannerWidget ? Cast<UUserWidget>(TaskPlannerWidget) : Cast<UUserWidget>(SimpleMainWidget);
-    
-    if (!ActiveWidget)
+    if (!UIManager)
     {
-        UE_LOG(LogMAHUD, Warning, TEXT("HideMainUI: No MainWidget available"));
+        UE_LOG(LogMAHUD, Warning, TEXT("HideMainUI: UIManager is null"));
         return;
     }
 
@@ -161,45 +148,35 @@ void AMAHUD::HideMainUI()
         return;
     }
 
-    // 隐藏 Widget
-    ActiveWidget->SetVisibility(ESlateVisibility::Collapsed);
-    bMainUIVisible = false;
-
-    // 恢复输入模式为纯游戏
-    APlayerController* PC = GetOwningPlayerController();
-    if (PC)
+    // 通过 UIManager 隐藏 TaskPlannerWidget
+    if (UIManager->HideWidget(EMAWidgetType::TaskPlanner))
     {
-        FInputModeGameOnly InputMode;
-        PC->SetInputMode(InputMode);
-        PC->SetShowMouseCursor(true);  // 保持鼠标可见用于 RTS 操作
+        bMainUIVisible = false;
+        UE_LOG(LogMAHUD, Log, TEXT("MainUI hidden via UIManager"));
     }
-
-    UE_LOG(LogMAHUD, Log, TEXT("MainUI hidden"));
 }
 
 void AMAHUD::ToggleSemanticMap()
 {
-    // 后续阶段实现
-    if (!SemanticMapWidget)
+    if (!UIManager)
     {
-        UE_LOG(LogMAHUD, Warning, TEXT("ToggleSemanticMap: SemanticMapWidget is null"));
+        UE_LOG(LogMAHUD, Warning, TEXT("ToggleSemanticMap: UIManager is null"));
         return;
     }
 
-    if (SemanticMapWidget->IsVisible())
-    {
-        SemanticMapWidget->SetVisibility(ESlateVisibility::Collapsed);
-        UE_LOG(LogMAHUD, Log, TEXT("SemanticMap hidden"));
-    }
-    else
-    {
-        SemanticMapWidget->SetVisibility(ESlateVisibility::Visible);
-        UE_LOG(LogMAHUD, Log, TEXT("SemanticMap shown"));
-    }
+    UIManager->ToggleWidget(EMAWidgetType::SemanticMap);
+    UE_LOG(LogMAHUD, Log, TEXT("SemanticMap toggled via UIManager"));
 }
 
 void AMAHUD::ShowEmergencyWidget()
 {
+    if (!UIManager)
+    {
+        UE_LOG(LogMAHUD, Warning, TEXT("ShowEmergencyWidget: UIManager is null"));
+        return;
+    }
+
+    UMAEmergencyWidget* EmergencyWidget = UIManager->GetEmergencyWidget();
     if (!EmergencyWidget)
     {
         UE_LOG(LogMAHUD, Warning, TEXT("ShowEmergencyWidget: EmergencyWidget is null"));
@@ -213,23 +190,8 @@ void AMAHUD::ShowEmergencyWidget()
         return;
     }
 
-    // 显示 Widget
-    EmergencyWidget->SetVisibility(ESlateVisibility::Visible);
-
-    // 聚焦到输入框
-    EmergencyWidget->FocusInputBox();
-
-    // 设置输入模式为 UI 和游戏混合
-    APlayerController* PC = GetOwningPlayerController();
-    if (PC)
-    {
-        FInputModeGameAndUI InputMode;
-        InputMode.SetWidgetToFocus(EmergencyWidget->TakeWidget());
-        InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-        InputMode.SetHideCursorDuringCapture(false);
-        PC->SetInputMode(InputMode);
-        PC->SetShowMouseCursor(true);
-    }
+    // 通过 UIManager 显示
+    UIManager->ShowWidget(EMAWidgetType::Emergency, true);
 
     // 更新相机源
     FMASubsystem Subs = MA_SUBS;
@@ -248,14 +210,14 @@ void AMAHUD::ShowEmergencyWidget()
         }
     }
 
-    UE_LOG(LogMAHUD, Log, TEXT("EmergencyWidget shown"));
+    UE_LOG(LogMAHUD, Log, TEXT("EmergencyWidget shown via UIManager"));
 }
 
 void AMAHUD::HideEmergencyWidget()
 {
-    if (!EmergencyWidget)
+    if (!UIManager)
     {
-        UE_LOG(LogMAHUD, Warning, TEXT("HideEmergencyWidget: EmergencyWidget is null"));
+        UE_LOG(LogMAHUD, Warning, TEXT("HideEmergencyWidget: UIManager is null"));
         return;
     }
 
@@ -264,19 +226,10 @@ void AMAHUD::HideEmergencyWidget()
         return;
     }
 
-    // 隐藏 Widget
-    EmergencyWidget->SetVisibility(ESlateVisibility::Collapsed);
+    // 通过 UIManager 隐藏
+    UIManager->HideWidget(EMAWidgetType::Emergency);
 
-    // 恢复输入模式为纯游戏
-    APlayerController* PC = GetOwningPlayerController();
-    if (PC)
-    {
-        FInputModeGameOnly InputMode;
-        PC->SetInputMode(InputMode);
-        PC->SetShowMouseCursor(true);  // 保持鼠标可见用于 RTS 操作
-    }
-
-    UE_LOG(LogMAHUD, Log, TEXT("EmergencyWidget hidden"));
+    UE_LOG(LogMAHUD, Log, TEXT("EmergencyWidget hidden via UIManager"));
 }
 
 void AMAHUD::ToggleEmergencyWidget()
@@ -293,16 +246,23 @@ void AMAHUD::ToggleEmergencyWidget()
 
 bool AMAHUD::IsEmergencyWidgetVisible() const
 {
-    if (!EmergencyWidget)
+    if (!UIManager)
     {
         return false;
     }
     
-    return EmergencyWidget->IsVisible();
+    return UIManager->IsWidgetVisible(EMAWidgetType::Emergency);
 }
 
 void AMAHUD::UpdateEmergencyCameraSource(UMACameraSensorComponent* Camera)
 {
+    if (!UIManager)
+    {
+        UE_LOG(LogMAHUD, Warning, TEXT("UpdateEmergencyCameraSource: UIManager is null"));
+        return;
+    }
+
+    UMAEmergencyWidget* EmergencyWidget = UIManager->GetEmergencyWidget();
     if (!EmergencyWidget)
     {
         UE_LOG(LogMAHUD, Warning, TEXT("UpdateEmergencyCameraSource: EmergencyWidget is null"));
@@ -389,6 +349,13 @@ void AMAHUD::DrawHUD()
 
 void AMAHUD::ShowDirectControlIndicator(AMACharacter* Agent)
 {
+    if (!UIManager)
+    {
+        UE_LOG(LogMAHUD, Warning, TEXT("ShowDirectControlIndicator: UIManager is null"));
+        return;
+    }
+
+    UMADirectControlIndicator* DirectControlIndicator = UIManager->GetDirectControlIndicator();
     if (!DirectControlIndicator)
     {
         UE_LOG(LogMAHUD, Warning, TEXT("ShowDirectControlIndicator: DirectControlIndicator is null"));
@@ -404,33 +371,33 @@ void AMAHUD::ShowDirectControlIndicator(AMACharacter* Agent)
     // 设置 Agent 名称
     DirectControlIndicator->SetAgentName(Agent->AgentName);
     
-    // 显示指示器
-    DirectControlIndicator->SetVisibility(ESlateVisibility::Visible);
+    // 通过 UIManager 显示指示器
+    UIManager->ShowWidget(EMAWidgetType::DirectControl, false);
     
     UE_LOG(LogMAHUD, Log, TEXT("DirectControlIndicator shown for Agent: %s"), *Agent->AgentName);
 }
 
 void AMAHUD::HideDirectControlIndicator()
 {
-    if (!DirectControlIndicator)
+    if (!UIManager)
     {
-        UE_LOG(LogMAHUD, Warning, TEXT("HideDirectControlIndicator: DirectControlIndicator is null"));
+        UE_LOG(LogMAHUD, Warning, TEXT("HideDirectControlIndicator: UIManager is null"));
         return;
     }
 
-    DirectControlIndicator->SetVisibility(ESlateVisibility::Collapsed);
+    UIManager->HideWidget(EMAWidgetType::DirectControl);
     
-    UE_LOG(LogMAHUD, Log, TEXT("DirectControlIndicator hidden"));
+    UE_LOG(LogMAHUD, Log, TEXT("DirectControlIndicator hidden via UIManager"));
 }
 
 bool AMAHUD::IsDirectControlIndicatorVisible() const
 {
-    if (!DirectControlIndicator)
+    if (!UIManager)
     {
         return false;
     }
     
-    return DirectControlIndicator->IsVisible();
+    return UIManager->IsWidgetVisible(EMAWidgetType::DirectControl);
 }
 
 //=============================================================================
@@ -451,9 +418,9 @@ void AMAHUD::ToggleSkillAllocationViewer()
 
 void AMAHUD::ShowSkillAllocationViewer()
 {
-    if (!SkillAllocationViewer)
+    if (!UIManager)
     {
-        UE_LOG(LogMAHUD, Warning, TEXT("ShowSkillAllocationViewer: SkillAllocationViewer is null"));
+        UE_LOG(LogMAHUD, Warning, TEXT("ShowSkillAllocationViewer: UIManager is null"));
         return;
     }
 
@@ -463,29 +430,17 @@ void AMAHUD::ShowSkillAllocationViewer()
         return;
     }
 
-    // 显示 Widget
-    SkillAllocationViewer->SetVisibility(ESlateVisibility::Visible);
+    // 通过 UIManager 显示
+    UIManager->ShowWidget(EMAWidgetType::SkillAllocation, true);
 
-    // 设置输入模式为 UI 和游戏混合
-    APlayerController* PC = GetOwningPlayerController();
-    if (PC)
-    {
-        FInputModeGameAndUI InputMode;
-        InputMode.SetWidgetToFocus(SkillAllocationViewer->TakeWidget());
-        InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-        InputMode.SetHideCursorDuringCapture(false);
-        PC->SetInputMode(InputMode);
-        PC->SetShowMouseCursor(true);
-    }
-
-    UE_LOG(LogMAHUD, Log, TEXT("SkillAllocationViewer shown"));
+    UE_LOG(LogMAHUD, Log, TEXT("SkillAllocationViewer shown via UIManager"));
 }
 
 void AMAHUD::HideSkillAllocationViewer()
 {
-    if (!SkillAllocationViewer)
+    if (!UIManager)
     {
-        UE_LOG(LogMAHUD, Warning, TEXT("HideSkillAllocationViewer: SkillAllocationViewer is null"));
+        UE_LOG(LogMAHUD, Warning, TEXT("HideSkillAllocationViewer: UIManager is null"));
         return;
     }
 
@@ -494,29 +449,20 @@ void AMAHUD::HideSkillAllocationViewer()
         return;
     }
 
-    // 隐藏 Widget
-    SkillAllocationViewer->SetVisibility(ESlateVisibility::Collapsed);
+    // 通过 UIManager 隐藏
+    UIManager->HideWidget(EMAWidgetType::SkillAllocation);
 
-    // 恢复输入模式为纯游戏
-    APlayerController* PC = GetOwningPlayerController();
-    if (PC)
-    {
-        FInputModeGameOnly InputMode;
-        PC->SetInputMode(InputMode);
-        PC->SetShowMouseCursor(true);  // 保持鼠标可见用于 RTS 操作
-    }
-
-    UE_LOG(LogMAHUD, Log, TEXT("SkillAllocationViewer hidden"));
+    UE_LOG(LogMAHUD, Log, TEXT("SkillAllocationViewer hidden via UIManager"));
 }
 
 bool AMAHUD::IsSkillAllocationViewerVisible() const
 {
-    if (!SkillAllocationViewer)
+    if (!UIManager)
     {
         return false;
     }
     
-    return SkillAllocationViewer->IsVisible();
+    return UIManager->IsWidgetVisible(EMAWidgetType::SkillAllocation);
 }
 
 //=============================================================================
@@ -541,9 +487,9 @@ void AMAHUD::OnRefocusMainUI()
 {
     UE_LOG(LogMAHUD, Verbose, TEXT("OnRefocusMainUI"));
 
-    if (bMainUIVisible && SimpleMainWidget)
+    if (bMainUIVisible && UIManager)
     {
-        SimpleMainWidget->FocusInputBox();
+        UIManager->SetWidgetFocus(EMAWidgetType::TaskPlanner);
     }
 }
 
@@ -571,168 +517,55 @@ void AMAHUD::OnEmergencyStateChanged(bool bIsActive)
 // 内部方法
 //=============================================================================
 
-void AMAHUD::CreateWidgets()
+void AMAHUD::BindWidgetDelegates()
 {
-    APlayerController* PC = GetOwningPlayerController();
-    if (!PC)
+    if (!UIManager)
     {
-        UE_LOG(LogMAHUD, Error, TEXT("CreateWidgets: No owning PlayerController"));
+        UE_LOG(LogMAHUD, Warning, TEXT("BindWidgetDelegates: UIManager is null"));
         return;
     }
 
-    // 创建 TaskPlannerWidget (任务规划工作台 - 替代 SimpleMainWidget)
-    UE_LOG(LogMAHUD, Log, TEXT("Creating TaskPlannerWidget..."));
-    
-    TaskPlannerWidget = CreateWidget<UMATaskPlannerWidget>(PC, UMATaskPlannerWidget::StaticClass());
+    // 绑定 TaskPlannerWidget 委托
+    UMATaskPlannerWidget* TaskPlannerWidget = UIManager->GetTaskPlannerWidget();
     if (TaskPlannerWidget)
     {
-        TaskPlannerWidget->AddToViewport(10);
-        TaskPlannerWidget->SetVisibility(ESlateVisibility::Collapsed);
-        
-        // 绑定指令提交事件到 CommSubsystem
-        TaskPlannerWidget->OnCommandSubmitted.AddDynamic(this, &AMAHUD::OnSimpleCommandSubmitted);
-        
-        // 尝试加载 Mock 数据
-        if (TaskPlannerWidget->IsMockMode())
+        if (!TaskPlannerWidget->OnCommandSubmitted.IsAlreadyBound(this, &AMAHUD::OnSimpleCommandSubmitted))
         {
-            TaskPlannerWidget->LoadMockData();
+            TaskPlannerWidget->OnCommandSubmitted.AddDynamic(this, &AMAHUD::OnSimpleCommandSubmitted);
         }
-        
-        UE_LOG(LogMAHUD, Log, TEXT("TaskPlannerWidget created successfully"));
-    }
-    else
-    {
-        UE_LOG(LogMAHUD, Error, TEXT("Failed to create TaskPlannerWidget"));
+        UE_LOG(LogMAHUD, Log, TEXT("BindWidgetDelegates: Bound TaskPlannerWidget delegates"));
     }
 
-    // 创建 SkillAllocationViewer (技能分配查看器)
-    UE_LOG(LogMAHUD, Log, TEXT("Creating SkillAllocationViewer..."));
-    
-    SkillAllocationViewer = CreateWidget<UMASkillAllocationViewer>(PC, UMASkillAllocationViewer::StaticClass());
-    if (SkillAllocationViewer)
-    {
-        SkillAllocationViewer->AddToViewport(10);  // 与 TaskPlannerWidget 同优先级
-        SkillAllocationViewer->SetVisibility(ESlateVisibility::Collapsed);
-        
-        // 尝试加载 Mock 数据
-        SkillAllocationViewer->LoadMockData();
-        
-        UE_LOG(LogMAHUD, Log, TEXT("SkillAllocationViewer created successfully"));
-    }
-    else
-    {
-        UE_LOG(LogMAHUD, Error, TEXT("Failed to create SkillAllocationViewer"));
-    }
-
-    // 创建 SimpleMainWidget (保留向后兼容，但默认不使用)
-    UE_LOG(LogMAHUD, Log, TEXT("Creating SimpleMainWidget (legacy)..."));
-    
-    SimpleMainWidget = CreateWidget<UMASimpleMainWidget>(PC, UMASimpleMainWidget::StaticClass());
+    // 绑定 SimpleMainWidget 委托 (Legacy)
+    UMASimpleMainWidget* SimpleMainWidget = UIManager->GetSimpleMainWidget();
     if (SimpleMainWidget)
     {
-        // 不添加到 Viewport，仅保留引用
-        // SimpleMainWidget->AddToViewport(10);
-        SimpleMainWidget->SetVisibility(ESlateVisibility::Collapsed);
-        
-        // 绑定指令提交事件到 CommSubsystem
-        SimpleMainWidget->OnCommandSubmitted.AddDynamic(this, &AMAHUD::OnSimpleCommandSubmitted);
-        
-        UE_LOG(LogMAHUD, Log, TEXT("SimpleMainWidget created successfully (legacy, not added to viewport)"));
-    }
-    else
-    {
-        UE_LOG(LogMAHUD, Error, TEXT("Failed to create SimpleMainWidget"));
-    }
-
-    // 创建 SemanticMapWidget (后续阶段)
-    if (SemanticMapWidgetClass)
-    {
-        SemanticMapWidget = CreateWidget<UUserWidget>(PC, SemanticMapWidgetClass);
-        if (SemanticMapWidget)
+        if (!SimpleMainWidget->OnCommandSubmitted.IsAlreadyBound(this, &AMAHUD::OnSimpleCommandSubmitted))
         {
-            SemanticMapWidget->AddToViewport(5);
-            SemanticMapWidget->SetVisibility(ESlateVisibility::Collapsed);
-            UE_LOG(LogMAHUD, Log, TEXT("SemanticMapWidget created successfully"));
+            SimpleMainWidget->OnCommandSubmitted.AddDynamic(this, &AMAHUD::OnSimpleCommandSubmitted);
         }
+        UE_LOG(LogMAHUD, Log, TEXT("BindWidgetDelegates: Bound SimpleMainWidget delegates"));
     }
 
-    // 创建 DirectControlIndicator
-    UE_LOG(LogMAHUD, Log, TEXT("Creating DirectControlIndicator..."));
-    
-    DirectControlIndicator = CreateWidget<UMADirectControlIndicator>(PC, UMADirectControlIndicator::StaticClass());
-    if (DirectControlIndicator)
-    {
-        DirectControlIndicator->AddToViewport(15);  // 高优先级，显示在其他 UI 之上
-        DirectControlIndicator->SetVisibility(ESlateVisibility::Collapsed);
-        UE_LOG(LogMAHUD, Log, TEXT("DirectControlIndicator created successfully"));
-    }
-    else
-    {
-        UE_LOG(LogMAHUD, Error, TEXT("Failed to create DirectControlIndicator"));
-    }
-
-    // 创建 EmergencyWidget
-    UE_LOG(LogMAHUD, Log, TEXT("Creating EmergencyWidget..."));
-    
-    EmergencyWidget = CreateWidget<UMAEmergencyWidget>(PC, UMAEmergencyWidget::StaticClass());
-    if (EmergencyWidget)
-    {
-        EmergencyWidget->AddToViewport(12);  // 中等优先级，在 MainWidget 之上但在 DirectControlIndicator 之下
-        EmergencyWidget->SetVisibility(ESlateVisibility::Collapsed);
-        UE_LOG(LogMAHUD, Log, TEXT("EmergencyWidget created successfully"));
-    }
-    else
-    {
-        UE_LOG(LogMAHUD, Error, TEXT("Failed to create EmergencyWidget"));
-    }
-
-    // 创建 ModifyWidget
-    UE_LOG(LogMAHUD, Log, TEXT("Creating ModifyWidget..."));
-
-    ModifyWidget = CreateWidget<UMAModifyWidget>(PC, UMAModifyWidget::StaticClass());
+    // 绑定 ModifyWidget 委托
+    UMAModifyWidget* ModifyWidget = UIManager->GetModifyWidget();
     if (ModifyWidget)
     {
-        ModifyWidget->AddToViewport(11);  // 中等优先级，在 MainWidget 之上
-        ModifyWidget->SetVisibility(ESlateVisibility::Collapsed);
-
-        // 绑定 OnModifyConfirmed 委托 (单选模式)
-        ModifyWidget->OnModifyConfirmed.AddDynamic(this, &AMAHUD::OnModifyConfirmed);
-
-        // 绑定 OnMultiSelectModifyConfirmed 委托 (多选模式)
-        ModifyWidget->OnMultiSelectModifyConfirmed.AddDynamic(this, &AMAHUD::OnMultiSelectModifyConfirmed);
-
-        UE_LOG(LogMAHUD, Log, TEXT("ModifyWidget created successfully"));
-    }
-    else
-    {
-        UE_LOG(LogMAHUD, Error, TEXT("Failed to create ModifyWidget"));
+        if (!ModifyWidget->OnModifyConfirmed.IsAlreadyBound(this, &AMAHUD::OnModifyConfirmed))
+        {
+            ModifyWidget->OnModifyConfirmed.AddDynamic(this, &AMAHUD::OnModifyConfirmed);
+        }
+        if (!ModifyWidget->OnMultiSelectModifyConfirmed.IsAlreadyBound(this, &AMAHUD::OnMultiSelectModifyConfirmed))
+        {
+            ModifyWidget->OnMultiSelectModifyConfirmed.AddDynamic(this, &AMAHUD::OnMultiSelectModifyConfirmed);
+        }
+        UE_LOG(LogMAHUD, Log, TEXT("BindWidgetDelegates: Bound ModifyWidget delegates"));
     }
 
-    // 创建 EditWidget
-    UE_LOG(LogMAHUD, Log, TEXT("Creating EditWidget..."));
-
-    EditWidget = CreateWidget<UMAEditWidget>(PC, UMAEditWidget::StaticClass());
-    if (EditWidget)
-    {
-        EditWidget->AddToViewport(11);  // 与 ModifyWidget 同优先级
-        EditWidget->SetVisibility(ESlateVisibility::Collapsed);
-
-        UE_LOG(LogMAHUD, Log, TEXT("EditWidget created successfully"));
-    }
-    else
-    {
-        UE_LOG(LogMAHUD, Error, TEXT("Failed to create EditWidget"));
-    }
-
-    // 创建 SceneListWidget
-    UE_LOG(LogMAHUD, Log, TEXT("Creating SceneListWidget..."));
-
-    SceneListWidget = CreateWidget<UMASceneListWidget>(PC, UMASceneListWidget::StaticClass());
+    // 绑定 SceneListWidget 委托
+    UMASceneListWidget* SceneListWidget = UIManager->GetSceneListWidget();
     if (SceneListWidget)
     {
-        SceneListWidget->AddToViewport(11);  // 与 EditWidget 同优先级
-        SceneListWidget->SetVisibility(ESlateVisibility::Collapsed);
-
         // 设置 EditModeManager 引用
         UWorld* World = GetWorld();
         if (World)
@@ -744,16 +577,18 @@ void AMAHUD::CreateWidgets()
             }
         }
 
-        // 绑定列表项点击委托
-        SceneListWidget->OnGoalItemClicked.AddDynamic(this, &AMAHUD::OnSceneListGoalClicked);
-        SceneListWidget->OnZoneItemClicked.AddDynamic(this, &AMAHUD::OnSceneListZoneClicked);
+        if (!SceneListWidget->OnGoalItemClicked.IsAlreadyBound(this, &AMAHUD::OnSceneListGoalClicked))
+        {
+            SceneListWidget->OnGoalItemClicked.AddDynamic(this, &AMAHUD::OnSceneListGoalClicked);
+        }
+        if (!SceneListWidget->OnZoneItemClicked.IsAlreadyBound(this, &AMAHUD::OnSceneListZoneClicked))
+        {
+            SceneListWidget->OnZoneItemClicked.AddDynamic(this, &AMAHUD::OnSceneListZoneClicked);
+        }
+        UE_LOG(LogMAHUD, Log, TEXT("BindWidgetDelegates: Bound SceneListWidget delegates"));
+    }
 
-        UE_LOG(LogMAHUD, Log, TEXT("SceneListWidget created successfully"));
-    }
-    else
-    {
-        UE_LOG(LogMAHUD, Error, TEXT("Failed to create SceneListWidget"));
-    }
+    UE_LOG(LogMAHUD, Log, TEXT("BindWidgetDelegates: All widget delegates bound"));
 }
 
 void AMAHUD::BindControllerEvents()
@@ -831,6 +666,7 @@ void AMAHUD::OnSimpleCommandSubmitted(const FString& Command)
         else
         {
             UE_LOG(LogMAHUD, Warning, TEXT("CommSubsystem not found"));
+            UMASimpleMainWidget* SimpleMainWidget = UIManager ? UIManager->GetSimpleMainWidget() : nullptr;
             if (SimpleMainWidget)
             {
                 SimpleMainWidget->SetResultText(TEXT("Error: Communication subsystem not found"));
@@ -843,7 +679,16 @@ void AMAHUD::OnPlannerResponse(const FMAPlannerResponse& Response)
 {
     UE_LOG(LogMAHUD, Log, TEXT("Planner response received: %s"), *Response.Message);
     
+    if (!UIManager)
+    {
+        UE_LOG(LogMAHUD, Warning, TEXT("OnPlannerResponse: UIManager is null"));
+        return;
+    }
+
     // 显示响应到 TaskPlannerWidget 或 SimpleMainWidget
+    UMATaskPlannerWidget* TaskPlannerWidget = UIManager->GetTaskPlannerWidget();
+    UMASimpleMainWidget* SimpleMainWidget = UIManager->GetSimpleMainWidget();
+    
     if (TaskPlannerWidget)
     {
         // 追加状态日志
@@ -874,6 +719,13 @@ void AMAHUD::OnPlannerResponse(const FMAPlannerResponse& Response)
 
 void AMAHUD::LoadTaskGraph(const FMATaskGraphData& Data)
 {
+    if (!UIManager)
+    {
+        UE_LOG(LogMAHUD, Warning, TEXT("LoadTaskGraph: UIManager is null"));
+        return;
+    }
+
+    UMATaskPlannerWidget* TaskPlannerWidget = UIManager->GetTaskPlannerWidget();
     if (TaskPlannerWidget)
     {
         TaskPlannerWidget->LoadTaskGraph(Data);
@@ -886,14 +738,28 @@ void AMAHUD::LoadTaskGraph(const FMATaskGraphData& Data)
 }
 
 //=============================================================================
+// Widget Getter 方法 (委托到 UIManager)
+//=============================================================================
+
+UMASimpleMainWidget* AMAHUD::GetSimpleMainWidget() const
+{
+    return UIManager ? UIManager->GetSimpleMainWidget() : nullptr;
+}
+
+UMATaskPlannerWidget* AMAHUD::GetTaskPlannerWidget() const
+{
+    return UIManager ? UIManager->GetTaskPlannerWidget() : nullptr;
+}
+
+//=============================================================================
 // Modify 模式 UI 控制
 //=============================================================================
 
 void AMAHUD::ShowModifyWidget()
 {
-    if (!ModifyWidget)
+    if (!UIManager)
     {
-        UE_LOG(LogMAHUD, Warning, TEXT("ShowModifyWidget: ModifyWidget is null"));
+        UE_LOG(LogMAHUD, Warning, TEXT("ShowModifyWidget: UIManager is null"));
         return;
     }
 
@@ -903,30 +769,18 @@ void AMAHUD::ShowModifyWidget()
         return;
     }
 
-    // 显示 Widget
-    ModifyWidget->SetVisibility(ESlateVisibility::Visible);
-
-    // 设置输入模式为 UI 和游戏混合
-    APlayerController* PC = GetOwningPlayerController();
-    if (PC)
-    {
-        FInputModeGameAndUI InputMode;
-        InputMode.SetWidgetToFocus(ModifyWidget->TakeWidget());
-        InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-        InputMode.SetHideCursorDuringCapture(false);
-        PC->SetInputMode(InputMode);
-        PC->SetShowMouseCursor(true);
-    }
+    // 通过 UIManager 显示
+    UIManager->ShowWidget(EMAWidgetType::Modify, true);
     StartSceneLabelVisualization();
 
-    UE_LOG(LogMAHUD, Log, TEXT("ModifyWidget shown"));
+    UE_LOG(LogMAHUD, Log, TEXT("ModifyWidget shown via UIManager"));
 }
 
 void AMAHUD::HideModifyWidget()
 {
-    if (!ModifyWidget)
+    if (!UIManager)
     {
-        UE_LOG(LogMAHUD, Warning, TEXT("HideModifyWidget: ModifyWidget is null"));
+        UE_LOG(LogMAHUD, Warning, TEXT("HideModifyWidget: UIManager is null"));
         return;
     }
 
@@ -936,32 +790,27 @@ void AMAHUD::HideModifyWidget()
     }
     StopSceneLabelVisualization();
 
-    // 隐藏 Widget
-    ModifyWidget->SetVisibility(ESlateVisibility::Collapsed);
+    // 通过 UIManager 隐藏
+    UIManager->HideWidget(EMAWidgetType::Modify);
 
     // 清除选中状态
-    ModifyWidget->ClearSelection();
-
-    // 恢复输入模式为纯游戏
-    APlayerController* PC = GetOwningPlayerController();
-    if (PC)
+    UMAModifyWidget* ModifyWidget = UIManager->GetModifyWidget();
+    if (ModifyWidget)
     {
-        FInputModeGameOnly InputMode;
-        PC->SetInputMode(InputMode);
-        PC->SetShowMouseCursor(true);  // 保持鼠标可见用于 RTS 操作
+        ModifyWidget->ClearSelection();
     }
 
-    UE_LOG(LogMAHUD, Log, TEXT("ModifyWidget hidden"));
+    UE_LOG(LogMAHUD, Log, TEXT("ModifyWidget hidden via UIManager"));
 }
 
 bool AMAHUD::IsModifyWidgetVisible() const
 {
-    if (!ModifyWidget)
+    if (!UIManager)
     {
         return false;
     }
 
-    return ModifyWidget->IsVisible();
+    return UIManager->IsWidgetVisible(EMAWidgetType::Modify);
 }
 
 //=============================================================================
@@ -970,9 +819,9 @@ bool AMAHUD::IsModifyWidgetVisible() const
 
 void AMAHUD::ShowEditWidget()
 {
-    if (!EditWidget)
+    if (!UIManager)
     {
-        UE_LOG(LogMAHUD, Warning, TEXT("ShowEditWidget: EditWidget is null"));
+        UE_LOG(LogMAHUD, Warning, TEXT("ShowEditWidget: UIManager is null"));
         return;
     }
 
@@ -982,37 +831,17 @@ void AMAHUD::ShowEditWidget()
         return;
     }
 
-    // 显示 Widget
-    EditWidget->SetVisibility(ESlateVisibility::Visible);
+    // 通过 UIManager 显示
+    UIManager->ShowWidget(EMAWidgetType::Edit, true);
 
-    // 暂时禁用左侧 SceneListWidget，测试是否是多 Widget 导致的焦点问题
-    // if (SceneListWidget)
-    // {
-    //     SceneListWidget->SetVisibility(ESlateVisibility::Visible);
-    //     SceneListWidget->RefreshLists();
-    // }
-
-    // 设置输入模式为 UI 和游戏混合
-    // 与 ShowModifyWidget 保持一致的设置
-    APlayerController* PC = GetOwningPlayerController();
-    if (PC)
-    {
-        FInputModeGameAndUI InputMode;
-        InputMode.SetWidgetToFocus(EditWidget->TakeWidget());
-        InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-        InputMode.SetHideCursorDuringCapture(false);
-        PC->SetInputMode(InputMode);
-        PC->SetShowMouseCursor(true);
-    }
-
-    UE_LOG(LogMAHUD, Log, TEXT("EditWidget shown"));
+    UE_LOG(LogMAHUD, Log, TEXT("EditWidget shown via UIManager"));
 }
 
 void AMAHUD::HideEditWidget()
 {
-    if (!EditWidget)
+    if (!UIManager)
     {
-        UE_LOG(LogMAHUD, Warning, TEXT("HideEditWidget: EditWidget is null"));
+        UE_LOG(LogMAHUD, Warning, TEXT("HideEditWidget: UIManager is null"));
         return;
     }
 
@@ -1021,38 +850,27 @@ void AMAHUD::HideEditWidget()
         return;
     }
 
-    // 隐藏 Widget
-    EditWidget->SetVisibility(ESlateVisibility::Collapsed);
-
-    // 暂时禁用左侧 SceneListWidget
-    // if (SceneListWidget)
-    // {
-    //     SceneListWidget->SetVisibility(ESlateVisibility::Collapsed);
-    // }
+    // 通过 UIManager 隐藏
+    UIManager->HideWidget(EMAWidgetType::Edit);
 
     // 清除选中状态
-    EditWidget->ClearSelection();
-
-    // 恢复输入模式为纯游戏
-    APlayerController* PC = GetOwningPlayerController();
-    if (PC)
+    UMAEditWidget* EditWidget = UIManager->GetEditWidget();
+    if (EditWidget)
     {
-        FInputModeGameOnly InputMode;
-        PC->SetInputMode(InputMode);
-        PC->SetShowMouseCursor(true);  // 保持鼠标可见用于 RTS 操作
+        EditWidget->ClearSelection();
     }
 
-    UE_LOG(LogMAHUD, Log, TEXT("EditWidget hidden"));
+    UE_LOG(LogMAHUD, Log, TEXT("EditWidget hidden via UIManager"));
 }
 
 bool AMAHUD::IsEditWidgetVisible() const
 {
-    if (!EditWidget)
+    if (!UIManager)
     {
         return false;
     }
 
-    return EditWidget->IsVisible();
+    return UIManager->IsWidgetVisible(EMAWidgetType::Edit);
 }
 
 bool AMAHUD::IsMouseOverEditWidget() const
@@ -1085,6 +903,7 @@ bool AMAHUD::IsMouseOverEditWidget() const
     // 检查 EditWidget 区域 (右侧面板)
     // EditWidget 布局: 锚点 (1.0, 0.0), 位置 (-20, 60), 大小 (380, 600)
     // 实际屏幕区域: X 从 (ViewportSizeX - 20 - 380) 到 (ViewportSizeX - 20), Y 从 60 到 660
+    UMAEditWidget* EditWidget = UIManager ? UIManager->GetEditWidget() : nullptr;
     if (EditWidget)
     {
         float EditWidgetLeft = ViewportSizeX - 20.0f - 380.0f;
@@ -1098,23 +917,6 @@ bool AMAHUD::IsMouseOverEditWidget() const
             return true;
         }
     }
-
-    // 检查 SceneListWidget 区域 (左侧面板) - 暂时禁用
-    // SceneListWidget 布局: 锚点 (0.0, 0.0, 0.0, 1.0), 位置 (10, 60), 宽度 250
-    // 实际屏幕区域: X 从 10 到 260, Y 从 60 到 (ViewportSizeY - 60)
-    // if (SceneListWidget && SceneListWidget->IsVisible())
-    // {
-    //     float SceneListLeft = 10.0f;
-    //     float SceneListRight = 10.0f + 250.0f;
-    //     float SceneListTop = 60.0f;
-    //     float SceneListBottom = ViewportSizeY - 60.0f;
-    //
-    //     if (MouseX >= SceneListLeft && MouseX <= SceneListRight &&
-    //         MouseY >= SceneListTop && MouseY <= SceneListBottom)
-    //     {
-    //         return true;
-    //     }
-    // }
 
     return false;
 }
@@ -1143,6 +945,10 @@ void AMAHUD::OnModifyConfirmed(AActor* Actor, const FString& LabelText)
         ShowNotification(TEXT("Save failed: SceneGraphManager not found"), true);
         return;
     }
+
+    // 获取 ModifyWidget 通过 UIManager
+    UMAModifyWidget* ModifyWidget = UIManager ? UIManager->GetModifyWidget() : nullptr;
+
     FString Id, Type, ErrorMessage;
     if (!SceneGraphManager->ParseLabelInput(LabelText, Id, Type, ErrorMessage))
     {
@@ -1203,6 +1009,7 @@ void AMAHUD::OnModifyActorSelected(AActor* SelectedActor)
     UE_LOG(LogMAHUD, Log, TEXT("OnModifyActorSelected: Actor=%s"),
         SelectedActor ? *SelectedActor->GetName() : TEXT("null"));
 
+    UMAModifyWidget* ModifyWidget = UIManager ? UIManager->GetModifyWidget() : nullptr;
     if (ModifyWidget)
     {
         ModifyWidget->SetSelectedActor(SelectedActor);
@@ -1213,6 +1020,7 @@ void AMAHUD::OnModifyActorsSelected(const TArray<AActor*>& SelectedActors)
 {
     UE_LOG(LogMAHUD, Log, TEXT("OnModifyActorsSelected: %d actors"), SelectedActors.Num());
 
+    UMAModifyWidget* ModifyWidget = UIManager ? UIManager->GetModifyWidget() : nullptr;
     if (ModifyWidget)
     {
         ModifyWidget->SetSelectedActors(SelectedActors);
@@ -1243,6 +1051,9 @@ void AMAHUD::OnMultiSelectModifyConfirmed(const TArray<AActor*>& Actors, const F
         ShowNotification(TEXT("Save failed: SceneGraphManager not found"), true);
         return;
     }
+
+    // 获取 ModifyWidget 通过 UIManager
+    UMAModifyWidget* ModifyWidget = UIManager ? UIManager->GetModifyWidget() : nullptr;
 
     // 解析输入以获取 ID
     FString Id, Type, ErrorMessage;
@@ -1551,7 +1362,7 @@ void AMAHUD::BindEditModeManagerEvents()
 
 void AMAHUD::BindEditWidgetDelegates()
 {
-
+    UMAEditWidget* EditWidget = UIManager ? UIManager->GetEditWidget() : nullptr;
     if (!EditWidget)
     {
         UE_LOG(LogMAHUD, Warning, TEXT("BindEditWidgetDelegates: EditWidget is null"));
@@ -1743,6 +1554,7 @@ void AMAHUD::OnEditModeSelectionChanged()
 
     UE_LOG(LogMAHUD, Log, TEXT("OnEditModeSelectionChanged"));
 
+    UMAEditWidget* EditWidget = UIManager ? UIManager->GetEditWidget() : nullptr;
     if (!EditWidget)
     {
         return;
@@ -1783,6 +1595,7 @@ void AMAHUD::OnTempSceneGraphChanged()
 
     UE_LOG(LogMAHUD, Log, TEXT("OnTempSceneGraphChanged"));
 
+    UMAEditWidget* EditWidget = UIManager ? UIManager->GetEditWidget() : nullptr;
     if (EditWidget)
     {
         EditWidget->RefreshSceneGraphPreview();
@@ -2198,12 +2011,14 @@ void AMAHUD::OnEditSetAsGoal(AActor* Actor)
     ShowNotification(FString::Printf(TEXT("Set %s as Goal"), *NodeLabel), false);
 
     // 刷新 SceneListWidget
+    UMASceneListWidget* SceneListWidget = UIManager ? UIManager->GetSceneListWidget() : nullptr;
     if (SceneListWidget)
     {
         SceneListWidget->RefreshLists();
     }
 
     // 刷新 EditWidget UI 状态
+    UMAEditWidget* EditWidget = UIManager ? UIManager->GetEditWidget() : nullptr;
     if (EditWidget)
     {
         EditWidget->SetSelectedActor(Actor);  // 重新设置以刷新按钮状态
@@ -2264,12 +2079,14 @@ void AMAHUD::OnEditUnsetAsGoal(AActor* Actor)
     ShowNotification(FString::Printf(TEXT("Unset %s as Goal"), *NodeLabel), false);
 
     // 刷新 SceneListWidget
+    UMASceneListWidget* SceneListWidget = UIManager ? UIManager->GetSceneListWidget() : nullptr;
     if (SceneListWidget)
     {
         SceneListWidget->RefreshLists();
     }
 
     // 刷新 EditWidget UI 状态
+    UMAEditWidget* EditWidget = UIManager ? UIManager->GetEditWidget() : nullptr;
     if (EditWidget)
     {
         EditWidget->SetSelectedActor(Actor);  // 重新设置以刷新按钮状态
