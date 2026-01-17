@@ -396,21 +396,22 @@ int32 UMAUIManager::GetWidgetZOrder(EMAWidgetType Type) const
     // Widget Z-Order 配置
     // 数值越大，显示在越上层
     // HUD 使用 -1，确保在所有其他 Widget 之下
+    // MiniMap 使用 1 (在 MAMiniMapManager 中设置)
     switch (Type)
     {
     case EMAWidgetType::HUD:
         return -1;  // 最底层，在所有其他 Widget 之下
     case EMAWidgetType::SemanticMap:
         return 5;
-    case EMAWidgetType::TaskPlanner:
-        return 10;
-    case EMAWidgetType::SkillAllocation:
-        return 10;
     case EMAWidgetType::Modify:
-        return 11;
+        return 10;
     case EMAWidgetType::Edit:
-        return 11;
+        return 10;
     case EMAWidgetType::SceneList:
+        return 10;
+    case EMAWidgetType::TaskPlanner:
+        return 11;
+    case EMAWidgetType::SkillAllocation:
         return 11;
     case EMAWidgetType::Emergency:
         return 12;

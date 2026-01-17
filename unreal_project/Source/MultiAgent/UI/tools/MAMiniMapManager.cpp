@@ -97,7 +97,7 @@ void AMAMiniMapManager::CreateMiniMapWidget()
     {
         MiniMapWidget->InitializeMiniMap(RenderTarget, WorldBounds);
         MiniMapWidget->WorldCenter = WorldCenter;
-        MiniMapWidget->AddToViewport(10);  // 高优先级，显示在其他 UI 上面
+        MiniMapWidget->AddToViewport(1);  // ZOrder = 1，在 HUD (-1) 之上，但在 TaskPlanner/SkillAllocation/Emergency 等 Widget 之下
 
         UE_LOG(LogTemp, Log, TEXT("[MiniMap] Widget created and added to viewport"));
     }
