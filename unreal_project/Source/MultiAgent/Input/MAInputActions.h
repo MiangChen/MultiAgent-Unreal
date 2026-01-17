@@ -130,6 +130,19 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "Input|Emergency")
     TObjectPtr<UInputAction> IA_ToggleEmergencyUI;
 
+    // ========== HUD 状态管理输入 (UI Visual Redesign) ==========
+    /** 检查任务图 (Z 键) - 用于 HUD 状态管理器 */
+    UPROPERTY(BlueprintReadOnly, Category = "Input|HUDState")
+    TObjectPtr<UInputAction> IA_CheckTask;
+
+    /** 检查技能列表 (N 键) - 用于 HUD 状态管理器 */
+    UPROPERTY(BlueprintReadOnly, Category = "Input|HUDState")
+    TObjectPtr<UInputAction> IA_CheckSkill;
+
+    /** 检查突发事件 (X 键) - 用于 HUD 状态管理器 */
+    UPROPERTY(BlueprintReadOnly, Category = "Input|HUDState")
+    TObjectPtr<UInputAction> IA_CheckUnexpected;
+
     // ========== Agent View Mode 移动和视角控制 ==========
     /** WASD 移动输入 (Axis2D: X=左右, Y=前后) */
     UPROPERTY(BlueprintReadOnly, Category = "Input|AgentControl")

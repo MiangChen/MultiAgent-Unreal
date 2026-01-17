@@ -14,8 +14,8 @@
 #include "Components/CanvasPanelSlot.h"
 #include "Components/ScrollBox.h"
 #include "Blueprint/WidgetTree.h"
-#include "../Core/Manager/MASceneGraphManager.h"
-#include "../Utils/MAGeometryUtils.h"
+#include "../../Core/Manager/MASceneGraphManager.h"
+#include "../../Utils/MAGeometryUtils.h"
 #include "Kismet/GameplayStatics.h"
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonWriter.h"
@@ -179,7 +179,11 @@ void UMAModifyWidget::BuildUI()
     
     // Set text color to strict black - via WidgetStyle property
     FEditableTextBoxStyle TextBoxStyle;
-    TextBoxStyle.SetForegroundColor(FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f)));  // Strict black
+    FSlateColor BlackColor = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
+    TextBoxStyle.SetForegroundColor(BlackColor);
+    TextBoxStyle.SetFocusedForegroundColor(BlackColor);
+    FSlateFontInfo TextBoxFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
+    TextBoxStyle.SetFont(TextBoxFont);
     LabelTextBox->WidgetStyle = TextBoxStyle;
     
     // Use SizeBox to set minimum height

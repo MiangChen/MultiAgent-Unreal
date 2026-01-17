@@ -78,4 +78,7 @@ private:
 
     // 绘制部署模式信息
     void DrawDeploymentInfo();
+
+    // 检查是否有全屏 Widget 可见（通过 MAUIManager）
+    bool IsAnyFullscreenWidgetVisible() const;
 };

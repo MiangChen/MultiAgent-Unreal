@@ -17,11 +17,11 @@
 #include "Components/ComboBoxString.h"
 #include "Blueprint/WidgetTree.h"
 #include "Framework/Application/SlateApplication.h"
-#include "../Core/Manager/MAEditModeManager.h"
-#include "../Core/Manager/MASceneGraphManager.h"
-#include "../Environment/MAPointOfInterest.h"
-#include "../Environment/MAGoalActor.h"
-#include "../Environment/MAZoneActor.h"
+#include "../../Core/Manager/MAEditModeManager.h"
+#include "../../Core/Manager/MASceneGraphManager.h"
+#include "../../Environment/MAPointOfInterest.h"
+#include "../../Environment/MAGoalActor.h"
+#include "../../Environment/MAZoneActor.h"
 #include "Kismet/GameplayStatics.h"
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonReader.h"
@@ -301,7 +301,11 @@ void UMAEditWidget::BuildUI()
     JsonEditBox->SetHintText(FText::FromString(TEXT("Select an Actor to display JSON")));
 
     FEditableTextBoxStyle JsonTextBoxStyle;
-    JsonTextBoxStyle.SetForegroundColor(FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f)));
+    FSlateColor BlackColor = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
+    JsonTextBoxStyle.SetForegroundColor(BlackColor);
+    JsonTextBoxStyle.SetFocusedForegroundColor(BlackColor);
+    FSlateFontInfo JsonFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
+    JsonTextBoxStyle.SetFont(JsonFont);
     JsonEditBox->WidgetStyle = JsonTextBoxStyle;
     
     USizeBox* JsonEditSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("JsonEditSizeBox"));
@@ -394,7 +398,11 @@ void UMAEditWidget::BuildUI()
     DescriptionBox->SetHintText(FText::FromString(TEXT("Enter description for Goal/Zone...")));
 
     FEditableTextBoxStyle DescTextBoxStyle;
-    DescTextBoxStyle.SetForegroundColor(FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f)));
+    FSlateColor BlackColor2 = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
+    DescTextBoxStyle.SetForegroundColor(BlackColor2);
+    DescTextBoxStyle.SetFocusedForegroundColor(BlackColor2);
+    FSlateFontInfo DescFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
+    DescTextBoxStyle.SetFont(DescFont);
     DescriptionBox->WidgetStyle = DescTextBoxStyle;
     
     USizeBox* DescSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("DescSizeBox"));

@@ -11,6 +11,8 @@
 #include "../Component/Sensor/MACameraSensorComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "../../Core/Config/MAConfigManager.h"
+#include "../../UI/Core/MAUIManager.h"
+#include "../../UI/HUD/MAHUD.h"
 
 AMACharacter::AMACharacter()
 {
@@ -192,6 +194,21 @@ void AMACharacter::DrawStatusText()
     {
         CurrentStatusText = TEXT("");
         return;
+    }
+    
+    // 检查是否有全屏 Widget 可见，如果有则不绘制头顶状态文字
+    APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+    if (PC)
+    {
+        AMAHUD* MAHUD = Cast<AMAHUD>(PC->GetHUD());
+        if (MAHUD)
+        {
+            UMAUIManager* UIManager = MAHUD->GetUIManager();
+            if (UIManager && UIManager->IsAnyFullscreenWidgetVisible())
+            {
+                return;  // 有全屏 Widget 可见，不绘制
+            }
+        }
     }
     
     FVector TextLocation = GetActorLocation() + FVector(0.f, 0.f, 150.f);

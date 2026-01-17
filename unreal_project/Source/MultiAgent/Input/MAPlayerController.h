@@ -12,6 +12,7 @@
 
 class UMAEditModeManager;
 class AMAPointOfInterest;
+class UMAHUDStateManager;
 
 struct FInputActionValue;
 
@@ -133,6 +134,18 @@ protected:
     // Viewport 录制 (F9 键)
     void OnToggleViewportRecording(const FInputActionValue& Value);
 
+    // ========== HUD 状态管理输入 (UI Visual Redesign) ==========
+    // Requirements: 10.4
+    
+    /** 处理检查任务图输入 (Z 键) - 调用 HUDStateManager::HandleCheckTaskInput */
+    void OnCheckTask(const FInputActionValue& Value);
+    
+    /** 处理检查技能列表输入 (N 键) - 调用 HUDStateManager::HandleCheckSkillInput */
+    void OnCheckSkill(const FInputActionValue& Value);
+    
+    /** 处理检查突发事件输入 (X 键) - 调用 HUDStateManager::HandleCheckEmergencyInput */
+    void OnCheckUnexpected(const FInputActionValue& Value);
+
     // 获取鼠标点击位置
     bool GetMouseHitLocation(FVector& OutLocation);
     
@@ -176,6 +189,12 @@ public:
     /** 背包是否有待部署单位 */
     UFUNCTION(BlueprintPure, Category = "Deployment")
     bool HasPendingDeployments() const { return DeploymentQueue.Num() > 0 && GetDeploymentQueueCount() > 0; }
+
+    // ========== HUD 状态管理 (UI Visual Redesign) ==========
+
+    /** 获取 HUD 状态管理器 */
+    UFUNCTION(BlueprintPure, Category = "HUD")
+    UMAHUDStateManager* GetHUDStateManager() const { return HUDStateManager; }
 
     // ========== 部署模式 ==========
     
@@ -287,6 +306,10 @@ private:
 
     UPROPERTY()
     class UMAEditModeManager* EditModeManager;
+
+    /** HUD 状态管理器 - 用于 UI Visual Redesign */
+    UPROPERTY()
+    class UMAHUDStateManager* HUDStateManager;
 
     // ========== 部署模式数据 ==========
     

@@ -7,7 +7,8 @@
 #include "MAInputActions.h"
 #include "../Core/Manager/MAAgentManager.h"
 #include "../Core/Manager/MAViewportRecorder.h"
-#include "../UI/MAHUD.h"
+#include "../UI/HUD/MAHUD.h"
+#include "../UI/Core/MAUIManager.h"
 #include "../Core/Manager/MACommandManager.h"
 #include "../Core/Manager/MASquadManager.h"
 #include "../Core/MASquad.h"
@@ -16,7 +17,8 @@
 #include "../Core/Manager/MAEmergencyManager.h"
 #include "../Core/Manager/MAEditModeManager.h"
 #include "../Environment/MAPointOfInterest.h"
-#include "../UI/MASelectionHUD.h"
+#include "../UI/Core/MAHUDStateManager.h"
+#include "../UI/HUD/MASelectionHUD.h"
 #include "../Agent/Character/MACharacter.h"
 #include "../Agent/Character/MAQuadrupedCharacter.h"
 #include "../Agent/Character/MAUAVCharacter.h"
@@ -63,6 +65,35 @@ void AMAPlayerController::BeginPlay()
             Subsystem->AddMappingContext(InputActions->DefaultMappingContext, 0);
         }
     }
+
+    // 延迟获取 HUDStateManager (等待 HUD 初始化完成)
+    // HUD 在 PlayerController::BeginPlay 之后才会创建
+    GetWorld()->GetTimerManager().SetTimerForNextTick([this]()
+    {
+        if (AMAHUD* HUD = Cast<AMAHUD>(GetHUD()))
+        {
+            if (UMAUIManager* UIManager = HUD->GetUIManager())
+            {
+                HUDStateManager = UIManager->GetHUDStateManager();
+                if (HUDStateManager)
+                {
+                    UE_LOG(LogTemp, Log, TEXT("[PlayerController] HUDStateManager obtained from UIManager"));
+                }
+                else
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("[PlayerController] HUDStateManager is null in UIManager"));
+                }
+            }
+            else
+            {
+                UE_LOG(LogTemp, Warning, TEXT("[PlayerController] UIManager is null in HUD"));
+            }
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[PlayerController] MAHUD not found, HUDStateManager will be null"));
+        }
+    });
 }
 
 bool AMAPlayerController::InitializeSubsystems()
@@ -77,6 +108,10 @@ bool AMAPlayerController::InitializeSubsystems()
     ViewportManager = World->GetSubsystem<UMAViewportManager>();
     EmergencyManager = World->GetSubsystem<UMAEmergencyManager>();
     EditModeManager = World->GetSubsystem<UMAEditModeManager>();
+
+    // 注意: HUDStateManager 不在这里创建
+    // 它由 MAHUD->UIManager 创建和管理
+    // 在 BeginPlay 中 HUD 初始化后，通过 GetHUDStateManagerFromHUD() 获取引用
 
     return AgentManager && CommandManager && SelectionManager && SquadManager && ViewportManager && EmergencyManager;
 }
@@ -156,6 +191,13 @@ void AMAPlayerController::SetupInputComponent()
 
         // Viewport 录制 (F9 键)
         EIC->BindAction(InputActions->IA_ToggleViewportRecording, ETriggerEvent::Started, this, &AMAPlayerController::OnToggleViewportRecording);
+
+        // ========== HUD 状态管理输入 (UI Visual Redesign) ==========
+        // Requirements: 10.4
+        // 绑定到 HUDStateManager 的输入处理方法
+        EIC->BindAction(InputActions->IA_CheckTask, ETriggerEvent::Started, this, &AMAPlayerController::OnCheckTask);
+        EIC->BindAction(InputActions->IA_CheckSkill, ETriggerEvent::Started, this, &AMAPlayerController::OnCheckSkill);
+        EIC->BindAction(InputActions->IA_CheckUnexpected, ETriggerEvent::Started, this, &AMAPlayerController::OnCheckUnexpected);
     }
 }
 
@@ -1212,6 +1254,45 @@ void AMAPlayerController::OnToggleEmergencyUI(const FInputActionValue& Value)
     {
         UE_LOG(LogTemp, Warning, TEXT("[PlayerController] MAHUD not found!"));
     }
+}
+
+// ========== HUD 状态管理输入 (UI Visual Redesign) ==========
+// Requirements: 10.4
+
+void AMAPlayerController::OnCheckTask(const FInputActionValue& Value)
+{
+    if (!HUDStateManager)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] HUDStateManager not found!"));
+        return;
+    }
+
+    HUDStateManager->HandleCheckTaskInput();
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnCheckTask -> HUDStateManager::HandleCheckTaskInput"));
+}
+
+void AMAPlayerController::OnCheckSkill(const FInputActionValue& Value)
+{
+    if (!HUDStateManager)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] HUDStateManager not found!"));
+        return;
+    }
+
+    HUDStateManager->HandleCheckSkillInput();
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnCheckSkill -> HUDStateManager::HandleCheckSkillInput"));
+}
+
+void AMAPlayerController::OnCheckUnexpected(const FInputActionValue& Value)
+{
+    if (!HUDStateManager)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] HUDStateManager not found!"));
+        return;
+    }
+
+    HUDStateManager->HandleCheckEmergencyInput();
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnCheckUnexpected -> HUDStateManager::HandleCheckEmergencyInput"));
 }
 
 void AMAPlayerController::OnJumpPressed(const FInputActionValue& Value)

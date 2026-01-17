@@ -7,6 +7,7 @@
 
 #include "CoreMinimal.h"
 #include "MASelectionHUD.h"
+#include "../Core/MAHUDTypes.h"
 #include "MAHUD.generated.h"
 
 // 前向声明 - Widget 类 (用于事件回调参数类型)
@@ -28,9 +29,14 @@ class UMAEditModeManager;
 class UMACameraSensorComponent;
 class UMASceneGraphManager;
 class AMAPointOfInterest;
+class UMAUITheme;
+class UMAHUDStateManager;
+class UMAMainHUDWidget;
 struct FMAPlannerResponse;
 struct FMATaskGraphData;
 struct FMASceneGraphNode;
+struct FMATaskPlanDAG;
+struct FMASkillListMessage;
 
 /**
  * HUD 管理器
@@ -57,6 +63,13 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "UI")
     UMAUIManager* UIManager;
 
+    /**
+     * 获取 UI Manager
+     * @return UI Manager 指针，可能为 nullptr
+     */
+    UFUNCTION(BlueprintPure, Category = "UI")
+    UMAUIManager* GetUIManager() const { return UIManager; }
+
     //=========================================================================
     // Widget 类引用 (在蓝图中设置) - 委托给 UIManager
     //=========================================================================
@@ -64,6 +77,28 @@ public:
     /** SemanticMap Widget 类引用 (后续阶段) */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI Classes")
     TSubclassOf<UUserWidget> SemanticMapWidgetClass;
+
+    /** UI 主题数据资产 (Requirements: 1.4) */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI Classes")
+    UMAUITheme* UIThemeAsset;
+
+    //=========================================================================
+    // HUD 状态管理访问 (Requirements: 2.1)
+    //=========================================================================
+
+    /**
+     * 获取 HUD 状态管理器
+     * @return HUD 状态管理器指针，可能为 nullptr
+     */
+    UFUNCTION(BlueprintPure, Category = "UI|HUD")
+    UMAHUDStateManager* GetHUDStateManager() const;
+
+    /**
+     * 获取主 HUD Widget
+     * @return 主 HUD Widget 指针，可能为 nullptr
+     */
+    UFUNCTION(BlueprintPure, Category = "UI|HUD")
+    UMAMainHUDWidget* GetMainHUDWidget() const;
 
     //=========================================================================
     // UI 状态
@@ -473,6 +508,18 @@ private:
     void BindEditModeManagerEvents();
 
     /**
+     * 绑定后端事件 (Requirements: 4.1, 4.2, 4.3, 12.1)
+     * 绑定 CommSubsystem 和 EmergencyManager 事件到 HUD 状态管理器
+     */
+    void BindBackendEvents();
+
+    /**
+     * 绑定模态窗口委托 (Requirements: 7.2, 7.3, 12.6)
+     * 绑定模态确认/拒绝委托到后端提交
+     */
+    void BindModalDelegates();
+
+    /**
      * 绑定 EditWidget 委托
      */
     void BindEditWidgetDelegates();
@@ -568,4 +615,36 @@ private:
      */
     UFUNCTION()
     void OnSceneListZoneClicked(const FString& ZoneId);
+
+    //=========================================================================
+    // 后端事件回调 (Requirements: 4.1, 4.2, 4.3, 12.1)
+    //=========================================================================
+
+    /**
+     * 任务图更新回调
+     * @param TaskPlan 任务规划 DAG 数据
+     */
+    UFUNCTION()
+    void OnTaskGraphReceived(const FMATaskPlanDAG& TaskPlan);
+
+    /**
+     * 技能列表更新回调
+     * @param SkillList 技能列表消息
+     */
+    UFUNCTION()
+    void OnSkillListReceived(const FMASkillListMessage& SkillList);
+
+    /**
+     * 模态确认回调 (Requirements: 7.2, 7.3, 12.6)
+     * @param ModalType 模态类型
+     */
+    UFUNCTION()
+    void OnModalConfirmedHandler(EMAModalType ModalType);
+
+    /**
+     * 模态拒绝回调 (Requirements: 7.2, 7.3, 12.6)
+     * @param ModalType 模态类型
+     */
+    UFUNCTION()
+    void OnModalRejectedHandler(EMAModalType ModalType);
 };

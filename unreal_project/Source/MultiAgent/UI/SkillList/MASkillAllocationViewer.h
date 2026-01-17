@@ -370,7 +370,7 @@ protected:
     FLinearColor TitleColor = FLinearColor(0.9f, 0.9f, 1.0f, 1.0f);
 
     /** 标签颜色 */
-    FLinearColor LabelColor = FLinearColor(0.7f, 0.7f, 0.8f, 1.0f);
+    FLinearColor LabelColor = FLinearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
     /** 按钮颜色 */
     FLinearColor ButtonColor = FLinearColor(0.2f, 0.5f, 0.8f, 1.0f);

@@ -6,7 +6,7 @@
 #include "../Agent/Character/MAUAVCharacter.h"
 #include "../Agent/Component/Sensor/MACameraSensorComponent.h"
 #include "../Input/MAAgentInputComponent.h"
-#include "../UI/MAHUD.h"
+#include "../../UI/HUD/MAHUD.h"
 #include "Engine/Engine.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/PlayerController.h"

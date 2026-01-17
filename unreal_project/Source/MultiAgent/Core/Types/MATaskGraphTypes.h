@@ -17,6 +17,23 @@ DECLARE_LOG_CATEGORY_EXTERN(LogMATaskGraph, Log, All);
 class UTexture2D;
 
 //=============================================================================
+// EMATaskExecutionStatus - 任务执行状态枚举
+//=============================================================================
+
+/**
+ * 任务执行状态枚举
+ * 表示任务节点的当前执行状态
+ */
+UENUM(BlueprintType)
+enum class EMATaskExecutionStatus : uint8
+{
+    Pending     UMETA(DisplayName = "Pending"),      // 灰色 - 未执行
+    InProgress  UMETA(DisplayName = "In Progress"),  // 黄色 - 正在执行
+    Completed   UMETA(DisplayName = "Completed"),    // 绿色 - 执行成功
+    Failed      UMETA(DisplayName = "Failed")        // 红色 - 执行失败
+};
+
+//=============================================================================
 // FMARequiredSkill - 所需技能
 //=============================================================================
 
@@ -92,6 +109,10 @@ struct MULTIAGENT_API FMATaskNodeData
     /** 画布位置 (用于渲染，不参与 JSON 序列化) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TaskGraph")
     FVector2D CanvasPosition = FVector2D::ZeroVector;
+
+    /** 执行状态 (用于渲染，不参与 JSON 序列化) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TaskGraph")
+    EMATaskExecutionStatus Status = EMATaskExecutionStatus::Pending;
 
     FMATaskNodeData() {}
 

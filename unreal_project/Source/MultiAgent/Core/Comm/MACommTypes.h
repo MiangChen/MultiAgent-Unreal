@@ -648,7 +648,8 @@ enum class EMASceneChangeType : uint8
     AddZone         UMETA(DisplayName = "Add Zone"),        // 添加区域
     DeleteZone      UMETA(DisplayName = "Delete Zone"),     // 删除区域
     AddEdge         UMETA(DisplayName = "Add Edge"),        // 添加边
-    EditEdge        UMETA(DisplayName = "Edit Edge")        // 修改边
+    EditEdge        UMETA(DisplayName = "Edit Edge"),       // 修改边
+    EmergencyResponse UMETA(DisplayName = "Emergency Response")  // 紧急事件响应
 };
 
 /**

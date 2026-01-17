@@ -60,6 +60,13 @@ void UMAInputActions::Initialize()
     IA_TriggerEmergency = CreateInputAction(TEXT("IA_TriggerEmergency"));
     IA_ToggleEmergencyUI = CreateInputAction(TEXT("IA_ToggleEmergencyUI"));
 
+    // HUD 状态管理输入 (UI Visual Redesign)
+    // 注意: 这些输入与 IA_ToggleMainUI/IA_ToggleSkillAllocationViewer/IA_ToggleEmergencyUI 共享按键
+    // 但用于新的 HUD 状态管理器系统
+    IA_CheckTask = CreateInputAction(TEXT("IA_CheckTask"));
+    IA_CheckSkill = CreateInputAction(TEXT("IA_CheckSkill"));
+    IA_CheckUnexpected = CreateInputAction(TEXT("IA_CheckUnexpected"));
+
     // Agent View Mode 移动和视角控制
     IA_Move = CreateInputAction(TEXT("IA_Move"), EInputActionValueType::Axis2D);
     IA_Look = CreateInputAction(TEXT("IA_Look"), EInputActionValueType::Axis2D);
@@ -113,12 +120,21 @@ void UMAInputActions::Initialize()
     AddKeyMapping(IMC_RTS, IA_CreateSquad, EKeys::Q);  // Q for sQuad
     AddKeyMapping(IMC_RTS, IA_DisbandSquad, EKeys::Q);  // Shift+Q 解散 (Shift 在代码中检测)
     AddKeyMapping(IMC_RTS, IA_ToggleMouseMode, EKeys::M);  // M for Mode
-    AddKeyMapping(IMC_RTS, IA_ToggleMainUI, EKeys::Z);  // Z for UI toggle
-    AddKeyMapping(IMC_RTS, IA_ToggleSkillAllocationViewer, EKeys::N);  // N for skil(N) allocation
+    // 注意: Z 和 N 键现在由 HUD 状态管理器处理
+    // IA_ToggleMainUI 和 IA_ToggleSkillAllocationViewer 不再直接绑定到 Z/N 键
+    // 它们通过 IA_CheckTask 和 IA_CheckSkill 间接触发（点击 Edit 按钮后）
+    // AddKeyMapping(IMC_RTS, IA_ToggleMainUI, EKeys::Z);  // 已移除 - 由 IA_CheckTask 处理
+    // AddKeyMapping(IMC_RTS, IA_ToggleSkillAllocationViewer, EKeys::N);  // 已移除 - 由 IA_CheckSkill 处理
 
     // 突发事件系统
     AddKeyMapping(IMC_RTS, IA_TriggerEmergency, EKeys::Hyphen);  // "-" 键触发/结束事件
     AddKeyMapping(IMC_RTS, IA_ToggleEmergencyUI, EKeys::X);  // "X" 键切换详情界面
+
+    // HUD 状态管理输入 (UI Visual Redesign)
+    // Requirements: 10.1, 10.2, 10.3
+    AddKeyMapping(IMC_RTS, IA_CheckTask, EKeys::Z);       // Z 键检查任务图
+    AddKeyMapping(IMC_RTS, IA_CheckSkill, EKeys::N);      // N 键检查技能列表
+    AddKeyMapping(IMC_RTS, IA_CheckUnexpected, EKeys::X); // X 键检查突发事件
 
     // 跳跃 (空格键)
     AddKeyMapping(IMC_RTS, IA_Jump, EKeys::SpaceBar);

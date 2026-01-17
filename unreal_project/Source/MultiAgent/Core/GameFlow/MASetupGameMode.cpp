@@ -2,7 +2,7 @@
 
 #include "MASetupGameMode.h"
 #include "../Config/MAConfigManager.h"
-#include "../../UI/tools/MASetupHUD.h"
+#include "../../UI/Setup/MASetupHUD.h"
 #include "GameFramework/SpectatorPawn.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"

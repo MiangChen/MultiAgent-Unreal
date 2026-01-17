@@ -4,29 +4,36 @@
 // Widget 管理职责已委托给 UMAUIManager
 
 #include "MAHUD.h"
-#include "MAUIManager.h"
+#include "../Core/MAUIManager.h"
+#include "../Core/MAUITheme.h"
 #include "MAHUDWidget.h"
-#include "MASimpleMainWidget.h"
-#include "task_graph/MATaskPlannerWidget.h"
-#include "skill_list/MASkillAllocationViewer.h"
-#include "tools/MADirectControlIndicator.h"
-#include "../Core/Types/MATaskGraphTypes.h"
-#include "mode/MAEmergencyWidget.h"
-#include "mode/MAModifyWidget.h"
-#include "mode/MAEditWidget.h"
-#include "mode/MASceneListWidget.h"
-#include "../Input/MAPlayerController.h"
-#include "../Core/Comm/MACommSubsystem.h"
-#include "../Core/Types/MASimTypes.h"
-#include "../Core/MASubsystem.h"
-#include "../Core/Manager/MAEmergencyManager.h"
-#include "../Core/Manager/MAEditModeManager.h"
-#include "../Core/Manager/MASceneGraphManager.h"
-#include "../Agent/Character/MACharacter.h"
-#include "../Agent/Component/Sensor/MACameraSensorComponent.h"
-#include "../Environment/MAPointOfInterest.h"
-#include "../Environment/MAZoneActor.h"
-#include "../Environment/MAGoalActor.h"
+#include "../Core/MAHUDStateManager.h"
+#include "MAMainHUDWidget.h"
+#include "../Legacy/MASimpleMainWidget.h"
+#include "../Modal/MATaskGraphModal.h"
+#include "../Modal/MASkillListModal.h"
+#include "../Modal/MAEmergencyModal.h"
+#include "../TaskGraph/MATaskPlannerWidget.h"
+#include "../SkillList/MASkillAllocationViewer.h"
+#include "../Components/MADirectControlIndicator.h"
+#include "../../Core/Types/MATaskGraphTypes.h"
+#include "../Mode/MAEmergencyWidget.h"
+#include "../Mode/MAModifyWidget.h"
+#include "../Mode/MAEditWidget.h"
+#include "../Mode/MASceneListWidget.h"
+#include "../../Input/MAPlayerController.h"
+#include "../../Core/Comm/MACommSubsystem.h"
+#include "../../Core/Comm/MACommTypes.h"
+#include "../../Core/Types/MASimTypes.h"
+#include "../../Core/MASubsystem.h"
+#include "../../Core/Manager/MAEmergencyManager.h"
+#include "../../Core/Manager/MAEditModeManager.h"
+#include "../../Core/Manager/MASceneGraphManager.h"
+#include "../../Agent/Character/MACharacter.h"
+#include "../../Agent/Component/Sensor/MACameraSensorComponent.h"
+#include "../../Environment/MAPointOfInterest.h"
+#include "../../Environment/MAZoneActor.h"
+#include "../../Environment/MAGoalActor.h"
 #include "Blueprint/UserWidget.h"
 #include "Engine/Canvas.h"
 #include "DrawDebugHelpers.h"
@@ -68,6 +75,11 @@ void AMAHUD::BeginPlay()
             UIManager->SemanticMapWidgetClass = SemanticMapWidgetClass;
             
             UIManager->Initialize(PC);
+            
+            // 加载并应用主题 (Requirements: 1.4)
+            UIManager->LoadTheme(UIThemeAsset);
+            UE_LOG(LogMAHUD, Log, TEXT("UI Theme loaded"));
+            
             UIManager->CreateAllWidgets();
             UE_LOG(LogMAHUD, Log, TEXT("UIManager created and initialized"));
         }
@@ -95,6 +107,9 @@ void AMAHUD::BeginPlay()
 
     // 绑定 EditWidget 委托
     BindEditWidgetDelegates();
+    
+    // 绑定后端事件到 HUD 状态管理器 (Requirements: 4.1, 4.2, 4.3, 12.1)
+    BindBackendEvents();
 }
 
 //=============================================================================
@@ -745,6 +760,16 @@ UMASimpleMainWidget* AMAHUD::GetSimpleMainWidget() const
 UMATaskPlannerWidget* AMAHUD::GetTaskPlannerWidget() const
 {
     return UIManager ? UIManager->GetTaskPlannerWidget() : nullptr;
+}
+
+UMAHUDStateManager* AMAHUD::GetHUDStateManager() const
+{
+    return UIManager ? UIManager->GetHUDStateManager() : nullptr;
+}
+
+UMAMainHUDWidget* AMAHUD::GetMainHUDWidget() const
+{
+    return UIManager ? UIManager->GetMainHUDWidget() : nullptr;
 }
 
 //=============================================================================
@@ -2073,4 +2098,258 @@ void AMAHUD::OnSceneListZoneClicked(const FString& ZoneId)
         UE_LOG(LogMAHUD, Warning, TEXT("OnSceneListZoneClicked: No Zone Actor found for %s"), *ZoneId);
         ShowNotification(FString::Printf(TEXT("Zone %s has no visualization Actor"), *ZoneId), false, true);
     }
+}
+
+//=============================================================================
+// 后端事件绑定 (Requirements: 4.1, 4.2, 4.3, 12.1)
+//=============================================================================
+
+void AMAHUD::BindBackendEvents()
+{
+    // 获取 CommSubsystem
+    UGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+    if (!GI)
+    {
+        UE_LOG(LogMAHUD, Warning, TEXT("BindBackendEvents: GameInstance not found"));
+        return;
+    }
+
+    UMACommSubsystem* CommSubsystem = GI->GetSubsystem<UMACommSubsystem>();
+    if (CommSubsystem)
+    {
+        // 绑定任务图更新事件 (Requirements: 4.1)
+        if (!CommSubsystem->OnTaskPlanReceived.IsAlreadyBound(this, &AMAHUD::OnTaskGraphReceived))
+        {
+            CommSubsystem->OnTaskPlanReceived.AddDynamic(this, &AMAHUD::OnTaskGraphReceived);
+            UE_LOG(LogMAHUD, Log, TEXT("BindBackendEvents: Bound OnTaskPlanReceived"));
+        }
+
+        // 绑定技能列表更新事件 (Requirements: 4.2)
+        if (!CommSubsystem->OnSkillListReceived.IsAlreadyBound(this, &AMAHUD::OnSkillListReceived))
+        {
+            CommSubsystem->OnSkillListReceived.AddDynamic(this, &AMAHUD::OnSkillListReceived);
+            UE_LOG(LogMAHUD, Log, TEXT("BindBackendEvents: Bound OnSkillListReceived"));
+        }
+    }
+    else
+    {
+        UE_LOG(LogMAHUD, Warning, TEXT("BindBackendEvents: CommSubsystem not found"));
+    }
+
+    // EmergencyManager 事件已在 BindEmergencyManagerEvents() 中绑定
+    // 这里额外绑定到 HUD 状态管理器的通知系统 (Requirements: 4.3, 12.1)
+    FMASubsystem Subs = MA_SUBS;
+    if (Subs.EmergencyManager && UIManager)
+    {
+        UMAHUDStateManager* StateManager = UIManager->GetHUDStateManager();
+        if (StateManager)
+        {
+            // 当紧急事件触发时，显示通知
+            // 注意：OnEmergencyStateChanged 已在 BindEmergencyManagerEvents 中绑定到 OnEmergencyStateChanged
+            // 这里我们在 OnEmergencyStateChanged 回调中处理通知显示
+            UE_LOG(LogMAHUD, Log, TEXT("BindBackendEvents: EmergencyManager events will trigger notifications via OnEmergencyStateChanged"));
+        }
+    }
+
+    // 绑定模态窗口委托 (Requirements: 7.2, 7.3, 12.6)
+    BindModalDelegates();
+
+    UE_LOG(LogMAHUD, Log, TEXT("BindBackendEvents: Backend events bound"));
+}
+
+void AMAHUD::BindModalDelegates()
+{
+    if (!UIManager)
+    {
+        UE_LOG(LogMAHUD, Warning, TEXT("BindModalDelegates: UIManager is null"));
+        return;
+    }
+
+    UMAHUDStateManager* StateManager = UIManager->GetHUDStateManager();
+    if (!StateManager)
+    {
+        UE_LOG(LogMAHUD, Warning, TEXT("BindModalDelegates: HUDStateManager is null"));
+        return;
+    }
+
+    // 绑定模态确认委托 (Requirements: 7.2, 7.3, 12.6)
+    if (!StateManager->OnModalConfirmed.IsAlreadyBound(this, &AMAHUD::OnModalConfirmedHandler))
+    {
+        StateManager->OnModalConfirmed.AddDynamic(this, &AMAHUD::OnModalConfirmedHandler);
+        UE_LOG(LogMAHUD, Log, TEXT("BindModalDelegates: Bound OnModalConfirmed"));
+    }
+
+    // 绑定模态拒绝委托 (Requirements: 7.2, 7.3, 12.6)
+    if (!StateManager->OnModalRejected.IsAlreadyBound(this, &AMAHUD::OnModalRejectedHandler))
+    {
+        StateManager->OnModalRejected.AddDynamic(this, &AMAHUD::OnModalRejectedHandler);
+        UE_LOG(LogMAHUD, Log, TEXT("BindModalDelegates: Bound OnModalRejected"));
+    }
+
+    UE_LOG(LogMAHUD, Log, TEXT("BindModalDelegates: Modal delegates bound"));
+}
+
+//=============================================================================
+// 后端事件回调 (Requirements: 4.1, 4.2, 4.3)
+//=============================================================================
+
+void AMAHUD::OnTaskGraphReceived(const FMATaskPlanDAG& TaskPlan)
+{
+    UE_LOG(LogMAHUD, Log, TEXT("OnTaskGraphReceived: Received task graph update with %d nodes"), TaskPlan.Nodes.Num());
+
+    if (!UIManager)
+    {
+        UE_LOG(LogMAHUD, Warning, TEXT("OnTaskGraphReceived: UIManager is null"));
+        return;
+    }
+
+    // 显示任务图更新通知 (Requirements: 4.1)
+    UMAHUDStateManager* StateManager = UIManager->GetHUDStateManager();
+    if (StateManager)
+    {
+        StateManager->ShowNotification(EMANotificationType::TaskGraphUpdate);
+        UE_LOG(LogMAHUD, Log, TEXT("OnTaskGraphReceived: Notification shown"));
+    }
+
+    // 更新任务图预览 (如果 MainHUDWidget 存在)
+    UMAMainHUDWidget* MainHUD = UIManager->GetMainHUDWidget();
+    if (MainHUD)
+    {
+        // 将 TaskPlanDAG 转换为 JSON 用于预览
+        FString TaskGraphJson = TaskPlan.ToJson();
+        UE_LOG(LogMAHUD, Log, TEXT("OnTaskGraphReceived: Task graph preview update pending, JSON length=%d"), TaskGraphJson.Len());
+    }
+}
+
+void AMAHUD::OnSkillListReceived(const FMASkillListMessage& SkillList)
+{
+    UE_LOG(LogMAHUD, Log, TEXT("OnSkillListReceived: Received skill list update with %d time steps"), SkillList.TotalTimeSteps);
+
+    if (!UIManager)
+    {
+        UE_LOG(LogMAHUD, Warning, TEXT("OnSkillListReceived: UIManager is null"));
+        return;
+    }
+
+    // 显示技能列表更新通知 (Requirements: 4.2)
+    UMAHUDStateManager* StateManager = UIManager->GetHUDStateManager();
+    if (StateManager)
+    {
+        StateManager->ShowNotification(EMANotificationType::SkillListUpdate);
+        UE_LOG(LogMAHUD, Log, TEXT("OnSkillListReceived: Notification shown"));
+    }
+
+    // 更新技能列表预览 (如果 MainHUDWidget 存在)
+    UMAMainHUDWidget* MainHUD = UIManager->GetMainHUDWidget();
+    if (MainHUD)
+    {
+        // 将 SkillListMessage 转换为 JSON 用于预览
+        FString SkillListJson = SkillList.ToJson();
+        UE_LOG(LogMAHUD, Log, TEXT("OnSkillListReceived: Skill list preview update pending, JSON length=%d"), SkillListJson.Len());
+    }
+}
+
+//=============================================================================
+// 模态操作回调 (Requirements: 7.2, 7.3, 12.6)
+//=============================================================================
+
+void AMAHUD::OnModalConfirmedHandler(EMAModalType ModalType)
+{
+    UE_LOG(LogMAHUD, Log, TEXT("OnModalConfirmedHandler: Modal confirmed, type=%s"),
+        *UEnum::GetValueAsString(ModalType));
+
+    // 根据模态类型执行不同的确认操作
+    switch (ModalType)
+    {
+    case EMAModalType::TaskGraph:
+        {
+            // 提交任务图到后端 (Requirements: 7.3)
+            UGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+            if (GI)
+            {
+                UMACommSubsystem* CommSubsystem = GI->GetSubsystem<UMACommSubsystem>();
+                if (CommSubsystem && UIManager)
+                {
+                    UMATaskGraphModal* TaskGraphModal = UIManager->GetTaskGraphModal();
+                    if (TaskGraphModal)
+                    {
+                        FString TaskGraphJson = TaskGraphModal->GetTaskGraphJson();
+                        if (!TaskGraphJson.IsEmpty())
+                        {
+                            CommSubsystem->SendTaskGraphSubmitMessage(TaskGraphJson);
+                            UE_LOG(LogMAHUD, Log, TEXT("OnModalConfirmedHandler: Task graph submitted to backend"));
+                        }
+                    }
+                }
+            }
+        }
+        break;
+
+    case EMAModalType::SkillList:
+        {
+            // 提交技能分配到后端 (Requirements: 7.3)
+            UGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+            if (GI)
+            {
+                UMACommSubsystem* CommSubsystem = GI->GetSubsystem<UMACommSubsystem>();
+                if (CommSubsystem && UIManager)
+                {
+                    UMASkillListModal* SkillListModal = UIManager->GetSkillListModal();
+                    if (SkillListModal)
+                    {
+                        FMASkillAllocationMessage Message = SkillListModal->GetSkillAllocationMessage();
+                        CommSubsystem->SendSkillAllocationMessage(Message);
+                        UE_LOG(LogMAHUD, Log, TEXT("OnModalConfirmedHandler: Skill allocation submitted to backend"));
+                    }
+                }
+            }
+        }
+        break;
+
+    case EMAModalType::Emergency:
+        {
+            // 提交紧急事件响应到后端 (Requirements: 12.6)
+            UGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+            if (GI)
+            {
+                UMACommSubsystem* CommSubsystem = GI->GetSubsystem<UMACommSubsystem>();
+                if (CommSubsystem && UIManager)
+                {
+                    UMAEmergencyModal* EmergencyModal = UIManager->GetEmergencyModal();
+                    if (EmergencyModal)
+                    {
+                        FString ResponseJson = EmergencyModal->GetResponseJson();
+                        if (!ResponseJson.IsEmpty())
+                        {
+                            // 发送紧急事件响应
+                            FMASceneChangeMessage Message;
+                            Message.ChangeType = EMASceneChangeType::EmergencyResponse;
+                            Message.Payload = ResponseJson;
+                            CommSubsystem->SendSceneChangeMessage(Message);
+                            UE_LOG(LogMAHUD, Log, TEXT("OnModalConfirmedHandler: Emergency response submitted to backend"));
+                        }
+                    }
+                }
+            }
+        }
+        break;
+
+    default:
+        break;
+    }
+
+    // 显示确认通知
+    ShowNotification(TEXT("Changes confirmed"), false);
+}
+
+void AMAHUD::OnModalRejectedHandler(EMAModalType ModalType)
+{
+    UE_LOG(LogMAHUD, Log, TEXT("OnModalRejectedHandler: Modal rejected, type=%s"),
+        *UEnum::GetValueAsString(ModalType));
+
+    // 拒绝操作不需要提交到后端，只需恢复状态 (Requirements: 7.2)
+    // 状态恢复已由 HUDStateManager 处理
+
+    // 显示拒绝通知
+    ShowNotification(TEXT("Changes discarded"), false, true);
 }

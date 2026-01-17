@@ -4,8 +4,8 @@
 #include "MAGameInstance.h"
 #include "../Config/MAConfigManager.h"
 #include "../Input/MAPlayerController.h"
-#include "../UI/MAHUD.h"
-#include "../UI/tools/MAMiniMapManager.h"
+#include "../../UI/HUD/MAHUD.h"
+#include "../../UI/Components/MAMiniMapManager.h"
 #include "../Manager/MAAgentManager.h"
 #include "GameFramework/SpectatorPawn.h"
 

@@ -19,7 +19,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "MACameraSensorComponent.h"
-#include "../Core/Comm/MACommSubsystem.h"
+#include "../../Core/Comm/MACommSubsystem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMAEmergencyWidget, Log, All);
 
@@ -208,6 +208,15 @@ void UMAEmergencyWidget::BuildUI()
         InfoTextBox->SetIsReadOnly(true);
         InfoTextBox->SetText(FText::FromString(TEXT("Emergency event information area\nWaiting for event data...\n\nPress X to close this panel\nPress - to end event")));
         
+        // 设置样式：纯黑色，字号 12
+        FEditableTextBoxStyle InfoStyle;
+        FSlateColor BlackColor = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
+        InfoStyle.SetForegroundColor(BlackColor);
+        InfoStyle.SetFocusedForegroundColor(BlackColor);
+        FSlateFontInfo InfoFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
+        InfoStyle.SetFont(InfoFont);
+        InfoTextBox->WidgetStyle = InfoStyle;
+        
         UE_LOG(LogMAEmergencyWidget, Log, TEXT("Created InfoTextBox"));
     }
     
@@ -313,6 +322,15 @@ void UMAEmergencyWidget::BuildUI()
         
         // Set hint text
         InputTextBox->SetHintText(FText::FromString(TEXT("Enter command or message...")));
+        
+        // 设置样式：纯黑色，字号 12
+        FEditableTextBoxStyle InputStyle;
+        FSlateColor BlackColor2 = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
+        InputStyle.SetForegroundColor(BlackColor2);
+        InputStyle.SetFocusedForegroundColor(BlackColor2);
+        FSlateFontInfo InputFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
+        InputStyle.SetFont(InputFont);
+        InputTextBox->WidgetStyle = InputStyle;
         
         UE_LOG(LogMAEmergencyWidget, Log, TEXT("Created InputTextBox"));
     }

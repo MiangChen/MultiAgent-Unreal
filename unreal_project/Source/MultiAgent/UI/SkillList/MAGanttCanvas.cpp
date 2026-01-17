@@ -281,6 +281,9 @@ void UMAGanttCanvas::BuildUI()
     CanvasBackground = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("CanvasBackground"));
     CanvasBackground->SetBrushColor(CanvasBackgroundColor);
     WidgetTree->RootWidget = CanvasBackground;
+    
+    // 启用裁剪 - 确保内容不会溢出边界
+    CanvasBackground->SetClipping(EWidgetClipping::ClipToBounds);
 
     UE_LOG(LogMAGanttCanvas, Verbose, TEXT("BuildUI: UI construction completed"));
 }

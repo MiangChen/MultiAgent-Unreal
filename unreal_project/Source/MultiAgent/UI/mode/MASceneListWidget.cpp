@@ -15,7 +15,7 @@
 #include "Components/SizeBox.h"
 #include "Blueprint/WidgetTree.h"
 #include "Framework/Application/SlateApplication.h"
-#include "../Core/Manager/MAEditModeManager.h"
+#include "../../Core/Manager/MAEditModeManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMASceneListWidget, Log, All);
 

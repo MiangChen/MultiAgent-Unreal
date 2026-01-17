@@ -1,11 +1,13 @@
 // MAUIManager.h
 // UI Manager - 负责 Widget 的生命周期管理和创建
 // 从 MAHUD 分离出 Widget 管理职责，降低代码复杂度
+// 集成 HUD 状态管理器，处理 UI 状态转换和模态窗口管理
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
+#include "MAHUDTypes.h"
 #include "MAUIManager.generated.h"
 
 // 前向声明
@@ -18,7 +20,15 @@ class UMAModifyWidget;
 class UMAEditWidget;
 class UMASceneListWidget;
 class UMAHUDWidget;
+class UMAUITheme;
 class UUserWidget;
+class UMAHUDStateManager;
+class UMAMainHUDWidget;
+class UMATaskGraphModal;
+class UMASkillListModal;
+class UMAEmergencyModal;
+class UMABaseModalWidget;
+class UMANotificationWidget;
 
 //=============================================================================
 // Widget 类型枚举
@@ -143,6 +153,38 @@ public:
     UMAHUDWidget* GetHUDWidget() const;
 
     //=========================================================================
+    // HUD 状态管理 (Requirements: 2.1)
+    //=========================================================================
+
+    /** 获取 HUD 状态管理器 */
+    UFUNCTION(BlueprintPure, Category = "UI|HUD")
+    UMAHUDStateManager* GetHUDStateManager() const { return HUDStateManager; }
+
+    /** 获取主 HUD Widget */
+    UFUNCTION(BlueprintPure, Category = "UI|HUD")
+    UMAMainHUDWidget* GetMainHUDWidget() const { return MainHUDWidget; }
+
+    //=========================================================================
+    // 模态窗口访问
+    //=========================================================================
+
+    /** 获取任务图模态窗口 */
+    UFUNCTION(BlueprintPure, Category = "UI|Modal")
+    UMATaskGraphModal* GetTaskGraphModal() const { return TaskGraphModal; }
+
+    /** 获取技能列表模态窗口 */
+    UFUNCTION(BlueprintPure, Category = "UI|Modal")
+    UMASkillListModal* GetSkillListModal() const { return SkillListModal; }
+
+    /** 获取紧急事件模态窗口 */
+    UFUNCTION(BlueprintPure, Category = "UI|Modal")
+    UMAEmergencyModal* GetEmergencyModal() const { return EmergencyModal; }
+
+    /** 根据类型获取模态窗口 */
+    UFUNCTION(BlueprintPure, Category = "UI|Modal")
+    UMABaseModalWidget* GetModalByType(EMAModalType ModalType) const;
+
+    //=========================================================================
     // Widget 可见性控制
     //=========================================================================
 
@@ -179,6 +221,14 @@ public:
     bool IsWidgetVisible(EMAWidgetType Type) const;
 
     /**
+     * 检查是否有全屏 Widget 或 Modal 可见
+     * 用于决定是否应该绘制 3D 调试信息（如选中圆环、头顶状态文字）
+     * @return 是否有全屏 Widget 可见
+     */
+    UFUNCTION(BlueprintPure, Category = "UI")
+    bool IsAnyFullscreenWidgetVisible() const;
+
+    /**
      * 设置 Widget 焦点
      * @param Type Widget 类型
      */
@@ -192,6 +242,57 @@ public:
     /** SemanticMap Widget 类引用 (后续阶段) */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI Classes")
     TSubclassOf<UUserWidget> SemanticMapWidgetClass;
+
+    //=========================================================================
+    // UI 主题
+    //=========================================================================
+
+    /**
+     * 加载 UI 主题
+     * @param ThemeAsset 主题数据资产，nullptr 时使用默认主题
+     */
+    UFUNCTION(BlueprintCallable, Category = "UI|Theme")
+    void LoadTheme(UMAUITheme* ThemeAsset);
+
+    /**
+     * 获取当前 UI 主题
+     * @return 当前主题，如果未加载则返回默认主题
+     */
+    UFUNCTION(BlueprintPure, Category = "UI|Theme")
+    UMAUITheme* GetTheme() const;
+
+    /**
+     * 验证主题完整性
+     * @param InTheme 要验证的主题
+     * @return true 如果主题有效
+     */
+    UFUNCTION(BlueprintPure, Category = "UI|Theme")
+    bool ValidateTheme(UMAUITheme* InTheme) const;
+
+    //=========================================================================
+    // 通知处理 (Requirements: 4.1, 4.2, 4.3, 4.5)
+    //=========================================================================
+
+    /**
+     * 显示通知
+     * @param Type 通知类型
+     */
+    UFUNCTION(BlueprintCallable, Category = "UI|Notification")
+    void ShowNotification(EMANotificationType Type);
+
+    /**
+     * 关闭当前通知
+     */
+    UFUNCTION(BlueprintCallable, Category = "UI|Notification")
+    void DismissNotification();
+
+    /**
+     * 获取通知类型对应的模态类型
+     * @param NotificationType 通知类型
+     * @return 对应的模态类型
+     */
+    UFUNCTION(BlueprintPure, Category = "UI|Notification")
+    EMAModalType GetModalTypeForNotification(EMANotificationType NotificationType) const;
 
 private:
     //=========================================================================
@@ -240,6 +341,42 @@ private:
     UPROPERTY()
     UUserWidget* SemanticMapWidget;
 
+    /** 当前 UI 主题 */
+    UPROPERTY()
+    UMAUITheme* CurrentTheme;
+
+    /** 默认 UI 主题 (当未指定主题时使用) */
+    UPROPERTY()
+    UMAUITheme* DefaultTheme;
+
+    //=========================================================================
+    // HUD 状态管理 (Requirements: 2.1)
+    //=========================================================================
+
+    /** HUD 状态管理器 */
+    UPROPERTY()
+    UMAHUDStateManager* HUDStateManager;
+
+    /** 主 HUD Widget */
+    UPROPERTY()
+    UMAMainHUDWidget* MainHUDWidget;
+
+    //=========================================================================
+    // 模态窗口实例
+    //=========================================================================
+
+    /** 任务图模态窗口 */
+    UPROPERTY()
+    UMATaskGraphModal* TaskGraphModal;
+
+    /** 技能列表模态窗口 */
+    UPROPERTY()
+    UMASkillListModal* SkillListModal;
+
+    /** 紧急事件模态窗口 */
+    UPROPERTY()
+    UMAEmergencyModal* EmergencyModal;
+
     //=========================================================================
     // 内部方法
     //=========================================================================
@@ -261,4 +398,106 @@ private:
      * 恢复输入模式为纯游戏
      */
     void SetInputModeGameOnly();
+
+    //=========================================================================
+    // HUD 状态变化处理 (Requirements: 2.3, 2.4, 2.5)
+    //=========================================================================
+
+    /**
+     * 初始化 HUD 状态管理器
+     */
+    void InitializeHUDStateManager();
+
+    /**
+     * 创建模态窗口实例
+     */
+    void CreateModalWidgets();
+
+    /**
+     * 绑定状态管理器委托
+     */
+    void BindStateManagerDelegates();
+
+    /**
+     * HUD 状态变化回调
+     * @param OldState 变化前的状态
+     * @param NewState 变化后的状态
+     */
+    UFUNCTION()
+    void OnHUDStateChanged(EMAHUDState OldState, EMAHUDState NewState);
+
+    /**
+     * 通知接收回调
+     * @param Type 通知类型
+     */
+    UFUNCTION()
+    void OnNotificationReceived(EMANotificationType Type);
+
+    /**
+     * 模态确认回调
+     * @param ModalType 模态类型
+     */
+    UFUNCTION()
+    void OnModalConfirmed(EMAModalType ModalType);
+
+    /**
+     * 模态拒绝回调
+     * @param ModalType 模态类型
+     */
+    UFUNCTION()
+    void OnModalRejected(EMAModalType ModalType);
+
+    /**
+     * 模态编辑请求回调
+     * @param ModalType 模态类型
+     */
+    UFUNCTION()
+    void OnModalEditRequested(EMAModalType ModalType);
+
+    /**
+     * 显示指定类型的模态窗口
+     * @param ModalType 模态类型
+     * @param bEditMode 是否为编辑模式
+     */
+    void ShowModal(EMAModalType ModalType, bool bEditMode);
+
+    /**
+     * 隐藏当前模态窗口
+     */
+    void HideCurrentModal();
+
+    /**
+     * 加载数据到模态窗口
+     * @param ModalType 模态类型
+     */
+    void LoadDataIntoModal(EMAModalType ModalType);
+
+    /**
+     * 获取模态窗口的 Z-Order
+     * @return Z-Order 值
+     */
+    int32 GetModalZOrder() const;
+
+    //=========================================================================
+    // TempDataManager 事件绑定
+    //=========================================================================
+
+    /**
+     * 绑定 TempDataManager 数据变化事件
+     */
+    void BindTempDataManagerEvents();
+
+    /**
+     * 任务图数据变化回调
+     * @param Data 新的任务图数据
+     */
+    UFUNCTION()
+    void OnTempTaskGraphChanged(const FMATaskGraphData& Data);
+
+    /**
+     * 技能列表数据变化回调
+     * @param Data 新的技能列表数据
+     */
+    UFUNCTION()
+    void OnTempSkillListChanged(const FMASkillAllocationData& Data);
 };

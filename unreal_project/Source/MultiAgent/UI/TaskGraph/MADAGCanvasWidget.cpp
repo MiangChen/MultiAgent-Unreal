@@ -4,7 +4,7 @@
 #include "MADAGCanvasWidget.h"
 #include "MATaskNodeWidget.h"
 #include "MATaskGraphModel.h"
-#include "../tools/MAContextMenuWidget.h"
+#include "../Components/MAContextMenuWidget.h"
 #include "Components/Border.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
@@ -715,10 +715,16 @@ void UMADAGCanvasWidget::BuildUI()
     CanvasBackground = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("CanvasBackground"));
     CanvasBackground->SetBrushColor(CanvasBackgroundColor);
     WidgetTree->RootWidget = CanvasBackground;
+    
+    // 启用裁剪 - 确保内容不会溢出边界
+    CanvasBackground->SetClipping(EWidgetClipping::ClipToBounds);
 
     // 创建节点容器
     NodeContainer = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("NodeContainer"));
     CanvasBackground->AddChild(NodeContainer);
+    
+    // 节点容器也启用裁剪
+    NodeContainer->SetClipping(EWidgetClipping::ClipToBounds);
 
     UE_LOG(LogMADAGCanvas, Verbose, TEXT("BuildUI: UI construction completed"));
 }

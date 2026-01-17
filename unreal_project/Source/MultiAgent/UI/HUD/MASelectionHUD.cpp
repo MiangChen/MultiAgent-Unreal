@@ -2,17 +2,40 @@
 // 选择框 HUD 实现
 
 #include "MASelectionHUD.h"
-#include "../Core/Manager/MASelectionManager.h"
-#include "../Input/MAPlayerController.h"
-#include "../Agent/Character/MACharacter.h"
+#include "../../Core/Manager/MASelectionManager.h"
+#include "../../Input/MAPlayerController.h"
+#include "../../Agent/Character/MACharacter.h"
+#include "../Core/MAUIManager.h"
+#include "MAHUD.h"
 #include "Engine/Canvas.h"
 #include "GameFramework/PlayerController.h"
 #include "DrawDebugHelpers.h"
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetBlueprintLibrary.h"
+#include "Kismet/GameplayStatics.h"
 
 AMASelectionHUD::AMASelectionHUD()
 {
+}
+
+bool AMASelectionHUD::IsAnyFullscreenWidgetVisible() const
+{
+    // 获取 PlayerController
+    APlayerController* PC = GetOwningPlayerController();
+    if (!PC) return false;
+    
+    // 获取 MAHUD
+    AMAHUD* MAHUD = Cast<AMAHUD>(PC->GetHUD());
+    if (!MAHUD) return false;
+    
+    // 获取 UIManager 并检查全屏 Widget
+    UMAUIManager* UIManager = MAHUD->GetUIManager();
+    if (UIManager)
+    {
+        return UIManager->IsAnyFullscreenWidgetVisible();
+    }
+    
+    return false;
 }
 
 void AMASelectionHUD::DrawHUD()
@@ -20,6 +43,9 @@ void AMASelectionHUD::DrawHUD()
     Super::DrawHUD();
 
     AMAPlayerController* PC = Cast<AMAPlayerController>(GetOwningPlayerController());
+
+    // 检查是否有全屏 Widget 可见，如果有则不绘制 3D 调试信息
+    bool bShouldDrawDebug = !IsAnyFullscreenWidgetVisible();
 
     // 绘制框选矩形
     if (bIsBoxSelecting)
@@ -29,8 +55,11 @@ void AMASelectionHUD::DrawHUD()
         DrawSelectionBox(bIsDeploymentMode);
     }
 
-    // 绘制选中 Agent 的高亮
-    DrawSelectedAgents();
+    // 绘制选中 Agent 的高亮（仅在没有全屏 Widget 时）
+    if (bShouldDrawDebug)
+    {
+        DrawSelectedAgents();
+    }
 
     // 绘制编组信息
     DrawControlGroupInfo();

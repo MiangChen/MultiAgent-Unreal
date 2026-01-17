@@ -1,0 +1,625 @@
+// MABaseModalWidget.cpp
+// 基础模态窗口抽象类实现
+
+#include "MABaseModalWidget.h"
+#include "../Components/MAStyledButton.h"
+#include "../Core/MAUITheme.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
+#include "Components/Border.h"
+#include "Components/TextBlock.h"
+#include "Components/HorizontalBox.h"
+#include "Components/HorizontalBoxSlot.h"
+#include "Components/VerticalBox.h"
+#include "Components/VerticalBoxSlot.h"
+#include "Components/SizeBox.h"
+#include "Components/Spacer.h"
+#include "Blueprint/WidgetTree.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogMABaseModal, Log, All);
+
+//=============================================================================
+// 构造函数
+//=============================================================================
+
+UMABaseModalWidget::UMABaseModalWidget(const FObjectInitializer& ObjectInitializer)
+    : Super(ObjectInitializer)
+    , RootPanel(nullptr)
+    , BackgroundOverlay(nullptr)
+    , ModalSizeBox(nullptr)
+    , BackgroundBorder(nullptr)
+    , ModalVerticalBox(nullptr)
+    , TitleText(nullptr)
+    , ContentContainer(nullptr)
+    , ButtonContainer(nullptr)
+    , ConfirmButton(nullptr)
+    , RejectButton(nullptr)
+    , EditButton(nullptr)
+    , Theme(nullptr)
+    , ModalTitle(FText::FromString(TEXT("Modal")))
+    , ModalWidth(800.0f)
+    , ModalHeight(600.0f)
+    , bShowEditButton(true)
+    , ConfirmButtonText(FText::FromString(TEXT("Confirm")))
+    , RejectButtonText(FText::FromString(TEXT("Reject")))
+    , EditButtonText(FText::FromString(TEXT("Edit")))
+    , bIsEditMode(false)
+    , ModalType(EMAModalType::None)
+    , bIsAnimating(false)
+    , bIsShowing(false)
+    , CurrentAnimTime(0.0f)
+    , TargetOpacity(1.0f)
+{
+    // 确保 WidgetTree 存在
+    if (!WidgetTree)
+    {
+        WidgetTree = NewObject<UWidgetTree>(this, TEXT("WidgetTree"));
+    }
+}
+
+//=============================================================================
+// UUserWidget 重写
+//=============================================================================
+
+void UMABaseModalWidget::NativePreConstruct()
+{
+    Super::NativePreConstruct();
+
+    // 在这里构建 UI，确保 WidgetTree 已经初始化
+    if (WidgetTree && !WidgetTree->RootWidget)
+    {
+        BuildUI();
+    }
+}
+
+void UMABaseModalWidget::NativeConstruct()
+{
+    Super::NativeConstruct();
+
+    // 绑定按钮事件
+    if (ConfirmButton)
+    {
+        ConfirmButton->OnClicked.AddDynamic(this, &UMABaseModalWidget::OnConfirmButtonClicked);
+    }
+    if (RejectButton)
+    {
+        RejectButton->OnClicked.AddDynamic(this, &UMABaseModalWidget::OnRejectButtonClicked);
+    }
+    if (EditButton)
+    {
+        EditButton->OnClicked.AddDynamic(this, &UMABaseModalWidget::OnEditButtonClicked);
+    }
+
+    // 更新按钮可见性
+    UpdateButtonVisibility();
+
+    // 设置初始透明度为 0（准备淡入动画）
+    SetRenderOpacity(0.0f);
+
+    UE_LOG(LogMABaseModal, Log, TEXT("MABaseModalWidget constructed"));
+}
+
+void UMABaseModalWidget::NativeDestruct()
+{
+    // 解绑按钮事件
+    if (ConfirmButton)
+    {
+        ConfirmButton->OnClicked.RemoveDynamic(this, &UMABaseModalWidget::OnConfirmButtonClicked);
+    }
+    if (RejectButton)
+    {
+        RejectButton->OnClicked.RemoveDynamic(this, &UMABaseModalWidget::OnRejectButtonClicked);
+    }
+    if (EditButton)
+    {
+        EditButton->OnClicked.RemoveDynamic(this, &UMABaseModalWidget::OnEditButtonClicked);
+    }
+
+    Super::NativeDestruct();
+}
+
+void UMABaseModalWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+    Super::NativeTick(MyGeometry, InDeltaTime);
+
+    // 更新动画
+    if (bIsAnimating)
+    {
+        UpdateAnimation(InDeltaTime);
+    }
+}
+
+TSharedRef<SWidget> UMABaseModalWidget::RebuildWidget()
+{
+    // 确保 WidgetTree 存在
+    if (!WidgetTree)
+    {
+        WidgetTree = NewObject<UWidgetTree>(this, TEXT("WidgetTree"));
+    }
+
+    // 构建 UI
+    if (!WidgetTree->RootWidget)
+    {
+        BuildUI();
+    }
+
+    return Super::RebuildWidget();
+}
+
+//=============================================================================
+// BuildUI - 构建 UI 布局 (Requirements: 8.1, 8.2, 8.3, 8.4)
+//=============================================================================
+
+void UMABaseModalWidget::BuildUI()
+{
+    if (!WidgetTree)
+    {
+        UE_LOG(LogMABaseModal, Error, TEXT("BuildUI: WidgetTree is null!"));
+        return;
+    }
+
+    UE_LOG(LogMABaseModal, Log, TEXT("BuildUI: Starting modal construction..."));
+
+    // 创建根 CanvasPanel
+    RootPanel = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("RootPanel"));
+    if (!RootPanel)
+    {
+        UE_LOG(LogMABaseModal, Error, TEXT("BuildUI: Failed to create RootPanel!"));
+        return;
+    }
+    WidgetTree->RootWidget = RootPanel;
+
+    // 创建背景遮罩 (半透明黑色)
+    BackgroundOverlay = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("BackgroundOverlay"));
+    if (BackgroundOverlay)
+    {
+        RootPanel->AddChild(BackgroundOverlay);
+        
+        // 设置为全屏
+        if (UCanvasPanelSlot* OverlaySlot = Cast<UCanvasPanelSlot>(BackgroundOverlay->Slot))
+        {
+            OverlaySlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
+            OverlaySlot->SetOffsets(FMargin(0.0f));
+        }
+        
+        // 设置半透明黑色背景
+        BackgroundOverlay->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.5f));
+        
+        // 设置为 Visible 以阻止点击穿透到场景
+        BackgroundOverlay->SetVisibility(ESlateVisibility::Visible);
+    }
+
+    // 创建模态 SizeBox (用于控制模态大小和居中偏右)
+    ModalSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("ModalSizeBox"));
+    if (ModalSizeBox)
+    {
+        RootPanel->AddChild(ModalSizeBox);
+        
+        // 设置居中偏右 (锚点在中心偏右，对齐点在中心)
+        // 锚点 (0.55, 0.5) 表示在水平方向上偏右 5%
+        if (UCanvasPanelSlot* ModalSlot = Cast<UCanvasPanelSlot>(ModalSizeBox->Slot))
+        {
+            ModalSlot->SetAnchors(FAnchors(0.55f, 0.5f, 0.55f, 0.5f));
+            ModalSlot->SetAlignment(FVector2D(0.5f, 0.5f));
+            ModalSlot->SetAutoSize(true);
+        }
+        
+        // 设置模态大小 (覆盖约 80% 画面)
+        // 假设屏幕宽度 1920，高度 1080，80% 约为 1536x864
+        // 但我们使用相对大小，在子类中可以覆盖
+        ModalSizeBox->SetWidthOverride(ModalWidth);
+        ModalSizeBox->SetHeightOverride(ModalHeight);
+    }
+
+    // 创建模态背景边框 (圆角)
+    BackgroundBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("BackgroundBorder"));
+    if (BackgroundBorder && ModalSizeBox)
+    {
+        ModalSizeBox->AddChild(BackgroundBorder);
+        
+        // 设置背景颜色
+        FLinearColor BgColor = Theme ? Theme->BackgroundColor : FLinearColor(0.1f, 0.1f, 0.12f, 0.95f);
+        BackgroundBorder->SetBrushColor(BgColor);
+        
+        // 设置内边距
+        FMargin Padding = Theme ? Theme->ContentPadding : FMargin(20.0f);
+        BackgroundBorder->SetPadding(Padding);
+    }
+
+    // 创建模态内容垂直布局
+    ModalVerticalBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("ModalVerticalBox"));
+    if (ModalVerticalBox && BackgroundBorder)
+    {
+        BackgroundBorder->AddChild(ModalVerticalBox);
+    }
+
+    // 创建标题文本
+    TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TitleText"));
+    if (TitleText && ModalVerticalBox)
+    {
+        ModalVerticalBox->AddChild(TitleText);
+        
+        // 设置标题样式
+        TitleText->SetText(GetModalTitleText());
+        TitleText->SetJustification(ETextJustify::Center);
+        
+        // 设置字体
+        FSlateFontInfo TitleFont = Theme ? Theme->TitleFont : FSlateFontInfo();
+        if (TitleFont.FontObject == nullptr)
+        {
+            TitleFont = TitleText->GetFont();
+            TitleFont.Size = 24;
+        }
+        TitleText->SetFont(TitleFont);
+        
+        // 设置文字颜色
+        FLinearColor TextColor = Theme ? Theme->TextColor : FLinearColor(0.95f, 0.95f, 0.95f, 1.0f);
+        TitleText->SetColorAndOpacity(FSlateColor(TextColor));
+        
+        // 设置底部间距
+        if (UVerticalBoxSlot* TitleSlot = Cast<UVerticalBoxSlot>(TitleText->Slot))
+        {
+            float Spacing = Theme ? Theme->ElementSpacing : 12.0f;
+            TitleSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, Spacing));
+        }
+    }
+
+    // 创建内容容器 (子类填充)
+    ContentContainer = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("ContentContainer"));
+    if (ContentContainer && ModalVerticalBox)
+    {
+        ModalVerticalBox->AddChild(ContentContainer);
+        
+        // 设置填充剩余空间
+        if (UVerticalBoxSlot* ContentSlot = Cast<UVerticalBoxSlot>(ContentContainer->Slot))
+        {
+            ContentSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+        }
+        
+        // 调用子类方法构建内容区域
+        BuildContentArea(ContentContainer);
+    }
+
+    // 创建按钮容器
+    ButtonContainer = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("ButtonContainer"));
+    if (ButtonContainer && ModalVerticalBox)
+    {
+        ModalVerticalBox->AddChild(ButtonContainer);
+        
+        // 设置顶部间距
+        if (UVerticalBoxSlot* ButtonContainerSlot = Cast<UVerticalBoxSlot>(ButtonContainer->Slot))
+        {
+            float Spacing = Theme ? Theme->ElementSpacing : 12.0f;
+            ButtonContainerSlot->SetPadding(FMargin(0.0f, Spacing, 0.0f, 0.0f));
+            ButtonContainerSlot->SetHorizontalAlignment(HAlign_Right);
+        }
+    }
+
+    // 创建按钮间的弹性空间
+    USpacer* ButtonSpacer = WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass(), TEXT("ButtonSpacer"));
+    if (ButtonSpacer && ButtonContainer)
+    {
+        ButtonContainer->AddChild(ButtonSpacer);
+        
+        if (UHorizontalBoxSlot* SpacerSlot = Cast<UHorizontalBoxSlot>(ButtonSpacer->Slot))
+        {
+            SpacerSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+        }
+    }
+
+    // 创建编辑按钮 (可选)
+    if (bShowEditButton)
+    {
+        EditButton = CreateWidget<UMAStyledButton>(this, UMAStyledButton::StaticClass());
+        if (EditButton && ButtonContainer)
+        {
+            ButtonContainer->AddChild(EditButton);
+            EditButton->SetButtonText(EditButtonText);
+            EditButton->SetButtonStyle(EMAButtonStyle::Secondary);
+            
+            if (Theme)
+            {
+                EditButton->ApplyTheme(Theme);
+            }
+            
+            // 设置按钮间距
+            if (UHorizontalBoxSlot* EditSlot = Cast<UHorizontalBoxSlot>(EditButton->Slot))
+            {
+                EditSlot->SetPadding(FMargin(0.0f, 0.0f, 8.0f, 0.0f));
+            }
+        }
+    }
+
+    // 创建拒绝按钮
+    RejectButton = CreateWidget<UMAStyledButton>(this, UMAStyledButton::StaticClass());
+    if (RejectButton && ButtonContainer)
+    {
+        ButtonContainer->AddChild(RejectButton);
+        RejectButton->SetButtonText(RejectButtonText);
+        RejectButton->SetButtonStyle(EMAButtonStyle::Danger);
+        
+        if (Theme)
+        {
+            RejectButton->ApplyTheme(Theme);
+        }
+        
+        // 设置按钮间距
+        if (UHorizontalBoxSlot* RejectSlot = Cast<UHorizontalBoxSlot>(RejectButton->Slot))
+        {
+            RejectSlot->SetPadding(FMargin(0.0f, 0.0f, 8.0f, 0.0f));
+        }
+    }
+
+    // 创建确认按钮
+    ConfirmButton = CreateWidget<UMAStyledButton>(this, UMAStyledButton::StaticClass());
+    if (ConfirmButton && ButtonContainer)
+    {
+        ButtonContainer->AddChild(ConfirmButton);
+        ConfirmButton->SetButtonText(ConfirmButtonText);
+        ConfirmButton->SetButtonStyle(EMAButtonStyle::Success);
+        
+        if (Theme)
+        {
+            ConfirmButton->ApplyTheme(Theme);
+        }
+    }
+
+    UE_LOG(LogMABaseModal, Log, TEXT("BuildUI: Modal construction completed"));
+}
+
+
+//=============================================================================
+// 模式控制
+//=============================================================================
+
+void UMABaseModalWidget::SetEditMode(bool bEditable)
+{
+    if (bIsEditMode != bEditable)
+    {
+        bIsEditMode = bEditable;
+        
+        // 更新按钮可见性
+        UpdateButtonVisibility();
+        
+        // 通知子类
+        OnEditModeChanged(bEditable);
+        
+        UE_LOG(LogMABaseModal, Log, TEXT("Edit mode changed to: %s"), bEditable ? TEXT("true") : TEXT("false"));
+    }
+}
+
+void UMABaseModalWidget::SetModalType(EMAModalType InModalType)
+{
+    ModalType = InModalType;
+    
+    // 更新标题
+    if (TitleText)
+    {
+        TitleText->SetText(GetModalTitleText());
+    }
+    
+    UE_LOG(LogMABaseModal, Log, TEXT("Modal type set to: %d"), static_cast<int32>(InModalType));
+}
+
+//=============================================================================
+// 动画控制 (Requirements: 5.6, 7.1, 7.4, 8.5)
+//=============================================================================
+
+void UMABaseModalWidget::PlayShowAnimation()
+{
+    UE_LOG(LogMABaseModal, Log, TEXT("Playing show animation (fade in, 200ms)"));
+    
+    bIsAnimating = true;
+    bIsShowing = true;
+    CurrentAnimTime = 0.0f;
+    TargetOpacity = 1.0f;
+    
+    // 确保可见
+    SetVisibility(ESlateVisibility::Visible);
+    SetRenderOpacity(0.0f);
+}
+
+void UMABaseModalWidget::PlayHideAnimation()
+{
+    UE_LOG(LogMABaseModal, Log, TEXT("Playing hide animation (fade out, 200ms)"));
+    
+    bIsAnimating = true;
+    bIsShowing = false;
+    CurrentAnimTime = 0.0f;
+    TargetOpacity = 0.0f;
+}
+
+void UMABaseModalWidget::UpdateAnimation(float DeltaTime)
+{
+    CurrentAnimTime += DeltaTime;
+    
+    // 计算动画进度 (0.0 到 1.0)
+    float Progress = FMath::Clamp(CurrentAnimTime / AnimationDuration, 0.0f, 1.0f);
+    
+    // 使用平滑插值
+    float EasedProgress = FMath::InterpEaseInOut(0.0f, 1.0f, Progress, 2.0f);
+    
+    // 计算当前透明度
+    float CurrentOpacity;
+    if (bIsShowing)
+    {
+        // 淡入：从 0 到 1
+        CurrentOpacity = EasedProgress;
+    }
+    else
+    {
+        // 淡出：从 1 到 0
+        CurrentOpacity = 1.0f - EasedProgress;
+    }
+    
+    // 应用透明度
+    SetRenderOpacity(CurrentOpacity);
+    
+    // 检查动画是否完成
+    if (Progress >= 1.0f)
+    {
+        OnAnimationFinished();
+    }
+}
+
+void UMABaseModalWidget::OnAnimationFinished()
+{
+    bIsAnimating = false;
+    
+    if (bIsShowing)
+    {
+        // 显示动画完成
+        SetRenderOpacity(1.0f);
+        OnShowAnimationComplete.Broadcast();
+        UE_LOG(LogMABaseModal, Log, TEXT("Show animation completed"));
+    }
+    else
+    {
+        // 隐藏动画完成
+        SetRenderOpacity(0.0f);
+        SetVisibility(ESlateVisibility::Collapsed);
+        OnHideAnimationComplete.Broadcast();
+        UE_LOG(LogMABaseModal, Log, TEXT("Hide animation completed"));
+    }
+}
+
+//=============================================================================
+// 主题应用
+//=============================================================================
+
+void UMABaseModalWidget::ApplyTheme(UMAUITheme* InTheme)
+{
+    Theme = InTheme;
+    
+    if (!Theme)
+    {
+        UE_LOG(LogMABaseModal, Warning, TEXT("ApplyTheme: Theme is null, using default styles"));
+        return;
+    }
+    
+    // 应用背景颜色
+    if (BackgroundBorder)
+    {
+        BackgroundBorder->SetBrushColor(Theme->BackgroundColor);
+        BackgroundBorder->SetPadding(Theme->ContentPadding);
+    }
+    
+    // 应用标题样式
+    if (TitleText)
+    {
+        TitleText->SetFont(Theme->TitleFont);
+        TitleText->SetColorAndOpacity(FSlateColor(Theme->TextColor));
+    }
+    
+    // 应用按钮主题
+    if (ConfirmButton)
+    {
+        ConfirmButton->ApplyTheme(Theme);
+    }
+    if (RejectButton)
+    {
+        RejectButton->ApplyTheme(Theme);
+    }
+    if (EditButton)
+    {
+        EditButton->ApplyTheme(Theme);
+    }
+    
+    // 通知子类
+    OnThemeApplied();
+    
+    UE_LOG(LogMABaseModal, Log, TEXT("Theme applied to modal"));
+}
+
+//=============================================================================
+// 标题设置
+//=============================================================================
+
+void UMABaseModalWidget::SetTitle(const FText& InTitle)
+{
+    ModalTitle = InTitle;
+    
+    if (TitleText)
+    {
+        TitleText->SetText(InTitle);
+    }
+}
+
+FText UMABaseModalWidget::GetModalTitleText() const
+{
+    // 如果有自定义标题，使用自定义标题
+    if (!ModalTitle.IsEmpty())
+    {
+        return ModalTitle;
+    }
+    
+    // 根据模态类型返回默认标题
+    switch (ModalType)
+    {
+    case EMAModalType::TaskGraph:
+        return FText::FromString(TEXT("Task Graph"));
+    case EMAModalType::SkillList:
+        return FText::FromString(TEXT("Skill List"));
+    case EMAModalType::Emergency:
+        return FText::FromString(TEXT("Emergency Event"));
+    default:
+        return FText::FromString(TEXT("Modal"));
+    }
+}
+
+//=============================================================================
+// 按钮可见性更新
+//=============================================================================
+
+void UMABaseModalWidget::UpdateButtonVisibility()
+{
+    // 编辑按钮：只在非编辑模式下显示
+    if (EditButton)
+    {
+        ESlateVisibility EditVisibility = (bShowEditButton && !bIsEditMode) 
+            ? ESlateVisibility::Visible 
+            : ESlateVisibility::Collapsed;
+        EditButton->SetVisibility(EditVisibility);
+    }
+    
+    // 在编辑模式下，确认按钮文本可能需要改变
+    if (ConfirmButton)
+    {
+        if (bIsEditMode)
+        {
+            ConfirmButton->SetButtonText(FText::FromString(TEXT("Submit")));
+        }
+        else
+        {
+            ConfirmButton->SetButtonText(ConfirmButtonText);
+        }
+    }
+}
+
+//=============================================================================
+// 按钮回调 (Requirements: 5.4, 6.5)
+//=============================================================================
+
+void UMABaseModalWidget::OnConfirmButtonClicked()
+{
+    UE_LOG(LogMABaseModal, Log, TEXT("Confirm button clicked"));
+    
+    // 广播确认事件
+    OnConfirmClicked.Broadcast();
+}
+
+void UMABaseModalWidget::OnRejectButtonClicked()
+{
+    UE_LOG(LogMABaseModal, Log, TEXT("Reject button clicked"));
+    
+    // 广播拒绝事件
+    OnRejectClicked.Broadcast();
+}
+
+void UMABaseModalWidget::OnEditButtonClicked()
+{
+    UE_LOG(LogMABaseModal, Log, TEXT("Edit button clicked"));
+    
+    // 广播编辑事件
+    OnEditClicked.Broadcast();
+}

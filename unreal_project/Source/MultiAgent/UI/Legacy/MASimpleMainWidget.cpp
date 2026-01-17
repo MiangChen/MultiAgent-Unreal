@@ -15,7 +15,7 @@
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Blueprint/WidgetTree.h"
-#include "../Core/Comm/MACommSubsystem.h"
+#include "../../Core/Comm/MACommSubsystem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMASimpleWidget, Log, All);
 
@@ -171,6 +171,15 @@ void UMASimpleMainWidget::BuildUI()
     ResultTextBox = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(UMultiLineEditableTextBox::StaticClass(), TEXT("ResultTextBox"));
     ResultTextBox->SetIsReadOnly(true);
     ResultTextBox->SetText(FText::FromString(TEXT("Waiting for command input...\n\nTips:\n- Enter any text and press Enter to send\n- System will return simulated response")));
+    
+    // 设置样式：纯黑色，字号 12
+    FEditableTextBoxStyle ResultStyle;
+    FSlateColor BlackColor = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
+    ResultStyle.SetForegroundColor(BlackColor);
+    ResultStyle.SetFocusedForegroundColor(BlackColor);
+    FSlateFontInfo ResultFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
+    ResultStyle.SetFont(ResultFont);
+    ResultTextBox->WidgetStyle = ResultStyle;
     
     // 使用 SizeBox 设置最小高度
     USizeBox* ResultSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("ResultSizeBox"));

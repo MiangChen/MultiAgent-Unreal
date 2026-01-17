@@ -298,6 +298,8 @@ UVerticalBox* UMATaskPlannerWidget::CreateStatusLogSection()
     UTextBlock* Label = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("StatusLogLabel"));
     Label->SetText(FText::FromString(TEXT("Status Log:")));
     Label->SetColorAndOpacity(FSlateColor(LabelColor));
+    FSlateFontInfo LabelFont = FCoreStyle::GetDefaultFontStyle("Bold", 12);
+    Label->SetFont(LabelFont);
     
     UVerticalBoxSlot* LabelSlot = Section->AddChildToVerticalBox(Label);
     LabelSlot->SetPadding(FMargin(0, 0, 0, 5));
@@ -309,6 +311,18 @@ UVerticalBox* UMATaskPlannerWidget::CreateStatusLogSection()
     StatusLogBox = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(UMultiLineEditableTextBox::StaticClass(), TEXT("StatusLogBox"));
     StatusLogBox->SetIsReadOnly(true);
     StatusLogBox->SetText(FText::GetEmpty());
+    
+    // 设置文本样式：纯黑色，字号 12
+    FEditableTextBoxStyle StatusLogStyle;
+    FSlateColor BlackColor = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
+    StatusLogStyle.SetForegroundColor(BlackColor);
+    StatusLogStyle.SetFocusedForegroundColor(BlackColor);
+    StatusLogStyle.SetReadOnlyForegroundColor(BlackColor);  // 只读模式下的文本颜色
+    // 设置 TextStyle 的 ColorAndOpacity
+    StatusLogStyle.TextStyle.ColorAndOpacity = BlackColor;
+    FSlateFontInfo StatusLogFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
+    StatusLogStyle.SetFont(StatusLogFont);
+    StatusLogBox->WidgetStyle = StatusLogStyle;
     
     StatusLogScrollBox->AddChild(StatusLogBox);
     
@@ -331,6 +345,8 @@ UVerticalBox* UMATaskPlannerWidget::CreateJsonEditorSection()
     UTextBlock* Label = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("JsonEditorLabel"));
     Label->SetText(FText::FromString(TEXT("JSON Editor:")));
     Label->SetColorAndOpacity(FSlateColor(LabelColor));
+    FSlateFontInfo LabelFont2 = FCoreStyle::GetDefaultFontStyle("Bold", 12);
+    Label->SetFont(LabelFont2);
     
     UVerticalBoxSlot* LabelSlot = Section->AddChildToVerticalBox(Label);
     LabelSlot->SetPadding(FMargin(0, 0, 0, 5));
@@ -339,6 +355,15 @@ UVerticalBox* UMATaskPlannerWidget::CreateJsonEditorSection()
     JsonEditorBox = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(UMultiLineEditableTextBox::StaticClass(), TEXT("JsonEditorBox"));
     JsonEditorBox->SetIsReadOnly(false);
     JsonEditorBox->SetText(FText::FromString(TEXT("{\n  \"description\": \"\",\n  \"nodes\": [],\n  \"edges\": []\n}")));
+    
+    // 设置文本样式：纯黑色，字号 12
+    FEditableTextBoxStyle JsonEditorStyle;
+    FSlateColor BlackColor2 = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
+    JsonEditorStyle.SetForegroundColor(BlackColor2);
+    JsonEditorStyle.SetFocusedForegroundColor(BlackColor2);
+    FSlateFontInfo JsonEditorFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
+    JsonEditorStyle.SetFont(JsonEditorFont);
+    JsonEditorBox->WidgetStyle = JsonEditorStyle;
     
     // Use SizeBox to set minimum height
     USizeBox* SizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("JsonEditorSizeBox"));
@@ -383,6 +408,8 @@ UVerticalBox* UMATaskPlannerWidget::CreateUserInputSection()
     UTextBlock* Label = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("UserInputLabel"));
     Label->SetText(FText::FromString(TEXT("Command Input:")));
     Label->SetColorAndOpacity(FSlateColor(LabelColor));
+    FSlateFontInfo LabelFont3 = FCoreStyle::GetDefaultFontStyle("Bold", 12);
+    Label->SetFont(LabelFont3);
     
     UVerticalBoxSlot* LabelSlot = Section->AddChildToVerticalBox(Label);
     LabelSlot->SetPadding(FMargin(0, 0, 0, 5));
@@ -391,6 +418,15 @@ UVerticalBox* UMATaskPlannerWidget::CreateUserInputSection()
     UserInputBox = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(UMultiLineEditableTextBox::StaticClass(), TEXT("UserInputBox"));
     UserInputBox->SetIsReadOnly(false);
     UserInputBox->SetHintText(FText::FromString(TEXT("Enter natural language command, e.g.: Have the robot patrol...")));
+    
+    // 设置文本样式：纯黑色，字号 12
+    FEditableTextBoxStyle UserInputStyle;
+    FSlateColor BlackColor3 = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
+    UserInputStyle.SetForegroundColor(BlackColor3);
+    UserInputStyle.SetFocusedForegroundColor(BlackColor3);
+    FSlateFontInfo UserInputFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
+    UserInputStyle.SetFont(UserInputFont);
+    UserInputBox->WidgetStyle = UserInputStyle;
     
     // Use SizeBox to set minimum height
     USizeBox* SizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("UserInputSizeBox"));
