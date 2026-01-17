@@ -3,6 +3,7 @@
 
 #include "MAUIManager.h"
 #include "MASimpleMainWidget.h"
+#include "MAHUDWidget.h"
 #include "task_graph/MATaskPlannerWidget.h"
 #include "skill_list/MASkillAllocationViewer.h"
 #include "tools/MADirectControlIndicator.h"
@@ -41,6 +42,21 @@ void UMAUIManager::CreateAllWidgets()
     }
 
     UE_LOG(LogMAUIManager, Log, TEXT("Creating all widgets..."));
+
+    // 创建 HUDWidget (HUD 覆盖层，最底层，始终可见)
+    HUDWidget = CreateWidget<UMAHUDWidget>(OwningPC, UMAHUDWidget::StaticClass());
+    if (HUDWidget)
+    {
+        HUDWidget->AddToViewport(GetWidgetZOrder(EMAWidgetType::HUD));
+        // HUDWidget 始终可见，不像其他 Widget 那样切换显示
+        HUDWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+        Widgets.Add(EMAWidgetType::HUD, HUDWidget);
+        UE_LOG(LogMAUIManager, Log, TEXT("HUDWidget created (always visible, ZOrder = -1)"));
+    }
+    else
+    {
+        UE_LOG(LogMAUIManager, Error, TEXT("Failed to create HUDWidget"));
+    }
 
     // 创建 TaskPlannerWidget (任务规划工作台)
     TaskPlannerWidget = CreateWidget<UMATaskPlannerWidget>(OwningPC, UMATaskPlannerWidget::StaticClass());
@@ -247,6 +263,11 @@ UMASceneListWidget* UMAUIManager::GetSceneListWidget() const
     return SceneListWidget;
 }
 
+UMAHUDWidget* UMAUIManager::GetHUDWidget() const
+{
+    return HUDWidget;
+}
+
 //=============================================================================
 // Widget 可见性控制
 //=============================================================================
@@ -374,8 +395,11 @@ int32 UMAUIManager::GetWidgetZOrder(EMAWidgetType Type) const
 {
     // Widget Z-Order 配置
     // 数值越大，显示在越上层
+    // HUD 使用 -1，确保在所有其他 Widget 之下
     switch (Type)
     {
+    case EMAWidgetType::HUD:
+        return -1;  // 最底层，在所有其他 Widget 之下
     case EMAWidgetType::SemanticMap:
         return 5;
     case EMAWidgetType::TaskPlanner:

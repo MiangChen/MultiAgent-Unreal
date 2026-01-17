@@ -437,28 +437,9 @@ private:
     void OnModifyActorsSelected(const TArray<AActor*>& SelectedActors);
 
     //=========================================================================
-    // 通知系统内部
+    // 通知系统内部 - 已迁移到 HUDWidget
+    // 以下成员变量不再使用，保留注释说明
     //=========================================================================
-
-    /** 当前通知消息 */
-    FString CurrentNotificationMessage;
-
-    /** 通知消息颜色 */
-    FLinearColor CurrentNotificationColor;
-
-    /** 是否显示通知 */
-    bool bShowNotification = false;
-
-    /** 通知显示开始时间 */
-    float NotificationStartTime = 0.0f;
-
-    /** 通知显示持续时间 (秒) */
-    static constexpr float NotificationDuration = 3.0f;
-
-    /**
-     * 绘制通知消息
-     */
-    void DrawNotification();
 
     //=========================================================================
     // 场景标签可视化内部方法
@@ -497,7 +478,8 @@ private:
     void BindEditWidgetDelegates();
 
     /**
-     * 绘制 Edit 模式指示器和 POI 坐标
+     * 收集 Edit 模式数据并更新 HUDWidget
+     * 不再使用 Canvas 绘制，改为更新 HUDWidget 的 POI/Goal/Zone 列表
      */
     void DrawEditModeIndicator();
 

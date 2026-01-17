@@ -17,6 +17,7 @@ class UMAEmergencyWidget;
 class UMAModifyWidget;
 class UMAEditWidget;
 class UMASceneListWidget;
+class UMAHUDWidget;
 class UUserWidget;
 
 //=============================================================================
@@ -31,6 +32,7 @@ UENUM(BlueprintType)
 enum class EMAWidgetType : uint8
 {
     None            UMETA(DisplayName = "None"),
+    HUD             UMETA(DisplayName = "HUD Overlay"),
     TaskPlanner     UMETA(DisplayName = "Task Planner"),
     SkillAllocation UMETA(DisplayName = "Skill Allocation"),
     SimpleMain      UMETA(DisplayName = "Simple Main (Legacy)"),
@@ -136,6 +138,10 @@ public:
     UFUNCTION(BlueprintPure, Category = "UI")
     UMASceneListWidget* GetSceneListWidget() const;
 
+    /** 获取 HUDWidget 实例 */
+    UFUNCTION(BlueprintPure, Category = "UI")
+    UMAHUDWidget* GetHUDWidget() const;
+
     //=========================================================================
     // Widget 可见性控制
     //=========================================================================
@@ -227,6 +233,9 @@ private:
 
     UPROPERTY()
     UMASceneListWidget* SceneListWidget;
+
+    UPROPERTY()
+    UMAHUDWidget* HUDWidget;
 
     UPROPERTY()
     UUserWidget* SemanticMapWidget;

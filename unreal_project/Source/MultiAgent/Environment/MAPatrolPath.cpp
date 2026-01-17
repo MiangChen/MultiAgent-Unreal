@@ -4,6 +4,11 @@
 #include "Components/SplineComponent.h"
 #include "Components/BillboardComponent.h"
 #include "DrawDebugHelpers.h"
+#include "../UI/MAUIManager.h"
+#include "GameFramework/HUD.h"
+#include "Kismet/GameplayStatics.h"
+#include "Blueprint/UserWidget.h"
+#include "Blueprint/WidgetBlueprintLibrary.h"
 
 AMAPatrolPath::AMAPatrolPath()
 {
@@ -66,6 +71,34 @@ void AMAPatrolPath::DrawPathVisualization()
     int32 NumPoints = PathSpline->GetNumberOfSplinePoints();
     if (NumPoints < 2) return;
     
+    // 检查是否有遮挡性 Widget 可见，如果有则不绘制调试文字（避免透出）
+    bool bShouldDrawText = bShowWaypointNumbers;
+    if (bShouldDrawText)
+    {
+        APlayerController* PC = UGameplayStatics::GetPlayerController(World, 0);
+        if (PC)
+        {
+            // 检查是否有可见的 Widget（排除 HUDWidget 等始终可见的 Widget）
+            TArray<UUserWidget*> FoundWidgets;
+            UWidgetBlueprintLibrary::GetAllWidgetsOfClass(World, FoundWidgets, UUserWidget::StaticClass(), false);
+            for (UUserWidget* Widget : FoundWidgets)
+            {
+                if (Widget && Widget->IsVisible() && Widget->GetVisibility() == ESlateVisibility::Visible)
+                {
+                    // 排除 HUDWidget（它使用 SelfHitTestInvisible，不会遮挡）
+                    // 检查 Widget 名称或类型
+                    FString WidgetName = Widget->GetClass()->GetName();
+                    if (!WidgetName.Contains(TEXT("HUDWidget")))
+                    {
+                        // 有可见的遮挡性 Widget，不绘制调试文字
+                        bShouldDrawText = false;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    
     // 绘制路径点和连线
     for (int32 i = 0; i < NumPoints; ++i)
     {
@@ -76,7 +109,7 @@ void AMAPatrolPath::DrawPathVisualization()
         
         // 绘制路径点编号
         // 修复闪烁问题：bPersistent = false，Duration = 0.05f
-        if (bShowWaypointNumbers)
+        if (bShouldDrawText)
         {
             FString PointLabel = FString::Printf(TEXT("%d"), i + 1);
             DrawDebugString(World, CurrentPoint + FVector(0, 0, WaypointSize + 20.f), PointLabel, nullptr, WaypointColor, 0.05f, false, 1.2f);

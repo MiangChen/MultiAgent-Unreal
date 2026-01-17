@@ -5,6 +5,7 @@
 
 #include "MAHUD.h"
 #include "MAUIManager.h"
+#include "MAHUDWidget.h"
 #include "MASimpleMainWidget.h"
 #include "task_graph/MATaskPlannerWidget.h"
 #include "skill_list/MASkillAllocationViewer.h"
@@ -293,6 +294,17 @@ void AMAHUD::ShowEmergencyIndicator()
     }
 
     bShowEmergencyIndicator = true;
+
+    // 委托到 HUDWidget
+    if (UIManager)
+    {
+        UMAHUDWidget* HUDWidget = UIManager->GetHUDWidget();
+        if (HUDWidget)
+        {
+            HUDWidget->ShowEmergencyIndicator();
+        }
+    }
+
     UE_LOG(LogMAHUD, Log, TEXT("Emergency indicator shown"));
 }
 
@@ -304,6 +316,17 @@ void AMAHUD::HideEmergencyIndicator()
     }
 
     bShowEmergencyIndicator = false;
+
+    // 委托到 HUDWidget
+    if (UIManager)
+    {
+        UMAHUDWidget* HUDWidget = UIManager->GetHUDWidget();
+        if (HUDWidget)
+        {
+            HUDWidget->HideEmergencyIndicator();
+        }
+    }
+
     UE_LOG(LogMAHUD, Log, TEXT("Emergency indicator hidden"));
 }
 
@@ -311,40 +334,13 @@ void AMAHUD::DrawHUD()
 {
     Super::DrawHUD();
 
-    // Draw emergency indicator
-    if (bShowEmergencyIndicator && Canvas)
-    {
-        // Set red font color
-        FLinearColor RedColor = FLinearColor::Red;
-        
-        // Get screen dimensions
-        float ScreenWidth = Canvas->SizeX;
-        
-        // Text content
-        FString IndicatorText = TEXT("Emergency Event");
-        
-        // Calculate text position (top right corner)
-        // Estimate text width using default font size
-        float TextWidth = IndicatorText.Len() * 12.0f;  // Estimate ~12 pixels per character
-        float TextX = ScreenWidth - TextWidth - 30.0f;  // Right margin 30 pixels
-        float TextY = 30.0f;  // Top margin 30 pixels
-        
-        // Draw red text
-        FCanvasTextItem TextItem(FVector2D(TextX, TextY), FText::FromString(IndicatorText), GEngine->GetLargeFont(), RedColor);
-        TextItem.Scale = FVector2D(1.5f, 1.5f);  // Scale 1.5x
-        TextItem.bOutlined = true;  // Add outline for better visibility
-        TextItem.OutlineColor = FLinearColor::Black;
-        Canvas->DrawItem(TextItem);
-    }
+    // Emergency 指示器已迁移到 HUDWidget，不再使用 Canvas 绘制
 
-    // Draw scene labels (Modify mode)
+    // Draw scene labels (Modify mode) - 保留，使用 DrawDebugString (世界空间)
     DrawSceneLabels();
 
-    // 绘制 Edit 模式指示器和 POI 坐标
+    // Edit 模式指示器 - 数据收集并更新 HUDWidget
     DrawEditModeIndicator();
-
-    // 绘制通知消息
-    DrawNotification();
 }
 
 void AMAHUD::ShowDirectControlIndicator(AMACharacter* Agent)
@@ -1130,79 +1126,18 @@ void AMAHUD::OnMultiSelectModifyConfirmed(const TArray<AActor*>& Actors, const F
 
 void AMAHUD::ShowNotification(const FString& Message, bool bIsError, bool bIsWarning)
 {
-    CurrentNotificationMessage = Message;
-
-    // 设置颜色
-    if (bIsError)
+    // 委托到 HUDWidget
+    if (UIManager)
     {
-        CurrentNotificationColor = FLinearColor::Red;
+        UMAHUDWidget* HUDWidget = UIManager->GetHUDWidget();
+        if (HUDWidget)
+        {
+            HUDWidget->ShowNotification(Message, bIsError, bIsWarning);
+        }
     }
-    else if (bIsWarning)
-    {
-        CurrentNotificationColor = FLinearColor::Yellow;
-    }
-    else
-    {
-        CurrentNotificationColor = FLinearColor::Green;
-    }
-
-    bShowNotification = true;
-    NotificationStartTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
 
     UE_LOG(LogMAHUD, Log, TEXT("ShowNotification: %s (Error=%d, Warning=%d)"),
         *Message, bIsError, bIsWarning);
-}
-
-void AMAHUD::DrawNotification()
-{
-    if (!bShowNotification || !Canvas)
-    {
-        return;
-    }
-
-    // 检查是否超时
-    float CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
-    float ElapsedTime = CurrentTime - NotificationStartTime;
-
-    if (ElapsedTime >= NotificationDuration)
-    {
-        bShowNotification = false;
-        return;
-    }
-
-    // 计算淡出效果 (最后 0.5 秒淡出)
-    float Alpha = 1.0f;
-    if (ElapsedTime > NotificationDuration - 0.5f)
-    {
-        Alpha = (NotificationDuration - ElapsedTime) / 0.5f;
-    }
-
-    // 获取屏幕尺寸
-    float ScreenWidth = Canvas->SizeX;
-    float ScreenHeight = Canvas->SizeY;
-
-    // 计算文字位置 (屏幕底部中央偏上)
-    float TextX = ScreenWidth * 0.5f;
-    float TextY = ScreenHeight * 0.75f;
-
-    // 设置颜色和透明度
-    FLinearColor DrawColor = CurrentNotificationColor;
-    DrawColor.A = Alpha;
-
-    // 绘制通知文字
-    FCanvasTextItem TextItem(
-        FVector2D(TextX, TextY),
-        FText::FromString(CurrentNotificationMessage),
-        GEngine->GetLargeFont(),
-        DrawColor
-    );
-    TextItem.Scale = FVector2D(1.2f, 1.2f);
-    TextItem.bOutlined = true;
-    TextItem.OutlineColor = FLinearColor(0.0f, 0.0f, 0.0f, Alpha);
-    TextItem.bCentreX = true;
-    TextItem.bCentreY = true;
-
-    Canvas->DrawItem(TextItem);
 }
 
 void AMAHUD::ClearHighlightedActor()
@@ -1422,34 +1357,23 @@ void AMAHUD::BindEditWidgetDelegates()
 
 void AMAHUD::DrawEditModeIndicator()
 {
-
-    if (!Canvas)
-    {
-        return;
-    }
-
     // 检查是否在 Edit 模式
     AMAPlayerController* MAPC = GetMAPlayerController();
-    if (!MAPC || MAPC->CurrentMouseMode != EMAMouseMode::Edit)
+    bool bInEditMode = MAPC && MAPC->CurrentMouseMode == EMAMouseMode::Edit;
+
+    // 获取 HUDWidget
+    UMAHUDWidget* HUDWidget = UIManager ? UIManager->GetHUDWidget() : nullptr;
+    
+    // 更新 HUDWidget 的 Edit 模式可见性
+    if (HUDWidget)
+    {
+        HUDWidget->SetEditModeVisible(bInEditMode);
+    }
+
+    if (!bInEditMode)
     {
         return;
     }
-
-    // 获取屏幕尺寸
-    float ScreenWidth = Canvas->SizeX;
-    float ScreenHeight = Canvas->SizeY;
-    FString ModeText = TEXT("Mode: Edit (M)");
-    float ModeTextWidth = ModeText.Len() * 10.0f;  // 估算文字宽度
-    float ModeTextX = ScreenWidth - ModeTextWidth - 30.0f;  // 右边距 30 像素
-    float ModeTextY = 30.0f;  // 上边距 30 像素
-
-    FLinearColor BlueColor = FLinearColor(0.3f, 0.6f, 1.0f);  // 蓝色
-
-    FCanvasTextItem ModeTextItem(FVector2D(ModeTextX, ModeTextY), FText::FromString(ModeText), GEngine->GetLargeFont(), BlueColor);
-    ModeTextItem.Scale = FVector2D(1.2f, 1.2f);
-    ModeTextItem.bOutlined = true;
-    ModeTextItem.OutlineColor = FLinearColor::Black;
-    Canvas->DrawItem(ModeTextItem);
 
     // 获取 EditModeManager
     UWorld* World = GetWorld();
@@ -1464,88 +1388,61 @@ void AMAHUD::DrawEditModeIndicator()
         return;
     }
 
-    // 当前行 Y 坐标 (从底部向上排列)
-    float CurrentY = ScreenHeight - 30.0f;
-    const float LineHeight = 18.0f;
-
-    FLinearColor GreenColor = FLinearColor(0.3f, 0.8f, 0.3f);  // 绿色 - POI
-    FLinearColor RedColor = FLinearColor(1.0f, 0.4f, 0.4f);    // 红色 - Goal
-    FLinearColor CyanColor = FLinearColor(0.3f, 0.8f, 1.0f);   // 青色 - Zone
+    // 收集 POI 数据
+    TArray<FString> POIInfos;
     TArray<AMAPointOfInterest*> POIs = EditModeManager->GetAllPOIs();
-    if (POIs.Num() > 0)
+    for (int32 i = 0; i < POIs.Num(); ++i)
     {
-        FString POIText = TEXT("POI: ");
-        for (int32 i = 0; i < POIs.Num(); ++i)
+        if (POIs[i])
         {
-            if (POIs[i])
-            {
-                FVector Loc = POIs[i]->GetActorLocation();
-                POIText += FString::Printf(TEXT("[%d](%.0f, %.0f, %.0f) "), i + 1, Loc.X, Loc.Y, Loc.Z);
-            }
+            FVector Loc = POIs[i]->GetActorLocation();
+            POIInfos.Add(FString::Printf(TEXT("[%d](%.0f, %.0f, %.0f)"), i + 1, Loc.X, Loc.Y, Loc.Z));
         }
-
-        FCanvasTextItem POITextItem(FVector2D(20.0f, CurrentY), FText::FromString(POIText), GEngine->GetSmallFont(), GreenColor);
-        POITextItem.Scale = FVector2D(1.0f, 1.0f);
-        POITextItem.bOutlined = true;
-        POITextItem.OutlineColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.5f);
-        Canvas->DrawItem(POITextItem);
-        CurrentY -= LineHeight;
     }
 
-    // 显示 Goal 列表 (红色小字)
+    // 收集 Goal 数据
+    TArray<FString> GoalInfos;
     TArray<FString> GoalNodeIds = EditModeManager->GetAllGoalNodeIds();
-    if (GoalNodeIds.Num() > 0)
+    for (int32 i = 0; i < GoalNodeIds.Num(); ++i)
     {
-        FString GoalText = TEXT("Goal: ");
-        for (int32 i = 0; i < GoalNodeIds.Num(); ++i)
+        FString Label = EditModeManager->GetNodeLabel(GoalNodeIds[i]);
+        if (Label.IsEmpty())
         {
-            FString Label = EditModeManager->GetNodeLabel(GoalNodeIds[i]);
-            if (Label.IsEmpty())
-            {
-                Label = GoalNodeIds[i];
-            }
-
-            // 获取 Goal Actor 位置
-            AMAGoalActor* GoalActor = EditModeManager->GetGoalActorByNodeId(GoalNodeIds[i]);
-            if (GoalActor)
-            {
-                FVector Loc = GoalActor->GetActorLocation();
-                GoalText += FString::Printf(TEXT("[%s](%.0f, %.0f, %.0f) "), *Label, Loc.X, Loc.Y, Loc.Z);
-            }
-            else
-            {
-                GoalText += FString::Printf(TEXT("[%s] "), *Label);
-            }
+            Label = GoalNodeIds[i];
         }
 
-        FCanvasTextItem GoalTextItem(FVector2D(20.0f, CurrentY), FText::FromString(GoalText), GEngine->GetSmallFont(), RedColor);
-        GoalTextItem.Scale = FVector2D(1.0f, 1.0f);
-        GoalTextItem.bOutlined = true;
-        GoalTextItem.OutlineColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.5f);
-        Canvas->DrawItem(GoalTextItem);
-        CurrentY -= LineHeight;
+        // 获取 Goal Actor 位置
+        AMAGoalActor* GoalActor = EditModeManager->GetGoalActorByNodeId(GoalNodeIds[i]);
+        if (GoalActor)
+        {
+            FVector Loc = GoalActor->GetActorLocation();
+            GoalInfos.Add(FString::Printf(TEXT("[%s](%.0f, %.0f, %.0f)"), *Label, Loc.X, Loc.Y, Loc.Z));
+        }
+        else
+        {
+            GoalInfos.Add(FString::Printf(TEXT("[%s]"), *Label));
+        }
     }
 
-    // 显示 Zone 列表 (青色小字)
+    // 收集 Zone 数据
+    TArray<FString> ZoneInfos;
     TArray<FString> ZoneNodeIds = EditModeManager->GetAllZoneNodeIds();
-    if (ZoneNodeIds.Num() > 0)
+    for (int32 i = 0; i < ZoneNodeIds.Num(); ++i)
     {
-        FString ZoneText = TEXT("Zone: ");
-        for (int32 i = 0; i < ZoneNodeIds.Num(); ++i)
+        FString Label = EditModeManager->GetNodeLabel(ZoneNodeIds[i]);
+        if (Label.IsEmpty())
         {
-            FString Label = EditModeManager->GetNodeLabel(ZoneNodeIds[i]);
-            if (Label.IsEmpty())
-            {
-                Label = ZoneNodeIds[i];
-            }
-            ZoneText += FString::Printf(TEXT("[%s] "), *Label);
+            Label = ZoneNodeIds[i];
         }
+        ZoneInfos.Add(FString::Printf(TEXT("[%s]"), *Label));
+    }
 
-        FCanvasTextItem ZoneTextItem(FVector2D(20.0f, CurrentY), FText::FromString(ZoneText), GEngine->GetSmallFont(), CyanColor);
-        ZoneTextItem.Scale = FVector2D(1.0f, 1.0f);
-        ZoneTextItem.bOutlined = true;
-        ZoneTextItem.OutlineColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.5f);
-        Canvas->DrawItem(ZoneTextItem);
+    // 更新 HUDWidget (Canvas 绘制代码已移除)
+    if (HUDWidget)
+    {
+        HUDWidget->UpdatePOIList(POIInfos);
+        HUDWidget->UpdateGoalList(GoalInfos);
+        HUDWidget->UpdateZoneList(ZoneInfos);
     }
 }
 

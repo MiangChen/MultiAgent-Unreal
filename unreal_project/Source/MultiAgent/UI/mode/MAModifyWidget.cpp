@@ -29,10 +29,10 @@ DEFINE_LOG_CATEGORY_STATIC(LogMAModifyWidget, Log, All);
 namespace
 {
     const FString ModifyDefaultHintText = TEXT("Input format: cate:building/trans_facility/prop,type:xxx\n• building: Buildings (prism modeling, single-select only)\n• trans_facility: Transport facilities (OBB rectangle)\n• prop: Props (point modeling)");
-    const FString MultiSelectHintText = TEXT("Multi-select mode - Input format: cate:trans_facility/prop,type:xxx\nNote: building type only supports single-select");
-    const FString BuildingHintText = TEXT("Building type (prism modeling)\nInput format: cate:building,type:xxx\n• Single-select only\n• Auto-calculates base polygon and height");
-    const FString TransFacilityHintText = TEXT("TransFacility type (OBB rectangle modeling)\nInput format: cate:trans_facility,type:xxx\n• Supports single or multi-select\n• Auto-calculates minimum bounding rectangle");
-    const FString PropHintText = TEXT("Prop type (point modeling)\nInput format: cate:prop,type:xxx\n• Supports single or multi-select\n• Auto-calculates geometric center");
+    const FString ModifyMultiSelectHintText = TEXT("Multi-select mode - Input format: cate:trans_facility/prop,type:xxx\nNote: building type only supports single-select");
+    const FString ModifyBuildingHintText = TEXT("Building type (prism modeling)\nInput format: cate:building,type:xxx\n• Single-select only\n• Auto-calculates base polygon and height");
+    const FString ModifyTransFacilityHintText = TEXT("TransFacility type (OBB rectangle modeling)\nInput format: cate:trans_facility,type:xxx\n• Supports single or multi-select\n• Auto-calculates minimum bounding rectangle");
+    const FString ModifyPropHintText = TEXT("Prop type (point modeling)\nInput format: cate:prop,type:xxx\n• Supports single or multi-select\n• Auto-calculates geometric center");
 }
 
 UMAModifyWidget::UMAModifyWidget(const FObjectInitializer& ObjectInitializer)

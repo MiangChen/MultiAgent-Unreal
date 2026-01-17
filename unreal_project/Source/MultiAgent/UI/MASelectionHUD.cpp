@@ -8,6 +8,8 @@
 #include "Engine/Canvas.h"
 #include "GameFramework/PlayerController.h"
 #include "DrawDebugHelpers.h"
+#include "Blueprint/UserWidget.h"
+#include "Blueprint/WidgetBlueprintLibrary.h"
 
 AMASelectionHUD::AMASelectionHUD()
 {
@@ -197,6 +199,28 @@ void AMASelectionHUD::DrawMouseMode()
 
     AMAPlayerController* PC = Cast<AMAPlayerController>(GetOwningPlayerController());
     if (!PC) return;
+
+    // 检查是否有遮挡性 Widget 可见，如果有则不绘制（避免透出）
+    // 因为 HUDWidget 已经负责显示 Edit 模式指示器
+    UWorld* World = GetWorld();
+    if (World)
+    {
+        TArray<UUserWidget*> FoundWidgets;
+        UWidgetBlueprintLibrary::GetAllWidgetsOfClass(World, FoundWidgets, UUserWidget::StaticClass(), false);
+        for (UUserWidget* Widget : FoundWidgets)
+        {
+            if (Widget && Widget->IsVisible() && Widget->GetVisibility() == ESlateVisibility::Visible)
+            {
+                // 排除 HUDWidget（它使用 SelfHitTestInvisible，不会遮挡）
+                FString WidgetName = Widget->GetClass()->GetName();
+                if (!WidgetName.Contains(TEXT("HUDWidget")))
+                {
+                    // 有可见的遮挡性 Widget，不绘制模式指示器
+                    return;
+                }
+            }
+        }
+    }
 
     // 在屏幕右上角显示当前模式
     FString ModeName = AMAPlayerController::MouseModeToString(PC->CurrentMouseMode);
