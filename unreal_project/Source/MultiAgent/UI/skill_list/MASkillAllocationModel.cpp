@@ -213,6 +213,167 @@ bool UMASkillAllocationModel::UpdateSkillStatus(int32 TimeStep, const FString& R
 }
 
 //=============================================================================
+// 技能移动操作
+//=============================================================================
+
+bool UMASkillAllocationModel::IsSlotEmpty(int32 TimeStep, const FString& RobotId) const
+{
+    // Validate inputs
+    if (TimeStep < 0)
+    {
+        UE_LOG(LogMASkillAllocationModel, Warning, 
+               TEXT("IsSlotEmpty: Invalid TimeStep %d"), TimeStep);
+        return true; // Invalid slot is considered empty
+    }
+    
+    if (RobotId.IsEmpty())
+    {
+        UE_LOG(LogMASkillAllocationModel, Warning, 
+               TEXT("IsSlotEmpty: Empty RobotId"));
+        return true; // Invalid slot is considered empty
+    }
+
+    // Check if the time step exists
+    const FMATimeStepData* TimeStepData = WorkingData.Data.Find(TimeStep);
+    if (!TimeStepData)
+    {
+        // Time step doesn't exist, so slot is empty
+        return true;
+    }
+
+    // Check if the robot has a skill at this time step
+    const FMASkillAssignment* Skill = TimeStepData->RobotSkills.Find(RobotId);
+    return Skill == nullptr;
+}
+
+bool UMASkillAllocationModel::ValidateMoveSkill(int32 SourceTimeStep, const FString& SourceRobotId,
+                                                 int32 TargetTimeStep, const FString& TargetRobotId,
+                                                 FString& OutErrorMessage) const
+{
+    // Validate source time step
+    if (SourceTimeStep < 0)
+    {
+        OutErrorMessage = FString::Printf(TEXT("无效的源时间步: %d"), SourceTimeStep);
+        return false;
+    }
+
+    // Validate source robot ID
+    if (SourceRobotId.IsEmpty())
+    {
+        OutErrorMessage = TEXT("源机器人ID为空");
+        return false;
+    }
+
+    // Validate target time step
+    if (TargetTimeStep < 0)
+    {
+        OutErrorMessage = FString::Printf(TEXT("无效的目标时间步: %d"), TargetTimeStep);
+        return false;
+    }
+
+    // Validate target robot ID
+    if (TargetRobotId.IsEmpty())
+    {
+        OutErrorMessage = TEXT("目标机器人ID为空");
+        return false;
+    }
+
+    // Check if source and target are the same
+    if (SourceTimeStep == TargetTimeStep && SourceRobotId == TargetRobotId)
+    {
+        OutErrorMessage = TEXT("源位置和目标位置相同");
+        return false;
+    }
+
+    // Check if source has a skill
+    FMASkillAssignment SourceSkill;
+    if (!FindSkill(SourceTimeStep, SourceRobotId, SourceSkill))
+    {
+        OutErrorMessage = FString::Printf(TEXT("源位置没有技能: T%d, %s"), SourceTimeStep, *SourceRobotId);
+        return false;
+    }
+
+    // Check if target slot is empty
+    if (!IsSlotEmpty(TargetTimeStep, TargetRobotId))
+    {
+        OutErrorMessage = FString::Printf(TEXT("目标槽位已被占用: T%d, %s"), TargetTimeStep, *TargetRobotId);
+        return false;
+    }
+
+    // All validations passed
+    OutErrorMessage.Empty();
+    return true;
+}
+
+bool UMASkillAllocationModel::MoveSkill(int32 SourceTimeStep, const FString& SourceRobotId,
+                                         int32 TargetTimeStep, const FString& TargetRobotId)
+{
+    // Validate the move first
+    FString ErrorMessage;
+    if (!ValidateMoveSkill(SourceTimeStep, SourceRobotId, TargetTimeStep, TargetRobotId, ErrorMessage))
+    {
+        UE_LOG(LogMASkillAllocationModel, Warning, TEXT("MoveSkill failed: %s"), *ErrorMessage);
+        return false;
+    }
+
+    // Get the source skill data
+    FMATimeStepData* SourceTimeStepData = WorkingData.Data.Find(SourceTimeStep);
+    if (!SourceTimeStepData)
+    {
+        UE_LOG(LogMASkillAllocationModel, Error, TEXT("MoveSkill: Source time step %d not found"), SourceTimeStep);
+        return false;
+    }
+
+    FMASkillAssignment* SourceSkill = SourceTimeStepData->RobotSkills.Find(SourceRobotId);
+    if (!SourceSkill)
+    {
+        UE_LOG(LogMASkillAllocationModel, Error, TEXT("MoveSkill: Source skill not found at T%d, %s"), 
+               SourceTimeStep, *SourceRobotId);
+        return false;
+    }
+
+    // Copy the skill data before removing
+    FMASkillAssignment SkillToMove = *SourceSkill;
+
+    // Remove from source position
+    SourceTimeStepData->RobotSkills.Remove(SourceRobotId);
+    UE_LOG(LogMASkillAllocationModel, Log, TEXT("MoveSkill: Removed skill '%s' from T%d, %s"), 
+           *SkillToMove.SkillName, SourceTimeStep, *SourceRobotId);
+
+    // Clean up empty time step data if needed
+    if (SourceTimeStepData->RobotSkills.Num() == 0)
+    {
+        WorkingData.Data.Remove(SourceTimeStep);
+        UE_LOG(LogMASkillAllocationModel, Log, TEXT("MoveSkill: Removed empty time step %d"), SourceTimeStep);
+    }
+
+    // Add to target position
+    FMATimeStepData* TargetTimeStepData = WorkingData.Data.Find(TargetTimeStep);
+    if (!TargetTimeStepData)
+    {
+        // Create new time step data if it doesn't exist
+        FMATimeStepData NewTimeStepData;
+        WorkingData.Data.Add(TargetTimeStep, NewTimeStepData);
+        TargetTimeStepData = WorkingData.Data.Find(TargetTimeStep);
+        UE_LOG(LogMASkillAllocationModel, Log, TEXT("MoveSkill: Created new time step %d"), TargetTimeStep);
+    }
+
+    // Add the skill to target position
+    TargetTimeStepData->RobotSkills.Add(TargetRobotId, SkillToMove);
+    UE_LOG(LogMASkillAllocationModel, Log, TEXT("MoveSkill: Added skill '%s' to T%d, %s"), 
+           *SkillToMove.SkillName, TargetTimeStep, *TargetRobotId);
+
+    // Broadcast data changed event
+    BroadcastDataChanged();
+
+    UE_LOG(LogMASkillAllocationModel, Log, 
+           TEXT("MoveSkill: Successfully moved skill '%s' from T%d,%s to T%d,%s"), 
+           *SkillToMove.SkillName, SourceTimeStep, *SourceRobotId, TargetTimeStep, *TargetRobotId);
+
+    return true;
+}
+
+//=============================================================================
 // 验证
 //=============================================================================
 

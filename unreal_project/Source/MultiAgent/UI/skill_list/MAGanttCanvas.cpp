@@ -191,6 +191,43 @@ void UMAGanttCanvas::ClearSelection()
 }
 
 //=============================================================================
+// 拖拽控制 (Requirements 8.1, 8.3)
+//=============================================================================
+
+void UMAGanttCanvas::SetDragEnabled(bool bEnabled)
+{
+    // 如果正在拖拽时禁用，先取消拖拽
+    if (!bEnabled && DragState != EGanttDragState::Idle)
+    {
+        CancelDrag();
+    }
+    
+    bDragEnabled = bEnabled;
+    
+    UE_LOG(LogMAGanttCanvas, Log, TEXT("Drag enabled: %s"), bEnabled ? TEXT("true") : TEXT("false"));
+}
+
+void UMAGanttCanvas::CancelDrag()
+{
+    if (DragState == EGanttDragState::Idle)
+    {
+        return;
+    }
+    
+    UE_LOG(LogMAGanttCanvas, Log, TEXT("[取消] 拖拽操作已取消"));
+    
+    // 重置拖拽状态
+    DragState = EGanttDragState::Idle;
+    DragSource.Reset();
+    CurrentDropTarget.Reset();
+    DragPreview.Reset();
+    MouseDownPosition = FVector2D::ZeroVector;
+    
+    // 广播取消事件
+    OnSkillDragCancelled.Broadcast();
+}
+
+//=============================================================================
 // UUserWidget 重写
 //=============================================================================
 
@@ -272,6 +309,304 @@ int32 UMAGanttCanvas::ScreenToRobotIndex(float ScreenY) const
 {
     float AdjustedY = ScreenY - HeaderHeight + ScrollOffset.Y;
     return FMath::FloorToInt(AdjustedY / RobotRowHeight);
+}
+
+//=============================================================================
+// 槽位查询和验证 (Requirements 2.1, 2.2, 2.3, 6.1)
+//=============================================================================
+
+bool UMAGanttCanvas::GetSlotAtPosition(const FVector2D& Position, int32& OutTimeStep, FString& OutRobotId) const
+{
+    // 初始化输出参数
+    OutTimeStep = -1;
+    OutRobotId.Empty();
+
+    // 检查是否在标签区（左侧机器人标签区域）
+    if (Position.X < LabelWidth)
+    {
+        UE_LOG(LogMAGanttCanvas, Verbose, TEXT("GetSlotAtPosition: Position (%.1f, %.1f) is in label area"), 
+               Position.X, Position.Y);
+        return false;
+    }
+
+    // 检查是否在标题区（顶部时间步标题区域）
+    if (Position.Y < HeaderHeight)
+    {
+        UE_LOG(LogMAGanttCanvas, Verbose, TEXT("GetSlotAtPosition: Position (%.1f, %.1f) is in header area"), 
+               Position.X, Position.Y);
+        return false;
+    }
+
+    // 计算时间步和机器人索引
+    int32 TimeStep = ScreenToTimeStep(Position.X);
+    int32 RobotIndex = ScreenToRobotIndex(Position.Y);
+
+    // 验证时间步是否在有效范围内
+    if (TimeStep < 0 || TimeStepOrder.Num() == 0)
+    {
+        UE_LOG(LogMAGanttCanvas, Verbose, TEXT("GetSlotAtPosition: TimeStep %d is out of range"), TimeStep);
+        return false;
+    }
+
+    // 检查时间步是否存在于数据中
+    if (!TimeStepOrder.Contains(TimeStep))
+    {
+        UE_LOG(LogMAGanttCanvas, Verbose, TEXT("GetSlotAtPosition: TimeStep %d not found in data"), TimeStep);
+        return false;
+    }
+
+    // 验证机器人索引是否在有效范围内
+    if (RobotIndex < 0 || RobotIndex >= RobotIdOrder.Num())
+    {
+        UE_LOG(LogMAGanttCanvas, Verbose, TEXT("GetSlotAtPosition: RobotIndex %d is out of range (0-%d)"), 
+               RobotIndex, RobotIdOrder.Num() - 1);
+        return false;
+    }
+
+    // 设置输出参数
+    OutTimeStep = TimeStep;
+    OutRobotId = RobotIdOrder[RobotIndex];
+
+    UE_LOG(LogMAGanttCanvas, Verbose, TEXT("GetSlotAtPosition: Position (%.1f, %.1f) -> TimeStep=%d, RobotId=%s"), 
+           Position.X, Position.Y, OutTimeStep, *OutRobotId);
+
+    return true;
+}
+
+bool UMAGanttCanvas::IsSlotEmpty(int32 TimeStep, const FString& RobotId) const
+{
+    // 验证输入参数
+    if (TimeStep < 0 || RobotId.IsEmpty())
+    {
+        UE_LOG(LogMAGanttCanvas, Verbose, TEXT("IsSlotEmpty: Invalid parameters (TimeStep=%d, RobotId=%s)"), 
+               TimeStep, *RobotId);
+        return false;
+    }
+
+    // 检查是否绑定了数据模型
+    if (!AllocationModel)
+    {
+        UE_LOG(LogMAGanttCanvas, Warning, TEXT("IsSlotEmpty: No allocation model bound"));
+        return true; // 没有模型时认为槽位为空
+    }
+
+    // 查询模型检查槽位是否有技能
+    FMASkillAssignment Skill;
+    bool bHasSkill = AllocationModel->FindSkill(TimeStep, RobotId, Skill);
+
+    UE_LOG(LogMAGanttCanvas, Verbose, TEXT("IsSlotEmpty: TimeStep=%d, RobotId=%s -> %s"), 
+           TimeStep, *RobotId, bHasSkill ? TEXT("Occupied") : TEXT("Empty"));
+
+    return !bHasSkill;
+}
+
+bool UMAGanttCanvas::IsValidDropTarget(int32 TargetTimeStep, const FString& TargetRobotId) const
+{
+    // 验证输入参数
+    if (TargetTimeStep < 0 || TargetRobotId.IsEmpty())
+    {
+        UE_LOG(LogMAGanttCanvas, Verbose, TEXT("IsValidDropTarget: Invalid parameters (TimeStep=%d, RobotId=%s)"), 
+               TargetTimeStep, *TargetRobotId);
+        return false;
+    }
+
+    // 检查目标是否与拖拽源相同（排除拖拽源位置）
+    if (DragState != EGanttDragState::Idle && DragSource.IsValid())
+    {
+        if (TargetTimeStep == DragSource.TimeStep && TargetRobotId == DragSource.RobotId)
+        {
+            UE_LOG(LogMAGanttCanvas, Verbose, TEXT("IsValidDropTarget: Target is same as drag source"));
+            return false;
+        }
+    }
+
+    // 检查目标槽位是否为空
+    bool bIsEmpty = IsSlotEmpty(TargetTimeStep, TargetRobotId);
+
+    UE_LOG(LogMAGanttCanvas, Verbose, TEXT("IsValidDropTarget: TimeStep=%d, RobotId=%s -> %s"), 
+           TargetTimeStep, *TargetRobotId, bIsEmpty ? TEXT("Valid") : TEXT("Invalid (Occupied)"));
+
+    return bIsEmpty;
+}
+
+//=============================================================================
+// 吸附计算 (Requirements 3.1, 3.2, 3.4, 3.5)
+//=============================================================================
+
+FVector2D UMAGanttCanvas::GetSlotCenterPosition(int32 TimeStep, int32 RobotIndex) const
+{
+    // 计算槽位左上角位置
+    float SlotX = TimeStepToScreen(TimeStep);
+    float SlotY = RobotIndexToScreen(RobotIndex);
+    
+    // 返回槽位中心位置
+    return FVector2D(
+        SlotX + TimeStepWidth / 2.0f,
+        SlotY + RobotRowHeight / 2.0f
+    );
+}
+
+bool UMAGanttCanvas::IsWithinSnapRange(const FVector2D& Position, int32 TimeStep, int32 RobotIndex) const
+{
+    // 验证输入参数
+    if (TimeStep < 0 || RobotIndex < 0 || RobotIndex >= RobotIdOrder.Num())
+    {
+        return false;
+    }
+
+    // 检查时间步是否存在于数据中
+    if (!TimeStepOrder.Contains(TimeStep))
+    {
+        return false;
+    }
+
+    // 获取槽位中心位置
+    FVector2D SlotCenter = GetSlotCenterPosition(TimeStep, RobotIndex);
+
+    // 计算位置与槽位中心的距离
+    float Distance = FVector2D::Distance(Position, SlotCenter);
+
+    // 与 SnapRange 阈值比较
+    bool bWithinRange = Distance <= SnapRange;
+
+    UE_LOG(LogMAGanttCanvas, Verbose, TEXT("IsWithinSnapRange: Position (%.1f, %.1f) -> SlotCenter (%.1f, %.1f), Distance=%.1f, SnapRange=%.1f -> %s"),
+           Position.X, Position.Y, SlotCenter.X, SlotCenter.Y, Distance, SnapRange,
+           bWithinRange ? TEXT("Within") : TEXT("Outside"));
+
+    return bWithinRange;
+}
+
+FGanttDropTarget UMAGanttCanvas::CalculateSnapTarget(const FVector2D& Position) const
+{
+    FGanttDropTarget Result;
+    Result.Reset();
+
+    // 检查是否有有效数据
+    if (TimeStepOrder.Num() == 0 || RobotIdOrder.Num() == 0)
+    {
+        UE_LOG(LogMAGanttCanvas, Verbose, TEXT("CalculateSnapTarget: No data available"));
+        return Result;
+    }
+
+    // 首先尝试获取当前位置对应的槽位
+    int32 CurrentTimeStep = -1;
+    FString CurrentRobotId;
+    
+    if (!GetSlotAtPosition(Position, CurrentTimeStep, CurrentRobotId))
+    {
+        // 位置不在有效数据区域内
+        UE_LOG(LogMAGanttCanvas, Verbose, TEXT("CalculateSnapTarget: Position (%.1f, %.1f) not in valid data area"),
+               Position.X, Position.Y);
+        return Result;
+    }
+
+    // 获取当前机器人索引
+    int32 CurrentRobotIndex = RobotIdOrder.IndexOfByKey(CurrentRobotId);
+    if (CurrentRobotIndex == INDEX_NONE)
+    {
+        UE_LOG(LogMAGanttCanvas, Warning, TEXT("CalculateSnapTarget: RobotId %s not found in order list"), *CurrentRobotId);
+        return Result;
+    }
+
+    // 查找最近的空白槽位
+    float MinDistance = FLT_MAX;
+    int32 BestTimeStep = -1;
+    int32 BestRobotIndex = -1;
+    FVector2D BestSnapPosition = FVector2D::ZeroVector;
+
+    // 搜索范围：当前槽位及其相邻槽位（上下左右各一格）
+    TArray<TPair<int32, int32>> SearchSlots;
+    
+    // 当前槽位
+    SearchSlots.Add(TPair<int32, int32>(CurrentTimeStep, CurrentRobotIndex));
+    
+    // 相邻槽位（如果存在）
+    int32 TimeStepIdx = TimeStepOrder.IndexOfByKey(CurrentTimeStep);
+    if (TimeStepIdx != INDEX_NONE)
+    {
+        // 左侧槽位
+        if (TimeStepIdx > 0)
+        {
+            SearchSlots.Add(TPair<int32, int32>(TimeStepOrder[TimeStepIdx - 1], CurrentRobotIndex));
+        }
+        // 右侧槽位
+        if (TimeStepIdx < TimeStepOrder.Num() - 1)
+        {
+            SearchSlots.Add(TPair<int32, int32>(TimeStepOrder[TimeStepIdx + 1], CurrentRobotIndex));
+        }
+    }
+    // 上方槽位
+    if (CurrentRobotIndex > 0)
+    {
+        SearchSlots.Add(TPair<int32, int32>(CurrentTimeStep, CurrentRobotIndex - 1));
+    }
+    // 下方槽位
+    if (CurrentRobotIndex < RobotIdOrder.Num() - 1)
+    {
+        SearchSlots.Add(TPair<int32, int32>(CurrentTimeStep, CurrentRobotIndex + 1));
+    }
+
+    // 遍历搜索槽位，找到最近的空白槽位
+    for (const auto& Slot : SearchSlots)
+    {
+        int32 TestTimeStep = Slot.Key;
+        int32 TestRobotIndex = Slot.Value;
+
+        // 验证索引有效性
+        if (TestRobotIndex < 0 || TestRobotIndex >= RobotIdOrder.Num())
+        {
+            continue;
+        }
+
+        const FString& TestRobotId = RobotIdOrder[TestRobotIndex];
+
+        // 检查槽位是否为空（排除拖拽源）
+        if (!IsValidDropTarget(TestTimeStep, TestRobotId))
+        {
+            continue;
+        }
+
+        // 计算距离
+        FVector2D SlotCenter = GetSlotCenterPosition(TestTimeStep, TestRobotIndex);
+        float Distance = FVector2D::Distance(Position, SlotCenter);
+
+        // 检查是否在吸附范围内且是最近的
+        if (Distance <= SnapRange && Distance < MinDistance)
+        {
+            MinDistance = Distance;
+            BestTimeStep = TestTimeStep;
+            BestRobotIndex = TestRobotIndex;
+            BestSnapPosition = SlotCenter;
+        }
+    }
+
+    // 如果找到了有效的吸附目标
+    if (BestTimeStep >= 0 && BestRobotIndex >= 0)
+    {
+        Result.TimeStep = BestTimeStep;
+        Result.RobotId = RobotIdOrder[BestRobotIndex];
+        Result.bIsValid = true;
+        Result.bIsSnapped = true;
+        Result.SnapPosition = BestSnapPosition;
+
+        UE_LOG(LogMAGanttCanvas, Verbose, TEXT("CalculateSnapTarget: Found snap target TimeStep=%d, RobotId=%s, SnapPosition=(%.1f, %.1f)"),
+               Result.TimeStep, *Result.RobotId, Result.SnapPosition.X, Result.SnapPosition.Y);
+    }
+    else
+    {
+        // 没有找到吸附目标，但位置在有效区域内
+        // 返回当前槽位信息，但不吸附
+        Result.TimeStep = CurrentTimeStep;
+        Result.RobotId = CurrentRobotId;
+        Result.bIsValid = IsValidDropTarget(CurrentTimeStep, CurrentRobotId);
+        Result.bIsSnapped = false;
+        Result.SnapPosition = FVector2D::ZeroVector;
+
+        UE_LOG(LogMAGanttCanvas, Verbose, TEXT("CalculateSnapTarget: No snap target found, current slot TimeStep=%d, RobotId=%s, Valid=%s"),
+               Result.TimeStep, *Result.RobotId, Result.bIsValid ? TEXT("true") : TEXT("false"));
+    }
+
+    return Result;
 }
 
 //=============================================================================
@@ -358,7 +693,25 @@ int32 UMAGanttCanvas::NativePaint(const FPaintArgs& Args, const FGeometry& Allot
     // 绘制技能条 (包含技能名称文字，需要额外层)
     DrawSkillBars(AllottedGeometry, OutDrawElements, LayerId + 2);
 
-    return MaxLayerId + 5;
+    //=========================================================================
+    // 拖拽视觉渲染 (Requirements 1.2, 1.3, 2.1)
+    // 在拖拽状态下绘制拖拽相关的视觉元素
+    // 图层顺序：占位符 -> 放置指示器 -> 拖拽预览（最上层）
+    //=========================================================================
+    if (DragState == EGanttDragState::Dragging)
+    {
+        // 绘制原始位置占位符（虚线边框）(Requirements 1.3)
+        DrawDragSourcePlaceholder(AllottedGeometry, OutDrawElements, LayerId + 5);
+
+        // 绘制放置指示器（有效/无效状态）(Requirements 2.1, 2.2, 2.4)
+        DrawDropIndicator(AllottedGeometry, OutDrawElements, LayerId + 6);
+
+        // 绘制拖拽预览（半透明技能块）(Requirements 1.2, 1.5)
+        // 预览在最上层，确保始终可见
+        DrawDragPreview(AllottedGeometry, OutDrawElements, LayerId + 8);
+    }
+
+    return MaxLayerId + 12;
 }
 
 void UMAGanttCanvas::DrawTimelineHeader(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32 LayerId) const
@@ -494,6 +847,322 @@ void UMAGanttCanvas::DrawSkillBars(const FGeometry& AllottedGeometry, FSlateWind
 }
 
 //=============================================================================
+// 拖拽视觉渲染 (Requirements 1.2, 1.3, 1.5, 2.1, 2.2, 2.4)
+//=============================================================================
+
+void UMAGanttCanvas::DrawDragPreview(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32 LayerId) const
+{
+    // 仅在拖拽状态下绘制预览 (Requirements 1.2)
+    if (DragState != EGanttDragState::Dragging)
+    {
+        return;
+    }
+
+    // 检查预览数据是否有效
+    if (DragPreview.Size.X <= 0 || DragPreview.Size.Y <= 0)
+    {
+        return;
+    }
+
+    // 检查预览是否在可见区域内
+    FVector2D WidgetSize = AllottedGeometry.GetLocalSize();
+    if (DragPreview.Position.X + DragPreview.Size.X < 0 || DragPreview.Position.X > WidgetSize.X ||
+        DragPreview.Position.Y + DragPreview.Size.Y < 0 || DragPreview.Position.Y > WidgetSize.Y)
+    {
+        return;
+    }
+
+    // 绘制半透明技能块预览矩形 (Requirements 1.2)
+    FSlateDrawElement::MakeBox(
+        OutDrawElements,
+        LayerId,
+        AllottedGeometry.ToPaintGeometry(FVector2f(DragPreview.Size), FSlateLayoutTransform(FVector2f(DragPreview.Position))),
+        FCoreStyle::Get().GetBrush("WhiteBrush"),
+        ESlateDrawEffect::None,
+        DragPreview.Color
+    );
+
+    // 绘制预览边框（使用稍深的颜色）
+    FLinearColor BorderColor = DragPreview.Color;
+    BorderColor.A = FMath::Min(1.0f, DragPreview.Color.A + 0.3f);
+    
+    TArray<FVector2D> BorderPoints;
+    BorderPoints.Add(DragPreview.Position);
+    BorderPoints.Add(DragPreview.Position + FVector2D(DragPreview.Size.X, 0));
+    BorderPoints.Add(DragPreview.Position + DragPreview.Size);
+    BorderPoints.Add(DragPreview.Position + FVector2D(0, DragPreview.Size.Y));
+    BorderPoints.Add(DragPreview.Position);
+
+    FSlateDrawElement::MakeLines(
+        OutDrawElements,
+        LayerId + 1,
+        AllottedGeometry.ToPaintGeometry(),
+        BorderPoints,
+        ESlateDrawEffect::None,
+        BorderColor,
+        true,
+        2.0f
+    );
+
+    // 在预览上绘制技能名称 (Requirements 1.5)
+    if (!DragPreview.SkillName.IsEmpty())
+    {
+        FSlateFontInfo FontInfo = FCoreStyle::GetDefaultFontStyle("Regular", 9);
+        
+        FVector2D TextPosition(DragPreview.Position.X + 4.0f, DragPreview.Position.Y + DragPreview.Size.Y / 2.0f - 7.0f);
+        FVector2D TextSize(DragPreview.Size.X - 8.0f, DragPreview.Size.Y - 4.0f);
+        
+        // 使用深色文字以便在浅色背景上可见
+        FLinearColor TextOnBarColor = FLinearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        
+        FSlateDrawElement::MakeText(
+            OutDrawElements,
+            LayerId + 2,
+            AllottedGeometry.ToPaintGeometry(FVector2f(TextSize), FSlateLayoutTransform(FVector2f(TextPosition))),
+            DragPreview.SkillName,
+            FontInfo,
+            ESlateDrawEffect::None,
+            TextOnBarColor
+        );
+    }
+
+    UE_LOG(LogMAGanttCanvas, Verbose, TEXT("DrawDragPreview: Position=(%.1f, %.1f), Size=(%.1f, %.1f), Skill=%s"),
+           DragPreview.Position.X, DragPreview.Position.Y, DragPreview.Size.X, DragPreview.Size.Y, *DragPreview.SkillName);
+}
+
+void UMAGanttCanvas::DrawDragSourcePlaceholder(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32 LayerId) const
+{
+    // 仅在拖拽状态下绘制占位符 (Requirements 1.3)
+    if (DragState != EGanttDragState::Dragging)
+    {
+        return;
+    }
+
+    // 检查拖拽源是否有效
+    if (!DragSource.IsValid())
+    {
+        return;
+    }
+
+    // 获取原始位置和大小
+    FVector2D PlaceholderPosition = DragSource.OriginalPosition;
+    FVector2D PlaceholderSize(TimeStepWidth - 4.0f, RobotRowHeight - 4.0f);
+
+    // 检查占位符是否在可见区域内
+    FVector2D WidgetSize = AllottedGeometry.GetLocalSize();
+    if (PlaceholderPosition.X + PlaceholderSize.X < 0 || PlaceholderPosition.X > WidgetSize.X ||
+        PlaceholderPosition.Y + PlaceholderSize.Y < 0 || PlaceholderPosition.Y > WidgetSize.Y)
+    {
+        return;
+    }
+
+    // 绘制虚线边框 (Requirements 1.3)
+    // 由于 Slate 不直接支持虚线，我们使用多个短线段模拟虚线效果
+    const float DashLength = 8.0f;
+    const float GapLength = 4.0f;
+    const float TotalLength = DashLength + GapLength;
+
+    // 顶边
+    float CurrentX = PlaceholderPosition.X;
+    float EndX = PlaceholderPosition.X + PlaceholderSize.X;
+    while (CurrentX < EndX)
+    {
+        float SegmentEnd = FMath::Min(CurrentX + DashLength, EndX);
+        TArray<FVector2D> DashPoints;
+        DashPoints.Add(FVector2D(CurrentX, PlaceholderPosition.Y));
+        DashPoints.Add(FVector2D(SegmentEnd, PlaceholderPosition.Y));
+        
+        FSlateDrawElement::MakeLines(
+            OutDrawElements,
+            LayerId,
+            AllottedGeometry.ToPaintGeometry(),
+            DashPoints,
+            ESlateDrawEffect::None,
+            PlaceholderColor,
+            true,
+            2.0f
+        );
+        CurrentX += TotalLength;
+    }
+
+    // 底边
+    CurrentX = PlaceholderPosition.X;
+    float BottomY = PlaceholderPosition.Y + PlaceholderSize.Y;
+    while (CurrentX < EndX)
+    {
+        float SegmentEnd = FMath::Min(CurrentX + DashLength, EndX);
+        TArray<FVector2D> DashPoints;
+        DashPoints.Add(FVector2D(CurrentX, BottomY));
+        DashPoints.Add(FVector2D(SegmentEnd, BottomY));
+        
+        FSlateDrawElement::MakeLines(
+            OutDrawElements,
+            LayerId,
+            AllottedGeometry.ToPaintGeometry(),
+            DashPoints,
+            ESlateDrawEffect::None,
+            PlaceholderColor,
+            true,
+            2.0f
+        );
+        CurrentX += TotalLength;
+    }
+
+    // 左边
+    float CurrentY = PlaceholderPosition.Y;
+    float EndY = PlaceholderPosition.Y + PlaceholderSize.Y;
+    while (CurrentY < EndY)
+    {
+        float SegmentEnd = FMath::Min(CurrentY + DashLength, EndY);
+        TArray<FVector2D> DashPoints;
+        DashPoints.Add(FVector2D(PlaceholderPosition.X, CurrentY));
+        DashPoints.Add(FVector2D(PlaceholderPosition.X, SegmentEnd));
+        
+        FSlateDrawElement::MakeLines(
+            OutDrawElements,
+            LayerId,
+            AllottedGeometry.ToPaintGeometry(),
+            DashPoints,
+            ESlateDrawEffect::None,
+            PlaceholderColor,
+            true,
+            2.0f
+        );
+        CurrentY += TotalLength;
+    }
+
+    // 右边
+    CurrentY = PlaceholderPosition.Y;
+    float RightX = PlaceholderPosition.X + PlaceholderSize.X;
+    while (CurrentY < EndY)
+    {
+        float SegmentEnd = FMath::Min(CurrentY + DashLength, EndY);
+        TArray<FVector2D> DashPoints;
+        DashPoints.Add(FVector2D(RightX, CurrentY));
+        DashPoints.Add(FVector2D(RightX, SegmentEnd));
+        
+        FSlateDrawElement::MakeLines(
+            OutDrawElements,
+            LayerId,
+            AllottedGeometry.ToPaintGeometry(),
+            DashPoints,
+            ESlateDrawEffect::None,
+            PlaceholderColor,
+            true,
+            2.0f
+        );
+        CurrentY += TotalLength;
+    }
+
+    UE_LOG(LogMAGanttCanvas, Verbose, TEXT("DrawDragSourcePlaceholder: Position=(%.1f, %.1f), Size=(%.1f, %.1f)"),
+           PlaceholderPosition.X, PlaceholderPosition.Y, PlaceholderSize.X, PlaceholderSize.Y);
+}
+
+void UMAGanttCanvas::DrawDropIndicator(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32 LayerId) const
+{
+    // 仅在拖拽状态下绘制放置指示器 (Requirements 2.1)
+    if (DragState != EGanttDragState::Dragging)
+    {
+        return;
+    }
+
+    // 检查是否有有效的放置目标
+    if (!CurrentDropTarget.HasTarget())
+    {
+        return;
+    }
+
+    // 获取目标槽位的机器人索引
+    int32 RobotIndex = RobotIdOrder.IndexOfByKey(CurrentDropTarget.RobotId);
+    if (RobotIndex == INDEX_NONE)
+    {
+        return;
+    }
+
+    // 计算目标槽位的位置和大小
+    FVector2D IndicatorPosition(TimeStepToScreen(CurrentDropTarget.TimeStep), RobotIndexToScreen(RobotIndex));
+    FVector2D IndicatorSize(TimeStepWidth - 4.0f, RobotRowHeight - 4.0f);
+
+    // 检查指示器是否在可见区域内
+    FVector2D WidgetSize = AllottedGeometry.GetLocalSize();
+    if (IndicatorPosition.X + IndicatorSize.X < 0 || IndicatorPosition.X > WidgetSize.X ||
+        IndicatorPosition.Y + IndicatorSize.Y < 0 || IndicatorPosition.Y > WidgetSize.Y)
+    {
+        return;
+    }
+
+    // 根据有效性选择颜色 (Requirements 2.4)
+    FLinearColor IndicatorColor = CurrentDropTarget.bIsValid ? ValidDropColor : InvalidDropColor;
+
+    // 绘制半透明背景填充
+    FLinearColor FillColor = IndicatorColor;
+    FillColor.A = 0.2f;
+    
+    FSlateDrawElement::MakeBox(
+        OutDrawElements,
+        LayerId,
+        AllottedGeometry.ToPaintGeometry(FVector2f(IndicatorSize), FSlateLayoutTransform(FVector2f(IndicatorPosition))),
+        FCoreStyle::Get().GetBrush("WhiteBrush"),
+        ESlateDrawEffect::None,
+        FillColor
+    );
+
+    // 绘制边框 (Requirements 2.1, 2.2)
+    TArray<FVector2D> BorderPoints;
+    BorderPoints.Add(IndicatorPosition);
+    BorderPoints.Add(IndicatorPosition + FVector2D(IndicatorSize.X, 0));
+    BorderPoints.Add(IndicatorPosition + IndicatorSize);
+    BorderPoints.Add(IndicatorPosition + FVector2D(0, IndicatorSize.Y));
+    BorderPoints.Add(IndicatorPosition);
+
+    FSlateDrawElement::MakeLines(
+        OutDrawElements,
+        LayerId + 1,
+        AllottedGeometry.ToPaintGeometry(),
+        BorderPoints,
+        ESlateDrawEffect::None,
+        IndicatorColor,
+        true,
+        3.0f  // 使用较粗的边框以便更明显
+    );
+
+    // 如果是有效目标且已吸附，绘制额外的吸附指示
+    if (CurrentDropTarget.bIsValid && CurrentDropTarget.bIsSnapped)
+    {
+        // 绘制内部高亮边框
+        FVector2D InnerOffset(4.0f, 4.0f);
+        FVector2D InnerPosition = IndicatorPosition + InnerOffset;
+        FVector2D InnerSize = IndicatorSize - InnerOffset * 2.0f;
+
+        TArray<FVector2D> InnerBorderPoints;
+        InnerBorderPoints.Add(InnerPosition);
+        InnerBorderPoints.Add(InnerPosition + FVector2D(InnerSize.X, 0));
+        InnerBorderPoints.Add(InnerPosition + InnerSize);
+        InnerBorderPoints.Add(InnerPosition + FVector2D(0, InnerSize.Y));
+        InnerBorderPoints.Add(InnerPosition);
+
+        FLinearColor SnapHighlightColor = ValidDropColor;
+        SnapHighlightColor.A = 0.8f;
+
+        FSlateDrawElement::MakeLines(
+            OutDrawElements,
+            LayerId + 2,
+            AllottedGeometry.ToPaintGeometry(),
+            InnerBorderPoints,
+            ESlateDrawEffect::None,
+            SnapHighlightColor,
+            true,
+            1.5f
+        );
+    }
+
+    UE_LOG(LogMAGanttCanvas, Verbose, TEXT("DrawDropIndicator: TimeStep=%d, RobotId=%s, Valid=%s, Snapped=%s"),
+           CurrentDropTarget.TimeStep, *CurrentDropTarget.RobotId,
+           CurrentDropTarget.bIsValid ? TEXT("true") : TEXT("false"),
+           CurrentDropTarget.bIsSnapped ? TEXT("true") : TEXT("false"));
+}
+
+//=============================================================================
 // 鼠标交互
 //=============================================================================
 
@@ -512,7 +1181,39 @@ FReply UMAGanttCanvas::NativeOnMouseButtonDown(const FGeometry& InGeometry, cons
             if (LocalPosition.X >= BarMin.X && LocalPosition.X <= BarMax.X &&
                 LocalPosition.Y >= BarMin.Y && LocalPosition.Y <= BarMax.Y)
             {
-                // 选中该技能条
+                // 检查拖拽是否启用 (Requirements 8.1, 8.2)
+                if (bDragEnabled)
+                {
+                    // 设置潜在拖拽状态 (Requirements 1.1)
+                    DragState = EGanttDragState::Potential;
+                    
+                    // 记录鼠标按下位置
+                    MouseDownPosition = LocalPosition;
+                    
+                    // 记录拖拽源信息
+                    DragSource.TimeStep = RenderData.TimeStep;
+                    DragSource.RobotId = RenderData.RobotId;
+                    DragSource.SkillName = RenderData.SkillName;
+                    DragSource.ParamsJson = RenderData.ParamsJson;
+                    DragSource.Status = RenderData.Status;
+                    DragSource.OriginalPosition = RenderData.Position;
+                    
+                    UE_LOG(LogMAGanttCanvas, Verbose, TEXT("Potential drag started: TimeStep=%d, RobotId=%s, Skill=%s"),
+                           DragSource.TimeStep, *DragSource.RobotId, *DragSource.SkillName);
+                    
+                    // 捕获鼠标以接收后续事件
+                    return FReply::Handled().CaptureMouse(TakeWidget());
+                }
+                else
+                {
+                    // 拖拽被禁用（可能正在执行中）(Requirements 8.2)
+                    UE_LOG(LogMAGanttCanvas, Log, TEXT("[警告] 执行期间无法修改技能分配"));
+                    
+                    // 广播拖拽被阻止事件，通知 Viewer 显示警告日志
+                    OnDragBlocked.Broadcast();
+                }
+                
+                // 选中该技能条 (Requirements 1.4 - 点击但未拖拽时执行选择)
                 SelectSkillBar(RenderData.TimeStep, RenderData.RobotId);
                 return FReply::Handled();
             }
@@ -530,7 +1231,75 @@ FReply UMAGanttCanvas::NativeOnMouseMove(const FGeometry& InGeometry, const FPoi
 {
     FVector2D LocalPosition = InGeometry.AbsoluteToLocal(InMouseEvent.GetScreenSpacePosition());
     
-    // 更新悬停状态
+    //=========================================================================
+    // 拖拽状态处理 (Requirements 1.1, 2.5, 3.1)
+    //=========================================================================
+    
+    // 处理潜在拖拽状态 - 检查是否超过拖拽阈值
+    if (DragState == EGanttDragState::Potential)
+    {
+        float MoveDistance = FVector2D::Distance(LocalPosition, MouseDownPosition);
+        
+        if (MoveDistance >= DragThreshold)
+        {
+            // 超过阈值，从 Potential 转换到 Dragging 状态 (Requirements 1.1)
+            DragState = EGanttDragState::Dragging;
+            
+            // 初始化拖拽预览
+            DragPreview.Position = LocalPosition;
+            DragPreview.Size = FVector2D(TimeStepWidth - 4.0f, RobotRowHeight - 4.0f);
+            DragPreview.Color = GetStatusColor(DragSource.Status);
+            DragPreview.Color.A = DragPreviewAlpha;
+            DragPreview.SkillName = DragSource.SkillName;
+            
+            // 记录拖拽开始日志 (Requirements 7.1)
+            UE_LOG(LogMAGanttCanvas, Log, TEXT("[拖拽] 开始移动技能: %s (T%d, %s)"),
+                   *DragSource.SkillName, DragSource.TimeStep, *DragSource.RobotId);
+            
+            // 广播拖拽开始事件（用于状态日志记录）(Requirements 7.1)
+            OnDragStarted.Broadcast(DragSource.SkillName, DragSource.TimeStep, DragSource.RobotId);
+            
+            return FReply::Handled();
+        }
+        
+        // 未超过阈值，继续等待
+        return FReply::Handled();
+    }
+    
+    // 处理拖拽中状态 - 更新预览位置和吸附目标
+    if (DragState == EGanttDragState::Dragging)
+    {
+        // 计算预览位置（以鼠标为中心）
+        FVector2D PreviewCenter = LocalPosition;
+        FVector2D PreviewHalfSize = DragPreview.Size * 0.5f;
+        
+        // 计算吸附目标 (Requirements 3.1)
+        CurrentDropTarget = CalculateSnapTarget(LocalPosition);
+        
+        // 根据吸附状态更新预览位置 (Requirements 2.5)
+        if (CurrentDropTarget.bIsSnapped)
+        {
+            // 吸附到槽位中心
+            DragPreview.Position = CurrentDropTarget.SnapPosition - PreviewHalfSize;
+        }
+        else
+        {
+            // 跟随鼠标
+            DragPreview.Position = PreviewCenter - PreviewHalfSize;
+        }
+        
+        UE_LOG(LogMAGanttCanvas, Verbose, TEXT("Drag update: Position=(%.1f, %.1f), Snapped=%s, Valid=%s"),
+               DragPreview.Position.X, DragPreview.Position.Y,
+               CurrentDropTarget.bIsSnapped ? TEXT("true") : TEXT("false"),
+               CurrentDropTarget.bIsValid ? TEXT("true") : TEXT("false"));
+        
+        return FReply::Handled();
+    }
+    
+    //=========================================================================
+    // 非拖拽状态 - 更新悬停状态
+    //=========================================================================
+    
     HoveredTimeStep = -1;
     HoveredRobotId.Empty();
     
@@ -577,4 +1346,118 @@ void UMAGanttCanvas::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
     // 清除悬停状态
     HoveredTimeStep = -1;
     HoveredRobotId.Empty();
+}
+
+FReply UMAGanttCanvas::NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+    if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+    {
+        FVector2D LocalPosition = InGeometry.AbsoluteToLocal(InMouseEvent.GetScreenSpacePosition());
+        
+        //=========================================================================
+        // 处理拖拽释放 (Requirements 4.1, 4.3, 4.4)
+        //=========================================================================
+        
+        if (DragState == EGanttDragState::Potential)
+        {
+            // 未超过拖拽阈值，执行选择操作 (Requirements 1.4)
+            SelectSkillBar(DragSource.TimeStep, DragSource.RobotId);
+            
+            // 重置拖拽状态
+            DragState = EGanttDragState::Idle;
+            DragSource.Reset();
+            MouseDownPosition = FVector2D::ZeroVector;
+            
+            UE_LOG(LogMAGanttCanvas, Verbose, TEXT("Click detected (no drag), selected skill bar"));
+            
+            return FReply::Handled().ReleaseMouseCapture();
+        }
+        
+        if (DragState == EGanttDragState::Dragging)
+        {
+            // 计算最终放置目标
+            FGanttDropTarget FinalTarget = CalculateSnapTarget(LocalPosition);
+            
+            bool bDropSuccess = false;
+            
+            // 验证放置目标 (Requirements 4.1)
+            if (FinalTarget.bIsValid && FinalTarget.HasTarget())
+            {
+                // 有效目标 - 尝试更新数据
+                if (AllocationModel)
+                {
+                    // 调用模型的 MoveSkill 方法
+                    bDropSuccess = AllocationModel->MoveSkill(
+                        DragSource.TimeStep, DragSource.RobotId,
+                        FinalTarget.TimeStep, FinalTarget.RobotId
+                    );
+                    
+                    if (bDropSuccess)
+                    {
+                        // 记录成功日志 (Requirements 7.2)
+                        UE_LOG(LogMAGanttCanvas, Log, TEXT("[成功] 技能已移动: %s 从 T%d 到 T%d"),
+                               *DragSource.SkillName, DragSource.TimeStep, FinalTarget.TimeStep);
+                        
+                        // 广播拖拽完成事件（用于数据持久化）
+                        OnDragCompleted.Broadcast(
+                            DragSource.TimeStep, DragSource.RobotId,
+                            FinalTarget.TimeStep, FinalTarget.RobotId
+                        );
+                    }
+                    else
+                    {
+                        // 记录失败日志 (Requirements 7.4)
+                        UE_LOG(LogMAGanttCanvas, Log, TEXT("[失败] 无法放置: 目标槽位已被占用"));
+                        
+                        // 广播拖拽失败事件（用于状态日志记录）(Requirements 7.4)
+                        OnDragFailed.Broadcast();
+                    }
+                }
+                else
+                {
+                    UE_LOG(LogMAGanttCanvas, Warning, TEXT("Drop failed: No allocation model bound"));
+                }
+            }
+            else
+            {
+                // 无效目标 (Requirements 4.3, 4.4)
+                UE_LOG(LogMAGanttCanvas, Log, TEXT("[失败] 无法放置: 目标槽位已被占用或无效"));
+                
+                // 广播拖拽失败事件（用于状态日志记录）(Requirements 7.4)
+                OnDragFailed.Broadcast();
+            }
+            
+            // 重置拖拽状态
+            DragState = EGanttDragState::Idle;
+            DragSource.Reset();
+            CurrentDropTarget.Reset();
+            DragPreview.Reset();
+            MouseDownPosition = FVector2D::ZeroVector;
+            
+            return FReply::Handled().ReleaseMouseCapture();
+        }
+    }
+    
+    return FReply::Unhandled();
+}
+
+FReply UMAGanttCanvas::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
+{
+    //=========================================================================
+    // 处理 Escape 键取消拖拽 (Requirements 4.5)
+    //=========================================================================
+    
+    if (InKeyEvent.GetKey() == EKeys::Escape)
+    {
+        if (DragState != EGanttDragState::Idle)
+        {
+            // 取消拖拽操作
+            CancelDrag();
+            
+            // 释放鼠标捕获
+            return FReply::Handled().ReleaseMouseCapture();
+        }
+    }
+    
+    return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
 }

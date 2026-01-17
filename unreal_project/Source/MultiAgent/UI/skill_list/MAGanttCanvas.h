@@ -18,6 +18,32 @@ class UCanvasPanel;
 DECLARE_LOG_CATEGORY_EXTERN(LogMAGanttCanvas, Log, All);
 
 //=============================================================================
+// 委托声明
+//=============================================================================
+
+/** 拖拽完成委托 - 当技能块成功移动到新位置时广播 */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnGanttDragCompleted, 
+    int32, SourceTimeStep, 
+    const FString&, SourceRobotId,
+    int32, TargetTimeStep, 
+    const FString&, TargetRobotId);
+
+/** 拖拽取消委托 - 当拖拽操作被取消时广播 */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGanttSkillDragCancelled);
+
+/** 拖拽被阻止委托 - 当执行期间尝试拖拽时广播 (Requirements 8.2) */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGanttDragBlocked);
+
+/** 拖拽开始委托 - 当拖拽操作开始时广播 (Requirements 7.1) */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnGanttDragStarted,
+    const FString&, SkillName,
+    int32, TimeStep,
+    const FString&, RobotId);
+
+/** 拖拽失败委托 - 当拖拽操作因无效目标失败时广播 (Requirements 7.4) */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGanttDragFailed);
+
+//=============================================================================
 // UMAGanttCanvas - 甘特图画布 Widget
 //=============================================================================
 
@@ -83,6 +109,50 @@ public:
     UFUNCTION(BlueprintCallable, Category = "GanttCanvas")
     void ClearSelection();
 
+    //=========================================================================
+    // 拖拽控制 (Requirements 8.1, 8.3)
+    //=========================================================================
+
+    /** 检查是否正在拖拽 */
+    UFUNCTION(BlueprintPure, Category = "GanttCanvas|Drag")
+    bool IsDragging() const { return DragState == EGanttDragState::Dragging; }
+
+    /** 设置拖拽启用状态 */
+    UFUNCTION(BlueprintCallable, Category = "GanttCanvas|Drag")
+    void SetDragEnabled(bool bEnabled);
+
+    /** 检查拖拽是否启用 */
+    UFUNCTION(BlueprintPure, Category = "GanttCanvas|Drag")
+    bool IsDragEnabled() const { return bDragEnabled; }
+
+    /** 取消当前拖拽操作 */
+    UFUNCTION(BlueprintCallable, Category = "GanttCanvas|Drag")
+    void CancelDrag();
+
+    //=========================================================================
+    // 拖拽事件委托
+    //=========================================================================
+
+    /** 拖拽完成事件 - 当技能块成功移动到新位置时广播 */
+    UPROPERTY(BlueprintAssignable, Category = "GanttCanvas|Drag")
+    FOnGanttDragCompleted OnDragCompleted;
+
+    /** 拖拽取消事件 - 当拖拽操作被取消时广播 */
+    UPROPERTY(BlueprintAssignable, Category = "GanttCanvas|Drag")
+    FOnGanttSkillDragCancelled OnSkillDragCancelled;
+
+    /** 拖拽被阻止事件 - 当执行期间尝试拖拽时广播 (Requirements 8.2) */
+    UPROPERTY(BlueprintAssignable, Category = "GanttCanvas|Drag")
+    FOnGanttDragBlocked OnDragBlocked;
+
+    /** 拖拽开始事件 - 当拖拽操作开始时广播 (Requirements 7.1) */
+    UPROPERTY(BlueprintAssignable, Category = "GanttCanvas|Drag")
+    FOnGanttDragStarted OnDragStarted;
+
+    /** 拖拽失败事件 - 当拖拽操作因无效目标失败时广播 (Requirements 7.4) */
+    UPROPERTY(BlueprintAssignable, Category = "GanttCanvas|Drag")
+    FOnGanttDragFailed OnDragFailed;
+
 protected:
     //=========================================================================
     // UUserWidget 重写
@@ -99,6 +169,8 @@ protected:
     virtual FReply NativeOnMouseWheel(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
     virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
     virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
+    virtual FReply NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+    virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 
     //=========================================================================
     // UI 构建
@@ -124,6 +196,38 @@ protected:
     FLinearColor GetStatusColor(ESkillExecutionStatus Status) const;
 
     //=========================================================================
+    // 拖拽视觉渲染 (Requirements 1.2, 1.3, 1.5, 2.1, 2.2, 2.4)
+    //=========================================================================
+
+    /**
+     * 绘制拖拽预览
+     * 在鼠标位置绘制半透明的技能块预览，显示技能名称
+     * @param AllottedGeometry Widget 几何信息
+     * @param OutDrawElements 绘制元素列表
+     * @param LayerId 图层 ID
+     */
+    void DrawDragPreview(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32 LayerId) const;
+
+    /**
+     * 绘制拖拽源占位符
+     * 在原始位置绘制虚线边框，表示技能块的原始位置
+     * @param AllottedGeometry Widget 几何信息
+     * @param OutDrawElements 绘制元素列表
+     * @param LayerId 图层 ID
+     */
+    void DrawDragSourcePlaceholder(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32 LayerId) const;
+
+    /**
+     * 绘制放置指示器
+     * 在当前放置目标位置绘制有效/无效放置指示
+     * 使用绿色边框表示可放置，红色边框表示不可放置
+     * @param AllottedGeometry Widget 几何信息
+     * @param OutDrawElements 绘制元素列表
+     * @param LayerId 图层 ID
+     */
+    void DrawDropIndicator(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32 LayerId) const;
+
+    //=========================================================================
     // 坐标转换
     //=========================================================================
 
@@ -138,6 +242,65 @@ protected:
 
     /** 屏幕 Y 坐标转换为机器人索引 */
     int32 ScreenToRobotIndex(float ScreenY) const;
+
+    //=========================================================================
+    // 槽位查询和验证 (Requirements 2.1, 2.2, 2.3, 6.1)
+    //=========================================================================
+
+    /**
+     * 获取鼠标位置对应的槽位
+     * @param Position 屏幕坐标（相对于 Widget 的本地坐标）
+     * @param OutTimeStep 输出的时间步
+     * @param OutRobotId 输出的机器人 ID
+     * @return 如果位置在有效数据区域内返回 true，否则返回 false
+     */
+    bool GetSlotAtPosition(const FVector2D& Position, int32& OutTimeStep, FString& OutRobotId) const;
+
+    /**
+     * 检查槽位是否为空（无技能分配）
+     * @param TimeStep 时间步
+     * @param RobotId 机器人 ID
+     * @return 如果槽位为空返回 true，否则返回 false
+     */
+    bool IsSlotEmpty(int32 TimeStep, const FString& RobotId) const;
+
+    /**
+     * 验证放置目标是否有效
+     * 组合槽位查询和空位检查，排除拖拽源位置
+     * @param TargetTimeStep 目标时间步
+     * @param TargetRobotId 目标机器人 ID
+     * @return 如果是有效的放置目标返回 true，否则返回 false
+     */
+    bool IsValidDropTarget(int32 TargetTimeStep, const FString& TargetRobotId) const;
+
+    //=========================================================================
+    // 吸附计算 (Requirements 3.1, 3.2, 3.4, 3.5)
+    //=========================================================================
+
+    /**
+     * 检查位置是否在指定槽位的吸附范围内
+     * @param Position 当前鼠标/预览位置（相对于 Widget 的本地坐标）
+     * @param TimeStep 目标槽位的时间步
+     * @param RobotIndex 目标槽位的机器人索引
+     * @return 如果位置在吸附范围内返回 true，否则返回 false
+     */
+    bool IsWithinSnapRange(const FVector2D& Position, int32 TimeStep, int32 RobotIndex) const;
+
+    /**
+     * 计算吸附目标
+     * 查找最近的空白槽位，计算吸附位置
+     * @param Position 当前鼠标/预览位置（相对于 Widget 的本地坐标）
+     * @return 包含吸附信息的 FGanttDropTarget 结构
+     */
+    FGanttDropTarget CalculateSnapTarget(const FVector2D& Position) const;
+
+    /**
+     * 获取槽位的中心位置
+     * @param TimeStep 时间步
+     * @param RobotIndex 机器人索引
+     * @return 槽位中心的屏幕坐标
+     */
+    FVector2D GetSlotCenterPosition(int32 TimeStep, int32 RobotIndex) const;
 
     //=========================================================================
     // 模型事件处理
@@ -242,4 +405,48 @@ protected:
 
     /** 选中边框颜色 */
     FLinearColor SelectionColor = FLinearColor(0.3f, 0.7f, 1.0f, 1.0f);
+
+    //=========================================================================
+    // 拖拽状态 (Requirements 1.1, 8.1)
+    //=========================================================================
+
+    /** 当前拖拽状态 */
+    EGanttDragState DragState = EGanttDragState::Idle;
+
+    /** 拖拽源信息 */
+    FGanttDragSource DragSource;
+
+    /** 当前放置目标 */
+    FGanttDropTarget CurrentDropTarget;
+
+    /** 拖拽预览信息 */
+    FGanttDragPreview DragPreview;
+
+    /** 鼠标按下位置（用于判断是否超过拖拽阈值） */
+    FVector2D MouseDownPosition = FVector2D::ZeroVector;
+
+    /** 拖拽是否启用 */
+    bool bDragEnabled = true;
+
+    //=========================================================================
+    // 拖拽配置常量 (Requirements 1.1, 3.2)
+    //=========================================================================
+
+    /** 拖拽启动阈值（像素）- 移动超过此距离才启动拖拽 */
+    float DragThreshold = 5.0f;
+
+    /** 吸附范围（像素）- 进入此范围内自动吸附到槽位 */
+    float SnapRange = 20.0f;
+
+    /** 拖拽预览透明度 */
+    float DragPreviewAlpha = 0.7f;
+
+    /** 有效放置指示颜色 (绿色边框) */
+    FLinearColor ValidDropColor = FLinearColor(0.2f, 0.8f, 0.3f, 0.5f);
+
+    /** 无效放置指示颜色 (红色边框) */
+    FLinearColor InvalidDropColor = FLinearColor(0.9f, 0.2f, 0.2f, 0.5f);
+
+    /** 占位符边框颜色 (虚线边框) */
+    FLinearColor PlaceholderColor = FLinearColor(0.5f, 0.5f, 0.5f, 0.8f);
 };

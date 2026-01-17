@@ -105,6 +105,43 @@ void UMASkillAllocationViewer::NativeConstruct()
         }
     }
     
+    // Bind GanttCanvas drag events (Requirements 5.1)
+    if (GanttCanvas)
+    {
+        // Bind drag started event (Requirements 7.1)
+        if (!GanttCanvas->OnDragStarted.IsAlreadyBound(this, &UMASkillAllocationViewer::OnGanttDragStarted))
+        {
+            GanttCanvas->OnDragStarted.AddDynamic(this, &UMASkillAllocationViewer::OnGanttDragStarted);
+            UE_LOG(LogMASkillAllocationViewer, Log, TEXT("GanttCanvas OnDragStarted event bound"));
+        }
+        
+        if (!GanttCanvas->OnDragCompleted.IsAlreadyBound(this, &UMASkillAllocationViewer::OnGanttDragCompleted))
+        {
+            GanttCanvas->OnDragCompleted.AddDynamic(this, &UMASkillAllocationViewer::OnGanttDragCompleted);
+            UE_LOG(LogMASkillAllocationViewer, Log, TEXT("GanttCanvas OnDragCompleted event bound"));
+        }
+        
+        if (!GanttCanvas->OnSkillDragCancelled.IsAlreadyBound(this, &UMASkillAllocationViewer::OnGanttDragCancelled))
+        {
+            GanttCanvas->OnSkillDragCancelled.AddDynamic(this, &UMASkillAllocationViewer::OnGanttDragCancelled);
+            UE_LOG(LogMASkillAllocationViewer, Log, TEXT("GanttCanvas OnSkillDragCancelled event bound"));
+        }
+        
+        // Bind drag blocked event (Requirements 8.2)
+        if (!GanttCanvas->OnDragBlocked.IsAlreadyBound(this, &UMASkillAllocationViewer::OnGanttDragBlocked))
+        {
+            GanttCanvas->OnDragBlocked.AddDynamic(this, &UMASkillAllocationViewer::OnGanttDragBlocked);
+            UE_LOG(LogMASkillAllocationViewer, Log, TEXT("GanttCanvas OnDragBlocked event bound"));
+        }
+        
+        // Bind drag failed event (Requirements 7.4)
+        if (!GanttCanvas->OnDragFailed.IsAlreadyBound(this, &UMASkillAllocationViewer::OnGanttDragFailed))
+        {
+            GanttCanvas->OnDragFailed.AddDynamic(this, &UMASkillAllocationViewer::OnGanttDragFailed);
+            UE_LOG(LogMASkillAllocationViewer, Log, TEXT("GanttCanvas OnDragFailed event bound"));
+        }
+    }
+    
     // Initialize status log
     AppendStatusLog(TEXT("Skill Allocation Viewer started"));
     AppendStatusLog(TEXT("Tip: Edit JSON and click 'Update Skill List' to load data"));
@@ -609,13 +646,20 @@ void UMASkillAllocationViewer::StartExecution()
     // 6. 设置 bIsExecuting = true
     bIsExecuting = true;
     
-    // 7. 禁用 StartExecuteButton
+    // 7. 禁用拖拽功能 (Requirements 8.1)
+    if (GanttCanvas)
+    {
+        GanttCanvas->SetDragEnabled(false);
+        UE_LOG(LogMASkillAllocationViewer, Log, TEXT("StartExecution: Drag disabled during execution"));
+    }
+    
+    // 8. 禁用 StartExecuteButton
     if (StartExecuteButton)
     {
         StartExecuteButton->SetIsEnabled(false);
     }
     
-    // 8. 将所有技能设置为 Pending 状态 (通过重置到原始数据)
+    // 9. 将所有技能设置为 Pending 状态 (通过重置到原始数据)
     AllocationModel->ResetToOriginal();
     
     // 刷新甘特图显示 Pending 状态
@@ -624,14 +668,14 @@ void UMASkillAllocationViewer::StartExecution()
         GanttCanvas->RefreshFromModel();
     }
     
-    // 9. 记录执行开始日志
+    // 10. 记录执行开始日志
     AppendStatusLog(FString::Printf(TEXT("[执行] 开始执行技能列表 (%d 个时间步)"), SkillListMsg.TotalTimeSteps));
     UE_LOG(LogMASkillAllocationViewer, Log, TEXT("StartExecution: Starting real execution with %d time steps"), SkillListMsg.TotalTimeSteps);
     
     // 广播执行开始事件
     OnExecutionStarted.Broadcast();
     
-    // 10. 调用 CommandMgr->ExecuteSkillList() 启动真实执行
+    // 11. 调用 CommandMgr->ExecuteSkillList() 启动真实执行
     CommandMgr->ExecuteSkillList(SkillListMsg);
 }
 
@@ -731,6 +775,13 @@ void UMASkillAllocationViewer::OnResetButtonClicked()
         {
             StartExecuteButton->SetIsEnabled(true);
         }
+    }
+    
+    // 重新启用拖拽功能 (Requirements 8.3)
+    if (GanttCanvas)
+    {
+        GanttCanvas->SetDragEnabled(true);
+        UE_LOG(LogMASkillAllocationViewer, Log, TEXT("OnResetButtonClicked: Drag re-enabled"));
     }
     
     // 调用 AllocationModel->ResetToOriginal() 重置所有状态
@@ -859,6 +910,127 @@ void UMASkillAllocationViewer::OnTempSkillListChanged(const FMASkillAllocationDa
 }
 
 //=============================================================================
+// Drag Event Handling (Requirements 5.1)
+//=============================================================================
+
+void UMASkillAllocationViewer::OnGanttDragStarted(const FString& SkillName, int32 TimeStep, const FString& RobotId)
+{
+    UE_LOG(LogMASkillAllocationViewer, Log, 
+        TEXT("OnGanttDragStarted: Skill=%s, TimeStep=%d, RobotId=%s"),
+        *SkillName, TimeStep, *RobotId);
+    
+    // 记录状态日志 (Requirements 7.1)
+    AppendStatusLog(FString::Printf(TEXT("[拖拽] 开始移动技能: %s (T%d, %s)"),
+        *SkillName, TimeStep, *RobotId));
+}
+
+void UMASkillAllocationViewer::OnGanttDragCompleted(int32 SourceTimeStep, const FString& SourceRobotId,
+                                                     int32 TargetTimeStep, const FString& TargetRobotId)
+{
+    UE_LOG(LogMASkillAllocationViewer, Log, 
+        TEXT("OnGanttDragCompleted: Skill moved from T%d/%s to T%d/%s"),
+        SourceTimeStep, *SourceRobotId, TargetTimeStep, *TargetRobotId);
+    
+    // 记录状态日志 (Requirements 7.2)
+    if (AllocationModel)
+    {
+        FMASkillAssignment Skill;
+        if (AllocationModel->FindSkill(TargetTimeStep, TargetRobotId, Skill))
+        {
+            AppendStatusLog(FString::Printf(TEXT("[成功] 技能已移动: %s 从 T%d 到 T%d"),
+                *Skill.SkillName, SourceTimeStep, TargetTimeStep));
+        }
+        else
+        {
+            AppendStatusLog(FString::Printf(TEXT("[成功] 技能已移动: 从 T%d/%s 到 T%d/%s"),
+                SourceTimeStep, *SourceRobotId, TargetTimeStep, *TargetRobotId));
+        }
+    }
+    
+    // 同步 JSON 编辑器
+    SyncJsonEditorFromModel();
+    
+    // 同步数据到临时文件 (Requirements 5.1)
+    SyncDataToTempFile();
+}
+
+void UMASkillAllocationViewer::OnGanttDragCancelled()
+{
+    UE_LOG(LogMASkillAllocationViewer, Log, TEXT("OnGanttDragCancelled: Drag operation cancelled"));
+    
+    // 记录状态日志 (Requirements 7.3)
+    AppendStatusLog(TEXT("[取消] 拖拽操作已取消"));
+}
+
+void UMASkillAllocationViewer::OnGanttDragBlocked()
+{
+    UE_LOG(LogMASkillAllocationViewer, Log, TEXT("OnGanttDragBlocked: Drag attempt blocked during execution"));
+    
+    // 记录警告日志 (Requirements 8.2)
+    AppendStatusLog(TEXT("[警告] 执行期间无法修改技能分配"));
+}
+
+void UMASkillAllocationViewer::OnGanttDragFailed()
+{
+    UE_LOG(LogMASkillAllocationViewer, Log, TEXT("OnGanttDragFailed: Drag operation failed due to invalid target"));
+    
+    // 记录失败日志 (Requirements 7.4)
+    AppendStatusLog(TEXT("[失败] 无法放置: 目标槽位已被占用"));
+}
+
+void UMASkillAllocationViewer::SyncDataToTempFile()
+{
+    // 获取 MATempDataManager (Requirements 5.1)
+    UGameInstance* GameInstance = UGameplayStatics::GetGameInstance(GetWorld());
+    if (!GameInstance)
+    {
+        AppendStatusLog(TEXT("[错误] 无法获取 GameInstance，数据同步失败"));
+        UE_LOG(LogMASkillAllocationViewer, Error, TEXT("SyncDataToTempFile: Failed to get GameInstance"));
+        return;
+    }
+    
+    UMATempDataManager* TempDataMgr = GameInstance->GetSubsystem<UMATempDataManager>();
+    if (!TempDataMgr)
+    {
+        AppendStatusLog(TEXT("[错误] TempDataManager 不可用，数据同步失败"));
+        UE_LOG(LogMASkillAllocationViewer, Error, TEXT("SyncDataToTempFile: TempDataManager not available"));
+        return;
+    }
+    
+    // 获取当前模型数据
+    if (!AllocationModel)
+    {
+        AppendStatusLog(TEXT("[错误] AllocationModel 为空，数据同步失败"));
+        UE_LOG(LogMASkillAllocationViewer, Error, TEXT("SyncDataToTempFile: AllocationModel is null"));
+        return;
+    }
+    
+    FMASkillAllocationData Data = AllocationModel->GetWorkingData();
+    
+    // 验证数据完整性 (Requirements 5.2)
+    if (Data.Data.Num() == 0)
+    {
+        AppendStatusLog(TEXT("[警告] 技能列表为空，跳过数据同步"));
+        UE_LOG(LogMASkillAllocationViewer, Warning, TEXT("SyncDataToTempFile: Skill list is empty, skipping sync"));
+        return;
+    }
+    
+    // 调用 SaveSkillList() 保存数据 (Requirements 5.1)
+    if (TempDataMgr->SaveSkillList(Data))
+    {
+        // 记录成功日志 (Requirements 5.4, 7.5)
+        AppendStatusLog(TEXT("[同步] 数据已保存到 skill_list_temp.json"));
+        UE_LOG(LogMASkillAllocationViewer, Log, TEXT("SyncDataToTempFile: Data saved to skill_list_temp.json"));
+    }
+    else
+    {
+        // 记录失败日志 (Requirements 5.3)
+        AppendStatusLog(TEXT("[错误] 文件写入失败，数据同步失败"));
+        UE_LOG(LogMASkillAllocationViewer, Error, TEXT("SyncDataToTempFile: Failed to save data to temp file"));
+    }
+}
+
+//=============================================================================
 // Helper Methods
 //=============================================================================
 
@@ -917,6 +1089,13 @@ void UMASkillAllocationViewer::OnExecutionCompleted()
         StartExecuteButton->SetIsEnabled(true);
     }
     
+    // Re-enable drag functionality (Requirements 8.3)
+    if (GanttCanvas)
+    {
+        GanttCanvas->SetDragEnabled(true);
+        UE_LOG(LogMASkillAllocationViewer, Log, TEXT("OnExecutionCompleted: Drag re-enabled"));
+    }
+    
     AppendStatusLog(TEXT("[Success] All skills completed successfully"));
     UE_LOG(LogMASkillAllocationViewer, Log, TEXT("Skill allocation execution completed successfully"));
     
@@ -932,6 +1111,13 @@ void UMASkillAllocationViewer::OnExecutionFailed(int32 TimeStep, const FString& 
     if (StartExecuteButton)
     {
         StartExecuteButton->SetIsEnabled(true);
+    }
+    
+    // Re-enable drag functionality (Requirements 8.3)
+    if (GanttCanvas)
+    {
+        GanttCanvas->SetDragEnabled(true);
+        UE_LOG(LogMASkillAllocationViewer, Log, TEXT("OnExecutionFailed: Drag re-enabled"));
     }
     
     AppendStatusLog(FString::Printf(TEXT("[Error] Execution failed at TimeStep %d, Robot %s"), TimeStep, *RobotId));

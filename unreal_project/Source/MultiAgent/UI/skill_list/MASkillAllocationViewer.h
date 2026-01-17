@@ -213,6 +213,34 @@ protected:
     void OnTempSkillListChanged(const FMASkillAllocationData& NewData);
 
     //=========================================================================
+    // 拖拽事件处理 (Requirements 5.1)
+    //=========================================================================
+
+    /** 甘特图拖拽开始回调 - 当拖拽操作开始时调用 (Requirements 7.1) */
+    UFUNCTION()
+    void OnGanttDragStarted(const FString& SkillName, int32 TimeStep, const FString& RobotId);
+
+    /** 甘特图拖拽完成回调 - 当技能块成功移动到新位置时调用 */
+    UFUNCTION()
+    void OnGanttDragCompleted(int32 SourceTimeStep, const FString& SourceRobotId,
+                              int32 TargetTimeStep, const FString& TargetRobotId);
+
+    /** 甘特图拖拽取消回调 */
+    UFUNCTION()
+    void OnGanttDragCancelled();
+
+    /** 甘特图拖拽被阻止回调 - 当执行期间尝试拖拽时调用 (Requirements 8.2) */
+    UFUNCTION()
+    void OnGanttDragBlocked();
+
+    /** 甘特图拖拽失败回调 - 当拖拽操作因无效目标失败时调用 (Requirements 7.4) */
+    UFUNCTION()
+    void OnGanttDragFailed();
+
+    /** 同步数据到临时文件 (Requirements 5.1, 5.3, 5.4) */
+    void SyncDataToTempFile();
+
+    //=========================================================================
     // 辅助方法
     //=========================================================================
 
