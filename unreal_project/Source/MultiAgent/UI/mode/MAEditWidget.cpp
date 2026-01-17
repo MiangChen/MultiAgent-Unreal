@@ -30,10 +30,10 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogMAEditWidget, Log, All);
 
-// Hint text constants (in anonymous namespace to avoid linker conflicts)
+// Hint text constants - use anonymous namespace to avoid Unity Build conflicts
 namespace
 {
-    const FString DefaultHintText = TEXT("Select an Actor or POI to operate");
+    const FString EditDefaultHintText = TEXT("Select an Actor or POI to operate");
     const FString ActorSelectedHintText = TEXT("Edit JSON and click Confirm to save");
     const FString POISingleHintText = TEXT("Can create Goal or add preset Actor");
     const FString POIMultiHintText = TEXT("Select 3+ POIs to create a zone");
@@ -248,7 +248,7 @@ void UMAEditWidget::BuildUI()
 
     // 提示文本
     HintText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("HintText"));
-    HintText->SetText(FText::FromString(DefaultHintText));
+    HintText->SetText(FText::FromString(EditDefaultHintText));
     FSlateFontInfo HintFont = HintText->GetFont();
     HintFont.Size = 11;
     HintText->SetFont(HintFont);
@@ -753,7 +753,7 @@ void UMAEditWidget::ClearSelection()
     // 显示默认提示
     if (HintText)
     {
-        HintText->SetText(FText::FromString(DefaultHintText));
+        HintText->SetText(FText::FromString(EditDefaultHintText));
         HintText->SetColorAndOpacity(FSlateColor(FLinearColor(0.6f, 0.6f, 0.6f)));
     }
     

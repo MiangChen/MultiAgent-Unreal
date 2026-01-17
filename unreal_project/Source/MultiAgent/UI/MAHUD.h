@@ -1,6 +1,7 @@
 // MAHUD.h
-// HUD 管理器 - 管理所有 UI Widget 的创建、显示和隐藏
+// HUD 管理器 - 管理 HUD 绘制和事件协调
 // 继承自 MASelectionHUD 以保留框选绘制功能
+// Widget 管理职责已委托给 UMAUIManager
 
 #pragma once
 
@@ -8,6 +9,7 @@
 #include "MASelectionHUD.h"
 #include "MAHUD.generated.h"
 
+// 前向声明 - Widget 类 (用于事件回调参数类型)
 class UMASimpleMainWidget;
 class UMATaskPlannerWidget;
 class UMASkillAllocationViewer;
@@ -16,6 +18,9 @@ class UMAEmergencyWidget;
 class UMAModifyWidget;
 class UMAEditWidget;
 class UMASceneListWidget;
+
+// 前向声明 - 其他类
+class UMAUIManager;
 class AMAPlayerController;
 class AMACharacter;
 class UMAEmergencyManager;
@@ -31,10 +36,9 @@ struct FMASceneGraphNode;
  * HUD 管理器
  * 
  * 职责:
- * - 创建和管理所有 UI Widget (MainWidget, SemanticMap, GanttChart 等)
- * - 响应 PlayerController 的 UI 切换事件
- * - 管理 Widget 的显示/隐藏状态
- * - 处理输入框焦点重置
+ * - HUD 绘制 (DrawHUD, DrawNotification, DrawSceneLabels, DrawEditModeIndicator)
+ * - 事件绑定和协调
+ * - 委托 Widget 创建和管理给 UIManager
  * 
  */
 UCLASS()
@@ -46,52 +50,20 @@ public:
     AMAHUD();
 
     //=========================================================================
-    // Widget 类引用 (在蓝图中设置)
+    // UI Manager
+    //=========================================================================
+
+    /** UI Manager 实例 - 负责 Widget 生命周期管理 */
+    UPROPERTY(BlueprintReadOnly, Category = "UI")
+    UMAUIManager* UIManager;
+
+    //=========================================================================
+    // Widget 类引用 (在蓝图中设置) - 委托给 UIManager
     //=========================================================================
 
     /** SemanticMap Widget 类引用 (后续阶段) */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI Classes")
     TSubclassOf<UUserWidget> SemanticMapWidgetClass;
-
-    //=========================================================================
-    // Widget 实例
-    //=========================================================================
-
-    /** SimpleMainWidget 实例 (纯 C++ UI 实现) - 已弃用，保留向后兼容 */
-    UPROPERTY(BlueprintReadOnly, Category = "UI Instances")
-    UMASimpleMainWidget* SimpleMainWidget;
-
-    /** TaskPlannerWidget 实例 (任务规划工作台) */
-    UPROPERTY(BlueprintReadOnly, Category = "UI Instances")
-    UMATaskPlannerWidget* TaskPlannerWidget;
-
-    /** SkillAllocationViewer 实例 (技能分配查看器) */
-    UPROPERTY(BlueprintReadOnly, Category = "UI Instances")
-    UMASkillAllocationViewer* SkillAllocationViewer;
-
-    /** SemanticMap Widget 实例 (后续阶段) */
-    UPROPERTY(BlueprintReadOnly, Category = "UI Instances")
-    UUserWidget* SemanticMapWidget;
-
-    /** Direct Control 指示器实例 */
-    UPROPERTY(BlueprintReadOnly, Category = "UI Instances")
-    UMADirectControlIndicator* DirectControlIndicator;
-
-    /** 突发事件详情界面实例 */
-    UPROPERTY(BlueprintReadOnly, Category = "UI Instances")
-    UMAEmergencyWidget* EmergencyWidget;
-
-    /** Modify 模式修改面板实例 */
-    UPROPERTY(BlueprintReadOnly, Category = "UI Instances")
-    UMAModifyWidget* ModifyWidget;
-
-    /** Edit 模式编辑面板实例 */
-    UPROPERTY(BlueprintReadOnly, Category = "UI Instances")
-    UMAEditWidget* EditWidget;
-
-    /** 场景列表面板实例 (Edit 模式左侧 Goal/Zone 列表) */
-    UPROPERTY(BlueprintReadOnly, Category = "UI Instances")
-    UMASceneListWidget* SceneListWidget;
 
     //=========================================================================
     // UI 状态
@@ -114,7 +86,7 @@ public:
     TArray<FMASceneGraphNode> CachedSceneNodes;
 
     //=========================================================================
-    // 公共接口
+    // 公共接口 (委托到 UIManager)
     //=========================================================================
 
     /**
@@ -162,18 +134,18 @@ public:
     bool IsDirectControlIndicatorVisible() const;
 
     /**
-     * 获取 SimpleMainWidget 实例 (已弃用)
+     * 获取 SimpleMainWidget 实例 (已弃用，通过 UIManager 访问)
      * @return SimpleMainWidget 指针，可能为 nullptr
      */
     UFUNCTION(BlueprintPure, Category = "UI")
-    UMASimpleMainWidget* GetSimpleMainWidget() const { return SimpleMainWidget; }
+    UMASimpleMainWidget* GetSimpleMainWidget() const;
 
     /**
-     * 获取 TaskPlannerWidget 实例
+     * 获取 TaskPlannerWidget 实例 (通过 UIManager 访问)
      * @return TaskPlannerWidget 指针，可能为 nullptr
      */
     UFUNCTION(BlueprintPure, Category = "UI")
-    UMATaskPlannerWidget* GetTaskPlannerWidget() const { return TaskPlannerWidget; }
+    UMATaskPlannerWidget* GetTaskPlannerWidget() const;
 
     /**
      * 切换技能分配查看器的显示/隐藏
@@ -399,11 +371,6 @@ private:
     //=========================================================================
 
     /**
-     * 创建所有 Widget 实例
-     */
-    void CreateWidgets();
-
-    /**
      * 绑定 PlayerController 事件
      */
     void BindControllerEvents();
@@ -412,6 +379,11 @@ private:
      * 绑定 EmergencyManager 事件
      */
     void BindEmergencyManagerEvents();
+
+    /**
+     * 绑定 Widget 委托 (在 UIManager 创建 Widget 后调用)
+     */
+    void BindWidgetDelegates();
 
     /**
      * 获取拥有此 HUD 的 MAPlayerController

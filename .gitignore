@@ -33,8 +33,8 @@ ENV/
 
 # Kiro / SII
 .kiro/
-!.kiro/steering/
-!.kiro/steering/project-guide.md
+.kiro/steering/
+.kiro/steering/project-guide.md
 .sii/
 
 # Temp files
@@ -74,6 +74,11 @@ unreal_project/Content/
 *.sln
 *.VC.db
 
-# 自定义脚本
-compile.sh
-start.sh
+
+# 临时记录
+temp_record.txt
+
+doc/REFACTORING_ANALYSIS_PART1.md
+doc/REFACTORING_ANALYSIS_PART2.md
+doc/REFACTORING_INDEX.md
+doc/REFACTORING_SUMMARY.md

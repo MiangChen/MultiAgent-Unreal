@@ -2,9 +2,9 @@
 // 场景图管理器实现
 
 #include "MASceneGraphManager.h"
-#include "MASceneGraphIO.h"
-#include "MASceneGraphQuery.h"
-#include "MADynamicNodeManager.h"
+#include "scene_graph_tools/MASceneGraphIO.h"
+#include "scene_graph_tools/MASceneGraphQuery.h"
+#include "scene_graph_tools/MADynamicNodeManager.h"
 #include "../../Agent/Skill/Utils/MALocationUtils.h"
 #include "GameFramework/Actor.h"
 #include "Misc/FileHelper.h"
@@ -17,94 +17,6 @@ DEFINE_LOG_CATEGORY_STATIC(LogMASceneGraphManager, Log, All);
 
 // 场景图文件名常量
 const FString UMASceneGraphManager::SceneGraphFileName = TEXT("datasets/scene_graph_cyberworld.json");
-
-//=============================================================================
-// 静态辅助方法 - 几何中心计算
-//=============================================================================
-
-FVector UMASceneGraphManager::CalculatePolygonCentroid(const TArray<TSharedPtr<FJsonValue>>& Vertices)
-{
-    
-    if (Vertices.Num() == 0)
-    {
-        UE_LOG(LogMASceneGraphManager, Warning, TEXT("CalculatePolygonCentroid: Empty vertices array"));
-        return FVector::ZeroVector;
-    }
-
-    FVector Sum = FVector::ZeroVector;
-    int32 ValidCount = 0;
-
-    for (const TSharedPtr<FJsonValue>& VertexValue : Vertices)
-    {
-        if (!VertexValue.IsValid() || VertexValue->Type != EJson::Array)
-        {
-            continue;
-        }
-
-        const TArray<TSharedPtr<FJsonValue>>& Coords = VertexValue->AsArray();
-        if (Coords.Num() >= 3)
-        {
-            Sum.X += Coords[0]->AsNumber();
-            Sum.Y += Coords[1]->AsNumber();
-            Sum.Z += Coords[2]->AsNumber();
-            ValidCount++;
-        }
-    }
-
-    if (ValidCount == 0)
-    {
-        UE_LOG(LogMASceneGraphManager, Warning, TEXT("CalculatePolygonCentroid: No valid vertices found"));
-        return FVector::ZeroVector;
-    }
-
-    FVector Centroid = Sum / static_cast<float>(ValidCount);
-    UE_LOG(LogMASceneGraphManager, Verbose, TEXT("CalculatePolygonCentroid: %d vertices -> (%f, %f, %f)"), 
-        ValidCount, Centroid.X, Centroid.Y, Centroid.Z);
-    
-    return Centroid;
-}
-
-FVector UMASceneGraphManager::CalculateLineStringCentroid(const TArray<TSharedPtr<FJsonValue>>& Points)
-{
-    
-    if (Points.Num() == 0)
-    {
-        UE_LOG(LogMASceneGraphManager, Warning, TEXT("CalculateLineStringCentroid: Empty points array"));
-        return FVector::ZeroVector;
-    }
-
-    FVector Sum = FVector::ZeroVector;
-    int32 ValidCount = 0;
-
-    for (const TSharedPtr<FJsonValue>& PointValue : Points)
-    {
-        if (!PointValue.IsValid() || PointValue->Type != EJson::Array)
-        {
-            continue;
-        }
-
-        const TArray<TSharedPtr<FJsonValue>>& Coords = PointValue->AsArray();
-        if (Coords.Num() >= 3)
-        {
-            Sum.X += Coords[0]->AsNumber();
-            Sum.Y += Coords[1]->AsNumber();
-            Sum.Z += Coords[2]->AsNumber();
-            ValidCount++;
-        }
-    }
-
-    if (ValidCount == 0)
-    {
-        UE_LOG(LogMASceneGraphManager, Warning, TEXT("CalculateLineStringCentroid: No valid points found"));
-        return FVector::ZeroVector;
-    }
-
-    FVector Centroid = Sum / static_cast<float>(ValidCount);
-    UE_LOG(LogMASceneGraphManager, Verbose, TEXT("CalculateLineStringCentroid: %d points -> (%f, %f, %f)"), 
-        ValidCount, Centroid.X, Centroid.Y, Centroid.Z);
-    
-    return Centroid;
-}
 
 //=============================================================================
 // 生命周期

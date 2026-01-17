@@ -218,6 +218,44 @@ public:
      */
     static TArray<FVector> CollectBoundingBoxVertices3D(const TArray<AActor*>& Actors);
 
+    //=========================================================================
+    // 点在多边形内判断 (统一接口)
+    //=========================================================================
+
+    /**
+     * 判断点是否在 2D 多边形内部 (忽略 Z 坐标)
+     * 使用射线法 (Ray Casting Algorithm)
+     * 
+     * @param Point 要检查的点
+     * @param PolygonVertices 多边形顶点数组
+     * @return 是否在多边形内部
+     * 
+     * 算法: 从点向右发射射线，计算与多边形边的交点数
+     * 奇数个交点表示在多边形内，偶数个交点表示在多边形外
+     */
+    static bool IsPointInPolygon2D(const FVector& Point, const TArray<FVector>& PolygonVertices);
+
+    //=========================================================================
+    // 多边形边界计算
+    //=========================================================================
+
+    /**
+     * 计算多边形的轴对齐边界框
+     * 
+     * @param Vertices 多边形顶点数组
+     * @param OutMin 输出的最小边界点
+     * @param OutMax 输出的最大边界点
+     */
+    static void GetPolygonBounds(const TArray<FVector>& Vertices, FVector& OutMin, FVector& OutMax);
+
+    /**
+     * 计算多边形顶点的几何中心 (算术平均值)
+     * 
+     * @param Vertices 顶点数组
+     * @return 几何中心点
+     */
+    static FVector GetPolygonCenter(const TArray<FVector>& Vertices);
+
 private:
     /** 用于极角排序的比较函数 */
     static bool CompareByPolarAngle(const FVector2D& Pivot, const FVector2D& A, const FVector2D& B);

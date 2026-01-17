@@ -212,18 +212,8 @@ public:
         const FMASemanticLabel& Label);
 
     //=========================================================================
-    // 几何辅助方法 (公开供其他模块使用)
+    // 辅助方法 (公开供其他模块使用)
     //=========================================================================
-
-    /**
-     * 判断点是否在2D多边形内部 (忽略Z坐标)
-     * 使用射线法 (Ray Casting Algorithm)
-     * 
-     * @param Point 要检查的点
-     * @param PolygonVertices 多边形顶点数组
-     * @return 是否在多边形内部
-     */
-    static bool IsPointInPolygon2D(const FVector& Point, const TArray<FVector>& PolygonVertices);
 
     /**
      * 从节点的RawJson中提取多边形顶点

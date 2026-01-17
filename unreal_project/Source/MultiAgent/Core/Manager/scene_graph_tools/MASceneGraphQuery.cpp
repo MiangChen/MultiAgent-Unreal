@@ -2,6 +2,7 @@
 // 场景图查询模块实现
 
 #include "MASceneGraphQuery.h"
+#include "../../../Utils/MAGeometryUtils.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 
@@ -400,7 +401,7 @@ TArray<FMASceneGraphNode> FMASceneGraphQuery::FindNodesInBoundary(
         }
 
         // 然后检查节点中心是否在边界内
-        if (IsPointInPolygon2D(Node.Center, BoundaryVertices))
+        if (FMAGeometryUtils::IsPointInPolygon2D(Node.Center, BoundaryVertices))
         {
             Result.Add(Node);
         }
@@ -427,7 +428,7 @@ bool FMASceneGraphQuery::IsPointInsideBuilding(
         }
 
         // 检查点是否在建筑物多边形内
-        if (IsPointInPolygon2D(Point, Vertices))
+        if (FMAGeometryUtils::IsPointInPolygon2D(Point, Vertices))
         {
             UE_LOG(LogMASceneGraphQuery, Verbose, TEXT("IsPointInsideBuilding: Point (%.2f, %.2f, %.2f) is inside building %s"),
                 Point.X, Point.Y, Point.Z, *Building.Id);
@@ -551,36 +552,6 @@ FMASceneGraphNode FMASceneGraphQuery::FindNodeByLabelString(
 //=============================================================================
 // 内部辅助方法
 //=============================================================================
-
-bool FMASceneGraphQuery::IsPointInPolygon2D(const FVector& Point, const TArray<FVector>& PolygonVertices)
-{
-    // 使用射线法 (Ray Casting Algorithm) 判断点是否在多边形内
-    // 从点向右发射一条射线，计算与多边形边的交点数
-    // 奇数个交点表示在多边形内，偶数个交点表示在多边形外
-
-    if (PolygonVertices.Num() < 3)
-    {
-        return false;
-    }
-
-    int32 NumVertices = PolygonVertices.Num();
-    bool bInside = false;
-
-    for (int32 i = 0, j = NumVertices - 1; i < NumVertices; j = i++)
-    {
-        const FVector& Vi = PolygonVertices[i];
-        const FVector& Vj = PolygonVertices[j];
-
-        // 检查射线是否与边相交 (只考虑X和Y坐标)
-        if (((Vi.Y > Point.Y) != (Vj.Y > Point.Y)) &&
-            (Point.X < (Vj.X - Vi.X) * (Point.Y - Vi.Y) / (Vj.Y - Vi.Y) + Vi.X))
-        {
-            bInside = !bInside;
-        }
-    }
-
-    return bInside;
-}
 
 bool FMASceneGraphQuery::ExtractPolygonVertices(const FMASceneGraphNode& Node, TArray<FVector>& OutVertices)
 {
