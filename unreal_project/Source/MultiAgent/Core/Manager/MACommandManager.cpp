@@ -10,6 +10,7 @@
 #include "../../Agent/Skill/MASkillComponent.h"
 #include "../../Agent/Skill/Utils/MASkillParamsProcessor.h"
 #include "../../Agent/Skill/Utils/MAFeedbackGenerator.h"
+#include "../../Agent/Skill/Utils/MASceneGraphUpdater.h"
 #include "../../Agent/StateTree/MAStateTreeComponent.h"
 #include "Components/StateTreeComponent.h"
 
@@ -49,6 +50,10 @@ void UMACommandManager::InitializeCommandTags()
     CommandTagCache.Add(EMACommand::TakeOff, FGameplayTag::RequestGameplayTag(FName("Command.TakeOff")));
     CommandTagCache.Add(EMACommand::Land, FGameplayTag::RequestGameplayTag(FName("Command.Land")));
     CommandTagCache.Add(EMACommand::ReturnHome, FGameplayTag::RequestGameplayTag(FName("Command.ReturnHome")));
+    CommandTagCache.Add(EMACommand::TakePhoto, FGameplayTag::RequestGameplayTag(FName("Command.TakePhoto")));
+    CommandTagCache.Add(EMACommand::Broadcast, FGameplayTag::RequestGameplayTag(FName("Command.Broadcast")));
+    CommandTagCache.Add(EMACommand::HandleHazard, FGameplayTag::RequestGameplayTag(FName("Command.HandleHazard")));
+    CommandTagCache.Add(EMACommand::Guide, FGameplayTag::RequestGameplayTag(FName("Command.Guide")));
 }
 
 // ========== 技能列表执行 ==========
@@ -215,6 +220,10 @@ void UMACommandManager::OnSkillCompleted(AMACharacter* Agent, bool bSuccess, con
         Command = *FoundCommand;
     }
     
+    // 更新场景图（在生成反馈之前）
+    FMASceneGraphUpdater::UpdateAfterSkillCompletion(Agent, Command, bSuccess);
+    
+    // 生成反馈
     FMASkillExecutionFeedback Feedback = FMAFeedbackGenerator::Generate(Agent, Command, bSuccess, Message);
     CurrentTimeStepFeedback.SkillFeedbacks.Add(Feedback);
     
@@ -323,6 +332,18 @@ bool UMACommandManager::ActivateSkillDirectly(AMACharacter* Agent, UMASkillCompo
         case EMACommand::ReturnHome:
             bActivated = SkillComp->TryActivateReturnHome();
             break;
+        case EMACommand::TakePhoto:
+            bActivated = SkillComp->TryActivateTakePhoto();
+            break;
+        case EMACommand::Broadcast:
+            bActivated = SkillComp->TryActivateBroadcast();
+            break;
+        case EMACommand::HandleHazard:
+            bActivated = SkillComp->TryActivateHandleHazard();
+            break;
+        case EMACommand::Guide:
+            bActivated = SkillComp->TryActivateGuide();
+            break;
         case EMACommand::Idle:
             SkillComp->NotifySkillCompleted(true, TEXT("Idle state entered"));
             bActivated = true;
@@ -348,15 +369,19 @@ FString UMACommandManager::CommandToString(EMACommand Command)
 {
     switch (Command)
     {
-        case EMACommand::Idle: return TEXT("Idle");
-        case EMACommand::Navigate: return TEXT("Navigate");
-        case EMACommand::Follow: return TEXT("Follow");
-        case EMACommand::Charge: return TEXT("Charge");
-        case EMACommand::Search: return TEXT("Search");
-        case EMACommand::Place: return TEXT("Place");
-        case EMACommand::TakeOff: return TEXT("TakeOff");
-        case EMACommand::Land: return TEXT("Land");
-        case EMACommand::ReturnHome: return TEXT("ReturnHome");
+        case EMACommand::Idle: return TEXT("idle");
+        case EMACommand::Navigate: return TEXT("navigate");
+        case EMACommand::Follow: return TEXT("follow");
+        case EMACommand::Charge: return TEXT("charge");
+        case EMACommand::Search: return TEXT("search");
+        case EMACommand::Place: return TEXT("place");
+        case EMACommand::TakeOff: return TEXT("take_off");
+        case EMACommand::Land: return TEXT("land");
+        case EMACommand::ReturnHome: return TEXT("return_home");
+        case EMACommand::TakePhoto: return TEXT("take_photo");
+        case EMACommand::Broadcast: return TEXT("broadcast");
+        case EMACommand::HandleHazard: return TEXT("handle_hazard");
+        case EMACommand::Guide: return TEXT("guide");
         default: return TEXT("None");
     }
 }
@@ -372,6 +397,10 @@ EMACommand UMACommandManager::StringToCommand(const FString& CommandString)
     if (CommandString.Equals(TEXT("take_off"), ESearchCase::IgnoreCase)) return EMACommand::TakeOff;
     if (CommandString.Equals(TEXT("land"), ESearchCase::IgnoreCase)) return EMACommand::Land;
     if (CommandString.Equals(TEXT("return_home"), ESearchCase::IgnoreCase)) return EMACommand::ReturnHome;
+    if (CommandString.Equals(TEXT("take_photo"), ESearchCase::IgnoreCase)) return EMACommand::TakePhoto;
+    if (CommandString.Equals(TEXT("broadcast"), ESearchCase::IgnoreCase)) return EMACommand::Broadcast;
+    if (CommandString.Equals(TEXT("handle_hazard"), ESearchCase::IgnoreCase)) return EMACommand::HandleHazard;
+    if (CommandString.Equals(TEXT("guide"), ESearchCase::IgnoreCase)) return EMACommand::Guide;
     return EMACommand::None;
 }
 

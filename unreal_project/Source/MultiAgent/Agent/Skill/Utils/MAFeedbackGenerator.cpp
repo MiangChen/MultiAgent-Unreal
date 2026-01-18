@@ -7,7 +7,7 @@
 #include "../../../Core/Manager/MACommandManager.h"
 #include "../../../Core/Manager/MASceneGraphManager.h"
 #include "../../../Core/Manager/scene_graph_tools/MASceneGraphQuery.h"
-#include "MASceneQuery.h"
+#include "MAUESceneQuery.h"
 #include "EngineUtils.h"  // For TActorIterator
 #include "Serialization/JsonSerializer.h"
 
@@ -166,7 +166,7 @@ bool FMAFeedbackGenerator::GetEntityInfoWithFallback(
     if (SceneGraphManager)
     {
         TArray<FMASceneGraphNode> AllNodes = SceneGraphManager->GetAllNodes();
-        FMASceneGraphNode Node = FMASceneGraphQuery::FindNodeById(AllNodes, EntityId);
+        FMASceneGraphNode Node = FMASceneGraphQuery::FindNodeByIdOrLabel(AllNodes, EntityId);
         
         if (Node.IsValid())
         {
@@ -222,7 +222,7 @@ bool FMAFeedbackGenerator::GetRobotInfoFromSceneGraph(
     if (SceneGraphManager)
     {
         TArray<FMASceneGraphNode> AllNodes = SceneGraphManager->GetAllNodes();
-        FMASceneGraphNode Node = FMASceneGraphQuery::FindNodeById(AllNodes, RobotId);
+        FMASceneGraphNode Node = FMASceneGraphQuery::FindNodeByIdOrLabel(AllNodes, RobotId);
         
         if (Node.IsValid() && Node.IsRobot())
         {
@@ -233,16 +233,6 @@ bool FMAFeedbackGenerator::GetRobotInfoFromSceneGraph(
                 *RobotId, *OutLabel, *OutAgentType);
             return true;
         }
-        
-        // 也尝试通过 Label 查找
-        Node = FMASceneGraphQuery::FindNodeByLabelString(AllNodes, RobotId);
-        if (Node.IsValid() && Node.IsRobot())
-        {
-            OutLabel = Node.Label.IsEmpty() ? Node.Id : Node.Label;
-            OutLocation = Node.Center;
-            OutAgentType = Node.Type;  // 机器人类型存储在 Type 字段
-            return true;
-        }
     }
     
     // 2. 回退到 UE5 场景查询
@@ -251,7 +241,7 @@ bool FMAFeedbackGenerator::GetRobotInfoFromSceneGraph(
     UWorld* World = Agent->GetWorld();
     if (World)
     {
-        AMACharacter* FoundRobot = FMASceneQuery::FindRobotByName(World, RobotId);
+        AMACharacter* FoundRobot = FMAUESceneQuery::FindRobotByName(World, RobotId);
         if (FoundRobot)
         {
             OutLabel = FoundRobot->AgentID;
@@ -284,7 +274,7 @@ bool FMAFeedbackGenerator::GetPickupItemInfoFromSceneGraph(
     if (SceneGraphManager)
     {
         TArray<FMASceneGraphNode> AllNodes = SceneGraphManager->GetAllNodes();
-        FMASceneGraphNode Node = FMASceneGraphQuery::FindNodeById(AllNodes, ItemId);
+        FMASceneGraphNode Node = FMASceneGraphQuery::FindNodeByIdOrLabel(AllNodes, ItemId);
         
         if (Node.IsValid() && Node.IsPickupItem())
         {
@@ -293,16 +283,6 @@ bool FMAFeedbackGenerator::GetPickupItemInfoFromSceneGraph(
             OutFeatures = Node.Features;
             UE_LOG(LogTemp, Verbose, TEXT("[FMAFeedbackGenerator] Found pickup item '%s' in scene graph: Label=%s"),
                 *ItemId, *OutLabel);
-            return true;
-        }
-        
-        // 也尝试通过 Label 查找
-        Node = FMASceneGraphQuery::FindNodeByLabelString(AllNodes, ItemId);
-        if (Node.IsValid() && Node.IsPickupItem())
-        {
-            OutLabel = Node.Label.IsEmpty() ? Node.Id : Node.Label;
-            OutLocation = Node.Center;
-            OutFeatures = Node.Features;
             return true;
         }
     }
@@ -317,7 +297,7 @@ bool FMAFeedbackGenerator::GetPickupItemInfoFromSceneGraph(
         Label.Class = TEXT("object");
         Label.Features.Add(TEXT("label"), ItemId);
         
-        FMASceneQueryResult Result = FMASceneQuery::FindObjectByLabel(World, Label);
+        FMAUESceneQueryResult Result = FMAUESceneQuery::FindObjectByLabel(World, Label);
         if (Result.bFound)
         {
             OutLabel = Result.Name;
@@ -347,7 +327,7 @@ bool FMAFeedbackGenerator::GetChargingStationInfoFromSceneGraph(
     if (SceneGraphManager)
     {
         TArray<FMASceneGraphNode> AllNodes = SceneGraphManager->GetAllNodes();
-        FMASceneGraphNode Node = FMASceneGraphQuery::FindNodeById(AllNodes, StationId);
+        FMASceneGraphNode Node = FMASceneGraphQuery::FindNodeByIdOrLabel(AllNodes, StationId);
         
         if (Node.IsValid() && Node.IsChargingStation())
         {
@@ -355,15 +335,6 @@ bool FMAFeedbackGenerator::GetChargingStationInfoFromSceneGraph(
             OutLocation = Node.Center;
             UE_LOG(LogTemp, Verbose, TEXT("[FMAFeedbackGenerator] Found charging station '%s' in scene graph: Label=%s"),
                 *StationId, *OutLabel);
-            return true;
-        }
-        
-        // 也尝试通过 Label 查找
-        Node = FMASceneGraphQuery::FindNodeByLabelString(AllNodes, StationId);
-        if (Node.IsValid() && Node.IsChargingStation())
-        {
-            OutLabel = Node.Label.IsEmpty() ? Node.Id : Node.Label;
-            OutLocation = Node.Center;
             return true;
         }
     }
@@ -422,7 +393,7 @@ void FMAFeedbackGenerator::AddCommonFieldsToFeedback(
         Feedback.Data.Add(TEXT("task_id"), Context.TaskId);
     }
     
-    // 添加 robot_id 和 robot_label (Python feedback_processor 需要)
+    // 添加 robot_id 和 robot_label (Planner's feedback_processor 需要)
     if (!Feedback.AgentId.IsEmpty())
     {
         Feedback.Data.Add(TEXT("robot_id"), Feedback.AgentId);
@@ -456,65 +427,6 @@ void FMAFeedbackGenerator::AddCommonFieldsToFeedback(
 }
 
 //=============================================================================
-// 场景图状态更新实现
-//=============================================================================
-
-void FMAFeedbackGenerator::UpdateSceneGraphEntityPosition(
-    AMACharacter* Agent,
-    const FString& EntityId,
-    const FVector& NewLocation,
-    bool bIsRobot)
-{
-    if (!Agent || EntityId.IsEmpty())
-    {
-        return;
-    }
-    
-    UMASceneGraphManager* SceneGraphManager = GetSceneGraphManager(Agent);
-    if (!SceneGraphManager)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[FMAFeedbackGenerator] Cannot update scene graph: SceneGraphManager not available"));
-        return;
-    }
-    
-    if (bIsRobot)
-    {
-        SceneGraphManager->UpdateRobotPosition(EntityId, NewLocation);
-        UE_LOG(LogTemp, Verbose, TEXT("[FMAFeedbackGenerator] Updated robot '%s' position in scene graph to (%f, %f, %f)"),
-            *EntityId, NewLocation.X, NewLocation.Y, NewLocation.Z);
-    }
-    else
-    {
-        SceneGraphManager->UpdatePickupItemPosition(EntityId, NewLocation);
-        UE_LOG(LogTemp, Verbose, TEXT("[FMAFeedbackGenerator] Updated pickup item '%s' position in scene graph to (%f, %f, %f)"),
-            *EntityId, NewLocation.X, NewLocation.Y, NewLocation.Z);
-    }
-}
-
-void FMAFeedbackGenerator::UpdateSceneGraphItemCarrierStatus(
-    AMACharacter* Agent,
-    const FString& ItemId,
-    bool bIsCarried,
-    const FString& CarrierId)
-{
-    if (!Agent || ItemId.IsEmpty())
-    {
-        return;
-    }
-    
-    UMASceneGraphManager* SceneGraphManager = GetSceneGraphManager(Agent);
-    if (!SceneGraphManager)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[FMAFeedbackGenerator] Cannot update scene graph: SceneGraphManager not available"));
-        return;
-    }
-    
-    SceneGraphManager->UpdatePickupItemCarrierStatus(ItemId, bIsCarried, CarrierId);
-    UE_LOG(LogTemp, Verbose, TEXT("[FMAFeedbackGenerator] Updated pickup item '%s' carrier status: bIsCarried=%s, CarrierId=%s"),
-        *ItemId, bIsCarried ? TEXT("true") : TEXT("false"), *CarrierId);
-}
-
-//=============================================================================
 // 主入口
 //=============================================================================
 
@@ -528,49 +440,69 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::Generate(AMACharacter* Agent, EM
         return Feedback;
     }
     
+    // 统一初始化公共字段
     Feedback.AgentId = Agent->AgentID;
-    Feedback.SkillName = CommandToSkillName(Command);
+    Feedback.SkillName = UMACommandManager::CommandToString(Command);
+    Feedback.bSuccess = bSuccess;
     
     UMASkillComponent* SkillComp = Agent->GetSkillComponent();
     
+    // 调用具体的反馈生成函数填充 Data 和 Message
     switch (Command)
     {
         case EMACommand::Navigate:
-            return GenerateNavigateFeedback(Agent, SkillComp, bSuccess, Message);
+            GenerateNavigateFeedback(Feedback, Agent, SkillComp, bSuccess, Message);
+            break;
         case EMACommand::Search:
-            return GenerateSearchFeedback(Agent, SkillComp, bSuccess, Message);
+            GenerateSearchFeedback(Feedback, Agent, SkillComp, bSuccess, Message);
+            break;
         case EMACommand::Follow:
-            return GenerateFollowFeedback(Agent, SkillComp, bSuccess, Message);
+            GenerateFollowFeedback(Feedback, Agent, SkillComp, bSuccess, Message);
+            break;
         case EMACommand::Charge:
-            return GenerateChargeFeedback(Agent, SkillComp, bSuccess, Message);
+            GenerateChargeFeedback(Feedback, Agent, SkillComp, bSuccess, Message);
+            break;
         case EMACommand::Place:
-            return GeneratePlaceFeedback(Agent, SkillComp, bSuccess, Message);
+            GeneratePlaceFeedback(Feedback, Agent, SkillComp, bSuccess, Message);
+            break;
         case EMACommand::TakeOff:
-            return GenerateTakeOffFeedback(Agent, SkillComp, bSuccess, Message);
+            GenerateTakeOffFeedback(Feedback, Agent, SkillComp, bSuccess, Message);
+            break;
         case EMACommand::Land:
-            return GenerateLandFeedback(Agent, SkillComp, bSuccess, Message);
+            GenerateLandFeedback(Feedback, Agent, SkillComp, bSuccess, Message);
+            break;
         case EMACommand::ReturnHome:
-            return GenerateReturnHomeFeedback(Agent, SkillComp, bSuccess, Message);
+            GenerateReturnHomeFeedback(Feedback, Agent, SkillComp, bSuccess, Message);
+            break;
+        case EMACommand::TakePhoto:
+            GenerateTakePhotoFeedback(Feedback, Agent, SkillComp, bSuccess, Message);
+            break;
+        case EMACommand::Broadcast:
+            GenerateBroadcastFeedback(Feedback, Agent, SkillComp, bSuccess, Message);
+            break;
+        case EMACommand::HandleHazard:
+            GenerateHandleHazardFeedback(Feedback, Agent, SkillComp, bSuccess, Message);
+            break;
+        case EMACommand::Guide:
+            GenerateGuideFeedback(Feedback, Agent, SkillComp, bSuccess, Message);
+            break;
         case EMACommand::Idle:
-            return GenerateIdleFeedback(Agent, bSuccess, Message);
+            GenerateIdleFeedback(Feedback, Agent, bSuccess, Message);
+            break;
         default:
-            Feedback.bSuccess = bSuccess;
             Feedback.Message = Message;
-            return Feedback;
+            break;
     }
+    
+    return Feedback;
 }
 
 //=============================================================================
 // Navigate 反馈生成
 //=============================================================================
 
-FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateNavigateFeedback(AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message)
+void FMAFeedbackGenerator::GenerateNavigateFeedback(FMASkillExecutionFeedback& Feedback, AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message)
 {
-    FMASkillExecutionFeedback Feedback;
-    Feedback.AgentId = Agent->AgentID;
-    Feedback.SkillName = TEXT("Navigate");
-    Feedback.bSuccess = bSuccess;
-    
     // 添加通用字段 (task_id 等)
     AddCommonFieldsToFeedback(Feedback, SkillComp);
     
@@ -612,14 +544,6 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateNavigateFeedback(AMAChar
                     Feedback.Data.Add(TEXT("nearby_landmark_distance"), FString::Printf(TEXT("%.1f"), Distance));
                 }
             }
-        }
-        
-        //=========================================================================
-        // 更新场景图中机器人位置
-        //=========================================================================
-        if (bSuccess)
-        {
-            UpdateSceneGraphEntityPosition(Agent, Agent->AgentID, Agent->GetActorLocation(), true);
         }
     }
     
@@ -663,21 +587,14 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateNavigateFeedback(AMAChar
     {
         Feedback.Message = bSuccess ? TEXT("Navigation completed") : TEXT("Navigation failed");
     }
-    
-    return Feedback;
 }
 
 //=============================================================================
 // Search 反馈生成
 //=============================================================================
 
-FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateSearchFeedback(AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message)
+void FMAFeedbackGenerator::GenerateSearchFeedback(FMASkillExecutionFeedback& Feedback, AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message)
 {
-    FMASkillExecutionFeedback Feedback;
-    Feedback.AgentId = Agent->AgentID;
-    Feedback.SkillName = TEXT("Search");
-    Feedback.bSuccess = bSuccess;
-    
     // 添加通用字段 (task_id 等)
     AddCommonFieldsToFeedback(Feedback, SkillComp);
     
@@ -730,13 +647,8 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateSearchFeedback(AMACharac
                 TSharedPtr<FJsonObject> NodeJson;
                 if (SceneGraphManager && AllNodes.Num() > 0)
                 {
-                    // 先尝试通过名称查找
-                    FMASceneGraphNode Node = FMASceneGraphQuery::FindNodeByLabelString(AllNodes, ObjectName);
-                    if (!Node.IsValid())
-                    {
-                        // 再尝试通过 ID 查找
-                        Node = FMASceneGraphQuery::FindNodeById(AllNodes, ObjectName);
-                    }
+                    // 通过名称或ID查找节点
+                    FMASceneGraphNode Node = FMASceneGraphQuery::FindNodeByIdOrLabel(AllNodes, ObjectName);
                     
                     if (Node.IsValid())
                     {
@@ -802,7 +714,7 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateSearchFeedback(AMACharac
                 FJsonSerializer::Serialize(DiscoveredNodesArray, Writer);
                 Feedback.Data.Add(TEXT("discovered_nodes"), DiscoveredNodesJsonString);
                 
-                // 构建 found_ids 数组 (Python feedback_processor 需要)
+                // 构建 found_ids 数组 (Planner's feedback_processor 需要)
                 TArray<TSharedPtr<FJsonValue>> FoundIdsArray;
                 for (const TSharedPtr<FJsonValue>& NodeValue : DiscoveredNodesArray)
                 {
@@ -840,14 +752,6 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateSearchFeedback(AMACharac
                 ObjectNames.Add(ObjName);
             }
             Feedback.Data.Add(TEXT("found_objects"), FString::Join(ObjectNames, TEXT(", ")));
-        }
-        
-        //=========================================================================
-        // 更新场景图中机器人位置
-        //=========================================================================
-        if (bSuccess)
-        {
-            UpdateSceneGraphEntityPosition(Agent, Agent->AgentID, Agent->GetActorLocation(), true);
         }
     }
     
@@ -895,21 +799,14 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateSearchFeedback(AMACharac
     {
         Feedback.Message = bSuccess ? TEXT("Search completed") : TEXT("Search failed");
     }
-    
-    return Feedback;
 }
 
 //=============================================================================
 // Follow 反馈生成
 //=============================================================================
 
-FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateFollowFeedback(AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message)
+void FMAFeedbackGenerator::GenerateFollowFeedback(FMASkillExecutionFeedback& Feedback, AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message)
 {
-    FMASkillExecutionFeedback Feedback;
-    Feedback.AgentId = Agent->AgentID;
-    Feedback.SkillName = TEXT("Follow");
-    Feedback.bSuccess = bSuccess;
-    
     // 添加通用字段 (task_id 等)
     AddCommonFieldsToFeedback(Feedback, SkillComp);
     
@@ -950,17 +847,17 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateFollowFeedback(AMACharac
         }
         
         //=========================================================================
-        // 添加目标机器人信息
+        // 添加目标信息（可以是机器人或其他对象）
         //=========================================================================
-        FString TargetRobotName = Context.FollowTargetRobotName;
-        if (TargetRobotName.IsEmpty())
+        FString TargetName = Context.FollowTargetRobotName;
+        if (TargetName.IsEmpty())
         {
-            TargetRobotName = Context.TargetName;
+            TargetName = Context.TargetName;
         }
         
-        if (!TargetRobotName.IsEmpty())
+        if (!TargetName.IsEmpty())
         {
-            // 尝试从场景图获取目标机器人的详细信息
+            // 尝试从场景图获取目标的详细信息
             UMASceneGraphManager* SceneGraphManager = GetSceneGraphManager(Agent);
             TArray<FMASceneGraphNode> AllNodes;
             if (SceneGraphManager)
@@ -971,13 +868,8 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateFollowFeedback(AMACharac
             FMASceneGraphNode TargetNode;
             if (SceneGraphManager && AllNodes.Num() > 0)
             {
-                // 先尝试通过名称查找
-                TargetNode = FMASceneGraphQuery::FindNodeByLabelString(AllNodes, TargetRobotName);
-                if (!TargetNode.IsValid())
-                {
-                    // 再尝试通过 ID 查找
-                    TargetNode = FMASceneGraphQuery::FindNodeById(AllNodes, TargetRobotName);
-                }
+                // 通过名称或ID查找
+                TargetNode = FMASceneGraphQuery::FindNodeByIdOrLabel(AllNodes, TargetName);
             }
             
             if (TargetNode.IsValid())
@@ -991,9 +883,9 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateFollowFeedback(AMACharac
                     Feedback.Data.Add(TEXT("target_node"), TargetNodeJsonString);
                 }
                 
-                // 同时保留旧格式以保持兼容性
-                FString RobotLabel = TargetNode.Label.IsEmpty() ? TargetNode.Id : TargetNode.Label;
-                AddEntityInfoToFeedback(Feedback, TEXT("target_robot"), RobotLabel, TargetNode.Center, TargetNode.Type);
+                // 添加目标信息（使用通用的 target 前缀，而不是 target_robot）
+                FString TargetLabel = TargetNode.Label.IsEmpty() ? TargetNode.Id : TargetNode.Label;
+                AddEntityInfoToFeedback(Feedback, TEXT("target"), TargetLabel, TargetNode.Center, TargetNode.Type);
                 
                 // 如果没有设置 target_id，使用场景图节点的 ID
                 if (Context.FollowTargetId.IsEmpty())
@@ -1004,7 +896,7 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateFollowFeedback(AMACharac
             else
             {
                 // 回退：使用 Context 中的信息
-                Feedback.Data.Add(TEXT("target_robot_label"), TargetRobotName);
+                Feedback.Data.Add(TEXT("target_name"), TargetName);
             }
         }
         
@@ -1025,14 +917,6 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateFollowFeedback(AMACharac
         if (!Context.bFollowTargetFound && !Context.FollowErrorReason.IsEmpty())
         {
             Feedback.Data.Add(TEXT("error_reason"), Context.FollowErrorReason);
-        }
-        
-        //=========================================================================
-        // 更新场景图中机器人位置
-        //=========================================================================
-        if (bSuccess)
-        {
-            UpdateSceneGraphEntityPosition(Agent, Agent->AgentID, Agent->GetActorLocation(), true);
         }
     }
     
@@ -1106,21 +990,14 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateFollowFeedback(AMACharac
     {
         Feedback.Message = bSuccess ? TEXT("Follow completed") : TEXT("Follow failed");
     }
-    
-    return Feedback;
 }
 
 //=============================================================================
 // Charge 反馈生成
 //=============================================================================
 
-FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateChargeFeedback(AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message)
+void FMAFeedbackGenerator::GenerateChargeFeedback(FMASkillExecutionFeedback& Feedback, AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message)
 {
-    FMASkillExecutionFeedback Feedback;
-    Feedback.AgentId = Agent->AgentID;
-    Feedback.SkillName = TEXT("Charge");
-    Feedback.bSuccess = bSuccess;
-    
     // 添加通用字段 (task_id 等)
     AddCommonFieldsToFeedback(Feedback, SkillComp);
     
@@ -1150,13 +1027,8 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateChargeFeedback(AMACharac
             FMASceneGraphNode StationNode;
             if (SceneGraphManager && AllNodes.Num() > 0)
             {
-                // 先尝试通过 ID 查找
-                StationNode = FMASceneGraphQuery::FindNodeById(AllNodes, Context.ChargingStationId);
-                if (!StationNode.IsValid())
-                {
-                    // 再尝试通过名称查找
-                    StationNode = FMASceneGraphQuery::FindNodeByLabelString(AllNodes, Context.ChargingStationId);
-                }
+                // 通过名称或ID查找
+                StationNode = FMASceneGraphQuery::FindNodeByIdOrLabel(AllNodes, Context.ChargingStationId);
             }
             
             if (StationNode.IsValid())
@@ -1195,14 +1067,6 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateChargeFeedback(AMACharac
         if (!Context.bChargingStationFound && !Context.ChargeErrorReason.IsEmpty())
         {
             Feedback.Data.Add(TEXT("error_reason"), Context.ChargeErrorReason);
-        }
-        
-        //=========================================================================
-        // 更新场景图中机器人位置
-        //=========================================================================
-        if (bSuccess)
-        {
-            UpdateSceneGraphEntityPosition(Agent, Agent->AgentID, Agent->GetActorLocation(), true);
         }
     }
     
@@ -1274,21 +1138,14 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateChargeFeedback(AMACharac
     {
         Feedback.Message = bSuccess ? TEXT("Charge completed") : TEXT("Charge interrupted");
     }
-    
-    return Feedback;
 }
 
 //=============================================================================
 // Place 反馈生成
 //=============================================================================
 
-FMASkillExecutionFeedback FMAFeedbackGenerator::GeneratePlaceFeedback(AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message)
+void FMAFeedbackGenerator::GeneratePlaceFeedback(FMASkillExecutionFeedback& Feedback, AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message)
 {
-    FMASkillExecutionFeedback Feedback;
-    Feedback.AgentId = Agent->AgentID;
-    Feedback.SkillName = TEXT("Place");
-    Feedback.bSuccess = bSuccess;
-    
     // 添加通用字段 (task_id 等)
     AddCommonFieldsToFeedback(Feedback, SkillComp);
     
@@ -1311,7 +1168,7 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GeneratePlaceFeedback(AMACharact
         FString Object1Name = Context.PlacedObjectName;
         if (!Object1NodeId.IsEmpty() && SceneGraphManager)
         {
-            FMASceneGraphNode Object1Node = FMASceneGraphQuery::FindNodeById(AllNodes, Object1NodeId);
+            FMASceneGraphNode Object1Node = FMASceneGraphQuery::FindNodeByIdOrLabel(AllNodes, Object1NodeId);
             if (Object1Node.IsValid())
             {
                 TSharedPtr<FJsonObject> Object1NodeJson = BuildNodeJsonFromSceneGraph(Object1Node);
@@ -1347,7 +1204,7 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GeneratePlaceFeedback(AMACharact
         FString Object2Name = Context.PlaceTargetName;
         if (!Object2NodeId.IsEmpty() && SceneGraphManager)
         {
-            FMASceneGraphNode Object2Node = FMASceneGraphQuery::FindNodeById(AllNodes, Object2NodeId);
+            FMASceneGraphNode Object2Node = FMASceneGraphQuery::FindNodeByIdOrLabel(AllNodes, Object2NodeId);
             if (Object2Node.IsValid())
             {
                 TSharedPtr<FJsonObject> Object2NodeJson = BuildNodeJsonFromSceneGraph(Object2Node);
@@ -1398,42 +1255,6 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GeneratePlaceFeedback(AMACharact
         if (!bSuccess && !Context.PlaceCancelledPhase.IsEmpty())
         {
             Feedback.Data.Add(TEXT("cancelled_phase"), Context.PlaceCancelledPhase);
-        }
-        
-        //=========================================================================
-        // 更新场景图状态
-        //=========================================================================
-        if (bSuccess && SceneGraphManager)
-        {
-            // 更新机器人位置
-            UpdateSceneGraphEntityPosition(Agent, Agent->AgentID, Agent->GetActorLocation(), true);
-            
-            // 更新物品位置和携带状态
-            if (!Object1NodeId.IsEmpty() && !Context.PlaceFinalLocation.IsZero())
-            {
-                // 更新物品位置
-                SceneGraphManager->UpdatePickupItemPosition(Object1NodeId, Context.PlaceFinalLocation);
-                
-                // 判断是否放到了 UGV 上
-                bool bPlacedOnRobot = false;
-                FString CarrierId;
-                if (!Object2NodeId.IsEmpty())
-                {
-                    FMASceneGraphNode Object2Node = FMASceneGraphQuery::FindNodeById(AllNodes, Object2NodeId);
-                    if (Object2Node.IsValid() && Object2Node.IsRobot())
-                    {
-                        bPlacedOnRobot = true;
-                        CarrierId = Object2NodeId;
-                    }
-                }
-                
-                // 更新携带状态
-                SceneGraphManager->UpdatePickupItemCarrierStatus(Object1NodeId, bPlacedOnRobot, CarrierId);
-                
-                UE_LOG(LogTemp, Verbose, TEXT("[FMAFeedbackGenerator] Updated scene graph after Place: Item=%s, Location=(%f, %f, %f), Carried=%s, Carrier=%s"),
-                    *Object1NodeId, Context.PlaceFinalLocation.X, Context.PlaceFinalLocation.Y, Context.PlaceFinalLocation.Z,
-                    bPlacedOnRobot ? TEXT("true") : TEXT("false"), *CarrierId);
-            }
         }
     }
     
@@ -1502,21 +1323,14 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GeneratePlaceFeedback(AMACharact
     {
         Feedback.Message = bSuccess ? TEXT("Place completed") : TEXT("Place failed");
     }
-    
-    return Feedback;
 }
 
 //=============================================================================
 // TakeOff 反馈生成
 //=============================================================================
 
-FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateTakeOffFeedback(AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message)
+void FMAFeedbackGenerator::GenerateTakeOffFeedback(FMASkillExecutionFeedback& Feedback, AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message)
 {
-    FMASkillExecutionFeedback Feedback;
-    Feedback.AgentId = Agent->AgentID;
-    Feedback.SkillName = TEXT("TakeOff");
-    Feedback.bSuccess = bSuccess;
-    
     // 添加通用字段 (task_id 等)
     AddCommonFieldsToFeedback(Feedback, SkillComp);
     
@@ -1572,14 +1386,6 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateTakeOffFeedback(AMAChara
         Feedback.Data.Add(TEXT("current_x"), FString::Printf(TEXT("%.1f"), CurrentLoc.X));
         Feedback.Data.Add(TEXT("current_y"), FString::Printf(TEXT("%.1f"), CurrentLoc.Y));
         Feedback.Data.Add(TEXT("current_z"), FString::Printf(TEXT("%.1f"), CurrentLoc.Z));
-        
-        //=========================================================================
-        // 更新场景图中机器人位置
-        //=========================================================================
-        if (bSuccess)
-        {
-            UpdateSceneGraphEntityPosition(Agent, Agent->AgentID, Agent->GetActorLocation(), true);
-        }
     }
     
     //=========================================================================
@@ -1627,21 +1433,14 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateTakeOffFeedback(AMAChara
     {
         Feedback.Message = bSuccess ? TEXT("TakeOff completed") : TEXT("TakeOff failed");
     }
-    
-    return Feedback;
 }
 
 //=============================================================================
 // Land 反馈生成
 //=============================================================================
 
-FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateLandFeedback(AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message)
+void FMAFeedbackGenerator::GenerateLandFeedback(FMASkillExecutionFeedback& Feedback, AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message)
 {
-    FMASkillExecutionFeedback Feedback;
-    Feedback.AgentId = Agent->AgentID;
-    Feedback.SkillName = TEXT("Land");
-    Feedback.bSuccess = bSuccess;
-    
     // 添加通用字段 (task_id 等)
     AddCommonFieldsToFeedback(Feedback, SkillComp);
     
@@ -1724,14 +1523,6 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateLandFeedback(AMACharacte
         
         // 添加着陆位置是否安全的标志
         Feedback.Data.Add(TEXT("location_safe"), Context.bLandLocationSafe ? TEXT("true") : TEXT("false"));
-        
-        //=========================================================================
-        // 更新场景图中机器人位置
-        //=========================================================================
-        if (bSuccess)
-        {
-            UpdateSceneGraphEntityPosition(Agent, Agent->AgentID, Agent->GetActorLocation(), true);
-        }
     }
     
     //=========================================================================
@@ -1792,21 +1583,14 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateLandFeedback(AMACharacte
     {
         Feedback.Message = bSuccess ? TEXT("Land completed") : TEXT("Land failed");
     }
-    
-    return Feedback;
 }
 
 //=============================================================================
 // ReturnHome 反馈生成
 //=============================================================================
 
-FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateReturnHomeFeedback(AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message)
+void FMAFeedbackGenerator::GenerateReturnHomeFeedback(FMASkillExecutionFeedback& Feedback, AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message)
 {
-    FMASkillExecutionFeedback Feedback;
-    Feedback.AgentId = Agent->AgentID;
-    Feedback.SkillName = TEXT("ReturnHome");
-    Feedback.bSuccess = bSuccess;
-    
     // 添加通用字段 (task_id 等)
     AddCommonFieldsToFeedback(Feedback, SkillComp);
     
@@ -1847,14 +1631,6 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateReturnHomeFeedback(AMACh
         
         // 添加是否从场景图获取的标志
         Feedback.Data.Add(TEXT("from_scene_graph"), Context.bHomeLocationFromSceneGraph ? TEXT("true") : TEXT("false"));
-        
-        //=========================================================================
-        // 更新场景图中机器人位置
-        //=========================================================================
-        if (bSuccess)
-        {
-            UpdateSceneGraphEntityPosition(Agent, Agent->AgentID, Agent->GetActorLocation(), true);
-        }
     }
     
     //=========================================================================
@@ -1898,21 +1674,384 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateReturnHomeFeedback(AMACh
     {
         Feedback.Message = bSuccess ? TEXT("ReturnHome completed") : TEXT("ReturnHome failed");
     }
+}
+
+//=============================================================================
+// TakePhoto 反馈生成
+//=============================================================================
+
+void FMAFeedbackGenerator::GenerateTakePhotoFeedback(FMASkillExecutionFeedback& Feedback, AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message)
+{
+    // 添加通用字段 (task_id 等)
+    AddCommonFieldsToFeedback(Feedback, SkillComp);
     
-    return Feedback;
+    if (SkillComp)
+    {
+        const FMAFeedbackContext& Context = SkillComp->GetFeedbackContext();
+        
+        //=========================================================================
+        // 添加目标信息
+        //=========================================================================
+        if (Context.bPhotoTargetFound)
+        {
+            // 目标找到，添加目标节点信息
+            if (!Context.PhotoTargetId.IsEmpty())
+            {
+                UMASceneGraphManager* SceneGraphManager = GetSceneGraphManager(Agent);
+                if (SceneGraphManager)
+                {
+                    FMASceneGraphNode Node = FMASceneGraphQuery::FindNodeByIdOrLabel(SceneGraphManager->GetAllNodes(), Context.PhotoTargetId);
+                    if (!Node.Id.IsEmpty())
+                    {
+                        // 使用 BuildNodeJsonFromSceneGraph 添加目标节点信息到反馈数据
+                        TSharedPtr<FJsonObject> NodeJson = BuildNodeJsonFromSceneGraph(Node);
+                        if (NodeJson.IsValid())
+                        {
+                            FString NodeJsonStr;
+                            TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&NodeJsonStr);
+                            FJsonSerializer::Serialize(NodeJson.ToSharedRef(), Writer);
+                            Feedback.Data.Add(TEXT("target_node"), NodeJsonStr);
+                        }
+                        
+                        // 同时保留旧格式以保持兼容性
+                        FString TargetLabel = Node.Label.IsEmpty() ? Node.Id : Node.Label;
+                        AddEntityInfoToFeedback(Feedback, TEXT("target"), TargetLabel, Node.Center, Node.Type);
+                    }
+                }
+            }
+            
+            // 添加目标名称和 ID
+            if (!Context.PhotoTargetName.IsEmpty())
+            {
+                Feedback.Data.Add(TEXT("target_name"), Context.PhotoTargetName);
+            }
+            if (!Context.PhotoTargetId.IsEmpty())
+            {
+                Feedback.Data.Add(TEXT("target_id"), Context.PhotoTargetId);
+            }
+        }
+        
+        // 添加目标是否找到的标志
+        Feedback.Data.Add(TEXT("target_found"), Context.bPhotoTargetFound ? TEXT("true") : TEXT("false"));
+    }
+    
+    //=========================================================================
+    // 生成消息
+    //=========================================================================
+    if (!Message.IsEmpty())
+    {
+        Feedback.Message = Message;
+    }
+    else if (SkillComp)
+    {
+        const FMAFeedbackContext& Context = SkillComp->GetFeedbackContext();
+        
+        if (bSuccess)
+        {
+            if (Context.bPhotoTargetFound)
+            {
+                // 拍照成功，且发现了目标
+                FString TargetName = Context.PhotoTargetName;
+                if (TargetName.IsEmpty())
+                {
+                    TargetName = Feedback.Data.FindRef(TEXT("target_label"));
+                }
+                
+                if (!TargetName.IsEmpty())
+                {
+                    Feedback.Message = FString::Printf(TEXT("Photo taken successfully, found %s"), *TargetName);
+                }
+                else
+                {
+                    Feedback.Message = TEXT("Photo taken successfully, found target");
+                }
+            }
+            else
+            {
+                // 拍照成功，但是没发现目标
+                const FMASkillParams& Params = SkillComp->GetSkillParams();
+                FString TargetDesc = Params.CommonTarget.Type.IsEmpty() ? TEXT("target") : Params.CommonTarget.Type;
+                Feedback.Message = FString::Printf(TEXT("Photo taken successfully, but %s not found"), *TargetDesc);
+            }
+        }
+        else
+        {
+            // 拍照失败
+            Feedback.Message = TEXT("Photo failed");
+        }
+    }
+    else
+    {
+        Feedback.Message = bSuccess ? TEXT("Photo taken successfully") : TEXT("Photo failed");
+    }
+}
+
+//=============================================================================
+// Broadcast 反馈生成
+//=============================================================================
+
+void FMAFeedbackGenerator::GenerateBroadcastFeedback(FMASkillExecutionFeedback& Feedback, AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message)
+{
+    // 添加通用字段 (task_id 等)
+    AddCommonFieldsToFeedback(Feedback, SkillComp);
+    
+    if (SkillComp)
+    {
+        const FMAFeedbackContext& Context = SkillComp->GetFeedbackContext();
+        
+        //=========================================================================
+        // 添加喊话消息
+        //=========================================================================
+        if (!Context.BroadcastMessage.IsEmpty())
+        {
+            Feedback.Data.Add(TEXT("message"), Context.BroadcastMessage);
+        }
+        
+        //=========================================================================
+        // 添加目标信息
+        //=========================================================================
+        if (Context.bBroadcastTargetFound && !Context.BroadcastTargetName.IsEmpty())
+        {
+            Feedback.Data.Add(TEXT("target_name"), Context.BroadcastTargetName);
+        }
+        
+        // 添加目标是否找到的标志
+        Feedback.Data.Add(TEXT("target_found"), Context.bBroadcastTargetFound ? TEXT("true") : TEXT("false"));
+    }
+    
+    //=========================================================================
+    // 生成消息
+    //=========================================================================
+    if (!Message.IsEmpty())
+    {
+        Feedback.Message = Message;
+    }
+    else if (SkillComp)
+    {
+        const FMAFeedbackContext& Context = SkillComp->GetFeedbackContext();
+        
+        if (bSuccess)
+        {
+            Feedback.Message = TEXT("Broadcast succeeded");
+        }
+        else
+        {
+            Feedback.Message = TEXT("Broadcast failed");
+        }
+    }
+    else
+    {
+        Feedback.Message = bSuccess ? TEXT("Broadcast succeeded") : TEXT("Broadcast failed");
+    }
+}
+
+//=============================================================================
+// HandleHazard 反馈生成
+//=============================================================================
+
+void FMAFeedbackGenerator::GenerateHandleHazardFeedback(FMASkillExecutionFeedback& Feedback, AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message)
+{
+    // 添加通用字段 (task_id 等)
+    AddCommonFieldsToFeedback(Feedback, SkillComp);
+    
+    if (SkillComp)
+    {
+        const FMAFeedbackContext& Context = SkillComp->GetFeedbackContext();
+        
+        //=========================================================================
+        // 添加目标信息
+        //=========================================================================
+        if (Context.bHazardTargetFound)
+        {
+            // 目标找到，添加目标节点信息
+            if (!Context.HazardTargetId.IsEmpty())
+            {
+                UMASceneGraphManager* SceneGraphManager = GetSceneGraphManager(Agent);
+                if (SceneGraphManager)
+                {
+                    FMASceneGraphNode Node = FMASceneGraphQuery::FindNodeByIdOrLabel(SceneGraphManager->GetAllNodes(), Context.HazardTargetId);
+                    if (!Node.Id.IsEmpty())
+                    {
+                        // 使用 BuildNodeJsonFromSceneGraph 添加目标节点信息到反馈数据
+                        TSharedPtr<FJsonObject> NodeJson = BuildNodeJsonFromSceneGraph(Node);
+                        if (NodeJson.IsValid())
+                        {
+                            FString NodeJsonStr;
+                            TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&NodeJsonStr);
+                            FJsonSerializer::Serialize(NodeJson.ToSharedRef(), Writer);
+                            Feedback.Data.Add(TEXT("target_node"), NodeJsonStr);
+                        }
+                        
+                        // 同时保留旧格式以保持兼容性
+                        FString TargetLabel = Node.Label.IsEmpty() ? Node.Id : Node.Label;
+                        AddEntityInfoToFeedback(Feedback, TEXT("target"), TargetLabel, Node.Center, Node.Type);
+                    }
+                }
+            }
+            
+            // 添加目标名称和 ID
+            if (!Context.HazardTargetName.IsEmpty())
+            {
+                Feedback.Data.Add(TEXT("target_name"), Context.HazardTargetName);
+            }
+            if (!Context.HazardTargetId.IsEmpty())
+            {
+                Feedback.Data.Add(TEXT("target_id"), Context.HazardTargetId);
+            }
+        }
+        
+        // 添加处理持续时间
+        if (Context.HazardHandleDurationSeconds > 0.f)
+        {
+            Feedback.Data.Add(TEXT("duration_s"), FString::Printf(TEXT("%.1f"), Context.HazardHandleDurationSeconds));
+        }
+        
+        // 添加目标是否找到的标志
+        Feedback.Data.Add(TEXT("target_found"), Context.bHazardTargetFound ? TEXT("true") : TEXT("false"));
+    }
+    
+    //=========================================================================
+    // 生成消息
+    //=========================================================================
+    if (!Message.IsEmpty())
+    {
+        Feedback.Message = Message;
+    }
+    else if (SkillComp)
+    {
+        const FMAFeedbackContext& Context = SkillComp->GetFeedbackContext();
+        
+        if (bSuccess)
+        {
+            Feedback.Message = TEXT("Hazard handled successfully");
+        }
+        else
+        {
+            Feedback.Message = TEXT("Hazard handling failed");
+        }
+    }
+    else
+    {
+        Feedback.Message = bSuccess ? TEXT("Hazard handled successfully") : TEXT("Hazard handling failed");
+    }
+}
+
+//=============================================================================
+// Guide 反馈生成
+//=============================================================================
+
+void FMAFeedbackGenerator::GenerateGuideFeedback(FMASkillExecutionFeedback& Feedback, AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message)
+{
+    // 添加通用字段 (task_id 等)
+    AddCommonFieldsToFeedback(Feedback, SkillComp);
+    
+    if (SkillComp)
+    {
+        const FMAFeedbackContext& Context = SkillComp->GetFeedbackContext();
+        
+        //=========================================================================
+        // 添加目标信息
+        //=========================================================================
+        if (Context.bGuideTargetFound)
+        {
+            // 目标找到，添加目标节点信息
+            if (!Context.GuideTargetId.IsEmpty())
+            {
+                UMASceneGraphManager* SceneGraphManager = GetSceneGraphManager(Agent);
+                if (SceneGraphManager)
+                {
+                    FMASceneGraphNode Node = FMASceneGraphQuery::FindNodeByIdOrLabel(SceneGraphManager->GetAllNodes(), Context.GuideTargetId);
+                    if (!Node.Id.IsEmpty())
+                    {
+                        // 使用 BuildNodeJsonFromSceneGraph 添加目标节点信息到反馈数据
+                        TSharedPtr<FJsonObject> NodeJson = BuildNodeJsonFromSceneGraph(Node);
+                        if (NodeJson.IsValid())
+                        {
+                            FString NodeJsonStr;
+                            TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&NodeJsonStr);
+                            FJsonSerializer::Serialize(NodeJson.ToSharedRef(), Writer);
+                            Feedback.Data.Add(TEXT("target_node"), NodeJsonStr);
+                        }
+                        
+                        // 同时保留旧格式以保持兼容性
+                        FString TargetLabel = Node.Label.IsEmpty() ? Node.Id : Node.Label;
+                        AddEntityInfoToFeedback(Feedback, TEXT("target"), TargetLabel, Node.Center, Node.Type);
+                    }
+                }
+            }
+            
+            // 添加目标名称和 ID
+            if (!Context.GuideTargetName.IsEmpty())
+            {
+                Feedback.Data.Add(TEXT("target_name"), Context.GuideTargetName);
+            }
+            if (!Context.GuideTargetId.IsEmpty())
+            {
+                Feedback.Data.Add(TEXT("target_id"), Context.GuideTargetId);
+            }
+        }
+        
+        // 添加目的地坐标
+        if (!Context.GuideDestination.IsZero())
+        {
+            Feedback.Data.Add(TEXT("destination_x"), FString::Printf(TEXT("%.1f"), Context.GuideDestination.X));
+            Feedback.Data.Add(TEXT("destination_y"), FString::Printf(TEXT("%.1f"), Context.GuideDestination.Y));
+            Feedback.Data.Add(TEXT("destination_z"), FString::Printf(TEXT("%.1f"), Context.GuideDestination.Z));
+            Feedback.Data.Add(TEXT("destination"), FString::Printf(TEXT("(%.1f, %.1f, %.1f)"), 
+                Context.GuideDestination.X, Context.GuideDestination.Y, Context.GuideDestination.Z));
+        }
+        
+        // 添加引导持续时间
+        if (Context.GuideDurationSeconds > 0.f)
+        {
+            Feedback.Data.Add(TEXT("duration_s"), FString::Printf(TEXT("%.1f"), Context.GuideDurationSeconds));
+        }
+        
+        // 添加目标是否找到的标志
+        Feedback.Data.Add(TEXT("target_found"), Context.bGuideTargetFound ? TEXT("true") : TEXT("false"));
+    }
+    
+    //=========================================================================
+    // 生成消息
+    //=========================================================================
+    if (!Message.IsEmpty())
+    {
+        Feedback.Message = Message;
+    }
+    else if (SkillComp)
+    {
+        const FMAFeedbackContext& Context = SkillComp->GetFeedbackContext();
+        
+        if (bSuccess)
+        {
+            // 成功消息：包含目的地坐标
+            if (!Context.GuideDestination.IsZero())
+            {
+                Feedback.Message = FString::Printf(TEXT("Guide succeeded, target guided to (%.0f, %.0f, %.0f)"),
+                    Context.GuideDestination.X, Context.GuideDestination.Y, Context.GuideDestination.Z);
+            }
+            else
+            {
+                Feedback.Message = TEXT("Guide succeeded");
+            }
+        }
+        else
+        {
+            Feedback.Message = TEXT("Guide failed");
+        }
+    }
+    else
+    {
+        Feedback.Message = bSuccess ? TEXT("Guide succeeded") : TEXT("Guide failed");
+    }
 }
 
 //=============================================================================
 // Idle 反馈生成
 //=============================================================================
 
-FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateIdleFeedback(AMACharacter* Agent, bool bSuccess, const FString& Message)
+void FMAFeedbackGenerator::GenerateIdleFeedback(FMASkillExecutionFeedback& Feedback, AMACharacter* Agent, bool bSuccess, const FString& Message)
 {
-    FMASkillExecutionFeedback Feedback;
-    Feedback.AgentId = Agent->AgentID;
-    Feedback.SkillName = TEXT("Idle");
-    Feedback.bSuccess = true;
-    
     // 添加通用字段 (task_id 等)
     if (UMASkillComponent* SkillComp = Agent->GetSkillComponent())
     {
@@ -1920,26 +2059,6 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::GenerateIdleFeedback(AMACharacte
     }
     
     Feedback.Message = Message.IsEmpty() ? TEXT("Idle") : Message;
-    return Feedback;
 }
 
-//=============================================================================
-// 辅助方法
-//=============================================================================
 
-FString FMAFeedbackGenerator::CommandToSkillName(EMACommand Command)
-{
-    switch (Command)
-    {
-        case EMACommand::Idle: return TEXT("Idle");
-        case EMACommand::Navigate: return TEXT("Navigate");
-        case EMACommand::Follow: return TEXT("Follow");
-        case EMACommand::Charge: return TEXT("Charge");
-        case EMACommand::Search: return TEXT("Search");
-        case EMACommand::Place: return TEXT("Place");
-        case EMACommand::TakeOff: return TEXT("TakeOff");
-        case EMACommand::Land: return TEXT("Land");
-        case EMACommand::ReturnHome: return TEXT("ReturnHome");
-        default: return TEXT("Unknown");
-    }
-}

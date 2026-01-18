@@ -15,9 +15,6 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogMASceneGraphManager, Log, All);
 
-// 场景图文件名常量
-const FString UMASceneGraphManager::SceneGraphFileName = TEXT("datasets/scene_graph_cyberworld.json");
-
 //=============================================================================
 // 生命周期
 //=============================================================================
@@ -46,9 +43,6 @@ void UMASceneGraphManager::Initialize(FSubsystemCollectionBase& Collection)
     // 加载动态节点 (机器人、可拾取物品、充电站)
     LoadDynamicNodes();
 
-    // 使缓存失效，下次 GetAllNodes() 时重建
-    InvalidateCache();
-
     UE_LOG(LogMASceneGraphManager, Log, TEXT("MASceneGraphManager initialized with %d static nodes and %d dynamic nodes"), 
         StaticNodes.Num(), DynamicNodes.Num());
 }
@@ -61,8 +55,6 @@ void UMASceneGraphManager::Deinitialize()
     SceneGraphData.Reset();
     StaticNodes.Empty();
     DynamicNodes.Empty();
-    CachedAllNodes.Empty();
-    bCacheValid = false;
 
     Super::Deinitialize();
 }
@@ -378,123 +370,250 @@ bool UMASceneGraphManager::AddMultiSelectNode(const FString& JsonString, FString
     return true;
 }
 
-FString UMASceneGraphManager::GetSceneGraphFilePath() const
+
+//=============================================================================
+// 动态节点加载
+//=============================================================================
+
+void UMASceneGraphManager::LoadDynamicNodes()
 {
-    return FPaths::ProjectDir() / SceneGraphFileName;
+    // 从 agents.json 和 environment.json 加载动态节点
+
+    DynamicNodes.Empty();
+
+    // 获取配置文件路径
+    // 注意: 配置文件在 unreal_project 的上一级目录的 config 文件夹中
+    // 与 MAConfigManager::GetConfigRootPath() 保持一致
+    FString ConfigDir = FPaths::ProjectDir() / TEXT("..") / TEXT("config");
+    FString AgentsJsonPath = ConfigDir / TEXT("agents.json");
+    FString EnvironmentJsonPath = ConfigDir / TEXT("environment.json");
+    
+    UE_LOG(LogMASceneGraphManager, Log, TEXT("LoadDynamicNodes: ConfigDir=%s"), *FPaths::ConvertRelativePathToFull(ConfigDir));
+
+    // 加载机器人节点
+    TArray<FMASceneGraphNode> RobotNodes = FMADynamicNodeManager::CreateRobotNodes(AgentsJsonPath);
+    DynamicNodes.Append(RobotNodes);
+    UE_LOG(LogMASceneGraphManager, Log, TEXT("LoadDynamicNodes: Loaded %d robot nodes from agents.json"), RobotNodes.Num());
+
+    // 加载可拾取物品节点
+    TArray<FMASceneGraphNode> PickupItemNodes = FMADynamicNodeManager::CreatePickupItemNodes(EnvironmentJsonPath);
+    DynamicNodes.Append(PickupItemNodes);
+    UE_LOG(LogMASceneGraphManager, Log, TEXT("LoadDynamicNodes: Loaded %d pickup item nodes from environment.json"), PickupItemNodes.Num());
+
+    // 加载充电站节点
+    TArray<FMASceneGraphNode> ChargingStationNodes = FMADynamicNodeManager::CreateChargingStationNodes(EnvironmentJsonPath);
+    DynamicNodes.Append(ChargingStationNodes);
+    UE_LOG(LogMASceneGraphManager, Log, TEXT("LoadDynamicNodes: Loaded %d charging station nodes from environment.json"), ChargingStationNodes.Num());
+
+    UE_LOG(LogMASceneGraphManager, Log, TEXT("LoadDynamicNodes: Total %d dynamic nodes loaded"), DynamicNodes.Num());
+    
+    // 需要先合并静态节点和动态节点，以便计算时能访问所有地点节点
+    TArray<FMASceneGraphNode> AllNodesForLocationCalc = GetAllNodes();
+    
+    for (FMASceneGraphNode& Node : DynamicNodes)
+    {
+        // 只为非地点类型的动态节点计算 LocationLabel
+        if (!FMALocationUtils::IsLocationNode(Node))
+        {
+            Node.LocationLabel = FMALocationUtils::InferNearestLocationLabel(
+                AllNodesForLocationCalc,
+                Node.Center,
+                5000.f,  // 最大搜索距离 5000cm = 50m
+                Node.Id  // 排除自身
+            );
+            
+            UE_LOG(LogMASceneGraphManager, Verbose, TEXT("LoadDynamicNodes: Node %s (%s) location_label = '%s'"),
+                *Node.Id, *Node.Label, *Node.LocationLabel);
+        }
+    }
 }
 
-TArray<FMASceneGraphNode> UMASceneGraphManager::GetAllNodes() const
+//=============================================================================
+// 动态节点管理接口
+//=============================================================================
+
+FMASceneGraphNode* UMASceneGraphManager::FindDynamicNodeById(const FString& NodeId)
 {
-    // 使用缓存机制，合并静态节点和动态节点
-
-    if (!bCacheValid)
+    // 委托给 MASceneGraphQuery 的统一查询接口
+    TArray<FMASceneGraphNode> AllNodes = GetAllNodes();
+    FMASceneGraphNode Node = FMASceneGraphQuery::FindNodeByIdOrLabel(AllNodes, NodeId);
+    
+    // 在动态节点数组中查找匹配的节点并返回指针
+    for (FMASceneGraphNode& DynNode : DynamicNodes)
     {
-        RebuildCache();
+        if (DynNode.Id == Node.Id)
+        {
+            return &DynNode;
+        }
     }
-
-    return CachedAllNodes;
+    
+    return nullptr;
 }
 
-TArray<FMASceneGraphNode> UMASceneGraphManager::FindNodesByGuid(const FString& ActorGuid) const
+void UMASceneGraphManager::UpdateRobotPosition(const FString& RobotId, const FVector& NewPosition)
 {
-    // 根据 Actor GUID 查找包含该 GUID 的所有节点
-    // 遍历所有节点，检查 GuidArray 和 Guid 字段
+    // 更新机器人位置并重新计算 LocationLabel
 
-    TArray<FMASceneGraphNode> Result;
-
-    if (ActorGuid.IsEmpty())
+    FMASceneGraphNode* Node = FindDynamicNodeById(RobotId);
+    if (!Node)
     {
-        UE_LOG(LogMASceneGraphManager, Warning, TEXT("FindNodesByGuid: ActorGuid is empty"));
-        return Result;
+        UE_LOG(LogMASceneGraphManager, Warning, TEXT("UpdateRobotPosition: Robot node not found: %s"), *RobotId);
+        return;
     }
 
-    // 规范化输入的 GUID（移除连字符，转为大写）
-    FString NormalizedInputGuid = ActorGuid.Replace(TEXT("-"), TEXT("")).ToUpper();
+    if (!Node->IsRobot())
+    {
+        UE_LOG(LogMASceneGraphManager, Warning, TEXT("UpdateRobotPosition: Node %s is not a robot"), *RobotId);
+        return;
+    }
 
+    if (FMADynamicNodeManager::UpdateNodePosition(*Node, NewPosition))
+    {
+        TArray<FMASceneGraphNode> AllNodes = GetAllNodes();
+        Node->LocationLabel = FMALocationUtils::InferNearestLocationLabel(
+            AllNodes,
+            NewPosition,
+            5000.f,
+            Node->Id
+        );
+        
+        UE_LOG(LogMASceneGraphManager, Verbose, TEXT("UpdateRobotPosition: Updated %s to (%f, %f, %f), location_label='%s'"), 
+            *RobotId, NewPosition.X, NewPosition.Y, NewPosition.Z, *Node->LocationLabel);
+    }
+}
+
+void UMASceneGraphManager::UpdatePickupItemPosition(const FString& ItemId, const FVector& NewPosition)
+{
+    // 更新可拾取物品位置并重新计算 LocationLabel
+
+    FMASceneGraphNode* Node = FindDynamicNodeById(ItemId);
+    if (!Node)
+    {
+        UE_LOG(LogMASceneGraphManager, Warning, TEXT("UpdatePickupItemPosition: PickupItem node not found: %s"), *ItemId);
+        return;
+    }
+
+    if (!Node->IsPickupItem())
+    {
+        UE_LOG(LogMASceneGraphManager, Warning, TEXT("UpdatePickupItemPosition: Node %s is not a pickup item"), *ItemId);
+        return;
+    }
+
+    if (FMADynamicNodeManager::UpdateNodePosition(*Node, NewPosition))
+    {
+        TArray<FMASceneGraphNode> AllNodes = GetAllNodes();
+        Node->LocationLabel = FMALocationUtils::InferNearestLocationLabel(
+            AllNodes,
+            NewPosition,
+            5000.f,
+            Node->Id
+        );
+        
+        UE_LOG(LogMASceneGraphManager, Verbose, TEXT("UpdatePickupItemPosition: Updated %s to (%f, %f, %f), location_label='%s'"), 
+            *ItemId, NewPosition.X, NewPosition.Y, NewPosition.Z, *Node->LocationLabel);
+    }
+}
+
+void UMASceneGraphManager::UpdatePickupItemCarrierStatus(const FString& ItemId, bool bIsCarried, const FString& CarrierId)
+{
+    // 更新可拾取物品携带状态
+
+    FMASceneGraphNode* Node = FindDynamicNodeById(ItemId);
+    if (!Node)
+    {
+        UE_LOG(LogMASceneGraphManager, Warning, TEXT("UpdatePickupItemCarrierStatus: PickupItem node not found: %s"), *ItemId);
+        return;
+    }
+
+    if (!Node->IsPickupItem())
+    {
+        UE_LOG(LogMASceneGraphManager, Warning, TEXT("UpdatePickupItemCarrierStatus: Node %s is not a pickup item"), *ItemId);
+        return;
+    }
+
+    if (FMADynamicNodeManager::UpdatePickupItemCarrierStatus(*Node, bIsCarried, CarrierId))
+    {
+        UE_LOG(LogMASceneGraphManager, Log, TEXT("UpdatePickupItemCarrierStatus: Updated %s - bIsCarried=%s, CarrierId=%s"), 
+            *ItemId, bIsCarried ? TEXT("true") : TEXT("false"), *CarrierId);
+    }
+}
+
+
+//=============================================================================
+// 世界状态查询
+//=============================================================================
+
+FString UMASceneGraphManager::BuildWorldStateJson(const FString& CategoryFilter, const FString& TypeFilter, const FString& LabelFilter) const
+{
+    
+    TSharedPtr<FJsonObject> RootObject = MakeShareable(new FJsonObject());
+    TArray<TSharedPtr<FJsonValue>> NodesArray;
+    TArray<TSharedPtr<FJsonValue>> EdgesArray;
+    
     // 获取所有节点
     TArray<FMASceneGraphNode> AllNodes = GetAllNodes();
-
-    // 遍历所有节点，检查 GuidArray 和 Guid 字段
+    
+    UE_LOG(LogMASceneGraphManager, Verbose, TEXT("BuildWorldStateJson: Processing %d nodes"), AllNodes.Num());
+    
     for (const FMASceneGraphNode& Node : AllNodes)
     {
-        bool bFound = false;
+        // 应用过滤条件 (多条件AND)
+        bool bPassFilter = true;
         
-        // 检查单个 Guid 字段 (point 类型)
-        if (!Node.Guid.IsEmpty())
+        if (!CategoryFilter.IsEmpty() && !Node.Category.Equals(CategoryFilter, ESearchCase::IgnoreCase))
         {
-            FString NormalizedNodeGuid = Node.Guid.Replace(TEXT("-"), TEXT("")).ToUpper();
-            if (NormalizedNodeGuid == NormalizedInputGuid)
-            {
-                bFound = true;
-            }
+            bPassFilter = false;
         }
         
-        // 检查 GuidArray (polygon/linestring 类型)
-        if (!bFound)
+        if (bPassFilter && !TypeFilter.IsEmpty() && !Node.Type.Equals(TypeFilter, ESearchCase::IgnoreCase))
         {
-            for (const FString& Guid : Node.GuidArray)
-            {
-                FString NormalizedGuid = Guid.Replace(TEXT("-"), TEXT("")).ToUpper();
-                if (NormalizedGuid == NormalizedInputGuid)
-                {
-                    bFound = true;
-                    break;
-                }
-            }
+            bPassFilter = false;
         }
         
-        if (bFound)
+        if (bPassFilter && !LabelFilter.IsEmpty() && !Node.Label.Contains(LabelFilter, ESearchCase::IgnoreCase))
         {
-            Result.Add(Node);
-            UE_LOG(LogMASceneGraphManager, Verbose, TEXT("FindNodesByGuid: Found node %s (type=%s) containing GUID %s"), 
-                *Node.Id, *Node.ShapeType, *ActorGuid);
+            bPassFilter = false;
+        }
+        
+        if (bPassFilter)
+        {
+            TSharedPtr<FJsonObject> NodeJson = NodeToJsonObject(Node);
+            NodesArray.Add(MakeShareable(new FJsonValueObject(NodeJson)));
         }
     }
-    UE_LOG(LogMASceneGraphManager, Log, TEXT("FindNodesByGuid: Found %d nodes containing GUID %s"), 
-        Result.Num(), *ActorGuid);
-
-    return Result;
+    
+    UE_LOG(LogMASceneGraphManager, Log, TEXT("BuildWorldStateJson: Returning %d nodes after filtering"), NodesArray.Num());
+    
+    // 设置 nodes 和 edges 数组
+    RootObject->SetArrayField(TEXT("nodes"), NodesArray);
+    RootObject->SetArrayField(TEXT("edges"), EdgesArray);
+    
+    // 序列化为JSON字符串
+    FString OutputString;
+    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
+    FJsonSerializer::Serialize(RootObject.ToSharedRef(), Writer);
+    
+    return OutputString;
 }
 
+
 //=============================================================================
-// JSON 文件 I/O
+// JSON 文件 I/O，委托给 MASceneGraphIO
 //=============================================================================
+
+FString UMASceneGraphManager::GetSceneGraphFilePath() const
+{
+    return FMASceneGraphIO::GetSceneGraphFilePath();
+}
 
 bool UMASceneGraphManager::LoadSceneGraph()
 {
-
     FString FilePath = GetSceneGraphFilePath();
-
-    // 检查文件是否存在
-    if (!FPaths::FileExists(FilePath))
-    {
-        UE_LOG(LogMASceneGraphManager, Log, TEXT("Scene graph file not found: %s"), *FilePath);
-        return false;
-    }
-
-    // 读取文件内容
-    FString JsonString;
-    if (!FFileHelper::LoadFileToString(JsonString, *FilePath))
-    {
-        UE_LOG(LogMASceneGraphManager, Error, TEXT("Failed to read scene graph file: %s"), *FilePath);
-        return false;
-    }
-
-    // 解析 JSON
-    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
-    if (!FJsonSerializer::Deserialize(Reader, SceneGraphData) || !SceneGraphData.IsValid())
-    {
-        UE_LOG(LogMASceneGraphManager, Error, TEXT("Failed to parse scene graph JSON: %s"), *FilePath);
-        return false;
-    }
-
-    UE_LOG(LogMASceneGraphManager, Log, TEXT("Scene graph loaded from: %s"), *FilePath);
-    return true;
+    return FMASceneGraphIO::LoadBaseSceneGraph(FilePath, SceneGraphData);
 }
 
 bool UMASceneGraphManager::SaveSceneGraph()
 {
-
     if (!SceneGraphData.IsValid())
     {
         UE_LOG(LogMASceneGraphManager, Error, TEXT("Cannot save: SceneGraphData is invalid"));
@@ -502,34 +621,7 @@ bool UMASceneGraphManager::SaveSceneGraph()
     }
 
     FString FilePath = GetSceneGraphFilePath();
-
-    // 序列化为 JSON 字符串（带格式化缩进）
-    FString JsonString;
-    TSharedRef<TJsonWriter<TCHAR, TPrettyJsonPrintPolicy<TCHAR>>> Writer = 
-        TJsonWriterFactory<TCHAR, TPrettyJsonPrintPolicy<TCHAR>>::Create(&JsonString);
-
-    if (!FJsonSerializer::Serialize(SceneGraphData.ToSharedRef(), Writer))
-    {
-        UE_LOG(LogMASceneGraphManager, Error, TEXT("Failed to serialize scene graph to JSON"));
-        return false;
-    }
-
-    // 确保目录存在
-    FString Directory = FPaths::GetPath(FilePath);
-    if (!FPaths::DirectoryExists(Directory))
-    {
-        IFileManager::Get().MakeDirectory(*Directory, true);
-    }
-
-    // 写入文件
-    if (!FFileHelper::SaveStringToFile(JsonString, *FilePath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM))
-    {
-        UE_LOG(LogMASceneGraphManager, Error, TEXT("Failed to write scene graph file: %s"), *FilePath);
-        return false;
-    }
-
-    UE_LOG(LogMASceneGraphManager, Log, TEXT("Scene graph saved to: %s"), *FilePath);
-    return true;
+    return FMASceneGraphIO::SaveSceneGraph(FilePath, SceneGraphData);
 }
 
 void UMASceneGraphManager::CreateEmptySceneGraph()
@@ -543,6 +635,93 @@ void UMASceneGraphManager::CreateEmptySceneGraph()
 
     UE_LOG(LogMASceneGraphManager, Log, TEXT("Created empty scene graph structure"));
 }
+
+
+//=============================================================================
+// 分类查询接口 (委托给 MASceneGraphQuery)
+//=============================================================================
+
+TArray<FMASceneGraphNode> UMASceneGraphManager::GetAllBuildings() const
+{
+    return FMASceneGraphQuery::GetAllBuildings(GetAllNodes());
+}
+
+TArray<FMASceneGraphNode> UMASceneGraphManager::GetAllRoads() const
+{
+    return FMASceneGraphQuery::GetAllRoads(GetAllNodes());
+}
+
+TArray<FMASceneGraphNode> UMASceneGraphManager::GetAllIntersections() const
+{
+    return FMASceneGraphQuery::GetAllIntersections(GetAllNodes());
+}
+
+TArray<FMASceneGraphNode> UMASceneGraphManager::GetAllProps() const
+{
+    return FMASceneGraphQuery::GetAllProps(GetAllNodes());
+}
+
+TArray<FMASceneGraphNode> UMASceneGraphManager::GetAllRobots() const
+{
+    return FMASceneGraphQuery::GetAllRobots(GetAllNodes());
+}
+
+TArray<FMASceneGraphNode> UMASceneGraphManager::GetAllPickupItems() const
+{
+    return FMASceneGraphQuery::GetAllPickupItems(GetAllNodes());
+}
+
+TArray<FMASceneGraphNode> UMASceneGraphManager::GetAllChargingStations() const
+{
+    return FMASceneGraphQuery::GetAllChargingStations(GetAllNodes());
+}
+
+TArray<FMASceneGraphNode> UMASceneGraphManager::GetAllNodes() const
+{
+    return FMASceneGraphQuery::GetAllNodes(StaticNodes, DynamicNodes);
+}
+
+TArray<FMASceneGraphNode> UMASceneGraphManager::FindNodesByGuid(const FString& ActorGuid) const
+{
+    TArray<FMASceneGraphNode> AllNodes = GetAllNodes();
+    return FMASceneGraphQuery::FindNodesByGuid(AllNodes, ActorGuid);
+}
+
+//=============================================================================
+// 语义查询接口 (委托给 MASceneGraphQuery)
+//=============================================================================
+
+FMASceneGraphNode UMASceneGraphManager::FindNodeByLabel(const FMASemanticLabel& Label) const
+{
+    return FMASceneGraphQuery::FindNodeByLabel(GetAllNodes(), Label);
+}
+
+FMASceneGraphNode UMASceneGraphManager::FindNearestNode(const FMASemanticLabel& Label, const FVector& FromLocation) const
+{
+    return FMASceneGraphQuery::FindNearestNode(GetAllNodes(), Label, FromLocation);
+}
+
+TArray<FMASceneGraphNode> UMASceneGraphManager::FindNodesInBoundary(const FMASemanticLabel& Label, const TArray<FVector>& BoundaryVertices) const
+{
+    return FMASceneGraphQuery::FindNodesInBoundary(GetAllNodes(), Label, BoundaryVertices);
+}
+
+bool UMASceneGraphManager::IsPointInsideBuilding(const FVector& Point) const
+{
+    return FMASceneGraphQuery::IsPointInsideBuilding(GetAllNodes(), Point);
+}
+
+FMASceneGraphNode UMASceneGraphManager::FindNearestLandmark(const FVector& Location, float MaxDistance) const
+{
+    return FMASceneGraphQuery::FindNearestLandmark(GetAllNodes(), Location, MaxDistance);
+}
+
+TSharedPtr<FJsonObject> UMASceneGraphManager::NodeToJsonObject(const FMASceneGraphNode& Node) const
+{
+    return FMASceneGraphQuery::NodeToJsonObject(Node);
+}
+
+
 
 //=============================================================================
 // 内部辅助方法
@@ -764,497 +943,4 @@ bool UMASceneGraphManager::ValidateNodeJsonStructure(const TSharedPtr<FJsonObjec
 
     UE_LOG(LogMASceneGraphManager, Log, TEXT("ValidateNodeJsonStructure: Validation passed for node id=%s, shape.type=%s"), *NodeId, *ShapeType);
     return true;
-}
-
-//=============================================================================
-// 动态节点加载
-//=============================================================================
-
-void UMASceneGraphManager::LoadDynamicNodes()
-{
-    // 从 agents.json 和 environment.json 加载动态节点
-
-    DynamicNodes.Empty();
-
-    // 获取配置文件路径
-    // 注意: 配置文件在 unreal_project 的上一级目录的 config 文件夹中
-    // 与 MAConfigManager::GetConfigRootPath() 保持一致
-    FString ConfigDir = FPaths::ProjectDir() / TEXT("..") / TEXT("config");
-    FString AgentsJsonPath = ConfigDir / TEXT("agents.json");
-    FString EnvironmentJsonPath = ConfigDir / TEXT("environment.json");
-    
-    UE_LOG(LogMASceneGraphManager, Log, TEXT("LoadDynamicNodes: ConfigDir=%s"), *FPaths::ConvertRelativePathToFull(ConfigDir));
-
-    // 加载机器人节点
-    TArray<FMASceneGraphNode> RobotNodes = FMADynamicNodeManager::CreateRobotNodes(AgentsJsonPath);
-    DynamicNodes.Append(RobotNodes);
-    UE_LOG(LogMASceneGraphManager, Log, TEXT("LoadDynamicNodes: Loaded %d robot nodes from agents.json"), RobotNodes.Num());
-
-    // 加载可拾取物品节点
-    TArray<FMASceneGraphNode> PickupItemNodes = FMADynamicNodeManager::CreatePickupItemNodes(EnvironmentJsonPath);
-    DynamicNodes.Append(PickupItemNodes);
-    UE_LOG(LogMASceneGraphManager, Log, TEXT("LoadDynamicNodes: Loaded %d pickup item nodes from environment.json"), PickupItemNodes.Num());
-
-    // 加载充电站节点
-    TArray<FMASceneGraphNode> ChargingStationNodes = FMADynamicNodeManager::CreateChargingStationNodes(EnvironmentJsonPath);
-    DynamicNodes.Append(ChargingStationNodes);
-    UE_LOG(LogMASceneGraphManager, Log, TEXT("LoadDynamicNodes: Loaded %d charging station nodes from environment.json"), ChargingStationNodes.Num());
-
-    UE_LOG(LogMASceneGraphManager, Log, TEXT("LoadDynamicNodes: Total %d dynamic nodes loaded"), DynamicNodes.Num());
-    // 需要先合并静态节点和动态节点，以便计算时能访问所有地点节点
-    TArray<FMASceneGraphNode> AllNodesForLocationCalc;
-    AllNodesForLocationCalc.Append(StaticNodes);
-    AllNodesForLocationCalc.Append(DynamicNodes);
-    
-    for (FMASceneGraphNode& Node : DynamicNodes)
-    {
-        // 只为非地点类型的动态节点计算 LocationLabel
-        if (!FMALocationUtils::IsLocationNode(Node))
-        {
-            Node.LocationLabel = FMALocationUtils::InferNearestLocationLabel(
-                AllNodesForLocationCalc,
-                Node.Center,
-                5000.f,  // 最大搜索距离 5000cm = 50m
-                Node.Id  // 排除自身
-            );
-            
-            UE_LOG(LogMASceneGraphManager, Verbose, TEXT("LoadDynamicNodes: Node %s (%s) location_label = '%s'"),
-                *Node.Id, *Node.Label, *Node.LocationLabel);
-        }
-    }
-}
-
-//=============================================================================
-// 缓存管理
-//=============================================================================
-
-void UMASceneGraphManager::InvalidateCache()
-{
-    bCacheValid = false;
-    UE_LOG(LogMASceneGraphManager, Verbose, TEXT("InvalidateCache: Cache invalidated"));
-}
-
-void UMASceneGraphManager::RebuildCache() const
-{
-    // 合并静态节点和动态节点到缓存
-
-    CachedAllNodes.Empty();
-    CachedAllNodes.Reserve(StaticNodes.Num() + DynamicNodes.Num());
-
-    // 添加静态节点
-    CachedAllNodes.Append(StaticNodes);
-
-    // 添加动态节点
-    CachedAllNodes.Append(DynamicNodes);
-
-    bCacheValid = true;
-
-    UE_LOG(LogMASceneGraphManager, Verbose, TEXT("RebuildCache: Cache rebuilt with %d static + %d dynamic = %d total nodes"), 
-        StaticNodes.Num(), DynamicNodes.Num(), CachedAllNodes.Num());
-}
-
-//=============================================================================
-// 分类查询接口 (委托给 MASceneGraphQuery)
-//=============================================================================
-
-TArray<FMASceneGraphNode> UMASceneGraphManager::GetAllBuildings() const
-{
-    return FMASceneGraphQuery::GetAllBuildings(GetAllNodes());
-}
-
-TArray<FMASceneGraphNode> UMASceneGraphManager::GetAllRoads() const
-{
-    return FMASceneGraphQuery::GetAllRoads(GetAllNodes());
-}
-
-TArray<FMASceneGraphNode> UMASceneGraphManager::GetAllIntersections() const
-{
-    return FMASceneGraphQuery::GetAllIntersections(GetAllNodes());
-}
-
-TArray<FMASceneGraphNode> UMASceneGraphManager::GetAllProps() const
-{
-    return FMASceneGraphQuery::GetAllProps(GetAllNodes());
-}
-
-TArray<FMASceneGraphNode> UMASceneGraphManager::GetAllRobots() const
-{
-    return FMASceneGraphQuery::GetAllRobots(GetAllNodes());
-}
-
-TArray<FMASceneGraphNode> UMASceneGraphManager::GetAllPickupItems() const
-{
-    return FMASceneGraphQuery::GetAllPickupItems(GetAllNodes());
-}
-
-TArray<FMASceneGraphNode> UMASceneGraphManager::GetAllChargingStations() const
-{
-    return FMASceneGraphQuery::GetAllChargingStations(GetAllNodes());
-}
-
-//=============================================================================
-// 语义查询接口 (委托给 MASceneGraphQuery)
-//=============================================================================
-
-FMASceneGraphNode UMASceneGraphManager::FindNodeByLabel(const FMASemanticLabel& Label) const
-{
-    return FMASceneGraphQuery::FindNodeByLabel(GetAllNodes(), Label);
-}
-
-FMASceneGraphNode UMASceneGraphManager::FindNearestNode(const FMASemanticLabel& Label, const FVector& FromLocation) const
-{
-    return FMASceneGraphQuery::FindNearestNode(GetAllNodes(), Label, FromLocation);
-}
-
-TArray<FMASceneGraphNode> UMASceneGraphManager::FindNodesInBoundary(const FMASemanticLabel& Label, const TArray<FVector>& BoundaryVertices) const
-{
-    return FMASceneGraphQuery::FindNodesInBoundary(GetAllNodes(), Label, BoundaryVertices);
-}
-
-bool UMASceneGraphManager::IsPointInsideBuilding(const FVector& Point) const
-{
-    return FMASceneGraphQuery::IsPointInsideBuilding(GetAllNodes(), Point);
-}
-
-FMASceneGraphNode UMASceneGraphManager::FindNearestLandmark(const FVector& Location, float MaxDistance) const
-{
-    return FMASceneGraphQuery::FindNearestLandmark(GetAllNodes(), Location, MaxDistance);
-}
-
-//=============================================================================
-// 动态节点管理接口
-//=============================================================================
-
-FMASceneGraphNode* UMASceneGraphManager::FindDynamicNodeById(const FString& NodeId)
-{
-    // 首先尝试精确匹配 Id
-    for (FMASceneGraphNode& Node : DynamicNodes)
-    {
-        if (Node.Id == NodeId)
-        {
-            return &Node;
-        }
-    }
-    
-    // 如果没找到，尝试匹配 Label 或 Features["label"]
-    // 这是因为外部系统可能使用物品标签（如 "RedBox"）而不是 ID（如 "1001"）
-    for (FMASceneGraphNode& Node : DynamicNodes)
-    {
-        if (Node.Label.Equals(NodeId, ESearchCase::IgnoreCase))
-        {
-            return &Node;
-        }
-        
-        const FString* NodeLabel = Node.Features.Find(TEXT("label"));
-        if (NodeLabel && NodeLabel->Equals(NodeId, ESearchCase::IgnoreCase))
-        {
-            return &Node;
-        }
-    }
-    
-    return nullptr;
-}
-
-void UMASceneGraphManager::UpdateRobotPosition(const FString& RobotId, const FVector& NewPosition)
-{
-    // 更新机器人位置并重新计算 LocationLabel
-
-    FMASceneGraphNode* Node = FindDynamicNodeById(RobotId);
-    if (!Node)
-    {
-        UE_LOG(LogMASceneGraphManager, Warning, TEXT("UpdateRobotPosition: Robot node not found: %s"), *RobotId);
-        return;
-    }
-
-    if (!Node->IsRobot())
-    {
-        UE_LOG(LogMASceneGraphManager, Warning, TEXT("UpdateRobotPosition: Node %s is not a robot"), *RobotId);
-        return;
-    }
-
-    if (FMADynamicNodeManager::UpdateNodePosition(*Node, NewPosition))
-    {
-        TArray<FMASceneGraphNode> AllNodes = GetAllNodes();
-        Node->LocationLabel = FMALocationUtils::InferNearestLocationLabel(
-            AllNodes,
-            NewPosition,
-            5000.f,
-            Node->Id
-        );
-        
-        InvalidateCache();
-        UE_LOG(LogMASceneGraphManager, Verbose, TEXT("UpdateRobotPosition: Updated %s to (%f, %f, %f), location_label='%s'"), 
-            *RobotId, NewPosition.X, NewPosition.Y, NewPosition.Z, *Node->LocationLabel);
-    }
-}
-
-void UMASceneGraphManager::UpdatePickupItemPosition(const FString& ItemId, const FVector& NewPosition)
-{
-    // 更新可拾取物品位置并重新计算 LocationLabel
-
-    FMASceneGraphNode* Node = FindDynamicNodeById(ItemId);
-    if (!Node)
-    {
-        UE_LOG(LogMASceneGraphManager, Warning, TEXT("UpdatePickupItemPosition: PickupItem node not found: %s"), *ItemId);
-        return;
-    }
-
-    if (!Node->IsPickupItem())
-    {
-        UE_LOG(LogMASceneGraphManager, Warning, TEXT("UpdatePickupItemPosition: Node %s is not a pickup item"), *ItemId);
-        return;
-    }
-
-    if (FMADynamicNodeManager::UpdateNodePosition(*Node, NewPosition))
-    {
-        TArray<FMASceneGraphNode> AllNodes = GetAllNodes();
-        Node->LocationLabel = FMALocationUtils::InferNearestLocationLabel(
-            AllNodes,
-            NewPosition,
-            5000.f,
-            Node->Id
-        );
-        
-        InvalidateCache();
-        UE_LOG(LogMASceneGraphManager, Verbose, TEXT("UpdatePickupItemPosition: Updated %s to (%f, %f, %f), location_label='%s'"), 
-            *ItemId, NewPosition.X, NewPosition.Y, NewPosition.Z, *Node->LocationLabel);
-    }
-}
-
-void UMASceneGraphManager::UpdatePickupItemCarrierStatus(const FString& ItemId, bool bIsCarried, const FString& CarrierId)
-{
-    // 更新可拾取物品携带状态
-
-    FMASceneGraphNode* Node = FindDynamicNodeById(ItemId);
-    if (!Node)
-    {
-        UE_LOG(LogMASceneGraphManager, Warning, TEXT("UpdatePickupItemCarrierStatus: PickupItem node not found: %s"), *ItemId);
-        return;
-    }
-
-    if (!Node->IsPickupItem())
-    {
-        UE_LOG(LogMASceneGraphManager, Warning, TEXT("UpdatePickupItemCarrierStatus: Node %s is not a pickup item"), *ItemId);
-        return;
-    }
-
-    if (FMADynamicNodeManager::UpdatePickupItemCarrierStatus(*Node, bIsCarried, CarrierId))
-    {
-        InvalidateCache();
-        UE_LOG(LogMASceneGraphManager, Log, TEXT("UpdatePickupItemCarrierStatus: Updated %s - bIsCarried=%s, CarrierId=%s"), 
-            *ItemId, bIsCarried ? TEXT("true") : TEXT("false"), *CarrierId);
-    }
-}
-
-
-//=============================================================================
-// HTTP API 支持 - 世界状态查询
-//=============================================================================
-
-TSharedPtr<FJsonObject> UMASceneGraphManager::NodeToJsonObject(const FMASceneGraphNode& Node) const
-{
-    // 根据节点类型正确构建shape对象
-    
-    TSharedPtr<FJsonObject> NodeObject = MakeShareable(new FJsonObject());
-    
-    // 设置 id
-    NodeObject->SetStringField(TEXT("id"), Node.Id);
-    
-    // 构建 properties 对象
-    TSharedPtr<FJsonObject> PropertiesObject = MakeShareable(new FJsonObject());
-    PropertiesObject->SetStringField(TEXT("category"), Node.Category);
-    PropertiesObject->SetStringField(TEXT("type"), Node.Type);
-    PropertiesObject->SetStringField(TEXT("label"), Node.Label);
-    
-    // 添加可拾取物品特有属性
-    if (Node.IsPickupItem())
-    {
-        PropertiesObject->SetBoolField(TEXT("is_carried"), Node.bIsCarried);
-        if (!Node.CarrierId.IsEmpty())
-        {
-            PropertiesObject->SetStringField(TEXT("carrier_id"), Node.CarrierId);
-        }
-    }
-    
-    // 添加动态节点标记
-    if (Node.bIsDynamic)
-    {
-        PropertiesObject->SetBoolField(TEXT("is_dynamic"), true);
-    }
-    // 对于非地点类型节点，输出其所在地点的标签
-    if (!Node.LocationLabel.IsEmpty())
-    {
-        PropertiesObject->SetStringField(TEXT("location_label"), Node.LocationLabel);
-    }
-    
-    // 添加 Features
-    for (const auto& Feature : Node.Features)
-    {
-        PropertiesObject->SetStringField(Feature.Key, Feature.Value);
-    }
-    
-    NodeObject->SetObjectField(TEXT("properties"), PropertiesObject);
-    
-    // 构建 shape 对象
-    // 尝试从 RawJson 中提取原始 shape 数据
-    TSharedPtr<FJsonObject> ShapeObject = MakeShareable(new FJsonObject());
-    bool bShapeFromRawJson = false;
-    
-    if (!Node.RawJson.IsEmpty())
-    {
-        // 解析原始JSON以获取完整的shape数据
-        TSharedPtr<FJsonObject> RawJsonObject;
-        TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Node.RawJson);
-        if (FJsonSerializer::Deserialize(Reader, RawJsonObject) && RawJsonObject.IsValid())
-        {
-            const TSharedPtr<FJsonObject>* OriginalShapeObject;
-            if (RawJsonObject->TryGetObjectField(TEXT("shape"), OriginalShapeObject) && OriginalShapeObject->IsValid())
-            {
-                // 复制原始shape对象
-                ShapeObject = MakeShareable(new FJsonObject());
-                
-                // 复制 type
-                FString ShapeType;
-                if ((*OriginalShapeObject)->TryGetStringField(TEXT("type"), ShapeType))
-                {
-                    ShapeObject->SetStringField(TEXT("type"), ShapeType);
-                }
-                
-                // 根据形状类型复制相应字段
-                if (ShapeType == TEXT("prism") || ShapeType == TEXT("polygon"))
-                {
-                    // prism: type, vertices, height
-                    const TArray<TSharedPtr<FJsonValue>>* VerticesArray;
-                    if ((*OriginalShapeObject)->TryGetArrayField(TEXT("vertices"), VerticesArray))
-                    {
-                        ShapeObject->SetArrayField(TEXT("vertices"), *VerticesArray);
-                    }
-                    
-                    double Height;
-                    if ((*OriginalShapeObject)->TryGetNumberField(TEXT("height"), Height))
-                    {
-                        ShapeObject->SetNumberField(TEXT("height"), Height);
-                    }
-                    
-                    bShapeFromRawJson = true;
-                }
-                else if (ShapeType == TEXT("linestring"))
-                {
-                    // linestring: type, points, vertices
-                    const TArray<TSharedPtr<FJsonValue>>* PointsArray;
-                    if ((*OriginalShapeObject)->TryGetArrayField(TEXT("points"), PointsArray))
-                    {
-                        ShapeObject->SetArrayField(TEXT("points"), *PointsArray);
-                    }
-                    
-                    const TArray<TSharedPtr<FJsonValue>>* VerticesArray;
-                    if ((*OriginalShapeObject)->TryGetArrayField(TEXT("vertices"), VerticesArray))
-                    {
-                        ShapeObject->SetArrayField(TEXT("vertices"), *VerticesArray);
-                    }
-                    
-                    bShapeFromRawJson = true;
-                }
-                else if (ShapeType == TEXT("point"))
-                {
-                    // point: type, center, vertices (可选)
-                    const TArray<TSharedPtr<FJsonValue>>* CenterArray;
-                    if ((*OriginalShapeObject)->TryGetArrayField(TEXT("center"), CenterArray))
-                    {
-                        ShapeObject->SetArrayField(TEXT("center"), *CenterArray);
-                    }
-                    
-                    // 路口等节点可能有 vertices
-                    const TArray<TSharedPtr<FJsonValue>>* VerticesArray;
-                    if ((*OriginalShapeObject)->TryGetArrayField(TEXT("vertices"), VerticesArray))
-                    {
-                        ShapeObject->SetArrayField(TEXT("vertices"), *VerticesArray);
-                    }
-                    
-                    bShapeFromRawJson = true;
-                }
-                else if (ShapeType == TEXT("polygon"))
-                {
-                    // polygon: type, vertices
-                    const TArray<TSharedPtr<FJsonValue>>* VerticesArray;
-                    if ((*OriginalShapeObject)->TryGetArrayField(TEXT("vertices"), VerticesArray))
-                    {
-                        ShapeObject->SetArrayField(TEXT("vertices"), *VerticesArray);
-                    }
-                    
-                    bShapeFromRawJson = true;
-                }
-            }
-        }
-    }
-    
-    // 如果无法从RawJson获取shape，使用默认的point类型
-    if (!bShapeFromRawJson)
-    {
-        ShapeObject->SetStringField(TEXT("type"), Node.ShapeType.IsEmpty() ? TEXT("point") : Node.ShapeType);
-        
-        // 设置center
-        TArray<TSharedPtr<FJsonValue>> CenterArray;
-        CenterArray.Add(MakeShareable(new FJsonValueNumber(Node.Center.X)));
-        CenterArray.Add(MakeShareable(new FJsonValueNumber(Node.Center.Y)));
-        CenterArray.Add(MakeShareable(new FJsonValueNumber(Node.Center.Z)));
-        ShapeObject->SetArrayField(TEXT("center"), CenterArray);
-    }
-    
-    NodeObject->SetObjectField(TEXT("shape"), ShapeObject);
-    
-    return NodeObject;
-}
-
-FString UMASceneGraphManager::BuildWorldStateJson(const FString& CategoryFilter, const FString& TypeFilter, const FString& LabelFilter) const
-{
-    
-    TSharedPtr<FJsonObject> RootObject = MakeShareable(new FJsonObject());
-    TArray<TSharedPtr<FJsonValue>> NodesArray;
-    TArray<TSharedPtr<FJsonValue>> EdgesArray;
-    
-    // 获取所有节点
-    TArray<FMASceneGraphNode> AllNodes = GetAllNodes();
-    
-    UE_LOG(LogMASceneGraphManager, Verbose, TEXT("BuildWorldStateJson: Processing %d nodes"), AllNodes.Num());
-    
-    for (const FMASceneGraphNode& Node : AllNodes)
-    {
-        // 应用过滤条件 (多条件AND)
-        bool bPassFilter = true;
-        
-        if (!CategoryFilter.IsEmpty() && !Node.Category.Equals(CategoryFilter, ESearchCase::IgnoreCase))
-        {
-            bPassFilter = false;
-        }
-        
-        if (bPassFilter && !TypeFilter.IsEmpty() && !Node.Type.Equals(TypeFilter, ESearchCase::IgnoreCase))
-        {
-            bPassFilter = false;
-        }
-        
-        if (bPassFilter && !LabelFilter.IsEmpty() && !Node.Label.Contains(LabelFilter, ESearchCase::IgnoreCase))
-        {
-            bPassFilter = false;
-        }
-        
-        if (bPassFilter)
-        {
-            TSharedPtr<FJsonObject> NodeJson = NodeToJsonObject(Node);
-            NodesArray.Add(MakeShareable(new FJsonValueObject(NodeJson)));
-        }
-    }
-    
-    UE_LOG(LogMASceneGraphManager, Log, TEXT("BuildWorldStateJson: Returning %d nodes after filtering"), NodesArray.Num());
-    
-    // 设置 nodes 和 edges 数组
-    RootObject->SetArrayField(TEXT("nodes"), NodesArray);
-    RootObject->SetArrayField(TEXT("edges"), EdgesArray);
-    
-    // 序列化为JSON字符串
-    FString OutputString;
-    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
-    FJsonSerializer::Serialize(RootObject.ToSharedRef(), Writer);
-    
-    return OutputString;
 }

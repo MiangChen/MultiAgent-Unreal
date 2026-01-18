@@ -1,15 +1,15 @@
-// MASceneQuery.cpp
+// FMAUESceneQuery.cpp
 // 场景查询辅助工具实现
 //
 // 本模块提供基于 UE5 场景的对象查询功能，作为场景图查询的回退方案
 
-#include "MASceneQuery.h"
+#include "MAUESceneQuery.h"
 #include "../../../Utils/MAGeometryUtils.h"
 #include "../../../Environment/MAPickupItem.h"
 #include "../../Character/MACharacter.h"
 #include "Kismet/GameplayStatics.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogMASceneQuery, Log, All);
+DEFINE_LOG_CATEGORY_STATIC(LogFMAUESceneQuery, Log, All);
 
 //=============================================================================
 // PickupItem 匹配逻辑
@@ -29,7 +29,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogMASceneQuery, Log, All);
 // 3. 如果有 type，检查 ItemName 是否包含该类型（如 "box" -> "Box"）
 //=============================================================================
 
-bool FMASceneQuery::MatchesPickupItemLabel(AMAPickupItem* Item, const FMASemanticLabel& Label)
+bool FMAUESceneQuery::MatchesPickupItemLabel(AMAPickupItem* Item, const FMASemanticLabel& Label)
 {
     if (!Item) return false;
     
@@ -41,7 +41,7 @@ bool FMASceneQuery::MatchesPickupItemLabel(AMAPickupItem* Item, const FMASemanti
         FString TargetLabel = Label.Features.FindRef(TEXT("label"));
         if (ItemName.Equals(TargetLabel, ESearchCase::IgnoreCase))
         {
-            UE_LOG(LogMASceneQuery, Log, TEXT("[MatchesPickupItemLabel] Matched by label: %s == %s"), *ItemName, *TargetLabel);
+            UE_LOG(LogFMAUESceneQuery, Log, TEXT("[MatchesPickupItemLabel] Matched by label: %s == %s"), *ItemName, *TargetLabel);
             return true;
         }
     }
@@ -51,7 +51,7 @@ bool FMASceneQuery::MatchesPickupItemLabel(AMAPickupItem* Item, const FMASemanti
         FString TargetName = Label.GetName();
         if (ItemName.Equals(TargetName, ESearchCase::IgnoreCase))
         {
-            UE_LOG(LogMASceneQuery, Log, TEXT("[MatchesPickupItemLabel] Matched by name (legacy): %s == %s"), *ItemName, *TargetName);
+            UE_LOG(LogFMAUESceneQuery, Log, TEXT("[MatchesPickupItemLabel] Matched by name (legacy): %s == %s"), *ItemName, *TargetName);
             return true;
         }
     }
@@ -64,7 +64,7 @@ bool FMASceneQuery::MatchesPickupItemLabel(AMAPickupItem* Item, const FMASemanti
         bColorMatch = ItemName.Contains(TargetColor, ESearchCase::IgnoreCase);
         if (!bColorMatch)
         {
-            UE_LOG(LogMASceneQuery, Verbose, TEXT("[MatchesPickupItemLabel] Color mismatch: %s does not contain %s"), *ItemName, *TargetColor);
+            UE_LOG(LogFMAUESceneQuery, Verbose, TEXT("[MatchesPickupItemLabel] Color mismatch: %s does not contain %s"), *ItemName, *TargetColor);
             return false;
         }
     }
@@ -76,7 +76,7 @@ bool FMASceneQuery::MatchesPickupItemLabel(AMAPickupItem* Item, const FMASemanti
         bTypeMatch = ItemName.Contains(Label.Type, ESearchCase::IgnoreCase);
         if (!bTypeMatch)
         {
-            UE_LOG(LogMASceneQuery, Verbose, TEXT("[MatchesPickupItemLabel] Type mismatch: %s does not contain %s"), *ItemName, *Label.Type);
+            UE_LOG(LogFMAUESceneQuery, Verbose, TEXT("[MatchesPickupItemLabel] Type mismatch: %s does not contain %s"), *ItemName, *Label.Type);
             return false;
         }
     }
@@ -87,7 +87,7 @@ bool FMASceneQuery::MatchesPickupItemLabel(AMAPickupItem* Item, const FMASemanti
         return false;
     }
     
-    UE_LOG(LogMASceneQuery, Log, TEXT("[MatchesPickupItemLabel] Matched: %s (color=%s, type=%s)"), 
+    UE_LOG(LogFMAUESceneQuery, Log, TEXT("[MatchesPickupItemLabel] Matched: %s (color=%s, type=%s)"), 
         *ItemName, 
         bColorMatch ? TEXT("yes") : TEXT("no"),
         bTypeMatch ? TEXT("yes") : TEXT("no"));
@@ -95,7 +95,7 @@ bool FMASceneQuery::MatchesPickupItemLabel(AMAPickupItem* Item, const FMASemanti
     return bColorMatch && bTypeMatch;
 }
 
-FMASemanticLabel FMASceneQuery::ExtractPickupItemLabel(AMAPickupItem* Item)
+FMASemanticLabel FMAUESceneQuery::ExtractPickupItemLabel(AMAPickupItem* Item)
 {
     FMASemanticLabel Label;
     if (!Item) return Label;
@@ -142,9 +142,9 @@ FMASemanticLabel FMASceneQuery::ExtractPickupItemLabel(AMAPickupItem* Item)
 // 主要查询接口
 //=============================================================================
 
-FMASceneQueryResult FMASceneQuery::FindObjectByLabel(UWorld* World, const FMASemanticLabel& Label)
+FMAUESceneQueryResult FMAUESceneQuery::FindObjectByLabel(UWorld* World, const FMASemanticLabel& Label)
 {
-    FMASceneQueryResult Result;
+    FMAUESceneQueryResult Result;
     if (!World || Label.IsEmpty()) return Result;
     
     // 处理 ground 类型
@@ -196,9 +196,9 @@ FMASceneQueryResult FMASceneQuery::FindObjectByLabel(UWorld* World, const FMASem
     return Result;
 }
 
-TArray<FMASceneQueryResult> FMASceneQuery::FindObjectsInBoundary(UWorld* World, const FMASemanticLabel& Label, const TArray<FVector>& BoundaryVertices)
+TArray<FMAUESceneQueryResult> FMAUESceneQuery::FindObjectsInBoundary(UWorld* World, const FMASemanticLabel& Label, const TArray<FVector>& BoundaryVertices)
 {
-    TArray<FMASceneQueryResult> Results;
+    TArray<FMAUESceneQueryResult> Results;
     if (!World || BoundaryVertices.Num() < 3) return Results;
     
     TArray<AActor*> FoundActors;
@@ -214,7 +214,7 @@ TArray<FMASceneQueryResult> FMASceneQuery::FindObjectsInBoundary(UWorld* World, 
         FVector Location = Actor->GetActorLocation();
         if (FMAGeometryUtils::IsPointInPolygon2D(Location, BoundaryVertices))
         {
-            FMASceneQueryResult Result;
+            FMAUESceneQueryResult Result;
             Result.Actor = Actor;
             Result.Name = Item->ItemName;
             Result.Location = Location;
@@ -227,17 +227,17 @@ TArray<FMASceneQueryResult> FMASceneQuery::FindObjectsInBoundary(UWorld* World, 
     return Results;
 }
 
-FMASceneQueryResult FMASceneQuery::FindNearestObject(UWorld* World, const FMASemanticLabel& Label, const FVector& FromLocation)
+FMAUESceneQueryResult FMAUESceneQuery::FindNearestObject(UWorld* World, const FMASemanticLabel& Label, const FVector& FromLocation)
 {
-    FMASceneQueryResult Result;
+    FMAUESceneQueryResult Result;
     if (!World) return Result;
     
-    UE_LOG(LogMASceneQuery, Log, TEXT("[FindNearestObject] Searching for: %s"), *Label.ToString());
+    UE_LOG(LogFMAUESceneQuery, Log, TEXT("[FindNearestObject] Searching for: %s"), *Label.ToString());
     
     TArray<AActor*> FoundActors;
     UGameplayStatics::GetAllActorsOfClass(World, AMAPickupItem::StaticClass(), FoundActors);
     
-    UE_LOG(LogMASceneQuery, Log, TEXT("[FindNearestObject] Found %d PickupItems in scene"), FoundActors.Num());
+    UE_LOG(LogFMAUESceneQuery, Log, TEXT("[FindNearestObject] Found %d PickupItems in scene"), FoundActors.Num());
     
     float MinDistance = FLT_MAX;
     
@@ -246,7 +246,7 @@ FMASceneQueryResult FMASceneQuery::FindNearestObject(UWorld* World, const FMASem
         AMAPickupItem* Item = Cast<AMAPickupItem>(Actor);
         if (!Item) continue;
         
-        UE_LOG(LogMASceneQuery, Verbose, TEXT("[FindNearestObject] Checking item: %s"), *Item->ItemName);
+        UE_LOG(LogFMAUESceneQuery, Verbose, TEXT("[FindNearestObject] Checking item: %s"), *Item->ItemName);
         
         if (!Label.IsEmpty() && !MatchesPickupItemLabel(Item, Label))
         {
@@ -263,14 +263,14 @@ FMASceneQueryResult FMASceneQuery::FindNearestObject(UWorld* World, const FMASem
             Result.Label = ExtractPickupItemLabel(Item);
             Result.bFound = true;
             
-            UE_LOG(LogMASceneQuery, Log, TEXT("[FindNearestObject] Found matching item: %s at distance %.1f"), 
+            UE_LOG(LogFMAUESceneQuery, Log, TEXT("[FindNearestObject] Found matching item: %s at distance %.1f"), 
                 *Item->ItemName, Distance);
         }
     }
     
     if (!Result.bFound)
     {
-        UE_LOG(LogMASceneQuery, Warning, TEXT("[FindNearestObject] No matching object found for label"));
+        UE_LOG(LogFMAUESceneQuery, Warning, TEXT("[FindNearestObject] No matching object found for label"));
     }
     
     return Result;
@@ -280,7 +280,7 @@ FMASceneQueryResult FMASceneQuery::FindNearestObject(UWorld* World, const FMASem
 // 通用匹配和提取接口
 //=============================================================================
 
-bool FMASceneQuery::MatchesLabel(AActor* Actor, const FMASemanticLabel& Label)
+bool FMAUESceneQuery::MatchesLabel(AActor* Actor, const FMASemanticLabel& Label)
 {
     if (!Actor) return false;
     
@@ -308,7 +308,7 @@ bool FMASceneQuery::MatchesLabel(AActor* Actor, const FMASemanticLabel& Label)
     return false;
 }
 
-FMASemanticLabel FMASceneQuery::ExtractLabel(AActor* Actor)
+FMASemanticLabel FMAUESceneQuery::ExtractLabel(AActor* Actor)
 {
     FMASemanticLabel Label;
     if (!Actor) return Label;
@@ -338,37 +338,37 @@ FMASemanticLabel FMASceneQuery::ExtractLabel(AActor* Actor)
 // 机器人查找 (回退方法)
 //=============================================================================
 
-AMACharacter* FMASceneQuery::FindRobotByName(UWorld* World, const FString& RobotName)
+AMACharacter* FMAUESceneQuery::FindRobotByName(UWorld* World, const FString& RobotName)
 {
     if (!World || RobotName.IsEmpty()) 
     {
-        UE_LOG(LogMASceneQuery, Warning, TEXT("[FindRobotByName] Invalid parameters: World=%s, RobotName=%s"), 
+        UE_LOG(LogFMAUESceneQuery, Warning, TEXT("[FindRobotByName] Invalid parameters: World=%s, RobotName=%s"), 
             World ? TEXT("valid") : TEXT("null"), *RobotName);
         return nullptr;
     }
     
-    UE_LOG(LogMASceneQuery, Log, TEXT("[FindRobotByName] Searching for robot: %s"), *RobotName);
+    UE_LOG(LogFMAUESceneQuery, Log, TEXT("[FindRobotByName] Searching for robot: %s"), *RobotName);
     
     TArray<AActor*> FoundActors;
     UGameplayStatics::GetAllActorsOfClass(World, AMACharacter::StaticClass(), FoundActors);
     
-    UE_LOG(LogMASceneQuery, Log, TEXT("[FindRobotByName] Found %d characters in scene"), FoundActors.Num());
+    UE_LOG(LogFMAUESceneQuery, Log, TEXT("[FindRobotByName] Found %d characters in scene"), FoundActors.Num());
     
     for (AActor* Actor : FoundActors)
     {
         AMACharacter* Character = Cast<AMACharacter>(Actor);
         if (Character)
         {
-            UE_LOG(LogMASceneQuery, Verbose, TEXT("[FindRobotByName] Checking character: %s"), *Character->AgentName);
+            UE_LOG(LogFMAUESceneQuery, Verbose, TEXT("[FindRobotByName] Checking character: %s"), *Character->AgentName);
             
             if (Character->AgentName.Equals(RobotName, ESearchCase::IgnoreCase))
             {
-                UE_LOG(LogMASceneQuery, Log, TEXT("[FindRobotByName] Found robot: %s"), *Character->AgentName);
+                UE_LOG(LogFMAUESceneQuery, Log, TEXT("[FindRobotByName] Found robot: %s"), *Character->AgentName);
                 return Character;
             }
         }
     }
     
-    UE_LOG(LogMASceneQuery, Warning, TEXT("[FindRobotByName] Robot not found: %s"), *RobotName);
+    UE_LOG(LogFMAUESceneQuery, Warning, TEXT("[FindRobotByName] Robot not found: %s"), *RobotName);
     return nullptr;
 }

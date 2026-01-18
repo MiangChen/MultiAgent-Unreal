@@ -490,22 +490,6 @@ private:
     void LoadDynamicNodes();
 
     //=========================================================================
-    // 缓存管理
-    //=========================================================================
-
-    /**
-     * 使缓存失效
-     * 当静态节点或动态节点发生变化时调用
-     */
-    void InvalidateCache();
-
-    /**
-     * 重建缓存
-     * 合并静态节点和动态节点到 CachedAllNodes
-     */
-    void RebuildCache() const;
-
-    //=========================================================================
     // 内部辅助方法
     //=========================================================================
 
@@ -559,13 +543,4 @@ private:
 
     /** 动态节点 (运行时创建) */
     TArray<FMASceneGraphNode> DynamicNodes;
-
-    /** 合并后的所有节点缓存 */
-    mutable TArray<FMASceneGraphNode> CachedAllNodes;
-
-    /** 缓存是否有效 */
-    mutable bool bCacheValid = false;
-
-    /** 场景图文件名 */
-    static const FString SceneGraphFileName;
 };

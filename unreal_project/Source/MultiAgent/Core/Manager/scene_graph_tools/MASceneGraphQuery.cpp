@@ -5,6 +5,7 @@
 #include "../../../Utils/MAGeometryUtils.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
+#include "Serialization/JsonWriter.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMASceneGraphQuery, Log, All);
 
@@ -481,7 +482,7 @@ FMASceneGraphNode FMASceneGraphQuery::FindNearestLandmark(
 // 辅助查询
 //=============================================================================
 
-FMASceneGraphNode FMASceneGraphQuery::FindNodeById(
+FMASceneGraphNode FMASceneGraphQuery::FindNodeByIdOrLabel(
     const TArray<FMASceneGraphNode>& AllNodes,
     const FString& NodeId)
 {
@@ -498,7 +499,7 @@ FMASceneGraphNode FMASceneGraphQuery::FindNodeById(
     {
         if (Node.Id.Equals(NodeId, ESearchCase::IgnoreCase))
         {
-            UE_LOG(LogMASceneGraphQuery, Verbose, TEXT("FindNodeById: Found node by Id match: %s"), *NodeId);
+            UE_LOG(LogMASceneGraphQuery, Verbose, TEXT("FindNodeByIdOrLabel: Found node by Id match: %s"), *NodeId);
             return Node;
         }
     }
@@ -508,7 +509,7 @@ FMASceneGraphNode FMASceneGraphQuery::FindNodeById(
     {
         if (Node.Label.Equals(NodeId, ESearchCase::IgnoreCase))
         {
-            UE_LOG(LogMASceneGraphQuery, Verbose, TEXT("FindNodeById: Found node by Label match: %s -> Id=%s"), *NodeId, *Node.Id);
+            UE_LOG(LogMASceneGraphQuery, Verbose, TEXT("FindNodeByIdOrLabel: Found node by Label match: %s -> Id=%s"), *NodeId, *Node.Id);
             return Node;
         }
     }
@@ -519,7 +520,7 @@ FMASceneGraphNode FMASceneGraphQuery::FindNodeById(
         const FString* NodeLabel = Node.Features.Find(TEXT("label"));
         if (NodeLabel && NodeLabel->Equals(NodeId, ESearchCase::IgnoreCase))
         {
-            UE_LOG(LogMASceneGraphQuery, Verbose, TEXT("FindNodeById: Found node by Features[label] match: %s -> Id=%s"), *NodeId, *Node.Id);
+            UE_LOG(LogMASceneGraphQuery, Verbose, TEXT("FindNodeByIdOrLabel: Found node by Features[label] match: %s -> Id=%s"), *NodeId, *Node.Id);
             return Node;
         }
     }
@@ -530,22 +531,13 @@ FMASceneGraphNode FMASceneGraphQuery::FindNodeById(
         const FString* NodeName = Node.Features.Find(TEXT("name"));
         if (NodeName && NodeName->Equals(NodeId, ESearchCase::IgnoreCase))
         {
-            UE_LOG(LogMASceneGraphQuery, Verbose, TEXT("FindNodeById: Found node by Features[name] match: %s -> Id=%s"), *NodeId, *Node.Id);
+            UE_LOG(LogMASceneGraphQuery, Verbose, TEXT("FindNodeByIdOrLabel: Found node by Features[name] match: %s -> Id=%s"), *NodeId, *Node.Id);
             return Node;
         }
     }
 
-    UE_LOG(LogMASceneGraphQuery, Verbose, TEXT("FindNodeById: No node found for: %s"), *NodeId);
+    UE_LOG(LogMASceneGraphQuery, Verbose, TEXT("FindNodeByIdOrLabel: No node found for: %s"), *NodeId);
     return FMASceneGraphNode();
-}
-
-FMASceneGraphNode FMASceneGraphQuery::FindNodeByLabelString(
-    const TArray<FMASceneGraphNode>& AllNodes,
-    const FString& NodeLabel)
-{
-    // 注意: 此函数现在与 FindNodeById 行为相同，保留是为了向后兼容
-    // 推荐使用 FindNodeById 进行统一查询
-    return FindNodeById(AllNodes, NodeLabel);
 }
 
 
@@ -618,4 +610,251 @@ bool FMASceneGraphQuery::IsLandmark(const FMASceneGraphNode& Node)
 {
     // 地标包括: 建筑物、路口、道具
     return Node.IsBuilding() || Node.IsIntersection() || Node.IsProp();
+}
+
+
+//=============================================================================
+// GUID 查询
+//=============================================================================
+
+TArray<FMASceneGraphNode> FMASceneGraphQuery::FindNodesByGuid(
+    const TArray<FMASceneGraphNode>& AllNodes,
+    const FString& ActorGuid)
+{
+    // 根据 Actor GUID 查找包含该 GUID 的所有节点
+    // 遍历所有节点，检查 GuidArray 和 Guid 字段
+
+    TArray<FMASceneGraphNode> Result;
+
+    if (ActorGuid.IsEmpty())
+    {
+        UE_LOG(LogMASceneGraphQuery, Warning, TEXT("FindNodesByGuid: ActorGuid is empty"));
+        return Result;
+    }
+
+    // 规范化输入的 GUID（移除连字符，转为大写）
+    FString NormalizedInputGuid = ActorGuid.Replace(TEXT("-"), TEXT("")).ToUpper();
+
+    // 遍历所有节点，检查 GuidArray 和 Guid 字段
+    for (const FMASceneGraphNode& Node : AllNodes)
+    {
+        bool bFound = false;
+        
+        // 检查单个 Guid 字段 (point 类型)
+        if (!Node.Guid.IsEmpty())
+        {
+            FString NormalizedNodeGuid = Node.Guid.Replace(TEXT("-"), TEXT("")).ToUpper();
+            if (NormalizedNodeGuid == NormalizedInputGuid)
+            {
+                bFound = true;
+            }
+        }
+        
+        // 检查 GuidArray (polygon/linestring 类型)
+        if (!bFound)
+        {
+            for (const FString& Guid : Node.GuidArray)
+            {
+                FString NormalizedGuid = Guid.Replace(TEXT("-"), TEXT("")).ToUpper();
+                if (NormalizedGuid == NormalizedInputGuid)
+                {
+                    bFound = true;
+                    break;
+                }
+            }
+        }
+        
+        if (bFound)
+        {
+            Result.Add(Node);
+            UE_LOG(LogMASceneGraphQuery, Verbose, TEXT("FindNodesByGuid: Found node %s (type=%s) containing GUID %s"), 
+                *Node.Id, *Node.ShapeType, *ActorGuid);
+        }
+    }
+    
+    UE_LOG(LogMASceneGraphQuery, Log, TEXT("FindNodesByGuid: Found %d nodes containing GUID %s"), 
+        Result.Num(), *ActorGuid);
+
+    return Result;
+}
+
+
+//=============================================================================
+// 节点合并
+//=============================================================================
+
+TArray<FMASceneGraphNode> FMASceneGraphQuery::GetAllNodes(
+    const TArray<FMASceneGraphNode>& StaticNodes,
+    const TArray<FMASceneGraphNode>& DynamicNodes)
+{
+    TArray<FMASceneGraphNode> AllNodes;
+    AllNodes.Reserve(StaticNodes.Num() + DynamicNodes.Num());
+    AllNodes.Append(StaticNodes);
+    AllNodes.Append(DynamicNodes);
+    
+    UE_LOG(LogMASceneGraphQuery, Verbose, TEXT("GetAllNodes: Merged %d static + %d dynamic = %d total nodes"), 
+        StaticNodes.Num(), DynamicNodes.Num(), AllNodes.Num());
+    
+    return AllNodes;
+}
+
+
+//=============================================================================
+// JSON 序列化
+//=============================================================================
+
+TSharedPtr<FJsonObject> FMASceneGraphQuery::NodeToJsonObject(const FMASceneGraphNode& Node)
+{
+    // 根据节点类型正确构建shape对象
+    
+    TSharedPtr<FJsonObject> NodeObject = MakeShareable(new FJsonObject());
+    
+    // 设置 id
+    NodeObject->SetStringField(TEXT("id"), Node.Id);
+    
+    // 构建 properties 对象
+    TSharedPtr<FJsonObject> PropertiesObject = MakeShareable(new FJsonObject());
+    PropertiesObject->SetStringField(TEXT("category"), Node.Category);
+    PropertiesObject->SetStringField(TEXT("type"), Node.Type);
+    PropertiesObject->SetStringField(TEXT("label"), Node.Label);
+    
+    // 添加可拾取物品特有属性
+    if (Node.IsPickupItem())
+    {
+        PropertiesObject->SetBoolField(TEXT("is_carried"), Node.bIsCarried);
+        if (!Node.CarrierId.IsEmpty())
+        {
+            PropertiesObject->SetStringField(TEXT("carrier_id"), Node.CarrierId);
+        }
+    }
+    
+    // 添加动态节点标记
+    if (Node.bIsDynamic)
+    {
+        PropertiesObject->SetBoolField(TEXT("is_dynamic"), true);
+    }
+    
+    // 对于非地点类型节点，输出其所在地点的标签
+    if (!Node.LocationLabel.IsEmpty())
+    {
+        PropertiesObject->SetStringField(TEXT("location_label"), Node.LocationLabel);
+    }
+    
+    // 添加 Features
+    for (const auto& Feature : Node.Features)
+    {
+        PropertiesObject->SetStringField(Feature.Key, Feature.Value);
+    }
+    
+    NodeObject->SetObjectField(TEXT("properties"), PropertiesObject);
+    
+    // 构建 shape 对象
+    // 尝试从 RawJson 中提取原始 shape 数据
+    TSharedPtr<FJsonObject> ShapeObject = MakeShareable(new FJsonObject());
+    bool bShapeFromRawJson = false;
+    
+    if (!Node.RawJson.IsEmpty())
+    {
+        // 解析原始JSON以获取完整的shape数据
+        TSharedPtr<FJsonObject> RawJsonObject;
+        TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Node.RawJson);
+        if (FJsonSerializer::Deserialize(Reader, RawJsonObject) && RawJsonObject.IsValid())
+        {
+            const TSharedPtr<FJsonObject>* OriginalShapeObject;
+            if (RawJsonObject->TryGetObjectField(TEXT("shape"), OriginalShapeObject) && OriginalShapeObject->IsValid())
+            {
+                // 复制原始shape对象
+                ShapeObject = MakeShareable(new FJsonObject());
+                
+                // 复制 type
+                FString ShapeType;
+                if ((*OriginalShapeObject)->TryGetStringField(TEXT("type"), ShapeType))
+                {
+                    ShapeObject->SetStringField(TEXT("type"), ShapeType);
+                }
+                
+                // 根据形状类型复制相应字段
+                if (ShapeType == TEXT("prism") || ShapeType == TEXT("polygon"))
+                {
+                    // prism: type, vertices, height
+                    const TArray<TSharedPtr<FJsonValue>>* VerticesArray;
+                    if ((*OriginalShapeObject)->TryGetArrayField(TEXT("vertices"), VerticesArray))
+                    {
+                        ShapeObject->SetArrayField(TEXT("vertices"), *VerticesArray);
+                    }
+                    
+                    double Height;
+                    if ((*OriginalShapeObject)->TryGetNumberField(TEXT("height"), Height))
+                    {
+                        ShapeObject->SetNumberField(TEXT("height"), Height);
+                    }
+                    
+                    bShapeFromRawJson = true;
+                }
+                else if (ShapeType == TEXT("linestring"))
+                {
+                    // linestring: type, points, vertices
+                    const TArray<TSharedPtr<FJsonValue>>* PointsArray;
+                    if ((*OriginalShapeObject)->TryGetArrayField(TEXT("points"), PointsArray))
+                    {
+                        ShapeObject->SetArrayField(TEXT("points"), *PointsArray);
+                    }
+                    
+                    const TArray<TSharedPtr<FJsonValue>>* VerticesArray;
+                    if ((*OriginalShapeObject)->TryGetArrayField(TEXT("vertices"), VerticesArray))
+                    {
+                        ShapeObject->SetArrayField(TEXT("vertices"), *VerticesArray);
+                    }
+                    
+                    bShapeFromRawJson = true;
+                }
+                else if (ShapeType == TEXT("point"))
+                {
+                    // point: type, center, vertices (可选)
+                    const TArray<TSharedPtr<FJsonValue>>* CenterArray;
+                    if ((*OriginalShapeObject)->TryGetArrayField(TEXT("center"), CenterArray))
+                    {
+                        ShapeObject->SetArrayField(TEXT("center"), *CenterArray);
+                    }
+                    
+                    // 路口等节点可能有 vertices
+                    const TArray<TSharedPtr<FJsonValue>>* VerticesArray;
+                    if ((*OriginalShapeObject)->TryGetArrayField(TEXT("vertices"), VerticesArray))
+                    {
+                        ShapeObject->SetArrayField(TEXT("vertices"), *VerticesArray);
+                    }
+                    
+                    bShapeFromRawJson = true;
+                }
+                else if (ShapeType == TEXT("polygon"))
+                {
+                    // polygon: type, vertices
+                    const TArray<TSharedPtr<FJsonValue>>* VerticesArray;
+                    if ((*OriginalShapeObject)->TryGetArrayField(TEXT("vertices"), VerticesArray))
+                    {
+                        ShapeObject->SetArrayField(TEXT("vertices"), *VerticesArray);
+                    }
+                    
+                    bShapeFromRawJson = true;
+                }
+            }
+        }
+    }
+    
+    // 如果无法从RawJson获取shape，使用默认的point类型
+    if (!bShapeFromRawJson)
+    {
+        ShapeObject->SetStringField(TEXT("type"), Node.ShapeType.IsEmpty() ? TEXT("point") : Node.ShapeType);
+        
+        // 设置center
+        TArray<TSharedPtr<FJsonValue>> CenterArray;
+        CenterArray.Add(MakeShareable(new FJsonValueNumber(Node.Center.X)));
+        CenterArray.Add(MakeShareable(new FJsonValueNumber(Node.Center.Y)));
+        CenterArray.Add(MakeShareable(new FJsonValueNumber(Node.Center.Z)));
+        ShapeObject->SetArrayField(TEXT("center"), CenterArray);
+    }
+    
+    NodeObject->SetObjectField(TEXT("shape"), ShapeObject);
+    
+    return NodeObject;
 }

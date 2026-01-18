@@ -20,6 +20,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Follow")
     void SetTargetCharacter(AMACharacter* InTargetCharacter);
     
+    UFUNCTION(BlueprintCallable, Category = "Follow")
+    void SetTargetActor(AActor* InTargetActor);
+    
     void SetFollowDistance(float InDistance) { FollowDistance = InDistance; }
 
     UPROPERTY(EditDefaultsOnly, Category = "Follow")
@@ -37,7 +40,7 @@ protected:
 
 private:
     UPROPERTY()
-    TWeakObjectPtr<AMACharacter> TargetCharacter;
+    TWeakObjectPtr<AActor> TargetActor;
     
     FVector LastTargetLocation;
     FTimerHandle UpdateTimerHandle;

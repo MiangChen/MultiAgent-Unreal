@@ -550,7 +550,7 @@ private:
      * @param NodeId Node ID
      * @return Node JSON 对象，未找到返回 nullptr
      */
-    TSharedPtr<FJsonObject> FindNodeById(const FString& NodeId) const;
+    TSharedPtr<FJsonObject> FindNodeByIdOrLabel(const FString& NodeId) const;
     
     /**
      * 根据 ID 查找 Node 索引

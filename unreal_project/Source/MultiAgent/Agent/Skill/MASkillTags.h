@@ -18,6 +18,10 @@ public:
     FGameplayTag Skill_Charge;
     FGameplayTag Skill_Search;
     FGameplayTag Skill_Place;
+    FGameplayTag Skill_TakePhoto;
+    FGameplayTag Skill_Broadcast;
+    FGameplayTag Skill_HandleHazard;
+    FGameplayTag Skill_Guide;
 
     // ========== Status Tags ==========
     FGameplayTag Status_Moving;
@@ -31,6 +35,10 @@ public:
     FGameplayTag Command_Charge;
     FGameplayTag Command_Search;
     FGameplayTag Command_Place;
+    FGameplayTag Command_TakePhoto;
+    FGameplayTag Command_Broadcast;
+    FGameplayTag Command_HandleHazard;
+    FGameplayTag Command_Guide;
 
 private:
     static FMASkillTags SkillTags;

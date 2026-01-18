@@ -6,7 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "AbilitySystemComponent.h"
-#include "MAFeedbackSystem.h"
+#include "Utils/MAFeedbackGenerator.h"
 #include "MASkillComponent.generated.h"
 
 class AMACharacter;
@@ -87,6 +87,33 @@ struct FMASkillParams
     
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     bool bChargingStationFound = false;  // 是否找到充电站
+
+    // TakePhoto / Broadcast / HandleHazard 共用参数
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FMASemanticTarget CommonTarget;  // 目标对象语义标签
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FString CommonTargetObjectId;  // 目标对象 ID（优先使用）
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float DefaultSearchRadius = 1000.f;  // 默认搜索半径 10m
+    
+    // Broadcast 专用参数
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FString BroadcastMessage;  // 喊话内容
+    
+    // Guide 专用参数
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FMASemanticTarget GuideTarget;  // 引导目标
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FString GuideTargetObjectId;  // 引导目标 ID
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FVector GuideDestination = FVector::ZeroVector;  // 引导目的地
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    TWeakObjectPtr<AActor> GuideTargetActor;  // 引导目标 Actor（运行时缓存）
 };
 
 // 场景查询结果缓存
@@ -169,6 +196,18 @@ public:
     
     UFUNCTION(BlueprintCallable, Category = "Skill")
     void CancelReturnHome();
+
+    UFUNCTION(BlueprintCallable, Category = "Skill")
+    bool TryActivateTakePhoto();
+    
+    UFUNCTION(BlueprintCallable, Category = "Skill")
+    bool TryActivateBroadcast();
+    
+    UFUNCTION(BlueprintCallable, Category = "Skill")
+    bool TryActivateHandleHazard();
+    
+    UFUNCTION(BlueprintCallable, Category = "Skill")
+    bool TryActivateGuide();
 
     // ========== 命令系统 ==========
     
@@ -257,6 +296,10 @@ protected:
     FGameplayAbilitySpecHandle TakeOffSkillHandle;
     FGameplayAbilitySpecHandle LandSkillHandle;
     FGameplayAbilitySpecHandle ReturnHomeSkillHandle;
+    FGameplayAbilitySpecHandle TakePhotoSkillHandle;
+    FGameplayAbilitySpecHandle BroadcastSkillHandle;
+    FGameplayAbilitySpecHandle HandleHazardSkillHandle;
+    FGameplayAbilitySpecHandle GuideSkillHandle;
 
 private:
     UPROPERTY()
