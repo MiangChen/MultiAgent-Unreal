@@ -347,20 +347,35 @@ protected:
     FVector2D ScrollOffset = FVector2D::ZeroVector;
 
     //=========================================================================
-    // 布局常量 (放大 1.5 倍)
+    // 布局常量 (可动态调整以适应内容)
     //=========================================================================
 
-    /** 时间步列宽 */
-    float TimeStepWidth = 150.0f;
+    /** 时间步列宽 (基础值，会根据内容自适应) */
+    float TimeStepWidth = 120.0f;
 
-    /** 机器人行高 */
-    float RobotRowHeight = 60.0f;
+    /** 机器人行高 (基础值，会根据内容自适应) */
+    float RobotRowHeight = 50.0f;
 
     /** 标题栏高度 */
-    float HeaderHeight = 45.0f;
+    float HeaderHeight = 35.0f;
 
     /** 标签区域宽度 */
-    float LabelWidth = 180.0f;
+    float LabelWidth = 120.0f;
+
+    /** 最小时间步列宽 */
+    float MinTimeStepWidth = 80.0f;
+
+    /** 最大时间步列宽 */
+    float MaxTimeStepWidth = 200.0f;
+
+    /** 最小机器人行高 */
+    float MinRobotRowHeight = 35.0f;
+
+    /** 最大机器人行高 */
+    float MaxRobotRowHeight = 80.0f;
+
+    /** 根据可用空间和数据量计算自适应布局 */
+    void CalculateAdaptiveLayout(const FVector2D& AvailableSize) const;
 
     //=========================================================================
     // 交互状态

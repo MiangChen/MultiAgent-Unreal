@@ -175,6 +175,7 @@ void AMAPlayerController::SetupInputComponent()
 
         // 鼠标模式切换
         EIC->BindAction(InputActions->IA_ToggleMouseMode, ETriggerEvent::Started, this, &AMAPlayerController::OnToggleMouseMode);
+        EIC->BindAction(InputActions->IA_ToggleModifyMode, ETriggerEvent::Started, this, &AMAPlayerController::OnToggleModifyMode);
 
         // UI 切换 (Z 键)
         EIC->BindAction(InputActions->IA_ToggleMainUI, ETriggerEvent::Started, this, &AMAPlayerController::OnToggleMainUI);
@@ -711,38 +712,26 @@ void AMAPlayerController::OnDisbandSquad(const FInputActionValue& Value)
 
 void AMAPlayerController::OnToggleMouseMode(const FInputActionValue& Value)
 {
-    // 切换: Select ↔ Deployment (如果有待部署单位)
+    // M 键: 切换 Edit 模式
+    // 如果当前在 Edit 模式，退出到 Select 模式
+    // 如果当前不在 Edit 模式，进入 Edit 模式（如果在 Modify 模式，先退出）
+    
     EMAMouseMode NewMode;
     
-    switch (CurrentMouseMode)
+    if (CurrentMouseMode == EMAMouseMode::Edit)
     {
-    case EMAMouseMode::Select:
-        // 如果背包有待部署单位，切换到部署模式，否则跳过到 Modify
-        if (HasPendingDeployments())
+        // 退出 Edit 模式，返回 Select
+        NewMode = EMAMouseMode::Select;
+    }
+    else
+    {
+        // 进入 Edit 模式
+        // 如果当前在 Modify 模式，先退出
+        if (CurrentMouseMode == EMAMouseMode::Modify)
         {
-            NewMode = EMAMouseMode::Deployment;
+            ExitModifyMode();
         }
-        else
-        {
-            NewMode = EMAMouseMode::Modify;
-        }
-        break;
-
-    case EMAMouseMode::Deployment:
-        NewMode = EMAMouseMode::Modify;
-        break;
-
-    case EMAMouseMode::Modify:
         NewMode = EMAMouseMode::Edit;
-        break;
-
-    case EMAMouseMode::Edit:
-        NewMode = EMAMouseMode::Select;
-        break;
-
-    default:
-        NewMode = EMAMouseMode::Select;
-        break;
     }
     
     // 如果从部署模式切出，保存状态
@@ -755,26 +744,9 @@ void AMAPlayerController::OnToggleMouseMode(const FInputActionValue& Value)
         }
         CurrentDeploymentIndex = 0;
     }
-    else if (CurrentMouseMode == EMAMouseMode::Modify)
-    {
-        ExitModifyMode();
-    }
-    else if (CurrentMouseMode == EMAMouseMode::Edit)
-    {
-        ExitEditMode();
-    }
 
     // 进入新模式
-    if (NewMode == EMAMouseMode::Deployment)
-    {
-        CurrentDeploymentIndex = 0;
-        DeployedCount = 0;
-    }
-    else if (NewMode == EMAMouseMode::Modify)
-    {
-        EnterModifyMode();
-    }
-    else if (NewMode == EMAMouseMode::Edit)
+    if (NewMode == EMAMouseMode::Edit)
     {
         EnterEditMode();
     }
@@ -786,21 +758,74 @@ void AMAPlayerController::OnToggleMouseMode(const FInputActionValue& Value)
     FString ModeName = MouseModeToString(CurrentMouseMode);
     FString ExtraInfo;
 
-    if (CurrentMouseMode == EMAMouseMode::Deployment)
-    {
-        ExtraInfo = FString::Printf(TEXT(" [%d pending]"), GetDeploymentQueueCount());
-    }
-    else if (CurrentMouseMode == EMAMouseMode::Modify)
-    {
-        ExtraInfo = TEXT(" [Click to select Actor, Shift+Click for multi-select]");
-    }
-    else if (CurrentMouseMode == EMAMouseMode::Edit)
+    if (CurrentMouseMode == EMAMouseMode::Edit)
     {
         ExtraInfo = TEXT(" [Click to create POI, Shift+Click to select]");
     }
 
     GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan,
-        FString::Printf(TEXT("Mode: %s%s (M to switch)"), *ModeName, *ExtraInfo));
+        FString::Printf(TEXT("Mode: %s%s (M to toggle Edit)"), *ModeName, *ExtraInfo));
+
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] Mouse mode: %s"), *ModeName);
+}
+
+// ========== Modify 模式切换 (逗号键) ==========
+
+void AMAPlayerController::OnToggleModifyMode(const FInputActionValue& Value)
+{
+    // 逗号键: 切换 Modify 模式
+    // 如果当前在 Modify 模式，退出到 Select 模式
+    // 如果当前不在 Modify 模式，进入 Modify 模式（如果在 Edit 模式，先退出）
+    
+    EMAMouseMode NewMode;
+    
+    if (CurrentMouseMode == EMAMouseMode::Modify)
+    {
+        // 退出 Modify 模式，返回 Select
+        NewMode = EMAMouseMode::Select;
+    }
+    else
+    {
+        // 进入 Modify 模式
+        // 如果当前在 Edit 模式，先退出
+        if (CurrentMouseMode == EMAMouseMode::Edit)
+        {
+            ExitEditMode();
+        }
+        NewMode = EMAMouseMode::Modify;
+    }
+    
+    // 如果从部署模式切出，保存状态
+    if (CurrentMouseMode == EMAMouseMode::Deployment && NewMode != EMAMouseMode::Deployment)
+    {
+        // 取消正在进行的框选
+        if (SelectionManager && SelectionManager->IsBoxSelecting())
+        {
+            SelectionManager->CancelBoxSelect();
+        }
+        CurrentDeploymentIndex = 0;
+    }
+
+    // 进入新模式
+    if (NewMode == EMAMouseMode::Modify)
+    {
+        EnterModifyMode();
+    }
+
+    PreviousMouseMode = CurrentMouseMode;
+    CurrentMouseMode = NewMode;
+    ApplyMouseModeSettings(NewMode);
+
+    FString ModeName = MouseModeToString(CurrentMouseMode);
+    FString ExtraInfo;
+
+    if (CurrentMouseMode == EMAMouseMode::Modify)
+    {
+        ExtraInfo = TEXT(" [Click to select Actor, Shift+Click for multi-select]");
+    }
+
+    GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan,
+        FString::Printf(TEXT("Mode: %s%s (, to toggle Modify)"), *ModeName, *ExtraInfo));
 
     UE_LOG(LogTemp, Log, TEXT("[PlayerController] Mouse mode: %s"), *ModeName);
 }

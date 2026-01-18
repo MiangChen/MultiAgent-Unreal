@@ -20,6 +20,7 @@
 #include "Components/CanvasPanelSlot.h"
 #include "Components/VerticalBoxSlot.h"
 #include "Components/HorizontalBoxSlot.h"
+#include "Components/Spacer.h"
 #include "Blueprint/WidgetTree.h"
 #include "Misc/DateTime.h"
 #include "Misc/FileHelper.h"
@@ -79,6 +80,13 @@ void UMATaskPlannerWidget::NativeConstruct()
     {
         SubmitTaskGraphButton->OnClicked.AddDynamic(this, &UMATaskPlannerWidget::OnSubmitTaskGraphButtonClicked);
         UE_LOG(LogMATaskPlanner, Log, TEXT("SubmitTaskGraphButton event bound"));
+    }
+
+    // Bind close button event
+    if (CloseButton && !CloseButton->OnClicked.IsAlreadyBound(this, &UMATaskPlannerWidget::OnCloseButtonClicked))
+    {
+        CloseButton->OnClicked.AddDynamic(this, &UMATaskPlannerWidget::OnCloseButtonClicked);
+        UE_LOG(LogMATaskPlanner, Log, TEXT("CloseButton event bound"));
     }
 
     // Bind data model event
@@ -197,19 +205,105 @@ void UMATaskPlannerWidget::BuildUI()
     }
     WidgetTree->RootWidget = RootCanvas;
 
-    // Create main background Border
+    // Create semi-transparent background overlay (click blocker)
+    UBorder* BackgroundOverlay = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("BackgroundOverlay"));
+    BackgroundOverlay->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.5f));  // Semi-transparent black
+    
+    UCanvasPanelSlot* OverlaySlot = RootCanvas->AddChildToCanvas(BackgroundOverlay);
+    OverlaySlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
+    OverlaySlot->SetOffsets(FMargin(0.0f));
+
+    // Create main background Border - windowed mode (80% width, 85% height, centered)
     UBorder* MainBackground = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("MainBackground"));
     MainBackground->SetBrushColor(BackgroundColor);
     MainBackground->SetPadding(FMargin(10.0f));
     
+    // Apply rounded corners using brush
+    FSlateBrush RoundedBrush;
+    RoundedBrush.DrawAs = ESlateBrushDrawType::RoundedBox;
+    RoundedBrush.TintColor = FSlateColor(BackgroundColor);
+    RoundedBrush.OutlineSettings.CornerRadii = FVector4(12.0f, 12.0f, 12.0f, 12.0f);
+    RoundedBrush.OutlineSettings.RoundingType = ESlateBrushRoundingType::FixedRadius;
+    MainBackground->SetBrush(RoundedBrush);
+    
     UCanvasPanelSlot* MainSlot = RootCanvas->AddChildToCanvas(MainBackground);
-    // Full screen fill
-    MainSlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
+    // Windowed mode: centered with 80% width and 85% height (Requirements 6.7, 6.8)
+    MainSlot->SetAnchors(FAnchors(0.1f, 0.075f, 0.9f, 0.925f));  // 10% margin on sides, 7.5% on top/bottom
     MainSlot->SetOffsets(FMargin(0.0f));
+
+    // Create main vertical layout (title bar + content)
+    UVerticalBox* MainVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("MainVBox"));
+    MainBackground->AddChild(MainVBox);
+
+    // Create title bar with close button
+    UHorizontalBox* TitleBar = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("TitleBar"));
+    UVerticalBoxSlot* TitleBarSlot = MainVBox->AddChildToVerticalBox(TitleBar);
+    TitleBarSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+    TitleBarSlot->SetPadding(FMargin(0, 0, 0, 5));
+
+    // Title text
+    UTextBlock* TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TitleText"));
+    TitleText->SetText(FText::FromString(TEXT("Task Planner Workbench")));
+    FSlateFontInfo TitleFont = TitleText->GetFont();
+    TitleFont.Size = 16;
+    TitleText->SetFont(TitleFont);
+    TitleText->SetColorAndOpacity(FSlateColor(TitleColor));
+    
+    UHorizontalBoxSlot* TitleTextSlot = TitleBar->AddChildToHorizontalBox(TitleText);
+    TitleTextSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+    TitleTextSlot->SetVerticalAlignment(VAlign_Center);
+
+    // Hint text
+    UTextBlock* HintText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("HintText"));
+    HintText->SetText(FText::FromString(TEXT("Press Z to close the window")));
+    FSlateFontInfo HintFont = HintText->GetFont();
+    HintFont.Size = 10;
+    HintText->SetFont(HintFont);
+    HintText->SetColorAndOpacity(FSlateColor(FLinearColor(0.5f, 0.5f, 0.6f)));
+    
+    UHorizontalBoxSlot* HintSlot = TitleBar->AddChildToHorizontalBox(HintText);
+    HintSlot->SetVerticalAlignment(VAlign_Center);
+    HintSlot->SetPadding(FMargin(0, 0, 20, 0));
+
+    // Close button (X) in top-right corner
+    CloseButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("CloseButton"));
+    
+    // Set button style - transparent normal, semi-transparent red hover, darker red pressed
+    FButtonStyle CloseButtonStyle;
+    
+    // Normal state - transparent
+    FSlateBrush NormalBrush;
+    NormalBrush.TintColor = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.0f));
+    CloseButtonStyle.SetNormal(NormalBrush);
+    
+    // Hover state - semi-transparent red
+    FSlateBrush HoverBrush;
+    HoverBrush.TintColor = FSlateColor(FLinearColor(0.8f, 0.2f, 0.2f, 0.3f));
+    CloseButtonStyle.SetHovered(HoverBrush);
+    
+    // Pressed state - darker red
+    FSlateBrush PressedBrush;
+    PressedBrush.TintColor = FSlateColor(FLinearColor(0.6f, 0.1f, 0.1f, 0.5f));
+    CloseButtonStyle.SetPressed(PressedBrush);
+    
+    CloseButton->SetStyle(CloseButtonStyle);
+    
+    // Create X text
+    UTextBlock* CloseText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("CloseText"));
+    CloseText->SetText(FText::FromString(TEXT("✕")));
+    CloseText->SetColorAndOpacity(FSlateColor(FLinearColor(0.7f, 0.7f, 0.7f, 1.0f)));
+    FSlateFontInfo CloseFont = FCoreStyle::GetDefaultFontStyle("Regular", 18);
+    CloseText->SetFont(CloseFont);
+    CloseButton->AddChild(CloseText);
+    
+    UHorizontalBoxSlot* CloseSlot = TitleBar->AddChildToHorizontalBox(CloseButton);
+    CloseSlot->SetVerticalAlignment(VAlign_Top);
+    CloseSlot->SetHorizontalAlignment(HAlign_Right);
 
     // Create main horizontal layout
     UHorizontalBox* MainHBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("MainHBox"));
-    MainBackground->AddChild(MainHBox);
+    UVerticalBoxSlot* MainHBoxSlot = MainVBox->AddChildToVerticalBox(MainHBox);
+    MainHBoxSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 
     // Create left panel
     UBorder* LeftPanel = CreateLeftPanel();
@@ -228,7 +322,7 @@ void UMATaskPlannerWidget::BuildUI()
     RightSize.Value = 0.65f;
     RightSlot->SetSize(RightSize);
 
-    UE_LOG(LogMATaskPlanner, Log, TEXT("BuildUI: UI construction completed successfully"));
+    UE_LOG(LogMATaskPlanner, Log, TEXT("BuildUI: UI construction completed successfully (windowed mode)"));
 }
 
 UBorder* UMATaskPlannerWidget::CreateLeftPanel()
@@ -242,43 +336,21 @@ UBorder* UMATaskPlannerWidget::CreateLeftPanel()
     UVerticalBox* LeftVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("LeftVBox"));
     LeftPanelBorder->AddChild(LeftVBox);
 
-    // Title
-    UTextBlock* TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("LeftPanelTitle"));
-    TitleText->SetText(FText::FromString(TEXT("Task Planner Workbench")));
-    FSlateFontInfo TitleFont = TitleText->GetFont();
-    TitleFont.Size = 16;
-    TitleText->SetFont(TitleFont);
-    TitleText->SetColorAndOpacity(FSlateColor(TitleColor));
-    
-    UVerticalBoxSlot* TitleSlot = LeftVBox->AddChildToVerticalBox(TitleText);
-    TitleSlot->SetPadding(FMargin(0, 0, 0, 10));
-
-    // Hint text
-    UTextBlock* HintText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("HintText"));
-    HintText->SetText(FText::FromString(TEXT("Press Z to toggle visibility")));
-    FSlateFontInfo HintFont = HintText->GetFont();
-    HintFont.Size = 10;
-    HintText->SetFont(HintFont);
-    HintText->SetColorAndOpacity(FSlateColor(FLinearColor(0.5f, 0.5f, 0.6f)));
-    
-    UVerticalBoxSlot* HintSlot = LeftVBox->AddChildToVerticalBox(HintText);
-    HintSlot->SetPadding(FMargin(0, 0, 0, 15));
-
-    // Status log section
+    // Status log section - auto size based on content
     UVerticalBox* StatusLogSection = CreateStatusLogSection();
     UVerticalBoxSlot* StatusSlot = LeftVBox->AddChildToVerticalBox(StatusLogSection);
     FSlateChildSize StatusSize(ESlateSizeRule::Fill);
-    StatusSize.Value = 0.3f;
+    StatusSize.Value = 0.22f;
     StatusSlot->SetSize(StatusSize);
-    StatusSlot->SetPadding(FMargin(0, 0, 0, 10));
+    StatusSlot->SetPadding(FMargin(0, 0, 0, 3));
 
-    // JSON editor section
+    // JSON editor section - takes most space
     UVerticalBox* JsonEditorSection = CreateJsonEditorSection();
     UVerticalBoxSlot* JsonSlot = LeftVBox->AddChildToVerticalBox(JsonEditorSection);
     FSlateChildSize JsonSize(ESlateSizeRule::Fill);
-    JsonSize.Value = 0.5f;
+    JsonSize.Value = 0.58f;
     JsonSlot->SetSize(JsonSize);
-    JsonSlot->SetPadding(FMargin(0, 0, 0, 10));
+    JsonSlot->SetPadding(FMargin(0, 0, 0, 3));
 
     // User command input section
     UVerticalBox* UserInputSection = CreateUserInputSection();
@@ -294,20 +366,17 @@ UVerticalBox* UMATaskPlannerWidget::CreateStatusLogSection()
 {
     UVerticalBox* Section = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("StatusLogSection"));
 
-    // Label
+    // Label - white color, font size 14
     UTextBlock* Label = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("StatusLogLabel"));
     Label->SetText(FText::FromString(TEXT("Status Log:")));
-    Label->SetColorAndOpacity(FSlateColor(LabelColor));
-    FSlateFontInfo LabelFont = FCoreStyle::GetDefaultFontStyle("Bold", 12);
+    Label->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+    FSlateFontInfo LabelFont = FCoreStyle::GetDefaultFontStyle("Bold", 14);
     Label->SetFont(LabelFont);
     
     UVerticalBoxSlot* LabelSlot = Section->AddChildToVerticalBox(Label);
-    LabelSlot->SetPadding(FMargin(0, 0, 0, 5));
+    LabelSlot->SetPadding(FMargin(0, 0, 0, 3));
 
-    // Use ScrollBox to wrap status log for auto-scrolling
-    StatusLogScrollBox = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass(), TEXT("StatusLogScrollBox"));
-    
-    // Status log text box (read-only)
+    // Status log text box (read-only) - directly add without ScrollBox
     StatusLogBox = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(UMultiLineEditableTextBox::StaticClass(), TEXT("StatusLogBox"));
     StatusLogBox->SetIsReadOnly(true);
     StatusLogBox->SetText(FText::GetEmpty());
@@ -317,21 +386,14 @@ UVerticalBox* UMATaskPlannerWidget::CreateStatusLogSection()
     FSlateColor BlackColor = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
     StatusLogStyle.SetForegroundColor(BlackColor);
     StatusLogStyle.SetFocusedForegroundColor(BlackColor);
-    StatusLogStyle.SetReadOnlyForegroundColor(BlackColor);  // 只读模式下的文本颜色
-    // 设置 TextStyle 的 ColorAndOpacity
+    StatusLogStyle.SetReadOnlyForegroundColor(BlackColor);
     StatusLogStyle.TextStyle.ColorAndOpacity = BlackColor;
     FSlateFontInfo StatusLogFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
     StatusLogStyle.SetFont(StatusLogFont);
     StatusLogBox->WidgetStyle = StatusLogStyle;
     
-    StatusLogScrollBox->AddChild(StatusLogBox);
-    
-    // Use SizeBox to set minimum height
-    USizeBox* SizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("StatusLogSizeBox"));
-    SizeBox->SetMinDesiredHeight(100.0f);
-    SizeBox->AddChild(StatusLogScrollBox);
-    
-    UVerticalBoxSlot* BoxSlot = Section->AddChildToVerticalBox(SizeBox);
+    // Add directly to section - let it fill available space
+    UVerticalBoxSlot* BoxSlot = Section->AddChildToVerticalBox(StatusLogBox);
     BoxSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 
     return Section;
@@ -341,11 +403,11 @@ UVerticalBox* UMATaskPlannerWidget::CreateJsonEditorSection()
 {
     UVerticalBox* Section = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("JsonEditorSection"));
 
-    // Label
+    // Label - white color, font size 14
     UTextBlock* Label = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("JsonEditorLabel"));
     Label->SetText(FText::FromString(TEXT("JSON Editor:")));
-    Label->SetColorAndOpacity(FSlateColor(LabelColor));
-    FSlateFontInfo LabelFont2 = FCoreStyle::GetDefaultFontStyle("Bold", 12);
+    Label->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+    FSlateFontInfo LabelFont2 = FCoreStyle::GetDefaultFontStyle("Bold", 14);
     Label->SetFont(LabelFont2);
     
     UVerticalBoxSlot* LabelSlot = Section->AddChildToVerticalBox(Label);
@@ -372,30 +434,40 @@ UVerticalBox* UMATaskPlannerWidget::CreateJsonEditorSection()
     
     UVerticalBoxSlot* BoxSlot = Section->AddChildToVerticalBox(SizeBox);
     BoxSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-    BoxSlot->SetPadding(FMargin(0, 0, 0, 10));
+    BoxSlot->SetPadding(FMargin(0, 0, 0, 8));
 
-    // "Update Graph" button
+    // Horizontal box for buttons - both buttons in same row
+    UHorizontalBox* ButtonRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("ButtonRow"));
+    
+    // "Update Graph" button - smaller with font size 14
     UpdateGraphButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("UpdateGraphButton"));
     
     UTextBlock* ButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("UpdateButtonText"));
-    ButtonText->SetText(FText::FromString(TEXT(" Update Graph ")));
+    ButtonText->SetText(FText::FromString(TEXT("Update Graph")));
     ButtonText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+    FSlateFontInfo UpdateBtnFont = FCoreStyle::GetDefaultFontStyle("Regular", 14);
+    ButtonText->SetFont(UpdateBtnFont);
     UpdateGraphButton->AddChild(ButtonText);
     
-    UVerticalBoxSlot* ButtonSlot = Section->AddChildToVerticalBox(UpdateGraphButton);
-    ButtonSlot->SetHorizontalAlignment(HAlign_Left);
-    ButtonSlot->SetPadding(FMargin(0, 0, 0, 5));
+    UHorizontalBoxSlot* UpdateBtnSlot = ButtonRow->AddChildToHorizontalBox(UpdateGraphButton);
+    UpdateBtnSlot->SetPadding(FMargin(0, 0, 10, 0));
+    UpdateBtnSlot->SetVerticalAlignment(VAlign_Center);
 
-    // "Submit Task Graph" button
+    // "Submit Graph" button - smaller with font size 14
     SubmitTaskGraphButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("SubmitTaskGraphButton"));
 
     UTextBlock* SubmitButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SubmitButtonText"));
-    SubmitButtonText->SetText(FText::FromString(TEXT(" Submit Task Graph ")));
+    SubmitButtonText->SetText(FText::FromString(TEXT("Submit Graph")));
     SubmitButtonText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+    FSlateFontInfo SubmitBtnFont = FCoreStyle::GetDefaultFontStyle("Regular", 14);
+    SubmitButtonText->SetFont(SubmitBtnFont);
     SubmitTaskGraphButton->AddChild(SubmitButtonText);
 
-    UVerticalBoxSlot* SubmitButtonSlot = Section->AddChildToVerticalBox(SubmitTaskGraphButton);
-    SubmitButtonSlot->SetHorizontalAlignment(HAlign_Left);
+    UHorizontalBoxSlot* SubmitBtnSlot = ButtonRow->AddChildToHorizontalBox(SubmitTaskGraphButton);
+    SubmitBtnSlot->SetVerticalAlignment(VAlign_Center);
+
+    UVerticalBoxSlot* ButtonRowSlot = Section->AddChildToVerticalBox(ButtonRow);
+    ButtonRowSlot->SetHorizontalAlignment(HAlign_Left);
 
     return Section;
 }
@@ -404,11 +476,11 @@ UVerticalBox* UMATaskPlannerWidget::CreateUserInputSection()
 {
     UVerticalBox* Section = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("UserInputSection"));
 
-    // Label
+    // Label - white color, font size 14
     UTextBlock* Label = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("UserInputLabel"));
     Label->SetText(FText::FromString(TEXT("Command Input:")));
-    Label->SetColorAndOpacity(FSlateColor(LabelColor));
-    FSlateFontInfo LabelFont3 = FCoreStyle::GetDefaultFontStyle("Bold", 12);
+    Label->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+    FSlateFontInfo LabelFont3 = FCoreStyle::GetDefaultFontStyle("Bold", 14);
     Label->SetFont(LabelFont3);
     
     UVerticalBoxSlot* LabelSlot = Section->AddChildToVerticalBox(Label);
@@ -435,14 +507,32 @@ UVerticalBox* UMATaskPlannerWidget::CreateUserInputSection()
     
     UVerticalBoxSlot* BoxSlot = Section->AddChildToVerticalBox(SizeBox);
     BoxSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-    BoxSlot->SetPadding(FMargin(0, 0, 0, 10));
+    BoxSlot->SetPadding(FMargin(0, 0, 0, 8));
 
-    // "Send Command" button
+    // "Send" button - blue background with white text (like the main UI Send button)
     SendCommandButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("SendCommandButton"));
     
+    // Set blue background color
+    FButtonStyle SendButtonStyle;
+    FSlateBrush BlueBrush;
+    BlueBrush.TintColor = FSlateColor(FLinearColor(0.2f, 0.4f, 0.8f, 1.0f));  // Blue color
+    SendButtonStyle.SetNormal(BlueBrush);
+    
+    FSlateBrush BlueHoverBrush;
+    BlueHoverBrush.TintColor = FSlateColor(FLinearColor(0.3f, 0.5f, 0.9f, 1.0f));  // Lighter blue on hover
+    SendButtonStyle.SetHovered(BlueHoverBrush);
+    
+    FSlateBrush BluePressedBrush;
+    BluePressedBrush.TintColor = FSlateColor(FLinearColor(0.15f, 0.35f, 0.7f, 1.0f));  // Darker blue when pressed
+    SendButtonStyle.SetPressed(BluePressedBrush);
+    
+    SendCommandButton->SetStyle(SendButtonStyle);
+    
     UTextBlock* ButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SendButtonText"));
-    ButtonText->SetText(FText::FromString(TEXT(" Send Command ")));
+    ButtonText->SetText(FText::FromString(TEXT("  Send  ")));
     ButtonText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+    FSlateFontInfo SendBtnFont = FCoreStyle::GetDefaultFontStyle("Regular", 14);
+    ButtonText->SetFont(SendBtnFont);
     SendCommandButton->AddChild(ButtonText);
     
     UVerticalBoxSlot* ButtonSlot = Section->AddChildToVerticalBox(SendCommandButton);
@@ -554,12 +644,6 @@ void UMATaskPlannerWidget::AppendStatusLog(const FString& Message)
     else
     {
         StatusLogBox->SetText(FText::FromString(CurrentText + TEXT("\n") + NewLine));
-    }
-    
-    // Auto-scroll to latest content
-    if (StatusLogScrollBox)
-    {
-        StatusLogScrollBox->ScrollToEnd();
     }
     
     UE_LOG(LogMATaskPlanner, Log, TEXT("StatusLog: %s"), *Message);
@@ -819,6 +903,14 @@ void UMATaskPlannerWidget::OnEdgeDeleteRequested(const FString& FromNodeId, cons
         // Save to temp file (Requirement 4.3)
         SaveToTempFile();
     }
+}
+
+void UMATaskPlannerWidget::OnCloseButtonClicked()
+{
+    UE_LOG(LogMATaskPlanner, Log, TEXT("Close button clicked"));
+    
+    // Hide the widget (same as pressing Z key)
+    SetVisibility(ESlateVisibility::Collapsed);
 }
 
 //=============================================================================

@@ -222,10 +222,10 @@ void UMAEditWidget::BuildUI()
     BackgroundBorder->SetPadding(FMargin(12.0f));
     
     UCanvasPanelSlot* BorderSlot = RootCanvas->AddChildToCanvas(BackgroundBorder);
-    // 使用固定位置锚点（与 MAModifyWidget 相同），避免垂直拉伸导致的 hit-test 问题
-    BorderSlot->SetAnchors(FAnchors(1.0f, 0.0f, 1.0f, 0.0f));
-    BorderSlot->SetAlignment(FVector2D(1.0f, 0.0f));
-    BorderSlot->SetPosition(FVector2D(-20, 60));  // 右边距 20，顶部距离 60
+    // 使用固定位置锚点，位于屏幕左侧
+    BorderSlot->SetAnchors(FAnchors(0.0f, 0.0f, 0.0f, 0.0f));
+    BorderSlot->SetAlignment(FVector2D(0.0f, 0.0f));
+    BorderSlot->SetPosition(FVector2D(20, 60));  // 左边距 20，顶部距离 60
     BorderSlot->SetSize(FVector2D(380, 600));  // 固定尺寸：宽度 380，高度 600
     BorderSlot->SetAutoSize(false);
 

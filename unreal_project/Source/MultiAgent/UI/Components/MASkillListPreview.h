@@ -85,6 +85,16 @@ public:
     void UpdatePreview(const FMASkillAllocationData& Data);
 
     /**
+     * 更新单个技能的执行状态
+     * 用于执行过程中实时更新显示
+     * @param TimeStep 时间步
+     * @param RobotId 机器人 ID
+     * @param NewStatus 新状态
+     */
+    UFUNCTION(BlueprintCallable, Category = "Preview")
+    void UpdateSkillStatus(int32 TimeStep, const FString& RobotId, ESkillExecutionStatus NewStatus);
+
+    /**
      * 清空预览
      */
     UFUNCTION(BlueprintCallable, Category = "Preview")
@@ -210,10 +220,10 @@ private:
     FLinearColor TextColor = FLinearColor(0.7f, 0.7f, 0.7f, 1.0f);
 
     /** Pending 状态颜色 (灰色) */
-    FLinearColor PendingColor = FLinearColor(0.4f, 0.4f, 0.4f, 1.0f);
+    FLinearColor PendingColor = FLinearColor(0.5f, 0.5f, 0.5f, 1.0f);
 
-    /** InProgress 状态颜色 (蓝色) */
-    FLinearColor InProgressColor = FLinearColor(0.2f, 0.6f, 1.0f, 1.0f);
+    /** InProgress 状态颜色 (黄色) */
+    FLinearColor InProgressColor = FLinearColor(0.9f, 0.8f, 0.2f, 1.0f);
 
     /** Completed 状态颜色 (绿色) */
     FLinearColor CompletedColor = FLinearColor(0.2f, 0.8f, 0.3f, 1.0f);

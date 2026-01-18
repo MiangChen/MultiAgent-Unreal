@@ -461,6 +461,14 @@ void UMARightSidebarWidget::UpdateSkillListPreview(const FMASkillAllocationData&
     }
 }
 
+void UMARightSidebarWidget::UpdateSkillStatus(int32 TimeStep, const FString& RobotId, ESkillExecutionStatus NewStatus)
+{
+    if (SkillListPreview)
+    {
+        SkillListPreview->UpdateSkillStatus(TimeStep, RobotId, NewStatus);
+    }
+}
+
 //=============================================================================
 // 日志方法
 //=============================================================================

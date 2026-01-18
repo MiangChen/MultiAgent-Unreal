@@ -94,6 +94,9 @@ protected:
     // 切换鼠标模式
     void OnToggleMouseMode(const FInputActionValue& Value);
     
+    // 切换 Modify 模式 (逗号键)
+    void OnToggleModifyMode(const FInputActionValue& Value);
+    
     // 右键视角旋转
     void OnRightClickPressed(const FInputActionValue& Value);
     void OnRightClickReleased(const FInputActionValue& Value);

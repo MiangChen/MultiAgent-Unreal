@@ -127,6 +127,16 @@ public:
     UFUNCTION(BlueprintPure, Category = "SkillListModal")
     FMASkillAllocationMessage GetSkillAllocationMessage() const;
 
+    /**
+     * 更新技能执行状态
+     * 由 MAUIManager 在技能状态变化时调用
+     * @param TimeStep 时间步
+     * @param RobotId 机器人 ID
+     * @param NewStatus 新的执行状态
+     */
+    UFUNCTION(BlueprintCallable, Category = "SkillListModal")
+    void UpdateSkillStatus(int32 TimeStep, const FString& RobotId, ESkillExecutionStatus NewStatus);
+
     //=========================================================================
     // 委托
     //=========================================================================

@@ -29,6 +29,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTaskGraphDataChanged, const FMATa
 /** 技能列表数据变更委托 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSkillListDataChanged, const FMASkillAllocationData&, NewData);
 
+/** 技能状态更新委托 - 执行过程中实时更新 */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnSkillStatusUpdated, int32, TimeStep, const FString&, RobotId, ESkillExecutionStatus, NewStatus);
+
 //=============================================================================
 // UMATempDataManager - 临时数据管理器
 //=============================================================================
@@ -201,6 +204,20 @@ public:
     bool IsFileWatching() const { return bIsFileWatching; }
 
     //=========================================================================
+    // 技能状态实时更新
+    //=========================================================================
+
+    /**
+     * 广播技能状态更新
+     * 用于执行过程中实时更新 UI 显示
+     * @param TimeStep 时间步
+     * @param RobotId 机器人 ID
+     * @param NewStatus 新状态
+     */
+    UFUNCTION(BlueprintCallable, Category = "TempData|SkillList")
+    void BroadcastSkillStatusUpdate(int32 TimeStep, const FString& RobotId, ESkillExecutionStatus NewStatus);
+
+    //=========================================================================
     // 事件委托
     //=========================================================================
 
@@ -211,6 +228,10 @@ public:
     /** 技能列表数据变更事件 */
     UPROPERTY(BlueprintAssignable, Category = "TempData|Events")
     FOnSkillListDataChanged OnSkillListChanged;
+
+    /** 技能状态实时更新事件 */
+    UPROPERTY(BlueprintAssignable, Category = "TempData|Events")
+    FOnSkillStatusUpdated OnSkillStatusUpdated;
 
 private:
     //=========================================================================
@@ -278,4 +299,10 @@ private:
     /** 待处理的文件变化标志 */
     bool bTaskGraphFileChanged = false;
     bool bSkillListFileChanged = false;
+
+    /** 技能列表内存缓存 (用于保存状态更新) */
+    FMASkillAllocationData CachedSkillListData;
+    
+    /** 缓存是否有效 */
+    bool bSkillListCacheValid = false;
 };

@@ -115,6 +115,16 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Sidebar|Preview")
     void UpdateSkillListPreview(const FMASkillAllocationData& Data);
 
+    /**
+     * 更新单个技能的执行状态
+     * 用于执行过程中实时更新显示
+     * @param TimeStep 时间步
+     * @param RobotId 机器人 ID
+     * @param NewStatus 新状态
+     */
+    UFUNCTION(BlueprintCallable, Category = "Sidebar|Preview")
+    void UpdateSkillStatus(int32 TimeStep, const FString& RobotId, ESkillExecutionStatus NewStatus);
+
     //=========================================================================
     // 日志方法
     //=========================================================================

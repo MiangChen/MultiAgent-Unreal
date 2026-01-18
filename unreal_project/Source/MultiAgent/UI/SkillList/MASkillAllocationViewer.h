@@ -172,11 +172,17 @@ protected:
     /** 构建 UI 布局 */
     void BuildUI();
 
-    /** 创建左侧面板 */
+    /** 创建左侧面板 (deprecated - kept for compatibility) */
     UBorder* CreateLeftPanel();
 
-    /** 创建右侧面板 */
+    /** 创建右侧面板 (deprecated - kept for compatibility) */
     UBorder* CreateRightPanel();
+
+    /** 创建顶部面板 (甘特图区域) */
+    UBorder* CreateTopPanel();
+
+    /** 创建底部面板 (日志 + JSON编辑器 + 按钮) */
+    UBorder* CreateBottomPanel();
 
     /** 创建状态日志区域 */
     UVerticalBox* CreateStatusLogSection();
@@ -200,6 +206,10 @@ protected:
     UFUNCTION()
     void OnResetButtonClicked();
 
+    /** 关闭按钮点击回调 */
+    UFUNCTION()
+    void OnCloseButtonClicked();
+
     /** 数据模型变更回调 */
     UFUNCTION()
     void OnModelDataChanged();
@@ -211,6 +221,10 @@ protected:
     /** TempDataManager 技能列表变更回调 */
     UFUNCTION()
     void OnTempSkillListChanged(const FMASkillAllocationData& NewData);
+
+    /** TempDataManager 技能状态更新回调 */
+    UFUNCTION()
+    void OnTempSkillStatusUpdated(int32 TimeStep, const FString& RobotId, ESkillExecutionStatus NewStatus);
 
     //=========================================================================
     // 拖拽事件处理 (Requirements 5.1)
@@ -295,10 +309,6 @@ protected:
     UPROPERTY()
     UMultiLineEditableTextBox* StatusLogBox;
 
-    /** 状态日志滚动容器 */
-    UPROPERTY()
-    UScrollBox* StatusLogScrollBox;
-
     /** JSON 编辑器文本框 (可编辑) */
     UPROPERTY()
     UMultiLineEditableTextBox* JsonEditorBox;
@@ -314,6 +324,10 @@ protected:
     /** "重置" 按钮 */
     UPROPERTY()
     UButton* ResetButton;
+
+    /** 关闭按钮 (右上角 X) */
+    UPROPERTY()
+    UButton* CloseButton;
 
     /** 甘特图画布 Widget */
     UPROPERTY()

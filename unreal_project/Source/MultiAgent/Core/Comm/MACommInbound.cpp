@@ -534,6 +534,9 @@ void FMACommInbound::HandleSkillList(const TSharedPtr<FJsonObject>& PayloadObjec
         // 用户需要手动点击 "Start Executing" 按钮来执行
         // 原代码: CommandManager->ExecuteSkillList(SkillList);
         UE_LOG(LogMACommInbound, Log, TEXT("HandleSkillList: Skill list saved. User should click 'Start Executing' to run."));
+        
+        // 广播委托，通知 UI 显示通知
+        Owner->OnSkillListReceived.Broadcast(SkillList);
     }
     else
     {

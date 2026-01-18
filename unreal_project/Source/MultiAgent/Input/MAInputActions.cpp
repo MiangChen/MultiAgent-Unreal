@@ -51,6 +51,7 @@ void UMAInputActions::Initialize()
     IA_CreateSquad = CreateInputAction(TEXT("IA_CreateSquad"));
     IA_DisbandSquad = CreateInputAction(TEXT("IA_DisbandSquad"));
     IA_ToggleMouseMode = CreateInputAction(TEXT("IA_ToggleMouseMode"));
+    IA_ToggleModifyMode = CreateInputAction(TEXT("IA_ToggleModifyMode"));
     
     // UI 切换
     IA_ToggleMainUI = CreateInputAction(TEXT("IA_ToggleMainUI"));
@@ -119,7 +120,8 @@ void UMAInputActions::Initialize()
     AddKeyMapping(IMC_RTS, IA_ControlGroup5, EKeys::Five);
     AddKeyMapping(IMC_RTS, IA_CreateSquad, EKeys::Q);  // Q for sQuad
     AddKeyMapping(IMC_RTS, IA_DisbandSquad, EKeys::Q);  // Shift+Q 解散 (Shift 在代码中检测)
-    AddKeyMapping(IMC_RTS, IA_ToggleMouseMode, EKeys::M);  // M for Mode
+    AddKeyMapping(IMC_RTS, IA_ToggleMouseMode, EKeys::M);  // M for Edit Mode
+    AddKeyMapping(IMC_RTS, IA_ToggleModifyMode, EKeys::Comma);  // , for Modify Mode
     // 注意: Z 和 N 键现在由 HUD 状态管理器处理
     // IA_ToggleMainUI 和 IA_ToggleSkillAllocationViewer 不再直接绑定到 Z/N 键
     // 它们通过 IA_CheckTask 和 IA_CheckSkill 间接触发（点击 Edit 按钮后）

@@ -153,6 +153,18 @@ void UMAMainHUDWidget::UpdateSkillListPreview(const FMASkillAllocationData& Data
     }
 }
 
+void UMAMainHUDWidget::UpdateSkillStatus(int32 TimeStep, const FString& RobotId, ESkillExecutionStatus NewStatus)
+{
+    if (RightSidebarWidget)
+    {
+        RightSidebarWidget->UpdateSkillStatus(TimeStep, RobotId, NewStatus);
+    }
+    else
+    {
+        UE_LOG(LogMAMainHUD, Warning, TEXT("UpdateSkillStatus: RightSidebarWidget is null"));
+    }
+}
+
 void UMAMainHUDWidget::AppendLog(const FString& Message, bool bIsError)
 {
     if (RightSidebarWidget)

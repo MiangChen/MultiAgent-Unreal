@@ -115,10 +115,10 @@ void UMAModifyWidget::BuildUI()
     BackgroundBorder->SetPadding(FMargin(15.0f));
     
     UCanvasPanelSlot* BorderSlot = RootCanvas->AddChildToCanvas(BackgroundBorder);
-    // 设置为右侧锚点，宽度约 20% 屏幕宽度 (约 380 像素)
-    BorderSlot->SetAnchors(FAnchors(1.0f, 0.0f, 1.0f, 0.0f));
-    BorderSlot->SetAlignment(FVector2D(1.0f, 0.0f));
-    BorderSlot->SetPosition(FVector2D(-20, 80));  // 右边距 20，顶部距离 80 (避开模式指示器)
+    // 设置为左侧锚点，宽度约 20% 屏幕宽度 (约 350 像素)
+    BorderSlot->SetAnchors(FAnchors(0.0f, 0.0f, 0.0f, 0.0f));
+    BorderSlot->SetAlignment(FVector2D(0.0f, 0.0f));
+    BorderSlot->SetPosition(FVector2D(20, 80));  // 左边距 20，顶部距离 80 (避开模式指示器)
     BorderSlot->SetSize(FVector2D(350, 420));  // 增加高度以容纳 JSON 预览框
     BorderSlot->SetAutoSize(false);
 

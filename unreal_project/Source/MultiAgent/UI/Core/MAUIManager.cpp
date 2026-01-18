@@ -957,16 +957,12 @@ void UMAUIManager::LoadDataIntoModal(EMAModalType ModalType)
     UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
     UMATempDataManager* TempDataMgr = GameInstance ? GameInstance->GetSubsystem<UMATempDataManager>() : nullptr;
 
-    // Mock 数据文件路径 (在项目根目录的 datasets 文件夹中)
-    // FPaths::ProjectDir() 返回 unreal_project/，所以需要向上一级
-    FString DatasetsDir = FPaths::ProjectDir() / TEXT("../datasets");
-
     switch (ModalType)
     {
     case EMAModalType::TaskGraph:
         if (TaskGraphModal)
         {
-            // 优先从 TempDataManager 加载
+            // 只从 TempDataManager 加载数据，不使用 mock 数据
             if (TempDataMgr && TempDataMgr->TaskGraphFileExists())
             {
                 FMATaskGraphData Data;
@@ -979,35 +975,10 @@ void UMAUIManager::LoadDataIntoModal(EMAModalType ModalType)
                 }
             }
             
-            // 回退到 mock 数据文件
-            FString MockFilePath = DatasetsDir / TEXT("response_example.json");
-            if (FPaths::FileExists(MockFilePath))
-            {
-                FString JsonContent;
-                if (FFileHelper::LoadFileToString(JsonContent, *MockFilePath))
-                {
-                    FMATaskGraphData Data;
-                    FString ErrorMessage;
-                    if (FMATaskGraphData::FromResponseJson(JsonContent, Data, ErrorMessage))
-                    {
-                        TaskGraphModal->LoadTaskGraph(Data);
-                        UE_LOG(LogMAUIManager, Log, TEXT("TaskGraphModal: Loaded mock data (%d nodes, %d edges)"),
-                            Data.Nodes.Num(), Data.Edges.Num());
-                        return;
-                    }
-                    else
-                    {
-                        UE_LOG(LogMAUIManager, Warning, TEXT("TaskGraphModal: Failed to parse mock data: %s"), *ErrorMessage);
-                    }
-                }
-            }
-            else
-            {
-                UE_LOG(LogMAUIManager, Warning, TEXT("TaskGraphModal: Mock file not found: %s"), *MockFilePath);
-            }
-            
-            // 如果都失败，创建空数据
-            UE_LOG(LogMAUIManager, Warning, TEXT("TaskGraphModal: No data available, showing empty modal"));
+            // 如果没有数据，清空 Modal 并显示空状态（不加载 mock 数据）
+            FMATaskGraphData EmptyData;
+            TaskGraphModal->LoadTaskGraph(EmptyData);
+            UE_LOG(LogMAUIManager, Log, TEXT("TaskGraphModal: No data available, showing empty modal (waiting for backend data)"));
         }
         break;
 
@@ -1135,6 +1106,13 @@ void UMAUIManager::BindTempDataManagerEvents()
         UE_LOG(LogMAUIManager, Log, TEXT("BindTempDataManagerEvents: Bound OnSkillListChanged event"));
     }
     
+    // 绑定技能状态实时更新事件
+    if (!TempDataMgr->OnSkillStatusUpdated.IsAlreadyBound(this, &UMAUIManager::OnSkillStatusUpdated))
+    {
+        TempDataMgr->OnSkillStatusUpdated.AddDynamic(this, &UMAUIManager::OnSkillStatusUpdated);
+        UE_LOG(LogMAUIManager, Log, TEXT("BindTempDataManagerEvents: Bound OnSkillStatusUpdated event"));
+    }
+    
     // 只有在 unreal_project/data 目录下有临时数据文件时才加载
     // 不提前加载 mock 数据，等待后端发送数据后再显示
     FMATaskGraphData TaskGraphData;
@@ -1175,5 +1153,23 @@ void UMAUIManager::OnTempSkillListChanged(const FMASkillAllocationData& Data)
     if (MainHUDWidget)
     {
         MainHUDWidget->UpdateSkillListPreview(Data);
+    }
+}
+
+void UMAUIManager::OnSkillStatusUpdated(int32 TimeStep, const FString& RobotId, ESkillExecutionStatus NewStatus)
+{
+    UE_LOG(LogMAUIManager, Verbose, TEXT("OnSkillStatusUpdated: TimeStep=%d, RobotId=%s, Status=%d"),
+        TimeStep, *RobotId, static_cast<int32>(NewStatus));
+    
+    // 更新 MainHUDWidget 的预览组件
+    if (MainHUDWidget)
+    {
+        MainHUDWidget->UpdateSkillStatus(TimeStep, RobotId, NewStatus);
+    }
+    
+    // 更新 SkillListModal 的甘特图
+    if (SkillListModal)
+    {
+        SkillListModal->UpdateSkillStatus(TimeStep, RobotId, NewStatus);
     }
 }

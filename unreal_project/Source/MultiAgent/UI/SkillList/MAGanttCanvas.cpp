@@ -687,6 +687,9 @@ int32 UMAGanttCanvas::NativePaint(const FPaintArgs& Args, const FGeometry& Allot
     int32 MaxLayerId = Super::NativePaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, 
                                           LayerId, InWidgetStyle, bParentEnabled);
 
+    // 计算自适应布局（根据可用空间和数据量动态调整单元格大小）
+    CalculateAdaptiveLayout(AllottedGeometry.GetLocalSize());
+
     // 绘制时间轴标题
     DrawTimelineHeader(AllottedGeometry, OutDrawElements, LayerId + 1);
 
@@ -717,10 +720,55 @@ int32 UMAGanttCanvas::NativePaint(const FPaintArgs& Args, const FGeometry& Allot
     return MaxLayerId + 12;
 }
 
+void UMAGanttCanvas::CalculateAdaptiveLayout(const FVector2D& AvailableSize) const
+{
+    // 使用 mutable 或 const_cast 来修改布局参数（因为这是在 const 函数中）
+    UMAGanttCanvas* MutableThis = const_cast<UMAGanttCanvas*>(this);
+    
+    // 计算可用于数据区域的空间（减去标签和标题区域）
+    float DataAreaWidth = AvailableSize.X - LabelWidth;
+    float DataAreaHeight = AvailableSize.Y - HeaderHeight;
+    
+    // 获取数据量
+    int32 NumTimeSteps = TimeStepOrder.Num();
+    int32 NumRobots = RobotIdOrder.Num();
+    
+    // 如果没有数据，使用默认值
+    if (NumTimeSteps <= 0 || NumRobots <= 0)
+    {
+        MutableThis->TimeStepWidth = 120.0f;
+        MutableThis->RobotRowHeight = 50.0f;
+        return;
+    }
+    
+    // 计算理想的单元格大小（使内容恰好填满可用空间）
+    float IdealTimeStepWidth = DataAreaWidth / NumTimeSteps;
+    float IdealRobotRowHeight = DataAreaHeight / NumRobots;
+    
+    // 限制在最小和最大范围内
+    MutableThis->TimeStepWidth = FMath::Clamp(IdealTimeStepWidth, MinTimeStepWidth, MaxTimeStepWidth);
+    MutableThis->RobotRowHeight = FMath::Clamp(IdealRobotRowHeight, MinRobotRowHeight, MaxRobotRowHeight);
+    
+    // 更新技能条渲染数据的位置和大小
+    for (FMASkillBarRenderData& RenderData : MutableThis->SkillBarRenderData)
+    {
+        // 找到机器人索引
+        int32 RobotIndex = RobotIdOrder.IndexOfByKey(RenderData.RobotId);
+        if (RobotIndex != INDEX_NONE)
+        {
+            // 重新计算位置和大小
+            RenderData.Position.X = MutableThis->TimeStepToScreen(RenderData.TimeStep);
+            RenderData.Position.Y = MutableThis->RobotIndexToScreen(RobotIndex);
+            RenderData.Size.X = MutableThis->TimeStepWidth - 4.0f;
+            RenderData.Size.Y = MutableThis->RobotRowHeight - 4.0f;
+        }
+    }
+}
+
 void UMAGanttCanvas::DrawTimelineHeader(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32 LayerId) const
 {
-    // 绘制时间步标签
-    FSlateFontInfo FontInfo = FCoreStyle::GetDefaultFontStyle("Regular", 10);
+    // 绘制时间步标签 - 居中显示
+    FSlateFontInfo FontInfo = FCoreStyle::GetDefaultFontStyle("Regular", 12);
     
     for (int32 TimeStep : TimeStepOrder)
     {
@@ -733,8 +781,15 @@ void UMAGanttCanvas::DrawTimelineHeader(const FGeometry& AllottedGeometry, FSlat
         }
         
         FString Label = FString::Printf(TEXT("T%d"), TimeStep);
-        FVector2D TextPosition(X + 5.0f, 5.0f);
-        FVector2D TextSize(TimeStepWidth - 10.0f, HeaderHeight - 10.0f);
+        
+        // 计算文本居中位置
+        // 假设每个字符约 8 像素宽，计算文本宽度
+        float EstimatedTextWidth = Label.Len() * 8.0f;
+        float CenteredX = X + (TimeStepWidth - EstimatedTextWidth) / 2.0f;
+        float CenteredY = (HeaderHeight - 14.0f) / 2.0f;  // 14 is approximate font height
+        
+        FVector2D TextPosition(CenteredX, CenteredY);
+        FVector2D TextSize(TimeStepWidth, HeaderHeight);
         
         // 使用正确的位置绘制文本 - ToPaintGeometry(LocalSize, LayoutTransform)
         FSlateDrawElement::MakeText(
@@ -783,8 +838,6 @@ void UMAGanttCanvas::DrawRobotLabels(const FGeometry& AllottedGeometry, FSlateWi
 
 void UMAGanttCanvas::DrawSkillBars(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32 LayerId) const
 {
-    FSlateFontInfo FontInfo = FCoreStyle::GetDefaultFontStyle("Regular", 9);
-    
     // 绘制所有技能条
     for (const FMASkillBarRenderData& RenderData : SkillBarRenderData)
     {
@@ -808,9 +861,24 @@ void UMAGanttCanvas::DrawSkillBars(const FGeometry& AllottedGeometry, FSlateWind
             RenderData.Color
         );
         
-        // 在技能条上绘制技能名称
-        FVector2D TextPosition(RenderData.Position.X + 4.0f, RenderData.Position.Y + RenderData.Size.Y / 2.0f - 7.0f);
-        FVector2D TextSize(RenderData.Size.X - 8.0f, RenderData.Size.Y - 4.0f);
+        // 在技能条上绘制技能名称 - 自适应字号并居中显示
+        // 根据技能条大小计算合适的字号
+        float BarHeight = RenderData.Size.Y;
+        int32 FontSize = FMath::Clamp(static_cast<int32>(BarHeight * 0.4f), 10, 16);
+        FSlateFontInfo FontInfo = FCoreStyle::GetDefaultFontStyle("Regular", FontSize);
+        
+        // 计算文本居中位置
+        float EstimatedTextWidth = RenderData.SkillName.Len() * (FontSize * 0.6f);
+        float EstimatedTextHeight = FontSize * 1.2f;
+        
+        float CenteredX = RenderData.Position.X + (RenderData.Size.X - EstimatedTextWidth) / 2.0f;
+        float CenteredY = RenderData.Position.Y + (RenderData.Size.Y - EstimatedTextHeight) / 2.0f;
+        
+        // 确保文本不会超出技能条边界
+        CenteredX = FMath::Max(CenteredX, RenderData.Position.X + 2.0f);
+        
+        FVector2D TextPosition(CenteredX, CenteredY);
+        FVector2D TextSize(RenderData.Size.X - 4.0f, RenderData.Size.Y - 4.0f);
         
         // 使用深色文字以便在浅色背景上可见
         FLinearColor TextOnBarColor = FLinearColor(0.1f, 0.1f, 0.1f, 1.0f);

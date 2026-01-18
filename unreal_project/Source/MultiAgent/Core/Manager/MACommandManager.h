@@ -14,6 +14,7 @@
 
 class AMACharacter;
 struct FMAAgentSkillCommand;
+class UMATempDataManager;
 
 // ========== 指令类型 ==========
 UENUM(BlueprintType)
@@ -83,6 +84,9 @@ public:
     
     UFUNCTION(BlueprintCallable, Category = "Command")
     static EMACommand StringToCommand(const FString& CommandString);
+
+    /** 获取 TempDataManager 用于广播技能状态更新 */
+    class UMATempDataManager* GetTempDataManager() const;
 
     /** 是否正在执行技能列表 */
     UFUNCTION(BlueprintPure, Category = "Command")

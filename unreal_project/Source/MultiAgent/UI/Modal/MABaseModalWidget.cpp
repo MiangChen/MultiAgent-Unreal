@@ -14,6 +14,7 @@
 #include "Components/VerticalBoxSlot.h"
 #include "Components/SizeBox.h"
 #include "Components/Spacer.h"
+#include "Components/Button.h"
 #include "Blueprint/WidgetTree.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMABaseModal, Log, All);
@@ -35,6 +36,7 @@ UMABaseModalWidget::UMABaseModalWidget(const FObjectInitializer& ObjectInitializ
     , ConfirmButton(nullptr)
     , RejectButton(nullptr)
     , EditButton(nullptr)
+    , CloseButton(nullptr)
     , Theme(nullptr)
     , ModalTitle(FText::FromString(TEXT("Modal")))
     , ModalWidth(800.0f)
@@ -89,6 +91,10 @@ void UMABaseModalWidget::NativeConstruct()
     {
         EditButton->OnClicked.AddDynamic(this, &UMABaseModalWidget::OnEditButtonClicked);
     }
+    if (CloseButton)
+    {
+        CloseButton->OnClicked.AddDynamic(this, &UMABaseModalWidget::OnCloseButtonClicked);
+    }
 
     // 更新按钮可见性
     UpdateButtonVisibility();
@@ -113,6 +119,10 @@ void UMABaseModalWidget::NativeDestruct()
     if (EditButton)
     {
         EditButton->OnClicked.RemoveDynamic(this, &UMABaseModalWidget::OnEditButtonClicked);
+    }
+    if (CloseButton)
+    {
+        CloseButton->OnClicked.RemoveDynamic(this, &UMABaseModalWidget::OnCloseButtonClicked);
     }
 
     Super::NativeDestruct();
@@ -233,34 +243,93 @@ void UMABaseModalWidget::BuildUI()
         BackgroundBorder->AddChild(ModalVerticalBox);
     }
 
-    // 创建标题文本
-    TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TitleText"));
-    if (TitleText && ModalVerticalBox)
+    // 创建标题栏水平布局 (标题 + 关闭按钮)
+    UHorizontalBox* TitleBar = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("TitleBar"));
+    if (TitleBar && ModalVerticalBox)
     {
-        ModalVerticalBox->AddChild(TitleText);
-        
-        // 设置标题样式
-        TitleText->SetText(GetModalTitleText());
-        TitleText->SetJustification(ETextJustify::Center);
-        
-        // 设置字体
-        FSlateFontInfo TitleFont = Theme ? Theme->TitleFont : FSlateFontInfo();
-        if (TitleFont.FontObject == nullptr)
-        {
-            TitleFont = TitleText->GetFont();
-            TitleFont.Size = 24;
-        }
-        TitleText->SetFont(TitleFont);
-        
-        // 设置文字颜色
-        FLinearColor TextColor = Theme ? Theme->TextColor : FLinearColor(0.95f, 0.95f, 0.95f, 1.0f);
-        TitleText->SetColorAndOpacity(FSlateColor(TextColor));
+        ModalVerticalBox->AddChild(TitleBar);
         
         // 设置底部间距
-        if (UVerticalBoxSlot* TitleSlot = Cast<UVerticalBoxSlot>(TitleText->Slot))
+        if (UVerticalBoxSlot* TitleBarSlot = Cast<UVerticalBoxSlot>(TitleBar->Slot))
         {
             float Spacing = Theme ? Theme->ElementSpacing : 12.0f;
-            TitleSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, Spacing));
+            TitleBarSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, Spacing));
+        }
+        
+        // 创建标题文本
+        TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TitleText"));
+        if (TitleText)
+        {
+            TitleBar->AddChild(TitleText);
+            
+            // 设置标题样式
+            TitleText->SetText(GetModalTitleText());
+            
+            // 设置字体
+            FSlateFontInfo TitleFont = Theme ? Theme->TitleFont : FSlateFontInfo();
+            if (TitleFont.FontObject == nullptr)
+            {
+                TitleFont = TitleText->GetFont();
+                TitleFont.Size = 24;
+            }
+            TitleText->SetFont(TitleFont);
+            
+            // 设置文字颜色
+            FLinearColor TextColor = Theme ? Theme->TextColor : FLinearColor(0.95f, 0.95f, 0.95f, 1.0f);
+            TitleText->SetColorAndOpacity(FSlateColor(TextColor));
+            
+            // 标题占据剩余空间
+            if (UHorizontalBoxSlot* TitleSlot = Cast<UHorizontalBoxSlot>(TitleText->Slot))
+            {
+                TitleSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+                TitleSlot->SetVerticalAlignment(VAlign_Center);
+            }
+        }
+        
+        // 创建关闭按钮 (右上角 X)
+        CloseButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("CloseButton"));
+        if (CloseButton)
+        {
+            TitleBar->AddChild(CloseButton);
+            
+            // 设置按钮样式 - 透明背景，悬浮和按下时有效果
+            FButtonStyle CloseButtonStyle;
+            
+            // 正常状态 - 透明
+            FSlateBrush NormalBrush;
+            NormalBrush.TintColor = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.0f));
+            CloseButtonStyle.SetNormal(NormalBrush);
+            
+            // 悬浮状态 - 半透明红色
+            FSlateBrush HoverBrush;
+            HoverBrush.TintColor = FSlateColor(FLinearColor(0.8f, 0.2f, 0.2f, 0.3f));
+            CloseButtonStyle.SetHovered(HoverBrush);
+            
+            // 按下状态 - 更深的红色
+            FSlateBrush PressedBrush;
+            PressedBrush.TintColor = FSlateColor(FLinearColor(0.6f, 0.1f, 0.1f, 0.5f));
+            CloseButtonStyle.SetPressed(PressedBrush);
+            
+            CloseButton->SetStyle(CloseButtonStyle);
+            
+            // 创建 X 文本
+            UTextBlock* CloseText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("CloseText"));
+            if (CloseText)
+            {
+                CloseButton->AddChild(CloseText);
+                CloseText->SetText(FText::FromString(TEXT("✕")));
+                CloseText->SetColorAndOpacity(FSlateColor(FLinearColor(0.7f, 0.7f, 0.7f, 1.0f)));
+                
+                FSlateFontInfo CloseFont = FCoreStyle::GetDefaultFontStyle("Regular", 18);
+                CloseText->SetFont(CloseFont);
+            }
+            
+            // 设置按钮对齐
+            if (UHorizontalBoxSlot* CloseSlot = Cast<UHorizontalBoxSlot>(CloseButton->Slot))
+            {
+                CloseSlot->SetVerticalAlignment(VAlign_Top);
+                CloseSlot->SetHorizontalAlignment(HAlign_Right);
+            }
         }
     }
 
@@ -622,4 +691,12 @@ void UMABaseModalWidget::OnEditButtonClicked()
     
     // 广播编辑事件
     OnEditClicked.Broadcast();
+}
+
+void UMABaseModalWidget::OnCloseButtonClicked()
+{
+    UE_LOG(LogMABaseModal, Log, TEXT("Close button clicked"));
+    
+    // 播放隐藏动画关闭模态窗口
+    PlayHideAnimation();
 }

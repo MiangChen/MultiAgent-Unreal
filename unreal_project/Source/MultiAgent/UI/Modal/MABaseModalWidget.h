@@ -18,6 +18,7 @@ class UHorizontalBox;
 class UVerticalBox;
 class USizeBox;
 class UOverlay;
+class UButton;
 class UMAStyledButton;
 class UMAUITheme;
 
@@ -270,6 +271,10 @@ protected:
     UPROPERTY()
     UMAStyledButton* EditButton;
 
+    /** 关闭按钮 (右上角 X) */
+    UPROPERTY()
+    UButton* CloseButton;
+
     //=========================================================================
     // 配置属性
     //=========================================================================
@@ -363,4 +368,8 @@ private:
     /** 编辑按钮点击回调 */
     UFUNCTION()
     void OnEditButtonClicked();
+
+    /** 关闭按钮点击回调 */
+    UFUNCTION()
+    void OnCloseButtonClicked();
 };

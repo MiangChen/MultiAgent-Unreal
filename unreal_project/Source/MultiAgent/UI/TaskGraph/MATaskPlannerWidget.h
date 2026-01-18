@@ -208,6 +208,10 @@ protected:
     UFUNCTION()
     void OnEdgeDeleteRequested(const FString& FromNodeId, const FString& ToNodeId);
 
+    /** 关闭按钮点击回调 */
+    UFUNCTION()
+    void OnCloseButtonClicked();
+
     //=========================================================================
     // 辅助方法
     //=========================================================================
@@ -239,10 +243,6 @@ protected:
     UPROPERTY()
     UMultiLineEditableTextBox* StatusLogBox;
 
-    /** 状态日志滚动容器 */
-    UPROPERTY()
-    UScrollBox* StatusLogScrollBox;
-
     /** JSON 编辑器文本框 (可编辑) */
     UPROPERTY()
     UMultiLineEditableTextBox* JsonEditorBox;
@@ -262,6 +262,10 @@ protected:
     /** "提交任务图" 按钮 */
     UPROPERTY()
     UButton* SubmitTaskGraphButton;
+
+    /** 关闭按钮 (右上角 X) */
+    UPROPERTY()
+    UButton* CloseButton;
 
     /** DAG 画布 Widget */
     UPROPERTY()

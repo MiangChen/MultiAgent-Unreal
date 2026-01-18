@@ -164,7 +164,7 @@ void UMASkillListPreview::UpdatePreview(const FMASkillAllocationData& Data)
     {
         if (bHasData)
         {
-            FString StatsStr = FString::Printf(TEXT("%d 机器人, %d 时间步"), 
+            FString StatsStr = FString::Printf(TEXT("%d robots, %d time steps"), 
                 RobotIds.Num(), TimeSteps.Num());
             StatsText->SetText(FText::FromString(StatsStr));
             StatsText->SetColorAndOpacity(FSlateColor(FLinearColor(0.7f, 0.7f, 0.7f)));
@@ -238,6 +238,38 @@ void UMASkillListPreview::ClearPreview()
     {
         EmptyText->SetVisibility(ESlateVisibility::Visible);
     }
+}
+
+void UMASkillListPreview::UpdateSkillStatus(int32 TimeStep, const FString& RobotId, ESkillExecutionStatus NewStatus)
+{
+    if (!bHasData)
+    {
+        return;
+    }
+    
+    // 更新 CurrentData 中的状态
+    if (FMATimeStepData* TimeStepData = CurrentData.Data.Find(TimeStep))
+    {
+        if (FMASkillAssignment* Skill = TimeStepData->RobotSkills.Find(RobotId))
+        {
+            Skill->Status = NewStatus;
+        }
+    }
+    
+    // 更新渲染数据中的状态
+    for (FMAPreviewSkillBarData& Bar : SkillBarRenderData)
+    {
+        if (Bar.TimeStep == TimeStep && Bar.RobotId == RobotId)
+        {
+            Bar.Status = NewStatus;
+            UE_LOG(LogMASkillListPreview, Verbose, TEXT("UpdateSkillStatus: TimeStep=%d, RobotId=%s, NewStatus=%d"),
+                TimeStep, *RobotId, static_cast<int32>(NewStatus));
+            break;
+        }
+    }
+    
+    // 触发重绘
+    Invalidate(EInvalidateWidgetReason::Paint);
 }
 
 //=============================================================================
@@ -529,24 +561,24 @@ void UMASkillListPreview::DrawTooltip(const FGeometry& AllottedGeometry, FSlateW
     switch (Bar.Status)
     {
     case ESkillExecutionStatus::Pending:
-        StatusStr = TEXT("待执行");
+        StatusStr = TEXT("Pending");
         break;
     case ESkillExecutionStatus::InProgress:
-        StatusStr = TEXT("执行中");
+        StatusStr = TEXT("In Progress");
         break;
     case ESkillExecutionStatus::Completed:
-        StatusStr = TEXT("已完成");
+        StatusStr = TEXT("Completed");
         break;
     case ESkillExecutionStatus::Failed:
-        StatusStr = TEXT("失败");
+        StatusStr = TEXT("Failed");
         break;
     }
     
     TArray<FString> TooltipLines;
-    TooltipLines.Add(FString::Printf(TEXT("机器人: %s"), *Bar.RobotId));
-    TooltipLines.Add(FString::Printf(TEXT("技能: %s"), *Bar.SkillName));
-    TooltipLines.Add(FString::Printf(TEXT("时间步: %d"), Bar.TimeStep));
-    TooltipLines.Add(FString::Printf(TEXT("状态: %s"), *StatusStr));
+    TooltipLines.Add(FString::Printf(TEXT("Robot: %s"), *Bar.RobotId));
+    TooltipLines.Add(FString::Printf(TEXT("Skill: %s"), *Bar.SkillName));
+    TooltipLines.Add(FString::Printf(TEXT("Time Step: %d"), Bar.TimeStep));
+    TooltipLines.Add(FString::Printf(TEXT("Status: %s"), *StatusStr));
     
     // 计算工具提示大小
     float TooltipWidth = 150.0f;

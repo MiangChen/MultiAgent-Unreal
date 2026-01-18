@@ -490,6 +490,9 @@ int32 UMADAGCanvasWidget::NativePaint(const FPaintArgs& Args, const FGeometry& A
     int32 MaxLayerId = Super::NativePaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, 
                                           LayerId, InWidgetStyle, bParentEnabled);
 
+    // 推入裁剪区域，确保边线不会绘制到 Widget 边界之外
+    OutDrawElements.PushClip(FSlateClippingZone(AllottedGeometry));
+
     // 绘制边 (在节点下方)
     DrawEdges(AllottedGeometry, OutDrawElements, LayerId);
 
@@ -498,6 +501,9 @@ int32 UMADAGCanvasWidget::NativePaint(const FPaintArgs& Args, const FGeometry& A
     {
         DrawPreviewEdge(AllottedGeometry, OutDrawElements, LayerId + 1);
     }
+
+    // 弹出裁剪区域
+    OutDrawElements.PopClip();
 
     return MaxLayerId;
 }

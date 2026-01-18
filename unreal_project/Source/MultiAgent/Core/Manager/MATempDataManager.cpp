@@ -169,6 +169,10 @@ bool UMATempDataManager::SaveSkillList(const FMASkillAllocationData& Data)
 
     UE_LOG(LogMATempData, Log, TEXT("SaveSkillList: Successfully saved to %s"), *CachedSkillListFilePath);
 
+    // Update cache
+    CachedSkillListData = Data;
+    bSkillListCacheValid = true;
+
     // 广播数据变更事件
     OnSkillListChanged.Broadcast(Data);
 
@@ -177,6 +181,15 @@ bool UMATempDataManager::SaveSkillList(const FMASkillAllocationData& Data)
 
 bool UMATempDataManager::LoadSkillList(FMASkillAllocationData& OutData)
 {
+    // 如果缓存有效，直接返回缓存数据
+    if (bSkillListCacheValid)
+    {
+        OutData = CachedSkillListData;
+        UE_LOG(LogMATempData, Log, TEXT("LoadSkillList: Returning cached data (Name: %s, TimeSteps: %d)"),
+            *OutData.Name, OutData.Data.Num());
+        return true;
+    }
+    
     // 检查文件是否存在
     if (!SkillListFileExists())
     {
@@ -202,6 +215,10 @@ bool UMATempDataManager::LoadSkillList(FMASkillAllocationData& OutData)
         OutData = FMASkillAllocationData();
         return false;
     }
+
+    // 更新缓存
+    CachedSkillListData = OutData;
+    bSkillListCacheValid = true;
 
     UE_LOG(LogMATempData, Log, TEXT("LoadSkillList: Successfully loaded from %s (Name: %s, TimeSteps: %d)"),
         *CachedSkillListFilePath, *OutData.Name, OutData.Data.Num());
@@ -439,6 +456,9 @@ void UMATempDataManager::ProcessFileChange()
     if (bSkillListFileChanged)
     {
         bSkillListFileChanged = false;
+        
+        // Invalidate cache when file changes
+        bSkillListCacheValid = false;
 
         FMASkillAllocationData Data;
         if (LoadSkillList(Data))
@@ -447,4 +467,27 @@ void UMATempDataManager::ProcessFileChange()
             OnSkillListChanged.Broadcast(Data);
         }
     }
+}
+
+//=============================================================================
+// 技能状态实时更新
+//=============================================================================
+
+void UMATempDataManager::BroadcastSkillStatusUpdate(int32 TimeStep, const FString& RobotId, ESkillExecutionStatus NewStatus)
+{
+    UE_LOG(LogMATempData, Verbose, TEXT("BroadcastSkillStatusUpdate: TimeStep=%d, RobotId=%s, Status=%d"),
+        TimeStep, *RobotId, static_cast<int32>(NewStatus));
+    
+    // Update cached data if valid
+    if (bSkillListCacheValid)
+    {
+        FMASkillAssignment* Skill = CachedSkillListData.FindSkill(TimeStep, RobotId);
+        if (Skill)
+        {
+            Skill->Status = NewStatus;
+            UE_LOG(LogMATempData, Verbose, TEXT("BroadcastSkillStatusUpdate: Updated cached skill status"));
+        }
+    }
+    
+    OnSkillStatusUpdated.Broadcast(TimeStep, RobotId, NewStatus);
 }

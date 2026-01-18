@@ -113,6 +113,10 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "Input")
     TObjectPtr<UInputAction> IA_ToggleMouseMode;
 
+    /** 切换 Modify 模式 (逗号键) */
+    UPROPERTY(BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_ToggleModifyMode;
+
     /** 切换主 UI 显示/隐藏 (Z 键) */
     UPROPERTY(BlueprintReadOnly, Category = "Input")
     TObjectPtr<UInputAction> IA_ToggleMainUI;

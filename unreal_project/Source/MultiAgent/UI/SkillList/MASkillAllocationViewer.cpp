@@ -19,6 +19,7 @@
 #include "Components/CanvasPanelSlot.h"
 #include "Components/VerticalBoxSlot.h"
 #include "Components/HorizontalBoxSlot.h"
+#include "Components/Spacer.h"
 #include "Blueprint/WidgetTree.h"
 #include "Misc/DateTime.h"
 #include "Misc/FileHelper.h"
@@ -73,10 +74,13 @@ void UMASkillAllocationViewer::NativeConstruct()
         UE_LOG(LogMASkillAllocationViewer, Log, TEXT("StartExecuteButton event bound"));
     }
 
-    if (ResetButton && !ResetButton->OnClicked.IsAlreadyBound(this, &UMASkillAllocationViewer::OnResetButtonClicked))
+    // ResetButton removed - no functionality implemented
+
+    // Bind close button event
+    if (CloseButton && !CloseButton->OnClicked.IsAlreadyBound(this, &UMASkillAllocationViewer::OnCloseButtonClicked))
     {
-        ResetButton->OnClicked.AddDynamic(this, &UMASkillAllocationViewer::OnResetButtonClicked);
-        UE_LOG(LogMASkillAllocationViewer, Log, TEXT("ResetButton event bound"));
+        CloseButton->OnClicked.AddDynamic(this, &UMASkillAllocationViewer::OnCloseButtonClicked);
+        UE_LOG(LogMASkillAllocationViewer, Log, TEXT("CloseButton event bound"));
     }
 
     // Bind data model event
@@ -101,6 +105,13 @@ void UMASkillAllocationViewer::NativeConstruct()
             {
                 TempDataMgr->OnSkillListChanged.AddDynamic(this, &UMASkillAllocationViewer::OnTempSkillListChanged);
                 UE_LOG(LogMASkillAllocationViewer, Log, TEXT("TempDataManager OnSkillListChanged event bound"));
+            }
+            
+            // Bind skill status update event for real-time status display
+            if (!TempDataMgr->OnSkillStatusUpdated.IsAlreadyBound(this, &UMASkillAllocationViewer::OnTempSkillStatusUpdated))
+            {
+                TempDataMgr->OnSkillStatusUpdated.AddDynamic(this, &UMASkillAllocationViewer::OnTempSkillStatusUpdated);
+                UE_LOG(LogMASkillAllocationViewer, Log, TEXT("TempDataManager OnSkillStatusUpdated event bound"));
             }
         }
     }
@@ -199,7 +210,7 @@ void UMASkillAllocationViewer::BuildUI()
         return;
     }
     
-    UE_LOG(LogMASkillAllocationViewer, Log, TEXT("BuildUI: Starting UI construction..."));
+    UE_LOG(LogMASkillAllocationViewer, Log, TEXT("BuildUI: Starting UI construction (top-bottom layout)..."));
 
     // Create data model
     AllocationModel = NewObject<UMASkillAllocationModel>(this, TEXT("AllocationModel"));
@@ -213,43 +224,161 @@ void UMASkillAllocationViewer::BuildUI()
     }
     WidgetTree->RootWidget = RootCanvas;
 
-    // Create main background Border
+    // Create semi-transparent background overlay (click blocker)
+    UBorder* BackgroundOverlay = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("BackgroundOverlay"));
+    BackgroundOverlay->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.5f));  // Semi-transparent black
+    
+    UCanvasPanelSlot* OverlaySlot = RootCanvas->AddChildToCanvas(BackgroundOverlay);
+    OverlaySlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
+    OverlaySlot->SetOffsets(FMargin(0.0f));
+
+    // Create main background Border - windowed mode (80% width, 85% height, centered)
     UBorder* MainBackground = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("MainBackground"));
     MainBackground->SetBrushColor(BackgroundColor);
     MainBackground->SetPadding(FMargin(10.0f));
     
+    // Apply rounded corners using brush
+    FSlateBrush RoundedBrush;
+    RoundedBrush.DrawAs = ESlateBrushDrawType::RoundedBox;
+    RoundedBrush.TintColor = FSlateColor(BackgroundColor);
+    RoundedBrush.OutlineSettings.CornerRadii = FVector4(12.0f, 12.0f, 12.0f, 12.0f);
+    RoundedBrush.OutlineSettings.RoundingType = ESlateBrushRoundingType::FixedRadius;
+    MainBackground->SetBrush(RoundedBrush);
+    
     UCanvasPanelSlot* MainSlot = RootCanvas->AddChildToCanvas(MainBackground);
-    // Full screen fill
-    MainSlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
+    // Windowed mode: centered with 80% width and 85% height
+    MainSlot->SetAnchors(FAnchors(0.1f, 0.075f, 0.9f, 0.925f));
     MainSlot->SetOffsets(FMargin(0.0f));
 
-    // Create main horizontal layout
-    UHorizontalBox* MainHBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("MainHBox"));
-    MainBackground->AddChild(MainHBox);
+    // Create main vertical layout (top-bottom: title bar + gantt + bottom panel)
+    UVerticalBox* MainVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("MainVBox"));
+    MainBackground->AddChild(MainVBox);
 
-    // Create left panel
-    UBorder* LeftPanel = CreateLeftPanel();
-    UHorizontalBoxSlot* LeftSlot = MainHBox->AddChildToHorizontalBox(LeftPanel);
-    LeftSlot->SetPadding(FMargin(0, 0, 5, 0));
-    // Set left panel ratio (using FillSize)
-    FSlateChildSize LeftSize(ESlateSizeRule::Fill);
-    LeftSize.Value = LeftPanelWidthRatio;
-    LeftSlot->SetSize(LeftSize);
+    // Create title bar with close button
+    UHorizontalBox* TitleBar = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("TitleBar"));
+    UVerticalBoxSlot* TitleBarSlot = MainVBox->AddChildToVerticalBox(TitleBar);
+    TitleBarSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+    TitleBarSlot->SetPadding(FMargin(0, 0, 0, 5));
 
-    // Create right panel
-    UBorder* RightPanel = CreateRightPanel();
-    UHorizontalBoxSlot* RightSlot = MainHBox->AddChildToHorizontalBox(RightPanel);
-    // Set right panel ratio (using FillSize)
-    FSlateChildSize RightSize(ESlateSizeRule::Fill);
-    RightSize.Value = 1.0f - LeftPanelWidthRatio;
-    RightSlot->SetSize(RightSize);
+    // Title text
+    UTextBlock* TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TitleText"));
+    TitleText->SetText(FText::FromString(TEXT("Skill Allocation Viewer")));
+    FSlateFontInfo TitleFont = TitleText->GetFont();
+    TitleFont.Size = 16;
+    TitleText->SetFont(TitleFont);
+    TitleText->SetColorAndOpacity(FSlateColor(TitleColor));
+    
+    UHorizontalBoxSlot* TitleTextSlot = TitleBar->AddChildToHorizontalBox(TitleText);
+    TitleTextSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+    TitleTextSlot->SetVerticalAlignment(VAlign_Center);
 
-    UE_LOG(LogMASkillAllocationViewer, Log, TEXT("BuildUI: UI construction completed successfully"));
+    // Hint text
+    UTextBlock* HintText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("HintText"));
+    HintText->SetText(FText::FromString(TEXT("Press N to close the window")));
+    FSlateFontInfo HintFont = HintText->GetFont();
+    HintFont.Size = 10;
+    HintText->SetFont(HintFont);
+    HintText->SetColorAndOpacity(FSlateColor(FLinearColor(0.5f, 0.5f, 0.6f)));
+    
+    UHorizontalBoxSlot* HintSlot = TitleBar->AddChildToHorizontalBox(HintText);
+    HintSlot->SetVerticalAlignment(VAlign_Center);
+    HintSlot->SetPadding(FMargin(0, 0, 20, 0));
+
+    // Close button (X) in top-right corner
+    CloseButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("CloseButton"));
+    
+    FButtonStyle CloseButtonStyle;
+    FSlateBrush NormalBrush;
+    NormalBrush.TintColor = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.0f));
+    CloseButtonStyle.SetNormal(NormalBrush);
+    
+    FSlateBrush HoverBrush;
+    HoverBrush.TintColor = FSlateColor(FLinearColor(0.8f, 0.2f, 0.2f, 0.3f));
+    CloseButtonStyle.SetHovered(HoverBrush);
+    
+    FSlateBrush PressedBrush;
+    PressedBrush.TintColor = FSlateColor(FLinearColor(0.6f, 0.1f, 0.1f, 0.5f));
+    CloseButtonStyle.SetPressed(PressedBrush);
+    
+    CloseButton->SetStyle(CloseButtonStyle);
+    
+    UTextBlock* CloseText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("CloseText"));
+    CloseText->SetText(FText::FromString(TEXT("✕")));
+    CloseText->SetColorAndOpacity(FSlateColor(FLinearColor(0.7f, 0.7f, 0.7f, 1.0f)));
+    FSlateFontInfo CloseFont = FCoreStyle::GetDefaultFontStyle("Regular", 18);
+    CloseText->SetFont(CloseFont);
+    CloseButton->AddChild(CloseText);
+    
+    UHorizontalBoxSlot* CloseSlot = TitleBar->AddChildToHorizontalBox(CloseButton);
+    CloseSlot->SetVerticalAlignment(VAlign_Top);
+    CloseSlot->SetHorizontalAlignment(HAlign_Right);
+
+    // Create top panel (Gantt chart) - takes 60% of space
+    UBorder* TopPanel = CreateTopPanel();
+    UVerticalBoxSlot* TopSlot = MainVBox->AddChildToVerticalBox(TopPanel);
+    FSlateChildSize TopSize(ESlateSizeRule::Fill);
+    TopSize.Value = 0.6f;
+    TopSlot->SetSize(TopSize);
+    TopSlot->SetPadding(FMargin(0, 0, 0, 5));
+
+    // Create bottom panel (Status Log + JSON Editor + Buttons) - takes 40% of space
+    UBorder* BottomPanel = CreateBottomPanel();
+    UVerticalBoxSlot* BottomSlot = MainVBox->AddChildToVerticalBox(BottomPanel);
+    FSlateChildSize BottomSize(ESlateSizeRule::Fill);
+    BottomSize.Value = 0.4f;
+    BottomSlot->SetSize(BottomSize);
+
+    UE_LOG(LogMASkillAllocationViewer, Log, TEXT("BuildUI: UI construction completed successfully (top-bottom layout)"));
+}
+
+UBorder* UMASkillAllocationViewer::CreateTopPanel()
+{
+    // Top panel background (Gantt chart area)
+    UBorder* TopPanelBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("TopPanelBorder"));
+    TopPanelBorder->SetBrushColor(PanelBackgroundColor);
+    TopPanelBorder->SetPadding(FMargin(10.0f));
+
+    // Gantt canvas - will auto-size based on content
+    GanttCanvas = WidgetTree->ConstructWidget<UMAGanttCanvas>(UMAGanttCanvas::StaticClass(), TEXT("GanttCanvas"));
+    GanttCanvas->BindToModel(AllocationModel);
+    
+    TopPanelBorder->AddChild(GanttCanvas);
+
+    return TopPanelBorder;
+}
+
+UBorder* UMASkillAllocationViewer::CreateBottomPanel()
+{
+    // Bottom panel background
+    UBorder* BottomPanelBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("BottomPanelBorder"));
+    BottomPanelBorder->SetBrushColor(PanelBackgroundColor);
+    BottomPanelBorder->SetPadding(FMargin(10.0f));
+
+    // Horizontal layout (Status Log | JSON Editor + Buttons)
+    UHorizontalBox* BottomHBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("BottomHBox"));
+    BottomPanelBorder->AddChild(BottomHBox);
+
+    // Status log section (left side of bottom panel)
+    UVerticalBox* StatusLogSection = CreateStatusLogSection();
+    UHorizontalBoxSlot* StatusSlot = BottomHBox->AddChildToHorizontalBox(StatusLogSection);
+    FSlateChildSize StatusSize(ESlateSizeRule::Fill);
+    StatusSize.Value = 0.4f;
+    StatusSlot->SetSize(StatusSize);
+    StatusSlot->SetPadding(FMargin(0, 0, 5, 0));
+
+    // JSON editor section (right side of bottom panel)
+    UVerticalBox* JsonEditorSection = CreateJsonEditorSection();
+    UHorizontalBoxSlot* JsonSlot = BottomHBox->AddChildToHorizontalBox(JsonEditorSection);
+    FSlateChildSize JsonSize(ESlateSizeRule::Fill);
+    JsonSize.Value = 0.6f;
+    JsonSlot->SetSize(JsonSize);
+
+    return BottomPanelBorder;
 }
 
 UBorder* UMASkillAllocationViewer::CreateLeftPanel()
 {
-    // Left panel background
+    // Left panel background (deprecated - kept for compatibility)
     UBorder* LeftPanelBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("LeftPanelBorder"));
     LeftPanelBorder->SetBrushColor(PanelBackgroundColor);
     LeftPanelBorder->SetPadding(FMargin(10.0f));
@@ -302,20 +431,17 @@ UVerticalBox* UMASkillAllocationViewer::CreateStatusLogSection()
 {
     UVerticalBox* Section = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("StatusLogSection"));
 
-    // Label
+    // Label - white color, font size 14
     UTextBlock* Label = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("StatusLogLabel"));
     Label->SetText(FText::FromString(TEXT("Status Log:")));
-    Label->SetColorAndOpacity(FSlateColor(LabelColor));
-    FSlateFontInfo LabelFont = FCoreStyle::GetDefaultFontStyle("Bold", 12);
+    Label->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f)));  // White color
+    FSlateFontInfo LabelFont = FCoreStyle::GetDefaultFontStyle("Bold", 14);
     Label->SetFont(LabelFont);
     
     UVerticalBoxSlot* LabelSlot = Section->AddChildToVerticalBox(Label);
-    LabelSlot->SetPadding(FMargin(0, 0, 0, 5));
+    LabelSlot->SetPadding(FMargin(0, 0, 0, 3));
 
-    // Use ScrollBox to wrap status log for auto-scrolling
-    StatusLogScrollBox = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass(), TEXT("StatusLogScrollBox"));
-    
-    // Status log text box (read-only)
+    // Status log text box (read-only) - directly add without ScrollBox
     StatusLogBox = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(UMultiLineEditableTextBox::StaticClass(), TEXT("StatusLogBox"));
     StatusLogBox->SetIsReadOnly(true);
     StatusLogBox->SetText(FText::GetEmpty());
@@ -325,21 +451,14 @@ UVerticalBox* UMASkillAllocationViewer::CreateStatusLogSection()
     FSlateColor BlackColor = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
     StatusLogStyle.SetForegroundColor(BlackColor);
     StatusLogStyle.SetFocusedForegroundColor(BlackColor);
-    StatusLogStyle.SetReadOnlyForegroundColor(BlackColor);  // 只读模式下的文本颜色
-    // 设置 TextStyle 的 ColorAndOpacity
+    StatusLogStyle.SetReadOnlyForegroundColor(BlackColor);
     StatusLogStyle.TextStyle.ColorAndOpacity = BlackColor;
     FSlateFontInfo StatusLogFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
     StatusLogStyle.SetFont(StatusLogFont);
     StatusLogBox->WidgetStyle = StatusLogStyle;
     
-    StatusLogScrollBox->AddChild(StatusLogBox);
-    
-    // Use SizeBox to set minimum height
-    USizeBox* SizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("StatusLogSizeBox"));
-    SizeBox->SetMinDesiredHeight(100.0f);
-    SizeBox->AddChild(StatusLogScrollBox);
-    
-    UVerticalBoxSlot* BoxSlot = Section->AddChildToVerticalBox(SizeBox);
+    // Add directly to section - let it fill available space
+    UVerticalBoxSlot* BoxSlot = Section->AddChildToVerticalBox(StatusLogBox);
     BoxSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 
     return Section;
@@ -349,15 +468,15 @@ UVerticalBox* UMASkillAllocationViewer::CreateJsonEditorSection()
 {
     UVerticalBox* Section = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("JsonEditorSection"));
 
-    // Label
+    // Label - white color, font size 14
     UTextBlock* Label = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("JsonEditorLabel"));
     Label->SetText(FText::FromString(TEXT("JSON Editor:")));
-    Label->SetColorAndOpacity(FSlateColor(LabelColor));
-    FSlateFontInfo LabelFont2 = FCoreStyle::GetDefaultFontStyle("Bold", 12);
+    Label->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f)));  // White color
+    FSlateFontInfo LabelFont2 = FCoreStyle::GetDefaultFontStyle("Bold", 14);
     Label->SetFont(LabelFont2);
     
     UVerticalBoxSlot* LabelSlot = Section->AddChildToVerticalBox(Label);
-    LabelSlot->SetPadding(FMargin(0, 0, 0, 5));
+    LabelSlot->SetPadding(FMargin(0, 0, 0, 3));
 
     // JSON editor text box (editable)
     JsonEditorBox = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(UMultiLineEditableTextBox::StaticClass(), TEXT("JsonEditorBox"));
@@ -373,56 +492,51 @@ UVerticalBox* UMASkillAllocationViewer::CreateJsonEditorSection()
     JsonEditorStyle.SetFont(JsonEditorFont);
     JsonEditorBox->WidgetStyle = JsonEditorStyle;
     
-    // Use SizeBox to set minimum height
-    USizeBox* SizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("JsonEditorSizeBox"));
-    SizeBox->SetMinDesiredHeight(200.0f);
-    SizeBox->AddChild(JsonEditorBox);
-    
-    UVerticalBoxSlot* BoxSlot = Section->AddChildToVerticalBox(SizeBox);
+    // No SizeBox - let it fill available space
+    UVerticalBoxSlot* BoxSlot = Section->AddChildToVerticalBox(JsonEditorBox);
     BoxSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-    BoxSlot->SetPadding(FMargin(0, 0, 0, 10));
+    BoxSlot->SetPadding(FMargin(0, 0, 0, 5));
 
-    // "Update Skill List" button
+    // Button row - horizontal layout for buttons
+    UHorizontalBox* ButtonRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("ButtonRow"));
+    UVerticalBoxSlot* ButtonRowSlot = Section->AddChildToVerticalBox(ButtonRow);
+    ButtonRowSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
+    ButtonRowSlot->SetHorizontalAlignment(HAlign_Left);
+
+    // "Update Skill List" button - font size 14
     UpdateButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("UpdateButton"));
     
     UTextBlock* UpdateButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("UpdateButtonText"));
-    UpdateButtonText->SetText(FText::FromString(TEXT(" Update Skill List ")));
+    UpdateButtonText->SetText(FText::FromString(TEXT("Update Skill List")));
     UpdateButtonText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+    FSlateFontInfo UpdateBtnFont = FCoreStyle::GetDefaultFontStyle("Regular", 14);
+    UpdateButtonText->SetFont(UpdateBtnFont);
     UpdateButton->AddChild(UpdateButtonText);
     
-    UVerticalBoxSlot* UpdateButtonSlot = Section->AddChildToVerticalBox(UpdateButton);
-    UpdateButtonSlot->SetHorizontalAlignment(HAlign_Left);
-    UpdateButtonSlot->SetPadding(FMargin(0, 0, 0, 10));
+    UHorizontalBoxSlot* UpdateButtonSlot = ButtonRow->AddChildToHorizontalBox(UpdateButton);
+    UpdateButtonSlot->SetPadding(FMargin(0, 0, 10, 0));
 
-    // "Start Executing" button
+    // "Start Executing" button - font size 14
     StartExecuteButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("StartExecuteButton"));
 
     UTextBlock* StartButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("StartButtonText"));
-    StartButtonText->SetText(FText::FromString(TEXT(" Start Executing ")));
+    StartButtonText->SetText(FText::FromString(TEXT("Start Executing")));
     StartButtonText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+    FSlateFontInfo StartBtnFont = FCoreStyle::GetDefaultFontStyle("Regular", 14);
+    StartButtonText->SetFont(StartBtnFont);
     StartExecuteButton->AddChild(StartButtonText);
 
-    UVerticalBoxSlot* StartButtonSlot = Section->AddChildToVerticalBox(StartExecuteButton);
-    StartButtonSlot->SetHorizontalAlignment(HAlign_Left);
-    StartButtonSlot->SetPadding(FMargin(0, 0, 0, 10));
+    UHorizontalBoxSlot* StartButtonSlot = ButtonRow->AddChildToHorizontalBox(StartExecuteButton);
+    StartButtonSlot->SetPadding(FMargin(0, 0, 0, 0));
 
-    // "Reset" button
-    ResetButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("ResetButton"));
-
-    UTextBlock* ResetButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ResetButtonText"));
-    ResetButtonText->SetText(FText::FromString(TEXT(" Reset ")));
-    ResetButtonText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
-    ResetButton->AddChild(ResetButtonText);
-
-    UVerticalBoxSlot* ResetButtonSlot = Section->AddChildToVerticalBox(ResetButton);
-    ResetButtonSlot->SetHorizontalAlignment(HAlign_Left);
+    // Reset button removed - no functionality implemented
 
     return Section;
 }
 
 UBorder* UMASkillAllocationViewer::CreateRightPanel()
 {
-    // Right panel background
+    // Right panel background (deprecated - kept for compatibility)
     UBorder* RightPanelBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("RightPanelBorder"));
     RightPanelBorder->SetBrushColor(PanelBackgroundColor);
     RightPanelBorder->SetPadding(FMargin(10.0f));
@@ -523,12 +637,6 @@ void UMASkillAllocationViewer::AppendStatusLog(const FString& Message)
     else
     {
         StatusLogBox->SetText(FText::FromString(CurrentText + TEXT("\n") + NewLine));
-    }
-    
-    // Auto-scroll to latest content
-    if (StatusLogScrollBox)
-    {
-        StatusLogScrollBox->ScrollToEnd();
     }
     
     UE_LOG(LogMASkillAllocationViewer, Log, TEXT("StatusLog: %s"), *Message);
@@ -829,6 +937,14 @@ void UMASkillAllocationViewer::OnResetButtonClicked()
     UE_LOG(LogMASkillAllocationViewer, Log, TEXT("Reset completed - all skills set to Pending"));
 }
 
+void UMASkillAllocationViewer::OnCloseButtonClicked()
+{
+    UE_LOG(LogMASkillAllocationViewer, Log, TEXT("Close button clicked"));
+    
+    // Hide the widget (same as pressing X key)
+    SetVisibility(ESlateVisibility::Collapsed);
+}
+
 void UMASkillAllocationViewer::OnModelDataChanged()
 {
     // Sync to JSON editor in real-time
@@ -931,6 +1047,24 @@ void UMASkillAllocationViewer::OnTempSkillListChanged(const FMASkillAllocationDa
         
         AppendStatusLog(FString::Printf(TEXT("[Info] Skill list auto-refreshed: %s (%d time steps, %d robots)"),
             *NewData.Name, NewData.Data.Num(), AllocationModel->GetRobotCount()));
+    }
+}
+
+void UMASkillAllocationViewer::OnTempSkillStatusUpdated(int32 TimeStep, const FString& RobotId, ESkillExecutionStatus NewStatus)
+{
+    UE_LOG(LogMASkillAllocationViewer, Log, TEXT("OnTempSkillStatusUpdated: TimeStep=%d, RobotId=%s, Status=%d"),
+        TimeStep, *RobotId, static_cast<int32>(NewStatus));
+    
+    // Update the AllocationModel with the new status
+    if (AllocationModel)
+    {
+        AllocationModel->UpdateSkillStatus(TimeStep, RobotId, NewStatus);
+    }
+    
+    // Refresh the Gantt canvas to show the updated status color
+    if (GanttCanvas)
+    {
+        GanttCanvas->RefreshFromModel();
     }
 }
 
@@ -1252,6 +1386,13 @@ void UMASkillAllocationViewer::OnCommandManagerTimeStepCompleted(const FMATimeSt
     
     int32 TimeStep = Feedback.TimeStep;
     
+    // 获取 TempDataManager 用于广播状态更新
+    UMATempDataManager* TempDataMgr = nullptr;
+    if (UGameInstance* GameInstance = UGameplayStatics::GetGameInstance(GetWorld()))
+    {
+        TempDataMgr = GameInstance->GetSubsystem<UMATempDataManager>();
+    }
+    
     // 解析 FMATimeStepFeedback 中的技能反馈
     for (const FMASkillExecutionFeedback& SkillFeedback : Feedback.SkillFeedbacks)
     {
@@ -1268,6 +1409,12 @@ void UMASkillAllocationViewer::OnCommandManagerTimeStepCompleted(const FMATimeSt
             UE_LOG(LogMASkillAllocationViewer, Warning, 
                 TEXT("OnCommandManagerTimeStepCompleted: Failed to update status for TimeStep=%d, AgentId=%s"),
                 TimeStep, *SkillFeedback.AgentId);
+        }
+        
+        // 广播状态更新到 TempDataManager，让右侧边栏预览也能实时更新
+        if (TempDataMgr)
+        {
+            TempDataMgr->BroadcastSkillStatusUpdate(TimeStep, SkillFeedback.AgentId, NewStatus);
         }
         
         // 记录状态日志

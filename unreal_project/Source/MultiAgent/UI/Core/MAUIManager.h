@@ -8,6 +8,7 @@
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
 #include "MAHUDTypes.h"
+#include "../../Core/Types/MATaskGraphTypes.h"
 #include "MAUIManager.generated.h"
 
 // 前向声明
@@ -500,4 +501,13 @@ private:
      */
     UFUNCTION()
     void OnTempSkillListChanged(const FMASkillAllocationData& Data);
+
+    /**
+     * 技能状态实时更新回调
+     * @param TimeStep 时间步
+     * @param RobotId 机器人 ID
+     * @param NewStatus 新状态
+     */
+    UFUNCTION()
+    void OnSkillStatusUpdated(int32 TimeStep, const FString& RobotId, ESkillExecutionStatus NewStatus);
 };

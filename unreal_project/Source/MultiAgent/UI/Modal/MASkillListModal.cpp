@@ -502,3 +502,13 @@ FMASkillAllocationMessage UMASkillListModal::GetSkillAllocationMessage() const
     
     return Message;
 }
+
+void UMASkillListModal::UpdateSkillStatus(int32 TimeStep, const FString& RobotId, ESkillExecutionStatus NewStatus)
+{
+    if (AllocationModel)
+    {
+        AllocationModel->UpdateSkillStatus(TimeStep, RobotId, NewStatus);
+        UE_LOG(LogMASkillListModal, Verbose, TEXT("UpdateSkillStatus: TimeStep=%d, RobotId=%s, Status=%d"),
+            TimeStep, *RobotId, static_cast<int32>(NewStatus));
+    }
+}

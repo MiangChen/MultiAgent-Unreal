@@ -3,6 +3,7 @@
 
 #include "MACommandManager.h"
 #include "MAAgentManager.h"
+#include "MATempDataManager.h"
 #include "../Config/MAConfigManager.h"
 #include "../Comm/MACommSubsystem.h"
 #include "../Comm/MACommTypes.h"
@@ -172,6 +173,21 @@ void UMACommandManager::ExecuteCurrentTimeStep()
         CurrentTimeStep++;
         ExecuteCurrentTimeStep();
         return;
+    }
+    
+    // Broadcast InProgress status for each skill before activation
+    UMATempDataManager* TempDataMgr = GetTempDataManager();
+    if (TempDataMgr)
+    {
+        for (const auto& Pair : ValidCommands)
+        {
+            const FMAAgentSkillCommand* Cmd = Pair.Value;
+            TempDataMgr->BroadcastSkillStatusUpdate(CurrentTimeStep, Cmd->AgentId, ESkillExecutionStatus::InProgress);
+        }
+    }
+    else
+    {
+        UE_LOG(LogMACommandManager, Warning, TEXT("TempDataManager not available, cannot broadcast InProgress status"));
     }
     
     // 绑定委托并激活技能
@@ -389,6 +405,18 @@ FGameplayTag UMACommandManager::CommandToTag(EMACommand Command) const
         return *Tag;
     }
     return FGameplayTag();
+}
+
+UMATempDataManager* UMACommandManager::GetTempDataManager() const
+{
+    if (UWorld* World = GetWorld())
+    {
+        if (UGameInstance* GI = World->GetGameInstance())
+        {
+            return GI->GetSubsystem<UMATempDataManager>();
+        }
+    }
+    return nullptr;
 }
 
 void UMACommandManager::SendTimeStepFeedbackToPython(const FMATimeStepFeedback& Feedback)
