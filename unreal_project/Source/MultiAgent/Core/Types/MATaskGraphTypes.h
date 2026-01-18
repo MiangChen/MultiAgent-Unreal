@@ -430,3 +430,165 @@ struct MULTIAGENT_API FMASkillBarRenderData
         : TimeStep(InTimeStep), RobotId(InRobotId), SkillName(InSkill.SkillName), 
           ParamsJson(InSkill.ParamsJson), Status(InSkill.Status) {}
 };
+
+//=============================================================================
+// Gantt Chart Drag-Drop Types
+//=============================================================================
+
+/**
+ * 甘特图拖拽状态枚举
+ * 表示当前拖拽操作的状态
+ */
+UENUM(BlueprintType)
+enum class EGanttDragState : uint8
+{
+    Idle        UMETA(DisplayName = "Idle"),        // 无拖拽
+    Potential   UMETA(DisplayName = "Potential"),   // 潜在拖拽（鼠标按下但未移动足够距离）
+    Dragging    UMETA(DisplayName = "Dragging")     // 拖拽中
+};
+
+/**
+ * 甘特图拖拽源信息
+ * 记录被拖拽技能块的原始位置和数据
+ */
+USTRUCT(BlueprintType)
+struct MULTIAGENT_API FGanttDragSource
+{
+    GENERATED_BODY()
+
+    /** 原始时间步 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GanttDrag")
+    int32 TimeStep = -1;
+
+    /** 原始机器人 ID */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GanttDrag")
+    FString RobotId;
+
+    /** 技能名称 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GanttDrag")
+    FString SkillName;
+
+    /** 技能参数 (JSON 字符串) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GanttDrag")
+    FString ParamsJson;
+
+    /** 执行状态 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GanttDrag")
+    ESkillExecutionStatus Status = ESkillExecutionStatus::Pending;
+
+    /** 原始屏幕位置 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GanttDrag")
+    FVector2D OriginalPosition = FVector2D::ZeroVector;
+
+    FGanttDragSource() {}
+
+    FGanttDragSource(int32 InTimeStep, const FString& InRobotId, const FString& InSkillName,
+                     const FString& InParamsJson, ESkillExecutionStatus InStatus, const FVector2D& InPosition)
+        : TimeStep(InTimeStep), RobotId(InRobotId), SkillName(InSkillName),
+          ParamsJson(InParamsJson), Status(InStatus), OriginalPosition(InPosition) {}
+
+    /** 检查是否有效 */
+    bool IsValid() const { return TimeStep >= 0 && !RobotId.IsEmpty(); }
+
+    /** 重置为无效状态 */
+    void Reset()
+    {
+        TimeStep = -1;
+        RobotId.Empty();
+        SkillName.Empty();
+        ParamsJson.Empty();
+        Status = ESkillExecutionStatus::Pending;
+        OriginalPosition = FVector2D::ZeroVector;
+    }
+};
+
+/**
+ * 甘特图放置目标信息
+ * 记录拖拽释放的目标位置和状态
+ */
+USTRUCT(BlueprintType)
+struct MULTIAGENT_API FGanttDropTarget
+{
+    GENERATED_BODY()
+
+    /** 目标时间步 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GanttDrag")
+    int32 TimeStep = -1;
+
+    /** 目标机器人 ID */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GanttDrag")
+    FString RobotId;
+
+    /** 是否为有效放置目标 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GanttDrag")
+    bool bIsValid = false;
+
+    /** 是否已吸附到槽位 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GanttDrag")
+    bool bIsSnapped = false;
+
+    /** 吸附位置 (槽位中心坐标) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GanttDrag")
+    FVector2D SnapPosition = FVector2D::ZeroVector;
+
+    FGanttDropTarget() {}
+
+    FGanttDropTarget(int32 InTimeStep, const FString& InRobotId, bool bInIsValid, 
+                     bool bInIsSnapped, const FVector2D& InSnapPosition)
+        : TimeStep(InTimeStep), RobotId(InRobotId), bIsValid(bInIsValid),
+          bIsSnapped(bInIsSnapped), SnapPosition(InSnapPosition) {}
+
+    /** 检查是否有有效目标 */
+    bool HasTarget() const { return TimeStep >= 0 && !RobotId.IsEmpty(); }
+
+    /** 重置为无效状态 */
+    void Reset()
+    {
+        TimeStep = -1;
+        RobotId.Empty();
+        bIsValid = false;
+        bIsSnapped = false;
+        SnapPosition = FVector2D::ZeroVector;
+    }
+};
+
+/**
+ * 甘特图拖拽预览信息
+ * 用于渲染拖拽过程中的技能块预览
+ */
+USTRUCT(BlueprintType)
+struct MULTIAGENT_API FGanttDragPreview
+{
+    GENERATED_BODY()
+
+    /** 当前预览位置 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GanttDrag")
+    FVector2D Position = FVector2D::ZeroVector;
+
+    /** 预览大小 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GanttDrag")
+    FVector2D Size = FVector2D::ZeroVector;
+
+    /** 预览颜色 (半透明) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GanttDrag")
+    FLinearColor Color = FLinearColor(1.0f, 1.0f, 1.0f, 0.7f);
+
+    /** 技能名称 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GanttDrag")
+    FString SkillName;
+
+    FGanttDragPreview() {}
+
+    FGanttDragPreview(const FVector2D& InPosition, const FVector2D& InSize, 
+                      const FLinearColor& InColor, const FString& InSkillName)
+        : Position(InPosition), Size(InSize), Color(InColor), SkillName(InSkillName) {}
+
+    /** 重置预览数据 */
+    void Reset()
+    {
+        Position = FVector2D::ZeroVector;
+        Size = FVector2D::ZeroVector;
+        Color = FLinearColor(1.0f, 1.0f, 1.0f, 0.7f);
+        SkillName.Empty();
+    }
+};

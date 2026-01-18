@@ -113,6 +113,45 @@ public:
     bool UpdateSkillStatus(int32 TimeStep, const FString& RobotId, ESkillExecutionStatus NewStatus);
 
     //=========================================================================
+    // 技能移动操作
+    //=========================================================================
+
+    /**
+     * 检查目标槽位是否为空
+     * @param TimeStep 时间步
+     * @param RobotId 机器人ID
+     * @return 槽位是否为空
+     */
+    UFUNCTION(BlueprintPure, Category = "SkillAllocation|Model")
+    bool IsSlotEmpty(int32 TimeStep, const FString& RobotId) const;
+
+    /**
+     * 验证技能移动是否有效
+     * @param SourceTimeStep 源时间步
+     * @param SourceRobotId 源机器人ID
+     * @param TargetTimeStep 目标时间步
+     * @param TargetRobotId 目标机器人ID
+     * @param OutErrorMessage 错误消息（如果无效）
+     * @return 是否有效
+     */
+    UFUNCTION(BlueprintPure, Category = "SkillAllocation|Model")
+    bool ValidateMoveSkill(int32 SourceTimeStep, const FString& SourceRobotId,
+                           int32 TargetTimeStep, const FString& TargetRobotId,
+                           FString& OutErrorMessage) const;
+
+    /**
+     * 移动技能到新位置
+     * @param SourceTimeStep 源时间步
+     * @param SourceRobotId 源机器人ID
+     * @param TargetTimeStep 目标时间步
+     * @param TargetRobotId 目标机器人ID
+     * @return 是否移动成功
+     */
+    UFUNCTION(BlueprintCallable, Category = "SkillAllocation|Model")
+    bool MoveSkill(int32 SourceTimeStep, const FString& SourceRobotId,
+                   int32 TargetTimeStep, const FString& TargetRobotId);
+
+    //=========================================================================
     // 验证
     //=========================================================================
 

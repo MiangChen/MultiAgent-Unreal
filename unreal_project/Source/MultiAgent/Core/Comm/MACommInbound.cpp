@@ -244,6 +244,11 @@ void FMACommInbound::HandlePollResponse(const FString& ResponseJson)
         {
             HandleTaskPlanDAG(*PayloadObject);
         }
+        else if (MessageTypeStr == TEXT("task_graph"))
+        {
+            // 新格式：来自 mock_backend 的任务图
+            HandleTaskGraph(*PayloadObject);
+        }
         else if (MessageTypeStr == TEXT("world_model_graph"))
         {
             HandleWorldModelGraph(*PayloadObject);
@@ -350,6 +355,84 @@ void FMACommInbound::HandleTaskPlanDAG(const TSharedPtr<FJsonObject>& PayloadObj
     else
     {
         UE_LOG(LogMACommInbound, Warning, TEXT("HandleTaskPlanDAG: Failed to parse TaskPlanDAG payload"));
+    }
+}
+
+void FMACommInbound::HandleTaskGraph(const TSharedPtr<FJsonObject>& PayloadObject)
+{
+    if (!Owner)
+    {
+        return;
+    }
+
+    // 将 payload 对象序列化回 JSON 字符串
+    FString PayloadJson;
+    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&PayloadJson);
+    FJsonSerializer::Serialize(PayloadObject.ToSharedRef(), Writer);
+
+    UE_LOG(LogMACommInbound, Log, TEXT("HandleTaskGraph: Received task graph payload"));
+    UE_LOG(LogMACommInbound, Verbose, TEXT("HandleTaskGraph: Payload: %s"), *PayloadJson);
+
+    // 使用 FromResponseJson 解析 (支持 meta + task_graph 格式)
+    FMATaskGraphData TaskGraphData;
+    FString ErrorMessage;
+    
+    if (FMATaskGraphData::FromResponseJson(PayloadJson, TaskGraphData, ErrorMessage))
+    {
+        UE_LOG(LogMACommInbound, Log, TEXT("HandleTaskGraph: Parsed task graph with %d nodes, %d edges"),
+            TaskGraphData.Nodes.Num(), TaskGraphData.Edges.Num());
+
+        // 验证 DAG 有效性
+        if (TaskGraphData.IsValidDAG())
+        {
+            // 保存到 TempDataManager
+            if (UGameInstance* GameInstance = Owner->GetGameInstance())
+            {
+                if (UMATempDataManager* TempDataMgr = GameInstance->GetSubsystem<UMATempDataManager>())
+                {
+                    if (TempDataMgr->SaveTaskGraph(TaskGraphData))
+                    {
+                        UE_LOG(LogMACommInbound, Log, TEXT("HandleTaskGraph: Saved task graph to temp file"));
+                    }
+                    else
+                    {
+                        UE_LOG(LogMACommInbound, Warning, TEXT("HandleTaskGraph: Failed to save task graph to temp file"));
+                    }
+                }
+            }
+
+            // 转换为 FMATaskPlanDAG 格式并广播 (兼容现有委托)
+            FMATaskPlanDAG TaskPlan;
+            for (const FMATaskNodeData& NodeData : TaskGraphData.Nodes)
+            {
+                FMATaskPlanNode PlanNode;
+                PlanNode.NodeId = NodeData.TaskId;
+                PlanNode.TaskType = NodeData.Description;
+                if (!NodeData.Location.IsEmpty())
+                {
+                    PlanNode.Parameters.Add(TEXT("location"), NodeData.Location);
+                }
+                TaskPlan.Nodes.Add(PlanNode);
+            }
+            for (const FMATaskEdgeData& EdgeData : TaskGraphData.Edges)
+            {
+                FMATaskPlanEdge PlanEdge;
+                PlanEdge.FromNodeId = EdgeData.FromNodeId;
+                PlanEdge.ToNodeId = EdgeData.ToNodeId;
+                TaskPlan.Edges.Add(PlanEdge);
+            }
+
+            // 广播委托
+            Owner->OnTaskPlanReceived.Broadcast(TaskPlan);
+        }
+        else
+        {
+            UE_LOG(LogMACommInbound, Warning, TEXT("HandleTaskGraph: Received invalid DAG (contains cycle)"));
+        }
+    }
+    else
+    {
+        UE_LOG(LogMACommInbound, Warning, TEXT("HandleTaskGraph: Failed to parse task graph: %s"), *ErrorMessage);
     }
 }
 

@@ -969,25 +969,44 @@ FString FMASkillListMessage::ToJson() const
             TSharedPtr<FJsonObject> CmdObject = MakeShareable(new FJsonObject());
             CmdObject->SetStringField(TEXT("skill"), Cmd.SkillName);
 
-            TSharedPtr<FJsonObject> ParamsObject = MakeShareable(new FJsonObject());
-            if (!Cmd.Params.GoalType.IsEmpty())
+            // 优先使用 RawParamsJson（保留原始参数）
+            if (!Cmd.Params.RawParamsJson.IsEmpty())
             {
-                ParamsObject->SetStringField(TEXT("goal_type"), Cmd.Params.GoalType);
+                TSharedPtr<FJsonObject> ParamsObject;
+                TSharedRef<TJsonReader<>> ParamsReader = TJsonReaderFactory<>::Create(Cmd.Params.RawParamsJson);
+                if (FJsonSerializer::Deserialize(ParamsReader, ParamsObject) && ParamsObject.IsValid())
+                {
+                    CmdObject->SetObjectField(TEXT("params"), ParamsObject);
+                }
+                else
+                {
+                    // 解析失败，使用空对象
+                    CmdObject->SetObjectField(TEXT("params"), MakeShareable(new FJsonObject()));
+                }
             }
-            if (!Cmd.Params.TaskId.IsEmpty())
+            else
             {
-                ParamsObject->SetStringField(TEXT("task_id"), Cmd.Params.TaskId);
-            }
-            if (Cmd.Params.bHasDestPosition)
-            {
-                TSharedPtr<FJsonObject> DestObject = MakeShareable(new FJsonObject());
-                DestObject->SetNumberField(TEXT("x"), Cmd.Params.DestPosition.X);
-                DestObject->SetNumberField(TEXT("y"), Cmd.Params.DestPosition.Y);
-                DestObject->SetNumberField(TEXT("z"), Cmd.Params.DestPosition.Z);
-                ParamsObject->SetObjectField(TEXT("dest"), DestObject);
+                // 没有 RawParamsJson，手动构建参数对象（向后兼容）
+                TSharedPtr<FJsonObject> ParamsObject = MakeShareable(new FJsonObject());
+                if (!Cmd.Params.GoalType.IsEmpty())
+                {
+                    ParamsObject->SetStringField(TEXT("goal_type"), Cmd.Params.GoalType);
+                }
+                if (!Cmd.Params.TaskId.IsEmpty())
+                {
+                    ParamsObject->SetStringField(TEXT("task_id"), Cmd.Params.TaskId);
+                }
+                if (Cmd.Params.bHasDestPosition)
+                {
+                    TSharedPtr<FJsonObject> DestObject = MakeShareable(new FJsonObject());
+                    DestObject->SetNumberField(TEXT("x"), Cmd.Params.DestPosition.X);
+                    DestObject->SetNumberField(TEXT("y"), Cmd.Params.DestPosition.Y);
+                    DestObject->SetNumberField(TEXT("z"), Cmd.Params.DestPosition.Z);
+                    ParamsObject->SetObjectField(TEXT("dest"), DestObject);
+                }
+                CmdObject->SetObjectField(TEXT("params"), ParamsObject);
             }
 
-            CmdObject->SetObjectField(TEXT("params"), ParamsObject);
             StepObject->SetObjectField(Cmd.AgentId, CmdObject);
         }
 
