@@ -4,7 +4,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "../MAFeedbackSystem.h"
 #include "Dom/JsonObject.h"
 #include "MAFeedbackGenerator.generated.h"
 
@@ -14,6 +13,212 @@ class UMASceneGraphManager;
 enum class EMACommand : uint8;
 struct FMASceneGraphNode;
 struct FMASemanticLabel;
+
+// ========== 执行反馈上下文 ==========
+USTRUCT(BlueprintType)
+struct FMAFeedbackContext
+{
+    GENERATED_BODY()
+
+    // 任务 ID (从技能参数传入)
+    UPROPERTY(BlueprintReadOnly)
+    FString TaskId;
+
+    // 通用
+    UPROPERTY(BlueprintReadOnly)
+    FVector TargetLocation = FVector::ZeroVector;
+    
+    UPROPERTY(BlueprintReadOnly)
+    FString TargetName;
+
+    // 进度
+    UPROPERTY(BlueprintReadOnly)
+    int32 CurrentStep = 0;
+    
+    UPROPERTY(BlueprintReadOnly)
+    int32 TotalSteps = 0;
+
+    // 能量
+    UPROPERTY(BlueprintReadOnly)
+    float EnergyBefore = 0.f;
+    
+    UPROPERTY(BlueprintReadOnly)
+    float EnergyAfter = 0.f;
+
+    // 搜索结果
+    UPROPERTY(BlueprintReadOnly)
+    TArray<FString> FoundObjects;
+    
+    UPROPERTY(BlueprintReadOnly)
+    TMap<FString, FString> ObjectAttributes;
+    
+    UPROPERTY(BlueprintReadOnly)
+    TArray<FVector> FoundLocations;
+    
+    // 搜索技能扩展字段
+    UPROPERTY(BlueprintReadOnly)
+    FString SearchAreaToken;  // 搜索区域标识 (如 Building-3)
+    
+    UPROPERTY(BlueprintReadOnly)
+    float SearchDurationSeconds = 0.f;  // 搜索持续时间（秒）
+    
+    UPROPERTY(BlueprintReadOnly)
+    FString SearchTargetSpec;  // 搜索目标规格 (JSON 字符串)
+
+    // Place 结果
+    UPROPERTY(BlueprintReadOnly)
+    FString PlacedObjectName;
+    
+    UPROPERTY(BlueprintReadOnly)
+    FString PlaceTargetName;
+    
+    UPROPERTY(BlueprintReadOnly)
+    FVector PlaceFinalLocation = FVector::ZeroVector;
+    
+    UPROPERTY(BlueprintReadOnly)
+    FString PlaceErrorReason;
+    
+    UPROPERTY(BlueprintReadOnly)
+    FString PlaceCancelledPhase;
+
+    // Navigate 附近地标信息
+    UPROPERTY(BlueprintReadOnly)
+    FString NearbyLandmarkLabel;
+    
+    UPROPERTY(BlueprintReadOnly)
+    FString NearbyLandmarkType;
+    
+    UPROPERTY(BlueprintReadOnly)
+    float NearbyLandmarkDistance = 0.f;
+
+    // Follow 技能信息
+    UPROPERTY(BlueprintReadOnly)
+    FString FollowTargetRobotName;
+    
+    UPROPERTY(BlueprintReadOnly)
+    float FollowTargetDistance = 0.f;
+    
+    UPROPERTY(BlueprintReadOnly)
+    bool bFollowTargetFound = false;
+    
+    UPROPERTY(BlueprintReadOnly)
+    FString FollowErrorReason;
+    
+    UPROPERTY(BlueprintReadOnly)
+    FString FollowRobotId;  // 执行 Follow 的机器人 ID
+    
+    UPROPERTY(BlueprintReadOnly)
+    FString FollowTargetId;  // 被跟随目标的 ID
+    
+    UPROPERTY(BlueprintReadOnly)
+    float FollowDurationSeconds = 0.f;  // 跟随持续时间（秒）
+    
+    UPROPERTY(BlueprintReadOnly)
+    FString FollowTargetSpec;  // 跟随目标规格 (JSON 字符串)
+
+    // Charge 技能信息
+    UPROPERTY(BlueprintReadOnly)
+    FString ChargingStationId;
+    
+    UPROPERTY(BlueprintReadOnly)
+    FVector ChargingStationLocation = FVector::ZeroVector;
+    
+    UPROPERTY(BlueprintReadOnly)
+    bool bChargingStationFound = false;
+    
+    UPROPERTY(BlueprintReadOnly)
+    FString ChargeErrorReason;
+
+    // TakeOff 技能信息
+    UPROPERTY(BlueprintReadOnly)
+    float TakeOffTargetHeight = 0.f;
+    
+    UPROPERTY(BlueprintReadOnly)
+    float TakeOffMinSafeHeight = 0.f;  // 附近建筑物最高点 + 安全距离
+    
+    UPROPERTY(BlueprintReadOnly)
+    FString TakeOffNearbyBuildingLabel;  // 附近最高建筑物标签
+    
+    UPROPERTY(BlueprintReadOnly)
+    float TakeOffNearbyBuildingHeight = 0.f;  // 附近最高建筑物高度
+    
+    UPROPERTY(BlueprintReadOnly)
+    bool bTakeOffHeightAdjusted = false;  // 高度是否被调整
+
+    // Land 技能信息
+    UPROPERTY(BlueprintReadOnly)
+    FVector LandTargetLocation = FVector::ZeroVector;
+    
+    UPROPERTY(BlueprintReadOnly)
+    FString LandGroundType;  // 地面类型 (road, intersection, building_roof, etc.)
+    
+    UPROPERTY(BlueprintReadOnly)
+    FString LandNearbyLandmarkLabel;  // 着陆点附近地标
+    
+    UPROPERTY(BlueprintReadOnly)
+    bool bLandLocationSafe = true;  // 着陆位置是否安全
+
+    // ReturnHome 技能信息
+    UPROPERTY(BlueprintReadOnly)
+    FVector HomeLocationFromSceneGraph = FVector::ZeroVector;
+    
+    UPROPERTY(BlueprintReadOnly)
+    FString HomeLandmarkLabel;  // 家位置附近地标标签
+    
+    UPROPERTY(BlueprintReadOnly)
+    bool bHomeLocationFromSceneGraph = false;  // 是否从场景图获取家位置
+
+    // TakePhoto 反馈字段
+    UPROPERTY(BlueprintReadOnly)
+    bool bPhotoTargetFound = false;
+    
+    UPROPERTY(BlueprintReadOnly)
+    FString PhotoTargetName;
+    
+    UPROPERTY(BlueprintReadOnly)
+    FString PhotoTargetId;
+    
+    // Broadcast 反馈字段
+    UPROPERTY(BlueprintReadOnly)
+    FString BroadcastMessage;
+    
+    UPROPERTY(BlueprintReadOnly)
+    bool bBroadcastTargetFound = false;
+    
+    UPROPERTY(BlueprintReadOnly)
+    FString BroadcastTargetName;
+    
+    // HandleHazard 反馈字段
+    UPROPERTY(BlueprintReadOnly)
+    bool bHazardTargetFound = false;
+    
+    UPROPERTY(BlueprintReadOnly)
+    FString HazardTargetName;
+    
+    UPROPERTY(BlueprintReadOnly)
+    FString HazardTargetId;
+    
+    UPROPERTY(BlueprintReadOnly)
+    float HazardHandleDurationSeconds = 0.f;
+    
+    // Guide 反馈字段
+    UPROPERTY(BlueprintReadOnly)
+    bool bGuideTargetFound = false;
+    
+    UPROPERTY(BlueprintReadOnly)
+    FString GuideTargetName;
+    
+    UPROPERTY(BlueprintReadOnly)
+    FString GuideTargetId;
+    
+    UPROPERTY(BlueprintReadOnly)
+    FVector GuideDestination = FVector::ZeroVector;
+    
+    UPROPERTY(BlueprintReadOnly)
+    float GuideDurationSeconds = 0.f;
+    
+    void Reset() { *this = FMAFeedbackContext(); }
+};
 
 // 技能执行反馈结构
 USTRUCT(BlueprintType)
@@ -96,23 +301,20 @@ public:
         const TMap<FString, FString>& Features = TMap<FString, FString>());
 
 private:
-    // 各技能的反馈生成
-    static FMASkillExecutionFeedback GenerateNavigateFeedback(AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message);
-    static FMASkillExecutionFeedback GenerateSearchFeedback(AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message);
-    static FMASkillExecutionFeedback GenerateFollowFeedback(AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message);
-    static FMASkillExecutionFeedback GenerateChargeFeedback(AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message);
-    static FMASkillExecutionFeedback GeneratePlaceFeedback(AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message);
-    static FMASkillExecutionFeedback GenerateTakeOffFeedback(AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message);
-    static FMASkillExecutionFeedback GenerateLandFeedback(AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message);
-    static FMASkillExecutionFeedback GenerateReturnHomeFeedback(AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message);
-    static FMASkillExecutionFeedback GenerateIdleFeedback(AMACharacter* Agent, bool bSuccess, const FString& Message);
-    
-    //=========================================================================
-    // 辅助方法
-    //=========================================================================
-    
-    /** 命令类型转技能名称 */
-    static FString CommandToSkillName(EMACommand Command);
+    // 各技能的反馈生成（填充 Data 和 Message 字段）
+    static void GenerateNavigateFeedback(FMASkillExecutionFeedback& Feedback, AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message);
+    static void GenerateSearchFeedback(FMASkillExecutionFeedback& Feedback, AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message);
+    static void GenerateFollowFeedback(FMASkillExecutionFeedback& Feedback, AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message);
+    static void GenerateChargeFeedback(FMASkillExecutionFeedback& Feedback, AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message);
+    static void GeneratePlaceFeedback(FMASkillExecutionFeedback& Feedback, AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message);
+    static void GenerateTakeOffFeedback(FMASkillExecutionFeedback& Feedback, AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message);
+    static void GenerateLandFeedback(FMASkillExecutionFeedback& Feedback, AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message);
+    static void GenerateReturnHomeFeedback(FMASkillExecutionFeedback& Feedback, AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message);
+    static void GenerateIdleFeedback(FMASkillExecutionFeedback& Feedback, AMACharacter* Agent, bool bSuccess, const FString& Message);
+    static void GenerateTakePhotoFeedback(FMASkillExecutionFeedback& Feedback, AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message);
+    static void GenerateBroadcastFeedback(FMASkillExecutionFeedback& Feedback, AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message);
+    static void GenerateHandleHazardFeedback(FMASkillExecutionFeedback& Feedback, AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message);
+    static void GenerateGuideFeedback(FMASkillExecutionFeedback& Feedback, AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message);
     
     //=========================================================================
     // 场景图查询辅助方法
@@ -224,40 +426,4 @@ private:
     static void AddCommonFieldsToFeedback(
         FMASkillExecutionFeedback& Feedback,
         UMASkillComponent* SkillComp);
-    
-    //=========================================================================
-    // 场景图状态更新
-    //=========================================================================
-    
-    /**
-     * 更新场景图中的实体位置
-     * 技能完成后调用，同步位置变化
-     * 
-     * @param Agent Agent 指针
-     * @param EntityId 实体 ID
-     * @param NewLocation 新位置
-     * @param bIsRobot 是否为机器人
-     * 
-     */
-    static void UpdateSceneGraphEntityPosition(
-        AMACharacter* Agent,
-        const FString& EntityId,
-        const FVector& NewLocation,
-        bool bIsRobot);
-    
-    /**
-     * 更新场景图中的物品携带状态
-     * Place 技能完成后调用
-     * 
-     * @param Agent Agent 指针
-     * @param ItemId 物品 ID
-     * @param bIsCarried 是否被携带
-     * @param CarrierId 携带者 ID
-     * 
-     */
-    static void UpdateSceneGraphItemCarrierStatus(
-        AMACharacter* Agent,
-        const FString& ItemId,
-        bool bIsCarried,
-        const FString& CarrierId);
 };

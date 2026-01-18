@@ -42,6 +42,13 @@ public:
      */
     static bool SaveSceneGraph(const FString& FilePath, const TSharedPtr<FJsonObject>& Data);
 
+    /**
+     * 获取场景图文件路径
+     * 
+     * @return JSON文件的完整路径
+     */
+    static FString GetSceneGraphFilePath();
+
     //=========================================================================
     // 节点解析
     //=========================================================================

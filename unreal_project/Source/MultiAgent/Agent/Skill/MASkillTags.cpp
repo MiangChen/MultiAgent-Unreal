@@ -17,6 +17,10 @@ void FMASkillTags::InitializeNativeTags()
     SkillTags.Skill_Charge = FGameplayTag::RequestGameplayTag(FName("Skill.Charge"));
     SkillTags.Skill_Search = FGameplayTag::RequestGameplayTag(FName("Skill.Search"));
     SkillTags.Skill_Place = FGameplayTag::RequestGameplayTag(FName("Skill.Place"));
+    SkillTags.Skill_TakePhoto = FGameplayTag::RequestGameplayTag(FName("Skill.TakePhoto"));
+    SkillTags.Skill_Broadcast = FGameplayTag::RequestGameplayTag(FName("Skill.Broadcast"));
+    SkillTags.Skill_HandleHazard = FGameplayTag::RequestGameplayTag(FName("Skill.HandleHazard"));
+    SkillTags.Skill_Guide = FGameplayTag::RequestGameplayTag(FName("Skill.Guide"));
 
     // Status Tags
     SkillTags.Status_Moving = FGameplayTag::RequestGameplayTag(FName("Status.Moving"));
@@ -30,6 +34,10 @@ void FMASkillTags::InitializeNativeTags()
     SkillTags.Command_Charge = FGameplayTag::RequestGameplayTag(FName("Command.Charge"));
     SkillTags.Command_Search = FGameplayTag::RequestGameplayTag(FName("Command.Search"));
     SkillTags.Command_Place = FGameplayTag::RequestGameplayTag(FName("Command.Place"));
+    SkillTags.Command_TakePhoto = FGameplayTag::RequestGameplayTag(FName("Command.TakePhoto"));
+    SkillTags.Command_Broadcast = FGameplayTag::RequestGameplayTag(FName("Command.Broadcast"));
+    SkillTags.Command_HandleHazard = FGameplayTag::RequestGameplayTag(FName("Command.HandleHazard"));
+    SkillTags.Command_Guide = FGameplayTag::RequestGameplayTag(FName("Command.Guide"));
 
     UE_LOG(LogTemp, Log, TEXT("MASkillTags initialized"));
 }

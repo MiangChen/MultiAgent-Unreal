@@ -640,7 +640,7 @@ bool UMAEditModeManager::IsPointTypeNode(const TSharedPtr<FJsonObject>& NodeObje
     return ShapeType.Equals(TEXT("point"), ESearchCase::IgnoreCase);
 }
 
-TSharedPtr<FJsonObject> UMAEditModeManager::FindNodeById(const FString& NodeId) const
+TSharedPtr<FJsonObject> UMAEditModeManager::FindNodeByIdOrLabel(const FString& NodeId) const
 {
     if (!TempSceneGraphData.IsValid() || NodeId.IsEmpty())
     {
@@ -671,7 +671,7 @@ TSharedPtr<FJsonObject> UMAEditModeManager::FindNodeById(const FString& NodeId) 
 
 FString UMAEditModeManager::GetNodeJsonById(const FString& NodeId) const
 {
-    TSharedPtr<FJsonObject> NodeObject = FindNodeById(NodeId);
+    TSharedPtr<FJsonObject> NodeObject = FindNodeByIdOrLabel(NodeId);
     if (!NodeObject.IsValid())
     {
         return FString();
@@ -985,7 +985,7 @@ bool UMAEditModeManager::AddNode(const FString& NodeJson, FString& OutError)
     else
     {
         // 检查 ID 是否已存在
-        if (FindNodeById(NodeId).IsValid())
+        if (FindNodeByIdOrLabel(NodeId).IsValid())
         {
             OutError = FString::Printf(TEXT("Node with ID %s already exists"), *NodeId);
             UE_LOG(LogMAEditMode, Error, TEXT("AddNode: %s"), *OutError);
@@ -1035,7 +1035,7 @@ bool UMAEditModeManager::DeleteNode(const FString& NodeId, FString& OutError)
     }
     
     // 查找 Node
-    TSharedPtr<FJsonObject> NodeObject = FindNodeById(NodeId);
+    TSharedPtr<FJsonObject> NodeObject = FindNodeByIdOrLabel(NodeId);
     if (!NodeObject.IsValid())
     {
         OutError = FString::Printf(TEXT("Node with ID %s not found"), *NodeId);
@@ -1097,7 +1097,7 @@ bool UMAEditModeManager::EditNode(const FString& NodeId, const FString& NewNodeJ
     }
     
     // 查找现有 Node
-    TSharedPtr<FJsonObject> ExistingNode = FindNodeById(NodeId);
+    TSharedPtr<FJsonObject> ExistingNode = FindNodeByIdOrLabel(NodeId);
     if (!ExistingNode.IsValid())
     {
         OutError = FString::Printf(TEXT("Node with ID %s not found"), *NodeId);
@@ -1737,7 +1737,7 @@ bool UMAEditModeManager::SetNodeAsGoal(const FString& NodeId, FString& OutError)
     }
     
     // 查找 Node
-    TSharedPtr<FJsonObject> NodeObject = FindNodeById(NodeId);
+    TSharedPtr<FJsonObject> NodeObject = FindNodeByIdOrLabel(NodeId);
     if (!NodeObject.IsValid())
     {
         OutError = FString::Printf(TEXT("Node with ID %s not found"), *NodeId);
@@ -1793,7 +1793,7 @@ bool UMAEditModeManager::UnsetNodeAsGoal(const FString& NodeId, FString& OutErro
     }
     
     // 查找 Node
-    TSharedPtr<FJsonObject> NodeObject = FindNodeById(NodeId);
+    TSharedPtr<FJsonObject> NodeObject = FindNodeByIdOrLabel(NodeId);
     if (!NodeObject.IsValid())
     {
         OutError = FString::Printf(TEXT("Node with ID %s not found"), *NodeId);
@@ -1844,7 +1844,7 @@ bool UMAEditModeManager::IsNodeGoal(const FString& NodeId) const
         return false;
     }
     
-    TSharedPtr<FJsonObject> NodeObject = FindNodeById(NodeId);
+    TSharedPtr<FJsonObject> NodeObject = FindNodeByIdOrLabel(NodeId);
     if (!NodeObject.IsValid())
     {
         return false;
@@ -1998,7 +1998,7 @@ FString UMAEditModeManager::GetNodeLabel(const FString& NodeId) const
         return FString();
     }
     
-    TSharedPtr<FJsonObject> NodeObject = FindNodeById(NodeId);
+    TSharedPtr<FJsonObject> NodeObject = FindNodeByIdOrLabel(NodeId);
     if (!NodeObject.IsValid())
     {
         return FString();

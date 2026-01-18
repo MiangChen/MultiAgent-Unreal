@@ -179,26 +179,17 @@ public:
     //=========================================================================
 
     /**
-     * 根据ID查找节点
+     * 根据ID或Label查找节点
+     * 
+     * 统一查询逻辑：按 Id, Label, Features["label"], Features["name"] 顺序查找
      * 
      * @param AllNodes 所有节点数组
-     * @param NodeId 节点ID
+     * @param NodeId 节点ID或标签
      * @return 匹配的节点，如果未找到则返回无效节点
      */
-    static FMASceneGraphNode FindNodeById(
+    static FMASceneGraphNode FindNodeByIdOrLabel(
         const TArray<FMASceneGraphNode>& AllNodes,
         const FString& NodeId);
-
-    /**
-     * 根据Label查找节点
-     * 
-     * @param AllNodes 所有节点数组
-     * @param NodeLabel 节点标签
-     * @return 匹配的节点，如果未找到则返回无效节点
-     */
-    static FMASceneGraphNode FindNodeByLabelString(
-        const TArray<FMASceneGraphNode>& AllNodes,
-        const FString& NodeLabel);
 
     /**
      * 查找所有匹配语义标签的节点
@@ -210,6 +201,46 @@ public:
     static TArray<FMASceneGraphNode> FindAllNodesByLabel(
         const TArray<FMASceneGraphNode>& AllNodes,
         const FMASemanticLabel& Label);
+
+    /**
+     * 根据 Actor GUID 查找包含该 GUID 的所有节点
+     * 
+     * 遍历所有节点，检查 GuidArray 和 Guid 字段是否包含目标 GUID，
+     * 返回所有匹配的节点。支持一个 Actor 属于多个节点的情况。
+     * 
+     * @param AllNodes 所有节点数组
+     * @param ActorGuid Actor 的 GUID 字符串
+     * @return 包含该 GUID 的所有节点数组，如果未找到则返回空数组
+     */
+    static TArray<FMASceneGraphNode> FindNodesByGuid(
+        const TArray<FMASceneGraphNode>& AllNodes,
+        const FString& ActorGuid);
+
+    /**
+     * 将场景图节点转换为JSON对象
+     * 
+     * 根据节点类型正确构建shape对象:
+     * - prism (building): type, vertices, height
+     * - linestring (street): type, points, vertices
+     * - point (intersection): type, center, vertices
+     * - point (prop): type, center
+     * - point (robot/dynamic): type, center
+     * 
+     * @param Node 场景图节点
+     * @return JSON对象
+     */
+    static TSharedPtr<FJsonObject> NodeToJsonObject(const FMASceneGraphNode& Node);
+
+    /**
+     * 获取所有节点（合并静态节点和动态节点）
+     * 
+     * @param StaticNodes 静态节点数组
+     * @param DynamicNodes 动态节点数组
+     * @return 合并后的所有节点数组
+     */
+    static TArray<FMASceneGraphNode> GetAllNodes(
+        const TArray<FMASceneGraphNode>& StaticNodes,
+        const TArray<FMASceneGraphNode>& DynamicNodes);
 
     //=========================================================================
     // 辅助方法 (公开供其他模块使用)

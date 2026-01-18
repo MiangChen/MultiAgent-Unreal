@@ -17,7 +17,12 @@ USK_Follow::USK_Follow()
 
 void USK_Follow::SetTargetCharacter(AMACharacter* InTargetCharacter)
 {
-    TargetCharacter = InTargetCharacter;
+    TargetActor = InTargetCharacter;
+}
+
+void USK_Follow::SetTargetActor(AActor* InTargetActor)
+{
+    TargetActor = InTargetActor;
 }
 
 void USK_Follow::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
@@ -31,10 +36,10 @@ void USK_Follow::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const 
     bFollowSucceeded = false;
     FollowResultMessage = TEXT("");
     
-    if (!TargetCharacter.IsValid())
+    if (!TargetActor.IsValid())
     {
         bFollowSucceeded = false;
-        FollowResultMessage = TEXT("Follow failed: Target character not found");
+        FollowResultMessage = TEXT("Follow failed: Target not found");
         EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
         return;
     }
@@ -48,7 +53,8 @@ void USK_Follow::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const 
         return;
     }
     
-    Character->ShowAbilityStatus(TEXT("Following"), FString::Printf(TEXT("-> %s"), *TargetCharacter->AgentName));
+    FString TargetName = TargetActor->GetName();
+    Character->ShowAbilityStatus(TEXT("Following"), FString::Printf(TEXT("-> %s"), *TargetName));
     UpdateFollow();
     
     if (UWorld* World = Character->GetWorld())
@@ -60,17 +66,17 @@ void USK_Follow::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const 
 void USK_Follow::UpdateFollow()
 {
     AMACharacter* Character = GetOwningCharacter();
-    if (!Character || !TargetCharacter.IsValid())
+    if (!Character || !TargetActor.IsValid())
     {
         bFollowSucceeded = false;
-        FollowResultMessage = TargetCharacter.IsValid() ? 
+        FollowResultMessage = TargetActor.IsValid() ? 
             TEXT("Follow failed: Owner character lost") : 
-            TEXT("Follow failed: Target character lost");
+            TEXT("Follow failed: Target lost");
         EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
         return;
     }
     
-    FVector CurrentTargetLocation = TargetCharacter->GetActorLocation();
+    FVector CurrentTargetLocation = TargetActor->GetActorLocation();
     FVector FollowLocation = CalculateFollowLocation();
     
     float DistanceToFollow = FVector::Dist(Character->GetActorLocation(), FollowLocation);
@@ -80,8 +86,9 @@ void USK_Follow::UpdateFollow()
         Character->bIsMoving = false;
         // 跟随成功（保持在跟随距离内）
         bFollowSucceeded = true;
+        FString TargetName = TargetActor->GetName();
         FollowResultMessage = FString::Printf(TEXT("Follow succeeded: Following %s at distance %.0f"), 
-            *TargetCharacter->AgentName, DistanceToFollow);
+            *TargetName, DistanceToFollow);
         return;
     }
     
@@ -103,16 +110,28 @@ void USK_Follow::UpdateFollow()
 
 FVector USK_Follow::CalculateFollowLocation() const
 {
-    if (!TargetCharacter.IsValid()) return FVector::ZeroVector;
+    if (!TargetActor.IsValid()) return FVector::ZeroVector;
     
     AMACharacter* Character = const_cast<USK_Follow*>(this)->GetOwningCharacter();
-    if (!Character) return TargetCharacter->GetActorLocation();
+    if (!Character) return TargetActor->GetActorLocation();
     
-    FVector TargetLoc = TargetCharacter->GetActorLocation();
+    FVector TargetLoc = TargetActor->GetActorLocation();
     FVector MyLocation = Character->GetActorLocation();
     
     FVector Direction = (MyLocation - TargetLoc).GetSafeNormal();
-    if (Direction.IsNearlyZero()) Direction = -TargetCharacter->GetActorForwardVector();
+    if (Direction.IsNearlyZero())
+    {
+        // 如果目标是 AMACharacter，使用其朝向
+        if (AMACharacter* TargetChar = Cast<AMACharacter>(TargetActor.Get()))
+        {
+            Direction = -TargetChar->GetActorForwardVector();
+        }
+        else
+        {
+            // 否则使用目标 Actor 的朝向
+            Direction = -TargetActor->GetActorForwardVector();
+        }
+    }
     
     FVector FollowLoc = TargetLoc + Direction * FollowDistance;
     FollowLoc.Z = TargetLoc.Z;
@@ -148,7 +167,7 @@ void USK_Follow::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGame
         if (bWasCancelled && FollowResultMessage.IsEmpty())
         {
             bSuccessToNotify = false;
-            FString TargetName = TargetCharacter.IsValid() ? TargetCharacter->AgentName : TEXT("unknown");
+            FString TargetName = TargetActor.IsValid() ? TargetActor->GetName() : TEXT("unknown");
             MessageToNotify = FString::Printf(TEXT("Follow cancelled: Stopped following %s"), *TargetName);
         }
         
@@ -165,7 +184,7 @@ void USK_Follow::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGame
         }
     }
     
-    TargetCharacter.Reset();
+    TargetActor.Reset();
     
     // 先调用父类 EndAbility
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);

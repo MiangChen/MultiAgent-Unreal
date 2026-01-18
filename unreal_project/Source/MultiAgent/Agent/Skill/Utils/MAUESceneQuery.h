@@ -1,4 +1,4 @@
-// MASceneQuery.h
+// MAUESceneQuery.h
 // 场景查询辅助工具 - 根据语义标签查找场景对象
 //
 // 本模块提供基于 UE5 场景的对象查询功能，作为场景图查询的回退方案
@@ -17,7 +17,7 @@ class AMAPickupItem;
 class AMACharacter;
 
 // 查询结果
-struct FMASceneQueryResult
+struct FMAUESceneQueryResult
 {
     AActor* Actor = nullptr;
     FString Name;
@@ -33,7 +33,7 @@ struct FMASceneQueryResult
  * 作为 MASceneGraphQuery 的回退方案
  * 
  */
-class MULTIAGENT_API FMASceneQuery
+class MULTIAGENT_API FMAUESceneQuery
 {
 public:
     /**
@@ -43,7 +43,7 @@ public:
      * @param Label 语义标签
      * @return 查询结果
      */
-    static FMASceneQueryResult FindObjectByLabel(UWorld* World, const FMASemanticLabel& Label);
+    static FMAUESceneQueryResult FindObjectByLabel(UWorld* World, const FMASemanticLabel& Label);
     
     /**
      * 查找边界内的所有匹配对象
@@ -53,7 +53,7 @@ public:
      * @param BoundaryVertices 边界多边形顶点
      * @return 查询结果数组
      */
-    static TArray<FMASceneQueryResult> FindObjectsInBoundary(UWorld* World, const FMASemanticLabel& Label, const TArray<FVector>& BoundaryVertices);
+    static TArray<FMAUESceneQueryResult> FindObjectsInBoundary(UWorld* World, const FMASemanticLabel& Label, const TArray<FVector>& BoundaryVertices);
     
     /**
      * 查找最近的匹配对象
@@ -63,7 +63,7 @@ public:
      * @param FromLocation 起始位置
      * @return 查询结果
      */
-    static FMASceneQueryResult FindNearestObject(UWorld* World, const FMASemanticLabel& Label, const FVector& FromLocation);
+    static FMAUESceneQueryResult FindNearestObject(UWorld* World, const FMASemanticLabel& Label, const FVector& FromLocation);
     
     /**
      * 检查对象是否匹配语义标签

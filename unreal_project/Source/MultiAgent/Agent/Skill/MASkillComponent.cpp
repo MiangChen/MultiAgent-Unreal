@@ -10,6 +10,10 @@
 #include "Impl/SK_TakeOff.h"
 #include "Impl/SK_Land.h"
 #include "Impl/SK_ReturnHome.h"
+#include "Impl/SK_TakePhoto.h"
+#include "Impl/SK_Broadcast.h"
+#include "Impl/SK_HandleHazard.h"
+#include "Impl/SK_Guide.h"
 #include "../Character/MACharacter.h"
 
 UMASkillComponent::UMASkillComponent()
@@ -28,6 +32,10 @@ void UMASkillComponent::InitializeSkills(AActor* InOwnerActor)
     TakeOffSkillHandle = GiveAbility(FGameplayAbilitySpec(USK_TakeOff::StaticClass(), 1, INDEX_NONE, InOwnerActor));
     LandSkillHandle = GiveAbility(FGameplayAbilitySpec(USK_Land::StaticClass(), 1, INDEX_NONE, InOwnerActor));
     ReturnHomeSkillHandle = GiveAbility(FGameplayAbilitySpec(USK_ReturnHome::StaticClass(), 1, INDEX_NONE, InOwnerActor));
+    TakePhotoSkillHandle = GiveAbility(FGameplayAbilitySpec(USK_TakePhoto::StaticClass(), 1, INDEX_NONE, InOwnerActor));
+    BroadcastSkillHandle = GiveAbility(FGameplayAbilitySpec(USK_Broadcast::StaticClass(), 1, INDEX_NONE, InOwnerActor));
+    HandleHazardSkillHandle = GiveAbility(FGameplayAbilitySpec(USK_HandleHazard::StaticClass(), 1, INDEX_NONE, InOwnerActor));
+    GuideSkillHandle = GiveAbility(FGameplayAbilitySpec(USK_Guide::StaticClass(), 1, INDEX_NONE, InOwnerActor));
 }
 
 // ========== 技能激活 ==========
@@ -178,6 +186,54 @@ void UMASkillComponent::CancelReturnHome()
     }
 }
 
+bool UMASkillComponent::TryActivateTakePhoto()
+{
+    if (!TakePhotoSkillHandle.IsValid())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[TryActivateTakePhoto] TakePhotoSkillHandle is invalid!"));
+        return false;
+    }
+    
+    CancelAbilityHandle(TakePhotoSkillHandle);
+    return TryActivateAbility(TakePhotoSkillHandle);
+}
+
+bool UMASkillComponent::TryActivateBroadcast()
+{
+    if (!BroadcastSkillHandle.IsValid())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[TryActivateBroadcast] BroadcastSkillHandle is invalid!"));
+        return false;
+    }
+    
+    CancelAbilityHandle(BroadcastSkillHandle);
+    return TryActivateAbility(BroadcastSkillHandle);
+}
+
+bool UMASkillComponent::TryActivateHandleHazard()
+{
+    if (!HandleHazardSkillHandle.IsValid())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[TryActivateHandleHazard] HandleHazardSkillHandle is invalid!"));
+        return false;
+    }
+    
+    CancelAbilityHandle(HandleHazardSkillHandle);
+    return TryActivateAbility(HandleHazardSkillHandle);
+}
+
+bool UMASkillComponent::TryActivateGuide()
+{
+    if (!GuideSkillHandle.IsValid())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[TryActivateGuide] GuideSkillHandle is invalid!"));
+        return false;
+    }
+    
+    CancelAbilityHandle(GuideSkillHandle);
+    return TryActivateAbility(GuideSkillHandle);
+}
+
 // ========== 命令系统 ==========
 
 void UMASkillComponent::ClearAllCommands()
@@ -208,6 +264,10 @@ void UMASkillComponent::CancelAllSkills()
     if (TakeOffSkillHandle.IsValid()) CancelAbilityHandle(TakeOffSkillHandle);
     if (LandSkillHandle.IsValid()) CancelAbilityHandle(LandSkillHandle);
     if (ReturnHomeSkillHandle.IsValid()) CancelAbilityHandle(ReturnHomeSkillHandle);
+    if (TakePhotoSkillHandle.IsValid()) CancelAbilityHandle(TakePhotoSkillHandle);
+    if (BroadcastSkillHandle.IsValid()) CancelAbilityHandle(BroadcastSkillHandle);
+    if (HandleHazardSkillHandle.IsValid()) CancelAbilityHandle(HandleHazardSkillHandle);
+    if (GuideSkillHandle.IsValid()) CancelAbilityHandle(GuideSkillHandle);
 }
 
 // ========== 反馈上下文 ==========

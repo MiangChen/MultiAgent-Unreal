@@ -10,6 +10,18 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogMASceneGraphIO, Log, All);
 
+// 场景图文件名常量
+static const FString SceneGraphFileName = TEXT("datasets/scene_graph_cyberworld.json");
+
+//=============================================================================
+// 文件路径
+//=============================================================================
+
+FString FMASceneGraphIO::GetSceneGraphFilePath()
+{
+    return FPaths::ProjectDir() / SceneGraphFileName;
+}
+
 //=============================================================================
 // 文件加载
 //=============================================================================

@@ -54,7 +54,7 @@
           "location": "building_A_roof",
           "required_skills": [
             {
-              "skill_name": "broadcast(fire_location_data)",
+              "skill_name": "Broadcast(fire_location_data)",
               "assigned_robot_type": ["UAV"],
               "assigned_robot_count": 1
             }

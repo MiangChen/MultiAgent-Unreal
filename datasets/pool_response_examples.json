@@ -55,7 +55,7 @@
           "location": "building_A_roof",
           "required_skills": [
             {
-              "skill_name": "broadcast(fire_location_data)",
+              "skill_name": "Broadcast(fire_location_data)",
               "assigned_robot_type": ["UAV"],
               "assigned_robot_count": 1
             }
@@ -146,7 +146,7 @@
           "location": "search_zone_alpha",
           "required_skills": [
             {
-              "skill_name": "broadcast(target_coordinates)",
+              "skill_name": "Broadcast(target_coordinates)",
               "assigned_robot_type": ["UAV"],
               "assigned_robot_count": 1
             }
@@ -185,7 +185,7 @@
           "location": "tbd:target_location",
           "required_skills": [
             {
-              "skill_name": "broadcast(rescue_request)",
+              "skill_name": "Broadcast(rescue_request)",
               "assigned_robot_type": ["RobotDog"],
               "assigned_robot_count": 1
             }
@@ -289,7 +289,7 @@
           "location": "tbd:object_location",
           "required_skills": [
             {
-              "skill_name": "broadcast(security_alert)",
+              "skill_name": "Broadcast(security_alert)",
               "assigned_robot_type": ["RobotDog"],
               "assigned_robot_count": 1
             }
@@ -457,7 +457,7 @@
           "location": "building_C_exterior",
           "required_skills": [
             {
-              "skill_name": "broadcast(inspection_report)",
+              "skill_name": "Broadcast(inspection_report)",
               "assigned_robot_type": ["UAV"],
               "assigned_robot_count": 1
             }
