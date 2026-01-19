@@ -486,6 +486,12 @@ int32 UMADAGCanvasWidget::NativePaint(const FPaintArgs& Args, const FGeometry& A
                                        const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements,
                                        int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
+    // 检查父 Widget 是否可见，如果不可见则不绘制
+    if (!IsVisible() || GetVisibility() == ESlateVisibility::Collapsed || GetVisibility() == ESlateVisibility::Hidden)
+    {
+        return LayerId;
+    }
+
     // 先绘制子 Widget
     int32 MaxLayerId = Super::NativePaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, 
                                           LayerId, InWidgetStyle, bParentEnabled);

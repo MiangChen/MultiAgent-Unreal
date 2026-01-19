@@ -14,6 +14,8 @@
 #include "Components/CanvasPanelSlot.h"
 #include "Components/ScrollBox.h"
 #include "Blueprint/WidgetTree.h"
+#include "../Core/MARoundedBorderUtils.h"
+#include "../Core/MAUITheme.h"
 #include "../../Core/Manager/MASceneGraphManager.h"
 #include "../../Utils/MAGeometryUtils.h"
 #include "Kismet/GameplayStatics.h"
@@ -111,15 +113,21 @@ void UMAModifyWidget::BuildUI()
 
     // 创建背景 Border - 位于屏幕右侧
     UBorder* BackgroundBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("BackgroundBorder"));
-    BackgroundBorder->SetBrushColor(FLinearColor(0.02f, 0.02f, 0.05f, 0.95f));
     BackgroundBorder->SetPadding(FMargin(15.0f));
     
+    // 应用圆角效果 (使用默认主题值)
+    MARoundedBorderUtils::ApplyRoundedCornersFromTheme(
+        BackgroundBorder,
+        nullptr,  // 使用默认主题值
+        EMARoundedElementType::Panel
+    );
+    
     UCanvasPanelSlot* BorderSlot = RootCanvas->AddChildToCanvas(BackgroundBorder);
-    // 设置为左侧锚点，宽度约 20% 屏幕宽度 (约 350 像素)
-    BorderSlot->SetAnchors(FAnchors(0.0f, 0.0f, 0.0f, 0.0f));
-    BorderSlot->SetAlignment(FVector2D(0.0f, 0.0f));
-    BorderSlot->SetPosition(FVector2D(20, 80));  // 左边距 20，顶部距离 80 (避开模式指示器)
-    BorderSlot->SetSize(FVector2D(350, 420));  // 增加高度以容纳 JSON 预览框
+    // 设置为左下角锚点，面板靠下显示
+    BorderSlot->SetAnchors(FAnchors(0.0f, 1.0f, 0.0f, 1.0f));  // 左下角锚点
+    BorderSlot->SetAlignment(FVector2D(0.0f, 1.0f));  // 底部对齐
+    BorderSlot->SetPosition(FVector2D(20, -20));  // 左边距 20，底部距离 20
+    BorderSlot->SetSize(FVector2D(350, 520));  // 增加高度以容纳 JSON 预览框
     BorderSlot->SetAutoSize(false);
 
     // 创建垂直布局容器
@@ -144,14 +152,18 @@ void UMAModifyWidget::BuildUI()
     HintFont.Size = 11;
     HintText->SetFont(HintFont);
     HintText->SetColorAndOpacity(FSlateColor(FLinearColor(0.6f, 0.6f, 0.6f)));
+    HintText->SetAutoWrapText(true);  // 启用自动换行
     
     UVerticalBoxSlot* HintSlot = MainVBox->AddChildToVerticalBox(HintText);
     HintSlot->SetPadding(FMargin(0, 0, 0, 10));
 
     // JSON preview text box - read-only, displays JSON fragment for selected Actor
     UBorder* JsonPreviewBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("JsonPreviewBorder"));
-    JsonPreviewBorder->SetBrushColor(FLinearColor(0.15f, 0.15f, 0.15f, 1.0f));  // Dark gray background
     JsonPreviewBorder->SetPadding(FMargin(8.0f));
+    
+    // 应用圆角效果 - 深灰色背景
+    FLinearColor JsonPreviewBgColor = FLinearColor(0.15f, 0.15f, 0.15f, 1.0f);
+    MARoundedBorderUtils::ApplyRoundedCorners(JsonPreviewBorder, JsonPreviewBgColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
     
     UScrollBox* JsonScrollBox = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass(), TEXT("JsonScrollBox"));
     JsonPreviewBorder->AddChild(JsonScrollBox);
@@ -159,7 +171,7 @@ void UMAModifyWidget::BuildUI()
     JsonPreviewText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("JsonPreviewText"));
     JsonPreviewText->SetText(FText::FromString(TEXT("Select an Actor to display JSON preview")));
     FSlateFontInfo JsonFont = JsonPreviewText->GetFont();
-    JsonFont.Size = 10;
+    JsonFont.Size = 11;
     JsonPreviewText->SetFont(JsonFont);
     JsonPreviewText->SetColorAndOpacity(FSlateColor(FLinearColor(0.7f, 0.9f, 0.7f)));  // Light green
     JsonPreviewText->SetAutoWrapText(true);
@@ -173,23 +185,42 @@ void UMAModifyWidget::BuildUI()
     UVerticalBoxSlot* JsonPreviewSlot = MainVBox->AddChildToVerticalBox(JsonPreviewSizeBox);
     JsonPreviewSlot->SetPadding(FMargin(0, 0, 0, 10));
 
-    // Multi-line text box
+    // Multi-line text box - wrapped in rounded border
     LabelTextBox = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(UMultiLineEditableTextBox::StaticClass(), TEXT("LabelTextBox"));
     LabelTextBox->SetHintText(FText::FromString(ModifyDefaultHintText));
     
-    // Set text color to strict black - via WidgetStyle property
+    // Set text color to strict black - via WidgetStyle property, with transparent background
     FEditableTextBoxStyle TextBoxStyle;
     FSlateColor BlackColor = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
     TextBoxStyle.SetForegroundColor(BlackColor);
     TextBoxStyle.SetFocusedForegroundColor(BlackColor);
-    FSlateFontInfo TextBoxFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
+    FSlateFontInfo TextBoxFont = FCoreStyle::GetDefaultFontStyle("Regular", 11);
     TextBoxStyle.SetFont(TextBoxFont);
+    
+    // 设置透明背景，让外层圆角 Border 的背景显示出来
+    FSlateBrush TransparentBrush;
+    TransparentBrush.TintColor = FSlateColor(FLinearColor::Transparent);
+    TextBoxStyle.SetBackgroundImageNormal(TransparentBrush);
+    TextBoxStyle.SetBackgroundImageHovered(TransparentBrush);
+    TextBoxStyle.SetBackgroundImageFocused(TransparentBrush);
+    TextBoxStyle.SetBackgroundImageReadOnly(TransparentBrush);
+    
     LabelTextBox->WidgetStyle = TextBoxStyle;
+    
+    // 创建圆角 Border 包装文本框
+    UBorder* LabelTextBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("LabelTextBorder"));
+    LabelTextBorder->SetPadding(FMargin(8.0f, 4.0f));
+    
+    // 应用圆角效果 - 可编辑文本框使用白色背景
+    FLinearColor LabelTextBgColor = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    MARoundedBorderUtils::ApplyRoundedCorners(LabelTextBorder, LabelTextBgColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
+    
+    LabelTextBorder->AddChild(LabelTextBox);
     
     // Use SizeBox to set minimum height
     USizeBox* TextBoxSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("TextBoxSizeBox"));
     TextBoxSizeBox->SetMinDesiredHeight(150.0f);
-    TextBoxSizeBox->AddChild(LabelTextBox);
+    TextBoxSizeBox->AddChild(LabelTextBorder);
     
     UVerticalBoxSlot* TextBoxSlot = MainVBox->AddChildToVerticalBox(TextBoxSizeBox);
     TextBoxSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));

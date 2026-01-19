@@ -20,6 +20,7 @@
 #include "Components/SceneCaptureComponent2D.h"
 #include "MACameraSensorComponent.h"
 #include "../../Core/Comm/MACommSubsystem.h"
+#include "../Core/MARoundedBorderUtils.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMAEmergencyWidget, Log, All);
 
@@ -189,13 +190,46 @@ void UMAEmergencyWidget::BuildUI()
     }
     
     //=========================================================================
-    // Info display area (center-right)
+    // Info display area (center-right) - wrapped in rounded border
     // Position: (420, 40), Size: (300, 200)
     //=========================================================================
     InfoTextBox = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(UMultiLineEditableTextBox::StaticClass(), TEXT("InfoTextBox"));
     if (InfoTextBox)
     {
-        UCanvasPanelSlot* InfoSlot = InnerCanvas->AddChildToCanvas(InfoTextBox);
+        // Set as read-only
+        InfoTextBox->SetIsReadOnly(true);
+        InfoTextBox->SetText(FText::FromString(TEXT("Emergency event information area\nWaiting for event data...\n\nPress X to close this panel\nPress - to end event")));
+        
+        // 设置样式：纯黑色，字号 12，透明背景
+        FEditableTextBoxStyle InfoStyle;
+        FSlateColor BlackColor = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
+        InfoStyle.SetForegroundColor(BlackColor);
+        InfoStyle.SetFocusedForegroundColor(BlackColor);
+        InfoStyle.SetReadOnlyForegroundColor(BlackColor);
+        FSlateFontInfo InfoFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
+        InfoStyle.SetFont(InfoFont);
+        
+        // 设置透明背景
+        FSlateBrush TransparentBrush1;
+        TransparentBrush1.TintColor = FSlateColor(FLinearColor::Transparent);
+        InfoStyle.SetBackgroundImageNormal(TransparentBrush1);
+        InfoStyle.SetBackgroundImageHovered(TransparentBrush1);
+        InfoStyle.SetBackgroundImageFocused(TransparentBrush1);
+        InfoStyle.SetBackgroundImageReadOnly(TransparentBrush1);
+        
+        InfoTextBox->WidgetStyle = InfoStyle;
+        
+        // 创建圆角 Border 包装文本框
+        UBorder* InfoTextBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("InfoTextBorder"));
+        InfoTextBorder->SetPadding(FMargin(8.0f, 4.0f));
+        
+        // 应用圆角效果 - 只读文本框使用浅灰色背景
+        FLinearColor InfoBgColor = FLinearColor(0.85f, 0.85f, 0.85f, 1.0f);
+        MARoundedBorderUtils::ApplyRoundedCorners(InfoTextBorder, InfoBgColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
+        
+        InfoTextBorder->AddChild(InfoTextBox);
+        
+        UCanvasPanelSlot* InfoSlot = InnerCanvas->AddChildToCanvas(InfoTextBorder);
         if (InfoSlot)
         {
             InfoSlot->SetAnchors(FAnchors(0.0f, 0.0f, 0.0f, 0.0f));
@@ -204,20 +238,7 @@ void UMAEmergencyWidget::BuildUI()
             InfoSlot->SetAutoSize(false);
         }
         
-        // Set as read-only
-        InfoTextBox->SetIsReadOnly(true);
-        InfoTextBox->SetText(FText::FromString(TEXT("Emergency event information area\nWaiting for event data...\n\nPress X to close this panel\nPress - to end event")));
-        
-        // 设置样式：纯黑色，字号 12
-        FEditableTextBoxStyle InfoStyle;
-        FSlateColor BlackColor = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
-        InfoStyle.SetForegroundColor(BlackColor);
-        InfoStyle.SetFocusedForegroundColor(BlackColor);
-        FSlateFontInfo InfoFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
-        InfoStyle.SetFont(InfoFont);
-        InfoTextBox->WidgetStyle = InfoStyle;
-        
-        UE_LOG(LogMAEmergencyWidget, Log, TEXT("Created InfoTextBox"));
+        UE_LOG(LogMAEmergencyWidget, Log, TEXT("Created InfoTextBox with rounded border"));
     }
     
     //=========================================================================
@@ -307,11 +328,42 @@ void UMAEmergencyWidget::BuildUI()
     // Send button: (720, 380), Size: (80, 40)
     //=========================================================================
     
-    // Input text box
+    // Input text box - wrapped in rounded border
     InputTextBox = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(UMultiLineEditableTextBox::StaticClass(), TEXT("InputTextBox"));
     if (InputTextBox)
     {
-        UCanvasPanelSlot* InputSlot = InnerCanvas->AddChildToCanvas(InputTextBox);
+        // Set hint text
+        InputTextBox->SetHintText(FText::FromString(TEXT("Enter command or message...")));
+        
+        // 设置样式：纯黑色，字号 12，透明背景
+        FEditableTextBoxStyle InputStyle;
+        FSlateColor BlackColor2 = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
+        InputStyle.SetForegroundColor(BlackColor2);
+        InputStyle.SetFocusedForegroundColor(BlackColor2);
+        FSlateFontInfo InputFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
+        InputStyle.SetFont(InputFont);
+        
+        // 设置透明背景
+        FSlateBrush TransparentBrush2;
+        TransparentBrush2.TintColor = FSlateColor(FLinearColor::Transparent);
+        InputStyle.SetBackgroundImageNormal(TransparentBrush2);
+        InputStyle.SetBackgroundImageHovered(TransparentBrush2);
+        InputStyle.SetBackgroundImageFocused(TransparentBrush2);
+        InputStyle.SetBackgroundImageReadOnly(TransparentBrush2);
+        
+        InputTextBox->WidgetStyle = InputStyle;
+        
+        // 创建圆角 Border 包装文本框
+        UBorder* InputTextBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("InputTextBorder"));
+        InputTextBorder->SetPadding(FMargin(8.0f, 4.0f));
+        
+        // 应用圆角效果 - 可编辑文本框使用白色背景
+        FLinearColor InputBgColor = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+        MARoundedBorderUtils::ApplyRoundedCorners(InputTextBorder, InputBgColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
+        
+        InputTextBorder->AddChild(InputTextBox);
+        
+        UCanvasPanelSlot* InputSlot = InnerCanvas->AddChildToCanvas(InputTextBorder);
         if (InputSlot)
         {
             InputSlot->SetAnchors(FAnchors(0.0f, 0.0f, 0.0f, 0.0f));
@@ -320,19 +372,7 @@ void UMAEmergencyWidget::BuildUI()
             InputSlot->SetAutoSize(false);
         }
         
-        // Set hint text
-        InputTextBox->SetHintText(FText::FromString(TEXT("Enter command or message...")));
-        
-        // 设置样式：纯黑色，字号 12
-        FEditableTextBoxStyle InputStyle;
-        FSlateColor BlackColor2 = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
-        InputStyle.SetForegroundColor(BlackColor2);
-        InputStyle.SetFocusedForegroundColor(BlackColor2);
-        FSlateFontInfo InputFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
-        InputStyle.SetFont(InputFont);
-        InputTextBox->WidgetStyle = InputStyle;
-        
-        UE_LOG(LogMAEmergencyWidget, Log, TEXT("Created InputTextBox"));
+        UE_LOG(LogMAEmergencyWidget, Log, TEXT("Created InputTextBox with rounded border"));
     }
     
     // Send button

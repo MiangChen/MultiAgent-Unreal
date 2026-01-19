@@ -2,6 +2,7 @@
 // 上下文菜单 Widget 实现
 
 #include "MAContextMenuWidget.h"
+#include "../Core/MARoundedBorderUtils.h"
 #include "Components/Border.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
@@ -152,9 +153,16 @@ void UMAContextMenuWidget::BuildUI()
 
     UE_LOG(LogMAContextMenu, Verbose, TEXT("BuildUI: Starting UI construction..."));
 
-    // 创建菜单背景
+    // 创建菜单背景，带圆角
     MenuBackground = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("MenuBackground"));
-    MenuBackground->SetBrushColor(MenuBackgroundColor);
+    
+    // 应用圆角效果 - 使用 Panel 类型的圆角半径
+    MARoundedBorderUtils::ApplyRoundedCorners(
+        MenuBackground,
+        MenuBackgroundColor,
+        MARoundedBorderUtils::DefaultPanelCornerRadius
+    );
+    
     MenuBackground->SetPadding(FMargin(2.0f));
     WidgetTree->RootWidget = MenuBackground;
 

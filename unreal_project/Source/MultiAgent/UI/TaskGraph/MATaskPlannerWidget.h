@@ -11,6 +11,7 @@
 class UMADAGCanvasWidget;
 class UMANodePaletteWidget;
 class UMATaskGraphModel;
+class UMAStyledButton;
 class UMultiLineEditableTextBox;
 class UButton;
 class UTextBlock;
@@ -184,6 +185,13 @@ protected:
     UFUNCTION()
     void OnSubmitTaskGraphButtonClicked();
 
+    /** "保存" 按钮点击回调 */
+    UFUNCTION()
+    void OnSaveButtonClicked();
+
+    /** 保存数据并导航到 Modal */
+    void SaveAndNavigateToModal();
+
     /** 数据模型变更回调 */
     UFUNCTION()
     void OnModelDataChanged();
@@ -257,9 +265,13 @@ protected:
 
     /** "发送指令" 按钮 */
     UPROPERTY()
-    UButton* SendCommandButton;
+    UMAStyledButton* SendCommandButton;
 
-    /** "提交任务图" 按钮 */
+    /** "保存" 按钮 (黄色，保存并返回 Modal) */
+    UPROPERTY()
+    UMAStyledButton* SaveButton;
+
+    /** "提交任务图" 按钮 (已废弃，保留以避免编译错误) */
     UPROPERTY()
     UButton* SubmitTaskGraphButton;
 

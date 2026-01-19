@@ -3,6 +3,7 @@
 
 #include "MARightSidebarWidget.h"
 #include "../Core/MAUITheme.h"
+#include "../Core/MARoundedBorderUtils.h"
 #include "MAStyledButton.h"
 #include "MATaskGraphPreview.h"
 #include "MASkillListPreview.h"
@@ -183,8 +184,11 @@ UWidget* UMARightSidebarWidget::CreateCommandSection()
     {
         return nullptr;
     }
-    CommandSectionBorder->SetBrushColor(FLinearColor(0.15f, 0.15f, 0.17f, 1.0f));
     CommandSectionBorder->SetPadding(FMargin(8.0f));
+    
+    // 应用圆角效果
+    FLinearColor SectionBgColor = FLinearColor(0.15f, 0.15f, 0.17f, 1.0f);
+    MARoundedBorderUtils::ApplyRoundedCorners(CommandSectionBorder, SectionBgColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
     
     // 创建垂直布局
     UVerticalBox* CommandVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("CommandVBox"));
@@ -213,17 +217,36 @@ UWidget* UMARightSidebarWidget::CreateCommandSection()
     {
         CommandInput->SetHintText(FText::FromString(TEXT("Enter command...")));
         
-        // 设置文本样式：纯黑色，字号 12
+        // 设置文本样式：纯黑色，字号 12，透明背景
         FEditableTextBoxStyle TextBoxStyle;
         FSlateColor BlackColor = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
         TextBoxStyle.SetForegroundColor(BlackColor);
         TextBoxStyle.SetFocusedForegroundColor(BlackColor);
         FSlateFontInfo InputFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
         TextBoxStyle.SetFont(InputFont);
+        
+        // 设置透明背景，让外层圆角 Border 的背景显示出来
+        FSlateBrush TransparentBrush;
+        TransparentBrush.TintColor = FSlateColor(FLinearColor::Transparent);
+        TextBoxStyle.SetBackgroundImageNormal(TransparentBrush);
+        TextBoxStyle.SetBackgroundImageHovered(TransparentBrush);
+        TextBoxStyle.SetBackgroundImageFocused(TransparentBrush);
+        TextBoxStyle.SetBackgroundImageReadOnly(TransparentBrush);
+        
         CommandInput->WidgetStyle = TextBoxStyle;
         
+        // 创建圆角 Border 包装文本框
+        UBorder* CommandInputBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("CommandInputBorder"));
+        CommandInputBorder->SetPadding(FMargin(8.0f, 4.0f));
+        
+        // 应用圆角效果 - 使用白色背景
+        FLinearColor TextBoxBgColor = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+        MARoundedBorderUtils::ApplyRoundedCorners(CommandInputBorder, TextBoxBgColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
+        
+        CommandInputBorder->AddChild(CommandInput);
+        
         // 添加到垂直布局，填充剩余空间
-        UVerticalBoxSlot* InputSlot = CommandVBox->AddChildToVerticalBox(CommandInput);
+        UVerticalBoxSlot* InputSlot = CommandVBox->AddChildToVerticalBox(CommandInputBorder);
         InputSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
         InputSlot->SetHorizontalAlignment(HAlign_Fill);
         InputSlot->SetVerticalAlignment(VAlign_Fill);
@@ -259,8 +282,11 @@ UWidget* UMARightSidebarWidget::CreateTaskGraphSection()
     {
         return nullptr;
     }
-    TaskGraphSectionBorder->SetBrushColor(FLinearColor(0.15f, 0.15f, 0.17f, 1.0f));
     TaskGraphSectionBorder->SetPadding(FMargin(8.0f));
+    
+    // 应用圆角效果
+    FLinearColor SectionBgColor = FLinearColor(0.15f, 0.15f, 0.17f, 1.0f);
+    MARoundedBorderUtils::ApplyRoundedCorners(TaskGraphSectionBorder, SectionBgColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
     
     // 创建垂直布局
     UVerticalBox* TaskVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("TaskVBox"));
@@ -308,8 +334,11 @@ UWidget* UMARightSidebarWidget::CreateSkillListSection()
     {
         return nullptr;
     }
-    SkillListSectionBorder->SetBrushColor(FLinearColor(0.15f, 0.15f, 0.17f, 1.0f));
     SkillListSectionBorder->SetPadding(FMargin(8.0f));
+    
+    // 应用圆角效果
+    FLinearColor SectionBgColor = FLinearColor(0.15f, 0.15f, 0.17f, 1.0f);
+    MARoundedBorderUtils::ApplyRoundedCorners(SkillListSectionBorder, SectionBgColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
     
     // 创建垂直布局
     UVerticalBox* SkillVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("SkillVBox"));
@@ -366,8 +395,11 @@ UWidget* UMARightSidebarWidget::CreateLogSection()
     {
         return nullptr;
     }
-    LogSectionBorder->SetBrushColor(FLinearColor(0.15f, 0.15f, 0.17f, 1.0f));
     LogSectionBorder->SetPadding(FMargin(8.0f));
+    
+    // 应用圆角效果
+    FLinearColor SectionBgColor = FLinearColor(0.15f, 0.15f, 0.17f, 1.0f);
+    MARoundedBorderUtils::ApplyRoundedCorners(LogSectionBorder, SectionBgColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
     
     // 创建垂直布局
     UVerticalBox* LogVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("LogVBox"));
@@ -621,27 +653,30 @@ void UMARightSidebarWidget::ApplyTheme(UMAUITheme* InTheme)
         SidebarBackground->SetBrushColor(Theme->BackgroundColor);
     }
     
-    // 应用区域背景颜色 (稍微亮一点)
+    // 应用区域背景颜色 (稍微亮一点) 并应用圆角
     FLinearColor SectionBgColor = Theme->BackgroundColor;
     SectionBgColor.R += 0.05f;
     SectionBgColor.G += 0.05f;
     SectionBgColor.B += 0.05f;
     
+    // 获取圆角半径
+    float CornerRadius = MARoundedBorderUtils::GetCornerRadiusForType(Theme, EMARoundedElementType::Panel);
+    
     if (CommandSectionBorder)
     {
-        CommandSectionBorder->SetBrushColor(SectionBgColor);
+        MARoundedBorderUtils::ApplyRoundedCorners(CommandSectionBorder, SectionBgColor, CornerRadius);
     }
     if (TaskGraphSectionBorder)
     {
-        TaskGraphSectionBorder->SetBrushColor(SectionBgColor);
+        MARoundedBorderUtils::ApplyRoundedCorners(TaskGraphSectionBorder, SectionBgColor, CornerRadius);
     }
     if (SkillListSectionBorder)
     {
-        SkillListSectionBorder->SetBrushColor(SectionBgColor);
+        MARoundedBorderUtils::ApplyRoundedCorners(SkillListSectionBorder, SectionBgColor, CornerRadius);
     }
     if (LogSectionBorder)
     {
-        LogSectionBorder->SetBrushColor(SectionBgColor);
+        MARoundedBorderUtils::ApplyRoundedCorners(LogSectionBorder, SectionBgColor, CornerRadius);
     }
     
     // 应用标题颜色 (保持字号不变，只更新颜色)

@@ -16,6 +16,7 @@
 #include "Components/OverlaySlot.h"
 #include "Blueprint/WidgetTree.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
+#include "../Core/MARoundedBorderUtils.h"
 
 DEFINE_LOG_CATEGORY(LogMATaskNodeWidget);
 
@@ -374,9 +375,9 @@ void UMATaskNodeWidget::BuildUI()
     SizeBoxSlot->SetPosition(FVector2D(0, 0));
     SizeBoxSlot->SetAutoSize(true);
 
-    // 创建节点背景边框
+    // 创建节点背景边框 - 使用圆角效果
     NodeBackground = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("NodeBackground"));
-    NodeBackground->SetBrushColor(DefaultBackgroundColor);
+    MARoundedBorderUtils::ApplyRoundedCorners(NodeBackground, DefaultBackgroundColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
     NodeBackground->SetPadding(FMargin(10.0f, 15.0f, 10.0f, 15.0f));
     NodeSizeBox->AddChild(NodeBackground);
 
@@ -391,9 +392,11 @@ void UMATaskNodeWidget::BuildUI()
     TitleFont.Size = 12;
     TaskIdText->SetFont(TitleFont);
     TaskIdText->SetColorAndOpacity(FSlateColor(TitleTextColor));
+    TaskIdText->SetJustification(ETextJustify::Center);  // 居中对齐
     
     UVerticalBoxSlot* TitleSlot = ContentBox->AddChildToVerticalBox(TaskIdText);
     TitleSlot->SetPadding(FMargin(0, 0, 0, 5));
+    TitleSlot->SetHorizontalAlignment(HAlign_Center);  // 水平居中
 
     // 描述文本
     DescriptionText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("DescriptionText"));
@@ -419,10 +422,18 @@ void UMATaskNodeWidget::BuildUI()
     UVerticalBoxSlot* LocSlot = ContentBox->AddChildToVerticalBox(LocationText);
     LocSlot->SetPadding(FMargin(0, 0, 0, 0));
 
-    // 创建输入端口 (顶部中央)
+    // 创建输入端口 (顶部中央) - 圆形
     InputPort = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("InputPort"));
     InputPort->SetBrushColor(DefaultPortColor);
     InputPort->SetDesiredSizeScale(FVector2D(1.0f, 1.0f));
+    
+    // 设置圆形外观 - 使用圆角 Brush
+    FSlateBrush InputPortBrush;
+    InputPortBrush.DrawAs = ESlateBrushDrawType::RoundedBox;
+    InputPortBrush.TintColor = FSlateColor(DefaultPortColor);
+    InputPortBrush.OutlineSettings.CornerRadii = FVector4(PortRadius, PortRadius, PortRadius, PortRadius);
+    InputPortBrush.OutlineSettings.RoundingType = ESlateBrushRoundingType::FixedRadius;
+    InputPort->SetBrush(InputPortBrush);
     
     UCanvasPanelSlot* InputPortSlot = RootCanvas->AddChildToCanvas(InputPort);
     InputPortSlot->SetAnchors(FAnchors(0.0f, 0.0f, 0.0f, 0.0f));
@@ -431,10 +442,18 @@ void UMATaskNodeWidget::BuildUI()
     InputPortSlot->SetSize(FVector2D(PortRadius * 2, PortRadius * 2));
     InputPortSlot->SetAutoSize(false);
 
-    // 创建输出端口 (底部中央)
+    // 创建输出端口 (底部中央) - 圆形
     OutputPort = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("OutputPort"));
     OutputPort->SetBrushColor(DefaultPortColor);
     OutputPort->SetDesiredSizeScale(FVector2D(1.0f, 1.0f));
+    
+    // 设置圆形外观 - 使用圆角 Brush
+    FSlateBrush OutputPortBrush;
+    OutputPortBrush.DrawAs = ESlateBrushDrawType::RoundedBox;
+    OutputPortBrush.TintColor = FSlateColor(DefaultPortColor);
+    OutputPortBrush.OutlineSettings.CornerRadii = FVector4(PortRadius, PortRadius, PortRadius, PortRadius);
+    OutputPortBrush.OutlineSettings.RoundingType = ESlateBrushRoundingType::FixedRadius;
+    OutputPort->SetBrush(OutputPortBrush);
     
     UCanvasPanelSlot* OutputPortSlot = RootCanvas->AddChildToCanvas(OutputPort);
     OutputPortSlot->SetAnchors(FAnchors(0.0f, 0.0f, 0.0f, 0.0f));
@@ -453,30 +472,52 @@ void UMATaskNodeWidget::UpdateBorderColor()
         return;
     }
     
+    FLinearColor TargetColor;
     if (bIsSelected)
     {
-        NodeBackground->SetBrushColor(SelectedBackgroundColor);
+        TargetColor = SelectedBackgroundColor;
     }
     else if (bIsHighlighted)
     {
-        NodeBackground->SetBrushColor(HighlightedBackgroundColor);
+        TargetColor = HighlightedBackgroundColor;
     }
     else
     {
-        NodeBackground->SetBrushColor(DefaultBackgroundColor);
+        TargetColor = DefaultBackgroundColor;
     }
+    
+    // 使用圆角效果更新颜色
+    MARoundedBorderUtils::ApplyRoundedCorners(NodeBackground, TargetColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
 }
 
 void UMATaskNodeWidget::UpdatePortColors()
 {
     if (InputPort)
     {
-        InputPort->SetBrushColor(bInputPortHighlighted ? HighlightedPortColor : DefaultPortColor);
+        FLinearColor Color = bInputPortHighlighted ? HighlightedPortColor : DefaultPortColor;
+        
+        // 重新设置圆形 Brush 并更新颜色
+        FSlateBrush InputBrush;
+        InputBrush.DrawAs = ESlateBrushDrawType::RoundedBox;
+        InputBrush.TintColor = FSlateColor(Color);
+        InputBrush.OutlineSettings.CornerRadii = FVector4(PortRadius, PortRadius, PortRadius, PortRadius);
+        InputBrush.OutlineSettings.RoundingType = ESlateBrushRoundingType::FixedRadius;
+        InputPort->SetBrush(InputBrush);
+        InputPort->SetBrushColor(Color);
     }
     
     if (OutputPort)
     {
-        OutputPort->SetBrushColor(bOutputPortHighlighted ? HighlightedPortColor : DefaultPortColor);
+        FLinearColor Color = bOutputPortHighlighted ? HighlightedPortColor : DefaultPortColor;
+        
+        // 重新设置圆形 Brush 并更新颜色
+        FSlateBrush OutputBrush;
+        OutputBrush.DrawAs = ESlateBrushDrawType::RoundedBox;
+        OutputBrush.TintColor = FSlateColor(Color);
+        OutputBrush.OutlineSettings.CornerRadii = FVector4(PortRadius, PortRadius, PortRadius, PortRadius);
+        OutputBrush.OutlineSettings.RoundingType = ESlateBrushRoundingType::FixedRadius;
+        OutputPort->SetBrush(OutputBrush);
+        OutputPort->SetBrushColor(Color);
     }
 }
 

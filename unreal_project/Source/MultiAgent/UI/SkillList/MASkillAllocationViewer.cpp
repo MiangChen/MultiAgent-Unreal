@@ -6,6 +6,10 @@
 #include "MASkillAllocationModel.h"
 #include "../../Core/Comm/MACommSubsystem.h"
 #include "../../Core/Manager/MATempDataManager.h"
+#include "../Core/MARoundedBorderUtils.h"
+#include "../Components/MAStyledButton.h"
+#include "../Core/MAUIManager.h"
+#include "../HUD/MAHUD.h"
 #include "Kismet/GameplayStatics.h"
 #include "Components/MultiLineEditableTextBox.h"
 #include "Components/Button.h"
@@ -68,10 +72,17 @@ void UMASkillAllocationViewer::NativeConstruct()
         UE_LOG(LogMASkillAllocationViewer, Log, TEXT("UpdateButton event bound"));
     }
     
+    if (SaveButton && !SaveButton->OnClicked.IsAlreadyBound(this, &UMASkillAllocationViewer::OnSaveButtonClicked))
+    {
+        SaveButton->OnClicked.AddDynamic(this, &UMASkillAllocationViewer::OnSaveButtonClicked);
+        UE_LOG(LogMASkillAllocationViewer, Log, TEXT("SaveButton event bound"));
+    }
+
+    // StartExecuteButton 已废弃，保留旧绑定以避免编译错误
     if (StartExecuteButton && !StartExecuteButton->OnClicked.IsAlreadyBound(this, &UMASkillAllocationViewer::OnStartExecuteButtonClicked))
     {
         StartExecuteButton->OnClicked.AddDynamic(this, &UMASkillAllocationViewer::OnStartExecuteButtonClicked);
-        UE_LOG(LogMASkillAllocationViewer, Log, TEXT("StartExecuteButton event bound"));
+        UE_LOG(LogMASkillAllocationViewer, Log, TEXT("StartExecuteButton event bound (deprecated)"));
     }
 
     // ResetButton removed - no functionality implemented
@@ -234,16 +245,10 @@ void UMASkillAllocationViewer::BuildUI()
 
     // Create main background Border - windowed mode (80% width, 85% height, centered)
     UBorder* MainBackground = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("MainBackground"));
-    MainBackground->SetBrushColor(BackgroundColor);
     MainBackground->SetPadding(FMargin(10.0f));
     
-    // Apply rounded corners using brush
-    FSlateBrush RoundedBrush;
-    RoundedBrush.DrawAs = ESlateBrushDrawType::RoundedBox;
-    RoundedBrush.TintColor = FSlateColor(BackgroundColor);
-    RoundedBrush.OutlineSettings.CornerRadii = FVector4(12.0f, 12.0f, 12.0f, 12.0f);
-    RoundedBrush.OutlineSettings.RoundingType = ESlateBrushRoundingType::FixedRadius;
-    MainBackground->SetBrush(RoundedBrush);
+    // Apply rounded corners using MARoundedBorderUtils (Requirements 4.2)
+    MARoundedBorderUtils::ApplyRoundedCorners(MainBackground, BackgroundColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
     
     UCanvasPanelSlot* MainSlot = RootCanvas->AddChildToCanvas(MainBackground);
     // Windowed mode: centered with 80% width and 85% height
@@ -335,8 +340,10 @@ UBorder* UMASkillAllocationViewer::CreateTopPanel()
 {
     // Top panel background (Gantt chart area)
     UBorder* TopPanelBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("TopPanelBorder"));
-    TopPanelBorder->SetBrushColor(PanelBackgroundColor);
     TopPanelBorder->SetPadding(FMargin(10.0f));
+    
+    // Apply rounded corners using MARoundedBorderUtils (Requirements 4.2)
+    MARoundedBorderUtils::ApplyRoundedCorners(TopPanelBorder, PanelBackgroundColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
 
     // Gantt canvas - will auto-size based on content
     GanttCanvas = WidgetTree->ConstructWidget<UMAGanttCanvas>(UMAGanttCanvas::StaticClass(), TEXT("GanttCanvas"));
@@ -351,8 +358,10 @@ UBorder* UMASkillAllocationViewer::CreateBottomPanel()
 {
     // Bottom panel background
     UBorder* BottomPanelBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("BottomPanelBorder"));
-    BottomPanelBorder->SetBrushColor(PanelBackgroundColor);
     BottomPanelBorder->SetPadding(FMargin(10.0f));
+    
+    // Apply rounded corners using MARoundedBorderUtils (Requirements 4.2)
+    MARoundedBorderUtils::ApplyRoundedCorners(BottomPanelBorder, PanelBackgroundColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
 
     // Horizontal layout (Status Log | JSON Editor + Buttons)
     UHorizontalBox* BottomHBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("BottomHBox"));
@@ -364,7 +373,7 @@ UBorder* UMASkillAllocationViewer::CreateBottomPanel()
     FSlateChildSize StatusSize(ESlateSizeRule::Fill);
     StatusSize.Value = 0.4f;
     StatusSlot->SetSize(StatusSize);
-    StatusSlot->SetPadding(FMargin(0, 0, 5, 0));
+    StatusSlot->SetPadding(FMargin(0, 0, 15, 0));  // 增加两个框之间的间距
 
     // JSON editor section (right side of bottom panel)
     UVerticalBox* JsonEditorSection = CreateJsonEditorSection();
@@ -441,12 +450,12 @@ UVerticalBox* UMASkillAllocationViewer::CreateStatusLogSection()
     UVerticalBoxSlot* LabelSlot = Section->AddChildToVerticalBox(Label);
     LabelSlot->SetPadding(FMargin(0, 0, 0, 3));
 
-    // Status log text box (read-only) - directly add without ScrollBox
+    // Status log text box (read-only) - wrapped in rounded border
     StatusLogBox = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(UMultiLineEditableTextBox::StaticClass(), TEXT("StatusLogBox"));
     StatusLogBox->SetIsReadOnly(true);
     StatusLogBox->SetText(FText::GetEmpty());
     
-    // 设置文本样式：纯黑色，字号 12
+    // 设置文本样式：纯黑色，字号 12，透明背景
     FEditableTextBoxStyle StatusLogStyle;
     FSlateColor BlackColor = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
     StatusLogStyle.SetForegroundColor(BlackColor);
@@ -455,10 +464,29 @@ UVerticalBox* UMASkillAllocationViewer::CreateStatusLogSection()
     StatusLogStyle.TextStyle.ColorAndOpacity = BlackColor;
     FSlateFontInfo StatusLogFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
     StatusLogStyle.SetFont(StatusLogFont);
+    
+    // 设置透明背景，让外层圆角 Border 的背景显示出来
+    FSlateBrush TransparentBrush1;
+    TransparentBrush1.TintColor = FSlateColor(FLinearColor::Transparent);
+    StatusLogStyle.SetBackgroundImageNormal(TransparentBrush1);
+    StatusLogStyle.SetBackgroundImageHovered(TransparentBrush1);
+    StatusLogStyle.SetBackgroundImageFocused(TransparentBrush1);
+    StatusLogStyle.SetBackgroundImageReadOnly(TransparentBrush1);
+    
     StatusLogBox->WidgetStyle = StatusLogStyle;
     
-    // Add directly to section - let it fill available space
-    UVerticalBoxSlot* BoxSlot = Section->AddChildToVerticalBox(StatusLogBox);
+    // 创建圆角 Border 包装文本框
+    UBorder* StatusLogBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("StatusLogBorder"));
+    StatusLogBorder->SetPadding(FMargin(8.0f, 4.0f));
+    
+    // 应用圆角效果 - 只读文本框使用深色背景
+    FLinearColor StatusLogBgColor = FLinearColor(0.85f, 0.85f, 0.85f, 1.0f);
+    MARoundedBorderUtils::ApplyRoundedCorners(StatusLogBorder, StatusLogBgColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
+    
+    StatusLogBorder->AddChild(StatusLogBox);
+    
+    // Add border to section - let it fill available space
+    UVerticalBoxSlot* BoxSlot = Section->AddChildToVerticalBox(StatusLogBorder);
     BoxSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 
     return Section;
@@ -478,22 +506,41 @@ UVerticalBox* UMASkillAllocationViewer::CreateJsonEditorSection()
     UVerticalBoxSlot* LabelSlot = Section->AddChildToVerticalBox(Label);
     LabelSlot->SetPadding(FMargin(0, 0, 0, 3));
 
-    // JSON editor text box (editable)
+    // JSON editor text box (editable) - wrapped in rounded border
     JsonEditorBox = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(UMultiLineEditableTextBox::StaticClass(), TEXT("JsonEditorBox"));
     JsonEditorBox->SetIsReadOnly(false);
     JsonEditorBox->SetText(FText::FromString(TEXT("{\n  \"name\": \"\",\n  \"description\": \"\",\n  \"data\": {}\n}")));
     
-    // 设置文本样式：纯黑色，字号 12
+    // 设置文本样式：纯黑色，字号 12，透明背景
     FEditableTextBoxStyle JsonEditorStyle;
     FSlateColor BlackColor2 = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
     JsonEditorStyle.SetForegroundColor(BlackColor2);
     JsonEditorStyle.SetFocusedForegroundColor(BlackColor2);
     FSlateFontInfo JsonEditorFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
     JsonEditorStyle.SetFont(JsonEditorFont);
+    
+    // 设置透明背景，让外层圆角 Border 的背景显示出来
+    FSlateBrush TransparentBrush2;
+    TransparentBrush2.TintColor = FSlateColor(FLinearColor::Transparent);
+    JsonEditorStyle.SetBackgroundImageNormal(TransparentBrush2);
+    JsonEditorStyle.SetBackgroundImageHovered(TransparentBrush2);
+    JsonEditorStyle.SetBackgroundImageFocused(TransparentBrush2);
+    JsonEditorStyle.SetBackgroundImageReadOnly(TransparentBrush2);
+    
     JsonEditorBox->WidgetStyle = JsonEditorStyle;
     
-    // No SizeBox - let it fill available space
-    UVerticalBoxSlot* BoxSlot = Section->AddChildToVerticalBox(JsonEditorBox);
+    // 创建圆角 Border 包装文本框
+    UBorder* JsonEditorBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("JsonEditorBorder"));
+    JsonEditorBorder->SetPadding(FMargin(8.0f, 4.0f));
+    
+    // 应用圆角效果 - 可编辑文本框使用白色背景
+    FLinearColor JsonEditorBgColor = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    MARoundedBorderUtils::ApplyRoundedCorners(JsonEditorBorder, JsonEditorBgColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
+    
+    JsonEditorBorder->AddChild(JsonEditorBox);
+    
+    // Add border to section - let it fill available space
+    UVerticalBoxSlot* BoxSlot = Section->AddChildToVerticalBox(JsonEditorBorder);
     BoxSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
     BoxSlot->SetPadding(FMargin(0, 0, 0, 5));
 
@@ -501,7 +548,7 @@ UVerticalBox* UMASkillAllocationViewer::CreateJsonEditorSection()
     UHorizontalBox* ButtonRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("ButtonRow"));
     UVerticalBoxSlot* ButtonRowSlot = Section->AddChildToVerticalBox(ButtonRow);
     ButtonRowSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
-    ButtonRowSlot->SetHorizontalAlignment(HAlign_Left);
+    ButtonRowSlot->SetHorizontalAlignment(HAlign_Right);  // 按钮靠右对齐
 
     // "Update Skill List" button - font size 14
     UpdateButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("UpdateButton"));
@@ -516,18 +563,13 @@ UVerticalBox* UMASkillAllocationViewer::CreateJsonEditorSection()
     UHorizontalBoxSlot* UpdateButtonSlot = ButtonRow->AddChildToHorizontalBox(UpdateButton);
     UpdateButtonSlot->SetPadding(FMargin(0, 0, 10, 0));
 
-    // "Start Executing" button - font size 14
-    StartExecuteButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("StartExecuteButton"));
+    // "Save" button - 黄色保存按钮，使用 MAStyledButton
+    SaveButton = WidgetTree->ConstructWidget<UMAStyledButton>(UMAStyledButton::StaticClass(), TEXT("SaveButton"));
+    SaveButton->SetButtonText(FText::FromString(TEXT("Save")));
+    SaveButton->SetButtonStyle(EMAButtonStyle::Warning);
 
-    UTextBlock* StartButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("StartButtonText"));
-    StartButtonText->SetText(FText::FromString(TEXT("Start Executing")));
-    StartButtonText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
-    FSlateFontInfo StartBtnFont = FCoreStyle::GetDefaultFontStyle("Regular", 14);
-    StartButtonText->SetFont(StartBtnFont);
-    StartExecuteButton->AddChild(StartButtonText);
-
-    UHorizontalBoxSlot* StartButtonSlot = ButtonRow->AddChildToHorizontalBox(StartExecuteButton);
-    StartButtonSlot->SetPadding(FMargin(0, 0, 0, 0));
+    UHorizontalBoxSlot* SaveButtonSlot = ButtonRow->AddChildToHorizontalBox(SaveButton);
+    SaveButtonSlot->SetPadding(FMargin(0, 0, 0, 0));
 
     // Reset button removed - no functionality implemented
 
@@ -876,6 +918,69 @@ void UMASkillAllocationViewer::OnStartExecuteButtonClicked()
 {
     UE_LOG(LogMASkillAllocationViewer, Log, TEXT("StartExecuteButton clicked"));
     StartExecution();
+}
+
+void UMASkillAllocationViewer::OnSaveButtonClicked()
+{
+    UE_LOG(LogMASkillAllocationViewer, Log, TEXT("SaveButton clicked"));
+    SaveAndNavigateToModal();
+}
+
+void UMASkillAllocationViewer::SaveAndNavigateToModal()
+{
+    UE_LOG(LogMASkillAllocationViewer, Log, TEXT("SaveAndNavigateToModal: Saving data and navigating to modal"));
+    
+    // 1. 保存当前数据到 TempDataManager
+    if (AllocationModel)
+    {
+        FMASkillAllocationData CurrentData = AllocationModel->GetWorkingData();
+        
+        if (UGameInstance* GameInstance = UGameplayStatics::GetGameInstance(GetWorld()))
+        {
+            if (UMATempDataManager* TempDataMgr = GameInstance->GetSubsystem<UMATempDataManager>())
+            {
+                TempDataMgr->SaveSkillList(CurrentData);
+                AppendStatusLog(TEXT("[保存] 技能列表已保存"));
+                UE_LOG(LogMASkillAllocationViewer, Log, TEXT("SaveAndNavigateToModal: Skill list saved to TempDataManager"));
+            }
+            else
+            {
+                UE_LOG(LogMASkillAllocationViewer, Error, TEXT("SaveAndNavigateToModal: TempDataManager not found"));
+                AppendStatusLog(TEXT("[错误] 无法保存数据：TempDataManager 不可用"));
+                return;
+            }
+        }
+        else
+        {
+            UE_LOG(LogMASkillAllocationViewer, Error, TEXT("SaveAndNavigateToModal: GameInstance not found"));
+            AppendStatusLog(TEXT("[错误] 无法保存数据：GameInstance 不可用"));
+            return;
+        }
+    }
+    
+    // 2. 导航到 SkillListModal (通过 MAHUD 获取 UIManager)
+    APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
+    if (PC)
+    {
+        if (AMAHUD* HUD = Cast<AMAHUD>(PC->GetHUD()))
+        {
+            if (UMAUIManager* UIManager = HUD->GetUIManager())
+            {
+                UIManager->NavigateFromViewerToSkillListModal();
+                UE_LOG(LogMASkillAllocationViewer, Log, TEXT("SaveAndNavigateToModal: Navigation to SkillListModal initiated"));
+            }
+            else
+            {
+                UE_LOG(LogMASkillAllocationViewer, Error, TEXT("SaveAndNavigateToModal: UIManager not found"));
+                AppendStatusLog(TEXT("[错误] 无法导航：UIManager 不可用"));
+            }
+        }
+        else
+        {
+            UE_LOG(LogMASkillAllocationViewer, Error, TEXT("SaveAndNavigateToModal: MAHUD not found"));
+            AppendStatusLog(TEXT("[错误] 无法导航：HUD 不可用"));
+        }
+    }
 }
 
 void UMASkillAllocationViewer::OnResetButtonClicked()

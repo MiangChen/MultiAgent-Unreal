@@ -8,6 +8,11 @@
 #include "../../Core/Config/MAConfigManager.h"
 #include "../../Core/Comm/MACommSubsystem.h"
 #include "../../Core/Manager/MATempDataManager.h"
+#include "../Core/MARoundedBorderUtils.h"
+#include "../Components/MAStyledButton.h"
+#include "../Core/MAUIManager.h"
+#include "../HUD/MAHUD.h"
+#include "Kismet/GameplayStatics.h"
 #include "Components/MultiLineEditableTextBox.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
@@ -75,11 +80,18 @@ void UMATaskPlannerWidget::NativeConstruct()
         UE_LOG(LogMATaskPlanner, Log, TEXT("SendCommandButton event bound"));
     }
     
-    // Bind submit task graph button event
+    // Bind submit task graph button event (deprecated)
     if (SubmitTaskGraphButton && !SubmitTaskGraphButton->OnClicked.IsAlreadyBound(this, &UMATaskPlannerWidget::OnSubmitTaskGraphButtonClicked))
     {
         SubmitTaskGraphButton->OnClicked.AddDynamic(this, &UMATaskPlannerWidget::OnSubmitTaskGraphButtonClicked);
-        UE_LOG(LogMATaskPlanner, Log, TEXT("SubmitTaskGraphButton event bound"));
+        UE_LOG(LogMATaskPlanner, Log, TEXT("SubmitTaskGraphButton event bound (deprecated)"));
+    }
+
+    // Bind save button event
+    if (SaveButton && !SaveButton->OnClicked.IsAlreadyBound(this, &UMATaskPlannerWidget::OnSaveButtonClicked))
+    {
+        SaveButton->OnClicked.AddDynamic(this, &UMATaskPlannerWidget::OnSaveButtonClicked);
+        UE_LOG(LogMATaskPlanner, Log, TEXT("SaveButton event bound"));
     }
 
     // Bind close button event
@@ -215,16 +227,10 @@ void UMATaskPlannerWidget::BuildUI()
 
     // Create main background Border - windowed mode (80% width, 85% height, centered)
     UBorder* MainBackground = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("MainBackground"));
-    MainBackground->SetBrushColor(BackgroundColor);
     MainBackground->SetPadding(FMargin(10.0f));
     
-    // Apply rounded corners using brush
-    FSlateBrush RoundedBrush;
-    RoundedBrush.DrawAs = ESlateBrushDrawType::RoundedBox;
-    RoundedBrush.TintColor = FSlateColor(BackgroundColor);
-    RoundedBrush.OutlineSettings.CornerRadii = FVector4(12.0f, 12.0f, 12.0f, 12.0f);
-    RoundedBrush.OutlineSettings.RoundingType = ESlateBrushRoundingType::FixedRadius;
-    MainBackground->SetBrush(RoundedBrush);
+    // Apply rounded corners using MARoundedBorderUtils (Requirements 4.1)
+    MARoundedBorderUtils::ApplyRoundedCorners(MainBackground, BackgroundColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
     
     UCanvasPanelSlot* MainSlot = RootCanvas->AddChildToCanvas(MainBackground);
     // Windowed mode: centered with 80% width and 85% height (Requirements 6.7, 6.8)
@@ -329,8 +335,10 @@ UBorder* UMATaskPlannerWidget::CreateLeftPanel()
 {
     // Left panel background
     UBorder* LeftPanelBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("LeftPanelBorder"));
-    LeftPanelBorder->SetBrushColor(PanelBackgroundColor);
     LeftPanelBorder->SetPadding(FMargin(10.0f));
+    
+    // Apply rounded corners using MARoundedBorderUtils (Requirements 4.1)
+    MARoundedBorderUtils::ApplyRoundedCorners(LeftPanelBorder, PanelBackgroundColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
 
     // Vertical layout
     UVerticalBox* LeftVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("LeftVBox"));
@@ -376,12 +384,12 @@ UVerticalBox* UMATaskPlannerWidget::CreateStatusLogSection()
     UVerticalBoxSlot* LabelSlot = Section->AddChildToVerticalBox(Label);
     LabelSlot->SetPadding(FMargin(0, 0, 0, 3));
 
-    // Status log text box (read-only) - directly add without ScrollBox
+    // Status log text box (read-only) - wrapped in rounded border
     StatusLogBox = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(UMultiLineEditableTextBox::StaticClass(), TEXT("StatusLogBox"));
     StatusLogBox->SetIsReadOnly(true);
     StatusLogBox->SetText(FText::GetEmpty());
     
-    // 设置文本样式：纯黑色，字号 12
+    // 设置文本样式：纯黑色，字号 12，透明背景
     FEditableTextBoxStyle StatusLogStyle;
     FSlateColor BlackColor = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
     StatusLogStyle.SetForegroundColor(BlackColor);
@@ -390,10 +398,29 @@ UVerticalBox* UMATaskPlannerWidget::CreateStatusLogSection()
     StatusLogStyle.TextStyle.ColorAndOpacity = BlackColor;
     FSlateFontInfo StatusLogFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
     StatusLogStyle.SetFont(StatusLogFont);
+    
+    // 设置透明背景，让外层圆角 Border 的背景显示出来
+    FSlateBrush StatusLogTransparentBrush;
+    StatusLogTransparentBrush.TintColor = FSlateColor(FLinearColor::Transparent);
+    StatusLogStyle.SetBackgroundImageNormal(StatusLogTransparentBrush);
+    StatusLogStyle.SetBackgroundImageHovered(StatusLogTransparentBrush);
+    StatusLogStyle.SetBackgroundImageFocused(StatusLogTransparentBrush);
+    StatusLogStyle.SetBackgroundImageReadOnly(StatusLogTransparentBrush);
+    
     StatusLogBox->WidgetStyle = StatusLogStyle;
     
-    // Add directly to section - let it fill available space
-    UVerticalBoxSlot* BoxSlot = Section->AddChildToVerticalBox(StatusLogBox);
+    // 创建圆角 Border 包装文本框
+    UBorder* StatusLogBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("StatusLogBorder"));
+    StatusLogBorder->SetPadding(FMargin(8.0f, 4.0f));
+    
+    // 应用圆角效果 - 只读文本框使用浅灰色背景
+    FLinearColor StatusLogBgColor = FLinearColor(0.85f, 0.85f, 0.85f, 1.0f);
+    MARoundedBorderUtils::ApplyRoundedCorners(StatusLogBorder, StatusLogBgColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
+    
+    StatusLogBorder->AddChild(StatusLogBox);
+    
+    // Add border to section - let it fill available space
+    UVerticalBoxSlot* BoxSlot = Section->AddChildToVerticalBox(StatusLogBorder);
     BoxSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 
     return Section;
@@ -413,24 +440,43 @@ UVerticalBox* UMATaskPlannerWidget::CreateJsonEditorSection()
     UVerticalBoxSlot* LabelSlot = Section->AddChildToVerticalBox(Label);
     LabelSlot->SetPadding(FMargin(0, 0, 0, 5));
 
-    // JSON editor text box (editable)
+    // JSON editor text box (editable) - wrapped in rounded border
     JsonEditorBox = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(UMultiLineEditableTextBox::StaticClass(), TEXT("JsonEditorBox"));
     JsonEditorBox->SetIsReadOnly(false);
     JsonEditorBox->SetText(FText::FromString(TEXT("{\n  \"description\": \"\",\n  \"nodes\": [],\n  \"edges\": []\n}")));
     
-    // 设置文本样式：纯黑色，字号 12
+    // 设置文本样式：纯黑色，字号 12，透明背景
     FEditableTextBoxStyle JsonEditorStyle;
     FSlateColor BlackColor2 = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
     JsonEditorStyle.SetForegroundColor(BlackColor2);
     JsonEditorStyle.SetFocusedForegroundColor(BlackColor2);
     FSlateFontInfo JsonEditorFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
     JsonEditorStyle.SetFont(JsonEditorFont);
+    
+    // 设置透明背景，让外层圆角 Border 的背景显示出来
+    FSlateBrush JsonEditorTransparentBrush;
+    JsonEditorTransparentBrush.TintColor = FSlateColor(FLinearColor::Transparent);
+    JsonEditorStyle.SetBackgroundImageNormal(JsonEditorTransparentBrush);
+    JsonEditorStyle.SetBackgroundImageHovered(JsonEditorTransparentBrush);
+    JsonEditorStyle.SetBackgroundImageFocused(JsonEditorTransparentBrush);
+    JsonEditorStyle.SetBackgroundImageReadOnly(JsonEditorTransparentBrush);
+    
     JsonEditorBox->WidgetStyle = JsonEditorStyle;
+    
+    // 创建圆角 Border 包装文本框
+    UBorder* JsonEditorBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("JsonEditorBorder"));
+    JsonEditorBorder->SetPadding(FMargin(8.0f, 4.0f));
+    
+    // 应用圆角效果 - 可编辑文本框使用白色背景
+    FLinearColor JsonEditorBgColor = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    MARoundedBorderUtils::ApplyRoundedCorners(JsonEditorBorder, JsonEditorBgColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
+    
+    JsonEditorBorder->AddChild(JsonEditorBox);
     
     // Use SizeBox to set minimum height
     USizeBox* SizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("JsonEditorSizeBox"));
     SizeBox->SetMinDesiredHeight(200.0f);
-    SizeBox->AddChild(JsonEditorBox);
+    SizeBox->AddChild(JsonEditorBorder);
     
     UVerticalBoxSlot* BoxSlot = Section->AddChildToVerticalBox(SizeBox);
     BoxSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
@@ -453,18 +499,13 @@ UVerticalBox* UMATaskPlannerWidget::CreateJsonEditorSection()
     UpdateBtnSlot->SetPadding(FMargin(0, 0, 10, 0));
     UpdateBtnSlot->SetVerticalAlignment(VAlign_Center);
 
-    // "Submit Graph" button - smaller with font size 14
-    SubmitTaskGraphButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("SubmitTaskGraphButton"));
+    // "Save" button - 黄色保存按钮，使用 MAStyledButton
+    SaveButton = WidgetTree->ConstructWidget<UMAStyledButton>(UMAStyledButton::StaticClass(), TEXT("SaveButton"));
+    SaveButton->SetButtonText(FText::FromString(TEXT("Save")));
+    SaveButton->SetButtonStyle(EMAButtonStyle::Warning);
 
-    UTextBlock* SubmitButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SubmitButtonText"));
-    SubmitButtonText->SetText(FText::FromString(TEXT("Submit Graph")));
-    SubmitButtonText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
-    FSlateFontInfo SubmitBtnFont = FCoreStyle::GetDefaultFontStyle("Regular", 14);
-    SubmitButtonText->SetFont(SubmitBtnFont);
-    SubmitTaskGraphButton->AddChild(SubmitButtonText);
-
-    UHorizontalBoxSlot* SubmitBtnSlot = ButtonRow->AddChildToHorizontalBox(SubmitTaskGraphButton);
-    SubmitBtnSlot->SetVerticalAlignment(VAlign_Center);
+    UHorizontalBoxSlot* SaveBtnSlot = ButtonRow->AddChildToHorizontalBox(SaveButton);
+    SaveBtnSlot->SetVerticalAlignment(VAlign_Center);
 
     UVerticalBoxSlot* ButtonRowSlot = Section->AddChildToVerticalBox(ButtonRow);
     ButtonRowSlot->SetHorizontalAlignment(HAlign_Left);
@@ -486,54 +527,52 @@ UVerticalBox* UMATaskPlannerWidget::CreateUserInputSection()
     UVerticalBoxSlot* LabelSlot = Section->AddChildToVerticalBox(Label);
     LabelSlot->SetPadding(FMargin(0, 0, 0, 5));
 
-    // User input text box (editable)
+    // User input text box (editable) - wrapped in rounded border
     UserInputBox = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(UMultiLineEditableTextBox::StaticClass(), TEXT("UserInputBox"));
     UserInputBox->SetIsReadOnly(false);
     UserInputBox->SetHintText(FText::FromString(TEXT("Enter natural language command, e.g.: Have the robot patrol...")));
     
-    // 设置文本样式：纯黑色，字号 12
+    // 设置文本样式：纯黑色，字号 12，透明背景
     FEditableTextBoxStyle UserInputStyle;
     FSlateColor BlackColor3 = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
     UserInputStyle.SetForegroundColor(BlackColor3);
     UserInputStyle.SetFocusedForegroundColor(BlackColor3);
     FSlateFontInfo UserInputFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
     UserInputStyle.SetFont(UserInputFont);
+    
+    // 设置透明背景，让外层圆角 Border 的背景显示出来
+    FSlateBrush TransparentBrush;
+    TransparentBrush.TintColor = FSlateColor(FLinearColor::Transparent);
+    UserInputStyle.SetBackgroundImageNormal(TransparentBrush);
+    UserInputStyle.SetBackgroundImageHovered(TransparentBrush);
+    UserInputStyle.SetBackgroundImageFocused(TransparentBrush);
+    UserInputStyle.SetBackgroundImageReadOnly(TransparentBrush);
+    
     UserInputBox->WidgetStyle = UserInputStyle;
+    
+    // 创建圆角 Border 包装文本框
+    UBorder* UserInputBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("UserInputBorder"));
+    UserInputBorder->SetPadding(FMargin(8.0f, 4.0f));  // 内边距
+    
+    // 应用圆角效果 - 使用白色背景
+    FLinearColor TextBoxBgColor = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);  // 白色背景
+    MARoundedBorderUtils::ApplyRoundedCorners(UserInputBorder, TextBoxBgColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
+    
+    UserInputBorder->AddChild(UserInputBox);
     
     // Use SizeBox to set minimum height
     USizeBox* SizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("UserInputSizeBox"));
     SizeBox->SetMinDesiredHeight(60.0f);
-    SizeBox->AddChild(UserInputBox);
+    SizeBox->AddChild(UserInputBorder);  // 改为添加 Border 而不是直接添加 TextBox
     
     UVerticalBoxSlot* BoxSlot = Section->AddChildToVerticalBox(SizeBox);
     BoxSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
     BoxSlot->SetPadding(FMargin(0, 0, 0, 8));
 
-    // "Send" button - blue background with white text (like the main UI Send button)
-    SendCommandButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("SendCommandButton"));
-    
-    // Set blue background color
-    FButtonStyle SendButtonStyle;
-    FSlateBrush BlueBrush;
-    BlueBrush.TintColor = FSlateColor(FLinearColor(0.2f, 0.4f, 0.8f, 1.0f));  // Blue color
-    SendButtonStyle.SetNormal(BlueBrush);
-    
-    FSlateBrush BlueHoverBrush;
-    BlueHoverBrush.TintColor = FSlateColor(FLinearColor(0.3f, 0.5f, 0.9f, 1.0f));  // Lighter blue on hover
-    SendButtonStyle.SetHovered(BlueHoverBrush);
-    
-    FSlateBrush BluePressedBrush;
-    BluePressedBrush.TintColor = FSlateColor(FLinearColor(0.15f, 0.35f, 0.7f, 1.0f));  // Darker blue when pressed
-    SendButtonStyle.SetPressed(BluePressedBrush);
-    
-    SendCommandButton->SetStyle(SendButtonStyle);
-    
-    UTextBlock* ButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SendButtonText"));
-    ButtonText->SetText(FText::FromString(TEXT("  Send  ")));
-    ButtonText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
-    FSlateFontInfo SendBtnFont = FCoreStyle::GetDefaultFontStyle("Regular", 14);
-    ButtonText->SetFont(SendBtnFont);
-    SendCommandButton->AddChild(ButtonText);
+    // "Send" button - using MAStyledButton for rounded corners
+    SendCommandButton = WidgetTree->ConstructWidget<UMAStyledButton>(UMAStyledButton::StaticClass(), TEXT("SendCommandButton"));
+    SendCommandButton->SetButtonText(FText::FromString(TEXT("Send")));
+    SendCommandButton->SetButtonStyle(EMAButtonStyle::Primary);
     
     UVerticalBoxSlot* ButtonSlot = Section->AddChildToVerticalBox(SendCommandButton);
     ButtonSlot->SetHorizontalAlignment(HAlign_Left);
@@ -545,8 +584,10 @@ UBorder* UMATaskPlannerWidget::CreateRightPanel()
 {
     // Right panel background
     UBorder* RightPanelBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("RightPanelBorder"));
-    RightPanelBorder->SetBrushColor(PanelBackgroundColor);
     RightPanelBorder->SetPadding(FMargin(10.0f));
+    
+    // Apply rounded corners using MARoundedBorderUtils (Requirements 4.1)
+    MARoundedBorderUtils::ApplyRoundedCorners(RightPanelBorder, PanelBackgroundColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
 
     // Horizontal layout (canvas + toolbar)
     UHorizontalBox* RightHBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("RightHBox"));
@@ -790,6 +831,70 @@ void UMATaskPlannerWidget::OnSubmitTaskGraphButtonClicked()
         Data.Nodes.Num(), Data.Edges.Num()));
 
     UE_LOG(LogMATaskPlanner, Log, TEXT("Task graph submitted: %s"), *TaskGraphJson);
+}
+
+void UMATaskPlannerWidget::OnSaveButtonClicked()
+{
+    UE_LOG(LogMATaskPlanner, Log, TEXT("SaveButton clicked"));
+    SaveAndNavigateToModal();
+}
+
+void UMATaskPlannerWidget::SaveAndNavigateToModal()
+{
+    UE_LOG(LogMATaskPlanner, Log, TEXT("SaveAndNavigateToModal: Saving data and navigating to modal"));
+    
+    // 1. 保存当前数据到 TempDataManager
+    if (GraphModel)
+    {
+        FMATaskGraphData CurrentData = GraphModel->GetWorkingData();
+        
+        UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+        if (GameInstance)
+        {
+            if (UMATempDataManager* TempDataMgr = GameInstance->GetSubsystem<UMATempDataManager>())
+            {
+                TempDataMgr->SaveTaskGraph(CurrentData);
+                AppendStatusLog(TEXT("[保存] 任务图已保存"));
+                UE_LOG(LogMATaskPlanner, Log, TEXT("SaveAndNavigateToModal: Task graph saved to TempDataManager"));
+            }
+            else
+            {
+                UE_LOG(LogMATaskPlanner, Error, TEXT("SaveAndNavigateToModal: TempDataManager not found"));
+                AppendStatusLog(TEXT("[错误] 无法保存数据：TempDataManager 不可用"));
+                return;
+            }
+        }
+        else
+        {
+            UE_LOG(LogMATaskPlanner, Error, TEXT("SaveAndNavigateToModal: GameInstance not found"));
+            AppendStatusLog(TEXT("[错误] 无法保存数据：GameInstance 不可用"));
+            return;
+        }
+    }
+    
+    // 2. 导航到 TaskGraphModal (通过 MAHUD 获取 UIManager)
+    APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
+    if (PC)
+    {
+        if (AMAHUD* HUD = Cast<AMAHUD>(PC->GetHUD()))
+        {
+            if (UMAUIManager* UIManager = HUD->GetUIManager())
+            {
+                UIManager->NavigateFromWorkbenchToTaskGraphModal();
+                UE_LOG(LogMATaskPlanner, Log, TEXT("SaveAndNavigateToModal: Navigation to TaskGraphModal initiated"));
+            }
+            else
+            {
+                UE_LOG(LogMATaskPlanner, Error, TEXT("SaveAndNavigateToModal: UIManager not found"));
+                AppendStatusLog(TEXT("[错误] 无法导航：UIManager 不可用"));
+            }
+        }
+        else
+        {
+            UE_LOG(LogMATaskPlanner, Error, TEXT("SaveAndNavigateToModal: MAHUD not found"));
+            AppendStatusLog(TEXT("[错误] 无法导航：HUD 不可用"));
+        }
+    }
 }
 
 void UMATaskPlannerWidget::OnModelDataChanged()

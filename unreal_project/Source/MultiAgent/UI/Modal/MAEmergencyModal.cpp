@@ -4,6 +4,7 @@
 
 #include "MAEmergencyModal.h"
 #include "../Core/MAUITheme.h"
+#include "../Core/MARoundedBorderUtils.h"
 #include "../../Agent/Character/MACharacter.h"
 #include "Components/CanvasPanel.h"
 #include "Components/Border.h"
@@ -436,25 +437,44 @@ UBorder* UMAEmergencyModal::CreateUserResponseArea()
             }
         }
         
-        // 创建用户响应输入框
+        // 创建用户响应输入框 - wrapped in rounded border
         UserResponseInput = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(
             UMultiLineEditableTextBox::StaticClass(), TEXT("UserResponseInput"));
         if (UserResponseInput)
         {
-            ResponseVBox->AddChild(UserResponseInput);
             UserResponseInput->SetHintText(FText::FromString(TEXT("Enter your intervention response here...")));
             UserResponseInput->SetIsReadOnly(false); // 默认可编辑
             
-            // 设置样式：纯黑色，字号 12
+            // 设置样式：纯黑色，字号 12，透明背景
             FEditableTextBoxStyle ResponseStyle;
             FSlateColor BlackColor = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
             ResponseStyle.SetForegroundColor(BlackColor);
             ResponseStyle.SetFocusedForegroundColor(BlackColor);
             FSlateFontInfo ResponseFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
             ResponseStyle.SetFont(ResponseFont);
+            
+            // 设置透明背景
+            FSlateBrush TransparentBrush;
+            TransparentBrush.TintColor = FSlateColor(FLinearColor::Transparent);
+            ResponseStyle.SetBackgroundImageNormal(TransparentBrush);
+            ResponseStyle.SetBackgroundImageHovered(TransparentBrush);
+            ResponseStyle.SetBackgroundImageFocused(TransparentBrush);
+            ResponseStyle.SetBackgroundImageReadOnly(TransparentBrush);
+            
             UserResponseInput->WidgetStyle = ResponseStyle;
             
-            if (UVerticalBoxSlot* InputSlot = Cast<UVerticalBoxSlot>(UserResponseInput->Slot))
+            // 创建圆角 Border 包装文本框
+            UBorder* UserResponseBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("UserResponseBorder"));
+            UserResponseBorder->SetPadding(FMargin(8.0f, 4.0f));
+            
+            // 应用圆角效果 - 可编辑文本框使用白色背景
+            FLinearColor ResponseBgColor = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+            MARoundedBorderUtils::ApplyRoundedCorners(UserResponseBorder, ResponseBgColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
+            
+            UserResponseBorder->AddChild(UserResponseInput);
+            ResponseVBox->AddChild(UserResponseBorder);
+            
+            if (UVerticalBoxSlot* InputSlot = Cast<UVerticalBoxSlot>(UserResponseBorder->Slot))
             {
                 InputSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
             }

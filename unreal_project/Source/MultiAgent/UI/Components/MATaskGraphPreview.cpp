@@ -4,12 +4,14 @@
 
 #include "MATaskGraphPreview.h"
 #include "../Core/MAUITheme.h"
+#include "../Core/MARoundedBorderUtils.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "Components/Border.h"
 #include "Components/TextBlock.h"
 #include "Components/SizeBox.h"
+#include "Styling/SlateTypes.h"
 
 //=============================================================================
 // 日志类别
@@ -132,8 +134,10 @@ void UMATaskGraphPreview::BuildUI()
     {
         return;
     }
-    ContentBorder->SetBrushColor(BackgroundColor);
     ContentBorder->SetPadding(FMargin(8.0f));
+    
+    // 应用圆角效果
+    MARoundedBorderUtils::ApplyRoundedCorners(ContentBorder, BackgroundColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
     
     // 创建垂直布局容器
     UVerticalBox* ContentVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("ContentVBox"));
@@ -411,12 +415,18 @@ void UMATaskGraphPreview::DrawNode(const FMAPreviewNodeRenderData& Node, int32 N
     // 获取状态颜色
     FLinearColor NodeColor = GetStatusColor(Node.Status);
     
-    // 绘制节点背景
+    // 圆角半径
+    const float CornerRadius = 4.0f;
+    
+    // 创建圆角矩形画刷
+    FSlateRoundedBoxBrush RoundedBrush(NodeColor, CornerRadius);
+    
+    // 绘制节点背景 (圆角矩形)
     FSlateDrawElement::MakeBox(
         OutDrawElements,
         LayerId,
         AllottedGeometry.ToPaintGeometry(Node.Size, FSlateLayoutTransform(Node.Position)),
-        FCoreStyle::Get().GetBrush("WhiteBrush"),
+        &RoundedBrush,
         ESlateDrawEffect::None,
         NodeColor
     );
@@ -424,12 +434,13 @@ void UMATaskGraphPreview::DrawNode(const FMAPreviewNodeRenderData& Node, int32 N
     // 如果是悬浮节点，绘制高亮边框
     if (NodeIndex == HoveredNodeIndex)
     {
-        // 绘制高亮叠加层
+        // 绘制高亮叠加层 (圆角矩形)
+        FSlateRoundedBoxBrush HighlightBrush(HoverHighlightColor, CornerRadius);
         FSlateDrawElement::MakeBox(
             OutDrawElements,
             LayerId + 1,
             AllottedGeometry.ToPaintGeometry(Node.Size, FSlateLayoutTransform(Node.Position)),
-            FCoreStyle::Get().GetBrush("WhiteBrush"),
+            &HighlightBrush,
             ESlateDrawEffect::None,
             HoverHighlightColor
         );
@@ -681,6 +692,8 @@ void UMATaskGraphPreview::ApplyTheme(UMAUITheme* InTheme)
     
     if (ContentBorder)
     {
-        ContentBorder->SetBrushColor(BackgroundColor);
+        // 应用圆角效果
+        float CornerRadius = MARoundedBorderUtils::GetCornerRadiusForType(Theme, EMARoundedElementType::Button);
+        MARoundedBorderUtils::ApplyRoundedCorners(ContentBorder, BackgroundColor, CornerRadius);
     }
 }

@@ -3,12 +3,14 @@
 
 #include "MASkillListPreview.h"
 #include "../Core/MAUITheme.h"
+#include "../Core/MARoundedBorderUtils.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "Components/Border.h"
 #include "Components/TextBlock.h"
 #include "Components/SizeBox.h"
+#include "Styling/SlateTypes.h"
 
 //=============================================================================
 // 日志类别
@@ -99,8 +101,10 @@ void UMASkillListPreview::BuildUI()
     {
         return;
     }
-    ContentBorder->SetBrushColor(BackgroundColor);
     ContentBorder->SetPadding(FMargin(8.0f));
+    
+    // 应用圆角效果
+    MARoundedBorderUtils::ApplyRoundedCorners(ContentBorder, BackgroundColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
     
     // 创建垂直布局容器
     UVerticalBox* ContentVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("ContentVBox"));
@@ -416,30 +420,35 @@ void UMASkillListPreview::DrawRobotLabels(const FGeometry& AllottedGeometry, FSl
 
 void UMASkillListPreview::DrawSkillBars(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32 LayerId) const
 {
+    // 圆角半径
+    const float CornerRadius = 4.0f;
+    
     for (int32 i = 0; i < SkillBarRenderData.Num(); ++i)
     {
         const FMAPreviewSkillBarData& Bar = SkillBarRenderData[i];
         
-        // 绘制技能条背景
+        // 绘制技能条背景 (圆角矩形)
         FLinearColor BarColor = GetStatusColor(Bar.Status);
+        FSlateRoundedBoxBrush RoundedBrush(BarColor, CornerRadius);
         
         FSlateDrawElement::MakeBox(
             OutDrawElements,
             LayerId,
             AllottedGeometry.ToPaintGeometry(Bar.Size, FSlateLayoutTransform(Bar.Position)),
-            FCoreStyle::Get().GetBrush("WhiteBrush"),
+            &RoundedBrush,
             ESlateDrawEffect::None,
             BarColor
         );
         
-        // 如果是悬浮的技能条，绘制高亮
+        // 如果是悬浮的技能条，绘制高亮 (圆角矩形)
         if (i == HoveredBarIndex)
         {
+            FSlateRoundedBoxBrush HighlightBrush(HoverHighlightColor, CornerRadius);
             FSlateDrawElement::MakeBox(
                 OutDrawElements,
                 LayerId + 1,
                 AllottedGeometry.ToPaintGeometry(Bar.Size, FSlateLayoutTransform(Bar.Position)),
-                FCoreStyle::Get().GetBrush("WhiteBrush"),
+                &HighlightBrush,
                 ESlateDrawEffect::None,
                 HoverHighlightColor
             );
@@ -674,6 +683,8 @@ void UMASkillListPreview::ApplyTheme(UMAUITheme* InTheme)
     
     if (ContentBorder)
     {
-        ContentBorder->SetBrushColor(BackgroundColor);
+        // 应用圆角效果
+        float CornerRadius = MARoundedBorderUtils::GetCornerRadiusForType(Theme, EMARoundedElementType::Button);
+        MARoundedBorderUtils::ApplyRoundedCorners(ContentBorder, BackgroundColor, CornerRadius);
     }
 }

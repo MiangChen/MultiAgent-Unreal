@@ -58,6 +58,9 @@ public class MultiAgent : ModuleRules
             Path.Combine(ModuleDirectory, "Input"),
             Path.Combine(ModuleDirectory, "Environment"),
             Path.Combine(ModuleDirectory, "UI"),
+            Path.Combine(ModuleDirectory, "UI/Core"),
+            Path.Combine(ModuleDirectory, "UI/Components"),
+            Path.Combine(ModuleDirectory, "UI/Modal"),
             // Agent 相关
             Path.Combine(ModuleDirectory, "Agent"),
             Path.Combine(ModuleDirectory, "Agent/Character"),

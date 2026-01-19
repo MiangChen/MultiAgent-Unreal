@@ -7,6 +7,7 @@
 #include "Components/CanvasPanel.h"
 #include "Blueprint/WidgetTree.h"
 #include "Rendering/DrawElements.h"
+#include "Styling/SlateTypes.h"
 
 DEFINE_LOG_CATEGORY(LogMAGanttCanvas);
 
@@ -683,6 +684,12 @@ int32 UMAGanttCanvas::NativePaint(const FPaintArgs& Args, const FGeometry& Allot
                                    const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements,
                                    int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
+    // 检查父 Widget 是否可见，如果不可见则不绘制
+    if (!IsVisible() || GetVisibility() == ESlateVisibility::Collapsed || GetVisibility() == ESlateVisibility::Hidden)
+    {
+        return LayerId;
+    }
+
     // 先绘制子 Widget
     int32 MaxLayerId = Super::NativePaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, 
                                           LayerId, InWidgetStyle, bParentEnabled);
@@ -838,6 +845,9 @@ void UMAGanttCanvas::DrawRobotLabels(const FGeometry& AllottedGeometry, FSlateWi
 
 void UMAGanttCanvas::DrawSkillBars(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32 LayerId) const
 {
+    // 圆角半径
+    const float CornerRadius = 6.0f;
+    
     // 绘制所有技能条
     for (const FMASkillBarRenderData& RenderData : SkillBarRenderData)
     {
@@ -851,12 +861,13 @@ void UMAGanttCanvas::DrawSkillBars(const FGeometry& AllottedGeometry, FSlateWind
             continue;
         }
         
-        // 绘制技能条矩形 - ToPaintGeometry(LocalSize, LayoutTransform)
+        // 绘制技能条圆角矩形
+        FSlateRoundedBoxBrush RoundedBrush(RenderData.Color, CornerRadius);
         FSlateDrawElement::MakeBox(
             OutDrawElements,
             LayerId,
             AllottedGeometry.ToPaintGeometry(FVector2f(RenderData.Size), FSlateLayoutTransform(FVector2f(RenderData.Position))),
-            FCoreStyle::Get().GetBrush("WhiteBrush"),
+            &RoundedBrush,
             ESlateDrawEffect::None,
             RenderData.Color
         );
@@ -943,12 +954,16 @@ void UMAGanttCanvas::DrawDragPreview(const FGeometry& AllottedGeometry, FSlateWi
         return;
     }
 
-    // 绘制半透明技能块预览矩形 (Requirements 1.2)
+    // 圆角半径
+    const float CornerRadius = 6.0f;
+
+    // 绘制半透明技能块预览圆角矩形 (Requirements 1.2)
+    FSlateRoundedBoxBrush RoundedBrush(DragPreview.Color, CornerRadius);
     FSlateDrawElement::MakeBox(
         OutDrawElements,
         LayerId,
         AllottedGeometry.ToPaintGeometry(FVector2f(DragPreview.Size), FSlateLayoutTransform(FVector2f(DragPreview.Position))),
-        FCoreStyle::Get().GetBrush("WhiteBrush"),
+        &RoundedBrush,
         ESlateDrawEffect::None,
         DragPreview.Color
     );

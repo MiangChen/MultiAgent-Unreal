@@ -3,6 +3,7 @@
 
 #include "MANotificationWidget.h"
 #include "../Core/MAUITheme.h"
+#include "../Core/MARoundedBorderUtils.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
 #include "Components/TextBlock.h"
@@ -34,10 +35,24 @@ void UMANotificationWidget::ShowNotification(EMANotificationType Type)
         return;
     }
 
-    // 如果已经在显示相同类型的通知，忽略
-    if (bIsVisible && CurrentType == Type && !bIsAnimating)
+    // 如果已经在显示相同类型的通知且不在动画中，忽略
+    if (bIsVisible && CurrentType == Type && !bIsAnimating && bIsShowing)
     {
+        UE_LOG(LogTemp, Log, TEXT("[Notification] Ignoring duplicate notification type: %d (already showing)"), static_cast<int32>(Type));
         return;
+    }
+
+    // 如果正在隐藏动画中，立即停止并重新开始显示动画
+    if (bIsAnimating && !bIsShowing)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[Notification] Interrupting hide animation to show new notification"));
+        // 不需要重置位置，从当前位置开始显示动画
+    }
+    else
+    {
+        // 设置初始动画状态
+        CurrentOffsetY = AnimStartOffsetY;
+        CurrentOpacity = 0.0f;
     }
 
     CurrentType = Type;
@@ -45,10 +60,6 @@ void UMANotificationWidget::ShowNotification(EMANotificationType Type)
     bIsShowing = true;
     bIsAnimating = true;
     CurrentAnimTime = 0.0f;
-
-    // 设置初始动画状态
-    CurrentOffsetY = AnimStartOffsetY;
-    CurrentOpacity = 0.0f;
 
     // 更新内容
     UpdateNotificationContent();
@@ -120,10 +131,15 @@ void UMANotificationWidget::ApplyTheme(UMAUITheme* InTheme)
         return;
     }
 
-    // 应用背景颜色
+    // 应用圆角和背景颜色
     if (NotificationBorder)
     {
         FLinearColor BgColor = GetBackgroundColorForType(CurrentType);
+        MARoundedBorderUtils::ApplyRoundedCornersFromTheme(
+            NotificationBorder,
+            Theme,
+            EMARoundedElementType::Panel
+        );
         NotificationBorder->SetBrushColor(BgColor);
     }
 
@@ -209,7 +225,21 @@ void UMANotificationWidget::BuildUI()
     {
         return;
     }
-    NotificationBorder->SetBrushColor(FLinearColor(0.15f, 0.15f, 0.18f, 0.95f));
+    
+    // 应用圆角效果 - 使用 Panel 类型的圆角半径
+    FLinearColor BgColor = FLinearColor(0.15f, 0.15f, 0.18f, 0.95f);
+    MARoundedBorderUtils::ApplyRoundedCornersFromTheme(
+        NotificationBorder,
+        Theme,
+        EMARoundedElementType::Panel
+    );
+    
+    // 如果主题为空，使用默认颜色
+    if (!Theme)
+    {
+        NotificationBorder->SetBrushColor(BgColor);
+    }
+    
     NotificationBorder->SetPadding(FMargin(NotificationPadding));
 
     // 创建内容垂直布局
@@ -296,10 +326,15 @@ void UMANotificationWidget::UpdateNotificationContent()
         KeyHintText->SetText(FText::FromString(Hint));
     }
 
-    // 更新背景颜色
+    // 更新背景颜色和圆角
     if (NotificationBorder)
     {
         FLinearColor BgColor = GetBackgroundColorForType(CurrentType);
+        MARoundedBorderUtils::ApplyRoundedCornersFromTheme(
+            NotificationBorder,
+            Theme,
+            EMARoundedElementType::Panel
+        );
         NotificationBorder->SetBrushColor(BgColor);
     }
 }

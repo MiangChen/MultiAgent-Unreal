@@ -13,6 +13,7 @@
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Blueprint/WidgetTree.h"
+#include "../Core/MARoundedBorderUtils.h"
 
 UMASetupWidget::UMASetupWidget(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
@@ -95,8 +96,10 @@ void UMASetupWidget::BuildUI()
 
     // 创建主容器 - Border 作为背景
     UBorder* MainBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("MainBorder"));
-    MainBorder->SetBrushColor(PanelBgColor);
     MainBorder->SetPadding(FMargin(0.f));  // 内部处理 padding
+    
+    // 应用圆角效果
+    MARoundedBorderUtils::ApplyRoundedCorners(MainBorder, PanelBgColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
     
     UCanvasPanelSlot* BorderSlot = RootCanvas->AddChildToCanvas(MainBorder);
     BorderSlot->SetAnchors(FAnchors(0.5f, 0.5f, 0.5f, 0.5f));  // 居中
@@ -110,8 +113,11 @@ void UMASetupWidget::BuildUI()
 
     // ========== 标题区域 (带背景) ==========
     UBorder* HeaderBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("HeaderBorder"));
-    HeaderBorder->SetBrushColor(HeaderBgColor);
     HeaderBorder->SetPadding(FMargin(30.f, 20.f));
+    
+    // 应用圆角效果
+    MARoundedBorderUtils::ApplyRoundedCorners(HeaderBorder, HeaderBgColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
+    
     MainVBox->AddChildToVerticalBox(HeaderBorder);
 
     UTextBlock* TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TitleText"));
@@ -130,8 +136,11 @@ void UMASetupWidget::BuildUI()
 
     // ========== 场景选择区域 (带背景框) ==========
     UBorder* SceneSectionBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("SceneSectionBorder"));
-    SceneSectionBorder->SetBrushColor(SectionBgColor);
     SceneSectionBorder->SetPadding(FMargin(25.f, 15.f));
+    
+    // 应用圆角效果
+    MARoundedBorderUtils::ApplyRoundedCorners(SceneSectionBorder, SectionBgColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
+    
     MainVBox->AddChildToVerticalBox(SceneSectionBorder);
 
     UHorizontalBox* SceneRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("SceneRow"));
@@ -187,8 +196,11 @@ void UMASetupWidget::BuildUI()
 
     // ========== 添加智能体区域 (带背景框) ==========
     UBorder* AddSectionBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("AddSectionBorder"));
-    AddSectionBorder->SetBrushColor(SectionBgColor);
     AddSectionBorder->SetPadding(FMargin(25.f, 15.f));
+    
+    // 应用圆角效果
+    MARoundedBorderUtils::ApplyRoundedCorners(AddSectionBorder, SectionBgColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
+    
     MainVBox->AddChildToVerticalBox(AddSectionBorder);
 
     UVerticalBox* AddSectionVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("AddSectionVBox"));
@@ -284,8 +296,11 @@ void UMASetupWidget::BuildUI()
 
     // ========== 智能体列表区域 (带背景框) ==========
     UBorder* ListSectionBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("ListSectionBorder"));
-    ListSectionBorder->SetBrushColor(SectionBgColor);
     ListSectionBorder->SetPadding(FMargin(25.f, 15.f));
+    
+    // 应用圆角效果
+    MARoundedBorderUtils::ApplyRoundedCorners(ListSectionBorder, SectionBgColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
+    
     MainVBox->AddChildToVerticalBox(ListSectionBorder);
 
     UVerticalBox* ListSectionVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("ListSectionVBox"));
@@ -333,8 +348,11 @@ void UMASetupWidget::BuildUI()
 
     // ========== 底部按钮区域 (带背景) ==========
     UBorder* ButtonSectionBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("ButtonSectionBorder"));
-    ButtonSectionBorder->SetBrushColor(HeaderBgColor);
     ButtonSectionBorder->SetPadding(FMargin(25.f, 18.f));
+    
+    // 应用圆角效果
+    MARoundedBorderUtils::ApplyRoundedCorners(ButtonSectionBorder, HeaderBgColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
+    
     MainVBox->AddChildToVerticalBox(ButtonSectionBorder);
 
     UHorizontalBox* ButtonRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("ButtonRow"));

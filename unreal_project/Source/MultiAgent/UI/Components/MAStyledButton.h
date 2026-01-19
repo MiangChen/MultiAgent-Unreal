@@ -7,6 +7,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "../Core/MARoundedBorderUtils.h"
 #include "MAStyledButton.generated.h"
 
 class UButton;
@@ -41,7 +42,10 @@ enum class EMAButtonStyle : uint8
     Danger      UMETA(DisplayName = "Danger"),
     
     /** 成功按钮 - 绿色，用于确认/成功操作 */
-    Success     UMETA(DisplayName = "Success")
+    Success     UMETA(DisplayName = "Success"),
+    
+    /** 警告按钮 - 黄色，用于保存/警告操作 */
+    Warning     UMETA(DisplayName = "Warning")
 };
 
 //=============================================================================
@@ -271,6 +275,9 @@ private:
     /** 正常阴影透明度 */
     static constexpr float NormalShadowOpacity = 0.3f;
 
+    /** 当前按钮圆角半径 */
+    float CurrentCornerRadius = MARoundedBorderUtils::DefaultButtonCornerRadius;
+
     //=========================================================================
     // 内部方法
     //=========================================================================
@@ -292,6 +299,9 @@ private:
 
     /** 获取样式对应的悬停颜色 */
     FLinearColor GetHoverColorForStyle(EMAButtonStyle Style) const;
+
+    /** 应用圆角效果到按钮边框 (Requirements: 5.1, 5.2, 5.3) */
+    void ApplyRoundedCornersToButton();
 
     //=========================================================================
     // 事件回调

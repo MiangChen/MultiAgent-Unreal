@@ -144,13 +144,17 @@ void UMAHUDStateManager::ShowNotification(EMANotificationType Type)
 
     PendingNotification = Type;
 
-    // 转换到通知待处理状态
+    // 转换到通知待处理状态（如果还不是的话）
     if (CurrentState == EMAHUDState::NormalHUD)
     {
         TransitionToState(EMAHUDState::NotificationPending);
     }
+    // 如果已经是 NotificationPending 状态，不需要转换，但仍然需要广播通知
+    // 这样可以更新通知内容（比如从 TaskGraph 通知变为 SkillList 通知）
 
-    // 触发通知委托
+    // 触发通知委托 - 无论状态是否转换，都要广播以更新 UI
+    UE_LOG(LogMAHUDState, Log, TEXT("Broadcasting notification: %s"),
+        *UEnum::GetValueAsString(Type));
     OnNotificationReceived.Broadcast(Type);
 
     UE_LOG(LogMAHUDState, Log, TEXT("Notification shown: %s"),

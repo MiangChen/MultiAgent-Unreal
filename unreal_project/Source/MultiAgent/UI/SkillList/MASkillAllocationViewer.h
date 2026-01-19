@@ -21,6 +21,7 @@ class UHorizontalBox;
 class UBorder;
 class USizeBox;
 class UScrollBox;
+class UMAStyledButton;
 
 //=============================================================================
 // 委托声明
@@ -202,6 +203,13 @@ protected:
     UFUNCTION()
     void OnStartExecuteButtonClicked();
 
+    /** "保存" 按钮点击回调 */
+    UFUNCTION()
+    void OnSaveButtonClicked();
+
+    /** 保存数据并导航到 Modal */
+    void SaveAndNavigateToModal();
+
     /** "重置" 按钮点击回调 */
     UFUNCTION()
     void OnResetButtonClicked();
@@ -317,7 +325,11 @@ protected:
     UPROPERTY()
     UButton* UpdateButton;
 
-    /** "开始执行" 按钮 */
+    /** "保存" 按钮 (黄色，保存并返回 Modal) */
+    UPROPERTY()
+    UMAStyledButton* SaveButton;
+
+    /** "开始执行" 按钮 (已废弃，保留以避免编译错误) */
     UPROPERTY()
     UButton* StartExecuteButton;
 

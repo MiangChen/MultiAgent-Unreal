@@ -3,6 +3,7 @@
 
 #include "MAStyledButton.h"
 #include "../Core/MAUITheme.h"
+#include "../Core/MARoundedBorderUtils.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
 #include "Components/Border.h"
@@ -194,8 +195,11 @@ void UMAStyledButton::BuildUI()
     ButtonFont.Size = 14;
     ButtonLabel->SetFont(ButtonFont);
 
-    // 初始化颜色
+    // 初始化颜色和圆角
     UpdateButtonColors();
+    
+    // 应用圆角效果 (Requirements: 5.1)
+    ApplyRoundedCornersToButton();
 
     UE_LOG(LogMAStyledButton, Log, TEXT("BuildUI: Button construction completed"));
 }
@@ -250,9 +254,14 @@ void UMAStyledButton::ApplyTheme(UMAUITheme* InTheme)
     if (!Theme)
     {
         UE_LOG(LogMAStyledButton, Warning, TEXT("ApplyTheme: Theme is null, using default colors"));
+        CurrentCornerRadius = MARoundedBorderUtils::DefaultButtonCornerRadius;
         UpdateButtonColors();
+        ApplyRoundedCornersToButton();
         return;
     }
+
+    // 更新圆角半径 (Requirements: 5.2)
+    CurrentCornerRadius = MARoundedBorderUtils::GetCornerRadiusForType(Theme, EMARoundedElementType::Button);
 
     // 应用字体
     if (ButtonLabel)
@@ -263,8 +272,11 @@ void UMAStyledButton::ApplyTheme(UMAUITheme* InTheme)
 
     // 更新颜色
     UpdateButtonColors();
+    
+    // 应用圆角效果 (Requirements: 5.2)
+    ApplyRoundedCornersToButton();
 
-    UE_LOG(LogMAStyledButton, Log, TEXT("Theme applied to button"));
+    UE_LOG(LogMAStyledButton, Log, TEXT("Theme applied to button with corner radius: %f"), CurrentCornerRadius);
 }
 
 //=============================================================================
@@ -276,10 +288,10 @@ void UMAStyledButton::UpdateButtonColors()
     BaseColor = GetBaseColorForStyle(ButtonStyle);
     HoverColor = GetHoverColorForStyle(ButtonStyle);
 
-    // 应用基础颜色到边框
+    // 应用基础颜色到边框 - 使用圆角画刷 (Requirements: 5.1)
     if (ButtonBorder)
     {
-        ButtonBorder->SetBrushColor(BaseColor);
+        MARoundedBorderUtils::ApplyRoundedCorners(ButtonBorder, BaseColor, CurrentCornerRadius);
     }
 
     // 应用文本颜色
@@ -304,6 +316,8 @@ FLinearColor UMAStyledButton::GetBaseColorForStyle(EMAButtonStyle Style) const
             return Theme->DangerColor;
         case EMAButtonStyle::Success:
             return Theme->SuccessColor;
+        case EMAButtonStyle::Warning:
+            return Theme->WarningColor;
         default:
             return Theme->PrimaryColor;
         }
@@ -320,6 +334,8 @@ FLinearColor UMAStyledButton::GetBaseColorForStyle(EMAButtonStyle Style) const
         return FLinearColor(1.0f, 0.3f, 0.3f, 1.0f);    // 红色
     case EMAButtonStyle::Success:
         return FLinearColor(0.3f, 0.8f, 0.4f, 1.0f);    // 绿色
+    case EMAButtonStyle::Warning:
+        return FLinearColor(1.0f, 0.8f, 0.2f, 1.0f);    // 黄色
     default:
         return FLinearColor(0.2f, 0.6f, 1.0f, 1.0f);
     }
@@ -338,6 +354,24 @@ FLinearColor UMAStyledButton::GetHoverColorForStyle(EMAButtonStyle Style) const
         FMath::Min(Base.B * BrightnessMultiplier, 1.0f),
         Base.A
     );
+}
+
+//=============================================================================
+// 圆角应用 (Requirements: 5.1, 5.2, 5.3)
+//=============================================================================
+
+void UMAStyledButton::ApplyRoundedCornersToButton()
+{
+    if (!ButtonBorder)
+    {
+        return;
+    }
+    
+    // 使用 MARoundedBorderUtils 应用圆角效果
+    // 这确保了悬停和按下状态都保持圆角
+    MARoundedBorderUtils::ApplyRoundedCorners(ButtonBorder, BaseColor, CurrentCornerRadius);
+    
+    UE_LOG(LogMAStyledButton, Verbose, TEXT("Applied rounded corners with radius: %f"), CurrentCornerRadius);
 }
 
 
@@ -398,7 +432,7 @@ void UMAStyledButton::ApplyAnimationState()
     Transform.Scale = FVector2D(1.0f, 1.0f);  // 缩放已通过 SetRenderScale 应用
     RootSizeBox->SetRenderTransform(Transform);
 
-    // 应用颜色色调到边框
+    // 应用颜色色调到边框 - 使用圆角画刷保持圆角效果 (Requirements: 5.3)
     if (ButtonBorder)
     {
         // 混合基础颜色和色调
@@ -414,7 +448,9 @@ void UMAStyledButton::ApplyAnimationState()
         
         // 应用色调
         FinalColor = FinalColor * CurrentAnimState.TintColor;
-        ButtonBorder->SetBrushColor(FinalColor);
+        
+        // 使用 MARoundedBorderUtils 应用圆角，确保悬停和按下状态保持圆角 (Requirements: 5.3)
+        MARoundedBorderUtils::ApplyRoundedCorners(ButtonBorder, FinalColor, CurrentCornerRadius);
     }
 
     // 应用阴影效果 (通过边框的描边或阴影)

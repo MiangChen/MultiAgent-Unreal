@@ -2,6 +2,7 @@
 // Direct Control 指示器 Widget 实现
 
 #include "MADirectControlIndicator.h"
+#include "../Core/MARoundedBorderUtils.h"
 #include "Components/TextBlock.h"
 #include "Components/Border.h"
 #include "Components/CanvasPanel.h"
@@ -67,9 +68,17 @@ void UMADirectControlIndicator::BuildUI()
     }
     WidgetTree->RootWidget = RootCanvas;
 
-    // 创建背景 Border - 半透明深色背景
+    // 创建背景 Border - 半透明深色背景，带圆角
     BackgroundBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("BackgroundBorder"));
-    BackgroundBorder->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.7f));
+    
+    // 应用圆角效果 - 使用 Panel 类型的圆角半径
+    FLinearColor BgColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.7f);
+    MARoundedBorderUtils::ApplyRoundedCorners(
+        BackgroundBorder,
+        BgColor,
+        MARoundedBorderUtils::DefaultPanelCornerRadius
+    );
+    
     BackgroundBorder->SetPadding(FMargin(15.0f, 8.0f, 15.0f, 8.0f));
     
     UCanvasPanelSlot* BorderSlot = RootCanvas->AddChildToCanvas(BackgroundBorder);

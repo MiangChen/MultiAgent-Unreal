@@ -230,6 +230,20 @@ public:
     bool IsAnyFullscreenWidgetVisible() const;
 
     /**
+     * 从 SkillAllocationViewer 导航到 SkillListModal
+     * 隐藏 Viewer 并显示 Modal，从 TempDataManager 加载数据
+     */
+    UFUNCTION(BlueprintCallable, Category = "UI|Navigation")
+    void NavigateFromViewerToSkillListModal();
+
+    /**
+     * 从 TaskPlannerWidget 导航到 TaskGraphModal
+     * 隐藏 Workbench 并显示 Modal，从 TempDataManager 加载数据
+     */
+    UFUNCTION(BlueprintCallable, Category = "UI|Navigation")
+    void NavigateFromWorkbenchToTaskGraphModal();
+
+    /**
      * 设置 Widget 焦点
      * @param Type Widget 类型
      */
@@ -454,6 +468,14 @@ private:
      */
     UFUNCTION()
     void OnModalEditRequested(EMAModalType ModalType);
+
+    /**
+     * 模态隐藏动画完成回调
+     * 当用户点击 ❌ 关闭按钮后，动画完成时调用
+     * 用于同步 HUDStateManager 状态
+     */
+    UFUNCTION()
+    void OnModalHideAnimationComplete();
 
     /**
      * 显示指定类型的模态窗口

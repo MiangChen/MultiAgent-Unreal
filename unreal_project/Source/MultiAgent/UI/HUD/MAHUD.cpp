@@ -16,6 +16,7 @@
 #include "../TaskGraph/MATaskPlannerWidget.h"
 #include "../SkillList/MASkillAllocationViewer.h"
 #include "../Components/MADirectControlIndicator.h"
+#include "../Components/MARightSidebarWidget.h"
 #include "../../Core/Types/MATaskGraphTypes.h"
 #include "../Mode/MAEmergencyWidget.h"
 #include "../Mode/MAModifyWidget.h"
@@ -556,6 +557,21 @@ void AMAHUD::BindWidgetDelegates()
             SimpleMainWidget->OnCommandSubmitted.AddDynamic(this, &AMAHUD::OnSimpleCommandSubmitted);
         }
         UE_LOG(LogMAHUD, Log, TEXT("BindWidgetDelegates: Bound SimpleMainWidget delegates"));
+    }
+
+    // 绑定 RightSidebarWidget 委托 (Command Input in sidebar)
+    UMAMainHUDWidget* MainHUDWidget = UIManager->GetMainHUDWidget();
+    if (MainHUDWidget)
+    {
+        UMARightSidebarWidget* RightSidebar = MainHUDWidget->GetRightSidebar();
+        if (RightSidebar)
+        {
+            if (!RightSidebar->OnCommandSubmitted.IsAlreadyBound(this, &AMAHUD::OnSimpleCommandSubmitted))
+            {
+                RightSidebar->OnCommandSubmitted.AddDynamic(this, &AMAHUD::OnSimpleCommandSubmitted);
+            }
+            UE_LOG(LogMAHUD, Log, TEXT("BindWidgetDelegates: Bound RightSidebarWidget delegates"));
+        }
     }
 
     // 绑定 ModifyWidget 委托
@@ -2347,7 +2363,35 @@ void AMAHUD::OnModalRejectedHandler(EMAModalType ModalType)
     UE_LOG(LogMAHUD, Log, TEXT("OnModalRejectedHandler: Modal rejected, type=%s"),
         *UEnum::GetValueAsString(ModalType));
 
-    // 拒绝操作不需要提交到后端，只需恢复状态 (Requirements: 7.2)
+    // 发送拒绝事件到后端
+    UGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+    if (GI)
+    {
+        UMACommSubsystem* CommSubsystem = GI->GetSubsystem<UMACommSubsystem>();
+        if (CommSubsystem)
+        {
+            FString WidgetName;
+            switch (ModalType)
+            {
+            case EMAModalType::TaskGraph:
+                WidgetName = TEXT("TaskGraphModal");
+                break;
+            case EMAModalType::SkillList:
+                WidgetName = TEXT("SkillListModal");
+                break;
+            case EMAModalType::Emergency:
+                WidgetName = TEXT("EmergencyModal");
+                break;
+            default:
+                WidgetName = TEXT("UnknownModal");
+                break;
+            }
+            
+            CommSubsystem->SendButtonEventMessage(WidgetName, TEXT("reject"), TEXT("Reject"));
+            UE_LOG(LogMAHUD, Log, TEXT("OnModalRejectedHandler: Reject event sent to backend for %s"), *WidgetName);
+        }
+    }
+
     // 状态恢复已由 HUDStateManager 处理
 
     // 显示拒绝通知

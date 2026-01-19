@@ -15,6 +15,8 @@
 #include "Components/SizeBox.h"
 #include "Blueprint/WidgetTree.h"
 #include "Framework/Application/SlateApplication.h"
+#include "../Core/MARoundedBorderUtils.h"
+#include "../Core/MAUITheme.h"
 #include "../../Core/Manager/MAEditModeManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMASceneListWidget, Log, All);
@@ -74,8 +76,14 @@ void UMASceneListWidget::BuildUI()
 
     // 创建背景 Border - 位于屏幕左侧
     UBorder* BackgroundBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("BackgroundBorder"));
-    BackgroundBorder->SetBrushColor(FLinearColor(0.02f, 0.02f, 0.08f, 0.9f));  // 深蓝色背景
     BackgroundBorder->SetPadding(FMargin(10.0f));
+
+    // 应用圆角效果 (使用默认主题值)
+    MARoundedBorderUtils::ApplyRoundedCornersFromTheme(
+        BackgroundBorder,
+        nullptr,  // 使用默认主题值
+        EMARoundedElementType::Panel
+    );
 
     UCanvasPanelSlot* BorderSlot = RootCanvas->AddChildToCanvas(BackgroundBorder);
     BorderSlot->SetAnchors(FAnchors(0.0f, 0.0f, 0.0f, 1.0f));  // 左侧锚点，垂直拉伸

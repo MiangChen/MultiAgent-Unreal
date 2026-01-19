@@ -304,20 +304,18 @@ void UMAMainHUDWidget::CreateRightSidebarWidget()
         return;
     }
 
-    // 添加到 Canvas 并设置位置 (右侧)
+    // 添加到 Canvas 并设置位置 (右侧，顶着上下边缘)
     UCanvasPanelSlot* SidebarSlot = RootCanvas->AddChildToCanvas(RightSidebarWidget);
     if (SidebarSlot)
     {
-        // 锚点设置为右上角
+        // 锚点设置为右侧全高度 (从上到下)
         SidebarSlot->SetAnchors(FAnchors(1.0f, 0.0f, 1.0f, 1.0f));
         SidebarSlot->SetAlignment(FVector2D(1.0f, 0.0f));
         
-        // 设置位置 (从右边缘偏移)
-        SidebarSlot->SetPosition(FVector2D(-SidebarRightMargin, SidebarTopMargin));
-        
-        // 设置大小 (宽度固定，高度拉伸)
-        // 使用 Offsets 来设置边距
-        SidebarSlot->SetOffsets(FMargin(0.0f, SidebarTopMargin, SidebarRightMargin, SidebarTopMargin));
+        // 设置 Offsets: 左、上、右、下
+        // 上下都设为 0，让边栏顶着上下边缘
+        // 右边距保持 SidebarRightMargin
+        SidebarSlot->SetOffsets(FMargin(0.0f, 0.0f, SidebarRightMargin, 0.0f));
         SidebarSlot->SetAutoSize(true);
     }
 

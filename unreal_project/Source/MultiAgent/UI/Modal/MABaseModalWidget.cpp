@@ -4,6 +4,7 @@
 #include "MABaseModalWidget.h"
 #include "../Components/MAStyledButton.h"
 #include "../Core/MAUITheme.h"
+#include "../Core/MARoundedBorderUtils.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/Border.h"
@@ -227,9 +228,12 @@ void UMABaseModalWidget::BuildUI()
     {
         ModalSizeBox->AddChild(BackgroundBorder);
         
-        // 设置背景颜色
-        FLinearColor BgColor = Theme ? Theme->BackgroundColor : FLinearColor(0.1f, 0.1f, 0.12f, 0.95f);
-        BackgroundBorder->SetBrushColor(BgColor);
+        // 应用圆角效果 (Requirements: 3.1, 3.2)
+        MARoundedBorderUtils::ApplyRoundedCornersFromTheme(
+            BackgroundBorder, 
+            Theme, 
+            EMARoundedElementType::Panel
+        );
         
         // 设置内边距
         FMargin Padding = Theme ? Theme->ContentPadding : FMargin(20.0f);
@@ -566,10 +570,14 @@ void UMABaseModalWidget::ApplyTheme(UMAUITheme* InTheme)
         return;
     }
     
-    // 应用背景颜色
+    // 应用圆角效果到背景边框 (Requirements: 3.1, 3.3)
     if (BackgroundBorder)
     {
-        BackgroundBorder->SetBrushColor(Theme->BackgroundColor);
+        MARoundedBorderUtils::ApplyRoundedCornersFromTheme(
+            BackgroundBorder, 
+            Theme, 
+            EMARoundedElementType::Panel
+        );
         BackgroundBorder->SetPadding(Theme->ContentPadding);
     }
     

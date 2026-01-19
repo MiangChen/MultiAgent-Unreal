@@ -17,6 +17,8 @@
 #include "Components/ComboBoxString.h"
 #include "Blueprint/WidgetTree.h"
 #include "Framework/Application/SlateApplication.h"
+#include "../Core/MARoundedBorderUtils.h"
+#include "../Core/MAUITheme.h"
 #include "../../Core/Manager/MAEditModeManager.h"
 #include "../../Core/Manager/MASceneGraphManager.h"
 #include "../../Environment/MAPointOfInterest.h"
@@ -218,14 +220,20 @@ void UMAEditWidget::BuildUI()
     // 创建背景 Border - 位于屏幕右侧
     // 使用与 MAModifyWidget 相同的固定尺寸布局，确保 UI 点击不会穿透到场景
     UBorder* BackgroundBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("BackgroundBorder"));
-    BackgroundBorder->SetBrushColor(FLinearColor(0.02f, 0.02f, 0.08f, 0.95f));  // 深蓝色背景
     BackgroundBorder->SetPadding(FMargin(12.0f));
     
+    // 应用圆角效果 (使用默认主题值)
+    MARoundedBorderUtils::ApplyRoundedCornersFromTheme(
+        BackgroundBorder,
+        nullptr,  // 使用默认主题值
+        EMARoundedElementType::Panel
+    );
+    
     UCanvasPanelSlot* BorderSlot = RootCanvas->AddChildToCanvas(BackgroundBorder);
-    // 使用固定位置锚点，位于屏幕左侧
-    BorderSlot->SetAnchors(FAnchors(0.0f, 0.0f, 0.0f, 0.0f));
-    BorderSlot->SetAlignment(FVector2D(0.0f, 0.0f));
-    BorderSlot->SetPosition(FVector2D(20, 60));  // 左边距 20，顶部距离 60
+    // 使用固定位置锚点，位于屏幕左下方
+    BorderSlot->SetAnchors(FAnchors(0.0f, 1.0f, 0.0f, 1.0f));  // 左下角锚点
+    BorderSlot->SetAlignment(FVector2D(0.0f, 1.0f));  // 底部对齐
+    BorderSlot->SetPosition(FVector2D(20, -20));  // 左边距 20，底部距离 20
     BorderSlot->SetSize(FVector2D(380, 600));  // 固定尺寸：宽度 380，高度 600
     BorderSlot->SetAutoSize(false);
 
@@ -253,6 +261,7 @@ void UMAEditWidget::BuildUI()
     HintFont.Size = 11;
     HintText->SetFont(HintFont);
     HintText->SetColorAndOpacity(FSlateColor(FLinearColor(0.6f, 0.6f, 0.6f)));
+    HintText->SetAutoWrapText(true);  // 启用自动换行
     
     UVerticalBoxSlot* HintSlot = MainVBox->AddChildToVerticalBox(HintText);
     HintSlot->SetPadding(FMargin(0, 0, 0, 10));
@@ -264,6 +273,7 @@ void UMAEditWidget::BuildUI()
     ErrorFont.Size = 11;
     ErrorText->SetFont(ErrorFont);
     ErrorText->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.3f, 0.3f)));  // 红色
+    ErrorText->SetAutoWrapText(true);  // 启用自动换行
     ErrorText->SetVisibility(ESlateVisibility::Collapsed);
     
     UVerticalBoxSlot* ErrorSlot = MainVBox->AddChildToVerticalBox(ErrorText);
@@ -296,7 +306,7 @@ void UMAEditWidget::BuildUI()
     UVerticalBoxSlot* JsonLabelSlot = ActorOperationBox->AddChildToVerticalBox(JsonLabel);
     JsonLabelSlot->SetPadding(FMargin(0, 0, 0, 4));
 
-    // JSON edit text box
+    // JSON edit text box - wrapped in rounded border
     JsonEditBox = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(UMultiLineEditableTextBox::StaticClass(), TEXT("JsonEditBox"));
     JsonEditBox->SetHintText(FText::FromString(TEXT("Select an Actor to display JSON")));
 
@@ -304,14 +314,33 @@ void UMAEditWidget::BuildUI()
     FSlateColor BlackColor = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
     JsonTextBoxStyle.SetForegroundColor(BlackColor);
     JsonTextBoxStyle.SetFocusedForegroundColor(BlackColor);
-    FSlateFontInfo JsonFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
+    FSlateFontInfo JsonFont = FCoreStyle::GetDefaultFontStyle("Regular", 11);
     JsonTextBoxStyle.SetFont(JsonFont);
+    
+    // 设置透明背景，让外层圆角 Border 的背景显示出来
+    FSlateBrush TransparentBrush1;
+    TransparentBrush1.TintColor = FSlateColor(FLinearColor::Transparent);
+    JsonTextBoxStyle.SetBackgroundImageNormal(TransparentBrush1);
+    JsonTextBoxStyle.SetBackgroundImageHovered(TransparentBrush1);
+    JsonTextBoxStyle.SetBackgroundImageFocused(TransparentBrush1);
+    JsonTextBoxStyle.SetBackgroundImageReadOnly(TransparentBrush1);
+    
     JsonEditBox->WidgetStyle = JsonTextBoxStyle;
+    
+    // 创建圆角 Border 包装文本框
+    UBorder* JsonEditBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("JsonEditBorder"));
+    JsonEditBorder->SetPadding(FMargin(8.0f, 4.0f));
+    
+    // 应用圆角效果 - 可编辑文本框使用白色背景
+    FLinearColor JsonEditBgColor = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    MARoundedBorderUtils::ApplyRoundedCorners(JsonEditBorder, JsonEditBgColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
+    
+    JsonEditBorder->AddChild(JsonEditBox);
     
     USizeBox* JsonEditSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("JsonEditSizeBox"));
     JsonEditSizeBox->SetMinDesiredHeight(150.0f);
     JsonEditSizeBox->SetMaxDesiredHeight(200.0f);
-    JsonEditSizeBox->AddChild(JsonEditBox);
+    JsonEditSizeBox->AddChild(JsonEditBorder);
     
     UVerticalBoxSlot* JsonEditSlot = ActorOperationBox->AddChildToVerticalBox(JsonEditSizeBox);
     JsonEditSlot->SetPadding(FMargin(0, 0, 0, 10));
@@ -325,7 +354,7 @@ void UMAEditWidget::BuildUI()
     ConfirmText->SetText(FText::FromString(TEXT("  Confirm  ")));
     ConfirmText->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
     FSlateFontInfo ConfirmFont = ConfirmText->GetFont();
-    ConfirmFont.Size = 12;
+    ConfirmFont.Size = 14;
     ConfirmText->SetFont(ConfirmFont);
     ConfirmButton->AddChild(ConfirmText);
     
@@ -338,7 +367,7 @@ void UMAEditWidget::BuildUI()
     DeleteText->SetText(FText::FromString(TEXT("  Delete  ")));
     DeleteText->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
     FSlateFontInfo DeleteFont = DeleteText->GetFont();
-    DeleteFont.Size = 12;
+    DeleteFont.Size = 14;
     DeleteText->SetFont(DeleteFont);
     DeleteButton->AddChild(DeleteText);
     
@@ -351,7 +380,7 @@ void UMAEditWidget::BuildUI()
     SetGoalText->SetText(FText::FromString(TEXT(" Set as Goal ")));
     SetGoalText->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
     FSlateFontInfo SetGoalFont = SetGoalText->GetFont();
-    SetGoalFont.Size = 12;
+    SetGoalFont.Size = 14;
     SetGoalText->SetFont(SetGoalFont);
     SetAsGoalButton->AddChild(SetGoalText);
     
@@ -364,7 +393,7 @@ void UMAEditWidget::BuildUI()
     UnsetGoalText->SetText(FText::FromString(TEXT(" Unset Goal ")));
     UnsetGoalText->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
     FSlateFontInfo UnsetGoalFont = UnsetGoalText->GetFont();
-    UnsetGoalFont.Size = 12;
+    UnsetGoalFont.Size = 14;
     UnsetGoalText->SetFont(UnsetGoalFont);
     UnsetAsGoalButton->AddChild(UnsetGoalText);
     
@@ -393,7 +422,7 @@ void UMAEditWidget::BuildUI()
     UVerticalBoxSlot* DescLabelSlot = POIOperationBox->AddChildToVerticalBox(DescLabel);
     DescLabelSlot->SetPadding(FMargin(0, 0, 0, 4));
 
-    // Description input text box
+    // Description input text box - wrapped in rounded border
     DescriptionBox = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(UMultiLineEditableTextBox::StaticClass(), TEXT("DescriptionBox"));
     DescriptionBox->SetHintText(FText::FromString(TEXT("Enter description for Goal/Zone...")));
 
@@ -401,14 +430,33 @@ void UMAEditWidget::BuildUI()
     FSlateColor BlackColor2 = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
     DescTextBoxStyle.SetForegroundColor(BlackColor2);
     DescTextBoxStyle.SetFocusedForegroundColor(BlackColor2);
-    FSlateFontInfo DescFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
+    FSlateFontInfo DescFont = FCoreStyle::GetDefaultFontStyle("Regular", 11);
     DescTextBoxStyle.SetFont(DescFont);
+    
+    // 设置透明背景，让外层圆角 Border 的背景显示出来
+    FSlateBrush TransparentBrush2;
+    TransparentBrush2.TintColor = FSlateColor(FLinearColor::Transparent);
+    DescTextBoxStyle.SetBackgroundImageNormal(TransparentBrush2);
+    DescTextBoxStyle.SetBackgroundImageHovered(TransparentBrush2);
+    DescTextBoxStyle.SetBackgroundImageFocused(TransparentBrush2);
+    DescTextBoxStyle.SetBackgroundImageReadOnly(TransparentBrush2);
+    
     DescriptionBox->WidgetStyle = DescTextBoxStyle;
+    
+    // 创建圆角 Border 包装文本框
+    UBorder* DescriptionBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("DescriptionBorder"));
+    DescriptionBorder->SetPadding(FMargin(8.0f, 4.0f));
+    
+    // 应用圆角效果 - 可编辑文本框使用白色背景
+    FLinearColor DescBgColor = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    MARoundedBorderUtils::ApplyRoundedCorners(DescriptionBorder, DescBgColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
+    
+    DescriptionBorder->AddChild(DescriptionBox);
     
     USizeBox* DescSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("DescSizeBox"));
     DescSizeBox->SetMinDesiredHeight(80.0f);
     DescSizeBox->SetMaxDesiredHeight(100.0f);
-    DescSizeBox->AddChild(DescriptionBox);
+    DescSizeBox->AddChild(DescriptionBorder);
     
     UVerticalBoxSlot* DescSlot = POIOperationBox->AddChildToVerticalBox(DescSizeBox);
     DescSlot->SetPadding(FMargin(0, 0, 0, 10));
@@ -422,7 +470,7 @@ void UMAEditWidget::BuildUI()
     GoalText->SetText(FText::FromString(TEXT(" Create Goal ")));
     GoalText->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
     FSlateFontInfo GoalFont = GoalText->GetFont();
-    GoalFont.Size = 12;
+    GoalFont.Size = 14;
     GoalText->SetFont(GoalFont);
     CreateGoalButton->AddChild(GoalText);
     
@@ -435,7 +483,7 @@ void UMAEditWidget::BuildUI()
     ZoneText->SetText(FText::FromString(TEXT(" Create Zone ")));
     ZoneText->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
     FSlateFontInfo ZoneFont = ZoneText->GetFont();
-    ZoneFont.Size = 12;
+    ZoneFont.Size = 14;
     ZoneText->SetFont(ZoneFont);
     CreateZoneButton->AddChild(ZoneText);
     
@@ -448,7 +496,7 @@ void UMAEditWidget::BuildUI()
     DeletePOIText->SetText(FText::FromString(TEXT(" Delete POI ")));
     DeletePOIText->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
     FSlateFontInfo DeletePOIFont = DeletePOIText->GetFont();
-    DeletePOIFont.Size = 12;
+    DeletePOIFont.Size = 14;
     DeletePOIText->SetFont(DeletePOIFont);
     DeletePOIButton->AddChild(DeletePOIText);
     
@@ -475,7 +523,7 @@ void UMAEditWidget::BuildUI()
     AddActorText->SetText(FText::FromString(TEXT(" Add ")));
     AddActorText->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
     FSlateFontInfo AddActorFont = AddActorText->GetFont();
-    AddActorFont.Size = 12;
+    AddActorFont.Size = 14;
     AddActorText->SetFont(AddActorFont);
     AddActorButton->AddChild(AddActorText);
     

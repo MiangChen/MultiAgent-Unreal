@@ -16,6 +16,7 @@
 #include "Components/CanvasPanelSlot.h"
 #include "Blueprint/WidgetTree.h"
 #include "../../Core/Comm/MACommSubsystem.h"
+#include "../Core/MARoundedBorderUtils.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMASimpleWidget, Log, All);
 
@@ -98,8 +99,10 @@ void UMASimpleMainWidget::BuildUI()
 
     // 创建背景 Border
     UBorder* BackgroundBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("BackgroundBorder"));
-    BackgroundBorder->SetBrushColor(FLinearColor(0.02f, 0.02f, 0.05f, 0.95f));
     BackgroundBorder->SetPadding(FMargin(15.0f));
+    
+    // 应用圆角效果
+    MARoundedBorderUtils::ApplyRoundedCorners(BackgroundBorder, FLinearColor(0.02f, 0.02f, 0.05f, 0.95f), MARoundedBorderUtils::DefaultPanelCornerRadius);
     
     UCanvasPanelSlot* BorderSlot = RootCanvas->AddChildToCanvas(BackgroundBorder);
     // 设置为左上角，固定大小
@@ -167,24 +170,44 @@ void UMASimpleMainWidget::BuildUI()
     UVerticalBoxSlot* LabelSlot = MainVBox->AddChildToVerticalBox(ResultLabel);
     LabelSlot->SetPadding(FMargin(0, 0, 0, 5));
 
-    // Result display box
+    // Result display box - wrapped in rounded border
     ResultTextBox = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(UMultiLineEditableTextBox::StaticClass(), TEXT("ResultTextBox"));
     ResultTextBox->SetIsReadOnly(true);
     ResultTextBox->SetText(FText::FromString(TEXT("Waiting for command input...\n\nTips:\n- Enter any text and press Enter to send\n- System will return simulated response")));
     
-    // 设置样式：纯黑色，字号 12
+    // 设置样式：纯黑色，字号 12，透明背景
     FEditableTextBoxStyle ResultStyle;
     FSlateColor BlackColor = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
     ResultStyle.SetForegroundColor(BlackColor);
     ResultStyle.SetFocusedForegroundColor(BlackColor);
+    ResultStyle.SetReadOnlyForegroundColor(BlackColor);
     FSlateFontInfo ResultFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
     ResultStyle.SetFont(ResultFont);
+    
+    // 设置透明背景，让外层圆角 Border 的背景显示出来
+    FSlateBrush TransparentBrush;
+    TransparentBrush.TintColor = FSlateColor(FLinearColor::Transparent);
+    ResultStyle.SetBackgroundImageNormal(TransparentBrush);
+    ResultStyle.SetBackgroundImageHovered(TransparentBrush);
+    ResultStyle.SetBackgroundImageFocused(TransparentBrush);
+    ResultStyle.SetBackgroundImageReadOnly(TransparentBrush);
+    
     ResultTextBox->WidgetStyle = ResultStyle;
+    
+    // 创建圆角 Border 包装文本框
+    UBorder* ResultTextBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("ResultTextBorder"));
+    ResultTextBorder->SetPadding(FMargin(8.0f, 4.0f));
+    
+    // 应用圆角效果 - 只读文本框使用浅灰色背景
+    FLinearColor ResultBgColor = FLinearColor(0.85f, 0.85f, 0.85f, 1.0f);
+    MARoundedBorderUtils::ApplyRoundedCorners(ResultTextBorder, ResultBgColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
+    
+    ResultTextBorder->AddChild(ResultTextBox);
     
     // 使用 SizeBox 设置最小高度
     USizeBox* ResultSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("ResultSizeBox"));
     ResultSizeBox->SetMinDesiredHeight(150.0f);
-    ResultSizeBox->AddChild(ResultTextBox);
+    ResultSizeBox->AddChild(ResultTextBorder);
     
     UVerticalBoxSlot* ResultSlot = MainVBox->AddChildToVerticalBox(ResultSizeBox);
     ResultSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));

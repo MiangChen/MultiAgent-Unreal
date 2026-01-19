@@ -376,6 +376,37 @@ bool UMAUIManager::HideWidget(EMAWidgetType Type)
     Widget->SetVisibility(ESlateVisibility::Collapsed);
     SetInputModeGameOnly();
 
+    // 如果隐藏的是编辑界面 Widget，需要同步更新 HUDStateManager 状态
+    // 这样可以确保状态机与实际 UI 显示状态一致
+    if (HUDStateManager && HUDStateManager->IsModalActive())
+    {
+        // 检查是否是与当前模态状态关联的编辑界面
+        EMAModalType ActiveModal = HUDStateManager->GetActiveModalType();
+        bool bShouldReturnToNormal = false;
+
+        switch (Type)
+        {
+        case EMAWidgetType::TaskPlanner:
+            bShouldReturnToNormal = (ActiveModal == EMAModalType::TaskGraph);
+            break;
+        case EMAWidgetType::SkillAllocation:
+            bShouldReturnToNormal = (ActiveModal == EMAModalType::SkillList);
+            break;
+        case EMAWidgetType::Emergency:
+            bShouldReturnToNormal = (ActiveModal == EMAModalType::Emergency);
+            break;
+        default:
+            break;
+        }
+
+        if (bShouldReturnToNormal)
+        {
+            UE_LOG(LogMAUIManager, Log, TEXT("HideWidget: Returning HUDStateManager to NormalHUD (was editing %s)"),
+                *UEnum::GetValueAsString(ActiveModal));
+            HUDStateManager->ReturnToNormalHUD();
+        }
+    }
+
     UE_LOG(LogMAUIManager, Log, TEXT("Widget type %d hidden"), static_cast<int32>(Type));
     return true;
 }
@@ -439,6 +470,84 @@ bool UMAUIManager::IsAnyFullscreenWidgetVisible() const
     }
     
     return false;
+}
+
+void UMAUIManager::NavigateFromViewerToSkillListModal()
+{
+    UE_LOG(LogMAUIManager, Log, TEXT("NavigateFromViewerToSkillListModal: Starting navigation"));
+    
+    // 1. 隐藏 SkillAllocationViewer
+    if (SkillAllocationViewer)
+    {
+        SkillAllocationViewer->SetVisibility(ESlateVisibility::Collapsed);
+        UE_LOG(LogMAUIManager, Log, TEXT("NavigateFromViewerToSkillListModal: SkillAllocationViewer hidden"));
+    }
+    
+    // 2. 从 TempDataManager 加载数据到 SkillListModal
+    if (SkillListModal)
+    {
+        if (UGameInstance* GameInstance = OwningPC ? OwningPC->GetGameInstance() : nullptr)
+        {
+            if (UMATempDataManager* TempDataMgr = GameInstance->GetSubsystem<UMATempDataManager>())
+            {
+                FMASkillAllocationData Data;
+                if (TempDataMgr->LoadSkillList(Data))
+                {
+                    SkillListModal->LoadSkillAllocation(Data);
+                    UE_LOG(LogMAUIManager, Log, TEXT("NavigateFromViewerToSkillListModal: Data loaded into modal"));
+                }
+            }
+        }
+        
+        // 3. 显示 SkillListModal (只读模式，因为是从编辑界面返回查看)
+        SkillListModal->SetEditMode(false);
+        SkillListModal->SetVisibility(ESlateVisibility::Visible);
+        SkillListModal->PlayShowAnimation();
+        UE_LOG(LogMAUIManager, Log, TEXT("NavigateFromViewerToSkillListModal: SkillListModal shown"));
+    }
+    else
+    {
+        UE_LOG(LogMAUIManager, Error, TEXT("NavigateFromViewerToSkillListModal: SkillListModal is null"));
+    }
+}
+
+void UMAUIManager::NavigateFromWorkbenchToTaskGraphModal()
+{
+    UE_LOG(LogMAUIManager, Log, TEXT("NavigateFromWorkbenchToTaskGraphModal: Starting navigation"));
+    
+    // 1. 隐藏 TaskPlannerWidget
+    if (TaskPlannerWidget)
+    {
+        TaskPlannerWidget->SetVisibility(ESlateVisibility::Collapsed);
+        UE_LOG(LogMAUIManager, Log, TEXT("NavigateFromWorkbenchToTaskGraphModal: TaskPlannerWidget hidden"));
+    }
+    
+    // 2. 从 TempDataManager 加载数据到 TaskGraphModal
+    if (TaskGraphModal)
+    {
+        if (UGameInstance* GameInstance = OwningPC ? OwningPC->GetGameInstance() : nullptr)
+        {
+            if (UMATempDataManager* TempDataMgr = GameInstance->GetSubsystem<UMATempDataManager>())
+            {
+                FMATaskGraphData Data;
+                if (TempDataMgr->LoadTaskGraph(Data))
+                {
+                    TaskGraphModal->LoadTaskGraph(Data);
+                    UE_LOG(LogMAUIManager, Log, TEXT("NavigateFromWorkbenchToTaskGraphModal: Data loaded into modal"));
+                }
+            }
+        }
+        
+        // 3. 显示 TaskGraphModal (只读模式，因为是从编辑界面返回查看)
+        TaskGraphModal->SetEditMode(false);
+        TaskGraphModal->SetVisibility(ESlateVisibility::Visible);
+        TaskGraphModal->PlayShowAnimation();
+        UE_LOG(LogMAUIManager, Log, TEXT("NavigateFromWorkbenchToTaskGraphModal: TaskGraphModal shown"));
+    }
+    else
+    {
+        UE_LOG(LogMAUIManager, Error, TEXT("NavigateFromWorkbenchToTaskGraphModal: TaskGraphModal is null"));
+    }
 }
 
 void UMAUIManager::SetWidgetFocus(EMAWidgetType Type)
@@ -677,6 +786,9 @@ void UMAUIManager::CreateModalWidgets()
             TaskGraphModal->OnEditClicked.AddDynamic(HUDStateManager, &UMAHUDStateManager::OnModalEdit);
         }
         
+        // 绑定隐藏动画完成回调，确保点击 ❌ 关闭按钮后状态同步
+        TaskGraphModal->OnHideAnimationComplete.AddDynamic(this, &UMAUIManager::OnModalHideAnimationComplete);
+        
         // 应用主题
         if (CurrentTheme)
         {
@@ -706,6 +818,9 @@ void UMAUIManager::CreateModalWidgets()
             SkillListModal->OnEditClicked.AddDynamic(HUDStateManager, &UMAHUDStateManager::OnModalEdit);
         }
         
+        // 绑定隐藏动画完成回调，确保点击 ❌ 关闭按钮后状态同步
+        SkillListModal->OnHideAnimationComplete.AddDynamic(this, &UMAUIManager::OnModalHideAnimationComplete);
+        
         // 应用主题
         if (CurrentTheme)
         {
@@ -734,6 +849,9 @@ void UMAUIManager::CreateModalWidgets()
             EmergencyModal->OnRejectClicked.AddDynamic(HUDStateManager, &UMAHUDStateManager::OnModalReject);
             // Emergency modal 不需要 Edit 按钮，因为它直接进入编辑模式
         }
+        
+        // 绑定隐藏动画完成回调，确保点击 ❌ 关闭按钮后状态同步
+        EmergencyModal->OnHideAnimationComplete.AddDynamic(this, &UMAUIManager::OnModalHideAnimationComplete);
         
         // 应用主题
         if (CurrentTheme)
@@ -830,7 +948,7 @@ void UMAUIManager::OnHUDStateChanged(EMAHUDState OldState, EMAHUDState NewState)
 
 void UMAUIManager::OnNotificationReceived(EMANotificationType Type)
 {
-    UE_LOG(LogMAUIManager, Log, TEXT("Notification received: %s"),
+    UE_LOG(LogMAUIManager, Log, TEXT("OnNotificationReceived: Type=%s"),
         *UEnum::GetValueAsString(Type));
 
     // 在 MainHUDWidget 的通知组件中显示通知
@@ -839,8 +957,17 @@ void UMAUIManager::OnNotificationReceived(EMANotificationType Type)
         UMANotificationWidget* NotificationWidget = MainHUDWidget->GetNotification();
         if (NotificationWidget)
         {
+            UE_LOG(LogMAUIManager, Log, TEXT("OnNotificationReceived: Calling NotificationWidget->ShowNotification"));
             NotificationWidget->ShowNotification(Type);
         }
+        else
+        {
+            UE_LOG(LogMAUIManager, Warning, TEXT("OnNotificationReceived: NotificationWidget is null"));
+        }
+    }
+    else
+    {
+        UE_LOG(LogMAUIManager, Warning, TEXT("OnNotificationReceived: MainHUDWidget is null"));
     }
 }
 
@@ -895,6 +1022,31 @@ void UMAUIManager::OnModalEditRequested(EMAModalType ModalType)
         UE_LOG(LogMAUIManager, Warning, TEXT("Unknown modal type for edit: %s"),
             *UEnum::GetValueAsString(ModalType));
         break;
+    }
+}
+
+void UMAUIManager::OnModalHideAnimationComplete()
+{
+    // 当模态窗口的隐藏动画完成时，需要判断是否应该重置状态
+    // 
+    // 有两种情况会触发模态隐藏动画：
+    // 1. 用户点击 ❌ 关闭按钮 - 此时应该重置到 NormalHUD
+    // 2. 用户点击 Edit 按钮 - 此时状态已经是 EditingModal，不应该重置
+    //
+    // 通过检查当前状态来区分这两种情况：
+    // - 如果是 EditingModal，说明是 Edit 流程，不重置
+    // - 如果是 ReviewModal，说明是用户点击 ❌ 关闭，需要重置
+    if (HUDStateManager && HUDStateManager->IsModalActive())
+    {
+        // 如果当前是编辑模式，说明是 Edit 流程触发的隐藏，不重置状态
+        if (HUDStateManager->IsInEditMode())
+        {
+            UE_LOG(LogMAUIManager, Log, TEXT("OnModalHideAnimationComplete: In EditingModal state, skipping ReturnToNormalHUD"));
+            return;
+        }
+        
+        UE_LOG(LogMAUIManager, Log, TEXT("OnModalHideAnimationComplete: Returning HUDStateManager to NormalHUD"));
+        HUDStateManager->ReturnToNormalHUD();
     }
 }
 
