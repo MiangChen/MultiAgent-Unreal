@@ -185,6 +185,10 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Events")
     FOnMASkillAllocationDataReceived OnSkillAllocationReceived;
 
+    /** 收到索要用户指令请求委托 */
+    UPROPERTY(BlueprintAssignable, Category = "Events")
+    FOnMARequestUserCommandReceived OnRequestUserCommandReceived;
+
     //=========================================================================
     // 状态查询
     //=========================================================================

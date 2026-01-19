@@ -243,6 +243,14 @@ void UMACommandManager::OnSkillCompleted(AMACharacter* Agent, bool bSuccess, con
     FMASkillExecutionFeedback Feedback = FMAFeedbackGenerator::Generate(Agent, Command, bSuccess, Message);
     CurrentTimeStepFeedback.SkillFeedbacks.Add(Feedback);
     
+    // 广播技能完成状态到 TempDataManager，让预览组件实时更新
+    UMATempDataManager* TempDataMgr = GetTempDataManager();
+    if (TempDataMgr)
+    {
+        ESkillExecutionStatus NewStatus = bSuccess ? ESkillExecutionStatus::Completed : ESkillExecutionStatus::Failed;
+        TempDataMgr->BroadcastSkillStatusUpdate(CurrentTimeStep, Agent->AgentID, NewStatus);
+    }
+    
     if (bSuccess)
     {
         UE_LOG(LogMACommandManager, Warning, TEXT("    [SUCCESS] %s [%s]: %s"), 

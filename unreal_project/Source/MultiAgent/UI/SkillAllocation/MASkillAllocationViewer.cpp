@@ -158,8 +158,8 @@ void UMASkillAllocationViewer::NativeConstruct()
     }
     
     // Initialize status log
-    AppendStatusLog(TEXT("Skill Allocation Viewer started"));
-    AppendStatusLog(TEXT("Tip: Edit JSON and click 'Update Skill List' to load data"));
+    AppendStatusLog(TEXT("Skill Allocation Workbench started"));
+    AppendStatusLog(TEXT("Tip: Edit JSON and click 'Update' to load data"));
     
     UE_LOG(LogMASkillAllocationViewer, Log, TEXT("MASkillAllocationViewer NativeConstruct completed"));
 }
@@ -260,7 +260,7 @@ void UMASkillAllocationViewer::BuildUI()
 
     // Title text
     UTextBlock* TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TitleText"));
-    TitleText->SetText(FText::FromString(TEXT("Skill Allocation Viewer")));
+    TitleText->SetText(FText::FromString(TEXT("Skill Allocation Workbench")));
     FSlateFontInfo TitleFont = TitleText->GetFont();
     TitleFont.Size = 16;
     TitleText->SetFont(TitleFont);
@@ -391,7 +391,7 @@ UBorder* UMASkillAllocationViewer::CreateLeftPanel()
 
     // Title
     UTextBlock* TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("LeftPanelTitle"));
-    TitleText->SetText(FText::FromString(TEXT("Skill Allocation Viewer")));
+    TitleText->SetText(FText::FromString(TEXT("Skill Allocation Workbench")));
     FSlateFontInfo TitleFont = TitleText->GetFont();
     TitleFont.Size = 16;
     TitleText->SetFont(TitleFont);
@@ -543,15 +543,10 @@ UVerticalBox* UMASkillAllocationViewer::CreateJsonEditorSection()
     ButtonRowSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
     ButtonRowSlot->SetHorizontalAlignment(HAlign_Right);  // 按钮靠右对齐
 
-    // "Update Skill List" button - font size 14
-    UpdateButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("UpdateButton"));
-    
-    UTextBlock* UpdateButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("UpdateButtonText"));
-    UpdateButtonText->SetText(FText::FromString(TEXT("Update Skill List")));
-    UpdateButtonText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
-    FSlateFontInfo UpdateBtnFont = FCoreStyle::GetDefaultFontStyle("Regular", 14);
-    UpdateButtonText->SetFont(UpdateBtnFont);
-    UpdateButton->AddChild(UpdateButtonText);
+    // "Update" button - 使用 MAStyledButton，与 Save 按钮样式一致
+    UpdateButton = WidgetTree->ConstructWidget<UMAStyledButton>(UMAStyledButton::StaticClass(), TEXT("UpdateButton"));
+    UpdateButton->SetButtonText(FText::FromString(TEXT("Update")));
+    UpdateButton->SetButtonStyle(EMAButtonStyle::Secondary);
     
     UHorizontalBoxSlot* UpdateButtonSlot = ButtonRow->AddChildToHorizontalBox(UpdateButton);
     UpdateButtonSlot->SetPadding(FMargin(0, 0, 10, 0));
@@ -857,7 +852,24 @@ void UMASkillAllocationViewer::OnCloseButtonClicked()
 {
     UE_LOG(LogMASkillAllocationViewer, Log, TEXT("Close button clicked"));
     
-    // Hide the widget (same as pressing X key)
+    // 通过 UIManager 隐藏 widget，这样可以正确同步 HUDStateManager 状态
+    // 直接调用 SetVisibility 会导致状态不同步
+    APlayerController* PC = GetOwningPlayer();
+    if (PC)
+    {
+        if (AMAHUD* HUD = Cast<AMAHUD>(PC->GetHUD()))
+        {
+            if (UMAUIManager* UIManager = HUD->GetUIManager())
+            {
+                UIManager->HideWidget(EMAWidgetType::SkillAllocation);
+                UE_LOG(LogMASkillAllocationViewer, Log, TEXT("SkillAllocationViewer hidden via UIManager"));
+                return;
+            }
+        }
+    }
+    
+    // Fallback: 如果无法获取 UIManager，直接隐藏（但状态可能不同步）
+    UE_LOG(LogMASkillAllocationViewer, Warning, TEXT("Could not get UIManager, hiding widget directly (state may be out of sync)"));
     SetVisibility(ESlateVisibility::Collapsed);
 }
 

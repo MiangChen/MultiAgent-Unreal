@@ -84,6 +84,9 @@ void UMAHUDStateManager::ReturnToNormalHUD()
     {
         TransitionToState(EMAHUDState::NormalHUD);
     }
+    
+    // 处理延迟的通知队列
+    ProcessDeferredNotifications();
 }
 
 bool UMAHUDStateManager::IsValidTransition(EMAHUDState FromState, EMAHUDState ToState) const
@@ -115,8 +118,9 @@ bool UMAHUDStateManager::IsValidTransition(EMAHUDState FromState, EMAHUDState To
             || ToState == EMAHUDState::EditingModal;
 
     case EMAHUDState::EditingModal:
-        // 从编辑模态状态只能转换到：正常状态
-        return ToState == EMAHUDState::NormalHUD;
+        // 从编辑模态状态可以转换到：正常状态、查看模态（Save 返回时）
+        return ToState == EMAHUDState::NormalHUD
+            || ToState == EMAHUDState::ReviewModal;
 
     default:
         return false;
@@ -135,10 +139,21 @@ void UMAHUDStateManager::ShowNotification(EMANotificationType Type)
         return;
     }
 
-    // 如果当前有模态窗口打开，不显示通知
+    // 如果当前有模态窗口打开，将通知加入延迟队列
     if (IsModalActive())
     {
-        UE_LOG(LogMAHUDState, Log, TEXT("Notification ignored - modal is active"));
+        // 检查队列中是否已有相同类型的通知
+        if (!DeferredNotifications.Contains(Type))
+        {
+            DeferredNotifications.Add(Type);
+            UE_LOG(LogMAHUDState, Log, TEXT("Notification deferred (modal active): %s, queue size: %d"),
+                *UEnum::GetValueAsString(Type), DeferredNotifications.Num());
+        }
+        else
+        {
+            UE_LOG(LogMAHUDState, Log, TEXT("Notification already in deferred queue: %s"),
+                *UEnum::GetValueAsString(Type));
+        }
         return;
     }
 
@@ -183,13 +198,15 @@ void UMAHUDStateManager::DismissNotification()
 
 void UMAHUDStateManager::HandleCheckTaskInput()
 {
-    UE_LOG(LogMAHUDState, Log, TEXT("HandleCheckTaskInput called, CurrentState: %s, ActiveModal: %s"),
+    UE_LOG(LogMAHUDState, Log, TEXT("HandleCheckTaskInput called, CurrentState: %s, ActiveModal: %s, IsModalActive: %s"),
         *UEnum::GetValueAsString(CurrentState),
-        *UEnum::GetValueAsString(ActiveModalType));
+        *UEnum::GetValueAsString(ActiveModalType),
+        IsModalActive() ? TEXT("true") : TEXT("false"));
 
     // 如果任务图模态已打开，关闭它 (Requirements: 10.5)
     if (IsModalActive() && ActiveModalType == EMAModalType::TaskGraph)
     {
+        UE_LOG(LogMAHUDState, Log, TEXT("HandleCheckTaskInput: TaskGraph modal is active, closing it"));
         ReturnToNormalHUD();
         return;
     }
@@ -197,23 +214,34 @@ void UMAHUDStateManager::HandleCheckTaskInput()
     // 如果其他模态已打开，忽略输入
     if (IsModalActive())
     {
-        UE_LOG(LogMAHUDState, Log, TEXT("Input ignored - different modal is active"));
+        UE_LOG(LogMAHUDState, Log, TEXT("HandleCheckTaskInput: Input ignored - different modal is active (ActiveModal: %s)"),
+            *UEnum::GetValueAsString(ActiveModalType));
         return;
     }
 
+    // 如果有任务图相关的通知，先清除它
+    if (PendingNotification == EMANotificationType::TaskGraphUpdate)
+    {
+        PendingNotification = EMANotificationType::None;
+    }
+
     // 打开任务图查看模态
-    TransitionToState(EMAHUDState::ReviewModal, EMAModalType::TaskGraph);
+    UE_LOG(LogMAHUDState, Log, TEXT("HandleCheckTaskInput: Attempting to transition to ReviewModal with TaskGraph"));
+    bool bSuccess = TransitionToState(EMAHUDState::ReviewModal, EMAModalType::TaskGraph);
+    UE_LOG(LogMAHUDState, Log, TEXT("HandleCheckTaskInput: TransitionToState result: %s"), bSuccess ? TEXT("SUCCESS") : TEXT("FAILED"));
 }
 
 void UMAHUDStateManager::HandleCheckSkillInput()
 {
-    UE_LOG(LogMAHUDState, Log, TEXT("HandleCheckSkillInput called, CurrentState: %s, ActiveModal: %s"),
+    UE_LOG(LogMAHUDState, Log, TEXT("HandleCheckSkillInput called, CurrentState: %s, ActiveModal: %s, IsModalActive: %s"),
         *UEnum::GetValueAsString(CurrentState),
-        *UEnum::GetValueAsString(ActiveModalType));
+        *UEnum::GetValueAsString(ActiveModalType),
+        IsModalActive() ? TEXT("true") : TEXT("false"));
 
     // 如果技能列表模态已打开，关闭它 (Requirements: 10.5)
     if (IsModalActive() && ActiveModalType == EMAModalType::SkillList)
     {
+        UE_LOG(LogMAHUDState, Log, TEXT("HandleCheckSkillInput: SkillList modal is active, closing it"));
         ReturnToNormalHUD();
         return;
     }
@@ -221,12 +249,22 @@ void UMAHUDStateManager::HandleCheckSkillInput()
     // 如果其他模态已打开，忽略输入
     if (IsModalActive())
     {
-        UE_LOG(LogMAHUDState, Log, TEXT("Input ignored - different modal is active"));
+        UE_LOG(LogMAHUDState, Log, TEXT("HandleCheckSkillInput: Input ignored - different modal is active (ActiveModal: %s)"),
+            *UEnum::GetValueAsString(ActiveModalType));
         return;
     }
 
+    // 如果有技能列表相关的通知，先清除它
+    if (PendingNotification == EMANotificationType::SkillListUpdate || 
+        PendingNotification == EMANotificationType::SkillListExecuting)
+    {
+        PendingNotification = EMANotificationType::None;
+    }
+
     // 打开技能列表查看模态
-    TransitionToState(EMAHUDState::ReviewModal, EMAModalType::SkillList);
+    UE_LOG(LogMAHUDState, Log, TEXT("HandleCheckSkillInput: Attempting to transition to ReviewModal with SkillList"));
+    bool bSuccess = TransitionToState(EMAHUDState::ReviewModal, EMAModalType::SkillList);
+    UE_LOG(LogMAHUDState, Log, TEXT("HandleCheckSkillInput: TransitionToState result: %s"), bSuccess ? TEXT("SUCCESS") : TEXT("FAILED"));
 }
 
 void UMAHUDStateManager::HandleCheckEmergencyInput()
@@ -247,6 +285,12 @@ void UMAHUDStateManager::HandleCheckEmergencyInput()
     {
         UE_LOG(LogMAHUDState, Log, TEXT("Input ignored - different modal is active"));
         return;
+    }
+
+    // 如果有突发事件相关的通知，先清除它
+    if (PendingNotification == EMANotificationType::EmergencyEvent)
+    {
+        PendingNotification = EMANotificationType::None;
     }
 
     // 突发事件直接进入编辑模态 (Requirements: 6.2)
@@ -347,6 +391,7 @@ EMAModalType UMAHUDStateManager::GetModalTypeForNotification(EMANotificationType
         return EMAModalType::TaskGraph;
 
     case EMANotificationType::SkillListUpdate:
+    case EMANotificationType::SkillListExecuting:
         return EMAModalType::SkillList;
 
     case EMANotificationType::EmergencyEvent:
@@ -355,4 +400,23 @@ EMAModalType UMAHUDStateManager::GetModalTypeForNotification(EMANotificationType
     default:
         return EMAModalType::None;
     }
+}
+
+void UMAHUDStateManager::ProcessDeferredNotifications()
+{
+    // 如果队列为空，直接返回
+    if (DeferredNotifications.Num() == 0)
+    {
+        return;
+    }
+
+    // 取出队列中的第一个通知
+    EMANotificationType NextNotification = DeferredNotifications[0];
+    DeferredNotifications.RemoveAt(0);
+
+    UE_LOG(LogMAHUDState, Log, TEXT("Processing deferred notification: %s, remaining in queue: %d"),
+        *UEnum::GetValueAsString(NextNotification), DeferredNotifications.Num());
+
+    // 显示通知 (此时 modal 已关闭，所以不会再被加入队列)
+    ShowNotification(NextNotification);
 }

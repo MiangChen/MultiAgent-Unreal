@@ -21,6 +21,7 @@
 #include "../Mode/MAEditWidget.h"
 #include "../Mode/MASceneListWidget.h"
 #include "../../Core/Manager/MATempDataManager.h"
+#include "../../Core/Comm/MACommSubsystem.h"
 #include "Blueprint/UserWidget.h"
 #include "GameFramework/PlayerController.h"
 #include "Framework/Application/SlateApplication.h"
@@ -238,6 +239,9 @@ void UMAUIManager::CreateAllWidgets()
 
     // 绑定 TempDataManager 事件，以便在数据变化时更新预览组件
     BindTempDataManagerEvents();
+    
+    // 绑定 CommSubsystem 事件，以便接收后端消息
+    BindCommSubsystemEvents();
 }
 
 
@@ -509,6 +513,13 @@ void UMAUIManager::NavigateFromViewerToSkillAllocationModal()
     {
         UE_LOG(LogMAUIManager, Error, TEXT("NavigateFromViewerToSkillAllocationModal: SkillAllocationModal is null"));
     }
+    
+    // 4. 将 HUD 状态从 EditingModal 转换回 ReviewModal，以便 Edit 按钮可以再次工作
+    if (HUDStateManager)
+    {
+        HUDStateManager->TransitionToState(EMAHUDState::ReviewModal, EMAModalType::SkillList);
+        UE_LOG(LogMAUIManager, Log, TEXT("NavigateFromViewerToSkillListModal: State transitioned back to ReviewModal"));
+    }
 }
 
 void UMAUIManager::NavigateFromWorkbenchToTaskGraphModal()
@@ -547,6 +558,13 @@ void UMAUIManager::NavigateFromWorkbenchToTaskGraphModal()
     else
     {
         UE_LOG(LogMAUIManager, Error, TEXT("NavigateFromWorkbenchToTaskGraphModal: TaskGraphModal is null"));
+    }
+    
+    // 4. 将 HUD 状态从 EditingModal 转换回 ReviewModal，以便 Edit 按钮可以再次工作
+    if (HUDStateManager)
+    {
+        HUDStateManager->TransitionToState(EMAHUDState::ReviewModal, EMAModalType::TaskGraph);
+        UE_LOG(LogMAUIManager, Log, TEXT("NavigateFromWorkbenchToTaskGraphModal: State transitioned back to ReviewModal"));
     }
 }
 
@@ -922,6 +940,12 @@ void UMAUIManager::OnHUDStateChanged(EMAHUDState OldState, EMAHUDState NewState)
         break;
 
     case EMAHUDState::ReviewModal:
+        // 隐藏通知 (用户已响应通知，打开了 modal)
+        if (MainHUDWidget && MainHUDWidget->GetNotification())
+        {
+            MainHUDWidget->GetNotification()->HideNotification();
+        }
+        
         // 显示只读模态窗口
         if (HUDStateManager)
         {
@@ -930,6 +954,12 @@ void UMAUIManager::OnHUDStateChanged(EMAHUDState OldState, EMAHUDState NewState)
         break;
 
     case EMAHUDState::EditingModal:
+        // 隐藏通知 (用户已响应通知，进入了编辑模式)
+        if (MainHUDWidget && MainHUDWidget->GetNotification())
+        {
+            MainHUDWidget->GetNotification()->HideNotification();
+        }
+        
         // 编辑模式由 OnModalEditRequested 处理
         // 这里不需要额外操作，因为 OnModalEdit() 会触发 OnModalEditRequested
         // 如果是直接进入编辑模式（如突发事件），则显示对应的编辑界面
@@ -1202,6 +1232,23 @@ void UMAUIManager::DismissNotification()
     }
 }
 
+void UMAUIManager::DismissRequestUserCommandNotification()
+{
+    if (MainHUDWidget)
+    {
+        UMANotificationWidget* NotificationWidget = MainHUDWidget->GetNotification();
+        if (NotificationWidget)
+        {
+            // 只关闭 RequestUserCommand 类型的通知
+            if (NotificationWidget->GetCurrentNotificationType() == EMANotificationType::RequestUserCommand)
+            {
+                NotificationWidget->HideNotification();
+                UE_LOG(LogMAUIManager, Log, TEXT("DismissRequestUserCommandNotification: RequestUserCommand notification dismissed"));
+            }
+        }
+    }
+}
+
 EMAModalType UMAUIManager::GetModalTypeForNotification(EMANotificationType NotificationType) const
 {
     switch (NotificationType)
@@ -1324,4 +1371,45 @@ void UMAUIManager::OnSkillStatusUpdated(int32 TimeStep, const FString& RobotId, 
     {
         SkillAllocationModal->UpdateSkillStatus(TimeStep, RobotId, NewStatus);
     }
+}
+
+//=============================================================================
+// CommSubsystem 事件绑定
+//=============================================================================
+
+void UMAUIManager::BindCommSubsystemEvents()
+{
+    // 获取 CommSubsystem
+    UWorld* World = OwningPC ? OwningPC->GetWorld() : nullptr;
+    UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
+    
+    if (!GameInstance)
+    {
+        UE_LOG(LogMAUIManager, Warning, TEXT("BindCommSubsystemEvents: GameInstance not available"));
+        return;
+    }
+    
+    UMACommSubsystem* CommSubsystem = GameInstance->GetSubsystem<UMACommSubsystem>();
+    if (!CommSubsystem)
+    {
+        UE_LOG(LogMAUIManager, Warning, TEXT("BindCommSubsystemEvents: CommSubsystem not available"));
+        return;
+    }
+    
+    // 绑定索要用户指令请求委托
+    if (!CommSubsystem->OnRequestUserCommandReceived.IsAlreadyBound(this, &UMAUIManager::OnRequestUserCommandReceived))
+    {
+        CommSubsystem->OnRequestUserCommandReceived.AddDynamic(this, &UMAUIManager::OnRequestUserCommandReceived);
+        UE_LOG(LogMAUIManager, Log, TEXT("BindCommSubsystemEvents: Bound OnRequestUserCommandReceived"));
+    }
+    
+    UE_LOG(LogMAUIManager, Log, TEXT("BindCommSubsystemEvents: CommSubsystem events bound"));
+}
+
+void UMAUIManager::OnRequestUserCommandReceived()
+{
+    UE_LOG(LogMAUIManager, Log, TEXT("OnRequestUserCommandReceived: Received request for user command"));
+    
+    // 显示索要用户指令通知
+    ShowNotification(EMANotificationType::RequestUserCommand);
 }

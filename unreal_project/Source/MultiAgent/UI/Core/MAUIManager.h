@@ -30,6 +30,7 @@ class UMASkillAllocationModal;
 class UMAEmergencyModal;
 class UMABaseModalWidget;
 class UMANotificationWidget;
+class UMACommSubsystem;
 
 //=============================================================================
 // Widget 类型枚举
@@ -302,6 +303,14 @@ public:
     void DismissNotification();
 
     /**
+     * 关闭索要用户指令通知
+     * 仅当当前显示的是 RequestUserCommand 类型通知时才关闭
+     * 用于用户发送指令后自动关闭通知
+     */
+    UFUNCTION(BlueprintCallable, Category = "UI|Notification")
+    void DismissRequestUserCommandNotification();
+
+    /**
      * 获取通知类型对应的模态类型
      * @param NotificationType 通知类型
      * @return 对应的模态类型
@@ -532,4 +541,20 @@ private:
      */
     UFUNCTION()
     void OnSkillStatusUpdated(int32 TimeStep, const FString& RobotId, ESkillExecutionStatus NewStatus);
+
+    //=========================================================================
+    // CommSubsystem 事件绑定
+    //=========================================================================
+
+    /**
+     * 绑定 CommSubsystem 委托事件
+     */
+    void BindCommSubsystemEvents();
+
+    /**
+     * 收到索要用户指令请求回调
+     * 当后端发送 request_user_command 消息时触发
+     */
+    UFUNCTION()
+    void OnRequestUserCommandReceived();
 };

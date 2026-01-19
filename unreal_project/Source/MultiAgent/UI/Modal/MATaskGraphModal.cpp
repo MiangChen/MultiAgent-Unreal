@@ -139,7 +139,7 @@ FText UMATaskGraphModal::GetModalTitleText() const
     {
         return FText::FromString(TEXT("Edit Task Graph"));
     }
-    return FText::FromString(TEXT("Task Graph"));
+    return FText::FromString(TEXT("Task Graph Preview"));
 }
 
 void UMATaskGraphModal::BuildContentArea(UVerticalBox* InContentContainer)

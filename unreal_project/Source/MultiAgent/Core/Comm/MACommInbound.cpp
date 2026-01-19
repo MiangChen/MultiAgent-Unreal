@@ -405,6 +405,10 @@ void FMACommInbound::HandlePollResponse(const FString& ResponseJson)
             UE_LOG(LogMACommInbound, Log, TEXT("Python -> UE5: Message type: %s, category: %s"), 
                 *MessageTypeStr, *MessageCategoryStr);
         }
+        else if (MessageTypeStr == TEXT("request_user_command"))
+        {
+            HandleRequestUserCommand(*PayloadObject);
+        }
         else
         {
             // 向后兼容: 从 message_type 推断 category
@@ -694,7 +698,7 @@ void FMACommInbound::HandleTaskGraph(const TSharedPtr<FJsonObject>& PayloadObjec
     }
 }
 
-void FMACommInbound::HandleSkillList(const TSharedPtr<FJsonObject>& PayloadObject)
+void FMACommInbound::HandleSkillList(const TSharedPtr<FJsonObject>& PayloadObject, bool bExecutable)
 {
     if (!Owner)
     {
@@ -709,8 +713,8 @@ void FMACommInbound::HandleSkillList(const TSharedPtr<FJsonObject>& PayloadObjec
     FMASkillListMessage SkillList;
     if (FMASkillListMessage::FromJson(PayloadJson, SkillList))
     {
-        UE_LOG(LogMACommInbound, Log, TEXT("HandleSkillList: Received SkillList with %d time steps"),
-            SkillList.TotalTimeSteps);
+        UE_LOG(LogMACommInbound, Log, TEXT("HandleSkillList: Received SkillList with %d time steps, executable=%s"),
+            SkillList.TotalTimeSteps, bExecutable ? TEXT("true") : TEXT("false"));
 
         // 直接获取 MACommandManager 并执行技能列表
         UWorld* World = Owner->GetWorld();
@@ -851,4 +855,17 @@ void FMACommInbound::HandleSkillAllocationWithMessageId(const TSharedPtr<FJsonOb
 
     // 广播 OnSkillAllocationReceived 委托
     Owner->OnSkillAllocationReceived.Broadcast(AllocationData);
+}
+
+void FMACommInbound::HandleRequestUserCommand(const TSharedPtr<FJsonObject>& PayloadObject)
+{
+    if (!Owner)
+    {
+        return;
+    }
+
+    UE_LOG(LogMACommInbound, Log, TEXT("HandleRequestUserCommand: Received request"));
+
+    // 广播委托
+    Owner->OnRequestUserCommandReceived.Broadcast();
 }

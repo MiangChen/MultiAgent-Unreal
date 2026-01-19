@@ -675,6 +675,17 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             <div class="section-title skill">📋 预设技能列表 (直接执行)</div>
             <div id="skill-buttons"></div>
             
+            <div class="section-title skill">✅ 最终技能列表</div>
+            <div id="final-skill-buttons"></div>
+            
+            <div class="section-title request-cmd">📢 索要用户指令</div>
+            <div id="request-cmd-buttons">
+                <button class="request-cmd-btn" onclick="sendRequestUserCommand()">
+                    <div class="name">📢 一键索要用户指令</div>
+                    <div class="desc">请求 UE5 用户输入指令</div>
+                </button>
+            </div>
+            
             <div class="status">
                 <span class="dot connected" id="status-dot"></span>
                 <span id="status-text">Server Running on :{{PORT}}</span>
@@ -740,6 +751,15 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             skillButtonsDiv.appendChild(btn);
         }
         
+        // Generate final skill buttons (最终技能列表)
+        const finalSkillButtonsDiv = document.getElementById('final-skill-buttons');
+        const finalBtn = document.createElement('button');
+        finalBtn.className = 'skill-btn';
+        finalBtn.style.borderColor = '#00ff88';
+        finalBtn.onclick = () => sendFinalSkill();
+        finalBtn.innerHTML = `<div class="name">✅ Complete Test (Executable)</div><div class="desc">完整测试 - 可直接执行的最终技能列表</div>`;
+        finalSkillButtonsDiv.appendChild(finalBtn);
+        
         // Send task graph
         async function sendTaskGraph(taskKey) {
             try {
@@ -791,6 +811,42 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
                 addMessage('sent', `Sent Skill List: ${skillLists[skillKey]?.name || skillKey}`, displayContent, 'outgoing');
             } catch (e) {
                 console.error('Failed to send skill:', e);
+            }
+        }
+        
+        // Send final skill list (最终技能列表 - Executable)
+        async function sendFinalSkill() {
+            try {
+                const response = await fetch('/api/send_final_skill', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                const result = await response.json();
+                const displayContent = result.note 
+                    ? { ...result, "⚠️ Note": result.note }
+                    : result;
+                addMessage('sent', `Sent Final Skill List (Executable)`, displayContent, 'outgoing');
+            } catch (e) {
+                console.error('Failed to send final skill:', e);
+            }
+        }
+        
+        // Send request user command (索要用户指令)
+        async function sendRequestUserCommand() {
+            try {
+                const response = await fetch('/api/send_request_user_command', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                const result = await response.json();
+                const displayContent = result.note 
+                    ? { ...result, "⚠️ Note": result.note }
+                    : result;
+                addMessage('sent', `Sent Request User Command`, displayContent, 'outgoing');
+            } catch (e) {
+                console.error('Failed to send request user command:', e);
             }
         }
         
@@ -946,6 +1002,16 @@ def create_task_graph_message(task_graph: dict, category: str = "review") -> dic
     }
 
 
+def create_request_user_command_message() -> dict:
+    """创建索要用户指令消息"""
+    return {
+        "message_type": "request_user_command",
+        "timestamp": int(datetime.now().timestamp() * 1000),
+        "message_id": str(uuid.uuid4()),
+        "payload": {}
+    }
+
+
 class MockBackendHandler(BaseHTTPRequestHandler):
     """Mock backend request handler with Web UI"""
     
@@ -1000,6 +1066,8 @@ class MockBackendHandler(BaseHTTPRequestHandler):
             self.handle_send_skill_allocation(body)
         elif parsed_path.path == '/api/send_task_graph':
             self.handle_send_task_graph(body)
+        elif parsed_path.path == '/api/send_request_user_command':
+            self.handle_send_request_user_command()
         else:
             self.send_response(404)
             self.end_headers()
@@ -1238,6 +1306,28 @@ class MockBackendHandler(BaseHTTPRequestHandler):
                 
         except json.JSONDecodeError as e:
             self.send_json_response(400, {"error": str(e)})
+
+    def handle_send_request_user_command(self):
+        """Handle request user command send request from Web UI
+        
+        Note: This method queues the request_user_command message for UE5 to poll.
+        UE5 will display a notification prompting the user to enter a command.
+        """
+        global pending_messages
+        msg = create_request_user_command_message()
+        
+        with message_lock:
+            pending_messages.append(msg)
+        
+        # Broadcast to communication log
+        broadcast_message('sent', 'request_user_command', msg, 'outgoing')
+        
+        self.send_json_response(200, {
+            "status": "queued",
+            "message_type": "request_user_command",
+            "message_id": msg['message_id'],
+            "note": "Request user command message queued. UE5 will display a notification."
+        })
 
 
 server_port = 8081

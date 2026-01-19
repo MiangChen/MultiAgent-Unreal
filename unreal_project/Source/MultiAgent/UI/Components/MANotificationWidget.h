@@ -197,14 +197,14 @@ private:
     /** 滑出动画时长 (秒) */
     static constexpr float SlideOutDuration = 0.2f;
 
-    /** 动画起始 Y 偏移 (从上方滑入) */
-    static constexpr float AnimStartOffsetY = -50.0f;
+    /** 动画起始 X 偏移 (从左边缘滑入) */
+    static constexpr float AnimStartOffsetX = -300.0f;
 
-    /** 动画目标 Y 偏移 (最终位置) */
-    static constexpr float AnimEndOffsetY = 0.0f;
+    /** 动画目标 X 偏移 (最终位置) */
+    static constexpr float AnimEndOffsetX = 0.0f;
 
-    /** 当前 Y 偏移 */
-    float CurrentOffsetY = AnimStartOffsetY;
+    /** 当前 X 偏移 */
+    float CurrentOffsetX = AnimStartOffsetX;
 
     /** 当前透明度 */
     float CurrentOpacity = 0.0f;

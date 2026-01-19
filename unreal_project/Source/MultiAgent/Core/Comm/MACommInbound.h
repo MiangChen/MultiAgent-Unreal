@@ -95,6 +95,9 @@ private:
     /** 处理技能分配消息 (带消息 ID，用于 HITL 响应) */
     void HandleSkillAllocationWithMessageId(const TSharedPtr<FJsonObject>& PayloadObject, const FString& OriginalMessageId);
 
+    /** 处理索要用户指令消息 */
+    void HandleRequestUserCommand(const TSharedPtr<FJsonObject>& PayloadObject);
+
 private:
     /** 所属的通信子系统 */
     UMACommSubsystem* Owner;

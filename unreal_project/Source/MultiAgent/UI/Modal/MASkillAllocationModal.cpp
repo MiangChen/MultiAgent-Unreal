@@ -142,7 +142,7 @@ FText UMASkillAllocationModal::GetModalTitleText() const
     {
         return FText::FromString(TEXT("Edit Skill List"));
     }
-    return FText::FromString(TEXT("Skill List"));
+    return FText::FromString(TEXT("Skill List Preview"));
 }
 
 void UMASkillAllocationModal::BuildContentArea(UVerticalBox* InContentContainer)

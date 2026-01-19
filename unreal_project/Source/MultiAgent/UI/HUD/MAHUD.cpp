@@ -2256,6 +2256,45 @@ void AMAHUD::OnSkillAllocationReceived(const FMASkillAllocationData& AllocationD
     }
 }
 
+
+void AMAHUD::OnSkillListReceived(const FMASkillListMessage& SkillList, bool bExecutable)
+{
+    UE_LOG(LogMAHUD, Log, TEXT("OnSkillListReceived: Received skill list update with %d time steps, executable=%s"), 
+        SkillList.TotalTimeSteps, bExecutable ? TEXT("true") : TEXT("false"));
+
+    if (!UIManager)
+    {
+        UE_LOG(LogMAHUD, Warning, TEXT("OnSkillListReceived: UIManager is null"));
+        return;
+    }
+
+    // 显示通知 (Requirements: 4.2)
+    UMAHUDStateManager* StateManager = UIManager->GetHUDStateManager();
+    if (StateManager)
+    {
+        if (bExecutable)
+        {
+            // 可执行的技能列表，显示执行中通知
+            StateManager->ShowNotification(EMANotificationType::SkillListExecuting);
+        }
+        else
+        {
+            // 普通技能列表更新，显示更新通知
+            StateManager->ShowNotification(EMANotificationType::SkillListUpdate);
+        }
+        UE_LOG(LogMAHUD, Log, TEXT("OnSkillListReceived: Notification shown"));
+    }
+
+    // 更新技能列表预览 (如果 MainHUDWidget 存在)
+    UMAMainHUDWidget* MainHUD = UIManager->GetMainHUDWidget();
+    if (MainHUD)
+    {
+        // 将 SkillListMessage 转换为 JSON 用于预览
+        FString SkillListJson = SkillList.ToJson();
+        UE_LOG(LogMAHUD, Log, TEXT("OnSkillListReceived: Skill list preview update pending, JSON length=%d"), SkillListJson.Len());
+    }
+}
+
 //=============================================================================
 // 模态操作回调 (Requirements: 7.2, 7.3, 12.6)
 //=============================================================================

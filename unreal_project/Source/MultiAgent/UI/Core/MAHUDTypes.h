@@ -77,6 +77,7 @@ enum class EMAModalType : uint8
  * - TaskGraphUpdate: 任务图更新通知
  * - SkillListUpdate: 技能列表更新通知
  * - EmergencyEvent: 突发事件通知
+ * - RequestUserCommand: 索要用户指令通知
  */
 UENUM(BlueprintType)
 enum class EMANotificationType : uint8
@@ -87,11 +88,17 @@ enum class EMANotificationType : uint8
     /** 任务图更新通知 - 后端发送了新的任务图 */
     TaskGraphUpdate UMETA(DisplayName = "Task Graph Update"),
     
-    /** 技能列表更新通知 - 后端发送了新的技能分配 */
+    /** 技能列表更新通知 - 后端发送了新的技能分配 (需要用户手动执行) */
     SkillListUpdate UMETA(DisplayName = "Skill List Update"),
     
+    /** 技能列表执行中通知 - 后端发送了可执行的技能列表，正在自动执行 */
+    SkillListExecuting UMETA(DisplayName = "Skill List Executing"),
+    
     /** 突发事件通知 - 后端报告了紧急情况 */
-    EmergencyEvent  UMETA(DisplayName = "Emergency Event")
+    EmergencyEvent  UMETA(DisplayName = "Emergency Event"),
+    
+    /** 索要用户指令通知 - 后端请求用户输入指令 */
+    RequestUserCommand  UMETA(DisplayName = "Request User Command")
 };
 
 //=============================================================================

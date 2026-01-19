@@ -342,29 +342,10 @@ void UMASkillListPreview::DrawGrid(const FGeometry& AllottedGeometry, FSlateWind
     float AvailableWidth = CanvasSize.X - LeftMargin - RightMargin;
     float AvailableHeight = CanvasSize.Y - TopMargin - BottomMargin;
     
-    // 绘制水平网格线 (机器人行分隔)
+    // 计算每个机器人的行高
     float ActualRowHeight = (RobotIds.Num() > 0) ? FMath::Min(RowHeight, AvailableHeight / RobotIds.Num()) : RowHeight;
     
-    for (int32 i = 0; i <= RobotIds.Num(); ++i)
-    {
-        float Y = TopMargin + i * ActualRowHeight;
-        TArray<FVector2D> LinePoints;
-        LinePoints.Add(FVector2D(LeftMargin, Y));
-        LinePoints.Add(FVector2D(CanvasSize.X - RightMargin, Y));
-        
-        FSlateDrawElement::MakeLines(
-            OutDrawElements,
-            LayerId,
-            AllottedGeometry.ToPaintGeometry(),
-            LinePoints,
-            ESlateDrawEffect::None,
-            GridLineColor,
-            true,
-            1.0f
-        );
-    }
-    
-    // 绘制垂直网格线 (时间步分隔)
+    // 只绘制垂直网格线 (时间步分隔) - 不绘制水平线
     float TimeStepWidth = (TimeSteps.Num() > 0) ? AvailableWidth / TimeSteps.Num() : AvailableWidth;
     
     for (int32 i = 0; i <= TimeSteps.Num(); ++i)
@@ -420,8 +401,8 @@ void UMASkillListPreview::DrawRobotLabels(const FGeometry& AllottedGeometry, FSl
 
 void UMASkillListPreview::DrawSkillBars(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32 LayerId) const
 {
-    // 圆角半径
-    const float CornerRadius = 4.0f;
+    // 圆角半径 - 使用适中的圆角
+    const float CornerRadius = 6.0f;
     
     for (int32 i = 0; i < SkillBarRenderData.Num(); ++i)
     {
@@ -454,7 +435,7 @@ void UMASkillListPreview::DrawSkillBars(const FGeometry& AllottedGeometry, FSlat
             );
         }
         
-        // 如果空间足够，绘制技能名称
+        // 如果空间足够，绘制技能名称 - 居中显示
         if (Bar.Size.X > 30 && Bar.Size.Y > 10)
         {
             FSlateFontInfo FontInfo = FCoreStyle::GetDefaultFontStyle("Regular", 7);
@@ -466,12 +447,22 @@ void UMASkillListPreview::DrawSkillBars(const FGeometry& AllottedGeometry, FSlat
                 DisplayName = DisplayName.Left(6) + TEXT("..");
             }
             
-            FVector2D TextPos = Bar.Position + FVector2D(2, 2);
+            // 计算文本居中位置
+            float EstimatedTextWidth = DisplayName.Len() * 4.5f;  // 估算字符宽度
+            float EstimatedTextHeight = 9.0f;  // 估算字体高度
+            float CenteredX = Bar.Position.X + (Bar.Size.X - EstimatedTextWidth) / 2.0f;
+            float CenteredY = Bar.Position.Y + (Bar.Size.Y - EstimatedTextHeight) / 2.0f;
+            
+            // 确保文本不会超出技能条边界
+            CenteredX = FMath::Max(CenteredX, Bar.Position.X + 2.0f);
+            CenteredY = FMath::Max(CenteredY, Bar.Position.Y + 1.0f);
+            
+            FVector2D TextPos(CenteredX, CenteredY);
             
             FSlateDrawElement::MakeText(
                 OutDrawElements,
                 LayerId + 2,
-                AllottedGeometry.ToPaintGeometry(Bar.Size - FVector2D(4, 4), FSlateLayoutTransform(TextPos)),
+                AllottedGeometry.ToPaintGeometry(Bar.Size - FVector2D(4, 2), FSlateLayoutTransform(TextPos)),
                 FText::FromString(DisplayName),
                 FontInfo,
                 ESlateDrawEffect::None,
