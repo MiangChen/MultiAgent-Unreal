@@ -7,7 +7,6 @@
 #include "Blueprint/UserWidget.h"
 #include "../../Core/Types/MATaskGraphTypes.h"
 #include "../../Core/Comm/MACommTypes.h"
-#include "../../Core/Manager/MACommandManager.h"
 #include "MASkillAllocationViewer.generated.h"
 
 class UMAGanttCanvas;
@@ -29,12 +28,6 @@ class UMAStyledButton;
 
 /** 技能分配变更委托 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSkillAllocationChanged, const FMASkillAllocationData&, NewData);
-
-/** 执行开始委托 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnExecutionStarted);
-
-/** 执行完成委托 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnExecutionCompleted);
 
 //=============================================================================
 // 日志类别
@@ -106,14 +99,6 @@ public:
     UFUNCTION(BlueprintCallable, Category = "SkillAllocation")
     void SetJsonText(const FString& JsonText);
 
-    /** 开始执行 */
-    UFUNCTION(BlueprintCallable, Category = "SkillAllocation")
-    void StartExecution();
-
-    /** 检查是否正在执行 */
-    UFUNCTION(BlueprintPure, Category = "SkillAllocation")
-    bool IsExecuting() const { return bIsExecuting; }
-
     /** 获取数据模型 */
     UFUNCTION(BlueprintPure, Category = "SkillAllocation")
     UMASkillAllocationModel* GetAllocationModel() const { return AllocationModel; }
@@ -145,14 +130,6 @@ public:
     /** 技能分配变更委托 */
     UPROPERTY(BlueprintAssignable, Category = "SkillAllocation|Events")
     FOnSkillAllocationChanged OnSkillAllocationChanged;
-
-    /** 执行开始委托 */
-    UPROPERTY(BlueprintAssignable, Category = "SkillAllocation|Events")
-    FOnExecutionStarted OnExecutionStarted;
-
-    /** 执行完成委托 */
-    UPROPERTY(BlueprintAssignable, Category = "SkillAllocation|Events")
-    FOnExecutionCompleted OnExecutionCompletedDelegate;
 
 protected:
     //=========================================================================
@@ -199,10 +176,6 @@ protected:
     UFUNCTION()
     void OnUpdateButtonClicked();
 
-    /** "开始执行" 按钮点击回调 */
-    UFUNCTION()
-    void OnStartExecuteButtonClicked();
-
     /** "保存" 按钮点击回调 */
     UFUNCTION()
     void OnSaveButtonClicked();
@@ -226,9 +199,9 @@ protected:
     UFUNCTION()
     void OnSkillStatusUpdated(int32 TimeStep, const FString& RobotId, ESkillExecutionStatus Status);
 
-    /** TempDataManager 技能列表变更回调 */
+    /** TempDataManager 技能分配变更回调 */
     UFUNCTION()
-    void OnTempSkillListChanged(const FMASkillAllocationData& NewData);
+    void OnTempSkillAllocationChanged(const FMASkillAllocationData& NewData);
 
     /** TempDataManager 技能状态更新回调 */
     UFUNCTION()
@@ -272,43 +245,6 @@ protected:
     /** 获取当前时间戳字符串 */
     FString GetTimestamp() const;
 
-    /** 检查是否所有技能都已完成 */
-    bool AreAllSkillsCompleted() const;
-
-    /** 执行完成回调 */
-    void OnExecutionCompleted();
-
-    /** 执行失败回调 */
-    void OnExecutionFailed(int32 TimeStep, const FString& RobotId);
-
-    /** 重置执行状态 */
-    void ResetExecution();
-
-    //=========================================================================
-    // MACommandManager 事件绑定
-    //=========================================================================
-
-    /** 绑定 MACommandManager 事件 */
-    void BindCommandManagerEvents();
-
-    /** 解绑 MACommandManager 事件 */
-    void UnbindCommandManagerEvents();
-
-    /** MACommandManager 时间步完成回调 */
-    UFUNCTION()
-    void OnCommandManagerTimeStepCompleted(const FMATimeStepFeedback& Feedback);
-
-    /** MACommandManager 技能列表完成回调 */
-    UFUNCTION()
-    void OnCommandManagerSkillListCompleted(const TArray<FMATimeStepFeedback>& AllFeedbacks);
-
-    //=========================================================================
-    // 模拟执行 (已废弃 - 现在使用真实执行)
-    //=========================================================================
-
-    // 注意: StartSimulatedExecution(), OnSimulationTick(), AdvanceSimulation() 已移除
-    // 现在通过 MACommandManager::ExecuteSkillList() 进行真实执行
-
     //=========================================================================
     // UI 组件
     //=========================================================================
@@ -329,10 +265,6 @@ protected:
     UPROPERTY()
     UMAStyledButton* SaveButton;
 
-    /** "开始执行" 按钮 (已废弃，保留以避免编译错误) */
-    UPROPERTY()
-    UButton* StartExecuteButton;
-
     /** "重置" 按钮 */
     UPROPERTY()
     UButton* ResetButton;
@@ -352,25 +284,6 @@ protected:
     /** 技能分配数据模型 */
     UPROPERTY()
     UMASkillAllocationModel* AllocationModel;
-
-    /** 是否正在执行 */
-    bool bIsExecuting = false;
-
-    //=========================================================================
-    // 模拟执行状态 (已废弃 - 保留变量以避免编译错误，但不再使用)
-    //=========================================================================
-
-    /** 模拟执行定时器句柄 (已废弃) */
-    FTimerHandle SimulationTimerHandle;
-
-    /** 当前模拟的时间步 (已废弃) */
-    int32 CurrentSimulationTimeStep = 0;
-
-    /** 当前时间步的状态 (已废弃) */
-    int32 CurrentSimulationPhase = 0;
-
-    /** 模拟执行间隔 (已废弃) */
-    float SimulationTickInterval = 1.0f;
 
     //=========================================================================
     // 配置

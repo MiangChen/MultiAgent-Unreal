@@ -371,6 +371,10 @@ struct MULTIAGENT_API FMASkillAllocationData
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkillAllocation")
     FString Description;
 
+    /** 原始消息 ID (用于 HITL 响应) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkillAllocation")
+    FString OriginalMessageId;
+
     /** 时间步 -> 时间步数据映射 */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkillAllocation")
     TMap<int32, FMATimeStepData> Data;
@@ -379,6 +383,9 @@ struct MULTIAGENT_API FMASkillAllocationData
 
     /** 从 JSON 字符串解析 */
     static bool FromJson(const FString& JsonString, FMASkillAllocationData& OutData, FString& OutError);
+
+    /** 内部解析函数 (支持 GSI 和 Mock Backend 两种格式) */
+    static bool FromJsonInternal(const TSharedPtr<FJsonObject>& RootObject, const TSharedPtr<FJsonObject>* DataObject, FMASkillAllocationData& OutData, FString& OutError);
 
     /** 序列化为格式化的 JSON 字符串 */
     FString ToJson() const;

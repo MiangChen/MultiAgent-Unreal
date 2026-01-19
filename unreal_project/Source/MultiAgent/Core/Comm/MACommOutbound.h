@@ -62,11 +62,49 @@ public:
     void SendSceneChangeMessageByType(EMASceneChangeType ChangeType, const FString& Payload);
 
     //=========================================================================
-    // 世界状态响应发送
+    // 技能分配消息发送
     //=========================================================================
 
-    /** 发送世界状态响应 */
-    void SendWorldStateResponse(const FString& QueryType, const FString& DataJson);
+    /** 发送技能分配消息 */
+    void SendSkillAllocationMessage(const FMASkillAllocationMessage& Message);
+
+    //=========================================================================
+    // HITL 响应消息发送
+    //=========================================================================
+
+    /** 
+     * 发送审阅响应消息
+     * 用于发送用户对技能分配等审阅请求的响应
+     * @param Response 审阅响应消息
+     */
+    void SendReviewResponse(const FMAReviewResponseMessage& Response);
+
+    /**
+     * 发送审阅响应消息 (便捷方法)
+     * @param OriginalMessageId 原始审阅请求的消息 ID
+     * @param bApproved 是否批准
+     * @param ModifiedDataJson 修改后的数据 (可选，批准时可能包含修改)
+     * @param RejectionReason 拒绝原因 (可选，拒绝时填写)
+     */
+    void SendReviewResponseSimple(const FString& OriginalMessageId, bool bApproved, 
+        const FString& ModifiedDataJson = TEXT(""), const FString& RejectionReason = TEXT(""));
+
+    /**
+     * 发送决策响应消息
+     * 用于发送用户对决策请求的响应
+     * @param Response 决策响应消息
+     */
+    void SendDecisionResponse(const FMADecisionResponseMessage& Response);
+
+    /**
+     * 发送决策响应消息 (便捷方法)
+     * @param OriginalMessageId 原始决策请求的消息 ID
+     * @param Decision 用户选择的决策选项
+     * @param DecisionDataJson 决策相关数据 (可选)
+     * @param Comments 用户备注 (可选)
+     */
+    void SendDecisionResponseSimple(const FString& OriginalMessageId, const FString& Decision,
+        const FString& DecisionDataJson = TEXT(""), const FString& Comments = TEXT(""));
 
 private:
     /** 所属的通信子系统 */

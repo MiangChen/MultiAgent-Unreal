@@ -559,25 +559,46 @@ bool FMASkillAssignment::FromJson(const TSharedPtr<FJsonObject>& JsonObject, FMA
         return false;
     }
 
-    // Parse skill name
-    if (!JsonObject->TryGetStringField(TEXT("skill"), Out.SkillName))
+    // 支持两种格式:
+    // 1. Mock Backend 格式: { "skill": "take_off", "params": {} }
+    // 2. GSI 格式: { "skill_str": "navigate<xxx>", "task_id": "task_1" }
+    
+    // 尝试 Mock Backend 格式
+    if (JsonObject->TryGetStringField(TEXT("skill"), Out.SkillName))
     {
-        return false;
+        // Parse params (can be any JSON object)
+        const TSharedPtr<FJsonObject>* ParamsObject;
+        if (JsonObject->TryGetObjectField(TEXT("params"), ParamsObject))
+        {
+            // Serialize params object to JSON string
+            FString ParamsString;
+            TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&ParamsString);
+            FJsonSerializer::Serialize(ParamsObject->ToSharedRef(), Writer);
+            Out.ParamsJson = ParamsString;
+        }
+        else
+        {
+            Out.ParamsJson = TEXT("{}");
+        }
     }
-
-    // Parse params (can be any JSON object)
-    const TSharedPtr<FJsonObject>* ParamsObject;
-    if (JsonObject->TryGetObjectField(TEXT("params"), ParamsObject))
+    // 尝试 GSI 格式
+    else if (JsonObject->TryGetStringField(TEXT("skill_str"), Out.SkillName))
     {
-        // Serialize params object to JSON string
-        FString ParamsString;
-        TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&ParamsString);
-        FJsonSerializer::Serialize(ParamsObject->ToSharedRef(), Writer);
-        Out.ParamsJson = ParamsString;
+        // GSI 格式没有 params，但有 task_id
+        FString TaskId;
+        if (JsonObject->TryGetStringField(TEXT("task_id"), TaskId))
+        {
+            // 将 task_id 存储在 params 中
+            Out.ParamsJson = FString::Printf(TEXT("{\"task_id\":\"%s\"}"), *TaskId);
+        }
+        else
+        {
+            Out.ParamsJson = TEXT("{}");
+        }
     }
     else
     {
-        Out.ParamsJson = TEXT("{}");
+        return false;
     }
 
     // Status is runtime state, not parsed from JSON
@@ -594,32 +615,53 @@ bool FMASkillAssignment::FromJsonWithError(const TSharedPtr<FJsonObject>& JsonOb
         return false;
     }
 
-    // Parse skill name (required field)
-    if (!JsonObject->TryGetStringField(TEXT("skill"), Out.SkillName))
+    // 支持两种格式:
+    // 1. Mock Backend 格式: { "skill": "take_off", "params": {} }
+    // 2. GSI 格式: { "skill_str": "navigate<xxx>", "task_id": "task_1" }
+    
+    // 尝试 Mock Backend 格式
+    if (JsonObject->TryGetStringField(TEXT("skill"), Out.SkillName))
     {
-        OutError = FString::Printf(TEXT("%s: Missing required field 'skill'"), *Context);
+        // Parse params (can be any JSON object)
+        const TSharedPtr<FJsonObject>* ParamsObject;
+        if (JsonObject->TryGetObjectField(TEXT("params"), ParamsObject))
+        {
+            // Serialize params object to JSON string
+            FString ParamsString;
+            TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&ParamsString);
+            FJsonSerializer::Serialize(ParamsObject->ToSharedRef(), Writer);
+            Out.ParamsJson = ParamsString;
+        }
+        else
+        {
+            Out.ParamsJson = TEXT("{}");
+        }
+    }
+    // 尝试 GSI 格式
+    else if (JsonObject->TryGetStringField(TEXT("skill_str"), Out.SkillName))
+    {
+        // GSI 格式没有 params，但有 task_id
+        FString TaskId;
+        if (JsonObject->TryGetStringField(TEXT("task_id"), TaskId))
+        {
+            // 将 task_id 存储在 params 中
+            Out.ParamsJson = FString::Printf(TEXT("{\"task_id\":\"%s\"}"), *TaskId);
+        }
+        else
+        {
+            Out.ParamsJson = TEXT("{}");
+        }
+    }
+    else
+    {
+        OutError = FString::Printf(TEXT("%s: Missing required field 'skill' or 'skill_str'"), *Context);
         return false;
     }
 
     if (Out.SkillName.IsEmpty())
     {
-        OutError = FString::Printf(TEXT("%s: Field 'skill' cannot be empty"), *Context);
+        OutError = FString::Printf(TEXT("%s: Field 'skill' or 'skill_str' cannot be empty"), *Context);
         return false;
-    }
-
-    // Parse params (can be any JSON object)
-    const TSharedPtr<FJsonObject>* ParamsObject;
-    if (JsonObject->TryGetObjectField(TEXT("params"), ParamsObject))
-    {
-        // Serialize params object to JSON string
-        FString ParamsString;
-        TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&ParamsString);
-        FJsonSerializer::Serialize(ParamsObject->ToSharedRef(), Writer);
-        Out.ParamsJson = ParamsString;
-    }
-    else
-    {
-        Out.ParamsJson = TEXT("{}");
     }
 
     // Status is runtime state, not parsed from JSON
@@ -840,6 +882,26 @@ bool FMASkillAllocationData::FromJson(const FString& JsonString, FMASkillAllocat
         return false;
     }
 
+    // 检测数据格式：GSI 格式 vs Mock Backend 格式
+    // GSI 格式: { "robot_view": {...}, "task_view": {...}, "timestep_skills": {...} }
+    // Mock Backend 格式: { "name": "...", "description": "...", "data": {...} }
+    
+    const TSharedPtr<FJsonObject>* TimestepSkillsObject;
+    if (RootObject->TryGetObjectField(TEXT("timestep_skills"), TimestepSkillsObject))
+    {
+        // GSI 格式
+        UE_LOG(LogMATaskGraph, Log, TEXT("FMASkillAllocationData::FromJson - Detected GSI format (timestep_skills)"));
+        
+        OutData.Name = TEXT("GSI Allocation");
+        OutData.Description = TEXT("Skill allocation from GSI planner");
+        
+        // 使用 timestep_skills 作为 data
+        return FromJsonInternal(RootObject, TimestepSkillsObject, OutData, OutError);
+    }
+    
+    // Mock Backend 格式
+    UE_LOG(LogMATaskGraph, Log, TEXT("FMASkillAllocationData::FromJson - Detected Mock Backend format (name/description/data)"));
+    
     // Collect all missing required fields
     TArray<FString> MissingFields;
 
@@ -868,8 +930,12 @@ bool FMASkillAllocationData::FromJson(const FString& JsonString, FMASkillAllocat
         OutError = FString::Printf(TEXT("Missing required field(s): %s"), *FString::Join(MissingFields, TEXT(", ")));
         return false;
     }
+    
+    return FromJsonInternal(RootObject, DataObject, OutData, OutError);
+}
 
-    OutData.Data.Empty();
+bool FMASkillAllocationData::FromJsonInternal(const TSharedPtr<FJsonObject>& RootObject, const TSharedPtr<FJsonObject>* DataObject, FMASkillAllocationData& OutData, FString& OutError)
+{    OutData.Data.Empty();
     TArray<FString> Warnings;
     TArray<FString> Errors;
     TArray<int32> ParsedTimeSteps;

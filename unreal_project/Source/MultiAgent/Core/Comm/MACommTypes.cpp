@@ -25,7 +25,8 @@ namespace MACommTypeHelpers
         case EMACommMessageType::ButtonEvent:     return TEXT("button_event");
         case EMACommMessageType::TaskFeedback:    return TEXT("task_feedback");
         case EMACommMessageType::WorldState:      return TEXT("world_state");
-        case EMACommMessageType::TaskPlanDAG:     return TEXT("task_plan_dag");
+        case EMACommMessageType::SceneChange:     return TEXT("scene_change");
+        case EMACommMessageType::TaskGraph:       return TEXT("task_graph");
         case EMACommMessageType::WorldModelGraph: return TEXT("world_model_graph");
         case EMACommMessageType::SkillList:       return TEXT("skill_list");
         case EMACommMessageType::QueryRequest:    return TEXT("query_request");
@@ -42,13 +43,93 @@ namespace MACommTypeHelpers
         if (TypeStr == TEXT("button_event"))       return EMACommMessageType::ButtonEvent;
         if (TypeStr == TEXT("task_feedback"))      return EMACommMessageType::TaskFeedback;
         if (TypeStr == TEXT("world_state"))        return EMACommMessageType::WorldState;
-        if (TypeStr == TEXT("task_plan_dag"))      return EMACommMessageType::TaskPlanDAG;
+        if (TypeStr == TEXT("scene_change"))       return EMACommMessageType::SceneChange;
+        if (TypeStr == TEXT("task_graph"))         return EMACommMessageType::TaskGraph;
         if (TypeStr == TEXT("world_model_graph"))  return EMACommMessageType::WorldModelGraph;
         if (TypeStr == TEXT("skill_list"))         return EMACommMessageType::SkillList;
         if (TypeStr == TEXT("query_request"))      return EMACommMessageType::QueryRequest;
         if (TypeStr == TEXT("skill_allocation"))   return EMACommMessageType::SkillAllocation;
         if (TypeStr == TEXT("skill_status_update")) return EMACommMessageType::SkillStatusUpdate;
         return EMACommMessageType::Custom;
+    }
+
+    //=========================================================================
+    // 消息类别枚举转换函数 - 匹配 Python 端 MessageCategory
+    //=========================================================================
+
+    FString MessageCategoryToString(EMAMessageCategory Category)
+    {
+        switch (Category)
+        {
+        case EMAMessageCategory::Instruction: return TEXT("instruction");
+        case EMAMessageCategory::Review:      return TEXT("review");
+        case EMAMessageCategory::Decision:    return TEXT("decision");
+        case EMAMessageCategory::Platform:
+        default:                              return TEXT("platform");
+        }
+    }
+
+    EMAMessageCategory StringToMessageCategory(const FString& CategoryStr)
+    {
+        if (CategoryStr == TEXT("instruction")) return EMAMessageCategory::Instruction;
+        if (CategoryStr == TEXT("review"))      return EMAMessageCategory::Review;
+        if (CategoryStr == TEXT("decision"))    return EMAMessageCategory::Decision;
+        if (CategoryStr == TEXT("platform"))    return EMAMessageCategory::Platform;
+        return EMAMessageCategory::Platform; // 默认值
+    }
+
+    //=========================================================================
+    // 消息方向枚举转换函数 - 匹配 Python 端 MessageDirection
+    //=========================================================================
+
+    FString MessageDirectionToString(EMAMessageDirection Direction)
+    {
+        switch (Direction)
+        {
+        case EMAMessageDirection::PythonToUE5: return TEXT("python_to_ue5");
+        case EMAMessageDirection::UE5ToPython:
+        default:                               return TEXT("ue5_to_python");
+        }
+    }
+
+    EMAMessageDirection StringToMessageDirection(const FString& DirectionStr)
+    {
+        if (DirectionStr == TEXT("python_to_ue5")) return EMAMessageDirection::PythonToUE5;
+        if (DirectionStr == TEXT("ue5_to_python")) return EMAMessageDirection::UE5ToPython;
+        return EMAMessageDirection::UE5ToPython; // 默认值
+    }
+
+    //=========================================================================
+    // 消息类型到类别的映射函数
+    // 根据 MessageType 推断 MessageCategory
+    //=========================================================================
+
+    EMAMessageCategory GetCategoryForMessageType(EMACommMessageType Type)
+    {
+        switch (Type)
+        {
+        // Instruction 类别: 用户指令输入
+        case EMACommMessageType::UIInput:
+        case EMACommMessageType::ButtonEvent:
+            return EMAMessageCategory::Instruction;
+
+        // Review 类别: 计划审阅请求/响应
+        case EMACommMessageType::TaskGraph:
+        case EMACommMessageType::SkillAllocation:
+            return EMAMessageCategory::Review;
+
+        // Platform 类别: 平台消息 (默认)
+        case EMACommMessageType::TaskFeedback:
+        case EMACommMessageType::WorldState:
+        case EMACommMessageType::SceneChange:
+        case EMACommMessageType::WorldModelGraph:
+        case EMACommMessageType::SkillList:
+        case EMACommMessageType::QueryRequest:
+        case EMACommMessageType::SkillStatusUpdate:
+        case EMACommMessageType::Custom:
+        default:
+            return EMAMessageCategory::Platform;
+        }
     }
 }
 
@@ -67,13 +148,92 @@ int64 FMAMessageEnvelope::GetCurrentTimestamp()
     return FDateTime::UtcNow().ToUnixTimestamp() * 1000 + FDateTime::UtcNow().GetMillisecond();
 }
 
+FString FMAMessageEnvelope::TimestampToISO8601(int64 UnixMillis)
+{
+    // 将 Unix 毫秒时间戳转换为 ISO 8601 格式字符串
+    // 格式: "2025-01-19T10:30:00.000Z"
+    int64 UnixSeconds = UnixMillis / 1000;
+    int32 Millis = static_cast<int32>(UnixMillis % 1000);
+    
+    FDateTime DateTime = FDateTime::FromUnixTimestamp(UnixSeconds);
+    
+    // 格式化为 ISO 8601，包含毫秒
+    return FString::Printf(TEXT("%04d-%02d-%02dT%02d:%02d:%02d.%03dZ"),
+        DateTime.GetYear(),
+        DateTime.GetMonth(),
+        DateTime.GetDay(),
+        DateTime.GetHour(),
+        DateTime.GetMinute(),
+        DateTime.GetSecond(),
+        Millis);
+}
+
+int64 FMAMessageEnvelope::ISO8601ToTimestamp(const FString& ISOString)
+{
+    // 将 ISO 8601 格式字符串转换为 Unix 毫秒时间戳
+    // 支持格式: "2025-01-19T10:30:00.000Z" 或 "2025-01-19T10:30:00Z"
+    
+    FDateTime DateTime;
+    if (FDateTime::ParseIso8601(*ISOString, DateTime))
+    {
+        int64 UnixSeconds = DateTime.ToUnixTimestamp();
+        
+        // 尝试解析毫秒部分
+        int32 Millis = 0;
+        int32 DotIndex = INDEX_NONE;
+        if (ISOString.FindChar(TEXT('.'), DotIndex))
+        {
+            // 找到小数点，提取毫秒
+            int32 ZIndex = ISOString.Find(TEXT("Z"), ESearchCase::IgnoreCase, ESearchDir::FromStart, DotIndex);
+            if (ZIndex == INDEX_NONE)
+            {
+                ZIndex = ISOString.Len();
+            }
+            
+            FString MillisStr = ISOString.Mid(DotIndex + 1, ZIndex - DotIndex - 1);
+            // 补齐或截断到 3 位
+            while (MillisStr.Len() < 3)
+            {
+                MillisStr += TEXT("0");
+            }
+            if (MillisStr.Len() > 3)
+            {
+                MillisStr = MillisStr.Left(3);
+            }
+            Millis = FCString::Atoi(*MillisStr);
+        }
+        
+        return UnixSeconds * 1000 + Millis;
+    }
+    
+    // 解析失败，尝试作为 Unix 毫秒时间戳解析
+    if (ISOString.IsNumeric())
+    {
+        return FCString::Atoi64(*ISOString);
+    }
+    
+    // 都失败了，返回当前时间
+    UE_LOG(LogMACommTypes, Warning, TEXT("ISO8601ToTimestamp - Failed to parse: %s, using current time"), *ISOString);
+    return GetCurrentTimestamp();
+}
+
 FString FMAMessageEnvelope::ToJson() const
 {
     TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject());
     
-    JsonObject->SetStringField(TEXT("message_type"), MACommTypeHelpers::MessageTypeToString(MessageType));
-    JsonObject->SetNumberField(TEXT("timestamp"), static_cast<double>(Timestamp));
+    // HITLMessage 格式字段
     JsonObject->SetStringField(TEXT("message_id"), MessageId);
+    JsonObject->SetStringField(TEXT("message_category"), MACommTypeHelpers::MessageCategoryToString(MessageCategory));
+    JsonObject->SetStringField(TEXT("message_type"), MACommTypeHelpers::MessageTypeToString(MessageType));
+    JsonObject->SetStringField(TEXT("direction"), MACommTypeHelpers::MessageDirectionToString(Direction));
+    
+    // 时间戳: 优先使用 ISO 8601 格式，同时保留毫秒时间戳用于兼容
+    FString ISOTimestamp = TimestampISO;
+    if (ISOTimestamp.IsEmpty() && Timestamp > 0)
+    {
+        ISOTimestamp = TimestampToISO8601(Timestamp);
+    }
+    JsonObject->SetStringField(TEXT("timestamp"), ISOTimestamp);
     
     // 解析 PayloadJson 为 JSON 对象并嵌入
     TSharedPtr<FJsonObject> PayloadObject;
@@ -113,11 +273,54 @@ bool FMAMessageEnvelope::FromJson(const FString& Json, FMAMessageEnvelope& OutEn
         OutEnvelope.MessageType = MACommTypeHelpers::StringToMessageType(TypeStr);
     }
     
-    // 解析 timestamp
-    double TimestampDouble = 0;
-    if (JsonObject->TryGetNumberField(TEXT("timestamp"), TimestampDouble))
+    // 解析 message_category (HITLMessage 格式)
+    // 如果不存在，从 message_type 推断 (向后兼容)
+    FString CategoryStr;
+    if (JsonObject->TryGetStringField(TEXT("message_category"), CategoryStr))
     {
+        OutEnvelope.MessageCategory = MACommTypeHelpers::StringToMessageCategory(CategoryStr);
+    }
+    else
+    {
+        // 向后兼容: 从 message_type 推断 category
+        OutEnvelope.MessageCategory = MACommTypeHelpers::GetCategoryForMessageType(OutEnvelope.MessageType);
+        UE_LOG(LogMACommTypes, Verbose, TEXT("FMAMessageEnvelope::FromJson - message_category not found, inferred from message_type: %s"), 
+            *MACommTypeHelpers::MessageCategoryToString(OutEnvelope.MessageCategory));
+    }
+    
+    // 解析 direction (HITLMessage 格式)
+    // 如果不存在，默认为 PythonToUE5 (入站消息)
+    FString DirectionStr;
+    if (JsonObject->TryGetStringField(TEXT("direction"), DirectionStr))
+    {
+        OutEnvelope.Direction = MACommTypeHelpers::StringToMessageDirection(DirectionStr);
+    }
+    else
+    {
+        // 向后兼容: 入站消息默认来自 Python
+        OutEnvelope.Direction = EMAMessageDirection::PythonToUE5;
+    }
+    
+    // 解析 timestamp - 支持 ISO 8601 字符串和 Unix 毫秒数字
+    FString TimestampStr;
+    double TimestampDouble = 0;
+    if (JsonObject->TryGetStringField(TEXT("timestamp"), TimestampStr))
+    {
+        // ISO 8601 格式字符串
+        OutEnvelope.TimestampISO = TimestampStr;
+        OutEnvelope.Timestamp = ISO8601ToTimestamp(TimestampStr);
+    }
+    else if (JsonObject->TryGetNumberField(TEXT("timestamp"), TimestampDouble))
+    {
+        // Unix 毫秒时间戳 (旧格式)
         OutEnvelope.Timestamp = static_cast<int64>(TimestampDouble);
+        OutEnvelope.TimestampISO = TimestampToISO8601(OutEnvelope.Timestamp);
+    }
+    else
+    {
+        // 都没有，使用当前时间
+        OutEnvelope.Timestamp = GetCurrentTimestamp();
+        OutEnvelope.TimestampISO = TimestampToISO8601(OutEnvelope.Timestamp);
     }
     
     // 解析 message_id
@@ -149,8 +352,8 @@ FString FMAUIInputMessage::ToJson() const
 {
     TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject());
     
-    JsonObject->SetStringField(TEXT("input_source_id"), InputSourceId);
-    JsonObject->SetStringField(TEXT("input_content"), InputContent);
+    JsonObject->SetStringField(TEXT("instruction_id"), InputSourceId);
+    JsonObject->SetStringField(TEXT("instruction_text"), InputContent);
     
     FString OutputString;
     TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
@@ -170,8 +373,8 @@ bool FMAUIInputMessage::FromJson(const FString& Json, FMAUIInputMessage& Out)
         return false;
     }
     
-    JsonObject->TryGetStringField(TEXT("input_source_id"), Out.InputSourceId);
-    JsonObject->TryGetStringField(TEXT("input_content"), Out.InputContent);
+    JsonObject->TryGetStringField(TEXT("instruction_id"), Out.InputSourceId);
+    JsonObject->TryGetStringField(TEXT("instruction_text"), Out.InputContent);
     
     return true;
 }
@@ -375,10 +578,10 @@ bool FMATaskPlanEdge::FromJson(const TSharedPtr<FJsonObject>& JsonObject, FMATas
 }
 
 //=============================================================================
-// FMATaskPlanDAG 实现
+// FMATaskPlan 实现
 //=============================================================================
 
-FString FMATaskPlanDAG::ToJson() const
+FString FMATaskPlan::ToJson() const
 {
     TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject());
     
@@ -428,14 +631,14 @@ FString FMATaskPlanDAG::ToJson() const
     return OutputString;
 }
 
-bool FMATaskPlanDAG::FromJson(const FString& Json, FMATaskPlanDAG& Out)
+bool FMATaskPlan::FromJson(const FString& Json, FMATaskPlan& Out)
 {
     TSharedPtr<FJsonObject> JsonObject;
     TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Json);
     
     if (!FJsonSerializer::Deserialize(Reader, JsonObject) || !JsonObject.IsValid())
     {
-        UE_LOG(LogMACommTypes, Warning, TEXT("FMATaskPlanDAG::FromJson - Failed to parse JSON"));
+        UE_LOG(LogMACommTypes, Warning, TEXT("FMATaskPlan::FromJson - Failed to parse JSON"));
         return false;
     }
     
@@ -481,7 +684,7 @@ bool FMATaskPlanDAG::FromJson(const FString& Json, FMATaskPlanDAG& Out)
     return true;
 }
 
-bool FMATaskPlanDAG::IsValidDAG() const
+bool FMATaskPlan::IsValidDAG() const
 {
     // 使用 Kahn's 算法检测环
     // 如果能完成拓扑排序，则是有效 DAG
@@ -1415,6 +1618,161 @@ bool FMASkillStatusUpdateMessage::FromJson(const FString& Json, FMASkillStatusUp
     {
         Out.Timestamp = static_cast<int64>(TimestampDouble);
     }
+
+    return true;
+}
+
+
+//=============================================================================
+// FMAReviewResponseMessage 实现
+//=============================================================================
+
+FString FMAReviewResponseMessage::ToJson() const
+{
+    TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject());
+
+    JsonObject->SetStringField(TEXT("original_message_id"), OriginalMessageId);
+    JsonObject->SetBoolField(TEXT("approved"), bApproved);
+    
+    if (!ModifiedDataJson.IsEmpty())
+    {
+        // 尝试将 ModifiedDataJson 解析为 JSON 对象并嵌入
+        TSharedPtr<FJsonObject> ModifiedDataObject;
+        TSharedRef<TJsonReader<>> DataReader = TJsonReaderFactory<>::Create(ModifiedDataJson);
+        if (FJsonSerializer::Deserialize(DataReader, ModifiedDataObject) && ModifiedDataObject.IsValid())
+        {
+            JsonObject->SetObjectField(TEXT("modified_data"), ModifiedDataObject);
+        }
+        else
+        {
+            // 如果不是有效 JSON，作为字符串存储
+            JsonObject->SetStringField(TEXT("modified_data"), ModifiedDataJson);
+        }
+    }
+    
+    if (!RejectionReason.IsEmpty())
+    {
+        JsonObject->SetStringField(TEXT("rejection_reason"), RejectionReason);
+    }
+
+    FString OutputString;
+    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
+    FJsonSerializer::Serialize(JsonObject.ToSharedRef(), Writer);
+
+    return OutputString;
+}
+
+bool FMAReviewResponseMessage::FromJson(const FString& Json, FMAReviewResponseMessage& Out)
+{
+    TSharedPtr<FJsonObject> JsonObject;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Json);
+
+    if (!FJsonSerializer::Deserialize(Reader, JsonObject) || !JsonObject.IsValid())
+    {
+        UE_LOG(LogMACommTypes, Warning, TEXT("FMAReviewResponseMessage::FromJson - Failed to parse JSON"));
+        return false;
+    }
+
+    // 解析 original_message_id
+    JsonObject->TryGetStringField(TEXT("original_message_id"), Out.OriginalMessageId);
+
+    // 解析 approved
+    JsonObject->TryGetBoolField(TEXT("approved"), Out.bApproved);
+
+    // 解析 modified_data - 将其序列化回 JSON 字符串
+    const TSharedPtr<FJsonObject>* ModifiedDataObject;
+    if (JsonObject->TryGetObjectField(TEXT("modified_data"), ModifiedDataObject))
+    {
+        FString DataString;
+        TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&DataString);
+        FJsonSerializer::Serialize(ModifiedDataObject->ToSharedRef(), Writer);
+        Out.ModifiedDataJson = DataString;
+    }
+    else
+    {
+        // 尝试作为字符串读取
+        JsonObject->TryGetStringField(TEXT("modified_data"), Out.ModifiedDataJson);
+    }
+
+    // 解析 rejection_reason
+    JsonObject->TryGetStringField(TEXT("rejection_reason"), Out.RejectionReason);
+
+    return true;
+}
+
+//=============================================================================
+// FMADecisionResponseMessage 实现
+//=============================================================================
+
+FString FMADecisionResponseMessage::ToJson() const
+{
+    TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject());
+
+    JsonObject->SetStringField(TEXT("original_message_id"), OriginalMessageId);
+    JsonObject->SetStringField(TEXT("decision"), Decision);
+    
+    if (!DecisionDataJson.IsEmpty())
+    {
+        // 尝试将 DecisionDataJson 解析为 JSON 对象并嵌入
+        TSharedPtr<FJsonObject> DecisionDataObject;
+        TSharedRef<TJsonReader<>> DataReader = TJsonReaderFactory<>::Create(DecisionDataJson);
+        if (FJsonSerializer::Deserialize(DataReader, DecisionDataObject) && DecisionDataObject.IsValid())
+        {
+            JsonObject->SetObjectField(TEXT("decision_data"), DecisionDataObject);
+        }
+        else
+        {
+            // 如果不是有效 JSON，作为字符串存储
+            JsonObject->SetStringField(TEXT("decision_data"), DecisionDataJson);
+        }
+    }
+    
+    if (!Comments.IsEmpty())
+    {
+        JsonObject->SetStringField(TEXT("comments"), Comments);
+    }
+
+    FString OutputString;
+    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
+    FJsonSerializer::Serialize(JsonObject.ToSharedRef(), Writer);
+
+    return OutputString;
+}
+
+bool FMADecisionResponseMessage::FromJson(const FString& Json, FMADecisionResponseMessage& Out)
+{
+    TSharedPtr<FJsonObject> JsonObject;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Json);
+
+    if (!FJsonSerializer::Deserialize(Reader, JsonObject) || !JsonObject.IsValid())
+    {
+        UE_LOG(LogMACommTypes, Warning, TEXT("FMADecisionResponseMessage::FromJson - Failed to parse JSON"));
+        return false;
+    }
+
+    // 解析 original_message_id
+    JsonObject->TryGetStringField(TEXT("original_message_id"), Out.OriginalMessageId);
+
+    // 解析 decision
+    JsonObject->TryGetStringField(TEXT("decision"), Out.Decision);
+
+    // 解析 decision_data - 将其序列化回 JSON 字符串
+    const TSharedPtr<FJsonObject>* DecisionDataObject;
+    if (JsonObject->TryGetObjectField(TEXT("decision_data"), DecisionDataObject))
+    {
+        FString DataString;
+        TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&DataString);
+        FJsonSerializer::Serialize(DecisionDataObject->ToSharedRef(), Writer);
+        Out.DecisionDataJson = DataString;
+    }
+    else
+    {
+        // 尝试作为字符串读取
+        JsonObject->TryGetStringField(TEXT("decision_data"), Out.DecisionDataJson);
+    }
+
+    // 解析 comments
+    JsonObject->TryGetStringField(TEXT("comments"), Out.Comments);
 
     return true;
 }

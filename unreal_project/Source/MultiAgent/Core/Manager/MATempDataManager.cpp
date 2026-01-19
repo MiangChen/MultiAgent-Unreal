@@ -23,7 +23,7 @@ DEFINE_LOG_CATEGORY(LogMATempData);
 //=============================================================================
 
 const FString UMATempDataManager::TaskGraphFileName = TEXT("task_graph_temp.json");
-const FString UMATempDataManager::SkillListFileName = TEXT("skill_list_temp.json");
+const FString UMATempDataManager::SkillAllocationFileName = TEXT("skill_allocation_temp.json");
 const FString UMATempDataManager::DataDirectoryName = TEXT("data");
 
 //=============================================================================
@@ -37,7 +37,7 @@ void UMATempDataManager::Initialize(FSubsystemCollectionBase& Collection)
     // 缓存路径
     CachedDataDirectory = GetDataDirectoryPath();
     CachedTaskGraphFilePath = GetTaskGraphFilePath();
-    CachedSkillListFilePath = GetSkillListFilePath();
+    CachedSkillAllocationFilePath = GetSkillAllocationFilePath();
 
     // 确保数据目录存在
     if (EnsureDataDirectoryExists())
@@ -145,15 +145,15 @@ bool UMATempDataManager::TaskGraphFileExists() const
 }
 
 //=============================================================================
-// 技能列表操作
+// 技能分配操作
 //=============================================================================
 
-bool UMATempDataManager::SaveSkillList(const FMASkillAllocationData& Data)
+bool UMATempDataManager::SaveSkillAllocation(const FMASkillAllocationData& Data)
 {
     // 确保目录存在
     if (!EnsureDataDirectoryExists())
     {
-        UE_LOG(LogMATempData, Error, TEXT("SaveSkillList: Failed to ensure data directory exists"));
+        UE_LOG(LogMATempData, Error, TEXT("SaveSkillAllocation: Failed to ensure data directory exists"));
         return false;
     }
 
@@ -161,48 +161,48 @@ bool UMATempDataManager::SaveSkillList(const FMASkillAllocationData& Data)
     FString JsonContent = Data.ToJson();
 
     // 写入文件
-    if (!WriteJsonToFile(CachedSkillListFilePath, JsonContent))
+    if (!WriteJsonToFile(CachedSkillAllocationFilePath, JsonContent))
     {
-        UE_LOG(LogMATempData, Error, TEXT("SaveSkillList: Failed to write file: %s"), *CachedSkillListFilePath);
+        UE_LOG(LogMATempData, Error, TEXT("SaveSkillAllocation: Failed to write file: %s"), *CachedSkillAllocationFilePath);
         return false;
     }
 
-    UE_LOG(LogMATempData, Log, TEXT("SaveSkillList: Successfully saved to %s"), *CachedSkillListFilePath);
+    UE_LOG(LogMATempData, Log, TEXT("SaveSkillAllocation: Successfully saved to %s"), *CachedSkillAllocationFilePath);
 
     // Update cache
-    CachedSkillListData = Data;
-    bSkillListCacheValid = true;
+    CachedSkillAllocationData = Data;
+    bSkillAllocationCacheValid = true;
 
     // 广播数据变更事件
-    OnSkillListChanged.Broadcast(Data);
+    OnSkillAllocationChanged.Broadcast(Data);
 
     return true;
 }
 
-bool UMATempDataManager::LoadSkillList(FMASkillAllocationData& OutData)
+bool UMATempDataManager::LoadSkillAllocation(FMASkillAllocationData& OutData)
 {
     // 如果缓存有效，直接返回缓存数据
-    if (bSkillListCacheValid)
+    if (bSkillAllocationCacheValid)
     {
-        OutData = CachedSkillListData;
-        UE_LOG(LogMATempData, Log, TEXT("LoadSkillList: Returning cached data (Name: %s, TimeSteps: %d)"),
+        OutData = CachedSkillAllocationData;
+        UE_LOG(LogMATempData, Log, TEXT("LoadSkillAllocation: Returning cached data (Name: %s, TimeSteps: %d)"),
             *OutData.Name, OutData.Data.Num());
         return true;
     }
     
     // 检查文件是否存在
-    if (!SkillListFileExists())
+    if (!SkillAllocationFileExists())
     {
-        UE_LOG(LogMATempData, Warning, TEXT("LoadSkillList: File does not exist: %s"), *CachedSkillListFilePath);
+        UE_LOG(LogMATempData, Warning, TEXT("LoadSkillAllocation: File does not exist: %s"), *CachedSkillAllocationFilePath);
         OutData = FMASkillAllocationData();
         return false;
     }
 
     // 读取文件内容
     FString JsonContent;
-    if (!ReadJsonFromFile(CachedSkillListFilePath, JsonContent))
+    if (!ReadJsonFromFile(CachedSkillAllocationFilePath, JsonContent))
     {
-        UE_LOG(LogMATempData, Error, TEXT("LoadSkillList: Failed to read file: %s"), *CachedSkillListFilePath);
+        UE_LOG(LogMATempData, Error, TEXT("LoadSkillAllocation: Failed to read file: %s"), *CachedSkillAllocationFilePath);
         OutData = FMASkillAllocationData();
         return false;
     }
@@ -211,34 +211,34 @@ bool UMATempDataManager::LoadSkillList(FMASkillAllocationData& OutData)
     FString ErrorMessage;
     if (!FMASkillAllocationData::FromJson(JsonContent, OutData, ErrorMessage))
     {
-        UE_LOG(LogMATempData, Error, TEXT("LoadSkillList: Failed to parse JSON: %s"), *ErrorMessage);
+        UE_LOG(LogMATempData, Error, TEXT("LoadSkillAllocation: Failed to parse JSON: %s"), *ErrorMessage);
         OutData = FMASkillAllocationData();
         return false;
     }
 
     // 更新缓存
-    CachedSkillListData = OutData;
-    bSkillListCacheValid = true;
+    CachedSkillAllocationData = OutData;
+    bSkillAllocationCacheValid = true;
 
-    UE_LOG(LogMATempData, Log, TEXT("LoadSkillList: Successfully loaded from %s (Name: %s, TimeSteps: %d)"),
-        *CachedSkillListFilePath, *OutData.Name, OutData.Data.Num());
+    UE_LOG(LogMATempData, Log, TEXT("LoadSkillAllocation: Successfully loaded from %s (Name: %s, TimeSteps: %d)"),
+        *CachedSkillAllocationFilePath, *OutData.Name, OutData.Data.Num());
 
     return true;
 }
 
-FString UMATempDataManager::GetSkillListJson() const
+FString UMATempDataManager::GetSkillAllocationJson() const
 {
     FString JsonContent;
-    if (ReadJsonFromFile(CachedSkillListFilePath, JsonContent))
+    if (ReadJsonFromFile(CachedSkillAllocationFilePath, JsonContent))
     {
         return JsonContent;
     }
     return FString();
 }
 
-bool UMATempDataManager::SkillListFileExists() const
+bool UMATempDataManager::SkillAllocationFileExists() const
 {
-    return FPlatformFileManager::Get().GetPlatformFile().FileExists(*CachedSkillListFilePath);
+    return FPlatformFileManager::Get().GetPlatformFile().FileExists(*CachedSkillAllocationFilePath);
 }
 
 //=============================================================================
@@ -254,13 +254,13 @@ FString UMATempDataManager::GetTaskGraphFilePath() const
     return FPaths::Combine(GetDataDirectoryPath(), TaskGraphFileName);
 }
 
-FString UMATempDataManager::GetSkillListFilePath() const
+FString UMATempDataManager::GetSkillAllocationFilePath() const
 {
-    if (!CachedSkillListFilePath.IsEmpty())
+    if (!CachedSkillAllocationFilePath.IsEmpty())
     {
-        return CachedSkillListFilePath;
+        return CachedSkillAllocationFilePath;
     }
-    return FPaths::Combine(GetDataDirectoryPath(), SkillListFileName);
+    return FPaths::Combine(GetDataDirectoryPath(), SkillAllocationFileName);
 }
 
 FString UMATempDataManager::GetDataDirectoryPath() const
@@ -343,7 +343,7 @@ void UMATempDataManager::StopFileWatching()
 
     bIsFileWatching = false;
     bTaskGraphFileChanged = false;
-    bSkillListFileChanged = false;
+    bSkillAllocationFileChanged = false;
 
     UE_LOG(LogMATempData, Log, TEXT("StopFileWatching: Stopped watching directory"));
 }
@@ -411,15 +411,15 @@ void UMATempDataManager::OnFileChanged(const TArray<FFileChangeData>& ChangedFil
             bTaskGraphFileChanged = true;
             UE_LOG(LogMATempData, Verbose, TEXT("OnFileChanged: Task graph file changed"));
         }
-        else if (FileName == SkillListFileName)
+        else if (FileName == SkillAllocationFileName)
         {
-            bSkillListFileChanged = true;
-            UE_LOG(LogMATempData, Verbose, TEXT("OnFileChanged: Skill list file changed"));
+            bSkillAllocationFileChanged = true;
+            UE_LOG(LogMATempData, Verbose, TEXT("OnFileChanged: Skill allocation file changed"));
         }
     }
 
     // 使用防抖机制延迟处理
-    if (bTaskGraphFileChanged || bSkillListFileChanged)
+    if (bTaskGraphFileChanged || bSkillAllocationFileChanged)
     {
         if (UGameInstance* GameInstance = GetGameInstance())
         {
@@ -452,19 +452,19 @@ void UMATempDataManager::ProcessFileChange()
         }
     }
 
-    // 处理技能列表文件变化
-    if (bSkillListFileChanged)
+    // 处理技能分配文件变化
+    if (bSkillAllocationFileChanged)
     {
-        bSkillListFileChanged = false;
+        bSkillAllocationFileChanged = false;
         
         // Invalidate cache when file changes
-        bSkillListCacheValid = false;
+        bSkillAllocationCacheValid = false;
 
         FMASkillAllocationData Data;
-        if (LoadSkillList(Data))
+        if (LoadSkillAllocation(Data))
         {
-            UE_LOG(LogMATempData, Log, TEXT("ProcessFileChange: Reloaded skill list, broadcasting event"));
-            OnSkillListChanged.Broadcast(Data);
+            UE_LOG(LogMATempData, Log, TEXT("ProcessFileChange: Reloaded skill allocation, broadcasting event"));
+            OnSkillAllocationChanged.Broadcast(Data);
         }
     }
 }
@@ -479,9 +479,9 @@ void UMATempDataManager::BroadcastSkillStatusUpdate(int32 TimeStep, const FStrin
         TimeStep, *RobotId, static_cast<int32>(NewStatus));
     
     // Update cached data if valid
-    if (bSkillListCacheValid)
+    if (bSkillAllocationCacheValid)
     {
-        FMASkillAssignment* Skill = CachedSkillListData.FindSkill(TimeStep, RobotId);
+        FMASkillAssignment* Skill = CachedSkillAllocationData.FindSkill(TimeStep, RobotId);
         if (Skill)
         {
             Skill->Status = NewStatus;

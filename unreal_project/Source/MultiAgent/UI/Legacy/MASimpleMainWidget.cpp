@@ -289,14 +289,14 @@ void UMASimpleMainWidget::SubmitCommand()
     }
     
     UE_LOG(LogMASimpleWidget, Log, TEXT("Submitting command: %s"), *Command);
-    // 使用 "SimpleMainWidget_InputBox" 作为 input_source_id
+    // 使用 "SimpleMainWidget_InputBox" 作为 instruction_id
     if (UGameInstance* GameInstance = GetGameInstance())
     {
         if (UMACommSubsystem* CommSubsystem = GameInstance->GetSubsystem<UMACommSubsystem>())
         {
             CommSubsystem->SendUIInputMessage(
-                TEXT("SimpleMainWidget_InputBox"),  // input_source_id
-                Command                              // input_content
+                TEXT("SimpleMainWidget_InputBox"),  // instruction_id
+                Command                              // instruction_text
             );
         }
     }

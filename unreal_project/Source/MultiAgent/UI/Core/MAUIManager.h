@@ -26,7 +26,7 @@ class UUserWidget;
 class UMAHUDStateManager;
 class UMAMainHUDWidget;
 class UMATaskGraphModal;
-class UMASkillListModal;
+class UMASkillAllocationModal;
 class UMAEmergencyModal;
 class UMABaseModalWidget;
 class UMANotificationWidget;
@@ -175,7 +175,7 @@ public:
 
     /** 获取技能列表模态窗口 */
     UFUNCTION(BlueprintPure, Category = "UI|Modal")
-    UMASkillListModal* GetSkillListModal() const { return SkillListModal; }
+    UMASkillAllocationModal* GetSkillAllocationModal() const { return SkillAllocationModal; }
 
     /** 获取紧急事件模态窗口 */
     UFUNCTION(BlueprintPure, Category = "UI|Modal")
@@ -230,11 +230,11 @@ public:
     bool IsAnyFullscreenWidgetVisible() const;
 
     /**
-     * 从 SkillAllocationViewer 导航到 SkillListModal
+     * 从 SkillAllocationViewer 导航到 SkillAllocationModal
      * 隐藏 Viewer 并显示 Modal，从 TempDataManager 加载数据
      */
     UFUNCTION(BlueprintCallable, Category = "UI|Navigation")
-    void NavigateFromViewerToSkillListModal();
+    void NavigateFromViewerToSkillAllocationModal();
 
     /**
      * 从 TaskPlannerWidget 导航到 TaskGraphModal
@@ -386,7 +386,7 @@ private:
 
     /** 技能列表模态窗口 */
     UPROPERTY()
-    UMASkillListModal* SkillListModal;
+    UMASkillAllocationModal* SkillAllocationModal;
 
     /** 紧急事件模态窗口 */
     UPROPERTY()
@@ -518,11 +518,11 @@ private:
     void OnTempTaskGraphChanged(const FMATaskGraphData& Data);
 
     /**
-     * 技能列表数据变化回调
-     * @param Data 新的技能列表数据
+     * 技能分配数据变化回调
+     * @param Data 新的技能分配数据
      */
     UFUNCTION()
-    void OnTempSkillListChanged(const FMASkillAllocationData& Data);
+    void OnTempSkillAllocationChanged(const FMASkillAllocationData& Data);
 
     /**
      * 技能状态实时更新回调

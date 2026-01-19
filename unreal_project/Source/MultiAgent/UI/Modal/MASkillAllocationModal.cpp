@@ -1,11 +1,12 @@
-// MASkillListModal.cpp
+// MASkillAllocationModal.cpp
 // 技能列表模态窗口实现
-// Requirements: 5.2, 5.3, 6.1, 6.4
+// Requirements: 5.2, 5.3, 5.4, 6.1, 6.4
 
-#include "MASkillListModal.h"
+#include "MASkillAllocationModal.h"
 #include "../Core/MAUITheme.h"
-#include "../SkillList/MAGanttCanvas.h"
-#include "../SkillList/MASkillAllocationModel.h"
+#include "../SkillAllocation/MAGanttCanvas.h"
+#include "../SkillAllocation/MASkillAllocationModel.h"
+#include "../../Core/Comm/MACommSubsystem.h"
 #include "Components/CanvasPanel.h"
 #include "Components/Border.h"
 #include "Components/TextBlock.h"
@@ -18,14 +19,15 @@
 #include "Components/MultiLineEditableTextBox.h"
 #include "Components/SizeBox.h"
 #include "Blueprint/WidgetTree.h"
+#include "Kismet/GameplayStatics.h"
 
-DEFINE_LOG_CATEGORY(LogMASkillListModal);
+DEFINE_LOG_CATEGORY(LogMASkillAllocationModal);
 
 //=============================================================================
 // 构造函数
 //=============================================================================
 
-UMASkillListModal::UMASkillListModal(const FObjectInitializer& ObjectInitializer)
+UMASkillAllocationModal::UMASkillAllocationModal(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
     , GanttCanvas(nullptr)
     , GanttCanvasContainer(nullptr)
@@ -59,7 +61,7 @@ UMASkillListModal::UMASkillListModal(const FObjectInitializer& ObjectInitializer
 // UUserWidget 重写
 //=============================================================================
 
-void UMASkillListModal::NativeConstruct()
+void UMASkillAllocationModal::NativeConstruct()
 {
     Super::NativeConstruct();
     
@@ -69,7 +71,7 @@ void UMASkillListModal::NativeConstruct()
         AllocationModel = NewObject<UMASkillAllocationModel>(this);
         if (AllocationModel)
         {
-            AllocationModel->OnDataChanged.AddDynamic(this, &UMASkillListModal::OnModelDataChanged);
+            AllocationModel->OnDataChanged.AddDynamic(this, &UMASkillAllocationModal::OnModelDataChanged);
         }
     }
     
@@ -80,22 +82,22 @@ void UMASkillListModal::NativeConstruct()
     }
     
     // 绑定基类按钮事件
-    OnConfirmClicked.AddDynamic(this, &UMASkillListModal::HandleConfirm);
-    OnRejectClicked.AddDynamic(this, &UMASkillListModal::HandleReject);
+    OnConfirmClicked.AddDynamic(this, &UMASkillAllocationModal::HandleConfirm);
+    OnRejectClicked.AddDynamic(this, &UMASkillAllocationModal::HandleReject);
     
-    UE_LOG(LogMASkillListModal, Log, TEXT("MASkillListModal constructed"));
+    UE_LOG(LogMASkillAllocationModal, Log, TEXT("MASkillAllocationModal constructed"));
 }
 
-void UMASkillListModal::NativeDestruct()
+void UMASkillAllocationModal::NativeDestruct()
 {
     // 解绑事件
     if (AllocationModel)
     {
-        AllocationModel->OnDataChanged.RemoveDynamic(this, &UMASkillListModal::OnModelDataChanged);
+        AllocationModel->OnDataChanged.RemoveDynamic(this, &UMASkillAllocationModal::OnModelDataChanged);
     }
     
-    OnConfirmClicked.RemoveDynamic(this, &UMASkillListModal::HandleConfirm);
-    OnRejectClicked.RemoveDynamic(this, &UMASkillListModal::HandleReject);
+    OnConfirmClicked.RemoveDynamic(this, &UMASkillAllocationModal::HandleConfirm);
+    OnRejectClicked.RemoveDynamic(this, &UMASkillAllocationModal::HandleReject);
     
     Super::NativeDestruct();
 }
@@ -104,9 +106,9 @@ void UMASkillListModal::NativeDestruct()
 // UMABaseModalWidget 重写
 //=============================================================================
 
-void UMASkillListModal::OnEditModeChanged(bool bEditable)
+void UMASkillAllocationModal::OnEditModeChanged(bool bEditable)
 {
-    UE_LOG(LogMASkillListModal, Log, TEXT("Edit mode changed to: %s"), bEditable ? TEXT("true") : TEXT("false"));
+    UE_LOG(LogMASkillAllocationModal, Log, TEXT("Edit mode changed to: %s"), bEditable ? TEXT("true") : TEXT("false"));
     
     // 更新 JSON 预览框的可编辑状态
     if (JsonPreviewBox)
@@ -134,7 +136,7 @@ void UMASkillListModal::OnEditModeChanged(bool bEditable)
     }
 }
 
-FText UMASkillListModal::GetModalTitleText() const
+FText UMASkillAllocationModal::GetModalTitleText() const
 {
     if (IsEditMode())
     {
@@ -143,15 +145,15 @@ FText UMASkillListModal::GetModalTitleText() const
     return FText::FromString(TEXT("Skill List"));
 }
 
-void UMASkillListModal::BuildContentArea(UVerticalBox* InContentContainer)
+void UMASkillAllocationModal::BuildContentArea(UVerticalBox* InContentContainer)
 {
     if (!InContentContainer || !WidgetTree)
     {
-        UE_LOG(LogMASkillListModal, Error, TEXT("BuildContentArea: Invalid container or WidgetTree"));
+        UE_LOG(LogMASkillAllocationModal, Error, TEXT("BuildContentArea: Invalid container or WidgetTree"));
         return;
     }
     
-    UE_LOG(LogMASkillListModal, Log, TEXT("Building content area..."));
+    UE_LOG(LogMASkillAllocationModal, Log, TEXT("Building content area..."));
     
     // 创建甘特图画布区域 (占满整个内容区域)
     UBorder* GanttArea = CreateGanttCanvasArea();
@@ -168,10 +170,10 @@ void UMASkillListModal::BuildContentArea(UVerticalBox* InContentContainer)
     
     // JSON 预览区域已移除 - 只显示甘特图画布
     
-    UE_LOG(LogMASkillListModal, Log, TEXT("Content area built successfully"));
+    UE_LOG(LogMASkillAllocationModal, Log, TEXT("Content area built successfully"));
 }
 
-void UMASkillListModal::OnThemeApplied()
+void UMASkillAllocationModal::OnThemeApplied()
 {
     // 应用主题到甘特图画布容器
     if (GanttCanvasContainer && Theme)
@@ -192,9 +194,9 @@ void UMASkillListModal::OnThemeApplied()
 // 公共接口
 //=============================================================================
 
-void UMASkillListModal::LoadSkillAllocation(const FMASkillAllocationData& Data)
+void UMASkillAllocationModal::LoadSkillAllocation(const FMASkillAllocationData& Data)
 {
-    UE_LOG(LogMASkillListModal, Log, TEXT("Loading skill allocation with %d time steps"),
+    UE_LOG(LogMASkillAllocationModal, Log, TEXT("Loading skill allocation with %d time steps"),
         Data.Data.Num());
     
     // 保存原始数据
@@ -217,14 +219,14 @@ void UMASkillListModal::LoadSkillAllocation(const FMASkillAllocationData& Data)
     SyncJsonPreview();
 }
 
-bool UMASkillListModal::LoadSkillAllocationFromJson(const FString& JsonString)
+bool UMASkillAllocationModal::LoadSkillAllocationFromJson(const FString& JsonString)
 {
     FMASkillAllocationData Data;
     FString ErrorMessage;
     
     if (!FMASkillAllocationData::FromJson(JsonString, Data, ErrorMessage))
     {
-        UE_LOG(LogMASkillListModal, Warning, TEXT("Failed to parse JSON: %s"), *ErrorMessage);
+        UE_LOG(LogMASkillAllocationModal, Warning, TEXT("Failed to parse JSON: %s"), *ErrorMessage);
         return false;
     }
     
@@ -232,7 +234,7 @@ bool UMASkillListModal::LoadSkillAllocationFromJson(const FString& JsonString)
     return true;
 }
 
-FMASkillAllocationData UMASkillListModal::GetSkillAllocationData() const
+FMASkillAllocationData UMASkillAllocationModal::GetSkillAllocationData() const
 {
     if (AllocationModel)
     {
@@ -245,7 +247,7 @@ FMASkillAllocationData UMASkillListModal::GetSkillAllocationData() const
 // 内部方法
 //=============================================================================
 
-UBorder* UMASkillListModal::CreateGanttCanvasArea()
+UBorder* UMASkillAllocationModal::CreateGanttCanvasArea()
 {
     if (!WidgetTree)
     {
@@ -287,7 +289,7 @@ UBorder* UMASkillListModal::CreateGanttCanvasArea()
     return GanttCanvasContainer;
 }
 
-UVerticalBox* UMASkillListModal::CreateJsonPreviewArea()
+UVerticalBox* UMASkillAllocationModal::CreateJsonPreviewArea()
 {
     if (!WidgetTree)
     {
@@ -339,7 +341,7 @@ UVerticalBox* UMASkillListModal::CreateJsonPreviewArea()
         {
             HeaderBox->AddChild(UpdateButton);
             UpdateButton->SetVisibility(ESlateVisibility::Collapsed); // 初始隐藏
-            UpdateButton->OnClicked.AddDynamic(this, &UMASkillListModal::OnUpdateButtonClicked);
+            UpdateButton->OnClicked.AddDynamic(this, &UMASkillAllocationModal::OnUpdateButtonClicked);
             
             // 创建按钮文本
             UTextBlock* ButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("UpdateButtonText"));
@@ -385,7 +387,7 @@ UVerticalBox* UMASkillListModal::CreateJsonPreviewArea()
     return JsonPreviewContainer;
 }
 
-void UMASkillListModal::SyncJsonPreview()
+void UMASkillAllocationModal::SyncJsonPreview()
 {
     if (!JsonPreviewBox || !AllocationModel)
     {
@@ -398,7 +400,7 @@ void UMASkillListModal::SyncJsonPreview()
     JsonPreviewBox->SetText(FText::FromString(JsonString));
 }
 
-void UMASkillListModal::UpdateModelFromJson()
+void UMASkillAllocationModal::UpdateModelFromJson()
 {
     if (!JsonPreviewBox || !AllocationModel)
     {
@@ -419,28 +421,81 @@ void UMASkillListModal::UpdateModelFromJson()
             GanttCanvas->RefreshFromModel();
         }
         
-        UE_LOG(LogMASkillListModal, Log, TEXT("Updated model from JSON"));
+        UE_LOG(LogMASkillAllocationModal, Log, TEXT("Updated model from JSON"));
     }
     else
     {
-        UE_LOG(LogMASkillListModal, Warning, TEXT("Failed to parse JSON: %s"), *ErrorMessage);
+        UE_LOG(LogMASkillAllocationModal, Warning, TEXT("Failed to parse JSON: %s"), *ErrorMessage);
     }
 }
 
-void UMASkillListModal::HandleConfirm()
+void UMASkillAllocationModal::HandleConfirm()
 {
-    UE_LOG(LogMASkillListModal, Log, TEXT("Skill list confirmed"));
+    UE_LOG(LogMASkillAllocationModal, Log, TEXT("Skill list confirmed"));
     
     // 获取当前数据
     FMASkillAllocationData Data = GetSkillAllocationData();
+    
+    // 发送审阅响应到 Python 端 (Requirements: 5.4)
+    if (UGameInstance* GameInstance = UGameplayStatics::GetGameInstance(this))
+    {
+        if (UMACommSubsystem* CommSubsystem = GameInstance->GetSubsystem<UMACommSubsystem>())
+        {
+            // 检查是否有原始消息 ID (来自 HITL 请求)
+            if (!OriginalData.OriginalMessageId.IsEmpty())
+            {
+                // 发送审阅响应: 批准，包含可能修改后的数据
+                FString ModifiedDataJson = Data.ToJson();
+                CommSubsystem->SendReviewResponseSimple(
+                    OriginalData.OriginalMessageId,
+                    true,  // bApproved
+                    ModifiedDataJson,
+                    TEXT("")  // 无拒绝原因
+                );
+                
+                UE_LOG(LogMASkillAllocationModal, Log, TEXT("Sent review response: Approved, OriginalMessageId=%s"),
+                    *OriginalData.OriginalMessageId);
+            }
+            else
+            {
+                UE_LOG(LogMASkillAllocationModal, Verbose, TEXT("No OriginalMessageId, skipping review response"));
+            }
+        }
+    }
     
     // 广播确认事件
     OnSkillListConfirmed.Broadcast(Data);
 }
 
-void UMASkillListModal::HandleReject()
+void UMASkillAllocationModal::HandleReject()
 {
-    UE_LOG(LogMASkillListModal, Log, TEXT("Skill list rejected"));
+    UE_LOG(LogMASkillAllocationModal, Log, TEXT("Skill list rejected"));
+    
+    // 发送审阅响应到 Python 端 (Requirements: 5.4)
+    if (UGameInstance* GameInstance = UGameplayStatics::GetGameInstance(this))
+    {
+        if (UMACommSubsystem* CommSubsystem = GameInstance->GetSubsystem<UMACommSubsystem>())
+        {
+            // 检查是否有原始消息 ID (来自 HITL 请求)
+            if (!OriginalData.OriginalMessageId.IsEmpty())
+            {
+                // 发送审阅响应: 拒绝
+                CommSubsystem->SendReviewResponseSimple(
+                    OriginalData.OriginalMessageId,
+                    false,  // bApproved
+                    TEXT(""),  // 无修改数据
+                    TEXT("User rejected the skill allocation")  // 拒绝原因
+                );
+                
+                UE_LOG(LogMASkillAllocationModal, Log, TEXT("Sent review response: Rejected, OriginalMessageId=%s"),
+                    *OriginalData.OriginalMessageId);
+            }
+            else
+            {
+                UE_LOG(LogMASkillAllocationModal, Verbose, TEXT("No OriginalMessageId, skipping review response"));
+            }
+        }
+    }
     
     // 恢复原始数据
     if (AllocationModel)
@@ -463,9 +518,9 @@ void UMASkillListModal::HandleReject()
 // 事件处理
 //=============================================================================
 
-void UMASkillListModal::OnModelDataChanged()
+void UMASkillAllocationModal::OnModelDataChanged()
 {
-    UE_LOG(LogMASkillListModal, Log, TEXT("Model data changed"));
+    UE_LOG(LogMASkillAllocationModal, Log, TEXT("Model data changed"));
     
     // 同步 JSON 预览
     SyncJsonPreview();
@@ -477,15 +532,15 @@ void UMASkillListModal::OnModelDataChanged()
     }
 }
 
-void UMASkillListModal::OnUpdateButtonClicked()
+void UMASkillAllocationModal::OnUpdateButtonClicked()
 {
-    UE_LOG(LogMASkillListModal, Log, TEXT("Update button clicked"));
+    UE_LOG(LogMASkillAllocationModal, Log, TEXT("Update button clicked"));
     
     // 从 JSON 编辑器更新模型
     UpdateModelFromJson();
 }
 
-FMASkillAllocationMessage UMASkillListModal::GetSkillAllocationMessage() const
+FMASkillAllocationMessage UMASkillAllocationModal::GetSkillAllocationMessage() const
 {
     FMASkillAllocationMessage Message;
     
@@ -497,18 +552,18 @@ FMASkillAllocationMessage UMASkillListModal::GetSkillAllocationMessage() const
     Message.Description = Data.Description;
     Message.DataJson = Data.ToJson();
     
-    UE_LOG(LogMASkillListModal, Log, TEXT("GetSkillAllocationMessage: Name=%s, Description=%s"),
+    UE_LOG(LogMASkillAllocationModal, Log, TEXT("GetSkillAllocationMessage: Name=%s, Description=%s"),
         *Message.Name, *Message.Description);
     
     return Message;
 }
 
-void UMASkillListModal::UpdateSkillStatus(int32 TimeStep, const FString& RobotId, ESkillExecutionStatus NewStatus)
+void UMASkillAllocationModal::UpdateSkillStatus(int32 TimeStep, const FString& RobotId, ESkillExecutionStatus NewStatus)
 {
     if (AllocationModel)
     {
         AllocationModel->UpdateSkillStatus(TimeStep, RobotId, NewStatus);
-        UE_LOG(LogMASkillListModal, Verbose, TEXT("UpdateSkillStatus: TimeStep=%d, RobotId=%s, Status=%d"),
+        UE_LOG(LogMASkillAllocationModal, Verbose, TEXT("UpdateSkillStatus: TimeStep=%d, RobotId=%s, Status=%d"),
             TimeStep, *RobotId, static_cast<int32>(NewStatus));
     }
 }

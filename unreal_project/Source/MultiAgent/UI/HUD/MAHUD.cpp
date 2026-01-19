@@ -11,10 +11,10 @@
 #include "MAMainHUDWidget.h"
 #include "../Legacy/MASimpleMainWidget.h"
 #include "../Modal/MATaskGraphModal.h"
-#include "../Modal/MASkillListModal.h"
+#include "../Modal/MASkillAllocationModal.h"
 #include "../Modal/MAEmergencyModal.h"
 #include "../TaskGraph/MATaskPlannerWidget.h"
-#include "../SkillList/MASkillAllocationViewer.h"
+#include "../SkillAllocation/MASkillAllocationViewer.h"
 #include "../Components/MADirectControlIndicator.h"
 #include "../Components/MARightSidebarWidget.h"
 #include "../../Core/Types/MATaskGraphTypes.h"
@@ -2140,11 +2140,11 @@ void AMAHUD::BindBackendEvents()
             UE_LOG(LogMAHUD, Log, TEXT("BindBackendEvents: Bound OnTaskPlanReceived"));
         }
 
-        // 绑定技能列表更新事件 (Requirements: 4.2)
-        if (!CommSubsystem->OnSkillListReceived.IsAlreadyBound(this, &AMAHUD::OnSkillListReceived))
+        // 绑定技能分配数据更新事件 (用于 UI 交互流程)
+        if (!CommSubsystem->OnSkillAllocationReceived.IsAlreadyBound(this, &AMAHUD::OnSkillAllocationReceived))
         {
-            CommSubsystem->OnSkillListReceived.AddDynamic(this, &AMAHUD::OnSkillListReceived);
-            UE_LOG(LogMAHUD, Log, TEXT("BindBackendEvents: Bound OnSkillListReceived"));
+            CommSubsystem->OnSkillAllocationReceived.AddDynamic(this, &AMAHUD::OnSkillAllocationReceived);
+            UE_LOG(LogMAHUD, Log, TEXT("BindBackendEvents: Bound OnSkillAllocationReceived"));
         }
     }
     else
@@ -2209,7 +2209,7 @@ void AMAHUD::BindModalDelegates()
 // 后端事件回调 (Requirements: 4.1, 4.2, 4.3)
 //=============================================================================
 
-void AMAHUD::OnTaskGraphReceived(const FMATaskPlanDAG& TaskPlan)
+void AMAHUD::OnTaskGraphReceived(const FMATaskPlan& TaskPlan)
 {
     UE_LOG(LogMAHUD, Log, TEXT("OnTaskGraphReceived: Received task graph update with %d nodes"), TaskPlan.Nodes.Num());
 
@@ -2231,37 +2231,28 @@ void AMAHUD::OnTaskGraphReceived(const FMATaskPlanDAG& TaskPlan)
     UMAMainHUDWidget* MainHUD = UIManager->GetMainHUDWidget();
     if (MainHUD)
     {
-        // 将 TaskPlanDAG 转换为 JSON 用于预览
+        // 将 TaskPlan 转换为 JSON 用于预览
         FString TaskGraphJson = TaskPlan.ToJson();
         UE_LOG(LogMAHUD, Log, TEXT("OnTaskGraphReceived: Task graph preview update pending, JSON length=%d"), TaskGraphJson.Len());
     }
 }
 
-void AMAHUD::OnSkillListReceived(const FMASkillListMessage& SkillList)
+void AMAHUD::OnSkillAllocationReceived(const FMASkillAllocationData& AllocationData)
 {
-    UE_LOG(LogMAHUD, Log, TEXT("OnSkillListReceived: Received skill list update with %d time steps"), SkillList.TotalTimeSteps);
+    UE_LOG(LogMAHUD, Log, TEXT("OnSkillAllocationReceived: Received skill allocation data, Name=%s"), *AllocationData.Name);
 
     if (!UIManager)
     {
-        UE_LOG(LogMAHUD, Warning, TEXT("OnSkillListReceived: UIManager is null"));
+        UE_LOG(LogMAHUD, Warning, TEXT("OnSkillAllocationReceived: UIManager is null"));
         return;
     }
 
-    // 显示技能列表更新通知 (Requirements: 4.2)
+    // 显示技能分配更新通知 (用于 UI 交互流程)
     UMAHUDStateManager* StateManager = UIManager->GetHUDStateManager();
     if (StateManager)
     {
         StateManager->ShowNotification(EMANotificationType::SkillListUpdate);
-        UE_LOG(LogMAHUD, Log, TEXT("OnSkillListReceived: Notification shown"));
-    }
-
-    // 更新技能列表预览 (如果 MainHUDWidget 存在)
-    UMAMainHUDWidget* MainHUD = UIManager->GetMainHUDWidget();
-    if (MainHUD)
-    {
-        // 将 SkillListMessage 转换为 JSON 用于预览
-        FString SkillListJson = SkillList.ToJson();
-        UE_LOG(LogMAHUD, Log, TEXT("OnSkillListReceived: Skill list preview update pending, JSON length=%d"), SkillListJson.Len());
+        UE_LOG(LogMAHUD, Log, TEXT("OnSkillAllocationReceived: Notification shown"));
     }
 }
 
@@ -2310,10 +2301,10 @@ void AMAHUD::OnModalConfirmedHandler(EMAModalType ModalType)
                 UMACommSubsystem* CommSubsystem = GI->GetSubsystem<UMACommSubsystem>();
                 if (CommSubsystem && UIManager)
                 {
-                    UMASkillListModal* SkillListModal = UIManager->GetSkillListModal();
-                    if (SkillListModal)
+                    UMASkillAllocationModal* SkillAllocationModal = UIManager->GetSkillAllocationModal();
+                    if (SkillAllocationModal)
                     {
-                        FMASkillAllocationMessage Message = SkillListModal->GetSkillAllocationMessage();
+                        FMASkillAllocationMessage Message = SkillAllocationModal->GetSkillAllocationMessage();
                         CommSubsystem->SendSkillAllocationMessage(Message);
                         UE_LOG(LogMAHUD, Log, TEXT("OnModalConfirmedHandler: Skill allocation submitted to backend"));
                     }
@@ -2377,7 +2368,7 @@ void AMAHUD::OnModalRejectedHandler(EMAModalType ModalType)
                 WidgetName = TEXT("TaskGraphModal");
                 break;
             case EMAModalType::SkillList:
-                WidgetName = TEXT("SkillListModal");
+                WidgetName = TEXT("SkillAllocationModal");
                 break;
             case EMAModalType::Emergency:
                 WidgetName = TEXT("EmergencyModal");

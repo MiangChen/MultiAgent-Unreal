@@ -1,0 +1,29 @@
+{
+	"name": "GSI Allocation",
+	"description": "Skill allocation from GSI planner",
+	"data":
+	{
+		"0":
+		{
+			"UAV_01":
+			{
+				"skill": "take_off",
+				"params":
+				{
+					"task_id": "T1"
+				}
+			}
+		},
+		"1":
+		{
+			"UAV_01":
+			{
+				"skill": "search<cybertown>_for<Red_Box>",
+				"params":
+				{
+					"task_id": "T1"
+				}
+			}
+		}
+	}
+}

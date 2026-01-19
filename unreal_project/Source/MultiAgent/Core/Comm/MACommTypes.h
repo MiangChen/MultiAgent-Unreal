@@ -4,6 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "../Types/MATaskGraphTypes.h"
 #include "MACommTypes.generated.h"
 
 //=============================================================================
@@ -26,12 +27,11 @@ enum class EMACommMessageType : uint8
     UIInput         UMETA(DisplayName = "UI Input"),
     ButtonEvent     UMETA(DisplayName = "Button Event"),
     TaskFeedback    UMETA(DisplayName = "Task Feedback"),
-    TaskGraphSubmit UMETA(DisplayName = "Task Graph Submit"),
-    WorldState      UMETA(DisplayName = "World State"),  // 世界状态响应
-    SceneChange     UMETA(DisplayName = "Scene Change"),  // 场景变化消息
+    WorldState      UMETA(DisplayName = "World State"),
+    SceneChange     UMETA(DisplayName = "Scene Change"),
 
     // 入站消息 (规划器 -> 仿真端)
-    TaskPlanDAG     UMETA(DisplayName = "Task Plan DAG"),
+    TaskGraph       UMETA(DisplayName = "Task Graph"),
     WorldModelGraph UMETA(DisplayName = "World Model Graph"),
     SkillList       UMETA(DisplayName = "Skill List"),
     QueryRequest    UMETA(DisplayName = "Query Request"),  // 查询请求
@@ -42,6 +42,30 @@ enum class EMACommMessageType : uint8
     Custom          UMETA(DisplayName = "Custom")
 };
 
+/**
+ * 消息类别枚举 - 匹配 Python 端 MessageCategory
+ * 用于 HITL (Human-In-The-Loop) 消息路由
+ */
+UENUM(BlueprintType)
+enum class EMAMessageCategory : uint8
+{
+    Instruction UMETA(DisplayName = "Instruction"),  // 用户指令输入
+    Review      UMETA(DisplayName = "Review"),       // 计划审阅请求/响应
+    Decision    UMETA(DisplayName = "Decision"),     // 决策请求/响应
+    Platform    UMETA(DisplayName = "Platform")      // 平台消息 (skill_list, task_feedback 等)
+};
+
+/**
+ * 消息方向枚举 - 匹配 Python 端 MessageDirection
+ * 用于标识消息的来源和目标
+ */
+UENUM(BlueprintType)
+enum class EMAMessageDirection : uint8
+{
+    PythonToUE5 UMETA(DisplayName = "Python to UE5"),  // Python 端发送到 UE5 端
+    UE5ToPython UMETA(DisplayName = "UE5 to Python")   // UE5 端发送到 Python 端
+};
+
 //=============================================================================
 // 消息信封结构
 //=============================================================================
@@ -49,6 +73,7 @@ enum class EMACommMessageType : uint8
 /**
  * 消息信封 - 统一的消息包装格式
  * 包含消息类型、时间戳、消息ID和负载数据
+ * 支持 HITLMessage 格式兼容
  */
 USTRUCT(BlueprintType)
 struct MULTIAGENT_API FMAMessageEnvelope
@@ -59,9 +84,21 @@ struct MULTIAGENT_API FMAMessageEnvelope
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Envelope")
     EMACommMessageType MessageType = EMACommMessageType::Custom;
 
+    /** 消息类别 - 用于 HITL 消息路由 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Envelope")
+    EMAMessageCategory MessageCategory = EMAMessageCategory::Platform;
+
+    /** 消息方向 - 标识消息来源 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Envelope")
+    EMAMessageDirection Direction = EMAMessageDirection::UE5ToPython;
+
     /** 时间戳 (Unix timestamp in milliseconds) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Envelope")
     int64 Timestamp = 0;
+
+    /** ISO 8601 格式时间戳字符串 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Envelope")
+    FString TimestampISO;
 
     /** 消息 ID (UUID) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Envelope")
@@ -73,10 +110,10 @@ struct MULTIAGENT_API FMAMessageEnvelope
 
     FMAMessageEnvelope() {}
 
-    /** 序列化为 JSON */
+    /** 序列化为 JSON (HITLMessage 格式) */
     FString ToJson() const;
 
-    /** 从 JSON 解析 */
+    /** 从 JSON 解析 (支持 HITLMessage 格式和旧格式) */
     static bool FromJson(const FString& Json, FMAMessageEnvelope& OutEnvelope);
 
     /** 生成新的消息 ID (UUID) */
@@ -84,6 +121,12 @@ struct MULTIAGENT_API FMAMessageEnvelope
 
     /** 获取当前时间戳 (毫秒) */
     static int64 GetCurrentTimestamp();
+
+    /** Unix 毫秒时间戳转换为 ISO 8601 格式字符串 */
+    static FString TimestampToISO8601(int64 UnixMillis);
+
+    /** ISO 8601 格式字符串转换为 Unix 毫秒时间戳 */
+    static int64 ISO8601ToTimestamp(const FString& ISOString);
 };
 
 //=============================================================================
@@ -271,7 +314,7 @@ struct MULTIAGENT_API FMATaskPlanEdge
  * 规划器返回的有向无环图，描述任务执行计划
  */
 USTRUCT(BlueprintType)
-struct MULTIAGENT_API FMATaskPlanDAG
+struct MULTIAGENT_API FMATaskPlan
 {
     GENERATED_BODY()
 
@@ -283,7 +326,7 @@ struct MULTIAGENT_API FMATaskPlanDAG
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TaskPlan")
     TArray<FMATaskPlanEdge> Edges;
 
-    FMATaskPlanDAG() {}
+    FMATaskPlan() {}
 
     /** 验证是否为有效 DAG (无环) */
     bool IsValidDAG() const;
@@ -292,7 +335,7 @@ struct MULTIAGENT_API FMATaskPlanDAG
     FString ToJson() const;
 
     /** 从 JSON 解析 */
-    static bool FromJson(const FString& Json, FMATaskPlanDAG& Out);
+    static bool FromJson(const FString& Json, FMATaskPlan& Out);
 };
 
 //=============================================================================
@@ -625,9 +668,6 @@ struct MULTIAGENT_API FMASkillListCompletedMessage
     FString ToJson() const;
 };
 
-// 委托声明 - 收到技能列表时广播
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMASkillListReceived, const FMASkillListMessage&, SkillList);
-
 
 //=============================================================================
 // 场景变化消息类型 (Edit Mode)
@@ -823,8 +863,137 @@ struct MULTIAGENT_API FMASkillStatusUpdateMessage
     static bool FromJson(const FString& Json, FMASkillStatusUpdateMessage& Out);
 };
 
-// 委托声明 - 收到技能分配时广播
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMASkillAllocationReceived, const FMASkillAllocationMessage&, SkillAllocation);
+//=============================================================================
+// HITL 响应消息结构
+//=============================================================================
 
-// 委托声明 - 收到技能状态更新时广播
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMASkillStatusUpdateReceived, const FMASkillStatusUpdateMessage&, StatusUpdate);
+/**
+ * 审阅响应消息
+ * 用于发送用户对技能分配等审阅请求的响应
+ * 
+ * 消息格式:
+ * {
+ *   "original_message_id": "...",  // 原始审阅请求的消息 ID
+ *   "approved": true/false,        // 是否批准
+ *   "modified_data": {...},        // 修改后的数据 (可选，批准时可能包含修改)
+ *   "rejection_reason": "..."      // 拒绝原因 (可选，拒绝时填写)
+ * }
+ */
+USTRUCT(BlueprintType)
+struct MULTIAGENT_API FMAReviewResponseMessage
+{
+    GENERATED_BODY()
+
+    /** 原始审阅请求的消息 ID */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ReviewResponse")
+    FString OriginalMessageId;
+
+    /** 是否批准 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ReviewResponse")
+    bool bApproved = false;
+
+    /** 修改后的数据 (JSON 格式，可选) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ReviewResponse")
+    FString ModifiedDataJson;
+
+    /** 拒绝原因 (可选，拒绝时填写) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ReviewResponse")
+    FString RejectionReason;
+
+    /** 时间戳 (Unix timestamp in milliseconds) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ReviewResponse")
+    int64 Timestamp = 0;
+
+    /** 消息 ID (UUID) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ReviewResponse")
+    FString MessageId;
+
+    FMAReviewResponseMessage()
+    {
+        Timestamp = FMAMessageEnvelope::GetCurrentTimestamp();
+        MessageId = FMAMessageEnvelope::GenerateMessageId();
+    }
+
+    FMAReviewResponseMessage(const FString& InOriginalMessageId, bool bInApproved, const FString& InModifiedDataJson = TEXT(""), const FString& InRejectionReason = TEXT(""))
+        : OriginalMessageId(InOriginalMessageId)
+        , bApproved(bInApproved)
+        , ModifiedDataJson(InModifiedDataJson)
+        , RejectionReason(InRejectionReason)
+    {
+        Timestamp = FMAMessageEnvelope::GetCurrentTimestamp();
+        MessageId = FMAMessageEnvelope::GenerateMessageId();
+    }
+
+    /** 序列化为 JSON */
+    FString ToJson() const;
+
+    /** 从 JSON 解析 */
+    static bool FromJson(const FString& Json, FMAReviewResponseMessage& Out);
+};
+
+/**
+ * 决策响应消息
+ * 用于发送用户对决策请求的响应
+ * 
+ * 消息格式:
+ * {
+ *   "original_message_id": "...",  // 原始决策请求的消息 ID
+ *   "decision": "...",             // 用户选择的决策选项
+ *   "decision_data": {...},        // 决策相关数据 (可选)
+ *   "comments": "..."              // 用户备注 (可选)
+ * }
+ */
+USTRUCT(BlueprintType)
+struct MULTIAGENT_API FMADecisionResponseMessage
+{
+    GENERATED_BODY()
+
+    /** 原始决策请求的消息 ID */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DecisionResponse")
+    FString OriginalMessageId;
+
+    /** 用户选择的决策选项 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DecisionResponse")
+    FString Decision;
+
+    /** 决策相关数据 (JSON 格式，可选) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DecisionResponse")
+    FString DecisionDataJson;
+
+    /** 用户备注 (可选) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DecisionResponse")
+    FString Comments;
+
+    /** 时间戳 (Unix timestamp in milliseconds) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DecisionResponse")
+    int64 Timestamp = 0;
+
+    /** 消息 ID (UUID) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DecisionResponse")
+    FString MessageId;
+
+    FMADecisionResponseMessage()
+    {
+        Timestamp = FMAMessageEnvelope::GetCurrentTimestamp();
+        MessageId = FMAMessageEnvelope::GenerateMessageId();
+    }
+
+    FMADecisionResponseMessage(const FString& InOriginalMessageId, const FString& InDecision, const FString& InDecisionDataJson = TEXT(""), const FString& InComments = TEXT(""))
+        : OriginalMessageId(InOriginalMessageId)
+        , Decision(InDecision)
+        , DecisionDataJson(InDecisionDataJson)
+        , Comments(InComments)
+    {
+        Timestamp = FMAMessageEnvelope::GetCurrentTimestamp();
+        MessageId = FMAMessageEnvelope::GenerateMessageId();
+    }
+
+    /** 序列化为 JSON */
+    FString ToJson() const;
+
+    /** 从 JSON 解析 */
+    static bool FromJson(const FString& Json, FMADecisionResponseMessage& Out);
+};
+
+// 委托声明 - 收到技能分配数据时广播 (使用 FMASkillAllocationData，用于 UI 交互流程)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMASkillAllocationDataReceived, const FMASkillAllocationData&, AllocationData);

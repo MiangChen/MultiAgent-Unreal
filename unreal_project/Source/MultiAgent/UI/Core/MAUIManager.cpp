@@ -9,12 +9,12 @@
 #include "MAHUDStateManager.h"
 #include "../HUD/MAMainHUDWidget.h"
 #include "../Modal/MATaskGraphModal.h"
-#include "../Modal/MASkillListModal.h"
+#include "../Modal/MASkillAllocationModal.h"
 #include "../Modal/MAEmergencyModal.h"
 #include "../Modal/MABaseModalWidget.h"
 #include "../Components/MANotificationWidget.h"
 #include "../TaskGraph/MATaskPlannerWidget.h"
-#include "../SkillList/MASkillAllocationViewer.h"
+#include "../SkillAllocation/MASkillAllocationViewer.h"
 #include "../Components/MADirectControlIndicator.h"
 #include "../Mode/MAEmergencyWidget.h"
 #include "../Mode/MAModifyWidget.h"
@@ -317,7 +317,7 @@ UMABaseModalWidget* UMAUIManager::GetModalByType(EMAModalType ModalType) const
     case EMAModalType::TaskGraph:
         return TaskGraphModal;
     case EMAModalType::SkillList:
-        return SkillListModal;
+        return SkillAllocationModal;
     case EMAModalType::Emergency:
         return EmergencyModal;
     default:
@@ -453,7 +453,7 @@ bool UMAUIManager::IsAnyFullscreenWidgetVisible() const
         return true;
     }
     
-    if (SkillListModal && SkillListModal->IsVisible())
+    if (SkillAllocationModal && SkillAllocationModal->IsVisible())
     {
         return true;
     }
@@ -472,42 +472,42 @@ bool UMAUIManager::IsAnyFullscreenWidgetVisible() const
     return false;
 }
 
-void UMAUIManager::NavigateFromViewerToSkillListModal()
+void UMAUIManager::NavigateFromViewerToSkillAllocationModal()
 {
-    UE_LOG(LogMAUIManager, Log, TEXT("NavigateFromViewerToSkillListModal: Starting navigation"));
+    UE_LOG(LogMAUIManager, Log, TEXT("NavigateFromViewerToSkillAllocationModal: Starting navigation"));
     
     // 1. 隐藏 SkillAllocationViewer
     if (SkillAllocationViewer)
     {
         SkillAllocationViewer->SetVisibility(ESlateVisibility::Collapsed);
-        UE_LOG(LogMAUIManager, Log, TEXT("NavigateFromViewerToSkillListModal: SkillAllocationViewer hidden"));
+        UE_LOG(LogMAUIManager, Log, TEXT("NavigateFromViewerToSkillAllocationModal: SkillAllocationViewer hidden"));
     }
     
-    // 2. 从 TempDataManager 加载数据到 SkillListModal
-    if (SkillListModal)
+    // 2. 从 TempDataManager 加载数据到 SkillAllocationModal
+    if (SkillAllocationModal)
     {
         if (UGameInstance* GameInstance = OwningPC ? OwningPC->GetGameInstance() : nullptr)
         {
             if (UMATempDataManager* TempDataMgr = GameInstance->GetSubsystem<UMATempDataManager>())
             {
                 FMASkillAllocationData Data;
-                if (TempDataMgr->LoadSkillList(Data))
+                if (TempDataMgr->LoadSkillAllocation(Data))
                 {
-                    SkillListModal->LoadSkillAllocation(Data);
-                    UE_LOG(LogMAUIManager, Log, TEXT("NavigateFromViewerToSkillListModal: Data loaded into modal"));
+                    SkillAllocationModal->LoadSkillAllocation(Data);
+                    UE_LOG(LogMAUIManager, Log, TEXT("NavigateFromViewerToSkillAllocationModal: Data loaded into modal"));
                 }
             }
         }
         
-        // 3. 显示 SkillListModal (只读模式，因为是从编辑界面返回查看)
-        SkillListModal->SetEditMode(false);
-        SkillListModal->SetVisibility(ESlateVisibility::Visible);
-        SkillListModal->PlayShowAnimation();
-        UE_LOG(LogMAUIManager, Log, TEXT("NavigateFromViewerToSkillListModal: SkillListModal shown"));
+        // 3. 显示 SkillAllocationModal (只读模式，因为是从编辑界面返回查看)
+        SkillAllocationModal->SetEditMode(false);
+        SkillAllocationModal->SetVisibility(ESlateVisibility::Visible);
+        SkillAllocationModal->PlayShowAnimation();
+        UE_LOG(LogMAUIManager, Log, TEXT("NavigateFromViewerToSkillAllocationModal: SkillAllocationModal shown"));
     }
     else
     {
-        UE_LOG(LogMAUIManager, Error, TEXT("NavigateFromViewerToSkillListModal: SkillListModal is null"));
+        UE_LOG(LogMAUIManager, Error, TEXT("NavigateFromViewerToSkillAllocationModal: SkillAllocationModal is null"));
     }
 }
 
@@ -803,35 +803,35 @@ void UMAUIManager::CreateModalWidgets()
     }
 
     // 创建技能列表模态窗口
-    SkillListModal = CreateWidget<UMASkillListModal>(OwningPC, UMASkillListModal::StaticClass());
-    if (SkillListModal)
+    SkillAllocationModal = CreateWidget<UMASkillAllocationModal>(OwningPC, UMASkillAllocationModal::StaticClass());
+    if (SkillAllocationModal)
     {
-        SkillListModal->AddToViewport(ModalZOrder);
-        SkillListModal->SetVisibility(ESlateVisibility::Collapsed);
-        SkillListModal->SetModalType(EMAModalType::SkillList);
+        SkillAllocationModal->AddToViewport(ModalZOrder);
+        SkillAllocationModal->SetVisibility(ESlateVisibility::Collapsed);
+        SkillAllocationModal->SetModalType(EMAModalType::SkillList);
         
         // 绑定模态按钮回调到 HUDStateManager
         if (HUDStateManager)
         {
-            SkillListModal->OnConfirmClicked.AddDynamic(HUDStateManager, &UMAHUDStateManager::OnModalConfirm);
-            SkillListModal->OnRejectClicked.AddDynamic(HUDStateManager, &UMAHUDStateManager::OnModalReject);
-            SkillListModal->OnEditClicked.AddDynamic(HUDStateManager, &UMAHUDStateManager::OnModalEdit);
+            SkillAllocationModal->OnConfirmClicked.AddDynamic(HUDStateManager, &UMAHUDStateManager::OnModalConfirm);
+            SkillAllocationModal->OnRejectClicked.AddDynamic(HUDStateManager, &UMAHUDStateManager::OnModalReject);
+            SkillAllocationModal->OnEditClicked.AddDynamic(HUDStateManager, &UMAHUDStateManager::OnModalEdit);
         }
         
         // 绑定隐藏动画完成回调，确保点击 ❌ 关闭按钮后状态同步
-        SkillListModal->OnHideAnimationComplete.AddDynamic(this, &UMAUIManager::OnModalHideAnimationComplete);
+        SkillAllocationModal->OnHideAnimationComplete.AddDynamic(this, &UMAUIManager::OnModalHideAnimationComplete);
         
         // 应用主题
         if (CurrentTheme)
         {
-            SkillListModal->ApplyTheme(CurrentTheme);
+            SkillAllocationModal->ApplyTheme(CurrentTheme);
         }
         
-        UE_LOG(LogMAUIManager, Log, TEXT("SkillListModal created"));
+        UE_LOG(LogMAUIManager, Log, TEXT("SkillAllocationModal created"));
     }
     else
     {
-        UE_LOG(LogMAUIManager, Error, TEXT("Failed to create SkillListModal"));
+        UE_LOG(LogMAUIManager, Error, TEXT("Failed to create SkillAllocationModal"));
     }
 
     // 创建紧急事件模态窗口
@@ -1091,9 +1091,9 @@ void UMAUIManager::HideCurrentModal()
         // 动画完成后会自动隐藏
     }
 
-    if (SkillListModal && SkillListModal->IsVisible())
+    if (SkillAllocationModal && SkillAllocationModal->IsVisible())
     {
-        SkillListModal->PlayHideAnimation();
+        SkillAllocationModal->PlayHideAnimation();
     }
 
     if (EmergencyModal && EmergencyModal->IsVisible())
@@ -1135,16 +1135,16 @@ void UMAUIManager::LoadDataIntoModal(EMAModalType ModalType)
         break;
 
     case EMAModalType::SkillList:
-        if (SkillListModal)
+        if (SkillAllocationModal)
         {
             // 只从 TempDataManager 加载数据，不使用 mock 数据
-            if (TempDataMgr && TempDataMgr->SkillListFileExists())
+            if (TempDataMgr && TempDataMgr->SkillAllocationFileExists())
             {
                 FMASkillAllocationData Data;
-                if (TempDataMgr->LoadSkillList(Data))
+                if (TempDataMgr->LoadSkillAllocation(Data))
                 {
-                    SkillListModal->LoadSkillAllocation(Data);
-                    UE_LOG(LogMAUIManager, Log, TEXT("SkillListModal: Loaded data from temp file (%d time steps)"),
+                    SkillAllocationModal->LoadSkillAllocation(Data);
+                    UE_LOG(LogMAUIManager, Log, TEXT("SkillAllocationModal: Loaded data from temp file (%d time steps)"),
                         Data.Data.Num());
                     return;
                 }
@@ -1152,8 +1152,8 @@ void UMAUIManager::LoadDataIntoModal(EMAModalType ModalType)
             
             // 如果没有数据，清空 Modal 并显示空状态（不加载 mock 数据）
             FMASkillAllocationData EmptyData;
-            SkillListModal->LoadSkillAllocation(EmptyData);
-            UE_LOG(LogMAUIManager, Log, TEXT("SkillListModal: No data available, showing empty modal (waiting for backend data)"));
+            SkillAllocationModal->LoadSkillAllocation(EmptyData);
+            UE_LOG(LogMAUIManager, Log, TEXT("SkillAllocationModal: No data available, showing empty modal (waiting for backend data)"));
         }
         break;
 
@@ -1251,11 +1251,11 @@ void UMAUIManager::BindTempDataManagerEvents()
         UE_LOG(LogMAUIManager, Log, TEXT("BindTempDataManagerEvents: Bound OnTaskGraphChanged event"));
     }
     
-    // 绑定技能列表数据变化事件
-    if (!TempDataMgr->OnSkillListChanged.IsAlreadyBound(this, &UMAUIManager::OnTempSkillListChanged))
+    // 绑定技能分配数据变化事件
+    if (!TempDataMgr->OnSkillAllocationChanged.IsAlreadyBound(this, &UMAUIManager::OnTempSkillAllocationChanged))
     {
-        TempDataMgr->OnSkillListChanged.AddDynamic(this, &UMAUIManager::OnTempSkillListChanged);
-        UE_LOG(LogMAUIManager, Log, TEXT("BindTempDataManagerEvents: Bound OnSkillListChanged event"));
+        TempDataMgr->OnSkillAllocationChanged.AddDynamic(this, &UMAUIManager::OnTempSkillAllocationChanged);
+        UE_LOG(LogMAUIManager, Log, TEXT("BindTempDataManagerEvents: Bound OnSkillAllocationChanged event"));
     }
     
     // 绑定技能状态实时更新事件
@@ -1275,12 +1275,12 @@ void UMAUIManager::BindTempDataManagerEvents()
             TaskGraphData.Nodes.Num());
     }
     
-    FMASkillAllocationData SkillListData;
-    if (TempDataMgr->LoadSkillList(SkillListData) && SkillListData.Data.Num() > 0)
+    FMASkillAllocationData SkillAllocationData;
+    if (TempDataMgr->LoadSkillAllocation(SkillAllocationData) && SkillAllocationData.Data.Num() > 0)
     {
-        OnTempSkillListChanged(SkillListData);
-        UE_LOG(LogMAUIManager, Log, TEXT("BindTempDataManagerEvents: Loaded existing skill list data (%d time steps)"), 
-            SkillListData.Data.Num());
+        OnTempSkillAllocationChanged(SkillAllocationData);
+        UE_LOG(LogMAUIManager, Log, TEXT("BindTempDataManagerEvents: Loaded existing skill allocation data (%d time steps)"), 
+            SkillAllocationData.Data.Num());
     }
 }
 
@@ -1296,9 +1296,9 @@ void UMAUIManager::OnTempTaskGraphChanged(const FMATaskGraphData& Data)
     }
 }
 
-void UMAUIManager::OnTempSkillListChanged(const FMASkillAllocationData& Data)
+void UMAUIManager::OnTempSkillAllocationChanged(const FMASkillAllocationData& Data)
 {
-    UE_LOG(LogMAUIManager, Log, TEXT("OnTempSkillListChanged: Received skill list update (%d time steps)"),
+    UE_LOG(LogMAUIManager, Log, TEXT("OnTempSkillAllocationChanged: Received skill allocation update (%d time steps)"),
         Data.Data.Num());
     
     // 更新 MainHUDWidget 的预览组件
@@ -1319,9 +1319,9 @@ void UMAUIManager::OnSkillStatusUpdated(int32 TimeStep, const FString& RobotId, 
         MainHUDWidget->UpdateSkillStatus(TimeStep, RobotId, NewStatus);
     }
     
-    // 更新 SkillListModal 的甘特图
-    if (SkillListModal)
+    // 更新 SkillAllocationModal 的甘特图
+    if (SkillAllocationModal)
     {
-        SkillListModal->UpdateSkillStatus(TimeStep, RobotId, NewStatus);
+        SkillAllocationModal->UpdateSkillStatus(TimeStep, RobotId, NewStatus);
     }
 }

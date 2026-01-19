@@ -8,10 +8,12 @@
         "default_map": "/Game/Map/LS_Scifi_ModernCity/Maps/Scifi_ModernCity"
     },
     "server": {
-        "planner_url": "http://localhost:8080",
+        "planner_url": "http://localhost:8081",
         "use_mock_data": false,
         "enable_polling": true,
+        "enable_hitl_polling": true,
         "poll_interval_seconds": 1.0,
+        "hitl_poll_interval_seconds": 1.0,
         "debug_mode": false,
         "local_server_port": 8080,
         "enable_local_server": true

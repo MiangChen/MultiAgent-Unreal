@@ -38,11 +38,154 @@ import queue
 DEFAULT_REDBOX_POSITION = {"x": 300, "y": 2400, "z": 0}
 
 # ========== 全局状态 ==========
-pending_messages = []
+pending_messages = []  # Platform messages (skill_list - direct execution)
+hitl_messages = []     # HITL messages (skill_allocation, task_graph - UI interaction)
 message_lock = threading.Lock()
+hitl_lock = threading.Lock()
 message_queue = queue.Queue()  # For SSE streaming
 
-# ========== 技能列表定义 ==========
+# HITL 响应存储 (用于显示 UE5 发回的响应)
+hitl_responses = []
+hitl_responses_lock = threading.Lock()
+
+# ========== 技能分配定义 (Skill Allocation) ==========
+# 用于 UI 交互流程，用户确认后执行
+# 格式: { "name": "...", "description": "...", "data": { "0": {...}, "1": {...} } }
+SKILL_ALLOCATIONS = {
+    "complete_test": {
+        "name": "Complete Test",
+        "description": "完整测试: UAV 搜索 → 导航装载 → 运输卸载",
+        "data": {
+            "0": {
+                "UAV_01": {"skill": "take_off", "params": {}},
+                "UAV_02": {"skill": "take_off", "params": {}}
+            },
+            "1": {
+                "UAV_01": {"skill": "search", "params": {
+                    "search_area": [[-500, 1000], [1500, 1000], [1500, 2500], [-500, 2500]],
+                    "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}}
+                }},
+                "UAV_02": {"skill": "search", "params": {
+                    "search_area": [[-1000, 1000], [-2000, 1000], [-2000, 2500], [-500, 2500]],
+                    "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}}
+                }}
+            },
+            "2": {
+                "UGV_01": {"skill": "navigate", "params": {"dest": {"x": "redbox_x + 100", "y": "redbox_y - 400", "z": 0}}},
+                "Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": "redbox_x - 100", "y": "redbox_y - 200", "z": 0}}},
+                "UAV_01": {"skill": "return_home", "params": {}},
+                "UAV_02": {"skill": "return_home", "params": {}}
+            },
+            "3": {
+                "Humanoid_01": {"skill": "place", "params": {
+                    "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}},
+                    "surface_target": {"class": "robot", "type": "UGV", "features": {"label": "UGV_01"}}
+                }}
+            },
+            "4": {
+                "UGV_01": {"skill": "navigate", "params": {"dest": {"x": -5100, "y": 2200, "z": 0}}},
+                "Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": -5200, "y": 2100, "z": 0}}}
+            },
+            "5": {
+                "Humanoid_01": {"skill": "place", "params": {
+                    "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}},
+                    "surface_target": {"class": "ground", "type": "", "features": {}}
+                }}
+            }
+        }
+    },
+    "uav_search": {
+        "name": "UAV Cooperative Search",
+        "description": "2个 UAV 协同搜索 RedBox",
+        "data": {
+            "0": {
+                "UAV_01": {"skill": "take_off", "params": {}},
+                "UAV_02": {"skill": "take_off", "params": {}}
+            },
+            "1": {
+                "UAV_01": {"skill": "search", "params": {
+                    "search_area": [[-500, 1000], [1500, 1000], [1500, 2500], [-500, 2500]],
+                    "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}}
+                }},
+                "UAV_02": {"skill": "search", "params": {
+                    "search_area": [[-1000, 1000], [-2000, 1000], [-2000, 2500], [-500, 2500]],
+                    "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}}
+                }}
+            }
+        }
+    },
+    "navigate_load": {
+        "name": "Navigate to RedBox and Load to UGV",
+        "description": "UGV 和 Humanoid 导航到 RedBox 位置，Humanoid 将 RedBox 装载到 UGV 上",
+        "data": {
+            "0": {
+                "UGV_01": {"skill": "navigate", "params": {"dest": {"x": "redbox_x + 100", "y": "redbox_y - 400", "z": 0}}},
+                "Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": "redbox_x - 100", "y": "redbox_y - 200", "z": 0}}},
+                "UAV_01": {"skill": "return_home", "params": {}},
+                "UAV_02": {"skill": "return_home", "params": {}}
+            },
+            "1": {
+                "Humanoid_01": {"skill": "place", "params": {
+                    "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}},
+                    "surface_target": {"class": "robot", "type": "UGV", "features": {"label": "UGV_01"}}
+                }}
+            }
+        }
+    },
+    "transport_unload": {
+        "name": "Transport to Destination and Unload",
+        "description": "UGV 和 Humanoid 导航到目的地，Humanoid 将 RedBox 从 UGV 卸载到地面",
+        "data": {
+            "0": {
+                "UGV_01": {"skill": "navigate", "params": {"dest": {"x": -5100, "y": 2200, "z": 0}}},
+                "Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": -5200, "y": 2100, "z": 0}}}
+            },
+            "1": {
+                "Humanoid_01": {"skill": "place", "params": {
+                    "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}},
+                    "surface_target": {"class": "ground", "type": "", "features": {}}
+                }}
+            }
+        }
+    },
+    "single": {
+        "name": "Single Test",
+        "description": "UAV 起飞 -> 导航 -> Humanoid 导航",
+        "data": {
+            "0": {"UAV_01": {"skill": "take_off", "params": {}}},
+            "1": {"UAV_01": {"skill": "navigate", "params": {"dest": {"x": 1350, "y": -450, "z": 545}}}},
+            "2": {"Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": -1200, "y": 1200, "z": 0}}}},
+            "3": {"Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": 0, "y": 2400, "z": 0}}}}
+        }
+    },
+    "place_coop": {
+        "name": "Place Coop",
+        "description": "UGV + Humanoid 协作搬运",
+        "data": {
+            "0": {
+                "UGV_01": {"skill": "navigate", "params": {"dest": {"x": 400, "y": 1300, "z": 0}}},
+                "Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": 200, "y": 1850, "z": 0}}}
+            },
+            "1": {
+                "Humanoid_01": {"skill": "place", "params": {
+                    "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}},
+                    "surface_target": {"class": "robot", "type": "UGV", "features": {"label": "UGV_01"}}
+                }}
+            },
+            "2": {"UGV_01": {"skill": "navigate", "params": {"dest": {"x": 1000, "y": 1000, "z": 0}}}},
+            "3": {"Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": 1150, "y": 1000, "z": 0}}}},
+            "4": {
+                "Humanoid_01": {"skill": "place", "params": {
+                    "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}},
+                    "surface_target": {"class": "ground", "type": "", "features": {}}
+                }}
+            }
+        }
+    }
+}
+
+# ========== 技能列表定义 (Skill List - 直接执行) ==========
+# 用于直接执行，无需 UI 交互
 SKILL_LISTS = {
     "complete_test": {
         "name": "Complete Test",
@@ -418,6 +561,17 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             padding-bottom: 5px; border-bottom: 1px solid #0f3460;
         }
         .section-title.skill { color: #e94560; }
+        .section-title.allocation { color: #ffd700; }
+        
+        .allocation-btn {
+            width: 100%; padding: 12px 16px; margin-bottom: 10px;
+            background: #0f3460; border: 1px solid #ffd700; border-radius: 8px;
+            color: #fff; cursor: pointer; text-align: left; transition: all 0.2s;
+        }
+        .allocation-btn:hover { background: #ffd700; color: #0f3460; transform: translateX(5px); }
+        .allocation-btn .name { font-weight: bold; font-size: 14px; }
+        .allocation-btn .desc { font-size: 12px; color: #aaa; margin-top: 4px; }
+        .allocation-btn:hover .desc { color: #0f3460; }
         
         .status { 
             padding: 10px; background: #0a0a1a; border-radius: 8px; 
@@ -508,14 +662,17 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             <div class="hint-box">
                 <span class="hint-icon">💡</span>
                 <span>点击按钮后，数据将发送到 UE5。</span><br>
-                <strong>技能列表：请在 UE5 中点击 "Start Executing" 按钮执行。</strong><br>
-                <strong>任务图：将显示在任务规划工作台中。</strong>
+                <strong>技能分配/任务图：HITL 端点 (/api/hitl/poll)，需用户确认。</strong><br>
+                <strong>技能列表：Platform 端点 (/api/sim/poll)，直接执行。</strong>
             </div>
             
             <div class="section-title">📊 预设任务图</div>
             <div id="task-buttons"></div>
             
-            <div class="section-title skill">📋 预设技能列表</div>
+            <div class="section-title allocation">🎯 预设技能分配 (UI 交互)</div>
+            <div id="allocation-buttons"></div>
+            
+            <div class="section-title skill">📋 预设技能列表 (直接执行)</div>
             <div id="skill-buttons"></div>
             
             <div class="status">
@@ -548,6 +705,7 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
     <script>
         const skillLists = {{SKILL_LISTS}};
         const taskGraphs = {{TASK_GRAPHS}};
+        const skillAllocations = {{SKILL_ALLOCATIONS}};
         const messagesDiv = document.getElementById('messages');
         const emptyState = document.getElementById('empty-state');
         let messageCount = 0;
@@ -560,6 +718,16 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             btn.onclick = () => sendTaskGraph(key);
             btn.innerHTML = `<div class="name">📊 ${task.name}</div><div class="desc">${task.description}</div>`;
             taskButtonsDiv.appendChild(btn);
+        }
+        
+        // Generate skill allocation buttons
+        const allocationButtonsDiv = document.getElementById('allocation-buttons');
+        for (const [key, allocation] of Object.entries(skillAllocations)) {
+            const btn = document.createElement('button');
+            btn.className = 'allocation-btn';
+            btn.onclick = () => sendSkillAllocation(key);
+            btn.innerHTML = `<div class="name">🎯 ${allocation.name}</div><div class="desc">${allocation.description}</div>`;
+            allocationButtonsDiv.appendChild(btn);
         }
         
         // Generate skill buttons
@@ -590,7 +758,25 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             }
         }
         
-        // Send skill list
+        // Send skill allocation (UI 交互流程)
+        async function sendSkillAllocation(allocationKey) {
+            try {
+                const response = await fetch('/api/send_skill_allocation', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ allocation_key: allocationKey })
+                });
+                const result = await response.json();
+                const displayContent = result.note 
+                    ? { ...result, "⚠️ Note": result.note }
+                    : result;
+                addMessage('sent', `Sent Skill Allocation: ${skillAllocations[allocationKey]?.name || allocationKey}`, displayContent, 'outgoing');
+            } catch (e) {
+                console.error('Failed to send skill allocation:', e);
+            }
+        }
+        
+        // Send skill list (直接执行)
         async function sendSkill(skillKey) {
             try {
                 const response = await fetch('/api/send_skill', {
@@ -679,22 +865,84 @@ def broadcast_message(msg_type, title, content, direction='incoming'):
 
 
 def create_skill_list_message(skill_list: dict) -> dict:
-    """创建技能列表消息"""
+    """创建技能列表消息 (直接执行，无需 UI 交互)
+    
+    Platform 类别消息，通过 /api/sim/poll 端点发送
+    """
     return {
         "message_type": "skill_list",
+        "message_category": "platform",  # Platform 类别
         "timestamp": int(datetime.now().timestamp() * 1000),
         "message_id": str(uuid.uuid4()),
+        "direction": "outbound",
         "payload": skill_list
     }
 
 
-def create_task_graph_message(task_graph: dict) -> dict:
-    """创建任务图消息"""
+def create_skill_allocation_message(allocation: dict, category: str = "review") -> dict:
+    """创建技能分配消息 (UI 交互流程，用户确认后执行)
+    
+    HITL 类别消息，通过 /api/hitl/poll 端点发送
+    
+    格式与 GSI 端保持一致：
+    {
+        "message_id": "...",
+        "message_category": "review",
+        "message_type": "skill_allocation",
+        "direction": "python_to_ue5",
+        "timestamp": "ISO8601格式",
+        "payload": {
+            "review_type": "skill_list",  // GSI 端使用 ReviewType.SKILL_LIST
+            "data": {
+                // GSI 格式: { "robot_view": {...}, "task_view": {...}, "timestep_skills": {...} }
+                // Mock Backend 格式: { "name": "...", "description": "...", "data": {...} }
+                // UE5 端 FMASkillAllocationData::FromJson 支持两种格式
+                ...
+            }
+        }
+    }
+    """
     return {
-        "message_type": "task_graph",
-        "timestamp": int(datetime.now().timestamp() * 1000),
         "message_id": str(uuid.uuid4()),
-        "payload": task_graph
+        "message_category": category,  # HITL 类别 (review)
+        "message_type": "skill_allocation",
+        "direction": "python_to_ue5",
+        "timestamp": datetime.now().isoformat(),
+        "payload": {
+            "review_type": "skill_list",  # GSI 端使用 ReviewType.SKILL_LIST
+            "data": allocation  # {"name": "...", "description": "...", "data": {...}}
+        }
+    }
+
+
+def create_task_graph_message(task_graph: dict, category: str = "review") -> dict:
+    """创建任务图消息
+    
+    HITL 类别消息，通过 /api/hitl/poll 端点发送
+    
+    格式与 GSI 端保持一致：
+    {
+        "message_id": "...",
+        "message_category": "review",
+        "message_type": "task_graph",
+        "direction": "python_to_ue5",
+        "timestamp": "ISO8601格式",
+        "payload": {
+            "review_type": "task_graph",
+            "data": {"meta": {...}, "task_graph": {...}}
+        }
+    }
+    """
+    return {
+        "message_id": str(uuid.uuid4()),
+        "message_category": category,  # HITL 类别 (review)
+        "message_type": "task_graph",
+        "direction": "python_to_ue5",
+        "timestamp": datetime.now().isoformat(),
+        "payload": {
+            "review_type": "task_graph",
+            "data": task_graph  # {"meta": {...}, "task_graph": {...}}
+        }
     }
 
 
@@ -725,6 +973,10 @@ class MockBackendHandler(BaseHTTPRequestHandler):
             self.serve_html()
         elif parsed_path.path == '/api/sim/poll':
             self.handle_poll()
+        elif parsed_path.path == '/api/hitl/poll':
+            self.handle_hitl_poll()
+        elif parsed_path.path == '/api/health':
+            self.handle_health()
         elif parsed_path.path == '/api/messages':
             self.handle_sse()
         else:
@@ -738,10 +990,14 @@ class MockBackendHandler(BaseHTTPRequestHandler):
         
         if parsed_path.path == '/api/sim/message':
             self.handle_message(body)
+        elif parsed_path.path == '/api/hitl/message':
+            self.handle_hitl_message(body)
         elif parsed_path.path == '/api/sim/scene_change':
             self.handle_scene_change(body)
         elif parsed_path.path == '/api/send_skill':
             self.handle_send_skill(body)
+        elif parsed_path.path == '/api/send_skill_allocation':
+            self.handle_send_skill_allocation(body)
         elif parsed_path.path == '/api/send_task_graph':
             self.handle_send_task_graph(body)
         else:
@@ -754,6 +1010,7 @@ class MockBackendHandler(BaseHTTPRequestHandler):
         html = HTML_TEMPLATE.replace('{{PORT}}', str(server_port))
         html = html.replace('{{SKILL_LISTS}}', json.dumps(SKILL_LISTS, ensure_ascii=False))
         html = html.replace('{{TASK_GRAPHS}}', json.dumps(TASK_GRAPHS, ensure_ascii=False))
+        html = html.replace('{{SKILL_ALLOCATIONS}}', json.dumps(SKILL_ALLOCATIONS, ensure_ascii=False))
         
         self.send_response(200)
         self.send_header('Content-Type', 'text/html; charset=utf-8')
@@ -761,7 +1018,7 @@ class MockBackendHandler(BaseHTTPRequestHandler):
         self.wfile.write(html.encode('utf-8'))
     
     def handle_poll(self):
-        """Handle UE5 poll request"""
+        """Handle UE5 poll request for Platform messages"""
         global pending_messages
         with message_lock:
             if pending_messages:
@@ -771,10 +1028,35 @@ class MockBackendHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(json.dumps([msg], ensure_ascii=False).encode('utf-8'))
                 msg_type = msg.get('message_type', 'unknown')
-                broadcast_message('sent', msg_type, msg, 'outgoing')
+                broadcast_message('sent', f'Platform: {msg_type}', msg, 'outgoing')
             else:
                 self.send_response(204)
                 self.end_headers()
+    
+    def handle_hitl_poll(self):
+        """Handle UE5 poll request for HITL messages
+        
+        Returns pending HITL messages (skill_allocation, task_graph) for UE5 to process.
+        Messages are returned by category priority: REVIEW, DECISION, INSTRUCTION.
+        """
+        global hitl_messages
+        with hitl_lock:
+            if hitl_messages:
+                msg = hitl_messages.pop(0)
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps([msg], ensure_ascii=False).encode('utf-8'))
+                msg_type = msg.get('message_type', 'unknown')
+                msg_category = msg.get('message_category', 'unknown')
+                broadcast_message('sent', f'HITL ({msg_category}): {msg_type}', msg, 'outgoing')
+            else:
+                self.send_response(204)
+                self.end_headers()
+    
+    def handle_health(self):
+        """Handle health check request"""
+        self.send_json_response(200, {"status": "healthy"})
     
     def handle_sse(self):
         """Handle SSE connection for real-time updates"""
@@ -799,16 +1081,58 @@ class MockBackendHandler(BaseHTTPRequestHandler):
             pass
     
     def handle_message(self, body):
-        """Handle message from UE5"""
+        """Handle message from UE5 (Platform endpoint)"""
         try:
             data = json.loads(body)
             msg_type = data.get('message_type', 'unknown')
             
-            broadcast_message('message', msg_type, data, 'incoming')
+            broadcast_message('message', f'Platform: {msg_type}', data, 'incoming')
             self.send_json_response(200, {"status": "received"})
             
         except json.JSONDecodeError as e:
             broadcast_message('error', 'JSON Parse Error', str(e), 'incoming')
+            self.send_json_response(400, {"error": str(e)})
+    
+    def handle_hitl_message(self, body):
+        """Handle HITL message from UE5
+        
+        Receives HITL messages (review responses, decisions, instructions) from UE5.
+        Expected message format:
+        {
+            "message_id": "uuid",
+            "message_category": "review|decision|instruction",
+            "message_type": "review_response|decision_response|...",
+            "direction": "inbound",
+            "timestamp": 1234567890,
+            "payload": {
+                "original_message_id": "...",
+                "approved": true/false,
+                "modified_data": {...}  // optional
+            }
+        }
+        """
+        global hitl_responses
+        try:
+            data = json.loads(body)
+            msg_type = data.get('message_type', 'unknown')
+            msg_category = data.get('message_category', 'unknown')
+            payload = data.get('payload', {})
+            
+            # 存储响应
+            with hitl_responses_lock:
+                hitl_responses.append(data)
+            
+            # 广播到 Web UI
+            approved = payload.get('approved', None)
+            status_str = ""
+            if approved is not None:
+                status_str = " ✓ APPROVED" if approved else " ✗ REJECTED"
+            
+            broadcast_message('hitl_response', f'HITL ({msg_category}): {msg_type}{status_str}', data, 'incoming')
+            self.send_json_response(200, {"status": "received"})
+            
+        except json.JSONDecodeError as e:
+            broadcast_message('error', 'HITL JSON Parse Error', str(e), 'incoming')
             self.send_json_response(400, {"error": str(e)})
     
     def handle_scene_change(self, body):
@@ -822,12 +1146,10 @@ class MockBackendHandler(BaseHTTPRequestHandler):
             self.send_json_response(400, {"error": str(e)})
     
     def handle_send_skill(self, body):
-        """Handle skill send request from Web UI
+        """Handle skill send request from Web UI (直接执行，无需 UI 交互)
         
         Note: This method only queues the skill list message for UE5 to poll.
-        The skill list will be saved to skill_list_temp.json by UE5's TempDataManager.
-        Users must manually click "Start Executing" in UE5 to execute the skills.
-        This method does NOT directly trigger skill execution.
+        The skill list will be directly executed by CommandManager.
         """
         global pending_messages
         try:
@@ -845,7 +1167,7 @@ class MockBackendHandler(BaseHTTPRequestHandler):
                     "status": "queued",
                     "skill": skill_key,
                     "message_id": msg['message_id'],
-                    "note": "Skill list queued. Click 'Start Executing' in UE5 to run."
+                    "note": "Skill list queued. Will be executed directly by CommandManager."
                 })
             else:
                 self.send_json_response(400, {"error": f"Unknown skill: {skill_key}"})
@@ -853,30 +1175,63 @@ class MockBackendHandler(BaseHTTPRequestHandler):
         except json.JSONDecodeError as e:
             self.send_json_response(400, {"error": str(e)})
     
+    def handle_send_skill_allocation(self, body):
+        """Handle skill allocation send request from Web UI (UI 交互流程)
+        
+        Note: This method queues the skill allocation message for UE5 to poll via HITL endpoint.
+        The skill allocation will be saved to skill_allocation_temp.json by TempDataManager.
+        A notification will appear in UE5, and users must confirm before execution.
+        """
+        global hitl_messages
+        try:
+            data = json.loads(body)
+            allocation_key = data.get('allocation_key', '')
+            
+            if allocation_key in SKILL_ALLOCATIONS:
+                allocation_data = SKILL_ALLOCATIONS[allocation_key]
+                msg = create_skill_allocation_message(allocation_data, category="review")
+                
+                with hitl_lock:
+                    hitl_messages.append(msg)
+                
+                self.send_json_response(200, {
+                    "status": "queued",
+                    "endpoint": "/api/hitl/poll",
+                    "allocation": allocation_key,
+                    "message_id": msg['message_id'],
+                    "note": "Skill allocation queued (HITL). Will show in Modal for user confirmation."
+                })
+            else:
+                self.send_json_response(400, {"error": f"Unknown skill allocation: {allocation_key}"})
+                
+        except json.JSONDecodeError as e:
+            self.send_json_response(400, {"error": str(e)})
+    
     def handle_send_task_graph(self, body):
         """Handle task graph send request from Web UI
         
-        Note: This method queues the task graph message for UE5 to poll.
+        Note: This method queues the task graph message for UE5 to poll via HITL endpoint.
         The task graph will be saved to task_graph_temp.json by UE5's TempDataManager.
         The task graph will be displayed in the Task Planner Widget.
         """
-        global pending_messages
+        global hitl_messages
         try:
             data = json.loads(body)
             task_key = data.get('task_key', '')
             
             if task_key in TASK_GRAPHS:
                 task_data = TASK_GRAPHS[task_key]['data']
-                msg = create_task_graph_message(task_data)
+                msg = create_task_graph_message(task_data, category="review")
                 
-                with message_lock:
-                    pending_messages.append(msg)
+                with hitl_lock:
+                    hitl_messages.append(msg)
                 
                 self.send_json_response(200, {
                     "status": "queued",
+                    "endpoint": "/api/hitl/poll",
                     "task_graph": task_key,
                     "message_id": msg['message_id'],
-                    "note": "Task graph queued. It will be displayed in Task Planner Widget."
+                    "note": "Task graph queued (HITL). It will be displayed in Task Planner Widget."
                 })
             else:
                 self.send_json_response(400, {"error": f"Unknown task graph: {task_key}"})
@@ -885,14 +1240,14 @@ class MockBackendHandler(BaseHTTPRequestHandler):
             self.send_json_response(400, {"error": str(e)})
 
 
-server_port = 8080
+server_port = 8081
 
 
 def main():
     global server_port
     
     parser = argparse.ArgumentParser(description='MultiAgent-Unreal Mock Backend Server with Web UI')
-    parser.add_argument('--port', type=int, default=8080, help='Server port (default: 8080)')
+    parser.add_argument('--port', type=int, default=8081, help='Server port (default: 8081, matches UE5 planner_url)')
     parser.add_argument('--host', type=str, default='0.0.0.0', help='Server address (default: 0.0.0.0)')
     args = parser.parse_args()
     
@@ -906,8 +1261,9 @@ def main():
     print("=" * 60)
     print("  MultiAgent-Unreal Mock Backend Server")
     print("=" * 60)
-    print(f"  🌐 Web UI:  http://localhost:{args.port}")
-    print(f"  📡 API:     http://{args.host}:{args.port}/api/sim/poll")
+    print(f"  🌐 Web UI:       http://localhost:{args.port}")
+    print(f"  📡 Platform API: http://{args.host}:{args.port}/api/sim/poll")
+    print(f"  🔄 HITL API:     http://{args.host}:{args.port}/api/hitl/poll")
     print("=" * 60)
     print(f"  Waiting for connections...")
     print(f"  Press Ctrl+C to stop")

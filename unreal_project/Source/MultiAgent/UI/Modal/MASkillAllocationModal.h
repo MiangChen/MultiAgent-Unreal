@@ -1,7 +1,7 @@
-// MASkillListModal.h
+// MASkillAllocationModal.h
 // 技能列表模态窗口 - 用于查看和编辑技能分配
 // 继承自 MABaseModalWidget，提供技能列表详细可视化
-// Requirements: 5.2, 5.3, 6.1, 6.4
+// Requirements: 5.2, 5.3, 5.4, 6.1, 6.4
 
 #pragma once
 
@@ -9,7 +9,7 @@
 #include "MABaseModalWidget.h"
 #include "../Core/Types/MATaskGraphTypes.h"
 #include "../Core/Comm/MACommTypes.h"
-#include "MASkillListModal.generated.h"
+#include "MASkillAllocationModal.generated.h"
 
 class UMAGanttCanvas;
 class UMASkillAllocationModel;
@@ -34,10 +34,10 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSkillListRejected);
 //=============================================================================
 // 日志类别
 //=============================================================================
-DECLARE_LOG_CATEGORY_EXTERN(LogMASkillListModal, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogMASkillAllocationModal, Log, All);
 
 //=============================================================================
-// UMASkillListModal - 技能列表模态窗口
+// UMASkillAllocationModal - 技能列表模态窗口
 //=============================================================================
 
 /**
@@ -73,12 +73,12 @@ DECLARE_LOG_CATEGORY_EXTERN(LogMASkillListModal, Log, All);
  * Requirements: 5.2, 5.3, 6.1, 6.4
  */
 UCLASS()
-class MULTIAGENT_API UMASkillListModal : public UMABaseModalWidget
+class MULTIAGENT_API UMASkillAllocationModal : public UMABaseModalWidget
 {
     GENERATED_BODY()
 
 public:
-    UMASkillListModal(const FObjectInitializer& ObjectInitializer);
+    UMASkillAllocationModal(const FObjectInitializer& ObjectInitializer);
 
     //=========================================================================
     // 公共接口
@@ -88,7 +88,7 @@ public:
      * 加载技能分配数据
      * @param Data 技能分配数据
      */
-    UFUNCTION(BlueprintCallable, Category = "SkillListModal")
+    UFUNCTION(BlueprintCallable, Category = "SkillAllocationModal")
     void LoadSkillAllocation(const FMASkillAllocationData& Data);
 
     /**
@@ -96,35 +96,35 @@ public:
      * @param JsonString JSON 字符串
      * @return 是否加载成功
      */
-    UFUNCTION(BlueprintCallable, Category = "SkillListModal")
+    UFUNCTION(BlueprintCallable, Category = "SkillAllocationModal")
     bool LoadSkillAllocationFromJson(const FString& JsonString);
 
     /**
      * 获取当前技能分配数据
      * @return 当前技能分配数据
      */
-    UFUNCTION(BlueprintPure, Category = "SkillListModal")
+    UFUNCTION(BlueprintPure, Category = "SkillAllocationModal")
     FMASkillAllocationData GetSkillAllocationData() const;
 
     /**
      * 获取数据模型
      * @return 技能分配数据模型
      */
-    UFUNCTION(BlueprintPure, Category = "SkillListModal")
+    UFUNCTION(BlueprintPure, Category = "SkillAllocationModal")
     UMASkillAllocationModel* GetAllocationModel() const { return AllocationModel; }
 
     /**
      * 获取甘特图画布
      * @return 甘特图画布 Widget
      */
-    UFUNCTION(BlueprintPure, Category = "SkillListModal")
+    UFUNCTION(BlueprintPure, Category = "SkillAllocationModal")
     UMAGanttCanvas* GetGanttCanvas() const { return GanttCanvas; }
 
     /**
      * 获取技能分配消息
      * @return 技能分配消息结构
      */
-    UFUNCTION(BlueprintPure, Category = "SkillListModal")
+    UFUNCTION(BlueprintPure, Category = "SkillAllocationModal")
     FMASkillAllocationMessage GetSkillAllocationMessage() const;
 
     /**
@@ -134,7 +134,7 @@ public:
      * @param RobotId 机器人 ID
      * @param NewStatus 新的执行状态
      */
-    UFUNCTION(BlueprintCallable, Category = "SkillListModal")
+    UFUNCTION(BlueprintCallable, Category = "SkillAllocationModal")
     void UpdateSkillStatus(int32 TimeStep, const FString& RobotId, ESkillExecutionStatus NewStatus);
 
     //=========================================================================
@@ -142,11 +142,11 @@ public:
     //=========================================================================
 
     /** 技能列表确认提交委托 */
-    UPROPERTY(BlueprintAssignable, Category = "SkillListModal|Events")
+    UPROPERTY(BlueprintAssignable, Category = "SkillAllocationModal|Events")
     FOnSkillListConfirmed OnSkillListConfirmed;
 
     /** 技能列表拒绝委托 */
-    UPROPERTY(BlueprintAssignable, Category = "SkillListModal|Events")
+    UPROPERTY(BlueprintAssignable, Category = "SkillAllocationModal|Events")
     FOnSkillListRejected OnSkillListRejected;
 
 protected:

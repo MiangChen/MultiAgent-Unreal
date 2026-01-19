@@ -71,7 +71,9 @@ bool UMAConfigManager::LoadAllConfigs()
         UE_LOG(LogMAConfig, Log, TEXT("  PlannerServerURL: %s"), *PlannerServerURL);
         UE_LOG(LogMAConfig, Log, TEXT("  bUseMockData: %s"), bUseMockData ? TEXT("true") : TEXT("false"));
         UE_LOG(LogMAConfig, Log, TEXT("  bEnablePolling: %s"), bEnablePolling ? TEXT("true") : TEXT("false"));
+        UE_LOG(LogMAConfig, Log, TEXT("  bEnableHITLPolling: %s"), bEnableHITLPolling ? TEXT("true") : TEXT("false"));
         UE_LOG(LogMAConfig, Log, TEXT("  PollIntervalSeconds: %.2f"), PollIntervalSeconds);
+        UE_LOG(LogMAConfig, Log, TEXT("  HITLPollIntervalSeconds: %.2f"), HITLPollIntervalSeconds);
         UE_LOG(LogMAConfig, Log, TEXT("  LocalServerPort: %d"), LocalServerPort);
         UE_LOG(LogMAConfig, Log, TEXT("  bEnableLocalServer: %s"), bEnableLocalServer ? TEXT("true") : TEXT("false"));
         UE_LOG(LogMAConfig, Log, TEXT("  AgentConfigs: %d"), AgentConfigs.Num());
@@ -129,11 +131,18 @@ bool UMAConfigManager::LoadSimulationConfig()
         (*ServerObj)->TryGetBoolField(TEXT("use_mock_data"), bUseMockData);
         (*ServerObj)->TryGetBoolField(TEXT("debug_mode"), bDebugMode);
         (*ServerObj)->TryGetBoolField(TEXT("enable_polling"), bEnablePolling);
+        (*ServerObj)->TryGetBoolField(TEXT("enable_hitl_polling"), bEnableHITLPolling);
         
         double PollInterval = 1.0;
         if ((*ServerObj)->TryGetNumberField(TEXT("poll_interval_seconds"), PollInterval))
         {
             PollIntervalSeconds = static_cast<float>(PollInterval);
+        }
+        
+        double HITLPollInterval = 1.0;
+        if ((*ServerObj)->TryGetNumberField(TEXT("hitl_poll_interval_seconds"), HITLPollInterval))
+        {
+            HITLPollIntervalSeconds = static_cast<float>(HITLPollInterval);
         }
         
         // 解析本地HTTP服务器配置

@@ -708,8 +708,8 @@ void UMAEmergencyWidget::SubmitMessage()
             if (UMACommSubsystem* CommSubsystem = GameInstance->GetSubsystem<UMACommSubsystem>())
             {
                 CommSubsystem->SendUIInputMessage(
-                    TEXT("EmergencyWidget_InputBox"),   // input_source_id
-                    Message                              // input_content
+                    TEXT("EmergencyWidget_InputBox"),   // instruction_id
+                    Message                              // instruction_text
                 );
             }
         }

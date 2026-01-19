@@ -35,8 +35,9 @@ class UMAMainHUDWidget;
 struct FMAPlannerResponse;
 struct FMATaskGraphData;
 struct FMASceneGraphNode;
-struct FMATaskPlanDAG;
+struct FMATaskPlan;
 struct FMASkillListMessage;
+struct FMASkillAllocationData;
 
 /**
  * HUD 管理器
@@ -625,14 +626,14 @@ private:
      * @param TaskPlan 任务规划 DAG 数据
      */
     UFUNCTION()
-    void OnTaskGraphReceived(const FMATaskPlanDAG& TaskPlan);
+    void OnTaskGraphReceived(const FMATaskPlan& TaskPlan);
 
     /**
-     * 技能列表更新回调
-     * @param SkillList 技能列表消息
+     * 技能分配数据更新回调 (用于 UI 交互流程)
+     * @param AllocationData 技能分配数据
      */
     UFUNCTION()
-    void OnSkillListReceived(const FMASkillListMessage& SkillList);
+    void OnSkillAllocationReceived(const FMASkillAllocationData& AllocationData);
 
     /**
      * 模态确认回调 (Requirements: 7.2, 7.3, 12.6)

@@ -20,12 +20,12 @@
 
 #### 1.1 SubmitCommand() 修改
 - 调用 `SendUIInputMessage()` 发送 UI 输入消息
-- `input_source_id`: `SimpleMainWidget_InputBox`
+- `instruction_id`: `SimpleMainWidget_InputBox`
 
 ```cpp
 CommSubsystem->SendUIInputMessage(
-    TEXT("SimpleMainWidget_InputBox"),  // input_source_id
-    Command                              // input_content
+    TEXT("SimpleMainWidget_InputBox"),  // instruction_id
+    Command                              // instruction_text
 );
 ```
 
@@ -58,7 +58,7 @@ CommSubsystem->SendButtonEventMessage(
 
 #### 2.2 SubmitMessage() 修改
 - 调用 `SendUIInputMessage()` 发送 UI 输入消息
-- `input_source_id`: `EmergencyWidget_InputBox`
+- `instruction_id`: `EmergencyWidget_InputBox`
 
 ## 消息格式
 
@@ -69,8 +69,8 @@ CommSubsystem->SendButtonEventMessage(
     "timestamp": 1702656000000,
     "message_id": "uuid",
     "payload": {
-        "input_source_id": "SimpleMainWidget_InputBox",
-        "input_content": "用户输入内容"
+        "instruction_id": "SimpleMainWidget_InputBox",
+        "instruction_text": "用户输入内容"
     }
 }
 ```
@@ -140,8 +140,8 @@ if (UGameInstance* GameInstance = GetGameInstance())
     if (UMACommSubsystem* CommSubsystem = GameInstance->GetSubsystem<UMACommSubsystem>())
     {
         CommSubsystem->SendUIInputMessage(
-            TEXT("YourWidgetName_InputBox"),    // input_source_id
-            InputContent                         // input_content
+            TEXT("YourWidgetName_InputBox"),    // instruction_id
+            InputContent                         // instruction_text
         );
     }
 }
@@ -149,8 +149,8 @@ if (UGameInstance* GameInstance = GetGameInstance())
 
 ## 相关 Requirements
 
-- **2.2**: UI_Input_Message 包含 widget 名称作为 input_source_id
-- **2.3**: UI_Input_Message 包含实际文本内容作为 input_content
+- **2.2**: UI_Input_Message 包含 widget 名称作为 instruction_id
+- **2.3**: UI_Input_Message 包含实际文本内容作为 instruction_text
 - **3.2**: Button_Event_Message 包含父 widget 名称
 - **3.3**: Button_Event_Message 包含按钮程序标识
 - **3.4**: Button_Event_Message 包含按钮显示文字

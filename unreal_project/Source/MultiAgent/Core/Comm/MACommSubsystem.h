@@ -51,9 +51,17 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Polling")
     bool bEnablePolling = true;
 
+    /** 是否启用 HITL 端点轮询 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Polling")
+    bool bEnableHITLPolling = false;
+
     /** 轮询间隔 (秒) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Polling")
     float PollIntervalSeconds = 1.0f;
+
+    /** HITL 轮询间隔 (秒) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Polling")
+    float HITLPollIntervalSeconds = 1.0f;
 
     /** 本地 HTTP 服务器端口 */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Server")
@@ -71,7 +79,7 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Communication")
     void SendNaturalLanguageCommand(const FString& Command);
 
-    /** 发送 UI 输入消息 */
+    /** 发送 UI 输入消息 (委托给 Outbound) */
     UFUNCTION(BlueprintCallable, Category = "Communication")
     void SendUIInputMessage(const FString& SourceId, const FString& Content);
 
@@ -106,6 +114,28 @@ public:
     /** 发送技能分配消息 */
     UFUNCTION(BlueprintCallable, Category = "Communication|SkillAllocation")
     void SendSkillAllocationMessage(const FMASkillAllocationMessage& Message);
+
+    //=========================================================================
+    // HITL 响应发送接口 (委托给 MACommOutbound)
+    //=========================================================================
+
+    /** 发送审阅响应消息 */
+    UFUNCTION(BlueprintCallable, Category = "Communication|HITL")
+    void SendReviewResponse(const FMAReviewResponseMessage& Response);
+
+    /** 发送审阅响应消息 (便捷方法) */
+    UFUNCTION(BlueprintCallable, Category = "Communication|HITL")
+    void SendReviewResponseSimple(const FString& OriginalMessageId, bool bApproved,
+        const FString& ModifiedDataJson = TEXT(""), const FString& RejectionReason = TEXT(""));
+
+    /** 发送决策响应消息 */
+    UFUNCTION(BlueprintCallable, Category = "Communication|HITL")
+    void SendDecisionResponse(const FMADecisionResponseMessage& Response);
+
+    /** 发送决策响应消息 (便捷方法) */
+    UFUNCTION(BlueprintCallable, Category = "Communication|HITL")
+    void SendDecisionResponseSimple(const FString& OriginalMessageId, const FString& Decision,
+        const FString& DecisionDataJson = TEXT(""), const FString& Comments = TEXT(""));
 
     //=========================================================================
     // 轮询控制接口 (委托给 MACommInbound)
@@ -151,17 +181,9 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Events")
     FOnMATaskPlanReceived OnTaskPlanReceived;
 
-    /** 收到世界模型更新委托 (已废弃) */
-    UPROPERTY(BlueprintAssignable, Category = "Events", meta = (DeprecatedProperty, DeprecationMessage = "World model is now managed locally by MASceneGraphManager"))
-    FOnMAWorldModelReceived OnWorldModelReceived;
-
-    /** 收到技能列表委托 */
+    /** 收到技能分配数据委托 (用于 UI 交互流程) */
     UPROPERTY(BlueprintAssignable, Category = "Events")
-    FOnMASkillListReceived OnSkillListReceived;
-
-    /** 收到技能状态更新委托 */
-    UPROPERTY(BlueprintAssignable, Category = "Events")
-    FOnMASkillStatusUpdateReceived OnSkillStatusUpdateReceived;
+    FOnMASkillAllocationDataReceived OnSkillAllocationReceived;
 
     //=========================================================================
     // 状态查询
@@ -202,6 +224,12 @@ protected:
 
     /** 发送消息信封 (内部方法) */
     void SendMessageEnvelopeInternal(const FMAMessageEnvelope& Envelope);
+
+    /** 发送 HITL 消息 (内部方法) - 用于 Instruction, Review, Decision 类别 */
+    void SendHITLMessageInternal(const FMAMessageEnvelope& Envelope);
+
+    /** 根据消息类别获取发送端点 */
+    FString GetEndpointForCategory(EMAMessageCategory Category) const;
 
     /** 发送场景变化 HTTP 请求 (内部方法) */
     void SendSceneChangeHttpRequest(const FString& MessageJson);
@@ -259,8 +287,11 @@ private:
     /** 最大重试次数 */
     static constexpr int32 MaxRetries = 3;
 
-    /** 消息发送端点路径 */
-    static constexpr const TCHAR* MessageEndpoint = TEXT("/api/sim/message");
+    /** 消息发送端点路径 - Platform 类别 */
+    static constexpr const TCHAR* PlatformMessageEndpoint = TEXT("/api/sim/message");
+
+    /** 消息发送端点路径 - HITL 类别 (Instruction, Review, Decision) */
+    static constexpr const TCHAR* HITLMessageEndpoint = TEXT("/api/hitl/message");
 
     /** 当前待重试的消息信封 */
     FMAMessageEnvelope PendingEnvelope;

@@ -29,7 +29,7 @@ UI/
 ├── Modal/                    # 模态窗口
 │   ├── MABaseModalWidget     # 模态基类 (淡入淡出动画、按钮布局)
 │   ├── MATaskGraphModal      # 任务图模态 (详细可视化 + 编辑)
-│   ├── MASkillListModal      # 技能列表模态 (甘特图 + 编辑)
+│   ├── MASkillAllocationModal      # 技能列表模态 (甘特图 + 编辑)
 │   └── MAEmergencyModal      # 紧急事件模态 (事件详情 + 干预)
 │
 ├── Components/               # 可复用组件
@@ -50,7 +50,7 @@ UI/
 │   ├── MANodePaletteWidget   # 节点工具栏
 │   └── MATaskPlannerWidget   # 任务规划工作台 (主容器)
 │
-├── SkillList/                # 技能分配系统 (Model + Canvas)
+├── SkillAllocation/                # 技能分配系统 (Model + Canvas)
 │   ├── MASkillAllocationModel  # 技能分配数据模型
 │   ├── MAGanttCanvas           # 甘特图画布
 │   └── MASkillAllocationViewer # 技能分配查看器 (主容器)

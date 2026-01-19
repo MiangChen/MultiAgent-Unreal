@@ -124,17 +124,11 @@ struct MULTIAGENT_API FMAPlannerResponse
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMAPlannerResponse, const FMAPlannerResponse&, Response);
 
 // 前向声明入站消息类型（定义在 MACommTypes.h）
-struct FMATaskPlanDAG;
+struct FMATaskPlan;
 struct FMAWorldModelGraph;
 
 /**
  * 任务规划 DAG 接收委托
  * 当从规划器收到任务规划 DAG 时广播
  */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMATaskPlanReceived, const FMATaskPlanDAG&, TaskPlan);
-
-/**
- * 世界模型图接收委托
- * 当从规划器收到世界模型图时广播
- */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMAWorldModelReceived, const FMAWorldModelGraph&, WorldModel);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMATaskPlanReceived, const FMATaskPlan&, TaskPlan);

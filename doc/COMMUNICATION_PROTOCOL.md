@@ -63,15 +63,15 @@
 **Payload 格式：**
 ```json
 {
-    "input_source_id": "task_planner_input",
-    "input_content": "让机器狗去巡逻"
+    "instruction_id": "task_planner_input",
+    "instruction_text": "让机器狗去巡逻"
 }
 ```
 
 | 字段 | 类型 | 描述 |
 |------|------|------|
-| `input_source_id` | string | 输入框 Widget 标识 |
-| `input_content` | string | 用户输入的文本内容 |
+| `instruction_id` | string | 输入框 Widget 标识 |
+| `instruction_text` | string | 用户输入的文本内容 |
 
 **完整示例：**
 ```json
@@ -80,8 +80,8 @@
     "timestamp": 1735600000000,
     "message_id": "550e8400-e29b-41d4-a716-446655440000",
     "payload": {
-        "input_source_id": "task_planner_input",
-        "input_content": "让机器狗去巡逻"
+        "instruction_id": "task_planner_input",
+        "instruction_text": "让机器狗去巡逻"
     }
 }
 ```
@@ -449,7 +449,7 @@ Edit Mode 中场景发生变化时发送，使用独立端点 `/api/sim/scene_ch
 | 委托 | 触发时机 | 参数 |
 |------|----------|------|
 | `OnPlannerResponse` | 收到规划器响应 | `FMAPlannerResponse` |
-| `OnTaskPlanReceived` | 收到任务规划 DAG | `FMATaskPlanDAG` |
+| `OnTaskPlanReceived` | 收到任务规划 DAG | `FMATaskPlan` |
 
 **订阅示例 (C++)：**
 ```cpp

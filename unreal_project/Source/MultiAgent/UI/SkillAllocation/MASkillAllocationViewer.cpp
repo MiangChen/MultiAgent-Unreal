@@ -78,13 +78,6 @@ void UMASkillAllocationViewer::NativeConstruct()
         UE_LOG(LogMASkillAllocationViewer, Log, TEXT("SaveButton event bound"));
     }
 
-    // StartExecuteButton 已废弃，保留旧绑定以避免编译错误
-    if (StartExecuteButton && !StartExecuteButton->OnClicked.IsAlreadyBound(this, &UMASkillAllocationViewer::OnStartExecuteButtonClicked))
-    {
-        StartExecuteButton->OnClicked.AddDynamic(this, &UMASkillAllocationViewer::OnStartExecuteButtonClicked);
-        UE_LOG(LogMASkillAllocationViewer, Log, TEXT("StartExecuteButton event bound (deprecated)"));
-    }
-
     // ResetButton removed - no functionality implemented
 
     // Bind close button event
@@ -107,15 +100,15 @@ void UMASkillAllocationViewer::NativeConstruct()
         UE_LOG(LogMASkillAllocationViewer, Log, TEXT("AllocationModel OnSkillStatusChanged event bound"));
     }
     
-    // Bind TempDataManager skill list change event
+    // Bind TempDataManager skill allocation change event
     if (UGameInstance* GameInstance = UGameplayStatics::GetGameInstance(GetWorld()))
     {
         if (UMATempDataManager* TempDataMgr = GameInstance->GetSubsystem<UMATempDataManager>())
         {
-            if (!TempDataMgr->OnSkillListChanged.IsAlreadyBound(this, &UMASkillAllocationViewer::OnTempSkillListChanged))
+            if (!TempDataMgr->OnSkillAllocationChanged.IsAlreadyBound(this, &UMASkillAllocationViewer::OnTempSkillAllocationChanged))
             {
-                TempDataMgr->OnSkillListChanged.AddDynamic(this, &UMASkillAllocationViewer::OnTempSkillListChanged);
-                UE_LOG(LogMASkillAllocationViewer, Log, TEXT("TempDataManager OnSkillListChanged event bound"));
+                TempDataMgr->OnSkillAllocationChanged.AddDynamic(this, &UMASkillAllocationViewer::OnTempSkillAllocationChanged);
+                UE_LOG(LogMASkillAllocationViewer, Log, TEXT("TempDataManager OnSkillAllocationChanged event bound"));
             }
             
             // Bind skill status update event for real-time status display
@@ -709,160 +702,12 @@ void UMASkillAllocationViewer::SetJsonText(const FString& JsonText)
     }
 }
 
-void UMASkillAllocationViewer::StartExecution()
-{
-    // 1. 验证 AllocationModel 数据有效性
-    if (!AllocationModel)
-    {
-        AppendStatusLog(TEXT("[错误] 内部错误: AllocationModel 为空"));
-        UE_LOG(LogMASkillAllocationViewer, Error, TEXT("StartExecution: AllocationModel is null!"));
-        return;
-    }
-    
-    if (bIsExecuting)
-    {
-        AppendStatusLog(TEXT("[警告] 执行已在进行中"));
-        return;
-    }
-    
-    // 从 TempDataManager 读取技能列表
-    UGameInstance* GameInstance = UGameplayStatics::GetGameInstance(GetWorld());
-    if (!GameInstance)
-    {
-        AppendStatusLog(TEXT("[错误] 无法获取 GameInstance"));
-        UE_LOG(LogMASkillAllocationViewer, Error, TEXT("StartExecution: Failed to get GameInstance"));
-        return;
-    }
-    
-    UMATempDataManager* TempDataMgr = GameInstance->GetSubsystem<UMATempDataManager>();
-    if (!TempDataMgr)
-    {
-        AppendStatusLog(TEXT("[错误] TempDataManager 不可用"));
-        UE_LOG(LogMASkillAllocationViewer, Error, TEXT("StartExecution: TempDataManager not available"));
-        return;
-    }
-    
-    // 检查技能列表文件是否存在
-    if (!TempDataMgr->SkillListFileExists())
-    {
-        AppendStatusLog(TEXT("[错误] 技能列表文件不存在，请先从后端发送技能列表"));
-        UE_LOG(LogMASkillAllocationViewer, Warning, TEXT("StartExecution: skill_list_temp.json does not exist"));
-        return;
-    }
-    
-    // 从临时文件加载技能列表
-    FMASkillAllocationData Data;
-    if (!TempDataMgr->LoadSkillList(Data))
-    {
-        AppendStatusLog(TEXT("[错误] 从临时文件加载技能列表失败"));
-        UE_LOG(LogMASkillAllocationViewer, Error, TEXT("StartExecution: Failed to load skill list from temp file"));
-        return;
-    }
-    
-    // 检查数据是否为空
-    if (Data.Data.Num() == 0)
-    {
-        AppendStatusLog(TEXT("[错误] 技能列表为空，请先从后端发送技能列表"));
-        UE_LOG(LogMASkillAllocationViewer, Warning, TEXT("StartExecution: Skill list is empty"));
-        return;
-    }
-    
-    // 加载数据到模型
-    AllocationModel->LoadFromData(Data);
-    
-    // 同步 JSON 编辑器
-    SyncJsonEditorFromModel();
-    
-    // 刷新甘特图
-    if (GanttCanvas)
-    {
-        GanttCanvas->RefreshFromModel();
-    }
-    
-    AppendStatusLog(FString::Printf(TEXT("[信息] 从临时文件加载技能列表: %s"), *Data.Name));
-    
-    // 2. 获取 MACommandManager 子系统
-    UWorld* World = GetWorld();
-    if (!World)
-    {
-        AppendStatusLog(TEXT("[错误] 无法获取 World"));
-        UE_LOG(LogMASkillAllocationViewer, Error, TEXT("StartExecution: World is null"));
-        return;
-    }
-    
-    UMACommandManager* CommandMgr = World->GetSubsystem<UMACommandManager>();
-    if (!CommandMgr)
-    {
-        AppendStatusLog(TEXT("[错误] 无法获取 MACommandManager"));
-        UE_LOG(LogMASkillAllocationViewer, Error, TEXT("StartExecution: MACommandManager not available"));
-        return;
-    }
-    
-    // 3. 调用 ConvertToSkillListMessage 转换数据
-    FMASkillListMessage SkillListMsg;
-    FString ErrorMessage;
-    if (!ConvertToSkillListMessage(AllocationModel->GetWorkingData(), SkillListMsg, ErrorMessage))
-    {
-        AppendStatusLog(FString::Printf(TEXT("[错误] 数据转换失败: %s"), *ErrorMessage));
-        UE_LOG(LogMASkillAllocationViewer, Error, TEXT("StartExecution: Data conversion failed: %s"), *ErrorMessage);
-        return;
-    }
-    
-    // 4. 如果 MACommandManager 正在执行中，先中断当前执行
-    if (CommandMgr->IsExecuting())
-    {
-        AppendStatusLog(TEXT("[警告] 中断当前执行以启动新执行"));
-        CommandMgr->InterruptCurrentExecution();
-    }
-    
-    // 5. 绑定事件
-    BindCommandManagerEvents();
-    
-    // 6. 设置 bIsExecuting = true
-    bIsExecuting = true;
-    
-    // 7. 禁用拖拽功能 (Requirements 8.1)
-    if (GanttCanvas)
-    {
-        GanttCanvas->SetDragEnabled(false);
-        UE_LOG(LogMASkillAllocationViewer, Log, TEXT("StartExecution: Drag disabled during execution"));
-    }
-    
-    // 8. 禁用 StartExecuteButton
-    if (StartExecuteButton)
-    {
-        StartExecuteButton->SetIsEnabled(false);
-    }
-    
-    // 9. 将所有技能设置为 Pending 状态 (通过重置到原始数据)
-    AllocationModel->ResetToOriginal();
-    
-    // 刷新甘特图显示 Pending 状态
-    if (GanttCanvas)
-    {
-        GanttCanvas->RefreshFromModel();
-    }
-    
-    // 10. 记录执行开始日志
-    AppendStatusLog(FString::Printf(TEXT("[执行] 开始执行技能列表 (%d 个时间步)"), SkillListMsg.TotalTimeSteps));
-    UE_LOG(LogMASkillAllocationViewer, Log, TEXT("StartExecution: Starting real execution with %d time steps"), SkillListMsg.TotalTimeSteps);
-    
-    // 广播执行开始事件
-    OnExecutionStarted.Broadcast();
-    
-    // 11. 调用 CommandMgr->ExecuteSkillList() 启动真实执行
-    CommandMgr->ExecuteSkillList(SkillListMsg);
-}
-
-// StartSimulatedExecution, OnSimulationTick, AdvanceSimulation 已移除
-// 现在使用真实执行模式，通过 MACommandManager::ExecuteSkillList() 执行技能
-
 bool UMASkillAllocationViewer::LoadMockData()
 {
     // 已废弃: 不再从 datasets/skill_allocation_example.json 读取
-    // 请使用 TempDataManager 从 skill_list_temp.json 读取数据
+    // 请使用 TempDataManager 从 skill_allocation_temp.json 读取数据
     AppendStatusLog(TEXT("[Warning] LoadMockData is deprecated. Use TempDataManager instead."));
-    UE_LOG(LogMASkillAllocationViewer, Warning, TEXT("LoadMockData is deprecated. Data should be loaded from skill_list_temp.json via TempDataManager."));
+    UE_LOG(LogMASkillAllocationViewer, Warning, TEXT("LoadMockData is deprecated. Data should be loaded from skill_allocation_temp.json via TempDataManager."));
     return false;
 }
 
@@ -914,12 +759,6 @@ void UMASkillAllocationViewer::OnUpdateButtonClicked()
     OnSkillAllocationChanged.Broadcast(AllocationModel->GetWorkingData());
 }
 
-void UMASkillAllocationViewer::OnStartExecuteButtonClicked()
-{
-    UE_LOG(LogMASkillAllocationViewer, Log, TEXT("StartExecuteButton clicked"));
-    StartExecution();
-}
-
 void UMASkillAllocationViewer::OnSaveButtonClicked()
 {
     UE_LOG(LogMASkillAllocationViewer, Log, TEXT("SaveButton clicked"));
@@ -939,9 +778,9 @@ void UMASkillAllocationViewer::SaveAndNavigateToModal()
         {
             if (UMATempDataManager* TempDataMgr = GameInstance->GetSubsystem<UMATempDataManager>())
             {
-                TempDataMgr->SaveSkillList(CurrentData);
-                AppendStatusLog(TEXT("[保存] 技能列表已保存"));
-                UE_LOG(LogMASkillAllocationViewer, Log, TEXT("SaveAndNavigateToModal: Skill list saved to TempDataManager"));
+                TempDataMgr->SaveSkillAllocation(CurrentData);
+                AppendStatusLog(TEXT("[保存] 技能分配已保存"));
+                UE_LOG(LogMASkillAllocationViewer, Log, TEXT("SaveAndNavigateToModal: Skill allocation saved to TempDataManager"));
             }
             else
             {
@@ -958,7 +797,7 @@ void UMASkillAllocationViewer::SaveAndNavigateToModal()
         }
     }
     
-    // 2. 导航到 SkillListModal (通过 MAHUD 获取 UIManager)
+    // 2. 导航到 SkillAllocationModal (通过 MAHUD 获取 UIManager)
     APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
     if (PC)
     {
@@ -966,8 +805,8 @@ void UMASkillAllocationViewer::SaveAndNavigateToModal()
         {
             if (UMAUIManager* UIManager = HUD->GetUIManager())
             {
-                UIManager->NavigateFromViewerToSkillListModal();
-                UE_LOG(LogMASkillAllocationViewer, Log, TEXT("SaveAndNavigateToModal: Navigation to SkillListModal initiated"));
+                UIManager->NavigateFromViewerToSkillAllocationModal();
+                UE_LOG(LogMASkillAllocationViewer, Log, TEXT("SaveAndNavigateToModal: Navigation to SkillAllocationModal initiated"));
             }
             else
             {
@@ -987,35 +826,7 @@ void UMASkillAllocationViewer::OnResetButtonClicked()
 {
     UE_LOG(LogMASkillAllocationViewer, Log, TEXT("ResetButton clicked"));
     
-    // 如果正在执行，先中断执行
-    if (bIsExecuting)
-    {
-        // 获取 MACommandManager 并中断当前执行
-        UWorld* World = GetWorld();
-        if (World)
-        {
-            UMACommandManager* CommandMgr = World->GetSubsystem<UMACommandManager>();
-            if (CommandMgr && CommandMgr->IsExecuting())
-            {
-                CommandMgr->InterruptCurrentExecution();
-                AppendStatusLog(TEXT("[警告] 执行被中断"));
-            }
-        }
-        
-        // 解绑事件
-        UnbindCommandManagerEvents();
-        
-        // 重置执行状态
-        bIsExecuting = false;
-        
-        // 重新启用 StartExecuteButton
-        if (StartExecuteButton)
-        {
-            StartExecuteButton->SetIsEnabled(true);
-        }
-    }
-    
-    // 重新启用拖拽功能 (Requirements 8.3)
+    // 重新启用拖拽功能
     if (GanttCanvas)
     {
         GanttCanvas->SetDragEnabled(true);
@@ -1104,16 +915,9 @@ void UMASkillAllocationViewer::OnSkillStatusUpdated(int32 TimeStep, const FStrin
             break;
         case ESkillExecutionStatus::Completed:
             StatusStr = TEXT("Completed");
-            // Check if all skills are completed
-            if (AllocationModel && AreAllSkillsCompleted())
-            {
-                OnExecutionCompleted();
-            }
             break;
         case ESkillExecutionStatus::Failed:
             StatusStr = TEXT("Failed");
-            // Handle execution failure
-            OnExecutionFailed(TimeStep, RobotId);
             break;
         default:
             StatusStr = TEXT("Unknown");
@@ -1125,16 +929,9 @@ void UMASkillAllocationViewer::OnSkillStatusUpdated(int32 TimeStep, const FStrin
         TimeStep, *RobotId, *StatusStr));
 }
 
-void UMASkillAllocationViewer::OnTempSkillListChanged(const FMASkillAllocationData& NewData)
+void UMASkillAllocationViewer::OnTempSkillAllocationChanged(const FMASkillAllocationData& NewData)
 {
-    UE_LOG(LogMASkillAllocationViewer, Log, TEXT("OnTempSkillListChanged: Received new skill list data"));
-    
-    // 如果正在执行，不自动刷新
-    if (bIsExecuting)
-    {
-        AppendStatusLog(TEXT("[Info] Skill list updated in temp file (execution in progress, not auto-refreshing)"));
-        return;
-    }
+    UE_LOG(LogMASkillAllocationViewer, Log, TEXT("OnTempSkillAllocationChanged: Received new skill allocation data"));
     
     // 加载新数据到模型
     if (AllocationModel)
@@ -1274,17 +1071,17 @@ void UMASkillAllocationViewer::SyncDataToTempFile()
     // 验证数据完整性 (Requirements 5.2)
     if (Data.Data.Num() == 0)
     {
-        AppendStatusLog(TEXT("[警告] 技能列表为空，跳过数据同步"));
-        UE_LOG(LogMASkillAllocationViewer, Warning, TEXT("SyncDataToTempFile: Skill list is empty, skipping sync"));
+        AppendStatusLog(TEXT("[警告] 技能分配为空，跳过数据同步"));
+        UE_LOG(LogMASkillAllocationViewer, Warning, TEXT("SyncDataToTempFile: Skill allocation is empty, skipping sync"));
         return;
     }
     
-    // 调用 SaveSkillList() 保存数据 (Requirements 5.1)
-    if (TempDataMgr->SaveSkillList(Data))
+    // 调用 SaveSkillAllocation() 保存数据 (Requirements 5.1)
+    if (TempDataMgr->SaveSkillAllocation(Data))
     {
         // 记录成功日志 (Requirements 5.4, 7.5)
-        AppendStatusLog(TEXT("[同步] 数据已保存到 skill_list_temp.json"));
-        UE_LOG(LogMASkillAllocationViewer, Log, TEXT("SyncDataToTempFile: Data saved to skill_list_temp.json"));
+        AppendStatusLog(TEXT("[同步] 数据已保存到 skill_allocation_temp.json"));
+        UE_LOG(LogMASkillAllocationViewer, Log, TEXT("SyncDataToTempFile: Data saved to skill_allocation_temp.json"));
     }
     else
     {
@@ -1313,313 +1110,6 @@ FString UMASkillAllocationViewer::GetTimestamp() const
 {
     FDateTime Now = FDateTime::Now();
     return FString::Printf(TEXT("%02d:%02d:%02d"), Now.GetHour(), Now.GetMinute(), Now.GetSecond());
-}
-
-bool UMASkillAllocationViewer::AreAllSkillsCompleted() const
-{
-    if (!AllocationModel || !AllocationModel->IsValidData())
-    {
-        return false;
-    }
-    
-    TArray<int32> TimeSteps = AllocationModel->GetAllTimeSteps();
-    TArray<FString> RobotIds = AllocationModel->GetAllRobotIds();
-    
-    for (int32 TimeStep : TimeSteps)
-    {
-        for (const FString& RobotId : RobotIds)
-        {
-            FMASkillAssignment Skill;
-            if (AllocationModel->FindSkill(TimeStep, RobotId, Skill))
-            {
-                if (Skill.Status != ESkillExecutionStatus::Completed)
-                {
-                    return false;
-                }
-            }
-        }
-    }
-    
-    return true;
-}
-
-void UMASkillAllocationViewer::OnExecutionCompleted()
-{
-    bIsExecuting = false;
-    
-    // Re-enable start button
-    if (StartExecuteButton)
-    {
-        StartExecuteButton->SetIsEnabled(true);
-    }
-    
-    // Re-enable drag functionality (Requirements 8.3)
-    if (GanttCanvas)
-    {
-        GanttCanvas->SetDragEnabled(true);
-        UE_LOG(LogMASkillAllocationViewer, Log, TEXT("OnExecutionCompleted: Drag re-enabled"));
-    }
-    
-    AppendStatusLog(TEXT("[Success] All skills completed successfully"));
-    UE_LOG(LogMASkillAllocationViewer, Log, TEXT("Skill allocation execution completed successfully"));
-    
-    // 广播执行完成事件
-    OnExecutionCompletedDelegate.Broadcast();
-}
-
-void UMASkillAllocationViewer::OnExecutionFailed(int32 TimeStep, const FString& RobotId)
-{
-    bIsExecuting = false;
-    
-    // Re-enable start button to allow retry
-    if (StartExecuteButton)
-    {
-        StartExecuteButton->SetIsEnabled(true);
-    }
-    
-    // Re-enable drag functionality (Requirements 8.3)
-    if (GanttCanvas)
-    {
-        GanttCanvas->SetDragEnabled(true);
-        UE_LOG(LogMASkillAllocationViewer, Log, TEXT("OnExecutionFailed: Drag re-enabled"));
-    }
-    
-    AppendStatusLog(FString::Printf(TEXT("[Error] Execution failed at TimeStep %d, Robot %s"), TimeStep, *RobotId));
-    UE_LOG(LogMASkillAllocationViewer, Error, TEXT("Skill allocation execution failed: TimeStep=%d, RobotId=%s"), TimeStep, *RobotId);
-}
-
-void UMASkillAllocationViewer::ResetExecution()
-{
-    bIsExecuting = false;
-    
-    // Re-enable start button
-    if (StartExecuteButton)
-    {
-        StartExecuteButton->SetIsEnabled(true);
-    }
-    
-    // Reset all skill statuses to Pending
-    if (AllocationModel)
-    {
-        AllocationModel->ResetToOriginal();
-    }
-    
-    // Refresh the Gantt canvas
-    if (GanttCanvas)
-    {
-        GanttCanvas->RefreshFromModel();
-    }
-    
-    AppendStatusLog(TEXT("[Info] Execution reset - all skills set to Pending"));
-    UE_LOG(LogMASkillAllocationViewer, Log, TEXT("Execution reset"));
-}
-
-//=============================================================================
-// MACommandManager Event Binding
-//=============================================================================
-
-void UMASkillAllocationViewer::BindCommandManagerEvents()
-{
-    UWorld* World = GetWorld();
-    if (!World)
-    {
-        UE_LOG(LogMASkillAllocationViewer, Warning, TEXT("BindCommandManagerEvents: World is null"));
-        return;
-    }
-    
-    UMACommandManager* CommandMgr = World->GetSubsystem<UMACommandManager>();
-    if (!CommandMgr)
-    {
-        UE_LOG(LogMASkillAllocationViewer, Warning, TEXT("BindCommandManagerEvents: MACommandManager not found"));
-        return;
-    }
-    
-    // Bind OnTimeStepCompleted delegate
-    if (!CommandMgr->OnTimeStepCompleted.IsAlreadyBound(this, &UMASkillAllocationViewer::OnCommandManagerTimeStepCompleted))
-    {
-        CommandMgr->OnTimeStepCompleted.AddDynamic(this, &UMASkillAllocationViewer::OnCommandManagerTimeStepCompleted);
-        UE_LOG(LogMASkillAllocationViewer, Log, TEXT("Bound OnTimeStepCompleted delegate"));
-    }
-    
-    // Bind OnSkillListCompleted delegate
-    if (!CommandMgr->OnSkillListCompleted.IsAlreadyBound(this, &UMASkillAllocationViewer::OnCommandManagerSkillListCompleted))
-    {
-        CommandMgr->OnSkillListCompleted.AddDynamic(this, &UMASkillAllocationViewer::OnCommandManagerSkillListCompleted);
-        UE_LOG(LogMASkillAllocationViewer, Log, TEXT("Bound OnSkillListCompleted delegate"));
-    }
-}
-
-void UMASkillAllocationViewer::UnbindCommandManagerEvents()
-{
-    UWorld* World = GetWorld();
-    if (!World)
-    {
-        return;
-    }
-    
-    UMACommandManager* CommandMgr = World->GetSubsystem<UMACommandManager>();
-    if (!CommandMgr)
-    {
-        return;
-    }
-    
-    // Unbind OnTimeStepCompleted delegate
-    if (CommandMgr->OnTimeStepCompleted.IsAlreadyBound(this, &UMASkillAllocationViewer::OnCommandManagerTimeStepCompleted))
-    {
-        CommandMgr->OnTimeStepCompleted.RemoveDynamic(this, &UMASkillAllocationViewer::OnCommandManagerTimeStepCompleted);
-        UE_LOG(LogMASkillAllocationViewer, Log, TEXT("Unbound OnTimeStepCompleted delegate"));
-    }
-    
-    // Unbind OnSkillListCompleted delegate
-    if (CommandMgr->OnSkillListCompleted.IsAlreadyBound(this, &UMASkillAllocationViewer::OnCommandManagerSkillListCompleted))
-    {
-        CommandMgr->OnSkillListCompleted.RemoveDynamic(this, &UMASkillAllocationViewer::OnCommandManagerSkillListCompleted);
-        UE_LOG(LogMASkillAllocationViewer, Log, TEXT("Unbound OnSkillListCompleted delegate"));
-    }
-}
-
-void UMASkillAllocationViewer::OnCommandManagerTimeStepCompleted(const FMATimeStepFeedback& Feedback)
-{
-    UE_LOG(LogMASkillAllocationViewer, Log, TEXT("OnCommandManagerTimeStepCompleted: TimeStep %d with %d skill feedbacks"), 
-        Feedback.TimeStep, Feedback.SkillFeedbacks.Num());
-    
-    if (!AllocationModel)
-    {
-        UE_LOG(LogMASkillAllocationViewer, Warning, TEXT("OnCommandManagerTimeStepCompleted: AllocationModel is null"));
-        return;
-    }
-    
-    int32 TimeStep = Feedback.TimeStep;
-    
-    // 获取 TempDataManager 用于广播状态更新
-    UMATempDataManager* TempDataMgr = nullptr;
-    if (UGameInstance* GameInstance = UGameplayStatics::GetGameInstance(GetWorld()))
-    {
-        TempDataMgr = GameInstance->GetSubsystem<UMATempDataManager>();
-    }
-    
-    // 解析 FMATimeStepFeedback 中的技能反馈
-    for (const FMASkillExecutionFeedback& SkillFeedback : Feedback.SkillFeedbacks)
-    {
-        // 根据 bSuccess 确定新状态
-        ESkillExecutionStatus NewStatus = SkillFeedback.bSuccess 
-            ? ESkillExecutionStatus::Completed 
-            : ESkillExecutionStatus::Failed;
-        
-        // 调用 AllocationModel->UpdateSkillStatus() 更新模型中的状态
-        bool bUpdated = AllocationModel->UpdateSkillStatus(TimeStep, SkillFeedback.AgentId, NewStatus);
-        
-        if (!bUpdated)
-        {
-            UE_LOG(LogMASkillAllocationViewer, Warning, 
-                TEXT("OnCommandManagerTimeStepCompleted: Failed to update status for TimeStep=%d, AgentId=%s"),
-                TimeStep, *SkillFeedback.AgentId);
-        }
-        
-        // 广播状态更新到 TempDataManager，让右侧边栏预览也能实时更新
-        if (TempDataMgr)
-        {
-            TempDataMgr->BroadcastSkillStatusUpdate(TimeStep, SkillFeedback.AgentId, NewStatus);
-        }
-        
-        // 记录状态日志
-        FString StatusStr = SkillFeedback.bSuccess ? TEXT("完成") : TEXT("失败");
-        FString LogMessage = FString::Printf(TEXT("[T%d] %s [%s]: %s"), 
-            TimeStep, *SkillFeedback.AgentId, *SkillFeedback.SkillName, *StatusStr);
-        
-        // 如果有额外消息，附加到日志
-        if (!SkillFeedback.Message.IsEmpty())
-        {
-            LogMessage += FString::Printf(TEXT(" - %s"), *SkillFeedback.Message);
-        }
-        
-        AppendStatusLog(LogMessage);
-        
-        // 如果技能失败，记录错误日志
-        if (!SkillFeedback.bSuccess)
-        {
-            AppendStatusLog(FString::Printf(TEXT("[错误] 技能失败: %s - %s"), 
-                *SkillFeedback.AgentId, *SkillFeedback.SkillName));
-        }
-    }
-    
-    // 刷新甘特图
-    if (GanttCanvas)
-    {
-        GanttCanvas->RefreshFromModel();
-    }
-    
-    // 记录时间步进度日志
-    if (AllocationModel->IsValidData())
-    {
-        int32 TotalTimeSteps = AllocationModel->GetTimeStepCount();
-        AppendStatusLog(FString::Printf(TEXT("[进度] 正在执行 TimeStep %d/%d"), TimeStep + 1, TotalTimeSteps));
-    }
-}
-
-void UMASkillAllocationViewer::OnCommandManagerSkillListCompleted(const TArray<FMATimeStepFeedback>& AllFeedbacks)
-{
-    UE_LOG(LogMASkillAllocationViewer, Log, TEXT("OnCommandManagerSkillListCompleted: %d time steps completed"), AllFeedbacks.Num());
-    
-    // 设置 bIsExecuting = false
-    bIsExecuting = false;
-    
-    // 重新启用 StartExecuteButton
-    if (StartExecuteButton)
-    {
-        StartExecuteButton->SetIsEnabled(true);
-    }
-    
-    // 解绑事件
-    UnbindCommandManagerEvents();
-    
-    // 检查是否全部成功
-    bool bAllSuccess = true;
-    int32 FailedCount = 0;
-    FString FirstFailedAgent;
-    FString FirstFailedSkill;
-    
-    for (const FMATimeStepFeedback& TSFeedback : AllFeedbacks)
-    {
-        for (const FMASkillExecutionFeedback& SkillFeedback : TSFeedback.SkillFeedbacks)
-        {
-            if (!SkillFeedback.bSuccess)
-            {
-                bAllSuccess = false;
-                FailedCount++;
-                
-                // 记录第一个失败的技能信息
-                if (FirstFailedAgent.IsEmpty())
-                {
-                    FirstFailedAgent = SkillFeedback.AgentId;
-                    FirstFailedSkill = SkillFeedback.SkillName;
-                }
-            }
-        }
-    }
-    
-    // 记录日志
-    if (bAllSuccess)
-    {
-        AppendStatusLog(TEXT("[成功] 所有技能已完成"));
-        UE_LOG(LogMASkillAllocationViewer, Log, TEXT("All skills completed successfully"));
-    }
-    else
-    {
-        if (FailedCount == 1)
-        {
-            AppendStatusLog(FString::Printf(TEXT("[错误] 技能失败: %s - %s"), 
-                *FirstFailedAgent, *FirstFailedSkill));
-        }
-        else
-        {
-            AppendStatusLog(FString::Printf(TEXT("[警告] %d 个技能执行失败"), FailedCount));
-        }
-        UE_LOG(LogMASkillAllocationViewer, Warning, TEXT("Skill list execution completed with %d failures"), FailedCount);
-    }
-    
-    // 广播 OnExecutionCompleted 事件
-    OnExecutionCompletedDelegate.Broadcast();
 }
 
 //=============================================================================

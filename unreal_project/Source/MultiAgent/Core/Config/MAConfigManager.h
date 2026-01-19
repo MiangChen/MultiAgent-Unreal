@@ -148,8 +148,16 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "Config|Polling")
     bool bEnablePolling = true;
 
+    /** 是否启用 HITL 端点轮询 (默认 false) */
+    UPROPERTY(BlueprintReadOnly, Category = "Config|Polling")
+    bool bEnableHITLPolling = false;
+
     UPROPERTY(BlueprintReadOnly, Category = "Config|Polling")
     float PollIntervalSeconds = 1.0f;
+
+    /** HITL 轮询间隔 (秒) */
+    UPROPERTY(BlueprintReadOnly, Category = "Config|Polling")
+    float HITLPollIntervalSeconds = 1.0f;
 
     //=========================================================================
     // Local HTTP Server 配置

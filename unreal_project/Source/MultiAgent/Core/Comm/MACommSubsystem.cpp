@@ -32,7 +32,9 @@ void UMACommSubsystem::Initialize(FSubsystemCollectionBase& Collection)
         ServerURL = ConfigMgr->PlannerServerURL;
         bUseMockData = ConfigMgr->bUseMockData;
         bEnablePolling = ConfigMgr->bEnablePolling;
+        bEnableHITLPolling = ConfigMgr->bEnableHITLPolling;
         PollIntervalSeconds = ConfigMgr->PollIntervalSeconds;
+        HITLPollIntervalSeconds = ConfigMgr->HITLPollIntervalSeconds;
         LocalServerPort = ConfigMgr->LocalServerPort;
         bEnableLocalServer = ConfigMgr->bEnableLocalServer;
     }
@@ -41,7 +43,9 @@ void UMACommSubsystem::Initialize(FSubsystemCollectionBase& Collection)
     UE_LOG(LogMACommSubsystem, Log, TEXT("  ServerURL: %s"), *ServerURL);
     UE_LOG(LogMACommSubsystem, Log, TEXT("  bUseMockData: %s"), bUseMockData ? TEXT("true") : TEXT("false"));
     UE_LOG(LogMACommSubsystem, Log, TEXT("  bEnablePolling: %s"), bEnablePolling ? TEXT("true") : TEXT("false"));
+    UE_LOG(LogMACommSubsystem, Log, TEXT("  bEnableHITLPolling: %s"), bEnableHITLPolling ? TEXT("true") : TEXT("false"));
     UE_LOG(LogMACommSubsystem, Log, TEXT("  PollIntervalSeconds: %.2f"), PollIntervalSeconds);
+    UE_LOG(LogMACommSubsystem, Log, TEXT("  HITLPollIntervalSeconds: %.2f"), HITLPollIntervalSeconds);
     UE_LOG(LogMACommSubsystem, Log, TEXT("  LocalServerPort: %d"), LocalServerPort);
     UE_LOG(LogMACommSubsystem, Log, TEXT("  bEnableLocalServer: %s"), bEnableLocalServer ? TEXT("true") : TEXT("false"));
 
@@ -50,8 +54,10 @@ void UMACommSubsystem::Initialize(FSubsystemCollectionBase& Collection)
     Inbound = MakeUnique<FMACommInbound>(this);
     HttpServer = MakeUnique<FMACommHttpServer>(this);
 
-    // 设置入站模块的轮询间隔
+    // 设置入站模块的轮询配置
     Inbound->SetPollInterval(PollIntervalSeconds);
+    Inbound->SetEnableHITLPolling(bEnableHITLPolling);
+    Inbound->SetHITLPollInterval(HITLPollIntervalSeconds);
 
     // 如果配置启用，自动启动轮询
     if (bEnablePolling && !bUseMockData)
@@ -116,8 +122,11 @@ void UMACommSubsystem::SendNaturalLanguageCommand(const FString& Command)
     LastCommand = Command;
     bWaitingForResponse = true;
     
-    // 向后兼容：使用 "legacy_command" 作为 input_source_id
-    SendUIInputMessage(TEXT("legacy_command"), Command);
+    // 向后兼容：使用 "legacy_command" 作为 instruction_id
+    if (Outbound)
+    {
+        Outbound->SendUIInputMessage(TEXT("legacy_command"), Command);
+    }
 }
 
 void UMACommSubsystem::SendUIInputMessage(const FString& SourceId, const FString& Content)
@@ -186,18 +195,48 @@ void UMACommSubsystem::SendSceneChangeMessageByType(EMASceneChangeType ChangeTyp
 
 void UMACommSubsystem::SendSkillAllocationMessage(const FMASkillAllocationMessage& Message)
 {
-    UE_LOG(LogMACommSubsystem, Log, TEXT("SendSkillAllocationMessage: Name=%s, Description=%s"), 
-        *Message.Name, *Message.Description);
+    if (Outbound)
+    {
+        Outbound->SendSkillAllocationMessage(Message);
+    }
+}
 
-    // 创建消息信封
-    FMAMessageEnvelope Envelope;
-    Envelope.MessageType = EMACommMessageType::SkillAllocation;
-    Envelope.Timestamp = Message.Timestamp;
-    Envelope.MessageId = Message.MessageId;
-    Envelope.PayloadJson = Message.ToJson();
+//=============================================================================
+// HITL 响应发送接口 (委托给 MACommOutbound)
+//=============================================================================
 
-    // 发送消息
-    SendMessageEnvelopeInternal(Envelope);
+void UMACommSubsystem::SendReviewResponse(const FMAReviewResponseMessage& Response)
+{
+    if (Outbound)
+    {
+        Outbound->SendReviewResponse(Response);
+    }
+}
+
+void UMACommSubsystem::SendReviewResponseSimple(const FString& OriginalMessageId, bool bApproved,
+    const FString& ModifiedDataJson, const FString& RejectionReason)
+{
+    if (Outbound)
+    {
+        Outbound->SendReviewResponseSimple(OriginalMessageId, bApproved, ModifiedDataJson, RejectionReason);
+    }
+}
+
+void UMACommSubsystem::SendDecisionResponse(const FMADecisionResponseMessage& Response)
+{
+    if (Outbound)
+    {
+        Outbound->SendDecisionResponse(Response);
+    }
+}
+
+void UMACommSubsystem::SendDecisionResponseSimple(const FString& OriginalMessageId, const FString& Decision,
+    const FString& DecisionDataJson, const FString& Comments)
+{
+    if (Outbound)
+    {
+        Outbound->SendDecisionResponseSimple(OriginalMessageId, Decision, DecisionDataJson, Comments);
+    }
 }
 
 //=============================================================================
@@ -258,8 +297,10 @@ void UMACommSubsystem::SendMessageEnvelopeInternal(const FMAMessageEnvelope& Env
 {
     FString EnvelopeJson = Envelope.ToJson();
     
-    UE_LOG(LogMACommSubsystem, Verbose, TEXT("SendMessageEnvelopeInternal: Type=%d, MessageId=%s"),
-        static_cast<int32>(Envelope.MessageType), *Envelope.MessageId);
+    UE_LOG(LogMACommSubsystem, Verbose, TEXT("SendMessageEnvelopeInternal: Type=%d, Category=%d, MessageId=%s"),
+        static_cast<int32>(Envelope.MessageType), 
+        static_cast<int32>(Envelope.MessageCategory),
+        *Envelope.MessageId);
     
     if (bUseMockData)
     {
@@ -280,8 +321,50 @@ void UMACommSubsystem::SendMessageEnvelopeInternal(const FMAMessageEnvelope& Env
     // 重置重试计数
     RetryCount = 0;
     
-    // 构建完整 URL
-    FString FullUrl = ServerURL + MessageEndpoint;
+    // 根据消息类别选择正确的端点
+    FString Endpoint = GetEndpointForCategory(Envelope.MessageCategory);
+    FString FullUrl = ServerURL + Endpoint;
+    
+    UE_LOG(LogMACommSubsystem, Log, TEXT("SendMessageEnvelopeInternal: Routing to endpoint %s"), *Endpoint);
+    
+    // 执行 HTTP POST
+    ExecuteHttpPost(FullUrl, EnvelopeJson, Envelope);
+}
+
+FString UMACommSubsystem::GetEndpointForCategory(EMAMessageCategory Category) const
+{
+    switch (Category)
+    {
+    case EMAMessageCategory::Instruction:
+    case EMAMessageCategory::Review:
+    case EMAMessageCategory::Decision:
+        return HITLMessageEndpoint;
+    case EMAMessageCategory::Platform:
+    default:
+        return PlatformMessageEndpoint;
+    }
+}
+
+void UMACommSubsystem::SendHITLMessageInternal(const FMAMessageEnvelope& Envelope)
+{
+    FString EnvelopeJson = Envelope.ToJson();
+    
+    UE_LOG(LogMACommSubsystem, Log, TEXT("SendHITLMessageInternal: Type=%d, Category=%d, MessageId=%s"),
+        static_cast<int32>(Envelope.MessageType), 
+        static_cast<int32>(Envelope.MessageCategory),
+        *Envelope.MessageId);
+    
+    if (bUseMockData)
+    {
+        UE_LOG(LogMACommSubsystem, Log, TEXT("Mock mode: HITL message logged but not sent"));
+        return;
+    }
+    
+    // 重置重试计数
+    RetryCount = 0;
+    
+    // HITL 消息始终发送到 HITL 端点
+    FString FullUrl = ServerURL + HITLMessageEndpoint;
     
     // 执行 HTTP POST
     ExecuteHttpPost(FullUrl, EnvelopeJson, Envelope);
@@ -500,7 +583,9 @@ void UMACommSubsystem::ScheduleRetry(const FMAMessageEnvelope& OriginalEnvelope)
     FTimerDelegate TimerDelegate;
     TimerDelegate.BindLambda([this, OriginalEnvelope]()
     {
-        FString FullUrl = ServerURL + MessageEndpoint;
+        // 根据消息类别选择正确的端点
+        FString Endpoint = GetEndpointForCategory(OriginalEnvelope.MessageCategory);
+        FString FullUrl = ServerURL + Endpoint;
         FString JsonPayload = OriginalEnvelope.ToJson();
         ExecuteHttpPost(FullUrl, JsonPayload, OriginalEnvelope);
     });

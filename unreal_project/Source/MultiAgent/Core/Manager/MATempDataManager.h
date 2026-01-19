@@ -26,8 +26,8 @@ DECLARE_LOG_CATEGORY_EXTERN(LogMATempData, Log, All);
 /** 任务图数据变更委托 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTaskGraphDataChanged, const FMATaskGraphData&, NewData);
 
-/** 技能列表数据变更委托 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSkillListDataChanged, const FMASkillAllocationData&, NewData);
+/** 技能分配数据变更委托 (TempDataManager 专用，避免与 MASkillAllocationModel 中的同名委托冲突) */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTempSkillAllocationDataChanged, const FMASkillAllocationData&, NewData);
 
 /** 技能状态更新委托 - 执行过程中实时更新 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnSkillStatusUpdated, int32, TimeStep, const FString&, RobotId, ESkillExecutionStatus, NewStatus);
@@ -39,19 +39,19 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnSkillStatusUpdated, int32, Tim
 /**
  * 临时数据管理器
  * 
- * 作为 GameInstanceSubsystem 实现，提供任务图和技能列表的统一数据管理。
+ * 作为 GameInstanceSubsystem 实现，提供任务图和技能分配的统一数据管理。
  * 数据存储在 unreal_project/data 目录下的 JSON 文件中。
  * 
  * 文件路径:
  * - task_graph_temp.json: 任务图数据
- * - skill_list_temp.json: 技能列表数据
+ * - skill_allocation_temp.json: 技能分配数据
  * 
  * 使用方式:
  *   UMATempDataManager* TempDataMgr = GetGameInstance()->GetSubsystem<UMATempDataManager>();
  *   if (TempDataMgr)
  *   {
  *       FMASkillAllocationData Data;
- *       if (TempDataMgr->LoadSkillList(Data))
+ *       if (TempDataMgr->LoadSkillAllocation(Data))
  *       {
  *           // 使用数据...
  *       }
@@ -70,8 +70,8 @@ public:
     /** 任务图临时文件名 */
     static const FString TaskGraphFileName;
 
-    /** 技能列表临时文件名 */
-    static const FString SkillListFileName;
+    /** 技能分配临时文件名 */
+    static const FString SkillAllocationFileName;
 
     /** 数据目录名 */
     static const FString DataDirectoryName;
@@ -121,38 +121,38 @@ public:
     bool TaskGraphFileExists() const;
 
     //=========================================================================
-    // 技能列表操作
+    // 技能分配操作
     //=========================================================================
 
     /**
-     * 保存技能列表数据到临时文件
-     * @param Data 技能列表数据
+     * 保存技能分配数据到临时文件
+     * @param Data 技能分配数据
      * @return 是否保存成功
      */
-    UFUNCTION(BlueprintCallable, Category = "TempData|SkillList")
-    bool SaveSkillList(const FMASkillAllocationData& Data);
+    UFUNCTION(BlueprintCallable, Category = "TempData|SkillAllocation")
+    bool SaveSkillAllocation(const FMASkillAllocationData& Data);
 
     /**
-     * 从临时文件加载技能列表数据
-     * @param OutData 输出的技能列表数据
+     * 从临时文件加载技能分配数据
+     * @param OutData 输出的技能分配数据
      * @return 是否加载成功
      */
-    UFUNCTION(BlueprintCallable, Category = "TempData|SkillList")
-    bool LoadSkillList(FMASkillAllocationData& OutData);
+    UFUNCTION(BlueprintCallable, Category = "TempData|SkillAllocation")
+    bool LoadSkillAllocation(FMASkillAllocationData& OutData);
 
     /**
-     * 获取技能列表 JSON 字符串
+     * 获取技能分配 JSON 字符串
      * @return JSON 字符串，如果文件不存在或读取失败返回空字符串
      */
-    UFUNCTION(BlueprintCallable, Category = "TempData|SkillList")
-    FString GetSkillListJson() const;
+    UFUNCTION(BlueprintCallable, Category = "TempData|SkillAllocation")
+    FString GetSkillAllocationJson() const;
 
     /**
-     * 检查技能列表临时文件是否存在
+     * 检查技能分配临时文件是否存在
      * @return 文件是否存在
      */
-    UFUNCTION(BlueprintPure, Category = "TempData|SkillList")
-    bool SkillListFileExists() const;
+    UFUNCTION(BlueprintPure, Category = "TempData|SkillAllocation")
+    bool SkillAllocationFileExists() const;
 
     //=========================================================================
     // 文件路径
@@ -166,11 +166,11 @@ public:
     FString GetTaskGraphFilePath() const;
 
     /**
-     * 获取技能列表临时文件完整路径
+     * 获取技能分配临时文件完整路径
      * @return 文件完整路径
      */
     UFUNCTION(BlueprintPure, Category = "TempData")
-    FString GetSkillListFilePath() const;
+    FString GetSkillAllocationFilePath() const;
 
     /**
      * 获取数据目录完整路径
@@ -214,7 +214,7 @@ public:
      * @param RobotId 机器人 ID
      * @param NewStatus 新状态
      */
-    UFUNCTION(BlueprintCallable, Category = "TempData|SkillList")
+    UFUNCTION(BlueprintCallable, Category = "TempData|SkillAllocation")
     void BroadcastSkillStatusUpdate(int32 TimeStep, const FString& RobotId, ESkillExecutionStatus NewStatus);
 
     //=========================================================================
@@ -225,9 +225,9 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "TempData|Events")
     FOnTaskGraphDataChanged OnTaskGraphChanged;
 
-    /** 技能列表数据变更事件 */
+    /** 技能分配数据变更事件 */
     UPROPERTY(BlueprintAssignable, Category = "TempData|Events")
-    FOnSkillListDataChanged OnSkillListChanged;
+    FOnTempSkillAllocationDataChanged OnSkillAllocationChanged;
 
     /** 技能状态实时更新事件 */
     UPROPERTY(BlueprintAssignable, Category = "TempData|Events")
@@ -281,8 +281,8 @@ private:
     /** 任务图文件路径 (缓存) */
     FString CachedTaskGraphFilePath;
 
-    /** 技能列表文件路径 (缓存) */
-    FString CachedSkillListFilePath;
+    /** 技能分配文件路径 (缓存) */
+    FString CachedSkillAllocationFilePath;
 
     /** 是否正在监听文件变化 */
     bool bIsFileWatching = false;
@@ -298,11 +298,11 @@ private:
 
     /** 待处理的文件变化标志 */
     bool bTaskGraphFileChanged = false;
-    bool bSkillListFileChanged = false;
+    bool bSkillAllocationFileChanged = false;
 
-    /** 技能列表内存缓存 (用于保存状态更新) */
-    FMASkillAllocationData CachedSkillListData;
+    /** 技能分配内存缓存 (用于保存状态更新) */
+    FMASkillAllocationData CachedSkillAllocationData;
     
     /** 缓存是否有效 */
-    bool bSkillListCacheValid = false;
+    bool bSkillAllocationCacheValid = false;
 };
