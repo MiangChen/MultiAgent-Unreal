@@ -630,9 +630,10 @@ private:
     /**
      * 技能列表更新回调
      * @param SkillList 技能列表消息
+     * @param bExecutable 是否为可执行的最终技能列表
      */
     UFUNCTION()
-    void OnSkillListReceived(const FMASkillListMessage& SkillList);
+    void OnSkillListReceived(const FMASkillListMessage& SkillList, bool bExecutable);
 
     /**
      * 模态确认回调 (Requirements: 7.2, 7.3, 12.6)

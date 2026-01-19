@@ -50,8 +50,8 @@ void UMANotificationWidget::ShowNotification(EMANotificationType Type)
     }
     else
     {
-        // 设置初始动画状态
-        CurrentOffsetY = AnimStartOffsetY;
+        // 设置初始动画状态 (从左边缘开始)
+        CurrentOffsetX = AnimStartOffsetX;
         CurrentOpacity = 0.0f;
     }
 
@@ -96,8 +96,12 @@ FString UMANotificationWidget::GetNotificationMessage(EMANotificationType Type)
             return TEXT("Task Graph Updated");
         case EMANotificationType::SkillListUpdate:
             return TEXT("Skill List Updated");
+        case EMANotificationType::SkillListExecuting:
+            return TEXT("Skills Executing");
         case EMANotificationType::EmergencyEvent:
             return TEXT("Unexpected Situation Detected");
+        case EMANotificationType::RequestUserCommand:
+            return TEXT("Command Input Required");
         default:
             return TEXT("");
     }
@@ -111,8 +115,12 @@ FString UMANotificationWidget::GetKeyHint(EMANotificationType Type)
             return TEXT("Press 'Z' to review Task Graph");
         case EMANotificationType::SkillListUpdate:
             return TEXT("Press 'N' to review Skill List");
+        case EMANotificationType::SkillListExecuting:
+            return TEXT("Skills are currently being executed");
         case EMANotificationType::EmergencyEvent:
             return TEXT("Press 'X' to check Unexpected Situation");
+        case EMANotificationType::RequestUserCommand:
+            return TEXT("Please enter command in the right sidebar");
         default:
             return TEXT("");
     }
@@ -346,19 +354,19 @@ void UMANotificationWidget::UpdateAnimation(float DeltaTime)
     float Duration = bIsShowing ? SlideInDuration : SlideOutDuration;
     float Progress = FMath::Clamp(CurrentAnimTime / Duration, 0.0f, 1.0f);
 
-    // 使用 ease-out 缓动函数
+    // 使用 ease-out 缓动函数 (更丝滑的动画)
     float EasedProgress = 1.0f - FMath::Pow(1.0f - Progress, 3.0f);
 
     if (bIsShowing)
     {
-        // 滑入动画：从上方滑入
-        CurrentOffsetY = FMath::Lerp(AnimStartOffsetY, AnimEndOffsetY, EasedProgress);
+        // 滑入动画：从左边缘滑入
+        CurrentOffsetX = FMath::Lerp(AnimStartOffsetX, AnimEndOffsetX, EasedProgress);
         CurrentOpacity = EasedProgress;
     }
     else
     {
-        // 滑出动画：向上滑出
-        CurrentOffsetY = FMath::Lerp(AnimEndOffsetY, AnimStartOffsetY, EasedProgress);
+        // 滑出动画：向左边缘滑出
+        CurrentOffsetX = FMath::Lerp(AnimEndOffsetX, AnimStartOffsetX, EasedProgress);
         CurrentOpacity = 1.0f - EasedProgress;
     }
 
@@ -373,12 +381,12 @@ void UMANotificationWidget::UpdateAnimation(float DeltaTime)
 
 void UMANotificationWidget::ApplyAnimationState()
 {
-    // 应用位置偏移
+    // 应用位置偏移 (X 方向，从左边缘滑入)
     if (NotificationBorder)
     {
         if (UCanvasPanelSlot* BorderSlot = Cast<UCanvasPanelSlot>(NotificationBorder->Slot))
         {
-            BorderSlot->SetPosition(FVector2D(0.0f, CurrentOffsetY));
+            BorderSlot->SetPosition(FVector2D(CurrentOffsetX, 0.0f));
         }
     }
 
@@ -429,6 +437,16 @@ FLinearColor UMANotificationWidget::GetBackgroundColorForType(EMANotificationTyp
             }
             return FLinearColor(0.12f, 0.18f, 0.14f, 0.95f);
 
+        case EMANotificationType::SkillListExecuting:
+            // 黄色调 - 技能列表执行中
+            if (Theme)
+            {
+                FLinearColor Color = Theme->WarningColor;
+                Color.A = 0.95f;
+                return Color * 0.3f + FLinearColor(0.1f, 0.1f, 0.12f, 0.95f) * 0.7f;
+            }
+            return FLinearColor(0.22f, 0.20f, 0.12f, 0.95f);
+
         case EMANotificationType::EmergencyEvent:
             // 红色调 - 突发事件
             if (Theme)
@@ -438,6 +456,10 @@ FLinearColor UMANotificationWidget::GetBackgroundColorForType(EMANotificationTyp
                 return Color * 0.3f + FLinearColor(0.1f, 0.1f, 0.12f, 0.95f) * 0.7f;
             }
             return FLinearColor(0.22f, 0.12f, 0.12f, 0.95f);
+
+        case EMANotificationType::RequestUserCommand:
+            // 蓝色调 - 索要用户指令
+            return FLinearColor(0.1f, 0.3f, 0.6f, 0.9f);
 
         default:
             // 默认深色背景

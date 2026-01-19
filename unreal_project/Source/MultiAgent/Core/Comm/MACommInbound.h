@@ -70,14 +70,20 @@ private:
     /** 处理世界模型图消息 (已废弃，保留兼容) */
     void HandleWorldModelGraph(const TSharedPtr<FJsonObject>& PayloadObject);
 
-    /** 处理技能列表消息 */
-    void HandleSkillList(const TSharedPtr<FJsonObject>& PayloadObject);
+    /** 处理技能列表消息
+     * @param PayloadObject 消息 payload
+     * @param bExecutable 是否为可执行的最终技能列表，如果为 true 则直接触发执行
+     */
+    void HandleSkillList(const TSharedPtr<FJsonObject>& PayloadObject, bool bExecutable = false);
 
     /** 处理技能状态更新消息 */
     void HandleSkillStatusUpdate(const TSharedPtr<FJsonObject>& PayloadObject);
 
     /** 处理查询请求消息 */
     void HandleQueryRequest(const TSharedPtr<FJsonObject>& PayloadObject);
+
+    /** 处理索要用户指令消息 */
+    void HandleRequestUserCommand(const TSharedPtr<FJsonObject>& PayloadObject);
 
 private:
     /** 所属的通信子系统 */

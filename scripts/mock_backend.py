@@ -418,6 +418,17 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             padding-bottom: 5px; border-bottom: 1px solid #0f3460;
         }
         .section-title.skill { color: #e94560; }
+        .section-title.request-cmd { color: #00ff88; }
+        
+        .request-cmd-btn {
+            width: 100%; padding: 12px 16px; margin-bottom: 10px;
+            background: #0f3460; border: 1px solid #00ff88; border-radius: 8px;
+            color: #fff; cursor: pointer; text-align: left; transition: all 0.2s;
+        }
+        .request-cmd-btn:hover { background: #00ff88; color: #0f3460; transform: translateX(5px); }
+        .request-cmd-btn .name { font-weight: bold; font-size: 14px; }
+        .request-cmd-btn .desc { font-size: 12px; color: #aaa; margin-top: 4px; }
+        .request-cmd-btn:hover .desc { color: #0f3460; }
         
         .status { 
             padding: 10px; background: #0a0a1a; border-radius: 8px; 
@@ -515,8 +526,19 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             <div class="section-title">📊 预设任务图</div>
             <div id="task-buttons"></div>
             
-            <div class="section-title skill">📋 预设技能列表</div>
+            <div class="section-title skill">📋 初步技能列表</div>
             <div id="skill-buttons"></div>
+            
+            <div class="section-title skill">✅ 最终技能列表</div>
+            <div id="final-skill-buttons"></div>
+            
+            <div class="section-title request-cmd">📢 索要用户指令</div>
+            <div id="request-cmd-buttons">
+                <button class="request-cmd-btn" onclick="sendRequestUserCommand()">
+                    <div class="name">📢 一键索要用户指令</div>
+                    <div class="desc">请求 UE5 用户输入指令</div>
+                </button>
+            </div>
             
             <div class="status">
                 <span class="dot connected" id="status-dot"></span>
@@ -562,7 +584,7 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             taskButtonsDiv.appendChild(btn);
         }
         
-        // Generate skill buttons
+        // Generate skill buttons (初步技能列表)
         const skillButtonsDiv = document.getElementById('skill-buttons');
         for (const [key, skill] of Object.entries(skillLists)) {
             const btn = document.createElement('button');
@@ -571,6 +593,15 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             btn.innerHTML = `<div class="name">⚡ ${skill.name}</div><div class="desc">${skill.description}</div>`;
             skillButtonsDiv.appendChild(btn);
         }
+        
+        // Generate final skill buttons (最终技能列表)
+        const finalSkillButtonsDiv = document.getElementById('final-skill-buttons');
+        const finalBtn = document.createElement('button');
+        finalBtn.className = 'skill-btn';
+        finalBtn.style.borderColor = '#00ff88';
+        finalBtn.onclick = () => sendFinalSkill();
+        finalBtn.innerHTML = `<div class="name">✅ Complete Test (Executable)</div><div class="desc">完整测试 - 可直接执行的最终技能列表</div>`;
+        finalSkillButtonsDiv.appendChild(finalBtn);
         
         // Send task graph
         async function sendTaskGraph(taskKey) {
@@ -590,7 +621,7 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             }
         }
         
-        // Send skill list
+        // Send skill list (初步技能列表)
         async function sendSkill(skillKey) {
             try {
                 const response = await fetch('/api/send_skill', {
@@ -605,6 +636,42 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
                 addMessage('sent', `Sent Skill List: ${skillLists[skillKey]?.name || skillKey}`, displayContent, 'outgoing');
             } catch (e) {
                 console.error('Failed to send skill:', e);
+            }
+        }
+        
+        // Send final skill list (最终技能列表 - Executable)
+        async function sendFinalSkill() {
+            try {
+                const response = await fetch('/api/send_final_skill', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                const result = await response.json();
+                const displayContent = result.note 
+                    ? { ...result, "⚠️ Note": result.note }
+                    : result;
+                addMessage('sent', `Sent Final Skill List (Executable)`, displayContent, 'outgoing');
+            } catch (e) {
+                console.error('Failed to send final skill:', e);
+            }
+        }
+        
+        // Send request user command (索要用户指令)
+        async function sendRequestUserCommand() {
+            try {
+                const response = await fetch('/api/send_request_user_command', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                const result = await response.json();
+                const displayContent = result.note 
+                    ? { ...result, "⚠️ Note": result.note }
+                    : result;
+                addMessage('sent', `Sent Request User Command`, displayContent, 'outgoing');
+            } catch (e) {
+                console.error('Failed to send request user command:', e);
             }
         }
         
@@ -698,6 +765,16 @@ def create_task_graph_message(task_graph: dict) -> dict:
     }
 
 
+def create_request_user_command_message() -> dict:
+    """创建索要用户指令消息"""
+    return {
+        "message_type": "request_user_command",
+        "timestamp": int(datetime.now().timestamp() * 1000),
+        "message_id": str(uuid.uuid4()),
+        "payload": {}
+    }
+
+
 class MockBackendHandler(BaseHTTPRequestHandler):
     """Mock backend request handler with Web UI"""
     
@@ -742,8 +819,12 @@ class MockBackendHandler(BaseHTTPRequestHandler):
             self.handle_scene_change(body)
         elif parsed_path.path == '/api/send_skill':
             self.handle_send_skill(body)
+        elif parsed_path.path == '/api/send_final_skill':
+            self.handle_send_final_skill(body)
         elif parsed_path.path == '/api/send_task_graph':
             self.handle_send_task_graph(body)
+        elif parsed_path.path == '/api/send_request_user_command':
+            self.handle_send_request_user_command()
         else:
             self.send_response(404)
             self.end_headers()
@@ -822,7 +903,7 @@ class MockBackendHandler(BaseHTTPRequestHandler):
             self.send_json_response(400, {"error": str(e)})
     
     def handle_send_skill(self, body):
-        """Handle skill send request from Web UI
+        """Handle skill send request from Web UI (初步技能列表)
         
         Note: This method only queues the skill list message for UE5 to poll.
         The skill list will be saved to skill_list_temp.json by UE5's TempDataManager.
@@ -849,6 +930,34 @@ class MockBackendHandler(BaseHTTPRequestHandler):
                 })
             else:
                 self.send_json_response(400, {"error": f"Unknown skill: {skill_key}"})
+                
+        except json.JSONDecodeError as e:
+            self.send_json_response(400, {"error": str(e)})
+    
+    def handle_send_final_skill(self, body):
+        """Handle final skill send request from Web UI (最终技能列表 - Executable)
+        
+        This sends the Complete Test skill list with an additional 'executable' field
+        set to true, indicating this is the final executable skill list.
+        """
+        global pending_messages
+        try:
+            # Use Complete Test skill data
+            skill_data = SKILL_LISTS['complete_test']['data']
+            msg = create_skill_list_message(skill_data)
+            # Add executable field to indicate this is the final executable skill list
+            msg['executable'] = True
+            
+            with message_lock:
+                pending_messages.append(msg)
+            
+            self.send_json_response(200, {
+                "status": "queued",
+                "skill": "complete_test (executable)",
+                "message_id": msg['message_id'],
+                "executable": True,
+                "note": "Final executable skill list queued."
+            })
                 
         except json.JSONDecodeError as e:
             self.send_json_response(400, {"error": str(e)})
@@ -883,6 +992,28 @@ class MockBackendHandler(BaseHTTPRequestHandler):
                 
         except json.JSONDecodeError as e:
             self.send_json_response(400, {"error": str(e)})
+
+    def handle_send_request_user_command(self):
+        """Handle request user command send request from Web UI
+        
+        Note: This method queues the request_user_command message for UE5 to poll.
+        UE5 will display a notification prompting the user to enter a command.
+        """
+        global pending_messages
+        msg = create_request_user_command_message()
+        
+        with message_lock:
+            pending_messages.append(msg)
+        
+        # Broadcast to communication log
+        broadcast_message('sent', 'request_user_command', msg, 'outgoing')
+        
+        self.send_json_response(200, {
+            "status": "queued",
+            "message_type": "request_user_command",
+            "message_id": msg['message_id'],
+            "note": "Request user command message queued. UE5 will display a notification."
+        })
 
 
 server_port = 8080

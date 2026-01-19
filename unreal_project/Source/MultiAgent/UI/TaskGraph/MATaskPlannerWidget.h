@@ -257,7 +257,7 @@ protected:
 
     /** "更新任务图" 按钮 */
     UPROPERTY()
-    UButton* UpdateGraphButton;
+    UMAStyledButton* UpdateGraphButton;
 
     /** 用户指令输入框 */
     UPROPERTY()

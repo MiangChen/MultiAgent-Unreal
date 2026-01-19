@@ -192,6 +192,9 @@ protected:
     /** 绘制技能条 */
     void DrawSkillBars(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32 LayerId) const;
 
+    /** 绘制时间步分隔竖线 */
+    void DrawTimeStepGridLines(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32 LayerId) const;
+
     /** 获取状态颜色 */
     FLinearColor GetStatusColor(ESkillExecutionStatus Status) const;
 

@@ -626,7 +626,8 @@ struct MULTIAGENT_API FMASkillListCompletedMessage
 };
 
 // 委托声明 - 收到技能列表时广播
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMASkillListReceived, const FMASkillListMessage&, SkillList);
+// bExecutable: 是否为可执行的最终技能列表
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnMASkillListReceived, const FMASkillListMessage&, SkillList, bool, bExecutable);
 
 
 //=============================================================================
@@ -828,3 +829,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMASkillAllocationReceived, const 
 
 // 委托声明 - 收到技能状态更新时广播
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMASkillStatusUpdateReceived, const FMASkillStatusUpdateMessage&, StatusUpdate);
+
+// 委托声明 - 收到索要用户指令请求时广播
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnMARequestUserCommandReceived);

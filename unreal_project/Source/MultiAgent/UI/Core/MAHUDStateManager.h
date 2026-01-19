@@ -259,6 +259,10 @@ private:
     UPROPERTY()
     EMANotificationType PendingNotification;
 
+    /** 延迟通知队列 - 当 modal 打开时收到的通知会被加入队列 */
+    UPROPERTY()
+    TArray<EMANotificationType> DeferredNotifications;
+
     /** 状态转换历史 (用于调试) */
     UPROPERTY()
     TArray<FMAHUDStateTransition> TransitionHistory;
@@ -290,4 +294,10 @@ private:
      * @return 对应的模态类型
      */
     EMAModalType GetModalTypeForNotification(EMANotificationType NotificationType) const;
+
+    /**
+     * 处理延迟的通知队列
+     * 在 modal 关闭后调用，显示队列中的第一个通知
+     */
+    void ProcessDeferredNotifications();
 };

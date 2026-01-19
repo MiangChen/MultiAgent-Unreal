@@ -138,7 +138,7 @@ void UMATaskPlannerWidget::NativeConstruct()
     }
     
     // Initialize status log
-    AppendStatusLog(TEXT("Task Planner Workbench started"));
+    AppendStatusLog(TEXT("Task Decomposition Workbench started"));
     AppendStatusLog(TEXT("Tip: Drag nodes from the left toolbar to the canvas to create tasks"));
     
     // Try to load task graph from temp file (Requirement 4.1)
@@ -249,7 +249,7 @@ void UMATaskPlannerWidget::BuildUI()
 
     // Title text
     UTextBlock* TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TitleText"));
-    TitleText->SetText(FText::FromString(TEXT("Task Planner Workbench")));
+    TitleText->SetText(FText::FromString(TEXT("Task Decomposition Workbench")));
     FSlateFontInfo TitleFont = TitleText->GetFont();
     TitleFont.Size = 16;
     TitleText->SetFont(TitleFont);
@@ -485,15 +485,10 @@ UVerticalBox* UMATaskPlannerWidget::CreateJsonEditorSection()
     // Horizontal box for buttons - both buttons in same row
     UHorizontalBox* ButtonRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("ButtonRow"));
     
-    // "Update Graph" button - smaller with font size 14
-    UpdateGraphButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("UpdateGraphButton"));
-    
-    UTextBlock* ButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("UpdateButtonText"));
-    ButtonText->SetText(FText::FromString(TEXT("Update Graph")));
-    ButtonText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
-    FSlateFontInfo UpdateBtnFont = FCoreStyle::GetDefaultFontStyle("Regular", 14);
-    ButtonText->SetFont(UpdateBtnFont);
-    UpdateGraphButton->AddChild(ButtonText);
+    // "Update" button - 使用 MAStyledButton，与 Save 按钮样式一致
+    UpdateGraphButton = WidgetTree->ConstructWidget<UMAStyledButton>(UMAStyledButton::StaticClass(), TEXT("UpdateGraphButton"));
+    UpdateGraphButton->SetButtonText(FText::FromString(TEXT("Update")));
+    UpdateGraphButton->SetButtonStyle(EMAButtonStyle::Secondary);
     
     UHorizontalBoxSlot* UpdateBtnSlot = ButtonRow->AddChildToHorizontalBox(UpdateGraphButton);
     UpdateBtnSlot->SetPadding(FMargin(0, 0, 10, 0));
@@ -1014,7 +1009,24 @@ void UMATaskPlannerWidget::OnCloseButtonClicked()
 {
     UE_LOG(LogMATaskPlanner, Log, TEXT("Close button clicked"));
     
-    // Hide the widget (same as pressing Z key)
+    // 通过 UIManager 隐藏 widget，这样可以正确同步 HUDStateManager 状态
+    // 直接调用 SetVisibility 会导致状态不同步
+    APlayerController* PC = GetOwningPlayer();
+    if (PC)
+    {
+        if (AMAHUD* HUD = Cast<AMAHUD>(PC->GetHUD()))
+        {
+            if (UMAUIManager* UIManager = HUD->GetUIManager())
+            {
+                UIManager->HideWidget(EMAWidgetType::TaskPlanner);
+                UE_LOG(LogMATaskPlanner, Log, TEXT("TaskPlannerWidget hidden via UIManager"));
+                return;
+            }
+        }
+    }
+    
+    // Fallback: 如果无法获取 UIManager，直接隐藏（但状态可能不同步）
+    UE_LOG(LogMATaskPlanner, Warning, TEXT("Could not get UIManager, hiding widget directly (state may be out of sync)"));
     SetVisibility(ESlateVisibility::Collapsed);
 }
 

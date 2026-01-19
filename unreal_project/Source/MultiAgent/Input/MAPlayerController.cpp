@@ -1286,26 +1286,84 @@ void AMAPlayerController::OnToggleEmergencyUI(const FInputActionValue& Value)
 
 void AMAPlayerController::OnCheckTask(const FInputActionValue& Value)
 {
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnCheckTask triggered (Z key pressed)"));
+    
     if (!HUDStateManager)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] HUDStateManager not found!"));
-        return;
+        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] OnCheckTask: HUDStateManager is NULL! Attempting to re-acquire..."));
+        
+        // 尝试重新获取 HUDStateManager
+        if (AMAHUD* HUD = Cast<AMAHUD>(GetHUD()))
+        {
+            if (UMAUIManager* UIManager = HUD->GetUIManager())
+            {
+                HUDStateManager = UIManager->GetHUDStateManager();
+                if (HUDStateManager)
+                {
+                    UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnCheckTask: HUDStateManager re-acquired successfully"));
+                }
+                else
+                {
+                    UE_LOG(LogTemp, Error, TEXT("[PlayerController] OnCheckTask: HUDStateManager still NULL after re-acquire attempt"));
+                    return;
+                }
+            }
+            else
+            {
+                UE_LOG(LogTemp, Error, TEXT("[PlayerController] OnCheckTask: UIManager is NULL"));
+                return;
+            }
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("[PlayerController] OnCheckTask: MAHUD is NULL"));
+            return;
+        }
     }
 
     HUDStateManager->HandleCheckTaskInput();
-    UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnCheckTask -> HUDStateManager::HandleCheckTaskInput"));
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnCheckTask -> HUDStateManager::HandleCheckTaskInput completed"));
 }
 
 void AMAPlayerController::OnCheckSkill(const FInputActionValue& Value)
 {
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnCheckSkill triggered (N key pressed)"));
+    
     if (!HUDStateManager)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] HUDStateManager not found!"));
-        return;
+        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] OnCheckSkill: HUDStateManager is NULL! Attempting to re-acquire..."));
+        
+        // 尝试重新获取 HUDStateManager
+        if (AMAHUD* HUD = Cast<AMAHUD>(GetHUD()))
+        {
+            if (UMAUIManager* UIManager = HUD->GetUIManager())
+            {
+                HUDStateManager = UIManager->GetHUDStateManager();
+                if (HUDStateManager)
+                {
+                    UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnCheckSkill: HUDStateManager re-acquired successfully"));
+                }
+                else
+                {
+                    UE_LOG(LogTemp, Error, TEXT("[PlayerController] OnCheckSkill: HUDStateManager still NULL after re-acquire attempt"));
+                    return;
+                }
+            }
+            else
+            {
+                UE_LOG(LogTemp, Error, TEXT("[PlayerController] OnCheckSkill: UIManager is NULL"));
+                return;
+            }
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("[PlayerController] OnCheckSkill: MAHUD is NULL"));
+            return;
+        }
     }
 
     HUDStateManager->HandleCheckSkillInput();
-    UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnCheckSkill -> HUDStateManager::HandleCheckSkillInput"));
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnCheckSkill -> HUDStateManager::HandleCheckSkillInput completed"));
 }
 
 void AMAPlayerController::OnCheckUnexpected(const FInputActionValue& Value)

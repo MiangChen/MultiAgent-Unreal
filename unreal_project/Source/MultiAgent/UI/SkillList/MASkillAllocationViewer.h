@@ -323,7 +323,7 @@ protected:
 
     /** "更新技能列表" 按钮 */
     UPROPERTY()
-    UButton* UpdateButton;
+    UMAStyledButton* UpdateButton;
 
     /** "保存" 按钮 (黄色，保存并返回 Modal) */
     UPROPERTY()

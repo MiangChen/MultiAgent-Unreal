@@ -446,9 +446,8 @@ void UMATaskGraphPreview::DrawNode(const FMAPreviewNodeRenderData& Node, int32 N
         );
     }
     
-    // 绘制节点文本 (显示 TaskId)
+    // 绘制节点文本 (显示 TaskId) - 居中显示
     FSlateFontInfo FontInfo = FCoreStyle::GetDefaultFontStyle("Bold", 7);
-    FVector2D TextPos = Node.Position + FVector2D(3.0f, 5.0f);
     
     // 截断显示文本
     FString DisplayText = Node.NodeId;
@@ -457,10 +456,17 @@ void UMATaskGraphPreview::DrawNode(const FMAPreviewNodeRenderData& Node, int32 N
         DisplayText = DisplayText.Left(6) + TEXT("..");
     }
     
+    // 计算文本居中位置
+    float EstimatedTextWidth = DisplayText.Len() * 5.0f;  // 估算字符宽度
+    float EstimatedTextHeight = 9.0f;  // 估算字体高度
+    float CenteredX = Node.Position.X + (Node.Size.X - EstimatedTextWidth) / 2.0f;
+    float CenteredY = Node.Position.Y + (Node.Size.Y - EstimatedTextHeight) / 2.0f;
+    FVector2D TextPos(CenteredX, CenteredY);
+    
     FSlateDrawElement::MakeText(
         OutDrawElements,
         LayerId + 2,
-        AllottedGeometry.ToPaintGeometry(FVector2D(Node.Size.X - 6, Node.Size.Y - 6), FSlateLayoutTransform(TextPos)),
+        AllottedGeometry.ToPaintGeometry(FVector2D(Node.Size.X - 4, Node.Size.Y - 4), FSlateLayoutTransform(TextPos)),
         FText::FromString(DisplayText),
         FontInfo,
         ESlateDrawEffect::None,

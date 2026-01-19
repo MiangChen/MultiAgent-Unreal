@@ -2237,9 +2237,10 @@ void AMAHUD::OnTaskGraphReceived(const FMATaskPlanDAG& TaskPlan)
     }
 }
 
-void AMAHUD::OnSkillListReceived(const FMASkillListMessage& SkillList)
+void AMAHUD::OnSkillListReceived(const FMASkillListMessage& SkillList, bool bExecutable)
 {
-    UE_LOG(LogMAHUD, Log, TEXT("OnSkillListReceived: Received skill list update with %d time steps"), SkillList.TotalTimeSteps);
+    UE_LOG(LogMAHUD, Log, TEXT("OnSkillListReceived: Received skill list update with %d time steps, executable=%s"), 
+        SkillList.TotalTimeSteps, bExecutable ? TEXT("true") : TEXT("false"));
 
     if (!UIManager)
     {
@@ -2247,11 +2248,20 @@ void AMAHUD::OnSkillListReceived(const FMASkillListMessage& SkillList)
         return;
     }
 
-    // 显示技能列表更新通知 (Requirements: 4.2)
+    // 显示通知 (Requirements: 4.2)
     UMAHUDStateManager* StateManager = UIManager->GetHUDStateManager();
     if (StateManager)
     {
-        StateManager->ShowNotification(EMANotificationType::SkillListUpdate);
+        if (bExecutable)
+        {
+            // 可执行的技能列表，显示执行中通知
+            StateManager->ShowNotification(EMANotificationType::SkillListExecuting);
+        }
+        else
+        {
+            // 普通技能列表更新，显示更新通知
+            StateManager->ShowNotification(EMANotificationType::SkillListUpdate);
+        }
         UE_LOG(LogMAHUD, Log, TEXT("OnSkillListReceived: Notification shown"));
     }
 

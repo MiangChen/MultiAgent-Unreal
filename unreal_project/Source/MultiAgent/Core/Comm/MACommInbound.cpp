@@ -255,7 +255,10 @@ void FMACommInbound::HandlePollResponse(const FString& ResponseJson)
         }
         else if (MessageTypeStr == TEXT("skill_list"))
         {
-            HandleSkillList(*PayloadObject);
+            // 检查 executable 字段
+            bool bExecutable = false;
+            MsgObject->TryGetBoolField(TEXT("executable"), bExecutable);
+            HandleSkillList(*PayloadObject, bExecutable);
         }
         else if (MessageTypeStr == TEXT("skill_status_update"))
         {
@@ -264,6 +267,10 @@ void FMACommInbound::HandlePollResponse(const FString& ResponseJson)
         else if (MessageTypeStr == TEXT("query_request"))
         {
             HandleQueryRequest(*PayloadObject);
+        }
+        else if (MessageTypeStr == TEXT("request_user_command"))
+        {
+            HandleRequestUserCommand(*PayloadObject);
         }
         else
         {
@@ -463,7 +470,7 @@ void FMACommInbound::HandleWorldModelGraph(const TSharedPtr<FJsonObject>& Payloa
     }
 }
 
-void FMACommInbound::HandleSkillList(const TSharedPtr<FJsonObject>& PayloadObject)
+void FMACommInbound::HandleSkillList(const TSharedPtr<FJsonObject>& PayloadObject, bool bExecutable)
 {
     if (!Owner)
     {
@@ -478,8 +485,8 @@ void FMACommInbound::HandleSkillList(const TSharedPtr<FJsonObject>& PayloadObjec
     FMASkillListMessage SkillList;
     if (FMASkillListMessage::FromJson(PayloadJson, SkillList))
     {
-        UE_LOG(LogMACommInbound, Log, TEXT("HandleSkillList: Received SkillList with %d time steps"),
-            SkillList.TotalTimeSteps);
+        UE_LOG(LogMACommInbound, Log, TEXT("HandleSkillList: Received SkillList with %d time steps, executable=%s"),
+            SkillList.TotalTimeSteps, bExecutable ? TEXT("true") : TEXT("false"));
 
         // 保存到 TempDataManager (需求 3.2)
         if (UGameInstance* GameInstance = Owner->GetGameInstance())
@@ -530,13 +537,40 @@ void FMACommInbound::HandleSkillList(const TSharedPtr<FJsonObject>& PayloadObjec
             }
         }
 
-        // 注意：根据需求 6.3，不再直接触发技能执行
-        // 用户需要手动点击 "Start Executing" 按钮来执行
-        // 原代码: CommandManager->ExecuteSkillList(SkillList);
-        UE_LOG(LogMACommInbound, Log, TEXT("HandleSkillList: Skill list saved. User should click 'Start Executing' to run."));
-        
         // 广播委托，通知 UI 显示通知
-        Owner->OnSkillListReceived.Broadcast(SkillList);
+        Owner->OnSkillListReceived.Broadcast(SkillList, bExecutable);
+
+        // 如果是可执行的技能列表，直接触发执行
+        if (bExecutable)
+        {
+            UE_LOG(LogMACommInbound, Log, TEXT("HandleSkillList: Executable skill list received, triggering execution"));
+            
+            // 获取 MACommandManager 并执行
+            if (UWorld* World = Owner->GetWorld())
+            {
+                if (UMACommandManager* CommandMgr = World->GetSubsystem<UMACommandManager>())
+                {
+                    // 如果正在执行中，先中断
+                    if (CommandMgr->IsExecuting())
+                    {
+                        UE_LOG(LogMACommInbound, Log, TEXT("HandleSkillList: Interrupting current execution"));
+                        CommandMgr->InterruptCurrentExecution();
+                    }
+                    
+                    // 执行技能列表
+                    CommandMgr->ExecuteSkillList(SkillList);
+                    UE_LOG(LogMACommInbound, Log, TEXT("HandleSkillList: Started execution of %d time steps"), SkillList.TotalTimeSteps);
+                }
+                else
+                {
+                    UE_LOG(LogMACommInbound, Warning, TEXT("HandleSkillList: MACommandManager not available"));
+                }
+            }
+        }
+        else
+        {
+            UE_LOG(LogMACommInbound, Log, TEXT("HandleSkillList: Skill list saved. User should click 'Start Executing' to run."));
+        }
     }
     else
     {
@@ -586,4 +620,17 @@ void FMACommInbound::HandleQueryRequest(const TSharedPtr<FJsonObject>& PayloadOb
     // 世界查询功能已移除，返回错误响应
     FString ResponseJson = TEXT("{\"error\": \"World query not supported\"}");
     Owner->GetOutbound()->SendWorldStateResponse(QueryType, ResponseJson);
+}
+
+void FMACommInbound::HandleRequestUserCommand(const TSharedPtr<FJsonObject>& PayloadObject)
+{
+    if (!Owner)
+    {
+        return;
+    }
+
+    UE_LOG(LogMACommInbound, Log, TEXT("HandleRequestUserCommand: Received request"));
+
+    // 广播委托
+    Owner->OnRequestUserCommandReceived.Broadcast();
 }

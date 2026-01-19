@@ -124,11 +124,12 @@ void UMAGanttCanvas::RefreshFromModel()
                 RenderData.ParamsJson = Skill.ParamsJson;
                 RenderData.Status = Skill.Status;
                 
-                // 计算位置和大小
-                RenderData.Position.X = TimeStepToScreen(TimeStep);
-                RenderData.Position.Y = RobotIndexToScreen(RobotIndex);
-                RenderData.Size.X = TimeStepWidth - 4.0f; // 留一点间隙
-                RenderData.Size.Y = RobotRowHeight - 4.0f;
+                // 计算位置和大小（使用较大的间距）
+                const float SkillBarPadding = 10.0f;
+                RenderData.Position.X = TimeStepToScreen(TimeStep) + SkillBarPadding / 2.0f;
+                RenderData.Position.Y = RobotIndexToScreen(RobotIndex) + SkillBarPadding / 2.0f;
+                RenderData.Size.X = TimeStepWidth - SkillBarPadding;
+                RenderData.Size.Y = RobotRowHeight - SkillBarPadding;
                 
                 // 设置颜色
                 RenderData.Color = GetStatusColor(Skill.Status);
@@ -697,6 +698,9 @@ int32 UMAGanttCanvas::NativePaint(const FPaintArgs& Args, const FGeometry& Allot
     // 计算自适应布局（根据可用空间和数据量动态调整单元格大小）
     CalculateAdaptiveLayout(AllottedGeometry.GetLocalSize());
 
+    // 绘制时间步分隔竖线（在技能条下方）
+    DrawTimeStepGridLines(AllottedGeometry, OutDrawElements, LayerId + 1);
+
     // 绘制时间轴标题
     DrawTimelineHeader(AllottedGeometry, OutDrawElements, LayerId + 1);
 
@@ -757,17 +761,19 @@ void UMAGanttCanvas::CalculateAdaptiveLayout(const FVector2D& AvailableSize) con
     MutableThis->RobotRowHeight = FMath::Clamp(IdealRobotRowHeight, MinRobotRowHeight, MaxRobotRowHeight);
     
     // 更新技能条渲染数据的位置和大小
+    // 使用较大的间距使技能块之间有更多空隙
+    const float SkillBarPadding = 10.0f;
     for (FMASkillBarRenderData& RenderData : MutableThis->SkillBarRenderData)
     {
         // 找到机器人索引
         int32 RobotIndex = RobotIdOrder.IndexOfByKey(RenderData.RobotId);
         if (RobotIndex != INDEX_NONE)
         {
-            // 重新计算位置和大小
-            RenderData.Position.X = MutableThis->TimeStepToScreen(RenderData.TimeStep);
-            RenderData.Position.Y = MutableThis->RobotIndexToScreen(RobotIndex);
-            RenderData.Size.X = MutableThis->TimeStepWidth - 4.0f;
-            RenderData.Size.Y = MutableThis->RobotRowHeight - 4.0f;
+            // 重新计算位置和大小（增加间距）
+            RenderData.Position.X = MutableThis->TimeStepToScreen(RenderData.TimeStep) + SkillBarPadding / 2.0f;
+            RenderData.Position.Y = MutableThis->RobotIndexToScreen(RobotIndex) + SkillBarPadding / 2.0f;
+            RenderData.Size.X = MutableThis->TimeStepWidth - SkillBarPadding;
+            RenderData.Size.Y = MutableThis->RobotRowHeight - SkillBarPadding;
         }
     }
 }
@@ -813,8 +819,8 @@ void UMAGanttCanvas::DrawTimelineHeader(const FGeometry& AllottedGeometry, FSlat
 
 void UMAGanttCanvas::DrawRobotLabels(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32 LayerId) const
 {
-    // 绘制机器人 ID 标签
-    FSlateFontInfo FontInfo = FCoreStyle::GetDefaultFontStyle("Regular", 10);
+    // 绘制机器人 ID 标签 - 与时间步标签字号统一为 12
+    FSlateFontInfo FontInfo = FCoreStyle::GetDefaultFontStyle("Regular", 12);
     
     for (int32 RobotIndex = 0; RobotIndex < RobotIdOrder.Num(); RobotIndex++)
     {
@@ -827,7 +833,7 @@ void UMAGanttCanvas::DrawRobotLabels(const FGeometry& AllottedGeometry, FSlateWi
         }
         
         const FString& RobotId = RobotIdOrder[RobotIndex];
-        FVector2D TextPosition(5.0f, Y + RobotRowHeight / 2.0f - 7.0f);
+        FVector2D TextPosition(5.0f, Y + RobotRowHeight / 2.0f - 8.0f);  // 调整垂直居中
         FVector2D TextSize(LabelWidth - 10.0f, RobotRowHeight - 4.0f);
         
         // 使用正确的位置绘制文本 - ToPaintGeometry(LocalSize, LayoutTransform)
@@ -843,10 +849,81 @@ void UMAGanttCanvas::DrawRobotLabels(const FGeometry& AllottedGeometry, FSlateWi
     }
 }
 
+void UMAGanttCanvas::DrawTimeStepGridLines(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32 LayerId) const
+{
+    // 绘制时间步之间的细竖线分隔
+    // 竖线颜色 - 使用较淡的颜色
+    FLinearColor GridLineColor = FLinearColor(0.3f, 0.3f, 0.35f, 0.5f);
+    
+    // 获取可见区域
+    FVector2D WidgetSize = AllottedGeometry.GetLocalSize();
+    
+    // 计算数据区域的起始和结束 Y 坐标
+    float DataStartY = HeaderHeight;
+    float DataEndY = WidgetSize.Y;
+    
+    // 绘制每个时间步之间的竖线
+    for (int32 i = 0; i < TimeStepOrder.Num(); i++)
+    {
+        int32 TimeStep = TimeStepOrder[i];
+        float X = TimeStepToScreen(TimeStep);
+        
+        // 只绘制可见的竖线
+        if (X < LabelWidth || X > WidgetSize.X)
+        {
+            continue;
+        }
+        
+        // 绘制竖线（在时间步的左边缘）
+        TArray<FVector2D> LinePoints;
+        LinePoints.Add(FVector2D(X, DataStartY));
+        LinePoints.Add(FVector2D(X, DataEndY));
+        
+        FSlateDrawElement::MakeLines(
+            OutDrawElements,
+            LayerId,
+            AllottedGeometry.ToPaintGeometry(),
+            LinePoints,
+            ESlateDrawEffect::None,
+            GridLineColor,
+            true,
+            1.0f  // 细线宽度
+        );
+    }
+    
+    // 绘制最后一个时间步的右边缘竖线
+    if (TimeStepOrder.Num() > 0)
+    {
+        int32 LastTimeStep = TimeStepOrder.Last();
+        float LastX = TimeStepToScreen(LastTimeStep) + TimeStepWidth;
+        
+        if (LastX >= LabelWidth && LastX <= WidgetSize.X)
+        {
+            TArray<FVector2D> LinePoints;
+            LinePoints.Add(FVector2D(LastX, DataStartY));
+            LinePoints.Add(FVector2D(LastX, DataEndY));
+            
+            FSlateDrawElement::MakeLines(
+                OutDrawElements,
+                LayerId,
+                AllottedGeometry.ToPaintGeometry(),
+                LinePoints,
+                ESlateDrawEffect::None,
+                GridLineColor,
+                true,
+                1.0f
+            );
+        }
+    }
+}
+
 void UMAGanttCanvas::DrawSkillBars(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32 LayerId) const
 {
-    // 圆角半径
-    const float CornerRadius = 6.0f;
+    // 圆角半径 - 使用较大的圆角使技能块更加圆润
+    const float CornerRadius = 14.0f;
+    
+    // 技能条间距 - 用于计算技能条大小时的边距
+    const float SkillBarPadding = 10.0f;
     
     // 绘制所有技能条
     for (const FMASkillBarRenderData& RenderData : SkillBarRenderData)
@@ -954,8 +1031,8 @@ void UMAGanttCanvas::DrawDragPreview(const FGeometry& AllottedGeometry, FSlateWi
         return;
     }
 
-    // 圆角半径
-    const float CornerRadius = 6.0f;
+    // 圆角半径 - 与技能条保持一致
+    const float CornerRadius = 14.0f;
 
     // 绘制半透明技能块预览圆角矩形 (Requirements 1.2)
     FSlateRoundedBoxBrush RoundedBrush(DragPreview.Color, CornerRadius);
@@ -1030,9 +1107,10 @@ void UMAGanttCanvas::DrawDragSourcePlaceholder(const FGeometry& AllottedGeometry
         return;
     }
 
-    // 获取原始位置和大小
+    // 获取原始位置和大小（使用较大的间距）
+    const float SkillBarPadding = 10.0f;
     FVector2D PlaceholderPosition = DragSource.OriginalPosition;
-    FVector2D PlaceholderSize(TimeStepWidth - 4.0f, RobotRowHeight - 4.0f);
+    FVector2D PlaceholderSize(TimeStepWidth - SkillBarPadding, RobotRowHeight - SkillBarPadding);
 
     // 检查占位符是否在可见区域内
     FVector2D WidgetSize = AllottedGeometry.GetLocalSize();
@@ -1165,9 +1243,11 @@ void UMAGanttCanvas::DrawDropIndicator(const FGeometry& AllottedGeometry, FSlate
         return;
     }
 
-    // 计算目标槽位的位置和大小
-    FVector2D IndicatorPosition(TimeStepToScreen(CurrentDropTarget.TimeStep), RobotIndexToScreen(RobotIndex));
-    FVector2D IndicatorSize(TimeStepWidth - 4.0f, RobotRowHeight - 4.0f);
+    // 计算目标槽位的位置和大小（使用较大的间距）
+    const float SkillBarPadding = 10.0f;
+    FVector2D IndicatorPosition(TimeStepToScreen(CurrentDropTarget.TimeStep) + SkillBarPadding / 2.0f, 
+                                 RobotIndexToScreen(RobotIndex) + SkillBarPadding / 2.0f);
+    FVector2D IndicatorSize(TimeStepWidth - SkillBarPadding, RobotRowHeight - SkillBarPadding);
 
     // 检查指示器是否在可见区域内
     FVector2D WidgetSize = AllottedGeometry.GetLocalSize();
@@ -1331,9 +1411,10 @@ FReply UMAGanttCanvas::NativeOnMouseMove(const FGeometry& InGeometry, const FPoi
             // 超过阈值，从 Potential 转换到 Dragging 状态 (Requirements 1.1)
             DragState = EGanttDragState::Dragging;
             
-            // 初始化拖拽预览
+            // 初始化拖拽预览（使用较大的间距）
+            const float SkillBarPadding = 10.0f;
             DragPreview.Position = LocalPosition;
-            DragPreview.Size = FVector2D(TimeStepWidth - 4.0f, RobotRowHeight - 4.0f);
+            DragPreview.Size = FVector2D(TimeStepWidth - SkillBarPadding, RobotRowHeight - SkillBarPadding);
             DragPreview.Color = GetStatusColor(DragSource.Status);
             DragPreview.Color.A = DragPreviewAlpha;
             DragPreview.SkillName = DragSource.SkillName;

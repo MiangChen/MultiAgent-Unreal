@@ -316,8 +316,6 @@ void UMAHUDWidget::SetEditModeVisible(bool bVisible)
     {
         ZoneListText->SetVisibility(Visibility);
     }
-
-    UE_LOG(LogMAHUDWidget, Log, TEXT("Edit mode visibility set to: %s"), bVisible ? TEXT("Visible") : TEXT("Hidden"));
 }
 
 void UMAHUDWidget::UpdatePOIList(const TArray<FString>& POIInfos)

@@ -3,10 +3,12 @@
 
 #include "MARightSidebarWidget.h"
 #include "../Core/MAUITheme.h"
+#include "../Core/MAUIManager.h"
 #include "../Core/MARoundedBorderUtils.h"
 #include "MAStyledButton.h"
 #include "MATaskGraphPreview.h"
 #include "MASkillListPreview.h"
+#include "../../UI/HUD/MAHUD.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
@@ -19,6 +21,7 @@
 #include "Components/TextBlock.h"
 #include "Components/SizeBox.h"
 #include "Components/Spacer.h"
+#include "GameFramework/PlayerController.h"
 
 //=============================================================================
 // 日志类别
@@ -732,6 +735,19 @@ void UMARightSidebarWidget::OnSubmitClicked()
         
         // 记录日志
         AppendLog(FString::Printf(TEXT("Command: %s"), *Command), false);
+        
+        // 通知 UIManager 关闭索要指令通知
+        APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
+        if (PC)
+        {
+            if (AMAHUD* HUD = Cast<AMAHUD>(PC->GetHUD()))
+            {
+                if (UMAUIManager* UIManager = HUD->GetUIManager())
+                {
+                    UIManager->DismissRequestUserCommandNotification();
+                }
+            }
+        }
     }
 }
 
