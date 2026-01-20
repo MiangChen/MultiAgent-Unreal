@@ -5,23 +5,61 @@
 	{
 		"0":
 		{
-			"UAV_01":
+			"UGV_01":
 			{
-				"skill": "take_off",
+				"skill": "navigate<RedBox>",
 				"params":
 				{
-					"task_id": "T1"
+					"task_id": "T2"
+				}
+			},
+			"Humanoid_01":
+			{
+				"skill": "navigate<RedBox>",
+				"params":
+				{
+					"task_id": "T2"
 				}
 			}
 		},
 		"1":
 		{
-			"UAV_01":
+			"Humanoid_01":
 			{
-				"skill": "search<cybertown>_for<Red_Box>",
+				"skill": "place<Red_Box>_on<UGV>",
 				"params":
 				{
-					"task_id": "T1"
+					"task_id": "T2"
+				}
+			}
+		},
+		"2":
+		{
+			"UGV_01":
+			{
+				"skill": "navigate<Intersection-9>",
+				"params":
+				{
+					"task_id": "T2"
+				}
+			},
+			"Humanoid_01":
+			{
+				"skill": "navigate<Intersection-9>",
+				"params":
+				{
+					"task_id": "T2"
+				}
+			}
+		},
+		"3":
+		{
+			"Humanoid_01":
+			{
+				"skill": "place<Red_Box>_on<ground>",
+				"params":
+				{
+					"task_id": "T2"
 				}
 			}
 		}

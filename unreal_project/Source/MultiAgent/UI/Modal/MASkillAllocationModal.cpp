@@ -436,32 +436,8 @@ void UMASkillAllocationModal::HandleConfirm()
     // 获取当前数据
     FMASkillAllocationData Data = GetSkillAllocationData();
     
-    // 发送审阅响应到 Python 端 (Requirements: 5.4)
-    if (UGameInstance* GameInstance = UGameplayStatics::GetGameInstance(this))
-    {
-        if (UMACommSubsystem* CommSubsystem = GameInstance->GetSubsystem<UMACommSubsystem>())
-        {
-            // 检查是否有原始消息 ID (来自 HITL 请求)
-            if (!OriginalData.OriginalMessageId.IsEmpty())
-            {
-                // 发送审阅响应: 批准，包含可能修改后的数据
-                FString ModifiedDataJson = Data.ToJson();
-                CommSubsystem->SendReviewResponseSimple(
-                    OriginalData.OriginalMessageId,
-                    true,  // bApproved
-                    ModifiedDataJson,
-                    TEXT("")  // 无拒绝原因
-                );
-                
-                UE_LOG(LogMASkillAllocationModal, Log, TEXT("Sent review response: Approved, OriginalMessageId=%s"),
-                    *OriginalData.OriginalMessageId);
-            }
-            else
-            {
-                UE_LOG(LogMASkillAllocationModal, Verbose, TEXT("No OriginalMessageId, skipping review response"));
-            }
-        }
-    }
+    // 消息发送已统一到 MAHUD::OnModalConfirmedHandler()
+    // Modal 只负责广播事件，不直接发送 HTTP 消息
     
     // 广播确认事件
     OnSkillListConfirmed.Broadcast(Data);
@@ -471,31 +447,8 @@ void UMASkillAllocationModal::HandleReject()
 {
     UE_LOG(LogMASkillAllocationModal, Log, TEXT("Skill list rejected"));
     
-    // 发送审阅响应到 Python 端 (Requirements: 5.4)
-    if (UGameInstance* GameInstance = UGameplayStatics::GetGameInstance(this))
-    {
-        if (UMACommSubsystem* CommSubsystem = GameInstance->GetSubsystem<UMACommSubsystem>())
-        {
-            // 检查是否有原始消息 ID (来自 HITL 请求)
-            if (!OriginalData.OriginalMessageId.IsEmpty())
-            {
-                // 发送审阅响应: 拒绝
-                CommSubsystem->SendReviewResponseSimple(
-                    OriginalData.OriginalMessageId,
-                    false,  // bApproved
-                    TEXT(""),  // 无修改数据
-                    TEXT("User rejected the skill allocation")  // 拒绝原因
-                );
-                
-                UE_LOG(LogMASkillAllocationModal, Log, TEXT("Sent review response: Rejected, OriginalMessageId=%s"),
-                    *OriginalData.OriginalMessageId);
-            }
-            else
-            {
-                UE_LOG(LogMASkillAllocationModal, Verbose, TEXT("No OriginalMessageId, skipping review response"));
-            }
-        }
-    }
+    // 消息发送已统一到 MAHUD::OnModalRejectedHandler()
+    // Modal 只负责广播事件，不直接发送 HTTP 消息
     
     // 恢复原始数据
     if (AllocationModel)

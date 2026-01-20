@@ -2333,19 +2333,28 @@ void AMAHUD::OnModalConfirmedHandler(EMAModalType ModalType)
 
     case EMAModalType::SkillList:
         {
-            // 提交技能分配到后端 (Requirements: 7.3)
+            // 发送技能分配审阅响应到后端 (Requirements: 5.4)
             UGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
             if (GI)
             {
                 UMACommSubsystem* CommSubsystem = GI->GetSubsystem<UMACommSubsystem>();
                 if (CommSubsystem && UIManager)
                 {
-                    UMASkillAllocationModal* SkillAllocationModal = UIManager->GetSkillAllocationModal();
-                    if (SkillAllocationModal)
+                    UMASkillAllocationModal* SkillModal = UIManager->GetSkillAllocationModal();
+                    if (SkillModal)
                     {
-                        FMASkillAllocationMessage Message = SkillAllocationModal->GetSkillAllocationMessage();
-                        CommSubsystem->SendSkillAllocationMessage(Message);
-                        UE_LOG(LogMAHUD, Log, TEXT("OnModalConfirmedHandler: Skill allocation submitted to backend"));
+                        FMASkillAllocationData Data = SkillModal->GetSkillAllocationData();
+                        if (!Data.OriginalMessageId.IsEmpty())
+                        {
+                            FString ModifiedDataJson = Data.ToJson();
+                            CommSubsystem->SendReviewResponseSimple(
+                                Data.OriginalMessageId,
+                                true,  // bApproved
+                                ModifiedDataJson,
+                                TEXT("")  // 无拒绝原因
+                            );
+                            UE_LOG(LogMAHUD, Log, TEXT("OnModalConfirmedHandler: Skill allocation approved, OriginalMessageId=%s"), *Data.OriginalMessageId);
+                        }
                     }
                 }
             }
@@ -2393,21 +2402,47 @@ void AMAHUD::OnModalRejectedHandler(EMAModalType ModalType)
     UE_LOG(LogMAHUD, Log, TEXT("OnModalRejectedHandler: Modal rejected, type=%s"),
         *UEnum::GetValueAsString(ModalType));
 
-    // 发送拒绝事件到后端
     UGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
-    if (GI)
+    if (!GI) return;
+
+    UMACommSubsystem* CommSubsystem = GI->GetSubsystem<UMACommSubsystem>();
+    if (!CommSubsystem) return;
+
+    // 根据模态类型发送不同的拒绝响应
+    switch (ModalType)
     {
-        UMACommSubsystem* CommSubsystem = GI->GetSubsystem<UMACommSubsystem>();
-        if (CommSubsystem)
+    case EMAModalType::SkillList:
         {
+            // 发送技能分配审阅拒绝响应 (Requirements: 5.4)
+            if (UIManager)
+            {
+                UMASkillAllocationModal* SkillModal = UIManager->GetSkillAllocationModal();
+                if (SkillModal)
+                {
+                    FMASkillAllocationData Data = SkillModal->GetSkillAllocationData();
+                    if (!Data.OriginalMessageId.IsEmpty())
+                    {
+                        CommSubsystem->SendReviewResponseSimple(
+                            Data.OriginalMessageId,
+                            false,  // bApproved
+                            TEXT(""),  // 无修改数据
+                            TEXT("User rejected the skill allocation")
+                        );
+                        UE_LOG(LogMAHUD, Log, TEXT("OnModalRejectedHandler: Skill allocation rejected, OriginalMessageId=%s"), *Data.OriginalMessageId);
+                    }
+                }
+            }
+        }
+        break;
+
+    default:
+        {
+            // 其他类型发送通用按钮事件
             FString WidgetName;
             switch (ModalType)
             {
             case EMAModalType::TaskGraph:
                 WidgetName = TEXT("TaskGraphModal");
-                break;
-            case EMAModalType::SkillList:
-                WidgetName = TEXT("SkillAllocationModal");
                 break;
             case EMAModalType::Emergency:
                 WidgetName = TEXT("EmergencyModal");
@@ -2416,13 +2451,11 @@ void AMAHUD::OnModalRejectedHandler(EMAModalType ModalType)
                 WidgetName = TEXT("UnknownModal");
                 break;
             }
-            
             CommSubsystem->SendButtonEventMessage(WidgetName, TEXT("reject"), TEXT("Reject"));
             UE_LOG(LogMAHUD, Log, TEXT("OnModalRejectedHandler: Reject event sent to backend for %s"), *WidgetName);
         }
+        break;
     }
-
-    // 状态恢复已由 HUDStateManager 处理
 
     // 显示拒绝通知
     ShowNotification(TEXT("Changes discarded"), false, true);
