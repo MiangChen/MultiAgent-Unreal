@@ -34,6 +34,7 @@ namespace MACommInboundHelpers
     EMACommMessageType StringToMessageType(const FString& TypeStr)
     {
         if (TypeStr == TEXT("ui_input"))           return EMACommMessageType::UIInput;
+        if (TypeStr == TEXT("user_instruction"))   return EMACommMessageType::UIInput;
         if (TypeStr == TEXT("button_event"))       return EMACommMessageType::ButtonEvent;
         if (TypeStr == TEXT("task_feedback"))      return EMACommMessageType::TaskFeedback;
         if (TypeStr == TEXT("world_state"))        return EMACommMessageType::WorldState;
@@ -405,13 +406,9 @@ void FMACommInbound::HandlePollResponse(const FString& ResponseJson)
             UE_LOG(LogMACommInbound, Log, TEXT("Python -> UE5: Message type: %s, category: %s"), 
                 *MessageTypeStr, *MessageCategoryStr);
         }
-        else if (MessageTypeStr == TEXT("request_user_command"))
-        {
-            HandleRequestUserCommand(*PayloadObject);
-        }
         else
         {
-            // 向后兼容: 从 message_type 推断 category
+            // 从 message_type 推断 category
             EMACommMessageType MessageType = MACommInboundHelpers::StringToMessageType(MessageTypeStr);
             MessageCategory = MACommInboundHelpers::GetCategoryForMessageType(MessageType);
             UE_LOG(LogMACommInbound, Log, TEXT("Python -> UE5: Message type: %s, category inferred: %d"), 
@@ -470,9 +467,16 @@ void FMACommInbound::HandleHITLMessage(const TSharedPtr<FJsonObject>& MsgObject,
     switch (Category)
     {
     case EMAMessageCategory::Instruction:
-        // Instruction 类别: 用户指令输入 (通常是 Python -> UE5 的指令)
-        // 目前 UE5 端主要是发送 Instruction，接收较少
-        UE_LOG(LogMACommInbound, Log, TEXT("HandleHITLMessage: Received Instruction message: %s"), *MessageTypeStr);
+        // Instruction 类别: Python -> UE5 的指令请求
+        // user_instruction: 请求 UE5 端用户输入指令
+        if (MessageTypeStr == TEXT("user_instruction"))
+        {
+            HandleRequestUserCommand(*PayloadObject);
+        }
+        else
+        {
+            UE_LOG(LogMACommInbound, Log, TEXT("HandleHITLMessage: Unknown Instruction message type: %s"), *MessageTypeStr);
+        }
         break;
 
     case EMAMessageCategory::Review:
@@ -534,7 +538,7 @@ void FMACommInbound::HandlePlatformMessage(const TSharedPtr<FJsonObject>& MsgObj
     else if (MessageTypeStr == TEXT("skill_list"))
     {
         // skill_list (PLATFORM 类别) - 直接执行，无需 UI 交互
-        HandleSkillList(*PayloadObject);
+        HandleSkillList(*PayloadObject, true);
     }
     else if (MessageTypeStr == TEXT("skill_allocation"))
     {
@@ -764,7 +768,7 @@ void FMACommInbound::HandleSkillAllocationWithMessageId(const TSharedPtr<FJsonOb
     }
 
     // 检查是否是 HITLMessage 格式 (payload 包含 "review_type" 和 "data" 字段)
-    // GSI 格式: payload = { "review_type": "skill_list", "data": { "robot_view": {...}, "timestep_skills": {...} } }
+    // GSI 格式: payload = { "review_type": "skill_allocation", "data": { "robot_view": {...}, "timestep_skills": {...} } }
     // 如果是，提取 "data" 字段作为实际的技能分配数据
     TSharedPtr<FJsonObject> ActualAllocationObject = PayloadObject;
     
@@ -773,7 +777,7 @@ void FMACommInbound::HandleSkillAllocationWithMessageId(const TSharedPtr<FJsonOb
     if (PayloadObject->TryGetStringField(TEXT("review_type"), ReviewType) &&
         PayloadObject->TryGetObjectField(TEXT("data"), DataObject))
     {
-        // HITLMessage 格式: { "review_type": "skill_list", "data": { ... } }
+        // HITLMessage 格式: { "review_type": "skill_allocation", "data": { ... } }
         ActualAllocationObject = *DataObject;
         UE_LOG(LogMACommInbound, Log, TEXT("[DLOG] HandleSkillAllocation: Detected HITLMessage format, review_type=%s"), *ReviewType);
         

@@ -553,7 +553,7 @@ private:
 
     /**
      * 收到索要用户指令请求回调
-     * 当后端发送 request_user_command 消息时触发
+     * 当后端发送 user_instruction 消息时触发
      */
     UFUNCTION()
     void OnRequestUserCommandReceived();
