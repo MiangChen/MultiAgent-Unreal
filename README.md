@@ -25,29 +25,30 @@ git clone https://github.com/WindyLab/MultiAgent-Unreal.git
 cd MultiAgent-Unreal
 ```
 
-### 2. 下载资产
-
-项目资产（约 5GB）托管在 HuggingFace，需要单独下载。UE5 要求 Content 目录与 `.uproject` 文件在同一级目录。
-
-#### 方法 A：直接放在项目内（简单）
+### 2. 一键设置
 
 ```bash
-cd MultiAgent-Unreal
+# 自动设置 Python 环境和 Content 资源
+./scripts/setup.sh
+```
 
-# 安装 huggingface_hub
-pip install huggingface_hub
+这会自动：
+- 安装 uv（Python 包管理器）
+- 创建 Python 虚拟环境
+- 安装所有依赖
+- 从 Hugging Face 下载 Content 资源（~10GB）
 
-# 下载压缩包到项目目录
-huggingface-cli download WindyLab/MultiAgent-Content MultiAgent_Content.tar.gz \
-    --repo-type dataset --local-dir .
+**或者分步设置：**
 
-# 解压到 unreal_project 目录
-tar -xzvf MultiAgent_Content.tar.gz -C unreal_project
+```bash
+# 仅设置 Python 环境
+./scripts/setup.sh --python
 
-# 重命名为 Content
-mv unreal_project/MultiAgent_Content unreal_project/Content
+# 仅下载 Content 资源
+./scripts/setup.sh --content
 
-# 清理压缩包（可选）
+# 查看状态
+./scripts/setup.sh --status
 rm MultiAgent_Content.tar.gz
 ```
 
