@@ -345,7 +345,7 @@ void UMAModifyWidget::SetSelectedActors(const TArray<AActor*>& Actors)
         LabelTextBox->SetText(FText::GetEmpty());
         if (SelectedActors.Num() > 1)
         {
-            LabelTextBox->SetHintText(FText::FromString(ModifyMultiSelectHintText));
+            LabelTextBox->SetHintText(FText::FromString(MultiSelectHintText));
         }
         else
         {
@@ -1861,13 +1861,13 @@ FString UMAModifyWidget::GetHintTextForCategory(EMANodeCategory Category) const
     switch (Category)
     {
     case EMANodeCategory::Building:
-        return ModifyBuildingHintText;
+        return BuildingHintText;
         
     case EMANodeCategory::TransFacility:
-        return ModifyTransFacilityHintText;
+        return TransFacilityHintText;
         
     case EMANodeCategory::Prop:
-        return ModifyPropHintText;
+        return PropHintText;
         
     case EMANodeCategory::None:
     default:

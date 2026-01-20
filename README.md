@@ -25,83 +25,39 @@ git clone https://github.com/WindyLab/MultiAgent-Unreal.git
 cd MultiAgent-Unreal
 ```
 
-### 2. 一键设置
+### 2. 获取 Content 资产
+
+Content 资产存储在 Hugging Face，使用 Git LFS 管理。
 
 ```bash
-# 自动设置 Python 环境和 Content 资源
-./scripts/setup.sh
+# 安装 Git LFS（如未安装）
+git lfs install
+
+# 克隆 Content 到项目目录
+cd unreal_project
+git clone https://huggingface.co/datasets/WindyLab/MultiAgent-Content Content
 ```
 
-这会自动：
-- 安装 uv（Python 包管理器）
-- 创建 Python 虚拟环境
-- 安装所有依赖
-- 从 Hugging Face 下载 Content 资源（~10GB）
-
-**或者分步设置：**
+**中国用户使用镜像：**
 
 ```bash
-# 仅设置 Python 环境
-./scripts/setup.sh --python
-
-# 仅下载 Content 资源
-./scripts/setup.sh --content
-
-# 查看状态
-./scripts/setup.sh --status
-rm MultiAgent_Content.tar.gz
+git clone https://hf-mirror.com/datasets/WindyLab/MultiAgent-Content Content
 ```
 
-#### 方法 B：放在项目外 + 软链接（推荐）
-
-将资产放在项目外可以避免 Git 跟踪大文件，多个项目也可以共享资产。
+**更新 Content：**
 
 ```bash
-# 1. 创建资产存放目录（示例路径，可自定义）
-mkdir -p ~/UE5_Assets
-
-# 2. 下载压缩包
-huggingface-cli download WindyLab/MultiAgent-Content MultiAgent_Content.tar.gz \
-    --repo-type dataset --local-dir ~/UE5_Assets
-
-# 3. 解压
-cd ~/UE5_Assets
-tar -xzvf MultiAgent_Content.tar.gz
-
-# 4. 在项目中创建软链接
-cd /path/to/MultiAgent-Unreal
-ln -s ~/UE5_Assets/MultiAgent_Content unreal_project/Content
-
-# 5. 验证软链接
-ls -la unreal_project/Content  # 应显示指向实际目录的链接
+cd unreal_project/Content
+git pull
 ```
 
-#### Windows 用户
+**提交修改：**
 
-Windows 不支持 `ln -s`，使用以下方式：
-
-```powershell
-# 方法 1：管理员权限下创建符号链接
-mklink /D unreal_project\Content C:\UE5_Assets\MultiAgent_Content
-
-# 方法 2：直接复制（不推荐，占用空间）
-xcopy /E /I C:\UE5_Assets\MultiAgent_Content unreal_project\Content
-```
-
-#### 目录结构验证
-
-正确配置后，目录结构应为：
-
-```
-unreal_project/
-├── MultiAgent.uproject
-├── Source/
-├── Content/              # 软链接或实际目录
-│   ├── Characters/
-│   ├── Map/
-│   ├── Robot/
-│   └── ...
-└── ...
+```bash
+cd unreal_project/Content
+git add .
+git commit -m "描述"
+git push
 ```
 
 ### 3. 配置脚本
@@ -165,7 +121,7 @@ MultiAgent-Unreal/
 │   │   ├── Agent/              # 机器人、技能
 │   │   ├── Environment/        # 环境实体
 │   │   └── UI/                 # 界面
-│   └── Content/                # 资产（软链接）
+│   └── Content/                # 资产（Hugging Face 独立仓库）
 ├── doc/                        # 文档
 ├── compile.sh                  # 编译脚本
 └── start.sh                    # 启动脚本
