@@ -87,7 +87,7 @@ private:
     void HandleTaskGraph(const TSharedPtr<FJsonObject>& PayloadObject);
 
     /** 处理技能列表消息 (PLATFORM 类别 - 直接执行) */
-    void HandleSkillList(const TSharedPtr<FJsonObject>& PayloadObject);
+    void HandleSkillList(const TSharedPtr<FJsonObject>& PayloadObject, bool bExecutable);
 
     /** 处理技能分配消息 (REVIEW 类别 - UI 交互流程) */
     void HandleSkillAllocation(const TSharedPtr<FJsonObject>& PayloadObject);

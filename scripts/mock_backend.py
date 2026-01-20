@@ -1005,7 +1005,7 @@ def create_task_graph_message(task_graph: dict, category: str = "review") -> dic
 def create_request_user_command_message() -> dict:
     """创建索要用户指令消息"""
     return {
-        "message_type": "request_user_command",
+        "message_type": "user_instruction",
         "timestamp": int(datetime.now().timestamp() * 1000),
         "message_id": str(uuid.uuid4()),
         "payload": {}
@@ -1310,7 +1310,7 @@ class MockBackendHandler(BaseHTTPRequestHandler):
     def handle_send_request_user_command(self):
         """Handle request user command send request from Web UI
         
-        Note: This method queues the request_user_command message for UE5 to poll.
+        Note: This method queues the user_instruction message for UE5 to poll.
         UE5 will display a notification prompting the user to enter a command.
         """
         global pending_messages
@@ -1320,11 +1320,11 @@ class MockBackendHandler(BaseHTTPRequestHandler):
             pending_messages.append(msg)
         
         # Broadcast to communication log
-        broadcast_message('sent', 'request_user_command', msg, 'outgoing')
+        broadcast_message('sent', 'user_instruction', msg, 'outgoing')
         
         self.send_json_response(200, {
             "status": "queued",
-            "message_type": "request_user_command",
+            "message_type": "user_instruction",
             "message_id": msg['message_id'],
             "note": "Request user command message queued. UE5 will display a notification."
         })

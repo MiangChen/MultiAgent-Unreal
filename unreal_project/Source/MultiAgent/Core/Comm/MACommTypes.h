@@ -668,13 +668,10 @@ struct MULTIAGENT_API FMASkillListCompletedMessage
     FString ToJson() const;
 };
 
-<<<<<<< HEAD
-=======
 // 委托声明 - 收到技能列表时广播
 // bExecutable: 是否为可执行的最终技能列表
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnMASkillListReceived, const FMASkillListMessage&, SkillList, bool, bExecutable);
 
->>>>>>> fbb9b2b09ad84d54fde4ff8aeb1e81967bb4f6a9
 
 //=============================================================================
 // 场景变化消息类型 (Edit Mode)
