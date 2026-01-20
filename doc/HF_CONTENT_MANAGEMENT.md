@@ -28,17 +28,34 @@ python3 -c "from huggingface_hub import login; login()"
 ### 更新到最新版本
 
 ```bash
+# 默认更新
 ./scripts/setup_hf_content.sh
+
+# 或明确指定更新
+./scripts/setup_hf_content.sh --update
+
+# 强制更新（丢弃本地更改）
+./scripts/setup_hf_content.sh --force
+```
+
+### 查看仓库状态
+
+```bash
+# 查看当前状态和是否有更新
+./scripts/setup_hf_content.sh --status
+```
+
+### 查看提交历史
+
+```bash
+# 查看最近 10 次提交（默认）
+./scripts/setup_hf_content.sh --log
+
+# 查看最近 20 次提交
+./scripts/setup_hf_content.sh --log 20
 ```
 
 或者手动：
-
-```bash
-cd unreal_project/Content
-git pull
-```
-
-### 查看历史
 
 ```bash
 cd unreal_project/Content
@@ -49,9 +66,32 @@ git log --stat  # 查看每次提交的文件变更
 ### 回滚到特定版本
 
 ```bash
+# 使用脚本（交互式）
+./scripts/setup_hf_content.sh --rollback
+```
+
+或者手动：
+
+```bash
 cd unreal_project/Content
 git log --oneline  # 找到目标 commit hash
 git checkout <commit-hash>
+```
+
+### 清理并重新克隆
+
+如果遇到问题，可以清理并重新克隆：
+
+```bash
+./scripts/setup_hf_content.sh --clean
+```
+
+### 脚本帮助
+
+查看所有可用选项：
+
+```bash
+./scripts/setup_hf_content.sh --help
 ```
 
 ## 维护者：上传 Content
