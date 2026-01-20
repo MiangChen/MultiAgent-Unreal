@@ -282,8 +282,8 @@ void FMACommOutbound::SendReviewResponse(const FMAReviewResponseMessage& Respons
         return;
     }
 
-    UE_LOG(LogMACommOutbound, Log, TEXT("SendReviewResponse: OriginalMessageId=%s, Approved=%s"),
-        *Response.OriginalMessageId, Response.bApproved ? TEXT("true") : TEXT("false"));
+    UE_LOG(LogMACommOutbound, Log, TEXT("SendReviewResponse: Approved=%s"),
+        Response.bApproved ? TEXT("true") : TEXT("false"));
 
     // 创建消息信封
     FMAMessageEnvelope Envelope;
@@ -298,10 +298,10 @@ void FMACommOutbound::SendReviewResponse(const FMAReviewResponseMessage& Respons
     Owner->SendMessageEnvelopeInternal(Envelope);
 }
 
-void FMACommOutbound::SendReviewResponseSimple(const FString& OriginalMessageId, bool bApproved,
+void FMACommOutbound::SendReviewResponseSimple(bool bApproved,
     const FString& ModifiedDataJson, const FString& RejectionReason)
 {
-    FMAReviewResponseMessage Response(OriginalMessageId, bApproved, ModifiedDataJson, RejectionReason);
+    FMAReviewResponseMessage Response(bApproved, ModifiedDataJson, RejectionReason);
     SendReviewResponse(Response);
 }
 
@@ -312,8 +312,8 @@ void FMACommOutbound::SendDecisionResponse(const FMADecisionResponseMessage& Res
         return;
     }
 
-    UE_LOG(LogMACommOutbound, Log, TEXT("SendDecisionResponse: OriginalMessageId=%s, Decision=%s"),
-        *Response.OriginalMessageId, *Response.Decision);
+    UE_LOG(LogMACommOutbound, Log, TEXT("SendDecisionResponse: Decision=%s"),
+        *Response.Decision);
 
     // 创建消息信封
     FMAMessageEnvelope Envelope;
@@ -328,9 +328,9 @@ void FMACommOutbound::SendDecisionResponse(const FMADecisionResponseMessage& Res
     Owner->SendMessageEnvelopeInternal(Envelope);
 }
 
-void FMACommOutbound::SendDecisionResponseSimple(const FString& OriginalMessageId, const FString& Decision,
+void FMACommOutbound::SendDecisionResponseSimple(const FString& Decision,
     const FString& DecisionDataJson, const FString& Comments)
 {
-    FMADecisionResponseMessage Response(OriginalMessageId, Decision, DecisionDataJson, Comments);
+    FMADecisionResponseMessage Response(Decision, DecisionDataJson, Comments);
     SendDecisionResponse(Response);
 }

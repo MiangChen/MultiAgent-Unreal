@@ -634,16 +634,7 @@ void AMAHUD::BindControllerEvents()
     // 绑定 Modify 模式 Actor 选中委托 (多选模式)
     MAPC->OnModifyActorsSelected.AddDynamic(this, &AMAHUD::OnModifyActorsSelected);
     UE_LOG(LogMAHUD, Log, TEXT("BindControllerEvents: Bound OnModifyActorsSelected delegate"));
-
-    // 注意: 这里需要 MAPlayerController 定义 OnMainUIToggled 和 OnRefocusMainUI 委托
-    // 这些委托将在后续任务 4.2 中添加到 MAPlayerController
-    // 目前先记录日志，等待 MAPlayerController 扩展后再绑定
-
     UE_LOG(LogMAHUD, Log, TEXT("BindControllerEvents: Ready to bind when MAPlayerController delegates are available"));
-    
-    // TODO: 在任务 5.2 中完成绑定
-    // MAPC->OnMainUIToggled.AddDynamic(this, &AMAHUD::OnMainUIToggled);
-    // MAPC->OnRefocusMainUI.AddDynamic(this, &AMAHUD::OnRefocusMainUI);
 }
 
 void AMAHUD::BindEmergencyManagerEvents()
@@ -2133,7 +2124,7 @@ void AMAHUD::BindBackendEvents()
     UMACommSubsystem* CommSubsystem = GI->GetSubsystem<UMACommSubsystem>();
     if (CommSubsystem)
     {
-        // 绑定任务图更新事件 (Requirements: 4.1)
+        // 绑定任务图更新事件  (用于 UI 交互流程)
         if (!CommSubsystem->OnTaskPlanReceived.IsAlreadyBound(this, &AMAHUD::OnTaskGraphReceived))
         {
             CommSubsystem->OnTaskPlanReceived.AddDynamic(this, &AMAHUD::OnTaskGraphReceived);
@@ -2145,6 +2136,13 @@ void AMAHUD::BindBackendEvents()
         {
             CommSubsystem->OnSkillAllocationReceived.AddDynamic(this, &AMAHUD::OnSkillAllocationReceived);
             UE_LOG(LogMAHUD, Log, TEXT("BindBackendEvents: Bound OnSkillAllocationReceived"));
+        }
+
+        // 绑定技能列表接收事件 (PLATFORM 类别 - 直接执行，用于 UI 通知)
+        if (!CommSubsystem->OnSkillListReceived.IsAlreadyBound(this, &AMAHUD::OnSkillListReceived))
+        {
+            CommSubsystem->OnSkillListReceived.AddDynamic(this, &AMAHUD::OnSkillListReceived);
+            UE_LOG(LogMAHUD, Log, TEXT("BindBackendEvents: Bound OnSkillListReceived"));
         }
     }
     else
@@ -2331,7 +2329,7 @@ void AMAHUD::OnModalConfirmedHandler(EMAModalType ModalType)
         }
         break;
 
-    case EMAModalType::SkillList:
+    case EMAModalType::SkillAllocation:
         {
             // 发送技能分配审阅响应到后端 (Requirements: 5.4)
             UGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
@@ -2344,17 +2342,13 @@ void AMAHUD::OnModalConfirmedHandler(EMAModalType ModalType)
                     if (SkillModal)
                     {
                         FMASkillAllocationData Data = SkillModal->GetSkillAllocationData();
-                        if (!Data.OriginalMessageId.IsEmpty())
-                        {
-                            FString ModifiedDataJson = Data.ToJson();
-                            CommSubsystem->SendReviewResponseSimple(
-                                Data.OriginalMessageId,
-                                true,  // bApproved
-                                ModifiedDataJson,
-                                TEXT("")  // 无拒绝原因
-                            );
-                            UE_LOG(LogMAHUD, Log, TEXT("OnModalConfirmedHandler: Skill allocation approved, OriginalMessageId=%s"), *Data.OriginalMessageId);
-                        }
+                        FString ModifiedDataJson = Data.ToJson();
+                        CommSubsystem->SendReviewResponseSimple(
+                            true,      // bApproved
+                            ModifiedDataJson,
+                            TEXT("")   // 无拒绝原因
+                        );
+                        UE_LOG(LogMAHUD, Log, TEXT("OnModalConfirmedHandler: Skill allocation approved"));
                     }
                 }
             }
@@ -2411,7 +2405,7 @@ void AMAHUD::OnModalRejectedHandler(EMAModalType ModalType)
     // 根据模态类型发送不同的拒绝响应
     switch (ModalType)
     {
-    case EMAModalType::SkillList:
+    case EMAModalType::SkillAllocation:
         {
             // 发送技能分配审阅拒绝响应 (Requirements: 5.4)
             if (UIManager)
@@ -2419,17 +2413,12 @@ void AMAHUD::OnModalRejectedHandler(EMAModalType ModalType)
                 UMASkillAllocationModal* SkillModal = UIManager->GetSkillAllocationModal();
                 if (SkillModal)
                 {
-                    FMASkillAllocationData Data = SkillModal->GetSkillAllocationData();
-                    if (!Data.OriginalMessageId.IsEmpty())
-                    {
-                        CommSubsystem->SendReviewResponseSimple(
-                            Data.OriginalMessageId,
-                            false,  // bApproved
-                            TEXT(""),  // 无修改数据
-                            TEXT("User rejected the skill allocation")
-                        );
-                        UE_LOG(LogMAHUD, Log, TEXT("OnModalRejectedHandler: Skill allocation rejected, OriginalMessageId=%s"), *Data.OriginalMessageId);
-                    }
+                    CommSubsystem->SendReviewResponseSimple(
+                        false,     // bApproved
+                        TEXT(""),  // 无修改数据
+                        TEXT("User rejected the skill allocation")
+                    );
+                    UE_LOG(LogMAHUD, Log, TEXT("OnModalRejectedHandler: Skill allocation rejected"));
                 }
             }
         }

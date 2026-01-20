@@ -1,35 +1,71 @@
 {
-	"name": "GSI Allocation",
-	"description": "Skill allocation from GSI planner",
+	"name": "Complete Test",
+	"description": "完整测试: UAV 搜索 → 导航装载 → 运输卸载",
 	"data":
 	{
 		"0":
 		{
-			"UGV_01":
+			"UAV_01":
 			{
-				"skill": "navigate<RedBox>",
+				"skill": "take_off",
 				"params":
 				{
-					"task_id": "T2"
 				}
 			},
-			"Humanoid_01":
+			"UAV_02":
 			{
-				"skill": "navigate<RedBox>",
+				"skill": "take_off",
 				"params":
 				{
-					"task_id": "T2"
 				}
 			}
 		},
 		"1":
 		{
-			"Humanoid_01":
+			"UAV_01":
 			{
-				"skill": "place<Red_Box>_on<UGV>",
+				"skill": "search",
 				"params":
 				{
-					"task_id": "T2"
+					"search_area": [
+						[ -500, 1000 ],
+						[ 1500, 1000 ],
+						[ 1500, 2500 ],
+						[ -500, 2500 ]
+					],
+					"target":
+					{
+						"class": "object",
+						"type": "cargo",
+						"features":
+						{
+							"color": "red",
+							"label": "RedBox"
+						}
+					}
+				}
+			},
+			"UAV_02":
+			{
+				"skill": "search",
+				"params":
+				{
+					"search_area": [
+						[ -1000, 1000 ],
+						[ -2000, 1000 ],
+						[ -2000, 2500 ],
+						[ -500, 2500 ]
+					],
+					"target":
+					{
+						"class": "object",
+						"type": "cargo",
+						"features":
+						{
+							"color": "red",
+							"label": "RedBox"
+						}
+					}
 				}
 			}
 		},
@@ -37,18 +73,42 @@
 		{
 			"UGV_01":
 			{
-				"skill": "navigate<Intersection-9>",
+				"skill": "navigate",
 				"params":
 				{
-					"task_id": "T2"
+					"dest":
+					{
+						"x": "redbox_x + 100",
+						"y": "redbox_y - 400",
+						"z": 0
+					}
 				}
 			},
 			"Humanoid_01":
 			{
-				"skill": "navigate<Intersection-9>",
+				"skill": "navigate",
 				"params":
 				{
-					"task_id": "T2"
+					"dest":
+					{
+						"x": "redbox_x - 100",
+						"y": "redbox_y - 200",
+						"z": 0
+					}
+				}
+			},
+			"UAV_01":
+			{
+				"skill": "return_home",
+				"params":
+				{
+				}
+			},
+			"UAV_02":
+			{
+				"skill": "return_home",
+				"params":
+				{
 				}
 			}
 		},
@@ -56,10 +116,85 @@
 		{
 			"Humanoid_01":
 			{
-				"skill": "place<Red_Box>_on<ground>",
+				"skill": "place",
 				"params":
 				{
-					"task_id": "T2"
+					"target":
+					{
+						"class": "object",
+						"type": "cargo",
+						"features":
+						{
+							"color": "red",
+							"label": "RedBox"
+						}
+					},
+					"surface_target":
+					{
+						"class": "robot",
+						"type": "UGV",
+						"features":
+						{
+							"label": "UGV_01"
+						}
+					}
+				}
+			}
+		},
+		"4":
+		{
+			"UGV_01":
+			{
+				"skill": "navigate",
+				"params":
+				{
+					"dest":
+					{
+						"x": -5100,
+						"y": 2200,
+						"z": 0
+					}
+				}
+			},
+			"Humanoid_01":
+			{
+				"skill": "navigate",
+				"params":
+				{
+					"dest":
+					{
+						"x": -5200,
+						"y": 2100,
+						"z": 0
+					}
+				}
+			}
+		},
+		"5":
+		{
+			"Humanoid_01":
+			{
+				"skill": "place",
+				"params":
+				{
+					"target":
+					{
+						"class": "object",
+						"type": "cargo",
+						"features":
+						{
+							"color": "red",
+							"label": "RedBox"
+						}
+					},
+					"surface_target":
+					{
+						"class": "ground",
+						"type": "",
+						"features":
+						{
+						}
+					}
 				}
 			}
 		}

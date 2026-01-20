@@ -635,7 +635,7 @@ FText UMABaseModalWidget::GetModalTitleText() const
     {
     case EMAModalType::TaskGraph:
         return FText::FromString(TEXT("Task Graph"));
-    case EMAModalType::SkillList:
+    case EMAModalType::SkillAllocation:
         return FText::FromString(TEXT("Skill List"));
     case EMAModalType::Emergency:
         return FText::FromString(TEXT("Emergency Event"));

@@ -239,7 +239,7 @@ void UMAHUDStateManager::HandleCheckSkillInput()
         IsModalActive() ? TEXT("true") : TEXT("false"));
 
     // 如果技能列表模态已打开，关闭它 (Requirements: 10.5)
-    if (IsModalActive() && ActiveModalType == EMAModalType::SkillList)
+    if (IsModalActive() && ActiveModalType == EMAModalType::SkillAllocation)
     {
         UE_LOG(LogMAHUDState, Log, TEXT("HandleCheckSkillInput: SkillList modal is active, closing it"));
         ReturnToNormalHUD();
@@ -263,7 +263,7 @@ void UMAHUDStateManager::HandleCheckSkillInput()
 
     // 打开技能列表查看模态
     UE_LOG(LogMAHUDState, Log, TEXT("HandleCheckSkillInput: Attempting to transition to ReviewModal with SkillList"));
-    bool bSuccess = TransitionToState(EMAHUDState::ReviewModal, EMAModalType::SkillList);
+    bool bSuccess = TransitionToState(EMAHUDState::ReviewModal, EMAModalType::SkillAllocation);
     UE_LOG(LogMAHUDState, Log, TEXT("HandleCheckSkillInput: TransitionToState result: %s"), bSuccess ? TEXT("SUCCESS") : TEXT("FAILED"));
 }
 
@@ -392,7 +392,7 @@ EMAModalType UMAHUDStateManager::GetModalTypeForNotification(EMANotificationType
 
     case EMANotificationType::SkillListUpdate:
     case EMANotificationType::SkillListExecuting:
-        return EMAModalType::SkillList;
+        return EMAModalType::SkillAllocation;
 
     case EMANotificationType::EmergencyEvent:
         return EMAModalType::Emergency;

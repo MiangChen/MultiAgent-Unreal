@@ -125,7 +125,7 @@ public:
 
     /** 发送审阅响应消息 (便捷方法) */
     UFUNCTION(BlueprintCallable, Category = "Communication|HITL")
-    void SendReviewResponseSimple(const FString& OriginalMessageId, bool bApproved,
+    void SendReviewResponseSimple(bool bApproved,
         const FString& ModifiedDataJson = TEXT(""), const FString& RejectionReason = TEXT(""));
 
     /** 发送决策响应消息 */
@@ -134,7 +134,7 @@ public:
 
     /** 发送决策响应消息 (便捷方法) */
     UFUNCTION(BlueprintCallable, Category = "Communication|HITL")
-    void SendDecisionResponseSimple(const FString& OriginalMessageId, const FString& Decision,
+    void SendDecisionResponseSimple(const FString& Decision,
         const FString& DecisionDataJson = TEXT(""), const FString& Comments = TEXT(""));
 
     //=========================================================================
@@ -188,6 +188,10 @@ public:
     /** 收到索要用户指令请求委托 */
     UPROPERTY(BlueprintAssignable, Category = "Events")
     FOnMARequestUserCommandReceived OnRequestUserCommandReceived;
+
+    /** 收到技能列表委托 (PLATFORM 类别 - 直接执行) */
+    UPROPERTY(BlueprintAssignable, Category = "Events")
+    FOnMASkillListReceived OnSkillListReceived;
 
     //=========================================================================
     // 状态查询

@@ -448,12 +448,8 @@ void FMACommInbound::HandleHITLMessage(const TSharedPtr<FJsonObject>& MsgObject,
     FString MessageTypeStr;
     MsgObject->TryGetStringField(TEXT("message_type"), MessageTypeStr);
 
-    // 获取消息 ID (用于 HITL 响应)
-    FString MessageId;
-    MsgObject->TryGetStringField(TEXT("message_id"), MessageId);
-
-    UE_LOG(LogMACommInbound, Log, TEXT("HandleHITLMessage: Processing HITL message type: %s, category: %d, message_id: %s"), 
-        *MessageTypeStr, static_cast<int32>(Category), *MessageId);
+    UE_LOG(LogMACommInbound, Log, TEXT("HandleHITLMessage: Processing HITL message type: %s, category: %d"), 
+        *MessageTypeStr, static_cast<int32>(Category));
 
     // 获取 payload
     const TSharedPtr<FJsonObject>* PayloadObject;
@@ -488,8 +484,7 @@ void FMACommInbound::HandleHITLMessage(const TSharedPtr<FJsonObject>& MsgObject,
         else if (MessageTypeStr == TEXT("skill_allocation"))
         {
             // skill_allocation (REVIEW 类别) - 触发 UI 显示，用户审阅
-            // 传递消息 ID 用于后续响应
-            HandleSkillAllocationWithMessageId(*PayloadObject, MessageId);
+            HandleSkillAllocation(*PayloadObject);
         }
         else
         {
@@ -543,7 +538,6 @@ void FMACommInbound::HandlePlatformMessage(const TSharedPtr<FJsonObject>& MsgObj
     else if (MessageTypeStr == TEXT("skill_allocation"))
     {
         // 向后兼容: 如果从 Platform 端点收到 skill_allocation，也触发 UI
-        // 但根据设计，skill_allocation 应该是 REVIEW 类别
         UE_LOG(LogMACommInbound, Warning, TEXT("HandlePlatformMessage: skill_allocation received from Platform endpoint, should be REVIEW category"));
         HandleSkillAllocation(*PayloadObject);
     }
@@ -564,17 +558,7 @@ void FMACommInbound::HandleTaskGraph(const TSharedPtr<FJsonObject>& PayloadObjec
         return;
     }
 
-    // [DLOG] 打印收到的 payload 内容
-    {
-        FString PayloadDebug;
-        TSharedRef<TJsonWriter<>> DebugWriter = TJsonWriterFactory<>::Create(&PayloadDebug);
-        FJsonSerializer::Serialize(PayloadObject.ToSharedRef(), DebugWriter);
-        UE_LOG(LogMACommInbound, Log, TEXT("[DLOG] HandleTaskGraph: Raw payload: %s"), *PayloadDebug.Left(2000));
-    }
-
     // 检查是否是 HITLMessage 格式 (payload 包含 "review_type" 和 "data" 字段)
-    // GSI 格式: payload = { "review_type": "task_graph", "data": { "meta": {...}, "task_graph": {...} } }
-    // 如果是，提取 "data" 字段作为实际的任务图数据
     TSharedPtr<FJsonObject> ActualTaskGraphObject = PayloadObject;
     
     FString ReviewType;
@@ -582,28 +566,13 @@ void FMACommInbound::HandleTaskGraph(const TSharedPtr<FJsonObject>& PayloadObjec
     if (PayloadObject->TryGetStringField(TEXT("review_type"), ReviewType) &&
         PayloadObject->TryGetObjectField(TEXT("data"), DataObject))
     {
-        // HITLMessage 格式: { "review_type": "task_graph", "data": { "meta": {...}, "task_graph": {...} } }
+        // HITLMessage 格式
         ActualTaskGraphObject = *DataObject;
-        UE_LOG(LogMACommInbound, Log, TEXT("[DLOG] HandleTaskGraph: Detected HITLMessage format, review_type=%s"), *ReviewType);
+        UE_LOG(LogMACommInbound, Log, TEXT("HandleTaskGraph: Detected HITLMessage format, review_type=%s"), *ReviewType);
         
-        // [DLOG] 打印提取的 data 内容
-        FString DataDebug;
-        TSharedRef<TJsonWriter<>> DataWriter = TJsonWriterFactory<>::Create(&DataDebug);
-        FJsonSerializer::Serialize(ActualTaskGraphObject.ToSharedRef(), DataWriter);
-        UE_LOG(LogMACommInbound, Log, TEXT("[DLOG] HandleTaskGraph: Extracted data (first 2000 chars): %s"), *DataDebug.Left(2000));
-        
-        // [DLOG] 检查 data 对象中是否有 task_graph 字段
-        bool bHasTaskGraph = ActualTaskGraphObject->HasField(TEXT("task_graph"));
-        bool bHasMeta = ActualTaskGraphObject->HasField(TEXT("meta"));
-        UE_LOG(LogMACommInbound, Log, TEXT("[DLOG] HandleTaskGraph: data has task_graph=%s, has meta=%s"), 
-            bHasTaskGraph ? TEXT("true") : TEXT("false"),
-            bHasMeta ? TEXT("true") : TEXT("false"));
-        
-        // 如果 data 中没有 task_graph 字段，但有 nodes 字段，说明 data 本身就是 task_graph 内容
-        // 这种情况下需要包装成标准格式
-        if (!bHasTaskGraph && ActualTaskGraphObject->HasField(TEXT("nodes")))
+        // 如果 data 中没有 task_graph 字段，但有 nodes 字段，包装成标准格式
+        if (!ActualTaskGraphObject->HasField(TEXT("task_graph")) && ActualTaskGraphObject->HasField(TEXT("nodes")))
         {
-            UE_LOG(LogMACommInbound, Log, TEXT("[DLOG] HandleTaskGraph: data contains nodes directly, wrapping as task_graph"));
             TSharedPtr<FJsonObject> WrappedObject = MakeShareable(new FJsonObject());
             WrappedObject->SetObjectField(TEXT("task_graph"), ActualTaskGraphObject);
             ActualTaskGraphObject = WrappedObject;
@@ -611,19 +580,9 @@ void FMACommInbound::HandleTaskGraph(const TSharedPtr<FJsonObject>& PayloadObjec
     }
     else
     {
-        UE_LOG(LogMACommInbound, Log, TEXT("[DLOG] HandleTaskGraph: Direct format (no HITLMessage wrapper)"));
-        
-        // [DLOG] 检查直接格式中是否有 task_graph 字段
-        bool bHasTaskGraph = PayloadObject->HasField(TEXT("task_graph"));
-        bool bHasMeta = PayloadObject->HasField(TEXT("meta"));
-        UE_LOG(LogMACommInbound, Log, TEXT("[DLOG] HandleTaskGraph: payload has task_graph=%s, has meta=%s"), 
-            bHasTaskGraph ? TEXT("true") : TEXT("false"),
-            bHasMeta ? TEXT("true") : TEXT("false"));
-        
-        // 如果 payload 中没有 task_graph 字段，但有 nodes 字段，说明 payload 本身就是 task_graph 内容
-        if (!bHasTaskGraph && PayloadObject->HasField(TEXT("nodes")))
+        // 直接格式: 如果没有 task_graph 字段但有 nodes 字段，包装成标准格式
+        if (!PayloadObject->HasField(TEXT("task_graph")) && PayloadObject->HasField(TEXT("nodes")))
         {
-            UE_LOG(LogMACommInbound, Log, TEXT("[DLOG] HandleTaskGraph: payload contains nodes directly, wrapping as task_graph"));
             TSharedPtr<FJsonObject> WrappedObject = MakeShareable(new FJsonObject());
             WrappedObject->SetObjectField(TEXT("task_graph"), PayloadObject);
             ActualTaskGraphObject = WrappedObject;
@@ -636,7 +595,6 @@ void FMACommInbound::HandleTaskGraph(const TSharedPtr<FJsonObject>& PayloadObjec
     FJsonSerializer::Serialize(ActualTaskGraphObject.ToSharedRef(), Writer);
 
     UE_LOG(LogMACommInbound, Log, TEXT("HandleTaskGraph: Received task graph payload"));
-    UE_LOG(LogMACommInbound, Log, TEXT("[DLOG] HandleTaskGraph: PayloadJson (first 2000 chars): %s"), *PayloadJson.Left(2000));
 
     // 使用 FromResponseJson 解析 (支持 meta + task_graph 格式)
     FMATaskGraphData TaskGraphData;
@@ -659,14 +617,10 @@ void FMACommInbound::HandleTaskGraph(const TSharedPtr<FJsonObject>& PayloadObjec
                     {
                         UE_LOG(LogMACommInbound, Log, TEXT("HandleTaskGraph: Saved task graph to temp file"));
                     }
-                    else
-                    {
-                        UE_LOG(LogMACommInbound, Warning, TEXT("HandleTaskGraph: Failed to save task graph to temp file"));
-                    }
                 }
             }
 
-            // 转换为 FMATaskPlan 格式并广播 (兼容现有委托)
+            // 转换为 FMATaskPlan 格式并广播
             FMATaskPlan TaskPlan;
             for (const FMATaskNodeData& NodeData : TaskGraphData.Nodes)
             {
@@ -697,8 +651,7 @@ void FMACommInbound::HandleTaskGraph(const TSharedPtr<FJsonObject>& PayloadObjec
     }
     else
     {
-        UE_LOG(LogMACommInbound, Warning, TEXT("[DLOG] HandleTaskGraph: Failed to parse task graph: %s"), *ErrorMessage);
-        UE_LOG(LogMACommInbound, Warning, TEXT("[DLOG] HandleTaskGraph: PayloadJson was: %s"), *PayloadJson);
+        UE_LOG(LogMACommInbound, Warning, TEXT("HandleTaskGraph: Failed to parse task graph: %s"), *ErrorMessage);
     }
 }
 
@@ -720,6 +673,9 @@ void FMACommInbound::HandleSkillList(const TSharedPtr<FJsonObject>& PayloadObjec
         UE_LOG(LogMACommInbound, Log, TEXT("HandleSkillList: Received SkillList with %d time steps, executable=%s"),
             SkillList.TotalTimeSteps, bExecutable ? TEXT("true") : TEXT("false"));
 
+        // 广播委托 (用于 UI 通知)
+        Owner->OnSkillListReceived.Broadcast(SkillList, bExecutable);
+
         // 直接获取 MACommandManager 并执行技能列表
         UWorld* World = Owner->GetWorld();
         if (World)
@@ -735,10 +691,6 @@ void FMACommInbound::HandleSkillList(const TSharedPtr<FJsonObject>& PayloadObjec
                 UE_LOG(LogMACommInbound, Error, TEXT("HandleSkillList: MACommandManager not available"));
             }
         }
-        else
-        {
-            UE_LOG(LogMACommInbound, Error, TEXT("HandleSkillList: World is null"));
-        }
     }
     else
     {
@@ -748,28 +700,12 @@ void FMACommInbound::HandleSkillList(const TSharedPtr<FJsonObject>& PayloadObjec
 
 void FMACommInbound::HandleSkillAllocation(const TSharedPtr<FJsonObject>& PayloadObject)
 {
-    // 向后兼容: 没有消息 ID 的情况
-    HandleSkillAllocationWithMessageId(PayloadObject, TEXT(""));
-}
-
-void FMACommInbound::HandleSkillAllocationWithMessageId(const TSharedPtr<FJsonObject>& PayloadObject, const FString& OriginalMessageId)
-{
     if (!Owner)
     {
         return;
     }
 
-    // [DLOG] 打印收到的 payload 内容
-    {
-        FString PayloadDebug;
-        TSharedRef<TJsonWriter<>> DebugWriter = TJsonWriterFactory<>::Create(&PayloadDebug);
-        FJsonSerializer::Serialize(PayloadObject.ToSharedRef(), DebugWriter);
-        UE_LOG(LogMACommInbound, Log, TEXT("[DLOG] HandleSkillAllocation: Raw payload: %s"), *PayloadDebug.Left(2000));
-    }
-
     // 检查是否是 HITLMessage 格式 (payload 包含 "review_type" 和 "data" 字段)
-    // GSI 格式: payload = { "review_type": "skill_allocation", "data": { "robot_view": {...}, "timestep_skills": {...} } }
-    // 如果是，提取 "data" 字段作为实际的技能分配数据
     TSharedPtr<FJsonObject> ActualAllocationObject = PayloadObject;
     
     FString ReviewType;
@@ -777,41 +713,9 @@ void FMACommInbound::HandleSkillAllocationWithMessageId(const TSharedPtr<FJsonOb
     if (PayloadObject->TryGetStringField(TEXT("review_type"), ReviewType) &&
         PayloadObject->TryGetObjectField(TEXT("data"), DataObject))
     {
-        // HITLMessage 格式: { "review_type": "skill_allocation", "data": { ... } }
+        // HITLMessage 格式
         ActualAllocationObject = *DataObject;
-        UE_LOG(LogMACommInbound, Log, TEXT("[DLOG] HandleSkillAllocation: Detected HITLMessage format, review_type=%s"), *ReviewType);
-        
-        // [DLOG] 打印提取的 data 内容
-        FString DataDebug;
-        TSharedRef<TJsonWriter<>> DataWriter = TJsonWriterFactory<>::Create(&DataDebug);
-        FJsonSerializer::Serialize(ActualAllocationObject.ToSharedRef(), DataWriter);
-        UE_LOG(LogMACommInbound, Log, TEXT("[DLOG] HandleSkillAllocation: Extracted data (first 2000 chars): %s"), *DataDebug.Left(2000));
-        
-        // [DLOG] 检查 data 对象中的字段
-        bool bHasTimestepSkills = ActualAllocationObject->HasField(TEXT("timestep_skills"));
-        bool bHasRobotView = ActualAllocationObject->HasField(TEXT("robot_view"));
-        bool bHasName = ActualAllocationObject->HasField(TEXT("name"));
-        bool bHasData = ActualAllocationObject->HasField(TEXT("data"));
-        UE_LOG(LogMACommInbound, Log, TEXT("[DLOG] HandleSkillAllocation: data has timestep_skills=%s, robot_view=%s, name=%s, data=%s"), 
-            bHasTimestepSkills ? TEXT("true") : TEXT("false"),
-            bHasRobotView ? TEXT("true") : TEXT("false"),
-            bHasName ? TEXT("true") : TEXT("false"),
-            bHasData ? TEXT("true") : TEXT("false"));
-    }
-    else
-    {
-        UE_LOG(LogMACommInbound, Log, TEXT("[DLOG] HandleSkillAllocation: Direct format (no HITLMessage wrapper)"));
-        
-        // [DLOG] 检查直接格式中的字段
-        bool bHasTimestepSkills = PayloadObject->HasField(TEXT("timestep_skills"));
-        bool bHasRobotView = PayloadObject->HasField(TEXT("robot_view"));
-        bool bHasName = PayloadObject->HasField(TEXT("name"));
-        bool bHasData = PayloadObject->HasField(TEXT("data"));
-        UE_LOG(LogMACommInbound, Log, TEXT("[DLOG] HandleSkillAllocation: payload has timestep_skills=%s, robot_view=%s, name=%s, data=%s"), 
-            bHasTimestepSkills ? TEXT("true") : TEXT("false"),
-            bHasRobotView ? TEXT("true") : TEXT("false"),
-            bHasName ? TEXT("true") : TEXT("false"),
-            bHasData ? TEXT("true") : TEXT("false"));
+        UE_LOG(LogMACommInbound, Log, TEXT("HandleSkillAllocation: Detected HITLMessage format, review_type=%s"), *ReviewType);
     }
 
     // 将实际技能分配对象序列化回 JSON 字符串
@@ -819,23 +723,17 @@ void FMACommInbound::HandleSkillAllocationWithMessageId(const TSharedPtr<FJsonOb
     TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&PayloadJson);
     FJsonSerializer::Serialize(ActualAllocationObject.ToSharedRef(), Writer);
 
-    UE_LOG(LogMACommInbound, Log, TEXT("[DLOG] HandleSkillAllocation: PayloadJson (first 2000 chars): %s"), *PayloadJson.Left(2000));
-
     // 解析 payload 为 FMASkillAllocationData
     FMASkillAllocationData AllocationData;
     FString ErrorMessage;
     if (!FMASkillAllocationData::FromJson(PayloadJson, AllocationData, ErrorMessage))
     {
         UE_LOG(LogMACommInbound, Warning, TEXT("HandleSkillAllocation: Failed to parse: %s"), *ErrorMessage);
-        UE_LOG(LogMACommInbound, Warning, TEXT("[DLOG] HandleSkillAllocation: PayloadJson was: %s"), *PayloadJson);
         return;
     }
 
-    // 设置原始消息 ID (用于 HITL 响应)
-    AllocationData.OriginalMessageId = OriginalMessageId;
-
-    UE_LOG(LogMACommInbound, Log, TEXT("HandleSkillAllocation: Received skill allocation '%s' with %d time steps, OriginalMessageId=%s"),
-        *AllocationData.Name, AllocationData.Data.Num(), *OriginalMessageId);
+    UE_LOG(LogMACommInbound, Log, TEXT("HandleSkillAllocation: Received skill allocation '%s' with %d time steps"),
+        *AllocationData.Name, AllocationData.Data.Num());
 
     // 保存到 TempDataManager
     if (UGameInstance* GameInstance = Owner->GetGameInstance())
@@ -846,14 +744,6 @@ void FMACommInbound::HandleSkillAllocationWithMessageId(const TSharedPtr<FJsonOb
             {
                 UE_LOG(LogMACommInbound, Log, TEXT("HandleSkillAllocation: Saved skill allocation to temp file"));
             }
-            else
-            {
-                UE_LOG(LogMACommInbound, Warning, TEXT("HandleSkillAllocation: Failed to save skill allocation to temp file"));
-            }
-        }
-        else
-        {
-            UE_LOG(LogMACommInbound, Warning, TEXT("HandleSkillAllocation: TempDataManager not available"));
         }
     }
 

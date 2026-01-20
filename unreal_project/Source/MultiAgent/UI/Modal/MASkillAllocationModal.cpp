@@ -41,7 +41,7 @@ UMASkillAllocationModal::UMASkillAllocationModal(const FObjectInitializer& Objec
     , JsonPreviewHeightRatio(0.3f)
 {
     // 设置模态类型
-    SetModalType(EMAModalType::SkillList);
+    SetModalType(EMAModalType::SkillAllocation);
     
     // 设置模态大小 (覆盖约 80% 画面，假设 1920x1080 分辨率)
     // 与 TaskGraphModal 保持一致

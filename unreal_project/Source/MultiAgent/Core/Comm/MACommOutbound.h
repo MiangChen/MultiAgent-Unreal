@@ -81,12 +81,11 @@ public:
 
     /**
      * 发送审阅响应消息 (便捷方法)
-     * @param OriginalMessageId 原始审阅请求的消息 ID
      * @param bApproved 是否批准
      * @param ModifiedDataJson 修改后的数据 (可选，批准时可能包含修改)
      * @param RejectionReason 拒绝原因 (可选，拒绝时填写)
      */
-    void SendReviewResponseSimple(const FString& OriginalMessageId, bool bApproved, 
+    void SendReviewResponseSimple(bool bApproved, 
         const FString& ModifiedDataJson = TEXT(""), const FString& RejectionReason = TEXT(""));
 
     /**
@@ -98,12 +97,11 @@ public:
 
     /**
      * 发送决策响应消息 (便捷方法)
-     * @param OriginalMessageId 原始决策请求的消息 ID
      * @param Decision 用户选择的决策选项
      * @param DecisionDataJson 决策相关数据 (可选)
      * @param Comments 用户备注 (可选)
      */
-    void SendDecisionResponseSimple(const FString& OriginalMessageId, const FString& Decision,
+    void SendDecisionResponseSimple(const FString& Decision,
         const FString& DecisionDataJson = TEXT(""), const FString& Comments = TEXT(""));
 
 private:
