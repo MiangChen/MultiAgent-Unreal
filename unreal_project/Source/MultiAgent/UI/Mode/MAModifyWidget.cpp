@@ -16,6 +16,7 @@
 #include "Blueprint/WidgetTree.h"
 #include "../Core/MARoundedBorderUtils.h"
 #include "../Core/MAUITheme.h"
+#include "../../Core/Config/MAConfigManager.h"
 #include "../../Core/Manager/MASceneGraphManager.h"
 #include "../../Utils/MAGeometryUtils.h"
 #include "Kismet/GameplayStatics.h"
@@ -24,6 +25,7 @@
 #include "Serialization/JsonSerializer.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "Engine/GameInstance.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMAModifyWidget, Log, All);
 
@@ -1530,14 +1532,27 @@ TArray<FString> UMAModifyWidget::CollectActorGuids(const TArray<AActor*>& Actors
 
 //=========================================================================
 // GetNextAvailableId - 获取下一个可用的节点 ID
-// 读取 scene_graph_cyberworld.json，找到最大 ID 并返回 +1
+// 从配置管理器获取场景图路径，找到最大 ID 并返回 +1
 //=========================================================================
 
 FString UMAModifyWidget::GetNextAvailableId()
 {
-    // 获取项目路径
-    FString ProjectDir = FPaths::ProjectDir();
-    FString JsonFilePath = FPaths::Combine(ProjectDir, TEXT("datasets/scene_graph_cyberworld.json"));
+    // 从配置管理器获取场景图路径
+    FString JsonFilePath;
+    if (UGameInstance* GameInstance = UGameplayStatics::GetGameInstance(this))
+    {
+        if (UMAConfigManager* ConfigManager = GameInstance->GetSubsystem<UMAConfigManager>())
+        {
+            JsonFilePath = ConfigManager->GetSceneGraphFilePath();
+        }
+    }
+    
+    // Fallback: 使用默认路径
+    if (JsonFilePath.IsEmpty())
+    {
+        UE_LOG(LogMAModifyWidget, Warning, TEXT("GetNextAvailableId: ConfigManager not available, using default path"));
+        JsonFilePath = FPaths::Combine(FPaths::ProjectDir(), TEXT("datasets/scene_graph_cyberworld.json"));
+    }
     
     // 检查文件是否存在
     if (!FPaths::FileExists(JsonFilePath))

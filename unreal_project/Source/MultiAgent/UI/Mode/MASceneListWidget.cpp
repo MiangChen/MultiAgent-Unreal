@@ -18,6 +18,8 @@
 #include "../Core/MARoundedBorderUtils.h"
 #include "../Core/MAUITheme.h"
 #include "../../Core/Manager/MAEditModeManager.h"
+#include "../../Core/Manager/MASceneGraphManager.h"
+#include "Kismet/GameplayStatics.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMASceneListWidget, Log, All);
 
@@ -190,13 +192,6 @@ void UMASceneListWidget::BuildUI()
 void UMASceneListWidget::SetEditModeManager(UMAEditModeManager* InManager)
 {
     EditModeManager = InManager;
-    
-    // 绑定场景图变化事件
-    if (EditModeManager)
-    {
-        EditModeManager->OnTempSceneGraphChanged.AddDynamic(this, &UMASceneListWidget::RefreshLists);
-    }
-    
     RefreshLists();
 }
 
@@ -210,8 +205,17 @@ void UMASceneListWidget::RefreshLists()
 
 void UMASceneListWidget::PopulateGoalList()
 {
-    if (!GoalListBox || !EditModeManager)
+    if (!GoalListBox)
     {
+        return;
+    }
+
+    // 获取 SceneGraphManager
+    UGameInstance* GI = UGameplayStatics::GetGameInstance(GetWorld());
+    UMASceneGraphManager* SceneGraphManager = GI ? GI->GetSubsystem<UMASceneGraphManager>() : nullptr;
+    if (!SceneGraphManager)
+    {
+        UE_LOG(LogMASceneListWidget, Warning, TEXT("PopulateGoalList: SceneGraphManager not found"));
         return;
     }
 
@@ -220,30 +224,30 @@ void UMASceneListWidget::PopulateGoalList()
     GoalButtons.Empty();
     GoalIds.Empty();
 
-    // 获取所有 Goal Node ID
-    TArray<FString> AllGoalIds = EditModeManager->GetAllGoalNodeIds();
+    // 获取所有 Goal 节点
+    TArray<FMASceneGraphNode> AllGoals = SceneGraphManager->GetAllGoals();
 
     // 更新计数
     if (GoalCountText)
     {
-        GoalCountText->SetText(FText::FromString(FString::Printf(TEXT("(%d)"), AllGoalIds.Num())));
+        GoalCountText->SetText(FText::FromString(FString::Printf(TEXT("(%d)"), AllGoals.Num())));
     }
 
     // 为每个 Goal 创建按钮
-    for (const FString& GoalId : AllGoalIds)
+    for (const FMASceneGraphNode& GoalNode : AllGoals)
     {
-        FString Label = EditModeManager->GetNodeLabel(GoalId);
+        FString Label = GoalNode.Label;
         if (Label.IsEmpty())
         {
-            Label = GoalId;
+            Label = GoalNode.Id;
         }
 
-        UButton* GoalButton = CreateListItemButton(Label, GoalId, true);
+        UButton* GoalButton = CreateListItemButton(Label, GoalNode.Id, true);
         if (GoalButton)
         {
             GoalButton->OnClicked.AddDynamic(this, &UMASceneListWidget::OnGoalButtonClicked);
             GoalButtons.Add(GoalButton);
-            GoalIds.Add(GoalId);
+            GoalIds.Add(GoalNode.Id);
 
             UVerticalBoxSlot* ButtonSlot = GoalListBox->AddChildToVerticalBox(GoalButton);
             ButtonSlot->SetPadding(FMargin(0, 2, 0, 2));
@@ -251,7 +255,7 @@ void UMASceneListWidget::PopulateGoalList()
     }
 
     // 如果没有 Goal，显示提示
-    if (AllGoalIds.Num() == 0)
+    if (AllGoals.Num() == 0)
     {
         UTextBlock* EmptyText = NewObject<UTextBlock>(this);
         EmptyText->SetText(FText::FromString(TEXT("  (No Goals)")));
@@ -262,13 +266,22 @@ void UMASceneListWidget::PopulateGoalList()
         GoalListBox->AddChildToVerticalBox(EmptyText);
     }
 
-    UE_LOG(LogMASceneListWidget, Log, TEXT("PopulateGoalList: Added %d goals"), AllGoalIds.Num());
+    UE_LOG(LogMASceneListWidget, Log, TEXT("PopulateGoalList: Added %d goals"), AllGoals.Num());
 }
 
 void UMASceneListWidget::PopulateZoneList()
 {
-    if (!ZoneListBox || !EditModeManager)
+    if (!ZoneListBox)
     {
+        return;
+    }
+
+    // 获取 SceneGraphManager
+    UGameInstance* GI = UGameplayStatics::GetGameInstance(GetWorld());
+    UMASceneGraphManager* SceneGraphManager = GI ? GI->GetSubsystem<UMASceneGraphManager>() : nullptr;
+    if (!SceneGraphManager)
+    {
+        UE_LOG(LogMASceneListWidget, Warning, TEXT("PopulateZoneList: SceneGraphManager not found"));
         return;
     }
 
@@ -277,30 +290,30 @@ void UMASceneListWidget::PopulateZoneList()
     ZoneButtons.Empty();
     ZoneIds.Empty();
 
-    // 获取所有 Zone Node ID
-    TArray<FString> AllZoneIds = EditModeManager->GetAllZoneNodeIds();
+    // 获取所有 Zone 节点
+    TArray<FMASceneGraphNode> AllZones = SceneGraphManager->GetAllZones();
 
     // 更新计数
     if (ZoneCountText)
     {
-        ZoneCountText->SetText(FText::FromString(FString::Printf(TEXT("(%d)"), AllZoneIds.Num())));
+        ZoneCountText->SetText(FText::FromString(FString::Printf(TEXT("(%d)"), AllZones.Num())));
     }
 
     // 为每个 Zone 创建按钮
-    for (const FString& ZoneId : AllZoneIds)
+    for (const FMASceneGraphNode& ZoneNode : AllZones)
     {
-        FString Label = EditModeManager->GetNodeLabel(ZoneId);
+        FString Label = ZoneNode.Label;
         if (Label.IsEmpty())
         {
-            Label = ZoneId;
+            Label = ZoneNode.Id;
         }
 
-        UButton* ZoneButton = CreateListItemButton(Label, ZoneId, false);
+        UButton* ZoneButton = CreateListItemButton(Label, ZoneNode.Id, false);
         if (ZoneButton)
         {
             ZoneButton->OnClicked.AddDynamic(this, &UMASceneListWidget::OnZoneButtonClicked);
             ZoneButtons.Add(ZoneButton);
-            ZoneIds.Add(ZoneId);
+            ZoneIds.Add(ZoneNode.Id);
 
             UVerticalBoxSlot* ButtonSlot = ZoneListBox->AddChildToVerticalBox(ZoneButton);
             ButtonSlot->SetPadding(FMargin(0, 2, 0, 2));
@@ -308,7 +321,7 @@ void UMASceneListWidget::PopulateZoneList()
     }
 
     // 如果没有 Zone，显示提示
-    if (AllZoneIds.Num() == 0)
+    if (AllZones.Num() == 0)
     {
         UTextBlock* EmptyText = NewObject<UTextBlock>(this);
         EmptyText->SetText(FText::FromString(TEXT("  (No Zones)")));
@@ -319,7 +332,7 @@ void UMASceneListWidget::PopulateZoneList()
         ZoneListBox->AddChildToVerticalBox(EmptyText);
     }
 
-    UE_LOG(LogMASceneListWidget, Log, TEXT("PopulateZoneList: Added %d zones"), AllZoneIds.Num());
+    UE_LOG(LogMASceneListWidget, Log, TEXT("PopulateZoneList: Added %d zones"), AllZones.Num());
 }
 
 UButton* UMASceneListWidget::CreateListItemButton(const FString& Label, const FString& Id, bool bIsGoal)

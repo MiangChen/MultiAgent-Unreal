@@ -699,7 +699,6 @@ void UMASkillAllocationViewer::SetJsonText(const FString& JsonText)
 
 bool UMASkillAllocationViewer::LoadMockData()
 {
-    // 已废弃: 不再从 datasets/skill_allocation_example.json 读取
     // 请使用 TempDataManager 从 skill_allocation_temp.json 读取数据
     AppendStatusLog(TEXT("[Warning] LoadMockData is deprecated. Use TempDataManager instead."));
     UE_LOG(LogMASkillAllocationViewer, Warning, TEXT("LoadMockData is deprecated. Data should be loaded from skill_allocation_temp.json via TempDataManager."));

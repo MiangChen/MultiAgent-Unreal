@@ -91,6 +91,33 @@ public:
      */
     static TArray<FMASceneGraphNode> GetAllChargingStations(const TArray<FMASceneGraphNode>& AllNodes);
 
+    /**
+     * 获取所有 Goal 节点
+     * 
+     * @param AllNodes 所有节点数组
+     * @return Goal 节点数组
+     */
+    static TArray<FMASceneGraphNode> GetAllGoals(const TArray<FMASceneGraphNode>& AllNodes);
+
+    /**
+     * 获取所有 Zone 节点
+     * 
+     * @param AllNodes 所有节点数组
+     * @return Zone 节点数组
+     */
+    static TArray<FMASceneGraphNode> GetAllZones(const TArray<FMASceneGraphNode>& AllNodes);
+
+    /**
+     * 根据节点 ID 获取节点
+     * 
+     * @param AllNodes 所有节点数组
+     * @param NodeId 节点 ID
+     * @return 节点，如果未找到则返回无效节点
+     */
+    static FMASceneGraphNode GetNodeById(
+        const TArray<FMASceneGraphNode>& AllNodes,
+        const FString& NodeId);
+
     //=========================================================================
     // 语义查询
     //=========================================================================

@@ -48,6 +48,16 @@ FString UMAConfigManager::GetDatasetFilePath(const FString& RelativePath)
     return GetConfigRootPath() / TEXT("datasets") / RelativePath;
 }
 
+FString UMAConfigManager::GetSceneGraphFilePath() const
+{
+    if (SceneGraphPath.IsEmpty())
+    {
+        UE_LOG(LogMAConfig, Warning, TEXT("GetSceneGraphFilePath: SceneGraphPath not configured, using default"));
+        return FPaths::ProjectDir() / TEXT("datasets/scene_graph_cyberworld.json");
+    }
+    return FPaths::ProjectDir() / SceneGraphPath;
+}
+
 //=============================================================================
 // 配置加载
 //=============================================================================
@@ -67,7 +77,10 @@ bool UMAConfigManager::LoadAllConfigs()
         UE_LOG(LogMAConfig, Log, TEXT("All configs loaded successfully"));
         UE_LOG(LogMAConfig, Log, TEXT("  bUseSetupUI: %s"), bUseSetupUI ? TEXT("true") : TEXT("false"));
         UE_LOG(LogMAConfig, Log, TEXT("  bUseStateTree: %s"), bUseStateTree ? TEXT("true") : TEXT("false"));
+        UE_LOG(LogMAConfig, Log, TEXT("  bEnableEnergyDrain: %s"), bEnableEnergyDrain ? TEXT("true") : TEXT("false"));
         UE_LOG(LogMAConfig, Log, TEXT("  DefaultMapPath: %s"), *DefaultMapPath);
+        UE_LOG(LogMAConfig, Log, TEXT("  SceneGraphPath: %s"), *SceneGraphPath);
+        UE_LOG(LogMAConfig, Log, TEXT("  RunMode: %s"), RunMode == EMARunMode::Modify ? TEXT("Modify") : TEXT("Edit"));
         UE_LOG(LogMAConfig, Log, TEXT("  PlannerServerURL: %s"), *PlannerServerURL);
         UE_LOG(LogMAConfig, Log, TEXT("  bUseMockData: %s"), bUseMockData ? TEXT("true") : TEXT("false"));
         UE_LOG(LogMAConfig, Log, TEXT("  bEnablePolling: %s"), bEnablePolling ? TEXT("true") : TEXT("false"));
@@ -122,6 +135,32 @@ bool UMAConfigManager::LoadSimulationConfig()
         (*SimObj)->TryGetBoolField(TEXT("use_state_tree"), bUseStateTree);
         (*SimObj)->TryGetBoolField(TEXT("enable_energy_drain"), bEnableEnergyDrain);
         (*SimObj)->TryGetStringField(TEXT("default_map"), DefaultMapPath);
+        (*SimObj)->TryGetStringField(TEXT("scene_graph_path"), SceneGraphPath);
+        
+        // 解析 run_mode 字段
+        FString RunModeStr;
+        if ((*SimObj)->TryGetStringField(TEXT("run_mode"), RunModeStr))
+        {
+            if (RunModeStr.Equals(TEXT("modify"), ESearchCase::IgnoreCase))
+            {
+                RunMode = EMARunMode::Modify;
+            }
+            else if (RunModeStr.Equals(TEXT("edit"), ESearchCase::IgnoreCase))
+            {
+                RunMode = EMARunMode::Edit;
+            }
+            else
+            {
+                // 无效值，使用默认 Edit 模式
+                UE_LOG(LogMAConfig, Warning, TEXT("Invalid run_mode value '%s', defaulting to 'edit'"), *RunModeStr);
+                RunMode = EMARunMode::Edit;
+            }
+        }
+        else
+        {
+            // 缺失时默认使用 Edit 模式
+            RunMode = EMARunMode::Edit;
+        }
     }
     
     // 解析 server 部分

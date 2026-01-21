@@ -129,7 +129,7 @@ public:
 
     /**
      * 获取下一个可用的节点 ID
-     * 读取 scene_graph_cyberworld.json，找到最大 ID 并返回 +1
+     * 从配置管理器获取场景图路径，找到最大 ID 并返回 +1
      * @return 下一个可用的 ID 字符串
      */
     UFUNCTION(BlueprintCallable, Category = "UI|ID")

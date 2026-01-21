@@ -1,5 +1,10 @@
 // MASceneGraphManager.h
 // 场景图管理器 - 负责场景标签数据的解析、验证和持久化
+//
+// 重构后的架构:
+// - 单一数据源: WorkingCopy 是场景图数据的唯一内存副本
+// - 模式感知保存: 只有 Modify 模式才会将修改持久化到源文件
+// - 统一图操作: AddNode/DeleteNode/EditNode 是所有图操作的统一入口
 
 #pragma once
 
@@ -7,6 +12,7 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Dom/JsonObject.h"
 #include "MASceneGraphTypes.h"
+#include "../Config/MAConfigManager.h"
 #include "MASceneGraphManager.generated.h"
 
 /**
@@ -230,17 +236,6 @@ public:
     bool IsIdExists(const FString& Id) const;
 
     /**
-     * 添加多选节点 (Polygon/LineString)
-     * 
-     * @param JsonString 生成的 JSON 字符串 (包含 id, Guid[], properties, shape 等)
-     * @param OutErrorMessage 错误信息
-     * @return 添加是否成功
-     * 
-     */
-    UFUNCTION(BlueprintCallable, Category = "SceneGraph")
-    bool AddMultiSelectNode(const FString& JsonString, FString& OutErrorMessage);
-
-    /**
      * 生成标签
      * 
      * @param Type 节点类型
@@ -277,6 +272,81 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "SceneGraph")
     TArray<FMASceneGraphNode> GetAllNodes() const;
+
+    //=========================================================================
+    // 统一图操作 API (重构后的核心入口)
+    //=========================================================================
+
+    /**
+     * 添加节点到 Working Copy
+     * 
+     * @param NodeJson 节点 JSON 字符串
+     * @param OutError 错误信息
+     * @return 是否成功
+     */
+    UFUNCTION(BlueprintCallable, Category = "SceneGraph")
+    bool AddNode(const FString& NodeJson, FString& OutError);
+
+    /**
+     * 从 Working Copy 删除节点
+     * 
+     * @param NodeId 节点 ID
+     * @param OutError 错误信息
+     * @return 是否成功
+     */
+    UFUNCTION(BlueprintCallable, Category = "SceneGraph")
+    bool DeleteNode(const FString& NodeId, FString& OutError);
+
+    /**
+     * 编辑 Working Copy 中的节点
+     * 
+     * @param NodeId 节点 ID
+     * @param NewNodeJson 新的节点 JSON
+     * @param OutError 错误信息
+     * @return 是否成功
+     */
+    UFUNCTION(BlueprintCallable, Category = "SceneGraph")
+    bool EditNode(const FString& NodeId, const FString& NewNodeJson, FString& OutError);
+
+    /**
+     * 保存 Working Copy 到源文件
+     * 仅在 Modify 模式下生效，Edit 模式下返回 false 并记录警告
+     * 
+     * @return 是否成功保存
+     */
+    UFUNCTION(BlueprintCallable, Category = "SceneGraph")
+    bool SaveToSource();
+
+    /**
+     * 将节点标记为 Goal
+     * 在节点的 properties 中添加 is_goal: true
+     * 
+     * @param NodeId 节点 ID
+     * @param OutError 错误信息
+     * @return 是否成功
+     */
+    UFUNCTION(BlueprintCallable, Category = "SceneGraph")
+    bool SetNodeAsGoal(const FString& NodeId, FString& OutError);
+
+    /**
+     * 取消节点的 Goal 标记
+     * 从节点的 properties 中移除 is_goal 字段
+     * 
+     * @param NodeId 节点 ID
+     * @param OutError 错误信息
+     * @return 是否成功
+     */
+    UFUNCTION(BlueprintCallable, Category = "SceneGraph")
+    bool UnsetNodeAsGoal(const FString& NodeId, FString& OutError);
+
+    /**
+     * 检查节点是否被标记为 Goal
+     * 
+     * @param NodeId 节点 ID
+     * @return 是否为 Goal
+     */
+    UFUNCTION(BlueprintPure, Category = "SceneGraph")
+    bool IsNodeGoal(const FString& NodeId) const;
 
     //=========================================================================
     // 分类查询接口 (委托给 MASceneGraphQuery)
@@ -330,6 +400,28 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "SceneGraph|Query")
     TArray<FMASceneGraphNode> GetAllChargingStations() const;
+
+    /**
+     * 获取所有 Goal 节点
+     * @return Goal 节点数组
+     */
+    UFUNCTION(BlueprintCallable, Category = "SceneGraph|Query")
+    TArray<FMASceneGraphNode> GetAllGoals() const;
+
+    /**
+     * 获取所有 Zone 节点
+     * @return Zone 节点数组
+     */
+    UFUNCTION(BlueprintCallable, Category = "SceneGraph|Query")
+    TArray<FMASceneGraphNode> GetAllZones() const;
+
+    /**
+     * 根据节点 ID 获取节点
+     * @param NodeId 节点 ID
+     * @return 节点，如果未找到则返回无效节点
+     */
+    UFUNCTION(BlueprintCallable, Category = "SceneGraph|Query")
+    FMASceneGraphNode GetNodeById(const FString& NodeId) const;
 
     //=========================================================================
     // 语义查询接口 (委托给 MASceneGraphQuery)
@@ -532,15 +624,39 @@ private:
     FMASceneGraphNode* FindDynamicNodeById(const FString& NodeId);
 
     //=========================================================================
+    // 统一图操作内部方法
+    //=========================================================================
+
+    /**
+     * 初始化 Working Copy
+     * 从源文件加载数据到 WorkingCopy
+     * @return 是否成功
+     */
+    bool InitializeWorkingCopy();
+
+    /**
+     * 发送场景变更消息 (仅 Edit 模式)
+     * @param ChangeType 变更类型: "add_node", "delete_node", "edit_node"
+     * @param NodeJson 节点数据 JSON 字符串
+     */
+    void NotifySceneChange(const FString& ChangeType, const FString& NodeJson);
+
+    //=========================================================================
     // 内部状态
     //=========================================================================
 
-    /** 内存中的场景图数据 (原始 JSON) */
-    TSharedPtr<FJsonObject> SceneGraphData;
+    /** Working Copy - 内存中的场景图数据 (原始 JSON) */
+    TSharedPtr<FJsonObject> WorkingCopy;
 
     /** 静态节点 (从 JSON 加载) */
     TArray<FMASceneGraphNode> StaticNodes;
 
     /** 动态节点 (运行时创建) */
     TArray<FMASceneGraphNode> DynamicNodes;
+
+    /** 源文件路径 */
+    FString SourceFilePath;
+
+    /** 缓存的运行模式 */
+    EMARunMode CachedRunMode;
 };

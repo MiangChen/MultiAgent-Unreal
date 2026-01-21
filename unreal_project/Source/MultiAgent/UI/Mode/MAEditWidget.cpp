@@ -532,8 +532,6 @@ void UMAEditWidget::BuildUI()
     UVerticalBoxSlot* PresetSlot = POIOperationBox->AddChildToVerticalBox(PresetActorBox);
     PresetSlot->SetPadding(FMargin(0, 0, 0, 0));
 
-    // 注意: 临时场景图预览已移除，临时场景图数据保存在 datasets/scene_graph_cyberworld_temp.json
-
     UE_LOG(LogMAEditWidget, Log, TEXT("BuildUI: UI construction completed successfully"));
 }
 
@@ -659,49 +657,59 @@ void UMAEditWidget::SetSelectedActor(AActor* Actor)
             return Node;
         };
 
-        // 对于 Goal/Zone Actor，从 MAEditModeManager 的临时场景图中查找
-        if (bIsGoalOrZone && EditModeManager && !SearchId.IsEmpty())
+        // 对于 Goal/Zone Actor，从 SceneGraphManager 中查找
+        if (bIsGoalOrZone && !SearchId.IsEmpty())
         {
-            FString NodeJsonStr = EditModeManager->GetNodeJsonById(SearchId);
-            if (!NodeJsonStr.IsEmpty())
+            // 获取 SceneGraphManager
+            UGameInstance* GI = UGameplayStatics::GetGameInstance(GetWorld());
+            UMASceneGraphManager* SceneGraphManager = GI ? GI->GetSubsystem<UMASceneGraphManager>() : nullptr;
+            
+            if (SceneGraphManager)
             {
-                FMASceneGraphNode Node = ParseNodeFromJson(NodeJsonStr, SearchId);
-                if (!Node.Id.IsEmpty())
+                FMASceneGraphNode Node = SceneGraphManager->GetNodeById(SearchId);
+                if (Node.IsValid())
                 {
                     ActorNodes.Add(Node);
-                    UE_LOG(LogMAEditWidget, Log, TEXT("SetSelectedActor: Found Goal/Zone node by ID from temp scene graph: %s"), *Node.Id);
+                    UE_LOG(LogMAEditWidget, Log, TEXT("SetSelectedActor: Found Goal/Zone node by ID: %s"), *Node.Id);
+                }
+                else
+                {
+                    UE_LOG(LogMAEditWidget, Warning, TEXT("SetSelectedActor: Goal/Zone node not found: %s"), *SearchId);
+                }
+            }
+        }
+        // 对于普通 Actor，从 SceneGraphManager 中通过 GUID 查找
+        else if (!SearchId.IsEmpty())
+        {
+            // 获取 SceneGraphManager
+            UGameInstance* GI = UGameplayStatics::GetGameInstance(GetWorld());
+            UE_LOG(LogMAEditWidget, Log, TEXT("SetSelectedActor: GameInstance=%s"), GI ? TEXT("Valid") : TEXT("NULL"));
+            
+            UMASceneGraphManager* SceneGraphManager = GI ? GI->GetSubsystem<UMASceneGraphManager>() : nullptr;
+            UE_LOG(LogMAEditWidget, Log, TEXT("SetSelectedActor: SceneGraphManager=%s"), SceneGraphManager ? TEXT("Valid") : TEXT("NULL"));
+            
+            if (SceneGraphManager)
+            {
+                // 通过 GUID 从场景图查找 Node
+                FString ActorGuid = Actor->GetActorGuid().ToString();
+                UE_LOG(LogMAEditWidget, Log, TEXT("SetSelectedActor: Calling FindNodesByGuid with GUID=%s"), *ActorGuid);
+                TArray<FMASceneGraphNode> MatchingNodes = SceneGraphManager->FindNodesByGuid(ActorGuid);
+
+                // 添加所有找到的节点
+                for (const FMASceneGraphNode& Node : MatchingNodes)
+                {
+                    ActorNodes.Add(Node);
+                    UE_LOG(LogMAEditWidget, Log, TEXT("SetSelectedActor: Found node %s from scene graph"), *Node.Id);
+                }
+
+                if (MatchingNodes.Num() == 0)
+                {
+                    UE_LOG(LogMAEditWidget, Warning, TEXT("SetSelectedActor: No nodes found in scene graph for GUID %s"), *ActorGuid);
                 }
             }
             else
             {
-                UE_LOG(LogMAEditWidget, Warning, TEXT("SetSelectedActor: Goal/Zone node not found in temp scene graph: %s"), *SearchId);
-            }
-        }
-        // 对于普通 Actor，从 MAEditModeManager 的临时场景图中通过 GUID 查找
-        else if (EditModeManager && !SearchId.IsEmpty())
-        {
-            // 通过 GUID 从临时场景图查找 Node ID
-            FString ActorGuid = Actor->GetActorGuid().ToString();
-            TArray<FString> NodeIds = EditModeManager->FindNodeIdsByGuid(ActorGuid);
-
-            // 对于每个找到的 Node ID，获取完整的 Node 数据
-            for (const FString& NodeId : NodeIds)
-            {
-                FString NodeJsonStr = EditModeManager->GetNodeJsonById(NodeId);
-                if (!NodeJsonStr.IsEmpty())
-                {
-                    FMASceneGraphNode Node = ParseNodeFromJson(NodeJsonStr, NodeId);
-                    if (!Node.Id.IsEmpty())
-                    {
-                        ActorNodes.Add(Node);
-                        UE_LOG(LogMAEditWidget, Log, TEXT("SetSelectedActor: Found node %s from temp scene graph"), *Node.Id);
-                    }
-                }
-            }
-
-            if (NodeIds.Num() == 0)
-            {
-                UE_LOG(LogMAEditWidget, Warning, TEXT("SetSelectedActor: No nodes found in temp scene graph for GUID %s"), *ActorGuid);
+                UE_LOG(LogMAEditWidget, Error, TEXT("SetSelectedActor: SceneGraphManager is NULL, cannot search for nodes"));
             }
         }
     }
@@ -824,7 +832,6 @@ void UMAEditWidget::ClearSelection()
 void UMAEditWidget::RefreshSceneGraphPreview()
 {
     // 临时场景图预览 UI 已移除
-    // 数据会自动同步到 datasets/scene_graph_cyberworld_temp.json
     UE_LOG(LogMAEditWidget, Log, TEXT("RefreshSceneGraphPreview: Scene graph data synced to temp file"));
 }
 

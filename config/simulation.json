@@ -2,10 +2,12 @@
     "simulation": {
         "name": "MultiAgent Simulation",
         "version": "1.0",
+        "run_mode": "modify",
         "use_setup_ui": false,
         "use_state_tree": false,
         "enable_energy_drain": false,
-        "default_map": "/Game/Map/Downtown/Maps/Demo"
+        "default_map": "/Game/Map/LS_Scifi_ModernCity/Maps/Scifi_ModernCity",
+        "scene_graph_path": "datasets/LS_Scifi_ModernCity/scene_graph.json"
     },
     "server": {
         "planner_url": "http://localhost:8081",

@@ -1,8 +1,9 @@
 // MAEditModeManager.h
-// Edit Mode 管理器 - 负责临时场景图的生命周期和所有编辑操作
+// Edit Mode 管理器 - 负责 POI 管理、选择管理、Goal/Zone Actor 可视化管理
 // 
-// Edit Mode 用于模拟任务执行过程中发生的"新情况"（动态变化）
-// 与 Modify Mode（持久化修改源场景图文件）不同，Edit Mode 的所有操作仅针对临时场景图文件进行
+// 重构后的架构:
+// - 图操作 (AddNode/DeleteNode/EditNode) 委托给 MASceneGraphManager
+// - 本类专注于 UI 交互和视觉反馈
 //
 
 #pragma once
@@ -16,6 +17,7 @@
 class AMAPointOfInterest;
 class AMAZoneActor;
 class AMAGoalActor;
+class UMASceneGraphManager;
 
 // 日志类别
 DECLARE_LOG_CATEGORY_EXTERN(LogMAEditMode, Log, All);
@@ -27,20 +29,16 @@ DECLARE_LOG_CATEGORY_EXTERN(LogMAEditMode, Log, All);
 /** 选择变化委托 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnEditModeSelectionChanged);
 
-/** 临时场景图变化委托 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnTempSceneGraphChanged);
-
 /**
  * Edit Mode 管理器
  * 
  * 职责:
- * - 临时场景图文件的创建、加载、保存和删除
  * - POI (Point of Interest) 的创建和管理
  * - 对象选择管理 (Actor 单选、POI 多选、互斥选择)
- * - Node 操作 (添加、删除、修改)
- * - Zone/Goal Actor 可视化管理
- * - 后端通信 (场景变化通知)
+ * - Goal/Zone Actor 可视化管理
+ * - Goal/Zone 创建 (委托给 MASceneGraphManager)
  * 
+ * 注意: 图操作 (AddNode/DeleteNode/EditNode) 已移至 MASceneGraphManager
  */
 UCLASS()
 class MULTIAGENT_API UMAEditModeManager : public UWorldSubsystem
@@ -54,48 +52,6 @@ public:
     
     virtual void Initialize(FSubsystemCollectionBase& Collection) override;
     virtual void Deinitialize() override;
-
-    //=========================================================================
-    // 临时场景图管理
-    //=========================================================================
-    
-    /**
-     * 创建临时场景图 (从源文件复制)
-     * 
-     * @return 创建是否成功
-     */
-    UFUNCTION(BlueprintCallable, Category = "EditMode")
-    bool CreateTempSceneGraph();
-    
-    /**
-     * 删除临时场景图
-     */
-    UFUNCTION(BlueprintCallable, Category = "EditMode")
-    void DeleteTempSceneGraph();
-    
-    /**
-     * 获取临时场景图文件路径
-     * 
-     * @return 临时文件路径
-     */
-    UFUNCTION(BlueprintPure, Category = "EditMode")
-    FString GetTempSceneGraphPath() const;
-    
-    /**
-     * 检查 Edit Mode 是否可用
-     * 
-     * @return Edit Mode 是否可用
-     */
-    UFUNCTION(BlueprintPure, Category = "EditMode")
-    bool IsEditModeAvailable() const { return bEditModeAvailable; }
-
-    /**
-     * 获取临时场景图 JSON 内容
-     * 
-     * @return JSON 字符串
-     */
-    UFUNCTION(BlueprintPure, Category = "EditMode")
-    FString GetTempSceneGraphJson() const;
 
     //=========================================================================
     // POI 管理
@@ -198,83 +154,56 @@ public:
     UFUNCTION(BlueprintPure, Category = "EditMode|Selection")
     bool HasSelectedPOIs() const { return SelectedPOIs.Num() > 0; }
 
+    //=========================================================================
+    // Edit Mode 状态
+    //=========================================================================
+
+    /**
+     * 检查 Edit Mode 是否可用
+     * Edit Mode 需要源场景图文件存在才能使用
+     * 
+     * @return Edit Mode 是否可用
+     */
+    UFUNCTION(BlueprintPure, Category = "EditMode")
+    bool IsEditModeAvailable() const;
+
+    /**
+     * 根据 GUID 查找 Actor
+     * 
+     * @param Guid Actor 的 GUID 字符串
+     * @return 找到的 Actor，未找到返回 nullptr
+     */
+    UFUNCTION(BlueprintCallable, Category = "EditMode")
+    AActor* FindActorByGuid(const FString& Guid) const;
+
 
     //=========================================================================
-    // Node 操作 (将在后续任务中实现)
+    // Goal/Zone 创建 (委托给 MASceneGraphManager)
     //=========================================================================
-    
-    /**
-     * 添加 Node 到临时场景图
-     * 
-     * @param NodeJson Node 的 JSON 字符串
-     * @param OutError 错误信息
-     * @return 添加是否成功
-     */
-    UFUNCTION(BlueprintCallable, Category = "EditMode|Node")
-    bool AddNode(const FString& NodeJson, FString& OutError);
-    
-    /**
-     * 删除 Node
-     * 
-     * @param NodeId Node ID
-     * @param OutError 错误信息
-     * @return 删除是否成功
-     */
-    UFUNCTION(BlueprintCallable, Category = "EditMode|Node")
-    bool DeleteNode(const FString& NodeId, FString& OutError);
-    
-    /**
-     * 修改 Node
-     * 
-     * @param NodeId Node ID
-     * @param NewNodeJson 新的 Node JSON
-     * @param OutError 错误信息
-     * @return 修改是否成功
-     */
-    UFUNCTION(BlueprintCallable, Category = "EditMode|Node")
-    bool EditNode(const FString& NodeId, const FString& NewNodeJson, FString& OutError);
     
     /**
      * 创建 Goal Node
+     * 内部调用 MASceneGraphManager::AddNode()
      * 
      * @param Location 位置
      * @param Description 描述
      * @param OutError 错误信息
      * @return 创建是否成功
      */
-    UFUNCTION(BlueprintCallable, Category = "EditMode|Node")
+    UFUNCTION(BlueprintCallable, Category = "EditMode|Goal")
     bool CreateGoal(const FVector& Location, const FString& Description, FString& OutError);
     
     /**
      * 创建 Zone Node
+     * 内部调用 MASceneGraphManager::AddNode()
      * 
      * @param Vertices 顶点数组
      * @param Description 描述
      * @param OutError 错误信息
      * @return 创建是否成功
      */
-    UFUNCTION(BlueprintCallable, Category = "EditMode|Node")
+    UFUNCTION(BlueprintCallable, Category = "EditMode|Zone")
     bool CreateZone(const TArray<FVector>& Vertices, const FString& Description, FString& OutError);
-
-    //=========================================================================
-    // 后端通信
-    //=========================================================================
-    
-    /**
-     * 发送场景变化消息到后端规划器
-     * 
-     * @param ChangeType 变化类型字符串 (add_node, delete_node, edit_node, add_goal, add_zone 等)
-     * @param Payload 负载数据 (JSON 格式)
-     */
-    void SendSceneChangeMessage(const FString& ChangeType, const FString& Payload);
-    
-    /**
-     * 发送场景变化消息 (使用枚举类型)
-     * 
-     * @param ChangeType 变化类型枚举
-     * @param Payload 负载数据 (JSON 格式)
-     */
-    void SendSceneChangeMessageByType(EMASceneChangeType ChangeType, const FString& Payload);
 
     //=========================================================================
     // Zone/Goal Actor 管理
@@ -347,96 +276,6 @@ public:
     UFUNCTION(BlueprintPure, Category = "EditMode|Goal")
     AMAGoalActor* GetGoalActorByNodeId(const FString& NodeId) const;
 
-
-    //=========================================================================
-    // 设为 Goal 功能
-    //=========================================================================
-    
-    /**
-     * 将 Node 设为 Goal (添加 is_goal: true)
-     * 
-     * @param NodeId Node ID
-     * @param OutError 错误信息
-     * @return 是否成功
-     */
-    UFUNCTION(BlueprintCallable, Category = "EditMode|Goal")
-    bool SetNodeAsGoal(const FString& NodeId, FString& OutError);
-    
-    /**
-     * 取消 Node 的 Goal 状态 (移除 is_goal)
-     * 
-     * @param NodeId Node ID
-     * @param OutError 错误信息
-     * @return 是否成功
-     */
-    UFUNCTION(BlueprintCallable, Category = "EditMode|Goal")
-    bool UnsetNodeAsGoal(const FString& NodeId, FString& OutError);
-    
-    /**
-     * 检查 Node 是否为 Goal
-     * 
-     * @param NodeId Node ID
-     * @return 是否为 Goal
-     */
-    UFUNCTION(BlueprintPure, Category = "EditMode|Goal")
-    bool IsNodeGoal(const FString& NodeId) const;
-
-    //=========================================================================
-    // 列表查询
-    //=========================================================================
-    
-    /**
-     * 获取所有 Goal Node ID 列表
-     * 
-     * @return Goal Node ID 数组
-     */
-    UFUNCTION(BlueprintPure, Category = "EditMode|Query")
-    TArray<FString> GetAllGoalNodeIds() const;
-    
-    /**
-     * 获取所有 Zone Node ID 列表
-     * 
-     * @return Zone Node ID 数组
-     */
-    UFUNCTION(BlueprintPure, Category = "EditMode|Query")
-    TArray<FString> GetAllZoneNodeIds() const;
-    
-    /**
-     * 根据 Node ID 获取 Node 标签
-     * 
-     * @param NodeId Node ID
-     * @return Node 标签
-     */
-    UFUNCTION(BlueprintPure, Category = "EditMode|Query")
-    FString GetNodeLabel(const FString& NodeId) const;
-
-    /**
-     * 根据 GUID 查找场景中的 Actor
-     * 
-     * @param Guid Actor 的 GUID
-     * @return 找到的 Actor，未找到返回 nullptr
-     */
-    UFUNCTION(BlueprintPure, Category = "EditMode|Query")
-    AActor* FindActorByGuid(const FString& Guid) const;
-
-    /**
-     * 根据 Actor GUID 查找临时场景图中的 Node ID 列表
-     * 
-     * @param ActorGuid Actor 的 GUID
-     * @return 包含该 GUID 的 Node ID 数组
-     */
-    UFUNCTION(BlueprintPure, Category = "EditMode|Query")
-    TArray<FString> FindNodeIdsByGuid(const FString& ActorGuid) const;
-
-    /**
-     * 根据 ID 查找 Node JSON (公共接口)
-     * 
-     * @param NodeId Node ID
-     * @return Node JSON 字符串，未找到返回空字符串
-     */
-    UFUNCTION(BlueprintPure, Category = "EditMode|Query")
-    FString GetNodeJsonById(const FString& NodeId) const;
-
     //=========================================================================
     // 委托
     //=========================================================================
@@ -444,21 +283,11 @@ public:
     /** 选择变化委托 */
     UPROPERTY(BlueprintAssignable, Category = "Events")
     FOnEditModeSelectionChanged OnSelectionChanged;
-    
-    /** 临时场景图变化委托 */
-    UPROPERTY(BlueprintAssignable, Category = "Events")
-    FOnTempSceneGraphChanged OnTempSceneGraphChanged;
 
 private:
     //=========================================================================
     // 内部状态
     //=========================================================================
-    
-    /** 临时场景图文件路径 */
-    FString TempSceneGraphPath;
-    
-    /** 临时场景图数据 */
-    TSharedPtr<FJsonObject> TempSceneGraphData;
     
     /** POI 列表 */
     UPROPERTY()
@@ -471,12 +300,6 @@ private:
     /** 选中的 POI 列表 (多选) */
     UPROPERTY()
     TArray<AMAPointOfInterest*> SelectedPOIs;
-    
-    /** Edit Mode 是否可用 */
-    bool bEditModeAvailable = false;
-    
-    /** 下一个可用的 Node ID */
-    int32 NextNodeId = 1;
 
     /** Zone Actor 映射 (NodeId -> Actor) */
     UPROPERTY()
@@ -485,24 +308,20 @@ private:
     /** Goal Actor 映射 (NodeId -> Actor) */
     UPROPERTY()
     TMap<FString, AMAGoalActor*> GoalActors;
+    
+    /** 下一个可用的 Node ID (用于生成 Goal/Zone ID) */
+    int32 NextNodeId = 1;
 
     //=========================================================================
     // 内部方法
     //=========================================================================
     
     /**
-     * 加载临时场景图
+     * 获取 MASceneGraphManager 实例
      * 
-     * @return 加载是否成功
+     * @return MASceneGraphManager 指针，失败返回 nullptr
      */
-    bool LoadTempSceneGraph();
-    
-    /**
-     * 保存临时场景图
-     * 
-     * @return 保存是否成功
-     */
-    bool SaveTempSceneGraph();
+    UMASceneGraphManager* GetSceneGraphManager() const;
     
     /**
      * 生成下一个可用 ID
@@ -510,13 +329,6 @@ private:
      * @return 新的 ID 字符串
      */
     FString GenerateNextId();
-    
-    /**
-     * 获取源场景图文件路径
-     * 
-     * @return 源文件路径
-     */
-    FString GetSourceSceneGraphPath() const;
     
     /**
      * 设置 Actor 高亮状态
@@ -535,45 +347,6 @@ private:
      * 清除 POI 高亮
      */
     void ClearPOIHighlight();
-    
-    /**
-     * 检查 Node 是否为 point 类型
-     * 
-     * @param NodeObject Node JSON 对象
-     * @return 是否为 point 类型
-     */
-    bool IsPointTypeNode(const TSharedPtr<FJsonObject>& NodeObject) const;
-    
-    /**
-     * 根据 ID 查找 Node
-     * 
-     * @param NodeId Node ID
-     * @return Node JSON 对象，未找到返回 nullptr
-     */
-    TSharedPtr<FJsonObject> FindNodeByIdOrLabel(const FString& NodeId) const;
-    
-    /**
-     * 根据 ID 查找 Node 索引
-     * 
-     * @param NodeId Node ID
-     * @return Node 在数组中的索引，未找到返回 -1
-     */
-    int32 FindNodeIndexById(const FString& NodeId) const;
-    
-    /**
-     * 删除与指定 Node 相关的所有 Edge
-     * 
-     * @param NodeId Node ID
-     * @return 删除的 Edge 数量
-     */
-    int32 DeleteEdgesForNode(const FString& NodeId);
-    
-    /**
-     * 同步 Actor 位置到场景
-     * 
-     * @param NodeObject Node JSON 对象
-     */
-    void SyncActorPositionFromNode(const TSharedPtr<FJsonObject>& NodeObject);
     
     /**
      * 计算凸包

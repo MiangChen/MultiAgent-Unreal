@@ -67,7 +67,7 @@ else
     echo -e "${GREEN}✅ 克隆完成！${NC}"
     echo ""
     echo "Content 目录现在是一个 Git 仓库，可以："
-    echo "  - 运行此脚本更新: ./scripts/setup_hf_content.sh"
+    echo "  - 运行此脚本更新: ./dataset/scripts/setup_hf_content.sh"
     echo "  - 手动拉取: cd $CONTENT_DIR && git pull"
     echo "  - 查看历史: cd $CONTENT_DIR && git log"
 fi

@@ -13,6 +13,18 @@ struct FMASensorConfig;
 struct FMASpawnSettings;
 
 /**
+ * 运行模式枚举
+ * - Edit: 运行模式，修改只存在于内存中，不保存到文件
+ * - Modify: 标注模式，修改会保存到源文件
+ */
+UENUM(BlueprintType)
+enum class EMARunMode : uint8
+{
+    Edit    UMETA(DisplayName = "Edit"),      // 运行模式，不保存
+    Modify  UMETA(DisplayName = "Modify")     // 标注模式，保存到文件
+};
+
+/**
  * Agent 配置数据
  */
 USTRUCT(BlueprintType)
@@ -128,6 +140,30 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "Config|Simulation")
     FString DefaultMapPath;
 
+    /** 场景图文件相对路径 (相对于项目根目录) */
+    UPROPERTY(BlueprintReadOnly, Category = "Config|Simulation")
+    FString SceneGraphPath;
+
+    /** 运行模式: Edit (运行模式) 或 Modify (标注模式) */
+    UPROPERTY(BlueprintReadOnly, Category = "Config|Simulation")
+    EMARunMode RunMode = EMARunMode::Edit;
+
+    //=========================================================================
+    // 运行模式查询 API
+    //=========================================================================
+
+    /** 获取当前运行模式 */
+    UFUNCTION(BlueprintPure, Category = "Config")
+    EMARunMode GetRunMode() const { return RunMode; }
+
+    /** 是否为 Modify 模式 (标注模式，修改会保存到文件) */
+    UFUNCTION(BlueprintPure, Category = "Config")
+    bool IsModifyMode() const { return RunMode == EMARunMode::Modify; }
+
+    /** 是否为 Edit 模式 (运行模式，修改只存在于内存中) */
+    UFUNCTION(BlueprintPure, Category = "Config")
+    bool IsEditMode() const { return RunMode == EMARunMode::Edit; }
+
     //=========================================================================
     // Server 配置
     //=========================================================================
@@ -233,6 +269,10 @@ public:
     /** 获取数据集文件完整路径 */
     UFUNCTION(BlueprintPure, Category = "Config")
     static FString GetDatasetFilePath(const FString& RelativePath);
+
+    /** 获取场景图文件完整路径 (基于配置的SceneGraphPath) */
+    UFUNCTION(BlueprintPure, Category = "Config")
+    FString GetSceneGraphFilePath() const;
 
 private:
     bool bConfigLoaded = false;
