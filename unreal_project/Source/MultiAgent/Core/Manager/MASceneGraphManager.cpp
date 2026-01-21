@@ -6,12 +6,14 @@
 #include "scene_graph_tools/MASceneGraphQuery.h"
 #include "scene_graph_tools/MADynamicNodeManager.h"
 #include "../../Agent/Skill/Utils/MALocationUtils.h"
+#include "../Comm/MACommSubsystem.h"
 #include "GameFramework/Actor.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonWriter.h"
 #include "Serialization/JsonSerializer.h"
+#include "Kismet/GameplayStatics.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMASceneGraphManager, Log, All);
 
@@ -25,11 +27,39 @@ void UMASceneGraphManager::Initialize(FSubsystemCollectionBase& Collection)
 
     UE_LOG(LogMASceneGraphManager, Log, TEXT("MASceneGraphManager initializing"));
 
-    // 加载场景图数据 (原始 JSON)
-    if (!LoadSceneGraph())
+    // 从 MAConfigManager 获取 RunMode 并缓存
+    CachedRunMode = EMARunMode::Edit;  // 默认值
+    if (UGameInstance* GameInstance = GetGameInstance())
     {
-        UE_LOG(LogMASceneGraphManager, Warning, TEXT("Failed to load scene graph, creating empty structure"));
-        CreateEmptySceneGraph();
+        if (UMAConfigManager* ConfigManager = GameInstance->GetSubsystem<UMAConfigManager>())
+        {
+            CachedRunMode = ConfigManager->GetRunMode();
+            SourceFilePath = ConfigManager->GetSceneGraphFilePath();
+            UE_LOG(LogMASceneGraphManager, Log, TEXT("MASceneGraphManager: RunMode=%s, SourceFilePath=%s"),
+                CachedRunMode == EMARunMode::Modify ? TEXT("Modify") : TEXT("Edit"),
+                *SourceFilePath);
+        }
+        else
+        {
+            UE_LOG(LogMASceneGraphManager, Warning, TEXT("MASceneGraphManager: ConfigManager not available, using defaults"));
+        }
+    }
+
+    // 初始化 Working Copy
+    if (!InitializeWorkingCopy())
+    {
+        if (CachedRunMode == EMARunMode::Modify)
+        {
+            // Modify 模式: 创建空图
+            UE_LOG(LogMASceneGraphManager, Warning, TEXT("MASceneGraphManager: Source file not found in Modify mode, creating empty graph"));
+            CreateEmptySceneGraph();
+        }
+        else
+        {
+            // Edit 模式: 记录错误，创建空图
+            UE_LOG(LogMASceneGraphManager, Error, TEXT("MASceneGraphManager: Source file not found in Edit mode: %s"), *SourceFilePath);
+            CreateEmptySceneGraph();
+        }
     }
 
     // 使用 MASceneGraphIO 解析静态节点
@@ -52,9 +82,10 @@ void UMASceneGraphManager::Deinitialize()
     UE_LOG(LogMASceneGraphManager, Log, TEXT("MASceneGraphManager deinitializing"));
 
     // 清理内存数据
-    SceneGraphData.Reset();
+    WorkingCopy.Reset();
     StaticNodes.Empty();
     DynamicNodes.Empty();
+    SourceFilePath.Empty();
 
     Super::Deinitialize();
 }
@@ -147,7 +178,7 @@ FString UMASceneGraphManager::GenerateLabel(const FString& Type) const
 bool UMASceneGraphManager::IsIdExists(const FString& Id) const
 {
 
-    if (!SceneGraphData.IsValid())
+    if (!WorkingCopy.IsValid())
     {
         return false;
     }
@@ -182,7 +213,7 @@ bool UMASceneGraphManager::IsIdExists(const FString& Id) const
 int32 UMASceneGraphManager::GetTypeCount(const FString& Type) const
 {
 
-    if (!SceneGraphData.IsValid())
+    if (!WorkingCopy.IsValid())
     {
         return 0;
     }
@@ -226,30 +257,14 @@ int32 UMASceneGraphManager::GetTypeCount(const FString& Type) const
 bool UMASceneGraphManager::AddSceneNode(const FString& Id, const FString& Type, const FVector& WorldLocation,
                                          AActor* Actor, FString& OutLabel, FString& OutErrorMessage)
 {
-
+    // 重构: 委托给统一的 AddNode API + SaveToSource
     OutLabel.Empty();
     OutErrorMessage.Empty();
-    if (IsIdExists(Id))
-    {
-        OutErrorMessage = FString::Printf(TEXT("ID 已存在: %s，已忽略本次提交"), *Id);
-        UE_LOG(LogMASceneGraphManager, Warning, TEXT("AddSceneNode: %s"), *OutErrorMessage);
-        return false;
-    }
 
-    // 确保场景图数据有效
-    if (!SceneGraphData.IsValid())
-    {
-        CreateEmptySceneGraph();
-    }
-
-    // 获取或创建 nodes 数组
-    TArray<TSharedPtr<FJsonValue>>* NodesArray = GetNodesArray();
-    if (!NodesArray)
-    {
-        OutErrorMessage = TEXT("保存失败: 无法获取节点数组");
-        return false;
-    }
+    // 生成标签
     OutLabel = GenerateLabel(Type);
+
+    // 获取 Actor GUID
     FString GuidString;
     if (Actor != nullptr)
     {
@@ -261,13 +276,17 @@ bool UMASceneGraphManager::AddSceneNode(const FString& Id, const FString& Type, 
         GuidString = TEXT("");
         UE_LOG(LogMASceneGraphManager, Warning, TEXT("AddSceneNode: Actor is nullptr, GUID will be empty"));
     }
+
+    // 构建节点 JSON
     TSharedPtr<FJsonObject> NewNode = MakeShareable(new FJsonObject());
     NewNode->SetStringField(TEXT("id"), Id);
     NewNode->SetStringField(TEXT("guid"), GuidString);
+    
     TSharedPtr<FJsonObject> Properties = MakeShareable(new FJsonObject());
     Properties->SetStringField(TEXT("type"), Type);
     Properties->SetStringField(TEXT("label"), OutLabel);
     NewNode->SetObjectField(TEXT("properties"), Properties);
+    
     TSharedPtr<FJsonObject> Shape = MakeShareable(new FJsonObject());
     Shape->SetStringField(TEXT("type"), TEXT("point"));
     TArray<TSharedPtr<FJsonValue>> CenterArray;
@@ -275,16 +294,21 @@ bool UMASceneGraphManager::AddSceneNode(const FString& Id, const FString& Type, 
     CenterArray.Add(MakeShareable(new FJsonValueNumber(WorldLocation.Y)));
     CenterArray.Add(MakeShareable(new FJsonValueNumber(WorldLocation.Z)));
     Shape->SetArrayField(TEXT("center"), CenterArray);
-
     NewNode->SetObjectField(TEXT("shape"), Shape);
-    NodesArray->Add(MakeShareable(new FJsonValueObject(NewNode)));
-    if (!SaveSceneGraph())
+
+    // 序列化为 JSON 字符串
+    FString NodeJson;
+    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&NodeJson);
+    FJsonSerializer::Serialize(NewNode.ToSharedRef(), Writer);
+
+    // 调用统一的 AddNode API
+    if (!AddNode(NodeJson, OutErrorMessage))
     {
-        OutErrorMessage = TEXT("保存失败: 无法写入文件");
-        // 回滚：移除刚添加的节点
-        NodesArray->RemoveAt(NodesArray->Num() - 1);
         return false;
     }
+
+    // 保存到源文件 (仅 Modify 模式会实际保存)
+    SaveToSource();
 
     UE_LOG(LogMASceneGraphManager, Log, TEXT("AddSceneNode: id=%s, guid=%s, type=%s, label=%s, location=(%f, %f, %f)"),
         *Id, *GuidString, *Type, *OutLabel, WorldLocation.X, WorldLocation.Y, WorldLocation.Z);
@@ -292,83 +316,6 @@ bool UMASceneGraphManager::AddSceneNode(const FString& Id, const FString& Type, 
     return true;
 }
 
-bool UMASceneGraphManager::AddMultiSelectNode(const FString& JsonString, FString& OutErrorMessage)
-{
-    // 添加多选节点 (Polygon/LineString/Prism/Point)
-
-    OutErrorMessage.Empty();
-
-    if (JsonString.IsEmpty())
-    {
-        OutErrorMessage = TEXT("JSON 字符串为空");
-        UE_LOG(LogMASceneGraphManager, Error, TEXT("AddMultiSelectNode: JSON string is empty"));
-        return false;
-    }
-
-    // 解析 JSON 字符串
-    TSharedPtr<FJsonObject> NodeObject;
-    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
-    if (!FJsonSerializer::Deserialize(Reader, NodeObject) || !NodeObject.IsValid())
-    {
-        OutErrorMessage = TEXT("JSON 解析失败");
-        UE_LOG(LogMASceneGraphManager, Error, TEXT("AddMultiSelectNode: Failed to parse JSON: %s"), *JsonString);
-        return false;
-    }
-
-    // 提取 ID 用于重复检查
-    FString NodeId;
-    if (!NodeObject->TryGetStringField(TEXT("id"), NodeId))
-    {
-        OutErrorMessage = TEXT("JSON 缺少 id 字段");
-        UE_LOG(LogMASceneGraphManager, Error, TEXT("AddMultiSelectNode: JSON missing 'id' field"));
-        return false;
-    }
-
-    // 检查 ID 是否已存在
-    if (IsIdExists(NodeId))
-    {
-        OutErrorMessage = FString::Printf(TEXT("ID 已存在: %s"), *NodeId);
-        UE_LOG(LogMASceneGraphManager, Warning, TEXT("AddMultiSelectNode: %s"), *OutErrorMessage);
-        return false;
-    }
-    if (!ValidateNodeJsonStructure(NodeObject, OutErrorMessage))
-    {
-        UE_LOG(LogMASceneGraphManager, Error, TEXT("AddMultiSelectNode: JSON validation failed for node id=%s: %s"), *NodeId, *OutErrorMessage);
-        // 验证失败，不修改文件，直接返回
-        return false;
-    }
-
-    // 确保场景图数据有效
-    if (!SceneGraphData.IsValid())
-    {
-        CreateEmptySceneGraph();
-    }
-
-    // 获取 nodes 数组
-    TArray<TSharedPtr<FJsonValue>>* NodesArray = GetNodesArray();
-    if (!NodesArray)
-    {
-        OutErrorMessage = TEXT("保存失败: 无法获取节点数组");
-        UE_LOG(LogMASceneGraphManager, Error, TEXT("AddMultiSelectNode: Failed to get nodes array"));
-        return false;
-    }
-
-    // 追加到 nodes 数组
-    NodesArray->Add(MakeShareable(new FJsonValueObject(NodeObject)));
-
-    // 保存到文件
-    if (!SaveSceneGraph())
-    {
-        OutErrorMessage = TEXT("保存失败: 无法写入文件");
-        UE_LOG(LogMASceneGraphManager, Error, TEXT("AddMultiSelectNode: Failed to save scene graph"));
-        // 回滚：移除刚添加的节点
-        NodesArray->RemoveAt(NodesArray->Num() - 1);
-        return false;
-    }
-
-    UE_LOG(LogMASceneGraphManager, Log, TEXT("AddMultiSelectNode: Successfully added node with id=%s"), *NodeId);
-    return true;
-}
 
 
 //=============================================================================
@@ -603,35 +550,40 @@ FString UMASceneGraphManager::BuildWorldStateJson(const FString& CategoryFilter,
 
 FString UMASceneGraphManager::GetSceneGraphFilePath() const
 {
-    return FMASceneGraphIO::GetSceneGraphFilePath();
+    // 优先使用缓存的 SourceFilePath
+    if (!SourceFilePath.IsEmpty())
+    {
+        return SourceFilePath;
+    }
+    return FMASceneGraphIO::GetSceneGraphFilePath(this);
 }
 
 bool UMASceneGraphManager::LoadSceneGraph()
 {
     FString FilePath = GetSceneGraphFilePath();
-    return FMASceneGraphIO::LoadBaseSceneGraph(FilePath, SceneGraphData);
+    return FMASceneGraphIO::LoadBaseSceneGraph(FilePath, WorkingCopy);
 }
 
 bool UMASceneGraphManager::SaveSceneGraph()
 {
-    if (!SceneGraphData.IsValid())
+    if (!WorkingCopy.IsValid())
     {
-        UE_LOG(LogMASceneGraphManager, Error, TEXT("Cannot save: SceneGraphData is invalid"));
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("Cannot save: WorkingCopy is invalid"));
         return false;
     }
 
     FString FilePath = GetSceneGraphFilePath();
-    return FMASceneGraphIO::SaveSceneGraph(FilePath, SceneGraphData);
+    return FMASceneGraphIO::SaveSceneGraph(FilePath, WorkingCopy);
 }
 
 void UMASceneGraphManager::CreateEmptySceneGraph()
 {
 
-    SceneGraphData = MakeShareable(new FJsonObject());
+    WorkingCopy = MakeShareable(new FJsonObject());
 
     // 创建空的 nodes 数组
     TArray<TSharedPtr<FJsonValue>> EmptyNodes;
-    SceneGraphData->SetArrayField(TEXT("nodes"), EmptyNodes);
+    WorkingCopy->SetArrayField(TEXT("nodes"), EmptyNodes);
 
     UE_LOG(LogMASceneGraphManager, Log, TEXT("Created empty scene graph structure"));
 }
@@ -674,6 +626,21 @@ TArray<FMASceneGraphNode> UMASceneGraphManager::GetAllPickupItems() const
 TArray<FMASceneGraphNode> UMASceneGraphManager::GetAllChargingStations() const
 {
     return FMASceneGraphQuery::GetAllChargingStations(GetAllNodes());
+}
+
+TArray<FMASceneGraphNode> UMASceneGraphManager::GetAllGoals() const
+{
+    return FMASceneGraphQuery::GetAllGoals(GetAllNodes());
+}
+
+TArray<FMASceneGraphNode> UMASceneGraphManager::GetAllZones() const
+{
+    return FMASceneGraphQuery::GetAllZones(GetAllNodes());
+}
+
+FMASceneGraphNode UMASceneGraphManager::GetNodeById(const FString& NodeId) const
+{
+    return FMASceneGraphQuery::GetNodeById(GetAllNodes(), NodeId);
 }
 
 TArray<FMASceneGraphNode> UMASceneGraphManager::GetAllNodes() const
@@ -743,14 +710,14 @@ FString UMASceneGraphManager::CapitalizeFirstLetter(const FString& Type) const
 
 TArray<TSharedPtr<FJsonValue>>* UMASceneGraphManager::GetNodesArray() const
 {
-    if (!SceneGraphData.IsValid())
+    if (!WorkingCopy.IsValid())
     {
         return nullptr;
     }
 
     // 获取 nodes 数组
     const TArray<TSharedPtr<FJsonValue>>* NodesArray;
-    if (!SceneGraphData->TryGetArrayField(TEXT("nodes"), NodesArray))
+    if (!WorkingCopy->TryGetArrayField(TEXT("nodes"), NodesArray))
     {
         return nullptr;
     }
@@ -943,4 +910,494 @@ bool UMASceneGraphManager::ValidateNodeJsonStructure(const TSharedPtr<FJsonObjec
 
     UE_LOG(LogMASceneGraphManager, Log, TEXT("ValidateNodeJsonStructure: Validation passed for node id=%s, shape.type=%s"), *NodeId, *ShapeType);
     return true;
+}
+
+//=============================================================================
+// 统一图操作 API 实现
+//=============================================================================
+
+bool UMASceneGraphManager::InitializeWorkingCopy()
+{
+    // 从源文件加载数据到 WorkingCopy
+    if (SourceFilePath.IsEmpty())
+    {
+        UE_LOG(LogMASceneGraphManager, Warning, TEXT("InitializeWorkingCopy: SourceFilePath is empty"));
+        return false;
+    }
+
+    return FMASceneGraphIO::LoadBaseSceneGraph(SourceFilePath, WorkingCopy);
+}
+
+bool UMASceneGraphManager::AddNode(const FString& NodeJson, FString& OutError)
+{
+    OutError.Empty();
+
+    if (NodeJson.IsEmpty())
+    {
+        OutError = TEXT("JSON 字符串为空");
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("AddNode: JSON string is empty"));
+        return false;
+    }
+
+    // 解析 JSON 字符串
+    TSharedPtr<FJsonObject> NodeObject;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(NodeJson);
+    if (!FJsonSerializer::Deserialize(Reader, NodeObject) || !NodeObject.IsValid())
+    {
+        OutError = TEXT("JSON 解析失败");
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("AddNode: Failed to parse JSON: %s"), *NodeJson);
+        return false;
+    }
+
+    // 提取 ID 用于重复检查
+    FString NodeId;
+    if (!NodeObject->TryGetStringField(TEXT("id"), NodeId))
+    {
+        OutError = TEXT("JSON 缺少 id 字段");
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("AddNode: JSON missing 'id' field"));
+        return false;
+    }
+
+    // 检查 ID 是否已存在
+    if (IsIdExists(NodeId))
+    {
+        OutError = FString::Printf(TEXT("ID 已存在: %s"), *NodeId);
+        UE_LOG(LogMASceneGraphManager, Warning, TEXT("AddNode: %s"), *OutError);
+        return false;
+    }
+
+    // 验证 JSON 结构
+    if (!ValidateNodeJsonStructure(NodeObject, OutError))
+    {
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("AddNode: JSON validation failed for node id=%s: %s"), *NodeId, *OutError);
+        return false;
+    }
+
+    // 确保 WorkingCopy 有效
+    if (!WorkingCopy.IsValid())
+    {
+        CreateEmptySceneGraph();
+    }
+
+    // 获取 nodes 数组
+    TArray<TSharedPtr<FJsonValue>>* NodesArray = GetNodesArray();
+    if (!NodesArray)
+    {
+        OutError = TEXT("无法获取节点数组");
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("AddNode: Failed to get nodes array"));
+        return false;
+    }
+
+    // 添加到 Working Copy 的 nodes 数组
+    NodesArray->Add(MakeShareable(new FJsonValueObject(NodeObject)));
+
+    // 重新解析 StaticNodes 数组
+    StaticNodes = FMASceneGraphIO::ParseNodes(*NodesArray);
+
+    UE_LOG(LogMASceneGraphManager, Log, TEXT("AddNode: Successfully added node with id=%s"), *NodeId);
+
+    // 发送场景变更通知 (仅 Edit 模式)
+    NotifySceneChange(TEXT("add_node"), NodeJson);
+
+    return true;
+}
+
+bool UMASceneGraphManager::DeleteNode(const FString& NodeId, FString& OutError)
+{
+    OutError.Empty();
+
+    if (NodeId.IsEmpty())
+    {
+        OutError = TEXT("节点 ID 为空");
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("DeleteNode: NodeId is empty"));
+        return false;
+    }
+
+    // 确保 WorkingCopy 有效
+    if (!WorkingCopy.IsValid())
+    {
+        OutError = TEXT("Working Copy 无效");
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("DeleteNode: WorkingCopy is invalid"));
+        return false;
+    }
+
+    // 获取 nodes 数组
+    TArray<TSharedPtr<FJsonValue>>* NodesArray = GetNodesArray();
+    if (!NodesArray)
+    {
+        OutError = TEXT("无法获取节点数组");
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("DeleteNode: Failed to get nodes array"));
+        return false;
+    }
+
+    // 查找节点索引
+    int32 NodeIndex = INDEX_NONE;
+    FString DeletedNodeJson;
+    for (int32 i = 0; i < NodesArray->Num(); ++i)
+    {
+        const TSharedPtr<FJsonValue>& NodeValue = (*NodesArray)[i];
+        if (NodeValue.IsValid() && NodeValue->Type == EJson::Object)
+        {
+            TSharedPtr<FJsonObject> NodeObject = NodeValue->AsObject();
+            if (NodeObject.IsValid())
+            {
+                FString CurrentId;
+                if (NodeObject->TryGetStringField(TEXT("id"), CurrentId) && CurrentId == NodeId)
+                {
+                    NodeIndex = i;
+                    // 保存被删除节点的 JSON 用于通知
+                    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&DeletedNodeJson);
+                    FJsonSerializer::Serialize(NodeObject.ToSharedRef(), Writer);
+                    break;
+                }
+            }
+        }
+    }
+
+    if (NodeIndex == INDEX_NONE)
+    {
+        OutError = FString::Printf(TEXT("节点不存在: %s"), *NodeId);
+        UE_LOG(LogMASceneGraphManager, Warning, TEXT("DeleteNode: Node not found: %s"), *NodeId);
+        return false;
+    }
+
+    // 从 nodes 数组中移除
+    NodesArray->RemoveAt(NodeIndex);
+
+    // TODO: 删除相关的 edges (如果有 edges 数组)
+    // 当前实现暂不处理 edges
+
+    // 重新解析 StaticNodes 数组
+    StaticNodes = FMASceneGraphIO::ParseNodes(*NodesArray);
+
+    UE_LOG(LogMASceneGraphManager, Log, TEXT("DeleteNode: Successfully deleted node with id=%s"), *NodeId);
+
+    // 发送场景变更通知 (仅 Edit 模式)
+    NotifySceneChange(TEXT("delete_node"), DeletedNodeJson);
+
+    return true;
+}
+
+bool UMASceneGraphManager::EditNode(const FString& NodeId, const FString& NewNodeJson, FString& OutError)
+{
+    OutError.Empty();
+
+    if (NodeId.IsEmpty())
+    {
+        OutError = TEXT("节点 ID 为空");
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("EditNode: NodeId is empty"));
+        return false;
+    }
+
+    if (NewNodeJson.IsEmpty())
+    {
+        OutError = TEXT("新节点 JSON 为空");
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("EditNode: NewNodeJson is empty"));
+        return false;
+    }
+
+    // 解析新的 JSON 字符串
+    TSharedPtr<FJsonObject> NewNodeObject;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(NewNodeJson);
+    if (!FJsonSerializer::Deserialize(Reader, NewNodeObject) || !NewNodeObject.IsValid())
+    {
+        OutError = TEXT("新节点 JSON 解析失败");
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("EditNode: Failed to parse new JSON: %s"), *NewNodeJson);
+        return false;
+    }
+
+    // 验证新 JSON 结构
+    if (!ValidateNodeJsonStructure(NewNodeObject, OutError))
+    {
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("EditNode: JSON validation failed: %s"), *OutError);
+        return false;
+    }
+
+    // 确保 WorkingCopy 有效
+    if (!WorkingCopy.IsValid())
+    {
+        OutError = TEXT("Working Copy 无效");
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("EditNode: WorkingCopy is invalid"));
+        return false;
+    }
+
+    // 获取 nodes 数组
+    TArray<TSharedPtr<FJsonValue>>* NodesArray = GetNodesArray();
+    if (!NodesArray)
+    {
+        OutError = TEXT("无法获取节点数组");
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("EditNode: Failed to get nodes array"));
+        return false;
+    }
+
+    // 查找节点索引
+    int32 NodeIndex = INDEX_NONE;
+    for (int32 i = 0; i < NodesArray->Num(); ++i)
+    {
+        const TSharedPtr<FJsonValue>& NodeValue = (*NodesArray)[i];
+        if (NodeValue.IsValid() && NodeValue->Type == EJson::Object)
+        {
+            TSharedPtr<FJsonObject> NodeObject = NodeValue->AsObject();
+            if (NodeObject.IsValid())
+            {
+                FString CurrentId;
+                if (NodeObject->TryGetStringField(TEXT("id"), CurrentId) && CurrentId == NodeId)
+                {
+                    NodeIndex = i;
+                    break;
+                }
+            }
+        }
+    }
+
+    if (NodeIndex == INDEX_NONE)
+    {
+        OutError = FString::Printf(TEXT("节点不存在: %s"), *NodeId);
+        UE_LOG(LogMASceneGraphManager, Warning, TEXT("EditNode: Node not found: %s"), *NodeId);
+        return false;
+    }
+
+    // 替换节点数据
+    (*NodesArray)[NodeIndex] = MakeShareable(new FJsonValueObject(NewNodeObject));
+
+    // 重新解析 StaticNodes 数组
+    StaticNodes = FMASceneGraphIO::ParseNodes(*NodesArray);
+
+    UE_LOG(LogMASceneGraphManager, Log, TEXT("EditNode: Successfully edited node with id=%s"), *NodeId);
+
+    // 发送场景变更通知 (仅 Edit 模式)
+    NotifySceneChange(TEXT("edit_node"), NewNodeJson);
+
+    return true;
+}
+
+bool UMASceneGraphManager::SaveToSource()
+{
+    // 检查当前运行模式
+    if (CachedRunMode == EMARunMode::Edit)
+    {
+        // Edit 模式: 记录警告日志，返回 false
+        UE_LOG(LogMASceneGraphManager, Warning, TEXT("SaveToSource: Cannot save in Edit mode. Changes are only kept in memory."));
+        return false;
+    }
+
+    // Modify 模式: 调用 MASceneGraphIO::SaveSceneGraph() 保存到源文件
+    if (!WorkingCopy.IsValid())
+    {
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("SaveToSource: WorkingCopy is invalid"));
+        return false;
+    }
+
+    FString FilePath = GetSceneGraphFilePath();
+    if (FilePath.IsEmpty())
+    {
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("SaveToSource: SourceFilePath is empty"));
+        return false;
+    }
+
+    bool bSuccess = FMASceneGraphIO::SaveSceneGraph(FilePath, WorkingCopy);
+    if (bSuccess)
+    {
+        UE_LOG(LogMASceneGraphManager, Log, TEXT("SaveToSource: Successfully saved to %s"), *FilePath);
+    }
+    else
+    {
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("SaveToSource: Failed to save to %s"), *FilePath);
+    }
+
+    return bSuccess;
+}
+
+bool UMASceneGraphManager::SetNodeAsGoal(const FString& NodeId, FString& OutError)
+{
+    OutError.Empty();
+
+    if (NodeId.IsEmpty())
+    {
+        OutError = TEXT("节点 ID 为空");
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("SetNodeAsGoal: NodeId is empty"));
+        return false;
+    }
+
+    // 获取 nodes 数组
+    TArray<TSharedPtr<FJsonValue>>* NodesArray = GetNodesArray();
+    if (!NodesArray)
+    {
+        OutError = TEXT("无法获取节点数组");
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("SetNodeAsGoal: Failed to get nodes array"));
+        return false;
+    }
+
+    // 查找节点并获取其 JSON 对象
+    for (const TSharedPtr<FJsonValue>& NodeValue : *NodesArray)
+    {
+        if (!NodeValue.IsValid() || NodeValue->Type != EJson::Object)
+        {
+            continue;
+        }
+
+        TSharedPtr<FJsonObject> NodeObject = NodeValue->AsObject();
+        if (!NodeObject.IsValid())
+        {
+            continue;
+        }
+
+        FString CurrentId;
+        if (!NodeObject->TryGetStringField(TEXT("id"), CurrentId) || CurrentId != NodeId)
+        {
+            continue;
+        }
+
+        // 找到节点，获取或创建 properties 对象
+        TSharedPtr<FJsonObject> Properties;
+        const TSharedPtr<FJsonObject>* ExistingProps = nullptr;
+        if (NodeObject->TryGetObjectField(TEXT("properties"), ExistingProps) && ExistingProps && (*ExistingProps).IsValid())
+        {
+            Properties = *ExistingProps;
+        }
+        else
+        {
+            Properties = MakeShareable(new FJsonObject());
+            NodeObject->SetObjectField(TEXT("properties"), Properties);
+        }
+
+        // 设置 is_goal 为 true
+        Properties->SetBoolField(TEXT("is_goal"), true);
+
+        // 序列化修改后的节点 JSON
+        FString ModifiedNodeJson;
+        TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&ModifiedNodeJson);
+        FJsonSerializer::Serialize(NodeObject.ToSharedRef(), Writer);
+
+        // 调用 EditNode 完成更新（包括重新解析和通知）
+        return EditNode(NodeId, ModifiedNodeJson, OutError);
+    }
+
+    OutError = FString::Printf(TEXT("节点不存在: %s"), *NodeId);
+    UE_LOG(LogMASceneGraphManager, Warning, TEXT("SetNodeAsGoal: Node not found: %s"), *NodeId);
+    return false;
+}
+
+bool UMASceneGraphManager::UnsetNodeAsGoal(const FString& NodeId, FString& OutError)
+{
+    OutError.Empty();
+
+    if (NodeId.IsEmpty())
+    {
+        OutError = TEXT("节点 ID 为空");
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("UnsetNodeAsGoal: NodeId is empty"));
+        return false;
+    }
+
+    // 获取 nodes 数组
+    TArray<TSharedPtr<FJsonValue>>* NodesArray = GetNodesArray();
+    if (!NodesArray)
+    {
+        OutError = TEXT("无法获取节点数组");
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("UnsetNodeAsGoal: Failed to get nodes array"));
+        return false;
+    }
+
+    // 查找节点并获取其 JSON 对象
+    for (const TSharedPtr<FJsonValue>& NodeValue : *NodesArray)
+    {
+        if (!NodeValue.IsValid() || NodeValue->Type != EJson::Object)
+        {
+            continue;
+        }
+
+        TSharedPtr<FJsonObject> NodeObject = NodeValue->AsObject();
+        if (!NodeObject.IsValid())
+        {
+            continue;
+        }
+
+        FString CurrentId;
+        if (!NodeObject->TryGetStringField(TEXT("id"), CurrentId) || CurrentId != NodeId)
+        {
+            continue;
+        }
+
+        // 找到节点，获取 properties 对象并移除 is_goal 字段
+        const TSharedPtr<FJsonObject>* ExistingProps = nullptr;
+        if (NodeObject->TryGetObjectField(TEXT("properties"), ExistingProps) && ExistingProps && (*ExistingProps).IsValid())
+        {
+            (*ExistingProps)->RemoveField(TEXT("is_goal"));
+        }
+
+        // 序列化修改后的节点 JSON
+        FString ModifiedNodeJson;
+        TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&ModifiedNodeJson);
+        FJsonSerializer::Serialize(NodeObject.ToSharedRef(), Writer);
+
+        // 调用 EditNode 完成更新（包括重新解析和通知）
+        return EditNode(NodeId, ModifiedNodeJson, OutError);
+    }
+
+    OutError = FString::Printf(TEXT("节点不存在: %s"), *NodeId);
+    UE_LOG(LogMASceneGraphManager, Warning, TEXT("UnsetNodeAsGoal: Node not found: %s"), *NodeId);
+    return false;
+}
+
+bool UMASceneGraphManager::IsNodeGoal(const FString& NodeId) const
+{
+    if (NodeId.IsEmpty())
+    {
+        return false;
+    }
+
+    // 使用 GetNodeById 查找节点
+    FMASceneGraphNode Node = GetNodeById(NodeId);
+    if (!Node.IsValid())
+    {
+        return false;
+    }
+
+    // 通过 RawJson 检查 is_goal 字段
+    return Node.RawJson.Contains(TEXT("\"is_goal\"")) &&
+           (Node.RawJson.Contains(TEXT("\"is_goal\": true")) || 
+            Node.RawJson.Contains(TEXT("\"is_goal\":true")));
+}
+
+void UMASceneGraphManager::NotifySceneChange(const FString& ChangeType, const FString& NodeJson)
+{
+    // 检查当前运行模式
+    if (CachedRunMode != EMARunMode::Edit)
+    {
+        // Modify 模式: 不发送消息
+        return;
+    }
+
+    // Edit 模式: 通过 MACommSubsystem 发送场景变更消息
+    if (UGameInstance* GameInstance = GetGameInstance())
+    {
+        if (UMACommSubsystem* CommSubsystem = GameInstance->GetSubsystem<UMACommSubsystem>())
+        {
+            FMASceneChangeMessage Message;
+            Message.ChangeType = EMASceneChangeType::AddNode;  // 默认值
+            
+            if (ChangeType == TEXT("add_node"))
+            {
+                Message.ChangeType = EMASceneChangeType::AddNode;
+            }
+            else if (ChangeType == TEXT("delete_node"))
+            {
+                Message.ChangeType = EMASceneChangeType::DeleteNode;
+            }
+            else if (ChangeType == TEXT("edit_node"))
+            {
+                Message.ChangeType = EMASceneChangeType::EditNode;
+            }
+            
+            Message.Payload = NodeJson;
+            
+            CommSubsystem->SendSceneChangeMessage(Message);
+            
+            UE_LOG(LogMASceneGraphManager, Log, TEXT("NotifySceneChange: Sent %s message"), *ChangeType);
+        }
+        else
+        {
+            UE_LOG(LogMASceneGraphManager, Warning, TEXT("NotifySceneChange: MACommSubsystem not available"));
+        }
+    }
 }

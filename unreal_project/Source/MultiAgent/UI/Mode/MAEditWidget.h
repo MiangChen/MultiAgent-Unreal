@@ -199,10 +199,29 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Events")
     FOnUnsetAsGoal OnUnsetAsGoal;
 
+    //=========================================================================
+    // 主题支持
+    //=========================================================================
+
+    /**
+     * 应用主题样式
+     * @param InTheme 要应用的主题
+     */
+    UFUNCTION(BlueprintCallable, Category = "UI|Theme")
+    void ApplyTheme(class UMAUITheme* InTheme);
+
 protected:
     virtual void NativePreConstruct() override;
     virtual void NativeConstruct() override;
     virtual TSharedRef<SWidget> RebuildWidget() override;
+
+    //=========================================================================
+    // 主题引用
+    //=========================================================================
+
+    /** 缓存的主题引用 */
+    UPROPERTY()
+    class UMAUITheme* Theme;
 
 
     //=========================================================================

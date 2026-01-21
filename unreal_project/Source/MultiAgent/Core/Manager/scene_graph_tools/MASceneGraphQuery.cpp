@@ -143,6 +143,52 @@ TArray<FMASceneGraphNode> FMASceneGraphQuery::GetAllChargingStations(const TArra
     return Result;
 }
 
+TArray<FMASceneGraphNode> FMASceneGraphQuery::GetAllGoals(const TArray<FMASceneGraphNode>& AllNodes)
+{
+    TArray<FMASceneGraphNode> Result;
+
+    for (const FMASceneGraphNode& Node : AllNodes)
+    {
+        if (Node.Type == TEXT("goal"))
+        {
+            Result.Add(Node);
+        }
+    }
+
+    UE_LOG(LogMASceneGraphQuery, Verbose, TEXT("GetAllGoals: Found %d goals"), Result.Num());
+    return Result;
+}
+
+TArray<FMASceneGraphNode> FMASceneGraphQuery::GetAllZones(const TArray<FMASceneGraphNode>& AllNodes)
+{
+    TArray<FMASceneGraphNode> Result;
+
+    for (const FMASceneGraphNode& Node : AllNodes)
+    {
+        if (Node.Type == TEXT("zone"))
+        {
+            Result.Add(Node);
+        }
+    }
+
+    UE_LOG(LogMASceneGraphQuery, Verbose, TEXT("GetAllZones: Found %d zones"), Result.Num());
+    return Result;
+}
+
+FMASceneGraphNode FMASceneGraphQuery::GetNodeById(const TArray<FMASceneGraphNode>& AllNodes, const FString& NodeId)
+{
+    for (const FMASceneGraphNode& Node : AllNodes)
+    {
+        if (Node.Id == NodeId)
+        {
+            return Node;
+        }
+    }
+
+    // 未找到，返回无效节点
+    return FMASceneGraphNode();
+}
+
 
 //=============================================================================
 // 语义查询
@@ -632,8 +678,12 @@ TArray<FMASceneGraphNode> FMASceneGraphQuery::FindNodesByGuid(
         return Result;
     }
 
+    // 调试: 输出搜索的节点总数
+    UE_LOG(LogMASceneGraphQuery, Log, TEXT("FindNodesByGuid: Searching in %d nodes for GUID %s"), AllNodes.Num(), *ActorGuid);
+
     // 规范化输入的 GUID（移除连字符，转为大写）
     FString NormalizedInputGuid = ActorGuid.Replace(TEXT("-"), TEXT("")).ToUpper();
+    UE_LOG(LogMASceneGraphQuery, Log, TEXT("FindNodesByGuid: Normalized input GUID: %s"), *NormalizedInputGuid);
 
     // 遍历所有节点，检查 GuidArray 和 Guid 字段
     for (const FMASceneGraphNode& Node : AllNodes)

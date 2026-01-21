@@ -11,6 +11,7 @@
 
 class UTextBlock;
 class UCanvasPanel;
+class UMAUITheme;
 
 /**
  * HUD Widget
@@ -101,12 +102,30 @@ public:
     UFUNCTION(BlueprintCallable, Category = "HUD|Notification")
     void ShowNotification(const FString& Message, bool bIsError = false, bool bIsWarning = false);
 
+    //=========================================================================
+    // 主题系统
+    //=========================================================================
+
+    /**
+     * 应用主题样式
+     * @param InTheme 主题数据资产
+     */
+    void ApplyTheme(UMAUITheme* InTheme);
+
 protected:
     virtual void NativePreConstruct() override;
     virtual void NativeDestruct() override;
     virtual TSharedRef<SWidget> RebuildWidget() override;
 
 private:
+    //=========================================================================
+    // 主题
+    //=========================================================================
+
+    /** 缓存的主题引用 */
+    UPROPERTY()
+    UMAUITheme* Theme;
+
     //=========================================================================
     // UI 组件
     //=========================================================================

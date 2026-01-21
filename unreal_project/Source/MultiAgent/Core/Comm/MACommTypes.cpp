@@ -1385,30 +1385,32 @@ FString FMASceneChangeMessage::ChangeTypeToString(EMASceneChangeType Type)
 {
     switch (Type)
     {
-    case EMASceneChangeType::AddNode:       return TEXT("add_node");
-    case EMASceneChangeType::DeleteNode:    return TEXT("delete_node");
-    case EMASceneChangeType::EditNode:      return TEXT("edit_node");
-    case EMASceneChangeType::AddGoal:       return TEXT("add_goal");
-    case EMASceneChangeType::DeleteGoal:    return TEXT("delete_goal");
-    case EMASceneChangeType::AddZone:       return TEXT("add_zone");
-    case EMASceneChangeType::DeleteZone:    return TEXT("delete_zone");
-    case EMASceneChangeType::AddEdge:       return TEXT("add_edge");
-    case EMASceneChangeType::EditEdge:      return TEXT("edit_edge");
-    default:                                return TEXT("unknown");
+    case EMASceneChangeType::AddNode:           return TEXT("add_node");
+    case EMASceneChangeType::DeleteNode:        return TEXT("delete_node");
+    case EMASceneChangeType::EditNode:          return TEXT("edit_node");
+    case EMASceneChangeType::AddGoal:           return TEXT("add_goal");
+    case EMASceneChangeType::DeleteGoal:        return TEXT("delete_goal");
+    case EMASceneChangeType::AddZone:           return TEXT("add_zone");
+    case EMASceneChangeType::DeleteZone:        return TEXT("delete_zone");
+    case EMASceneChangeType::AddEdge:           return TEXT("add_edge");
+    case EMASceneChangeType::EditEdge:          return TEXT("edit_edge");
+    case EMASceneChangeType::EmergencyResponse: return TEXT("emergency_response");
+    default:                                    return TEXT("unknown");
     }
 }
 
 EMASceneChangeType FMASceneChangeMessage::StringToChangeType(const FString& TypeStr)
 {
-    if (TypeStr == TEXT("add_node"))        return EMASceneChangeType::AddNode;
-    if (TypeStr == TEXT("delete_node"))     return EMASceneChangeType::DeleteNode;
-    if (TypeStr == TEXT("edit_node"))       return EMASceneChangeType::EditNode;
-    if (TypeStr == TEXT("add_goal"))        return EMASceneChangeType::AddGoal;
-    if (TypeStr == TEXT("delete_goal"))     return EMASceneChangeType::DeleteGoal;
-    if (TypeStr == TEXT("add_zone"))        return EMASceneChangeType::AddZone;
-    if (TypeStr == TEXT("delete_zone"))     return EMASceneChangeType::DeleteZone;
-    if (TypeStr == TEXT("add_edge"))        return EMASceneChangeType::AddEdge;
-    if (TypeStr == TEXT("edit_edge"))       return EMASceneChangeType::EditEdge;
+    if (TypeStr == TEXT("add_node"))            return EMASceneChangeType::AddNode;
+    if (TypeStr == TEXT("delete_node"))         return EMASceneChangeType::DeleteNode;
+    if (TypeStr == TEXT("edit_node"))           return EMASceneChangeType::EditNode;
+    if (TypeStr == TEXT("add_goal"))            return EMASceneChangeType::AddGoal;
+    if (TypeStr == TEXT("delete_goal"))         return EMASceneChangeType::DeleteGoal;
+    if (TypeStr == TEXT("add_zone"))            return EMASceneChangeType::AddZone;
+    if (TypeStr == TEXT("delete_zone"))         return EMASceneChangeType::DeleteZone;
+    if (TypeStr == TEXT("add_edge"))            return EMASceneChangeType::AddEdge;
+    if (TypeStr == TEXT("edit_edge"))           return EMASceneChangeType::EditEdge;
+    if (TypeStr == TEXT("emergency_response"))  return EMASceneChangeType::EmergencyResponse;
     return EMASceneChangeType::AddNode; // 默认值
 }
 

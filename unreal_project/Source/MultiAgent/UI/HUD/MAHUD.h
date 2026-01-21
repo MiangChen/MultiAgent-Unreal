@@ -331,6 +331,22 @@ public:
     UFUNCTION(BlueprintPure, Category = "UI|Edit")
     bool IsMouseOverEditWidget() const;
 
+    /**
+     * 检查鼠标是否在右侧边栏上
+     * 用于判断右键是否应该用于视角旋转
+     * @return true 如果鼠标在右侧边栏区域上
+     */
+    UFUNCTION(BlueprintPure, Category = "UI|HUD")
+    bool IsMouseOverRightSidebar() const;
+
+    /**
+     * 检查鼠标是否在任何常驻 UI 上
+     * 包括右侧边栏、小地图等
+     * @return true 如果鼠标在任何常驻 UI 上
+     */
+    UFUNCTION(BlueprintPure, Category = "UI|HUD")
+    bool IsMouseOverPersistentUI() const;
+
     //=========================================================================
     // 场景标签可视化
     //=========================================================================

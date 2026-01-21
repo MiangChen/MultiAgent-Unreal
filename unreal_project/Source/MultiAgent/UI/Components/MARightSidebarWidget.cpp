@@ -24,6 +24,42 @@
 #include "GameFramework/PlayerController.h"
 
 //=============================================================================
+// 主题颜色辅助函数
+//=============================================================================
+
+namespace
+{
+    /** 获取主题或创建默认主题 */
+    UMAUITheme* GetOrCreateTheme(UMARightSidebarWidget* Widget)
+    {
+        UMAUITheme* CurrentTheme = Widget->GetTheme();
+        if (CurrentTheme)
+        {
+            return CurrentTheme;
+        }
+        
+        // 创建默认主题作为 fallback
+        static UMAUITheme* DefaultTheme = nullptr;
+        if (!DefaultTheme)
+        {
+            DefaultTheme = NewObject<UMAUITheme>();
+            DefaultTheme->AddToRoot(); // 防止被 GC
+        }
+        return DefaultTheme;
+    }
+    
+    /** 计算区域背景颜色 (比主背景稍亮) */
+    FLinearColor GetSectionBackgroundColor(UMAUITheme* Theme)
+    {
+        FLinearColor SectionBgColor = Theme->BackgroundColor;
+        SectionBgColor.R += 0.05f;
+        SectionBgColor.G += 0.05f;
+        SectionBgColor.B += 0.05f;
+        return SectionBgColor;
+    }
+}
+
+//=============================================================================
 // 日志类别
 //=============================================================================
 DEFINE_LOG_CATEGORY_STATIC(LogMARightSidebar, Log, All);
@@ -77,6 +113,9 @@ void UMARightSidebarWidget::BuildUI()
         return;
     }
     
+    // 获取主题 (确保有可用的主题)
+    UMAUITheme* CurrentTheme = GetOrCreateTheme(this);
+    
     // 创建根 SizeBox - 使用 WidgetTree 创建
     RootSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("RootSizeBox"));
     if (!RootSizeBox)
@@ -96,7 +135,7 @@ void UMARightSidebarWidget::BuildUI()
         UE_LOG(LogMARightSidebar, Error, TEXT("BuildUI: Failed to create SidebarBackground"));
         return;
     }
-    SidebarBackground->SetBrushColor(FLinearColor(0.1f, 0.1f, 0.12f, 0.95f));
+    SidebarBackground->SetBrushColor(CurrentTheme->BackgroundColor);
     SidebarBackground->SetPadding(FMargin(8.0f));
     
     // 创建边栏容器 - 使用 WidgetTree 创建
@@ -181,6 +220,12 @@ UWidget* UMARightSidebarWidget::CreateCommandSection()
         return nullptr;
     }
     
+    // 获取主题
+    UMAUITheme* CurrentTheme = GetOrCreateTheme(this);
+    FLinearColor SectionBgColor = GetSectionBackgroundColor(CurrentTheme);
+    float CornerRadius = MARoundedBorderUtils::GetCornerRadiusForType(CurrentTheme, EMARoundedElementType::Panel);
+    float ButtonCornerRadius = MARoundedBorderUtils::GetCornerRadiusForType(CurrentTheme, EMARoundedElementType::Button);
+    
     // 创建命令区边框
     CommandSectionBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("CommandSectionBorder"));
     if (!CommandSectionBorder)
@@ -190,8 +235,7 @@ UWidget* UMARightSidebarWidget::CreateCommandSection()
     CommandSectionBorder->SetPadding(FMargin(8.0f));
     
     // 应用圆角效果
-    FLinearColor SectionBgColor = FLinearColor(0.15f, 0.15f, 0.17f, 1.0f);
-    MARoundedBorderUtils::ApplyRoundedCorners(CommandSectionBorder, SectionBgColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
+    MARoundedBorderUtils::ApplyRoundedCorners(CommandSectionBorder, SectionBgColor, CornerRadius);
     
     // 创建垂直布局
     UVerticalBox* CommandVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("CommandVBox"));
@@ -201,11 +245,11 @@ UWidget* UMARightSidebarWidget::CreateCommandSection()
     }
     
     // 创建标题
-    UTextBlock* CommandTitle = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("CommandTitle"));
+    CommandTitle = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("CommandTitle"));
     if (CommandTitle)
     {
         CommandTitle->SetText(FText::FromString(TEXT("Command Input")));
-        CommandTitle->SetColorAndOpacity(FSlateColor(FLinearColor(0.95f, 0.95f, 0.95f)));
+        CommandTitle->SetColorAndOpacity(FSlateColor(CurrentTheme->TextColor));
         
         FSlateFontInfo TitleFont = FCoreStyle::GetDefaultFontStyle("Bold", 14);
         CommandTitle->SetFont(TitleFont);
@@ -220,11 +264,11 @@ UWidget* UMARightSidebarWidget::CreateCommandSection()
     {
         CommandInput->SetHintText(FText::FromString(TEXT("Enter command...")));
         
-        // 设置文本样式：纯黑色，字号 12，透明背景
+        // 设置文本样式：使用主题颜色
         FEditableTextBoxStyle TextBoxStyle;
-        FSlateColor BlackColor = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
-        TextBoxStyle.SetForegroundColor(BlackColor);
-        TextBoxStyle.SetFocusedForegroundColor(BlackColor);
+        FSlateColor InputColor = FSlateColor(CurrentTheme->InputTextColor);
+        TextBoxStyle.SetForegroundColor(InputColor);
+        TextBoxStyle.SetFocusedForegroundColor(InputColor);
         FSlateFontInfo InputFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
         TextBoxStyle.SetFont(InputFont);
         
@@ -239,12 +283,11 @@ UWidget* UMARightSidebarWidget::CreateCommandSection()
         CommandInput->WidgetStyle = TextBoxStyle;
         
         // 创建圆角 Border 包装文本框
-        UBorder* CommandInputBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("CommandInputBorder"));
+        CommandInputBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("CommandInputBorder"));
         CommandInputBorder->SetPadding(FMargin(8.0f, 4.0f));
         
-        // 应用圆角效果 - 使用白色背景
-        FLinearColor TextBoxBgColor = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
-        MARoundedBorderUtils::ApplyRoundedCorners(CommandInputBorder, TextBoxBgColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
+        // 应用圆角效果 - 使用主题输入框背景颜色
+        MARoundedBorderUtils::ApplyRoundedCorners(CommandInputBorder, CurrentTheme->InputBackgroundColor, ButtonCornerRadius);
         
         CommandInputBorder->AddChild(CommandInput);
         
@@ -279,6 +322,11 @@ UWidget* UMARightSidebarWidget::CreateTaskGraphSection()
         return nullptr;
     }
     
+    // 获取主题
+    UMAUITheme* CurrentTheme = GetOrCreateTheme(this);
+    FLinearColor SectionBgColor = GetSectionBackgroundColor(CurrentTheme);
+    float CornerRadius = MARoundedBorderUtils::GetCornerRadiusForType(CurrentTheme, EMARoundedElementType::Panel);
+    
     // 创建任务图区边框
     TaskGraphSectionBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("TaskGraphSectionBorder"));
     if (!TaskGraphSectionBorder)
@@ -288,8 +336,7 @@ UWidget* UMARightSidebarWidget::CreateTaskGraphSection()
     TaskGraphSectionBorder->SetPadding(FMargin(8.0f));
     
     // 应用圆角效果
-    FLinearColor SectionBgColor = FLinearColor(0.15f, 0.15f, 0.17f, 1.0f);
-    MARoundedBorderUtils::ApplyRoundedCorners(TaskGraphSectionBorder, SectionBgColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
+    MARoundedBorderUtils::ApplyRoundedCorners(TaskGraphSectionBorder, SectionBgColor, CornerRadius);
     
     // 创建垂直布局
     UVerticalBox* TaskVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("TaskVBox"));
@@ -303,7 +350,7 @@ UWidget* UMARightSidebarWidget::CreateTaskGraphSection()
     if (TaskGraphTitle)
     {
         TaskGraphTitle->SetText(FText::FromString(TEXT("Task Graph Preview")));
-        TaskGraphTitle->SetColorAndOpacity(FSlateColor(FLinearColor(0.95f, 0.95f, 0.95f)));
+        TaskGraphTitle->SetColorAndOpacity(FSlateColor(CurrentTheme->TextColor));
         
         FSlateFontInfo TitleFont = FCoreStyle::GetDefaultFontStyle("Bold", 14);
         TaskGraphTitle->SetFont(TitleFont);
@@ -331,6 +378,11 @@ UWidget* UMARightSidebarWidget::CreateSkillListSection()
         return nullptr;
     }
     
+    // 获取主题
+    UMAUITheme* CurrentTheme = GetOrCreateTheme(this);
+    FLinearColor SectionBgColor = GetSectionBackgroundColor(CurrentTheme);
+    float CornerRadius = MARoundedBorderUtils::GetCornerRadiusForType(CurrentTheme, EMARoundedElementType::Panel);
+    
     // 创建技能列表区边框
     SkillListSectionBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("SkillListSectionBorder"));
     if (!SkillListSectionBorder)
@@ -340,8 +392,7 @@ UWidget* UMARightSidebarWidget::CreateSkillListSection()
     SkillListSectionBorder->SetPadding(FMargin(8.0f));
     
     // 应用圆角效果
-    FLinearColor SectionBgColor = FLinearColor(0.15f, 0.15f, 0.17f, 1.0f);
-    MARoundedBorderUtils::ApplyRoundedCorners(SkillListSectionBorder, SectionBgColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
+    MARoundedBorderUtils::ApplyRoundedCorners(SkillListSectionBorder, SectionBgColor, CornerRadius);
     
     // 创建垂直布局
     UVerticalBox* SkillVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("SkillVBox"));
@@ -355,7 +406,7 @@ UWidget* UMARightSidebarWidget::CreateSkillListSection()
     if (SkillListTitle)
     {
         SkillListTitle->SetText(FText::FromString(TEXT("Skill List Preview")));
-        SkillListTitle->SetColorAndOpacity(FSlateColor(FLinearColor(0.95f, 0.95f, 0.95f)));
+        SkillListTitle->SetColorAndOpacity(FSlateColor(CurrentTheme->TextColor));
         
         FSlateFontInfo TitleFont = FCoreStyle::GetDefaultFontStyle("Bold", 14);
         SkillListTitle->SetFont(TitleFont);
@@ -384,6 +435,11 @@ UWidget* UMARightSidebarWidget::CreateLogSection()
         return nullptr;
     }
     
+    // 获取主题
+    UMAUITheme* CurrentTheme = GetOrCreateTheme(this);
+    FLinearColor SectionBgColor = GetSectionBackgroundColor(CurrentTheme);
+    float CornerRadius = MARoundedBorderUtils::GetCornerRadiusForType(CurrentTheme, EMARoundedElementType::Panel);
+    
     // 创建外层 SizeBox 限制高度
     USizeBox* LogSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("LogSizeBox"));
     if (!LogSizeBox)
@@ -401,8 +457,7 @@ UWidget* UMARightSidebarWidget::CreateLogSection()
     LogSectionBorder->SetPadding(FMargin(8.0f));
     
     // 应用圆角效果
-    FLinearColor SectionBgColor = FLinearColor(0.15f, 0.15f, 0.17f, 1.0f);
-    MARoundedBorderUtils::ApplyRoundedCorners(LogSectionBorder, SectionBgColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
+    MARoundedBorderUtils::ApplyRoundedCorners(LogSectionBorder, SectionBgColor, CornerRadius);
     
     // 创建垂直布局
     UVerticalBox* LogVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("LogVBox"));
@@ -416,7 +471,7 @@ UWidget* UMARightSidebarWidget::CreateLogSection()
     if (LogTitle)
     {
         LogTitle->SetText(FText::FromString(TEXT("System Log")));
-        LogTitle->SetColorAndOpacity(FSlateColor(FLinearColor(0.95f, 0.95f, 0.95f)));
+        LogTitle->SetColorAndOpacity(FSlateColor(CurrentTheme->TextColor));
         
         FSlateFontInfo TitleFont = FCoreStyle::GetDefaultFontStyle("Bold", 14);
         LogTitle->SetFont(TitleFont);
@@ -457,12 +512,19 @@ UWidget* UMARightSidebarWidget::CreateSeparator()
         return nullptr;
     }
     
+    // 获取主题
+    UMAUITheme* CurrentTheme = GetOrCreateTheme(this);
+    
     UBorder* Separator = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
     if (!Separator)
     {
         return nullptr;
     }
-    Separator->SetBrushColor(FLinearColor(0.3f, 0.3f, 0.35f, 0.5f));
+    
+    // 使用主题的次要颜色作为分隔线颜色，带半透明
+    FLinearColor SeparatorColor = CurrentTheme->SecondaryColor;
+    SeparatorColor.A = 0.5f;
+    Separator->SetBrushColor(SeparatorColor);
     
     // 使用 SizeBox 控制高度
     USizeBox* SizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
@@ -564,6 +626,9 @@ UWidget* UMARightSidebarWidget::CreateLogEntryWidget(const FMALogEntry& Entry)
         return nullptr;
     }
     
+    // 获取主题
+    UMAUITheme* CurrentTheme = GetOrCreateTheme(this);
+    
     UTextBlock* LogText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
     if (!LogText)
     {
@@ -576,10 +641,8 @@ UWidget* UMARightSidebarWidget::CreateLogEntryWidget(const FMALogEntry& Entry)
     
     LogText->SetText(FText::FromString(FormattedMessage));
     
-    // 设置颜色 (错误消息用红色)
-    FLinearColor TextColor = Entry.bIsError 
-        ? FLinearColor(1.0f, 0.3f, 0.3f)  // 红色
-        : FLinearColor(0.7f, 0.7f, 0.7f); // 灰色
+    // 设置颜色 (错误消息用危险色，普通消息用次要文字颜色)
+    FLinearColor TextColor = Entry.bIsError ? CurrentTheme->DangerColor : CurrentTheme->SecondaryTextColor;
     LogText->SetColorAndOpacity(FSlateColor(TextColor));
     
     // 设置字体
@@ -664,6 +727,7 @@ void UMARightSidebarWidget::ApplyTheme(UMAUITheme* InTheme)
     
     // 获取圆角半径
     float CornerRadius = MARoundedBorderUtils::GetCornerRadiusForType(Theme, EMARoundedElementType::Panel);
+    float ButtonCornerRadius = MARoundedBorderUtils::GetCornerRadiusForType(Theme, EMARoundedElementType::Button);
     
     if (CommandSectionBorder)
     {
@@ -684,6 +748,11 @@ void UMARightSidebarWidget::ApplyTheme(UMAUITheme* InTheme)
     
     // 应用标题颜色 (保持字号不变，只更新颜色)
     FSlateFontInfo SectionTitleFont = FCoreStyle::GetDefaultFontStyle("Bold", 14);
+    if (CommandTitle)
+    {
+        CommandTitle->SetColorAndOpacity(FSlateColor(Theme->TextColor));
+        CommandTitle->SetFont(SectionTitleFont);
+    }
     if (TaskGraphTitle)
     {
         TaskGraphTitle->SetColorAndOpacity(FSlateColor(Theme->TextColor));
@@ -698,6 +767,22 @@ void UMARightSidebarWidget::ApplyTheme(UMAUITheme* InTheme)
     {
         LogTitle->SetColorAndOpacity(FSlateColor(Theme->TextColor));
         LogTitle->SetFont(SectionTitleFont);
+    }
+    
+    // 应用命令输入框颜色
+    if (CommandInput)
+    {
+        // 更新输入框文字颜色
+        FEditableTextBoxStyle TextBoxStyle = CommandInput->WidgetStyle;
+        FSlateColor InputColor = FSlateColor(Theme->InputTextColor);
+        TextBoxStyle.SetForegroundColor(InputColor);
+        TextBoxStyle.SetFocusedForegroundColor(InputColor);
+        CommandInput->WidgetStyle = TextBoxStyle;
+    }
+    if (CommandInputBorder)
+    {
+        // 更新输入框背景颜色
+        MARoundedBorderUtils::ApplyRoundedCorners(CommandInputBorder, Theme->InputBackgroundColor, ButtonCornerRadius);
     }
     
     // 应用主题到子组件

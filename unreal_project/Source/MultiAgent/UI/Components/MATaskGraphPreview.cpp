@@ -151,7 +151,8 @@ void UMATaskGraphPreview::BuildUI()
     if (StatsText)
     {
         StatsText->SetText(FText::FromString(TEXT("No data")));
-        StatsText->SetColorAndOpacity(FSlateColor(FLinearColor(0.6f, 0.6f, 0.6f)));
+        // 使用成员变量 TextColor（从 Theme 获取或使用 fallback 默认值）
+        StatsText->SetColorAndOpacity(FSlateColor(TextColor));
         
         FSlateFontInfo StatsFont = FCoreStyle::GetDefaultFontStyle("Regular", 10);
         StatsText->SetFont(StatsFont);
@@ -165,7 +166,8 @@ void UMATaskGraphPreview::BuildUI()
     if (EmptyText)
     {
         EmptyText->SetText(FText::FromString(TEXT("Waiting for task graph...")));
-        EmptyText->SetColorAndOpacity(FSlateColor(FLinearColor(0.5f, 0.5f, 0.5f)));
+        // 使用成员变量 HintTextColor（从 Theme 获取或使用 fallback 默认值）
+        EmptyText->SetColorAndOpacity(FSlateColor(HintTextColor));
         EmptyText->SetJustification(ETextJustify::Center);
         
         FSlateFontInfo EmptyFont = FCoreStyle::GetDefaultFontStyle("Italic", 10);
@@ -201,12 +203,14 @@ void UMATaskGraphPreview::UpdatePreview(const FMATaskGraphData& Data)
             FString StatsStr = FString::Printf(TEXT("%d 节点, %d 边"), 
                 CurrentData.Nodes.Num(), CurrentData.Edges.Num());
             StatsText->SetText(FText::FromString(StatsStr));
-            StatsText->SetColorAndOpacity(FSlateColor(FLinearColor(0.7f, 0.7f, 0.7f)));
+            // 使用成员变量 TextColor（从 Theme 获取或使用 fallback 默认值）
+            StatsText->SetColorAndOpacity(FSlateColor(TextColor));
         }
         else
         {
             StatsText->SetText(FText::FromString(TEXT("No data")));
-            StatsText->SetColorAndOpacity(FSlateColor(FLinearColor(0.6f, 0.6f, 0.6f)));
+            // 使用成员变量 TextColor（从 Theme 获取或使用 fallback 默认值）
+            StatsText->SetColorAndOpacity(FSlateColor(TextColor));
         }
     }
     
@@ -295,7 +299,8 @@ void UMATaskGraphPreview::ClearPreview()
     if (StatsText)
     {
         StatsText->SetText(FText::FromString(TEXT("No data")));
-        StatsText->SetColorAndOpacity(FSlateColor(FLinearColor(0.6f, 0.6f, 0.6f)));
+        // 使用成员变量 TextColor（从 Theme 获取或使用 fallback 默认值）
+        StatsText->SetColorAndOpacity(FSlateColor(TextColor));
     }
     
     if (EmptyText)
@@ -463,6 +468,10 @@ void UMATaskGraphPreview::DrawNode(const FMAPreviewNodeRenderData& Node, int32 N
     float CenteredY = Node.Position.Y + (Node.Size.Y - EstimatedTextHeight) / 2.0f;
     FVector2D TextPos(CenteredX, CenteredY);
     
+    // 使用深色文字以便在浅色背景上可见
+    // 从 Theme 获取 InputTextColor，或使用 fallback 默认值
+    FLinearColor TextOnNodeColor = Theme ? Theme->InputTextColor : FLinearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    
     FSlateDrawElement::MakeText(
         OutDrawElements,
         LayerId + 2,
@@ -470,7 +479,7 @@ void UMATaskGraphPreview::DrawNode(const FMAPreviewNodeRenderData& Node, int32 N
         FText::FromString(DisplayText),
         FontInfo,
         ESlateDrawEffect::None,
-        FLinearColor::White
+        TextOnNodeColor
     );
 }
 
@@ -687,6 +696,7 @@ void UMATaskGraphPreview::ApplyTheme(UMAUITheme* InTheme)
     
     if (!Theme)
     {
+        UE_LOG(LogMATaskGraphPreview, Warning, TEXT("ApplyTheme: Theme is null, using fallback defaults"));
         return;
     }
     
@@ -696,10 +706,44 @@ void UMATaskGraphPreview::ApplyTheme(UMAUITheme* InTheme)
     BackgroundColor.G -= 0.02f;
     BackgroundColor.B -= 0.02f;
     
+    // 文本颜色
+    TextColor = Theme->SecondaryTextColor;
+    HintTextColor = Theme->HintTextColor;
+    TooltipTextColor = Theme->TextColor;
+    
+    // 状态颜色
+    PendingColor = Theme->StatusPendingColor;
+    InProgressColor = Theme->StatusInProgressColor;
+    CompletedColor = Theme->StatusCompletedColor;
+    FailedColor = Theme->StatusFailedColor;
+    
+    // 画布颜色
+    EdgeColor = Theme->EdgeColor;
+    
+    // 交互颜色
+    TooltipBgColor = Theme->HighlightColor;
+    HoverHighlightColor = Theme->HighlightColor;
+    HoverHighlightColor.A = 0.3f;
+    
+    // 更新内容边框背景
     if (ContentBorder)
     {
         // 应用圆角效果
         float CornerRadius = MARoundedBorderUtils::GetCornerRadiusForType(Theme, EMARoundedElementType::Button);
         MARoundedBorderUtils::ApplyRoundedCorners(ContentBorder, BackgroundColor, CornerRadius);
     }
+    
+    // 更新统计文本颜色
+    if (StatsText)
+    {
+        StatsText->SetColorAndOpacity(FSlateColor(TextColor));
+    }
+    
+    // 更新空状态提示文本颜色
+    if (EmptyText)
+    {
+        EmptyText->SetColorAndOpacity(FSlateColor(HintTextColor));
+    }
+    
+    UE_LOG(LogMATaskGraphPreview, Log, TEXT("ApplyTheme: Theme applied successfully"));
 }

@@ -332,9 +332,9 @@ void AMAPlayerController::Tick(float DeltaTime)
     {
         if (SelectionManager)
         {
-            SelectionHUD->bIsBoxSelecting = SelectionManager->IsBoxSelecting();
-            SelectionHUD->BoxStart = SelectionManager->GetBoxSelectStart();
-            SelectionHUD->BoxEnd = SelectionManager->GetBoxSelectEnd();
+            SelectionHUD->SetBoxSelecting(SelectionManager->IsBoxSelecting());
+            SelectionHUD->SetBoxStart(SelectionManager->GetBoxSelectStart());
+            SelectionHUD->SetBoxEnd(SelectionManager->GetBoxSelectEnd());
         }
     }
     
@@ -372,13 +372,26 @@ void AMAPlayerController::Tick(float DeltaTime)
 
 void AMAPlayerController::OnRightClickPressed(const FInputActionValue& Value)
 {
-    // 检查 UI 是否可见
+    // 检查鼠标是否在常驻 UI 上（右侧边栏、小地图等）
     if (AMAHUD* HUD = Cast<AMAHUD>(GetHUD()))
     {
+        // 如果鼠标在常驻 UI 上，不处理右键旋转
+        if (HUD->IsMouseOverPersistentUI())
+        {
+            return;
+        }
+        
+        // 如果 TaskPlanner 或 Emergency 界面可见，也不处理
         if (HUD->IsMainUIVisible() || HUD->IsEmergencyWidgetVisible())
         {
             return;
         }
+        
+        // 右键点击在游戏视口区域，恢复游戏输入模式以确保后续输入正常
+        // 这解决了点击 UI 后焦点被 UI 捕获的问题
+        FInputModeGameAndUI InputMode;
+        InputMode.SetHideCursorDuringCapture(false);
+        SetInputMode(InputMode);
     }
     
     // 开始右键旋转

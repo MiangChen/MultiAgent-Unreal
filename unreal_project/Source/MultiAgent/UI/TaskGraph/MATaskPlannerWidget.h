@@ -21,6 +21,7 @@ class UBorder;
 class USizeBox;
 class UScrollBox;
 class USplitter;
+class UMAUITheme;
 
 //=============================================================================
 // 委托声明
@@ -122,6 +123,14 @@ public:
     /** 检查是否为 Mock 模式 */
     UFUNCTION(BlueprintPure, Category = "TaskPlanner")
     bool IsMockMode() const { return bUseMockData; }
+
+    //=========================================================================
+    // 主题
+    //=========================================================================
+
+    /** 应用主题样式 */
+    UFUNCTION(BlueprintCallable, Category = "TaskPlanner")
+    void ApplyTheme(UMAUITheme* InTheme);
 
     //=========================================================================
     // 委托
@@ -279,6 +288,50 @@ protected:
     UPROPERTY()
     UButton* CloseButton;
 
+    //=========================================================================
+    // 主题相关 TextBlock 引用 (用于 ApplyTheme 更新颜色)
+    //=========================================================================
+
+    /** 标题文字 */
+    UPROPERTY()
+    UTextBlock* TitleText;
+
+    /** 提示文字 */
+    UPROPERTY()
+    UTextBlock* HintText;
+
+    /** 关闭按钮文字 */
+    UPROPERTY()
+    UTextBlock* CloseText;
+
+    /** 状态日志标签 */
+    UPROPERTY()
+    UTextBlock* StatusLogLabel;
+
+    /** JSON 编辑器标签 */
+    UPROPERTY()
+    UTextBlock* JsonEditorLabel;
+
+    /** 用户输入标签 */
+    UPROPERTY()
+    UTextBlock* UserInputLabel;
+
+    /** 背景遮罩 */
+    UPROPERTY()
+    UBorder* BackgroundOverlay;
+
+    /** 状态日志 Border (圆角背景) */
+    UPROPERTY()
+    UBorder* StatusLogBorder;
+
+    /** JSON 编辑器 Border (圆角背景) */
+    UPROPERTY()
+    UBorder* JsonEditorBorder;
+
+    /** 用户输入 Border (圆角背景) */
+    UPROPERTY()
+    UBorder* UserInputBorder;
+
     /** DAG 画布 Widget */
     UPROPERTY()
     UMADAGCanvasWidget* DAGCanvas;
@@ -306,7 +359,15 @@ protected:
     float StatusLogHeightRatio = 0.3f;
 
     //=========================================================================
-    // 颜色配置
+    // 主题引用
+    //=========================================================================
+
+    /** 缓存的主题引用 */
+    UPROPERTY()
+    UMAUITheme* Theme;
+
+    //=========================================================================
+    // 颜色配置 (从 Theme 获取，带 fallback 默认值)
     //=========================================================================
 
     /** 背景颜色 */

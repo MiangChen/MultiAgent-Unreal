@@ -2,24 +2,37 @@
 // 场景图文件IO模块实现
 
 #include "MASceneGraphIO.h"
+#include "../../Config/MAConfigManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonWriter.h"
 #include "Serialization/JsonSerializer.h"
+#include "Engine/GameInstance.h"
+#include "Kismet/GameplayStatics.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMASceneGraphIO, Log, All);
-
-// 场景图文件名常量
-static const FString SceneGraphFileName = TEXT("datasets/scene_graph_cyberworld.json");
 
 //=============================================================================
 // 文件路径
 //=============================================================================
 
-FString FMASceneGraphIO::GetSceneGraphFilePath()
+FString FMASceneGraphIO::GetSceneGraphFilePath(const UObject* WorldContextObject)
 {
-    return FPaths::ProjectDir() / SceneGraphFileName;
+    if (WorldContextObject)
+    {
+        if (UGameInstance* GameInstance = UGameplayStatics::GetGameInstance(WorldContextObject))
+        {
+            if (UMAConfigManager* ConfigManager = GameInstance->GetSubsystem<UMAConfigManager>())
+            {
+                return ConfigManager->GetSceneGraphFilePath();
+            }
+        }
+    }
+    
+    // Fallback: 使用默认路径
+    UE_LOG(LogMASceneGraphIO, Warning, TEXT("GetSceneGraphFilePath: ConfigManager not available, using default path"));
+    return FPaths::ProjectDir() / TEXT("datasets/scene_graph_cyberworld.json");
 }
 
 //=============================================================================

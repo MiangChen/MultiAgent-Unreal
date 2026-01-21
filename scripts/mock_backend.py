@@ -319,6 +319,70 @@ SKILL_LISTS = {
     }
 }
 
+# ========== 紧急事件预设数据 ==========
+EMERGENCY_EVENTS = {
+    "obstacle_detected": {
+        "name": "Obstacle Detected",
+        "description": "Obstacle blocking path",
+        "data": {
+            "agent_id": "Quadruped_01",
+            "agent_name": "Scout Dog",
+            "event_type": "obstacle_detected",
+            "description": "Obstacle detected ahead blocking the path. Please decide the next action.",
+            "location": {"x": 1000, "y": 2000, "z": 0},
+            "available_options": ["Detour", "Wait", "Return to Base", "Request Support"]
+        }
+    },
+    "low_battery": {
+        "name": "Low Battery Warning",
+        "description": "Battery level critical",
+        "data": {
+            "agent_id": "UAV_01",
+            "agent_name": "Recon Drone",
+            "event_type": "low_battery",
+            "description": "UAV battery level below 20%. Please decide whether to return.",
+            "location": {"x": 500, "y": 1500, "z": 300},
+            "available_options": ["Return Now", "Continue Mission", "Land Nearby"]
+        }
+    },
+    "target_found": {
+        "name": "Target Found",
+        "description": "Target located",
+        "data": {
+            "agent_id": "UAV_02",
+            "agent_name": "Search Drone",
+            "event_type": "target_found",
+            "description": "Potential target found in search area. Please confirm next action.",
+            "location": {"x": -800, "y": 2200, "z": 200},
+            "available_options": ["Confirm Target", "Continue Search", "Notify Ground Unit", "Take Photo"]
+        }
+    },
+    "communication_lost": {
+        "name": "Communication Lost",
+        "description": "Connection interrupted",
+        "data": {
+            "agent_id": "UGV_01",
+            "agent_name": "Transport Vehicle",
+            "event_type": "communication_lost",
+            "description": "Communication with command center lost. Please select emergency action.",
+            "location": {"x": -1200, "y": 800, "z": 0},
+            "available_options": ["Hold Position", "Return to Signal Area", "Continue Mission", "Use Backup Comm"]
+        }
+    },
+    "intruder_detected": {
+        "name": "Intruder Detected",
+        "description": "Unauthorized personnel detected",
+        "data": {
+            "agent_id": "Quadruped_02",
+            "agent_name": "Patrol Dog",
+            "event_type": "intruder_detected",
+            "description": "Unauthorized personnel detected in patrol area. Please select response.",
+            "location": {"x": 600, "y": -500, "z": 0},
+            "available_options": ["Sound Alarm", "Track and Monitor", "Request Support", "Ignore"]
+        }
+    }
+}
+
 # ========== 预设任务图定义 ==========
 TASK_GRAPHS = {
     "fire_rescue": {
@@ -562,6 +626,8 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
         }
         .section-title.skill { color: #e94560; }
         .section-title.allocation { color: #ffd700; }
+        .section-title.request-cmd { color: #00ff88; }
+        .section-title.emergency { color: #ff6b35; }
         
         .allocation-btn {
             width: 100%; padding: 12px 16px; margin-bottom: 10px;
@@ -572,6 +638,16 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
         .allocation-btn .name { font-weight: bold; font-size: 14px; }
         .allocation-btn .desc { font-size: 12px; color: #aaa; margin-top: 4px; }
         .allocation-btn:hover .desc { color: #0f3460; }
+        
+        .emergency-btn {
+            width: 100%; padding: 12px 16px; margin-bottom: 10px;
+            background: #0f3460; border: 1px solid #ff6b35; border-radius: 8px;
+            color: #fff; cursor: pointer; text-align: left; transition: all 0.2s;
+        }
+        .emergency-btn:hover { background: #ff6b35; color: #fff; transform: translateX(5px); }
+        .emergency-btn .name { font-weight: bold; font-size: 14px; }
+        .emergency-btn .desc { font-size: 12px; color: #aaa; margin-top: 4px; }
+        .emergency-btn:hover .desc { color: #fff; }
         
         .status { 
             padding: 10px; background: #0a0a1a; border-radius: 8px; 
@@ -686,6 +762,9 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
                 </button>
             </div>
             
+            <div class="section-title emergency">🚨 紧急事件</div>
+            <div id="emergency-buttons"></div>
+            
             <div class="status">
                 <span class="dot connected" id="status-dot"></span>
                 <span id="status-text">Server Running on :{{PORT}}</span>
@@ -717,6 +796,7 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
         const skillLists = {{SKILL_LISTS}};
         const taskGraphs = {{TASK_GRAPHS}};
         const skillAllocations = {{SKILL_ALLOCATIONS}};
+        const emergencyEvents = {{EMERGENCY_EVENTS}};
         const messagesDiv = document.getElementById('messages');
         const emptyState = document.getElementById('empty-state');
         let messageCount = 0;
@@ -850,6 +930,34 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             }
         }
         
+        // Generate emergency event buttons
+        const emergencyButtonsDiv = document.getElementById('emergency-buttons');
+        for (const [key, event] of Object.entries(emergencyEvents)) {
+            const btn = document.createElement('button');
+            btn.className = 'emergency-btn';
+            btn.onclick = () => sendEmergencyEvent(key);
+            btn.innerHTML = `<div class="name">🚨 ${event.name}</div><div class="desc">${event.description}</div>`;
+            emergencyButtonsDiv.appendChild(btn);
+        }
+        
+        // Send emergency event (紧急事件)
+        async function sendEmergencyEvent(eventKey) {
+            try {
+                const response = await fetch('/api/send_emergency_event', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ event_key: eventKey })
+                });
+                const result = await response.json();
+                const displayContent = result.note 
+                    ? { ...result, "⚠️ Note": result.note }
+                    : result;
+                addMessage('sent', `Sent Emergency Event: ${emergencyEvents[eventKey]?.name || eventKey}`, displayContent, 'outgoing');
+            } catch (e) {
+                console.error('Failed to send emergency event:', e);
+            }
+        }
+        
         // Add message to display
         function addMessage(type, title, content, direction) {
             if (emptyState) emptyState.style.display = 'none';
@@ -922,7 +1030,7 @@ def broadcast_message(msg_type, title, content, direction='incoming'):
 
 def create_skill_list_message(skill_list: dict) -> dict:
     """创建技能列表消息 (直接执行，无需 UI 交互)
-    
+
     Platform 类别消息，通过 /api/sim/poll 端点发送
     """
     return {
@@ -937,9 +1045,9 @@ def create_skill_list_message(skill_list: dict) -> dict:
 
 def create_skill_allocation_message(allocation: dict, category: str = "review") -> dict:
     """创建技能分配消息 (UI 交互流程，用户确认后执行)
-    
+
     HITL 类别消息，通过 /api/hitl/poll 端点发送
-    
+
     格式与 GSI 端保持一致：
     {
         "message_id": "...",
@@ -973,9 +1081,9 @@ def create_skill_allocation_message(allocation: dict, category: str = "review") 
 
 def create_task_graph_message(task_graph: dict, category: str = "review") -> dict:
     """创建任务图消息
-    
+
     HITL 类别消息，通过 /api/hitl/poll 端点发送
-    
+
     格式与 GSI 端保持一致：
     {
         "message_id": "...",
@@ -1009,6 +1117,16 @@ def create_request_user_command_message() -> dict:
         "timestamp": int(datetime.now().timestamp() * 1000),
         "message_id": str(uuid.uuid4()),
         "payload": {}
+    }
+
+
+def create_emergency_event_message(event_data: dict) -> dict:
+    """创建紧急事件消息"""
+    return {
+        "message_type": "emergency_event",
+        "timestamp": int(datetime.now().timestamp() * 1000),
+        "message_id": str(uuid.uuid4()),
+        "payload": event_data
     }
 
 
@@ -1068,6 +1186,8 @@ class MockBackendHandler(BaseHTTPRequestHandler):
             self.handle_send_task_graph(body)
         elif parsed_path.path == '/api/send_request_user_command':
             self.handle_send_request_user_command()
+        elif parsed_path.path == '/api/send_emergency_event':
+            self.handle_send_emergency_event(body)
         else:
             self.send_response(404)
             self.end_headers()
@@ -1078,8 +1198,9 @@ class MockBackendHandler(BaseHTTPRequestHandler):
         html = HTML_TEMPLATE.replace('{{PORT}}', str(server_port))
         html = html.replace('{{SKILL_LISTS}}', json.dumps(SKILL_LISTS, ensure_ascii=False))
         html = html.replace('{{TASK_GRAPHS}}', json.dumps(TASK_GRAPHS, ensure_ascii=False))
+        html = html.replace('{{EMERGENCY_EVENTS}}', json.dumps(EMERGENCY_EVENTS, ensure_ascii=False))
         html = html.replace('{{SKILL_ALLOCATIONS}}', json.dumps(SKILL_ALLOCATIONS, ensure_ascii=False))
-        
+
         self.send_response(200)
         self.send_header('Content-Type', 'text/html; charset=utf-8')
         self.end_headers()
@@ -1100,10 +1221,10 @@ class MockBackendHandler(BaseHTTPRequestHandler):
             else:
                 self.send_response(204)
                 self.end_headers()
-    
+
     def handle_hitl_poll(self):
         """Handle UE5 poll request for HITL messages
-        
+
         Returns pending HITL messages (skill_allocation, task_graph) for UE5 to process.
         Messages are returned by category priority: REVIEW, DECISION, INSTRUCTION.
         """
@@ -1125,7 +1246,7 @@ class MockBackendHandler(BaseHTTPRequestHandler):
     def handle_health(self):
         """Handle health check request"""
         self.send_json_response(200, {"status": "healthy"})
-    
+
     def handle_sse(self):
         """Handle SSE connection for real-time updates"""
         self.send_response(200)
@@ -1160,10 +1281,10 @@ class MockBackendHandler(BaseHTTPRequestHandler):
         except json.JSONDecodeError as e:
             broadcast_message('error', 'JSON Parse Error', str(e), 'incoming')
             self.send_json_response(400, {"error": str(e)})
-    
+
     def handle_hitl_message(self, body):
         """Handle HITL message from UE5
-        
+
         Receives HITL messages (review responses, decisions, instructions) from UE5.
         Expected message format:
         {
@@ -1185,24 +1306,24 @@ class MockBackendHandler(BaseHTTPRequestHandler):
             msg_type = data.get('message_type', 'unknown')
             msg_category = data.get('message_category', 'unknown')
             payload = data.get('payload', {})
-            
+
             # 存储响应
             with hitl_responses_lock:
                 hitl_responses.append(data)
-            
+
             # 广播到 Web UI
             approved = payload.get('approved', None)
             status_str = ""
             if approved is not None:
                 status_str = " ✓ APPROVED" if approved else " ✗ REJECTED"
-            
+
             broadcast_message('hitl_response', f'HITL ({msg_category}): {msg_type}{status_str}', data, 'incoming')
             self.send_json_response(200, {"status": "received"})
-            
+
         except json.JSONDecodeError as e:
             broadcast_message('error', 'HITL JSON Parse Error', str(e), 'incoming')
             self.send_json_response(400, {"error": str(e)})
-    
+
     def handle_scene_change(self, body):
         """Handle scene change from UE5"""
         try:
@@ -1258,10 +1379,10 @@ class MockBackendHandler(BaseHTTPRequestHandler):
             if allocation_key in SKILL_ALLOCATIONS:
                 allocation_data = SKILL_ALLOCATIONS[allocation_key]
                 msg = create_skill_allocation_message(allocation_data, category="review")
-                
+
                 with hitl_lock:
                     hitl_messages.append(msg)
-                
+
                 self.send_json_response(200, {
                     "status": "queued",
                     "endpoint": "/api/hitl/poll",
@@ -1329,15 +1450,45 @@ class MockBackendHandler(BaseHTTPRequestHandler):
             "note": "Request user command message queued. UE5 will display a notification."
         })
 
+    def handle_send_emergency_event(self, body):
+        """Handle emergency event send request from Web UI
 
-server_port = 8081
+        Note: This method queues the emergency_event message for UE5 to poll.
+        UE5 will display a notification and allow the user to respond via EmergencyModal.
+        """
+        global pending_messages
+        try:
+            data = json.loads(body)
+            event_key = data.get('event_key', '')
+
+            if event_key in EMERGENCY_EVENTS:
+                event_data = EMERGENCY_EVENTS[event_key]['data']
+                msg = create_emergency_event_message(event_data)
+
+                with message_lock:
+                    pending_messages.append(msg)
+
+                self.send_json_response(200, {
+                    "status": "queued",
+                    "emergency_event": event_key,
+                    "message_id": msg['message_id'],
+                    "note": "Emergency event queued. UE5 will display a notification."
+                })
+            else:
+                self.send_json_response(400, {"error": f"Unknown emergency event: {event_key}"})
+
+        except json.JSONDecodeError as e:
+            self.send_json_response(400, {"error": str(e)})
+
+
+server_port = 8080
 
 
 def main():
     global server_port
     
     parser = argparse.ArgumentParser(description='MultiAgent-Unreal Mock Backend Server with Web UI')
-    parser.add_argument('--port', type=int, default=8081, help='Server port (default: 8081, matches UE5 planner_url)')
+    parser.add_argument('--port', type=int, default=8080, help='Server port (default: 8081, matches UE5 planner_url)')
     parser.add_argument('--host', type=str, default='0.0.0.0', help='Server address (default: 0.0.0.0)')
     args = parser.parse_args()
     

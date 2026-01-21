@@ -118,7 +118,8 @@ void UMASkillListPreview::BuildUI()
     if (StatsText)
     {
         StatsText->SetText(FText::FromString(TEXT("No data")));
-        StatsText->SetColorAndOpacity(FSlateColor(FLinearColor(0.6f, 0.6f, 0.6f)));
+        // 使用成员变量 TextColor（从 Theme 获取或使用 fallback 默认值）
+        StatsText->SetColorAndOpacity(FSlateColor(TextColor));
         
         FSlateFontInfo StatsFont = FCoreStyle::GetDefaultFontStyle("Regular", 10);
         StatsText->SetFont(StatsFont);
@@ -132,7 +133,8 @@ void UMASkillListPreview::BuildUI()
     if (EmptyText)
     {
         EmptyText->SetText(FText::FromString(TEXT("Waiting for skill list...")));
-        EmptyText->SetColorAndOpacity(FSlateColor(FLinearColor(0.5f, 0.5f, 0.5f)));
+        // 使用成员变量 TextColor（从 Theme 获取或使用 fallback 默认值）
+        EmptyText->SetColorAndOpacity(FSlateColor(TextColor));
         EmptyText->SetJustification(ETextJustify::Center);
         
         FSlateFontInfo EmptyFont = FCoreStyle::GetDefaultFontStyle("Italic", 10);
@@ -171,12 +173,14 @@ void UMASkillListPreview::UpdatePreview(const FMASkillAllocationData& Data)
             FString StatsStr = FString::Printf(TEXT("%d robots, %d time steps"), 
                 RobotIds.Num(), TimeSteps.Num());
             StatsText->SetText(FText::FromString(StatsStr));
-            StatsText->SetColorAndOpacity(FSlateColor(FLinearColor(0.7f, 0.7f, 0.7f)));
+            // 使用成员变量 TextColor（从 Theme 获取或使用 fallback 默认值）
+            StatsText->SetColorAndOpacity(FSlateColor(TextColor));
         }
         else
         {
             StatsText->SetText(FText::FromString(TEXT("No data")));
-            StatsText->SetColorAndOpacity(FSlateColor(FLinearColor(0.6f, 0.6f, 0.6f)));
+            // 使用成员变量 TextColor（从 Theme 获取或使用 fallback 默认值）
+            StatsText->SetColorAndOpacity(FSlateColor(TextColor));
         }
     }
     
@@ -235,7 +239,8 @@ void UMASkillListPreview::ClearPreview()
     if (StatsText)
     {
         StatsText->SetText(FText::FromString(TEXT("No data")));
-        StatsText->SetColorAndOpacity(FSlateColor(FLinearColor(0.6f, 0.6f, 0.6f)));
+        // 使用成员变量 TextColor（从 Theme 获取或使用 fallback 默认值）
+        StatsText->SetColorAndOpacity(FSlateColor(TextColor));
     }
     
     if (EmptyText)
@@ -459,6 +464,10 @@ void UMASkillListPreview::DrawSkillBars(const FGeometry& AllottedGeometry, FSlat
             
             FVector2D TextPos(CenteredX, CenteredY);
             
+            // 使用深色文字以便在浅色背景上可见
+            // 从 Theme 获取 InputTextColor，或使用 fallback 默认值
+            FLinearColor TextOnBarColor = Theme ? Theme->InputTextColor : FLinearColor(0.1f, 0.1f, 0.1f, 1.0f);
+            
             FSlateDrawElement::MakeText(
                 OutDrawElements,
                 LayerId + 2,
@@ -466,7 +475,7 @@ void UMASkillListPreview::DrawSkillBars(const FGeometry& AllottedGeometry, FSlat
                 FText::FromString(DisplayName),
                 FontInfo,
                 ESlateDrawEffect::None,
-                FLinearColor::White
+                TextOnBarColor
             );
         }
     }
@@ -623,13 +632,17 @@ void UMASkillListPreview::DrawTooltip(const FGeometry& AllottedGeometry, FSlateW
     BorderPoints.Add(TooltipPos + FVector2D(0, TooltipHeight));
     BorderPoints.Add(TooltipPos);
     
+    // 使用成员变量 GridLineColor（从 Theme 获取或使用 fallback 默认值）
+    FLinearColor TooltipBorderColor = GridLineColor;
+    TooltipBorderColor.A = 1.0f;
+    
     FSlateDrawElement::MakeLines(
         OutDrawElements,
         LayerId + 1,
         AllottedGeometry.ToPaintGeometry(),
         BorderPoints,
         ESlateDrawEffect::None,
-        FLinearColor(0.3f, 0.3f, 0.35f, 1.0f),
+        TooltipBorderColor,
         true,
         1.0f
     );
@@ -663,19 +676,50 @@ void UMASkillListPreview::ApplyTheme(UMAUITheme* InTheme)
     
     if (!Theme)
     {
+        UE_LOG(LogMASkillListPreview, Warning, TEXT("ApplyTheme: Theme is null, using fallback defaults"));
         return;
     }
     
-    // 应用背景颜色
-    BackgroundColor = Theme->BackgroundColor;
-    BackgroundColor.R -= 0.02f;
-    BackgroundColor.G -= 0.02f;
-    BackgroundColor.B -= 0.02f;
+    // 画布颜色
+    BackgroundColor = Theme->CanvasBackgroundColor;
+    GridLineColor = Theme->GridLineColor;
+    // 调整网格线透明度
+    GridLineColor.A = 0.5f;
     
+    // 文本颜色
+    TextColor = Theme->SecondaryTextColor;
+    TooltipTextColor = Theme->TextColor;
+    
+    // 状态颜色
+    PendingColor = Theme->StatusPendingColor;
+    InProgressColor = Theme->StatusInProgressColor;
+    CompletedColor = Theme->StatusCompletedColor;
+    FailedColor = Theme->StatusFailedColor;
+    
+    // 交互颜色
+    TooltipBgColor = Theme->HighlightColor;
+    HoverHighlightColor = Theme->HighlightColor;
+    HoverHighlightColor.A = 0.3f;
+    
+    // 更新内容边框背景
     if (ContentBorder)
     {
-        // 应用圆角效果
         float CornerRadius = MARoundedBorderUtils::GetCornerRadiusForType(Theme, EMARoundedElementType::Button);
         MARoundedBorderUtils::ApplyRoundedCorners(ContentBorder, BackgroundColor, CornerRadius);
     }
+    
+    // 更新统计文本颜色
+    if (StatsText)
+    {
+        StatsText->SetColorAndOpacity(FSlateColor(TextColor));
+    }
+    
+    // 更新空状态提示文本颜色
+    if (EmptyText)
+    {
+        FLinearColor HintColor = Theme->HintTextColor;
+        EmptyText->SetColorAndOpacity(FSlateColor(HintColor));
+    }
+    
+    UE_LOG(LogMASkillListPreview, Log, TEXT("ApplyTheme: Theme applied successfully"));
 }

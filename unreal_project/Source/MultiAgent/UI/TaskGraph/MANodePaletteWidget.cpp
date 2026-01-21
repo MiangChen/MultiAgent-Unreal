@@ -2,6 +2,7 @@
 // 节点工具栏 Widget - 提供可拖拽的节点模板
 
 #include "MANodePaletteWidget.h"
+#include "../Core/MAUITheme.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "Components/ScrollBox.h"
@@ -407,4 +408,61 @@ void UMANodePaletteWidget::HandleTemplateClicked(int32 TemplateIndex)
         // 广播委托
         OnNodeTemplateSelected.Broadcast(Template);
     }
+}
+
+//=============================================================================
+// 主题应用
+//=============================================================================
+
+void UMANodePaletteWidget::ApplyTheme(UMAUITheme* InTheme)
+{
+    Theme = InTheme;
+    if (!Theme)
+    {
+        return;
+    }
+    
+    // 从 Theme 更新颜色配置
+    BackgroundColor = Theme->BackgroundColor;
+    TitleColor = Theme->TextColor;
+    ButtonDefaultColor = Theme->SecondaryColor;
+    ButtonHoverColor = Theme->HighlightColor;
+    ButtonTextColor = Theme->TextColor;
+    
+    // 更新背景颜色
+    if (BackgroundBorder)
+    {
+        BackgroundBorder->SetBrushColor(BackgroundColor);
+    }
+    
+    // 更新标题颜色
+    if (TitleText)
+    {
+        TitleText->SetColorAndOpacity(FSlateColor(TitleColor));
+    }
+    
+    // 更新按钮样式
+    for (UButton* Button : TemplateButtons)
+    {
+        if (Button)
+        {
+            FButtonStyle ButtonStyle = Button->GetStyle();
+            ButtonStyle.Normal.TintColor = FSlateColor(ButtonDefaultColor);
+            ButtonStyle.Hovered.TintColor = FSlateColor(ButtonHoverColor);
+            ButtonStyle.Pressed.TintColor = FSlateColor(FLinearColor(0.15f, 0.15f, 0.2f, 1.0f));
+            Button->SetStyle(ButtonStyle);
+            
+            // 更新按钮文本颜色
+            if (Button->GetChildrenCount() > 0)
+            {
+                UTextBlock* ButtonText = Cast<UTextBlock>(Button->GetChildAt(0));
+                if (ButtonText)
+                {
+                    ButtonText->SetColorAndOpacity(FSlateColor(ButtonTextColor));
+                }
+            }
+        }
+    }
+    
+    UE_LOG(LogMANodePalette, Verbose, TEXT("ApplyTheme: Theme applied to node palette"));
 }

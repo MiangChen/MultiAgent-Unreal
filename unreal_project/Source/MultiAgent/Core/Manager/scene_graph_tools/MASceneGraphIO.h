@@ -43,11 +43,12 @@ public:
     static bool SaveSceneGraph(const FString& FilePath, const TSharedPtr<FJsonObject>& Data);
 
     /**
-     * 获取场景图文件路径
+     * 获取场景图文件路径 (从配置管理器读取)
      * 
+     * @param WorldContextObject 世界上下文对象，用于获取ConfigManager
      * @return JSON文件的完整路径
      */
-    static FString GetSceneGraphFilePath();
+    static FString GetSceneGraphFilePath(const UObject* WorldContextObject = nullptr);
 
     //=========================================================================
     // 节点解析

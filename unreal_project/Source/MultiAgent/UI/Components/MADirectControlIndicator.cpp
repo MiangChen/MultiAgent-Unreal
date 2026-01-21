@@ -3,6 +3,7 @@
 
 #include "MADirectControlIndicator.h"
 #include "../Core/MARoundedBorderUtils.h"
+#include "../Core/MAUITheme.h"
 #include "Components/TextBlock.h"
 #include "Components/Border.h"
 #include "Components/CanvasPanel.h"
@@ -97,8 +98,8 @@ void UMADirectControlIndicator::BuildUI()
     FontInfo.Size = 16;
     IndicatorText->SetFont(FontInfo);
     
-    // 设置绿色文字
-    IndicatorText->SetColorAndOpacity(FSlateColor(FLinearColor(0.2f, 1.0f, 0.2f)));
+    // 设置指示器文字颜色 (使用成员变量，可通过主题更新)
+    IndicatorText->SetColorAndOpacity(FSlateColor(IndicatorTextColor));
     
     BackgroundBorder->AddChild(IndicatorText);
 
@@ -120,4 +121,24 @@ void UMADirectControlIndicator::SetAgentName(const FString& AgentName)
 FString UMADirectControlIndicator::GetAgentName() const
 {
     return CurrentAgentName;
+}
+
+void UMADirectControlIndicator::ApplyTheme(UMAUITheme* InTheme)
+{
+    Theme = InTheme;
+    if (!Theme)
+    {
+        return;
+    }
+
+    // 使用 SuccessColor 作为指示器文字颜色
+    IndicatorTextColor = Theme->SuccessColor;
+
+    // 更新指示器文字颜色
+    if (IndicatorText)
+    {
+        IndicatorText->SetColorAndOpacity(FSlateColor(IndicatorTextColor));
+    }
+
+    UE_LOG(LogMADirectControlIndicator, Log, TEXT("ApplyTheme: Theme applied successfully"));
 }

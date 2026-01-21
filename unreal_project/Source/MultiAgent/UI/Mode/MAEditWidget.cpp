@@ -63,6 +63,40 @@ void UMAEditWidget::NativePreConstruct()
 }
 
 
+//=========================================================================
+// ApplyTheme - 应用主题样式
+//=========================================================================
+
+void UMAEditWidget::ApplyTheme(UMAUITheme* InTheme)
+{
+    Theme = InTheme;
+    if (!Theme)
+    {
+        UE_LOG(LogMAEditWidget, Warning, TEXT("ApplyTheme: Theme is null, using default colors"));
+        return;
+    }
+
+    // 更新标题颜色
+    if (TitleText)
+    {
+        TitleText->SetColorAndOpacity(FSlateColor(Theme->PrimaryColor));
+    }
+
+    // 更新提示文字颜色
+    if (HintText)
+    {
+        HintText->SetColorAndOpacity(FSlateColor(Theme->HintTextColor));
+    }
+
+    // 更新错误文字颜色
+    if (ErrorText)
+    {
+        ErrorText->SetColorAndOpacity(FSlateColor(Theme->DangerColor));
+    }
+
+    UE_LOG(LogMAEditWidget, Log, TEXT("ApplyTheme: Theme applied successfully"));
+}
+
 void UMAEditWidget::NativeConstruct()
 {
     Super::NativeConstruct();
@@ -249,7 +283,9 @@ void UMAEditWidget::BuildUI()
     FSlateFontInfo TitleFont = TitleText->GetFont();
     TitleFont.Size = 16;
     TitleText->SetFont(TitleFont);
-    TitleText->SetColorAndOpacity(FSlateColor(FLinearColor(0.3f, 0.6f, 1.0f)));  // 蓝色
+    // 使用 Theme 颜色，fallback 到默认蓝色
+    FLinearColor TitleColor = Theme ? Theme->PrimaryColor : FLinearColor(0.3f, 0.6f, 1.0f);
+    TitleText->SetColorAndOpacity(FSlateColor(TitleColor));
 
     UVerticalBoxSlot* TitleSlot = MainVBox->AddChildToVerticalBox(TitleText);
     TitleSlot->SetPadding(FMargin(0, 0, 0, 8));
@@ -260,7 +296,9 @@ void UMAEditWidget::BuildUI()
     FSlateFontInfo HintFont = HintText->GetFont();
     HintFont.Size = 11;
     HintText->SetFont(HintFont);
-    HintText->SetColorAndOpacity(FSlateColor(FLinearColor(0.6f, 0.6f, 0.6f)));
+    // 使用 Theme 颜色，fallback 到默认灰色
+    FLinearColor HintColor = Theme ? Theme->HintTextColor : FLinearColor(0.6f, 0.6f, 0.6f);
+    HintText->SetColorAndOpacity(FSlateColor(HintColor));
     HintText->SetAutoWrapText(true);  // 启用自动换行
     
     UVerticalBoxSlot* HintSlot = MainVBox->AddChildToVerticalBox(HintText);
@@ -272,7 +310,9 @@ void UMAEditWidget::BuildUI()
     FSlateFontInfo ErrorFont = ErrorText->GetFont();
     ErrorFont.Size = 11;
     ErrorText->SetFont(ErrorFont);
-    ErrorText->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.3f, 0.3f)));  // 红色
+    // 使用 Theme 颜色，fallback 到默认红色
+    FLinearColor ErrorColor = Theme ? Theme->DangerColor : FLinearColor(1.0f, 0.3f, 0.3f);
+    ErrorText->SetColorAndOpacity(FSlateColor(ErrorColor));
     ErrorText->SetAutoWrapText(true);  // 启用自动换行
     ErrorText->SetVisibility(ESlateVisibility::Collapsed);
     
@@ -301,7 +341,9 @@ void UMAEditWidget::BuildUI()
     FSlateFontInfo JsonLabelFont = JsonLabel->GetFont();
     JsonLabelFont.Size = 12;
     JsonLabel->SetFont(JsonLabelFont);
-    JsonLabel->SetColorAndOpacity(FSlateColor(FLinearColor(0.8f, 0.8f, 0.8f)));
+    // 使用 Theme 颜色，fallback 到默认浅灰色
+    FLinearColor JsonLabelColor = Theme ? Theme->LabelTextColor : FLinearColor(0.8f, 0.8f, 0.8f);
+    JsonLabel->SetColorAndOpacity(FSlateColor(JsonLabelColor));
     
     UVerticalBoxSlot* JsonLabelSlot = ActorOperationBox->AddChildToVerticalBox(JsonLabel);
     JsonLabelSlot->SetPadding(FMargin(0, 0, 0, 4));
@@ -311,7 +353,9 @@ void UMAEditWidget::BuildUI()
     JsonEditBox->SetHintText(FText::FromString(TEXT("Select an Actor to display JSON")));
 
     FEditableTextBoxStyle JsonTextBoxStyle;
-    FSlateColor BlackColor = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
+    // 使用 Theme 颜色，fallback 到默认黑色
+    FLinearColor JsonInputTextColor = Theme ? Theme->InputTextColor : FLinearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    FSlateColor BlackColor = FSlateColor(JsonInputTextColor);
     JsonTextBoxStyle.SetForegroundColor(BlackColor);
     JsonTextBoxStyle.SetFocusedForegroundColor(BlackColor);
     FSlateFontInfo JsonFont = FCoreStyle::GetDefaultFontStyle("Regular", 11);
@@ -332,7 +376,8 @@ void UMAEditWidget::BuildUI()
     JsonEditBorder->SetPadding(FMargin(8.0f, 4.0f));
     
     // 应用圆角效果 - 可编辑文本框使用白色背景
-    FLinearColor JsonEditBgColor = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    // 使用 Theme 颜色，fallback 到默认白色
+    FLinearColor JsonEditBgColor = Theme ? Theme->InputBackgroundColor : FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
     MARoundedBorderUtils::ApplyRoundedCorners(JsonEditBorder, JsonEditBgColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
     
     JsonEditBorder->AddChild(JsonEditBox);
@@ -352,7 +397,9 @@ void UMAEditWidget::BuildUI()
     ConfirmButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("ConfirmButton"));
     UTextBlock* ConfirmText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ConfirmText"));
     ConfirmText->SetText(FText::FromString(TEXT("  Confirm  ")));
-    ConfirmText->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
+    // 使用 Theme 颜色，fallback 到默认黑色
+    FLinearColor ButtonTextColor = Theme ? Theme->InputTextColor : FLinearColor::Black;
+    ConfirmText->SetColorAndOpacity(FSlateColor(ButtonTextColor));
     FSlateFontInfo ConfirmFont = ConfirmText->GetFont();
     ConfirmFont.Size = 14;
     ConfirmText->SetFont(ConfirmFont);
@@ -365,7 +412,7 @@ void UMAEditWidget::BuildUI()
     DeleteButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("DeleteButton"));
     UTextBlock* DeleteText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("DeleteText"));
     DeleteText->SetText(FText::FromString(TEXT("  Delete  ")));
-    DeleteText->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
+    DeleteText->SetColorAndOpacity(FSlateColor(ButtonTextColor));
     FSlateFontInfo DeleteFont = DeleteText->GetFont();
     DeleteFont.Size = 14;
     DeleteText->SetFont(DeleteFont);
@@ -378,7 +425,7 @@ void UMAEditWidget::BuildUI()
     SetAsGoalButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("SetAsGoalButton"));
     UTextBlock* SetGoalText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("SetGoalText"));
     SetGoalText->SetText(FText::FromString(TEXT(" Set as Goal ")));
-    SetGoalText->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
+    SetGoalText->SetColorAndOpacity(FSlateColor(ButtonTextColor));
     FSlateFontInfo SetGoalFont = SetGoalText->GetFont();
     SetGoalFont.Size = 14;
     SetGoalText->SetFont(SetGoalFont);
@@ -391,7 +438,7 @@ void UMAEditWidget::BuildUI()
     UnsetAsGoalButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("UnsetAsGoalButton"));
     UTextBlock* UnsetGoalText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("UnsetGoalText"));
     UnsetGoalText->SetText(FText::FromString(TEXT(" Unset Goal ")));
-    UnsetGoalText->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
+    UnsetGoalText->SetColorAndOpacity(FSlateColor(ButtonTextColor));
     FSlateFontInfo UnsetGoalFont = UnsetGoalText->GetFont();
     UnsetGoalFont.Size = 14;
     UnsetGoalText->SetFont(UnsetGoalFont);
@@ -417,7 +464,9 @@ void UMAEditWidget::BuildUI()
     FSlateFontInfo DescLabelFont = DescLabel->GetFont();
     DescLabelFont.Size = 12;
     DescLabel->SetFont(DescLabelFont);
-    DescLabel->SetColorAndOpacity(FSlateColor(FLinearColor(0.8f, 0.8f, 0.8f)));
+    // 使用 Theme 颜色，fallback 到默认浅灰色
+    FLinearColor DescLabelColor = Theme ? Theme->LabelTextColor : FLinearColor(0.8f, 0.8f, 0.8f);
+    DescLabel->SetColorAndOpacity(FSlateColor(DescLabelColor));
     
     UVerticalBoxSlot* DescLabelSlot = POIOperationBox->AddChildToVerticalBox(DescLabel);
     DescLabelSlot->SetPadding(FMargin(0, 0, 0, 4));
@@ -427,7 +476,9 @@ void UMAEditWidget::BuildUI()
     DescriptionBox->SetHintText(FText::FromString(TEXT("Enter description for Goal/Zone...")));
 
     FEditableTextBoxStyle DescTextBoxStyle;
-    FSlateColor BlackColor2 = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
+    // 使用 Theme 颜色，fallback 到默认黑色
+    FLinearColor DescInputTextColor = Theme ? Theme->InputTextColor : FLinearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    FSlateColor BlackColor2 = FSlateColor(DescInputTextColor);
     DescTextBoxStyle.SetForegroundColor(BlackColor2);
     DescTextBoxStyle.SetFocusedForegroundColor(BlackColor2);
     FSlateFontInfo DescFont = FCoreStyle::GetDefaultFontStyle("Regular", 11);
@@ -448,7 +499,8 @@ void UMAEditWidget::BuildUI()
     DescriptionBorder->SetPadding(FMargin(8.0f, 4.0f));
     
     // 应用圆角效果 - 可编辑文本框使用白色背景
-    FLinearColor DescBgColor = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    // 使用 Theme 颜色，fallback 到默认白色
+    FLinearColor DescBgColor = Theme ? Theme->InputBackgroundColor : FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
     MARoundedBorderUtils::ApplyRoundedCorners(DescriptionBorder, DescBgColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
     
     DescriptionBorder->AddChild(DescriptionBox);
@@ -464,11 +516,14 @@ void UMAEditWidget::BuildUI()
     // POI 操作按钮区域
     UHorizontalBox* POIButtonBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("POIButtonBox"));
     
+    // 使用 Theme 颜色，fallback 到默认黑色
+    FLinearColor POIButtonTextColor = Theme ? Theme->InputTextColor : FLinearColor::Black;
+    
     // Create Goal button
     CreateGoalButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("CreateGoalButton"));
     UTextBlock* GoalText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("GoalText"));
     GoalText->SetText(FText::FromString(TEXT(" Create Goal ")));
-    GoalText->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
+    GoalText->SetColorAndOpacity(FSlateColor(POIButtonTextColor));
     FSlateFontInfo GoalFont = GoalText->GetFont();
     GoalFont.Size = 14;
     GoalText->SetFont(GoalFont);
@@ -481,7 +536,7 @@ void UMAEditWidget::BuildUI()
     CreateZoneButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("CreateZoneButton"));
     UTextBlock* ZoneText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ZoneText"));
     ZoneText->SetText(FText::FromString(TEXT(" Create Zone ")));
-    ZoneText->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
+    ZoneText->SetColorAndOpacity(FSlateColor(POIButtonTextColor));
     FSlateFontInfo ZoneFont = ZoneText->GetFont();
     ZoneFont.Size = 14;
     ZoneText->SetFont(ZoneFont);
@@ -494,7 +549,7 @@ void UMAEditWidget::BuildUI()
     DeletePOIButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("DeletePOIButton"));
     UTextBlock* DeletePOIText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("DeletePOIText"));
     DeletePOIText->SetText(FText::FromString(TEXT(" Delete POI ")));
-    DeletePOIText->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
+    DeletePOIText->SetColorAndOpacity(FSlateColor(POIButtonTextColor));
     FSlateFontInfo DeletePOIFont = DeletePOIText->GetFont();
     DeletePOIFont.Size = 14;
     DeletePOIText->SetFont(DeletePOIFont);
@@ -521,7 +576,9 @@ void UMAEditWidget::BuildUI()
     AddActorButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("AddActorButton"));
     UTextBlock* AddActorText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("AddActorText"));
     AddActorText->SetText(FText::FromString(TEXT(" Add ")));
-    AddActorText->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
+    // 使用 Theme 颜色，fallback 到默认黑色
+    FLinearColor AddActorTextColor = Theme ? Theme->InputTextColor : FLinearColor::Black;
+    AddActorText->SetColorAndOpacity(FSlateColor(AddActorTextColor));
     FSlateFontInfo AddActorFont = AddActorText->GetFont();
     AddActorFont.Size = 14;
     AddActorText->SetFont(AddActorFont);
@@ -531,8 +588,6 @@ void UMAEditWidget::BuildUI()
     
     UVerticalBoxSlot* PresetSlot = POIOperationBox->AddChildToVerticalBox(PresetActorBox);
     PresetSlot->SetPadding(FMargin(0, 0, 0, 0));
-
-    // 注意: 临时场景图预览已移除，临时场景图数据保存在 datasets/scene_graph_cyberworld_temp.json
 
     UE_LOG(LogMAEditWidget, Log, TEXT("BuildUI: UI construction completed successfully"));
 }
@@ -659,49 +714,59 @@ void UMAEditWidget::SetSelectedActor(AActor* Actor)
             return Node;
         };
 
-        // 对于 Goal/Zone Actor，从 MAEditModeManager 的临时场景图中查找
-        if (bIsGoalOrZone && EditModeManager && !SearchId.IsEmpty())
+        // 对于 Goal/Zone Actor，从 SceneGraphManager 中查找
+        if (bIsGoalOrZone && !SearchId.IsEmpty())
         {
-            FString NodeJsonStr = EditModeManager->GetNodeJsonById(SearchId);
-            if (!NodeJsonStr.IsEmpty())
+            // 获取 SceneGraphManager
+            UGameInstance* GI = UGameplayStatics::GetGameInstance(GetWorld());
+            UMASceneGraphManager* SceneGraphManager = GI ? GI->GetSubsystem<UMASceneGraphManager>() : nullptr;
+            
+            if (SceneGraphManager)
             {
-                FMASceneGraphNode Node = ParseNodeFromJson(NodeJsonStr, SearchId);
-                if (!Node.Id.IsEmpty())
+                FMASceneGraphNode Node = SceneGraphManager->GetNodeById(SearchId);
+                if (Node.IsValid())
                 {
                     ActorNodes.Add(Node);
-                    UE_LOG(LogMAEditWidget, Log, TEXT("SetSelectedActor: Found Goal/Zone node by ID from temp scene graph: %s"), *Node.Id);
+                    UE_LOG(LogMAEditWidget, Log, TEXT("SetSelectedActor: Found Goal/Zone node by ID: %s"), *Node.Id);
+                }
+                else
+                {
+                    UE_LOG(LogMAEditWidget, Warning, TEXT("SetSelectedActor: Goal/Zone node not found: %s"), *SearchId);
+                }
+            }
+        }
+        // 对于普通 Actor，从 SceneGraphManager 中通过 GUID 查找
+        else if (!SearchId.IsEmpty())
+        {
+            // 获取 SceneGraphManager
+            UGameInstance* GI = UGameplayStatics::GetGameInstance(GetWorld());
+            UE_LOG(LogMAEditWidget, Log, TEXT("SetSelectedActor: GameInstance=%s"), GI ? TEXT("Valid") : TEXT("NULL"));
+            
+            UMASceneGraphManager* SceneGraphManager = GI ? GI->GetSubsystem<UMASceneGraphManager>() : nullptr;
+            UE_LOG(LogMAEditWidget, Log, TEXT("SetSelectedActor: SceneGraphManager=%s"), SceneGraphManager ? TEXT("Valid") : TEXT("NULL"));
+            
+            if (SceneGraphManager)
+            {
+                // 通过 GUID 从场景图查找 Node
+                FString ActorGuid = Actor->GetActorGuid().ToString();
+                UE_LOG(LogMAEditWidget, Log, TEXT("SetSelectedActor: Calling FindNodesByGuid with GUID=%s"), *ActorGuid);
+                TArray<FMASceneGraphNode> MatchingNodes = SceneGraphManager->FindNodesByGuid(ActorGuid);
+
+                // 添加所有找到的节点
+                for (const FMASceneGraphNode& Node : MatchingNodes)
+                {
+                    ActorNodes.Add(Node);
+                    UE_LOG(LogMAEditWidget, Log, TEXT("SetSelectedActor: Found node %s from scene graph"), *Node.Id);
+                }
+
+                if (MatchingNodes.Num() == 0)
+                {
+                    UE_LOG(LogMAEditWidget, Warning, TEXT("SetSelectedActor: No nodes found in scene graph for GUID %s"), *ActorGuid);
                 }
             }
             else
             {
-                UE_LOG(LogMAEditWidget, Warning, TEXT("SetSelectedActor: Goal/Zone node not found in temp scene graph: %s"), *SearchId);
-            }
-        }
-        // 对于普通 Actor，从 MAEditModeManager 的临时场景图中通过 GUID 查找
-        else if (EditModeManager && !SearchId.IsEmpty())
-        {
-            // 通过 GUID 从临时场景图查找 Node ID
-            FString ActorGuid = Actor->GetActorGuid().ToString();
-            TArray<FString> NodeIds = EditModeManager->FindNodeIdsByGuid(ActorGuid);
-
-            // 对于每个找到的 Node ID，获取完整的 Node 数据
-            for (const FString& NodeId : NodeIds)
-            {
-                FString NodeJsonStr = EditModeManager->GetNodeJsonById(NodeId);
-                if (!NodeJsonStr.IsEmpty())
-                {
-                    FMASceneGraphNode Node = ParseNodeFromJson(NodeJsonStr, NodeId);
-                    if (!Node.Id.IsEmpty())
-                    {
-                        ActorNodes.Add(Node);
-                        UE_LOG(LogMAEditWidget, Log, TEXT("SetSelectedActor: Found node %s from temp scene graph"), *Node.Id);
-                    }
-                }
-            }
-
-            if (NodeIds.Num() == 0)
-            {
-                UE_LOG(LogMAEditWidget, Warning, TEXT("SetSelectedActor: No nodes found in temp scene graph for GUID %s"), *ActorGuid);
+                UE_LOG(LogMAEditWidget, Error, TEXT("SetSelectedActor: SceneGraphManager is NULL, cannot search for nodes"));
             }
         }
     }
@@ -716,7 +781,9 @@ void UMAEditWidget::SetSelectedActor(AActor* Actor)
     if (HintText)
     {
         HintText->SetText(FText::FromString(ActorSelectedHintText));
-        HintText->SetColorAndOpacity(FSlateColor(FLinearColor(0.3f, 0.8f, 0.3f)));
+        // 使用 Theme 颜色，fallback 到默认绿色
+        FLinearColor SelectedHintColor = Theme ? Theme->SuccessColor : FLinearColor(0.3f, 0.8f, 0.3f);
+        HintText->SetColorAndOpacity(FSlateColor(SelectedHintColor));
     }
     
     UE_LOG(LogMAEditWidget, Log, TEXT("SetSelectedActor: %s, found %d nodes"), *Actor->GetName(), ActorNodes.Num());
@@ -768,7 +835,9 @@ void UMAEditWidget::SetSelectedPOIs(const TArray<AMAPointOfInterest*>& POIs)
         {
             HintText->SetText(FText::FromString(POIMultiHintText));
         }
-        HintText->SetColorAndOpacity(FSlateColor(FLinearColor(0.3f, 0.6f, 1.0f)));
+        // 使用 Theme 颜色，fallback 到默认蓝色
+        FLinearColor POIHintColor = Theme ? Theme->PrimaryColor : FLinearColor(0.3f, 0.6f, 1.0f);
+        HintText->SetColorAndOpacity(FSlateColor(POIHintColor));
     }
     
     // 清空描述输入框
@@ -810,7 +879,9 @@ void UMAEditWidget::ClearSelection()
     if (HintText)
     {
         HintText->SetText(FText::FromString(EditDefaultHintText));
-        HintText->SetColorAndOpacity(FSlateColor(FLinearColor(0.6f, 0.6f, 0.6f)));
+        // 使用 Theme 颜色，fallback 到默认灰色
+        FLinearColor DefaultHintColor = Theme ? Theme->HintTextColor : FLinearColor(0.6f, 0.6f, 0.6f);
+        HintText->SetColorAndOpacity(FSlateColor(DefaultHintColor));
     }
     
     UE_LOG(LogMAEditWidget, Log, TEXT("ClearSelection: Selection cleared"));
@@ -824,7 +895,6 @@ void UMAEditWidget::ClearSelection()
 void UMAEditWidget::RefreshSceneGraphPreview()
 {
     // 临时场景图预览 UI 已移除
-    // 数据会自动同步到 datasets/scene_graph_cyberworld_temp.json
     UE_LOG(LogMAEditWidget, Log, TEXT("RefreshSceneGraphPreview: Scene graph data synced to temp file"));
 }
 
@@ -1015,7 +1085,9 @@ void UMAEditWidget::UpdateJsonEditBox()
         if (HintText)
         {
             HintText->SetText(FText::FromString(TEXT("polygon/linestring type: only properties field modifications will be saved")));
-            HintText->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.6f, 0.0f)));
+            // 使用 Theme 颜色，fallback 到默认橙色
+            FLinearColor WarningHintColor = Theme ? Theme->WarningColor : FLinearColor(1.0f, 0.6f, 0.0f);
+            HintText->SetColorAndOpacity(FSlateColor(WarningHintColor));
         }
     }
     else
@@ -1023,7 +1095,9 @@ void UMAEditWidget::UpdateJsonEditBox()
         if (HintText)
         {
             HintText->SetText(FText::FromString(ActorSelectedHintText));
-            HintText->SetColorAndOpacity(FSlateColor(FLinearColor(0.3f, 0.8f, 0.3f)));
+            // 使用 Theme 颜色，fallback 到默认绿色
+            FLinearColor SuccessHintColor = Theme ? Theme->SuccessColor : FLinearColor(0.3f, 0.8f, 0.3f);
+            HintText->SetColorAndOpacity(FSlateColor(SuccessHintColor));
         }
     }
 }
@@ -1064,11 +1138,15 @@ void UMAEditWidget::UpdateNodeSwitchButtons()
         // 当前选中的 Node 使用不同颜色
         if (i == CurrentNodeIndex)
         {
-            ButtonText->SetColorAndOpacity(FSlateColor(FLinearColor(0.0f, 0.5f, 1.0f)));
+            // 使用 Theme 颜色，fallback 到默认蓝色
+            FLinearColor SelectedNodeColor = Theme ? Theme->ModeEditColor : FLinearColor(0.0f, 0.5f, 1.0f);
+            ButtonText->SetColorAndOpacity(FSlateColor(SelectedNodeColor));
         }
         else
         {
-            ButtonText->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
+            // 使用 Theme 颜色，fallback 到默认黑色
+            FLinearColor UnselectedNodeColor = Theme ? Theme->InputTextColor : FLinearColor::Black;
+            ButtonText->SetColorAndOpacity(FSlateColor(UnselectedNodeColor));
         }
         
         FSlateFontInfo ButtonFont = ButtonText->GetFont();

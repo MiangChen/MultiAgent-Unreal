@@ -261,6 +261,12 @@ private:
     /** 工具提示文本颜色 */
     FLinearColor TooltipTextColor = FLinearColor(0.9f, 0.9f, 0.9f, 1.0f);
 
+    /** 统计文本颜色 */
+    FLinearColor TextColor = FLinearColor(0.6f, 0.6f, 0.6f, 1.0f);
+
+    /** 提示文本颜色 */
+    FLinearColor HintTextColor = FLinearColor(0.5f, 0.5f, 0.5f, 1.0f);
+
     //=========================================================================
     // 内部方法
     //=========================================================================

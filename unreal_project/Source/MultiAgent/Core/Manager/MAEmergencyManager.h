@@ -6,12 +6,16 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
+#include "../../UI/Modal/MAEmergencyModal.h"
 #include "MAEmergencyManager.generated.h"
 
 class AMACharacter;
 
 // 事件状态变化委托
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEmergencyStateChanged, bool, bIsActive);
+
+// 新增委托 - 携带完整事件数据 (Requirements: 3.4)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEmergencyEventReceived, const FMAEmergencyEventData&, EventData);
 
 /**
  * 突发事件管理器
@@ -64,6 +68,32 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Emergency")
     void TriggerEventFromAgent(AMACharacter* ReportingAgent);
 
+    /**
+     * 使用完整事件数据触发突发事件
+     * 主要用于接收后端发送的紧急事件消息
+     * @param EventData 完整的紧急事件数据
+     * Requirements: 3.1, 3.4
+     */
+    UFUNCTION(BlueprintCallable, Category = "Emergency")
+    void TriggerEventWithData(const FMAEmergencyEventData& EventData);
+
+    /**
+     * Agent 报告带完整数据的突发事件
+     * 用于 Agent 本地检测并报告紧急事件
+     * @param ReportingAgent 报告事件的 Agent
+     * @param InEventType 事件类型
+     * @param InDescription 事件描述
+     * @param InAvailableOptions 可供执行的选项列表
+     * Requirements: 3.1, 3.2, 3.3
+     */
+    UFUNCTION(BlueprintCallable, Category = "Emergency")
+    void TriggerEventFromAgentWithData(
+        AMACharacter* ReportingAgent,
+        const FString& InEventType,
+        const FString& InDescription,
+        const TArray<FString>& InAvailableOptions
+    );
+
     // ========== 状态查询 ==========
     
     /**
@@ -80,6 +110,14 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Emergency")
     AMACharacter* GetSourceAgent() const { return SourceAgent.Get(); }
 
+    /**
+     * 获取当前事件数据
+     * @return 当前紧急事件的完整数据
+     * Requirements: 3.1
+     */
+    UFUNCTION(BlueprintPure, Category = "Emergency")
+    FMAEmergencyEventData GetCurrentEventData() const;
+
     // ========== 委托 ==========
     
     /**
@@ -89,6 +127,15 @@ public:
      */
     UPROPERTY(BlueprintAssignable, Category = "Emergency")
     FOnEmergencyStateChanged OnEmergencyStateChanged;
+
+    /**
+     * 紧急事件接收委托
+     * 当收到完整事件数据时广播（无论来源是后端还是 Agent 本地）
+     * @param EventData 完整的紧急事件数据
+     * Requirements: 3.4
+     */
+    UPROPERTY(BlueprintAssignable, Category = "Emergency")
+    FOnEmergencyEventReceived OnEmergencyEventReceived;
 
 protected:
     virtual void Initialize(FSubsystemCollectionBase& Collection) override;
@@ -100,6 +147,9 @@ private:
     
     // 触发事件的 Agent (使用弱引用防止悬空指针)
     TWeakObjectPtr<AMACharacter> SourceAgent;
+
+    // 当前事件数据 (Requirements: 3.1)
+    FMAEmergencyEventData CurrentEventData;
     
     /**
      * 查找 0 号机器狗作为默认 Source Agent

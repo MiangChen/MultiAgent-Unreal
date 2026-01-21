@@ -2,6 +2,7 @@
 // 小地图 Widget 实现
 
 #include "MAMiniMapWidget.h"
+#include "../Core/MAUITheme.h"
 #include "../../Core/Manager/MAAgentManager.h"
 #include "../../Core/Manager/MASelectionManager.h"
 #include "../../Agent/Character/MACharacter.h"
@@ -15,6 +16,25 @@
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/PlayerController.h"
 
+//=============================================================================
+// 主题辅助函数
+//=============================================================================
+
+namespace
+{
+    /** 获取主题或创建默认主题 */
+    UMAUITheme* GetOrCreateDefaultTheme()
+    {
+        static UMAUITheme* DefaultTheme = nullptr;
+        if (!DefaultTheme)
+        {
+            DefaultTheme = NewObject<UMAUITheme>();
+            DefaultTheme->AddToRoot(); // 防止被 GC
+        }
+        return DefaultTheme;
+    }
+}
+
 void UMAMiniMapWidget::NativeConstruct()
 {
     Super::NativeConstruct();
@@ -26,30 +46,36 @@ void UMAMiniMapWidget::NativeConstruct()
 
 TSharedRef<SWidget> UMAMiniMapWidget::RebuildWidget()
 {
+    // 获取主题
+    UMAUITheme* CurrentTheme = Theme ? Theme : GetOrCreateDefaultTheme();
+    
     // 创建根 Canvas
     RootCanvas = NewObject<UCanvasPanel>(this);
     
     // 创建背景图片
     BackgroundImage = NewObject<UImage>(this);
     BackgroundImage->SetDesiredSizeOverride(FVector2D(MiniMapSize, MiniMapSize));
-    BackgroundImage->SetColorAndOpacity(FLinearColor(0.1f, 0.1f, 0.15f, 0.85f));
+    BackgroundImage->SetColorAndOpacity(CurrentTheme->MiniMapBackgroundColor);
 
     // 创建图标容器
     IconCanvas = NewObject<UCanvasPanel>(this);
 
-    // 创建相机视野左边线 (红色)
+    // 创建相机视野左边线 (使用主题相机颜色)
+    FLinearColor CameraColor = CurrentTheme->MiniMapCameraColor;
+    FLinearColor CameraColorSemiTransparent = FLinearColor(CameraColor.R, CameraColor.G, CameraColor.B, 0.8f);
+    
     CameraFOVLeft = NewObject<UImage>(this);
-    CameraFOVLeft->SetColorAndOpacity(FLinearColor(1.f, 0.2f, 0.2f, 0.8f));
+    CameraFOVLeft->SetColorAndOpacity(CameraColorSemiTransparent);
     CameraFOVLeft->SetDesiredSizeOverride(FVector2D(2.f, CameraFOVLength));
 
-    // 创建相机视野右边线 (红色)
+    // 创建相机视野右边线
     CameraFOVRight = NewObject<UImage>(this);
-    CameraFOVRight->SetColorAndOpacity(FLinearColor(1.f, 0.2f, 0.2f, 0.8f));
+    CameraFOVRight->SetColorAndOpacity(CameraColorSemiTransparent);
     CameraFOVRight->SetDesiredSizeOverride(FVector2D(2.f, CameraFOVLength));
 
-    // 创建相机图标 (红色圆点)
+    // 创建相机图标
     CameraIcon = NewObject<UImage>(this);
-    CameraIcon->SetColorAndOpacity(FLinearColor(1.f, 0.2f, 0.2f, 1.f));
+    CameraIcon->SetColorAndOpacity(CameraColor);
     CameraIcon->SetDesiredSizeOverride(FVector2D(CameraIconSize, CameraIconSize));
 
     // 添加到根 Canvas (顺序：背景 -> 图标 -> 视野线 -> 相机)
@@ -178,33 +204,9 @@ void UMAMiniMapWidget::UpdateAgentPositions()
         UImage* Icon = NewObject<UImage>(this);
         if (!Icon) continue;
 
-        // 根据类型设置颜色和形状
-        FLinearColor IconColor;
-        switch (Agent->AgentType)
-        {
-            case EMAAgentType::Humanoid:
-                IconColor = FLinearColor(1.f, 0.8f, 0.2f, 1.f);  // 黄色
-                break;
-            case EMAAgentType::UAV:
-            case EMAAgentType::FixedWingUAV:
-                IconColor = FLinearColor(0.2f, 0.6f, 1.f, 1.f);  // 蓝色
-                break;
-            case EMAAgentType::UGV:
-                IconColor = FLinearColor(0.8f, 0.4f, 0.1f, 1.f);  // 橙色
-                break;
-            case EMAAgentType::Quadruped:
-                IconColor = FLinearColor(0.2f, 1.f, 0.4f, 1.f);  // 绿色
-                break;
-            default:
-                IconColor = FLinearColor::White;
-                break;
-        }
-
-        // 选中的 Agent 用白色边框高亮
-        if (SelectedAgents.Contains(Agent))
-        {
-            IconColor = FLinearColor::White;
-        }
+        // 获取 Agent 颜色 (使用主题)
+        bool bIsSelected = SelectedAgents.Contains(Agent);
+        FLinearColor IconColor = GetAgentColor(Agent, bIsSelected);
 
         // 设置图标颜色
         Icon->SetColorAndOpacity(IconColor);
@@ -219,6 +221,34 @@ void UMAMiniMapWidget::UpdateAgentPositions()
             Slot->SetSize(FVector2D(AgentIconSize, AgentIconSize));
             Slot->SetPosition(MiniMapPos - FVector2D(AgentIconSize / 2.f, AgentIconSize / 2.f));
         }
+    }
+}
+
+FLinearColor UMAMiniMapWidget::GetAgentColor(AMACharacter* Agent, bool bIsSelected) const
+{
+    // 获取主题
+    UMAUITheme* CurrentTheme = Theme ? Theme : GetOrCreateDefaultTheme();
+    
+    // 选中的 Agent 用选中颜色
+    if (bIsSelected)
+    {
+        return CurrentTheme->AgentSelectedColor;
+    }
+    
+    // 根据类型返回颜色
+    switch (Agent->AgentType)
+    {
+        case EMAAgentType::Humanoid:
+            return CurrentTheme->AgentHumanoidColor;
+        case EMAAgentType::UAV:
+        case EMAAgentType::FixedWingUAV:
+            return CurrentTheme->AgentUAVColor;
+        case EMAAgentType::UGV:
+            return CurrentTheme->AgentUGVColor;
+        case EMAAgentType::Quadruped:
+            return CurrentTheme->AgentQuadrupedColor;
+        default:
+            return FLinearColor::White;
     }
 }
 
@@ -323,4 +353,41 @@ FReply UMAMiniMapWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, co
 void UMAMiniMapWidget::DrawAgentIcon(AMACharacter* Agent)
 {
     // 由 UpdateAgentPositions 统一处理
+}
+
+void UMAMiniMapWidget::ApplyTheme(UMAUITheme* InTheme)
+{
+    Theme = InTheme;
+    
+    if (!Theme)
+    {
+        return;
+    }
+    
+    // 更新背景颜色
+    if (BackgroundImage)
+    {
+        BackgroundImage->SetColorAndOpacity(Theme->MiniMapBackgroundColor);
+    }
+    
+    // 更新相机指示器颜色
+    FLinearColor CameraColor = Theme->MiniMapCameraColor;
+    FLinearColor CameraColorSemiTransparent = FLinearColor(CameraColor.R, CameraColor.G, CameraColor.B, 0.8f);
+    
+    if (CameraIcon)
+    {
+        CameraIcon->SetColorAndOpacity(CameraColor);
+    }
+    
+    if (CameraFOVLeft)
+    {
+        CameraFOVLeft->SetColorAndOpacity(CameraColorSemiTransparent);
+    }
+    
+    if (CameraFOVRight)
+    {
+        CameraFOVRight->SetColorAndOpacity(CameraColorSemiTransparent);
+    }
+    
+    UE_LOG(LogTemp, Log, TEXT("[MiniMap] Theme applied"));
 }

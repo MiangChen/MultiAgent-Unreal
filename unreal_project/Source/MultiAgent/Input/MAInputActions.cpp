@@ -130,7 +130,8 @@ void UMAInputActions::Initialize()
 
     // 突发事件系统
     AddKeyMapping(IMC_RTS, IA_TriggerEmergency, EKeys::Hyphen);  // "-" 键触发/结束事件
-    AddKeyMapping(IMC_RTS, IA_ToggleEmergencyUI, EKeys::X);  // "X" 键切换详情界面
+    // 注意: IA_ToggleEmergencyUI 不再绑定到 X 键，由 IA_CheckUnexpected 处理
+    // AddKeyMapping(IMC_RTS, IA_ToggleEmergencyUI, EKeys::X);  // 已移除 - 由 IA_CheckUnexpected 处理
 
     // HUD 状态管理输入 (UI Visual Redesign)
     // Requirements: 10.1, 10.2, 10.3

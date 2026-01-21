@@ -21,6 +21,7 @@
 #include "MACameraSensorComponent.h"
 #include "../../Core/Comm/MACommSubsystem.h"
 #include "../Core/MARoundedBorderUtils.h"
+#include "../Core/MAUITheme.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMAEmergencyWidget, Log, All);
 
@@ -116,7 +117,9 @@ void UMAEmergencyWidget::BuildUI()
     BackgroundBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("BackgroundBorder"));
     if (BackgroundBorder)
     {
-        BackgroundBorder->SetBrushColor(FLinearColor(0.02f, 0.02f, 0.05f, 0.95f));
+        // Use theme color with fallback
+        FLinearColor BgColor = Theme ? Theme->BackgroundColor : FLinearColor(0.02f, 0.02f, 0.05f, 0.95f);
+        BackgroundBorder->SetBrushColor(BgColor);
         BackgroundBorder->SetPadding(FMargin(20.0f));
         
         UCanvasPanelSlot* BorderSlot = RootCanvas->AddChildToCanvas(BackgroundBorder);
@@ -154,7 +157,9 @@ void UMAEmergencyWidget::BuildUI()
         FSlateFontInfo TitleFont = TitleText->GetFont();
         TitleFont.Size = 20;
         TitleText->SetFont(TitleFont);
-        TitleText->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.3f, 0.3f)));
+        // Use theme DangerColor for emergency title with fallback
+        FLinearColor TitleColor = Theme ? Theme->DangerColor : FLinearColor(1.0f, 0.3f, 0.3f);
+        TitleText->SetColorAndOpacity(FSlateColor(TitleColor));
         
         UCanvasPanelSlot* TitleSlot = InnerCanvas->AddChildToCanvas(TitleText);
         if (TitleSlot)
@@ -183,8 +188,9 @@ void UMAEmergencyWidget::BuildUI()
             CameraSlot->SetAutoSize(false);
         }
         
-        // Set default black background
-        CameraFeedImage->SetColorAndOpacity(FLinearColor::Black);
+        // Set default background using theme color
+        FLinearColor CameraBgColor = Theme ? Theme->CanvasBackgroundColor : FLinearColor::Black;
+        CameraFeedImage->SetColorAndOpacity(CameraBgColor);
         
         UE_LOG(LogMAEmergencyWidget, Log, TEXT("Created CameraFeedImage"));
     }
@@ -200,12 +206,13 @@ void UMAEmergencyWidget::BuildUI()
         InfoTextBox->SetIsReadOnly(true);
         InfoTextBox->SetText(FText::FromString(TEXT("Emergency event information area\nWaiting for event data...\n\nPress X to close this panel\nPress - to end event")));
         
-        // 设置样式：纯黑色，字号 12，透明背景
+        // 设置样式：使用主题颜色，字号 12，透明背景
         FEditableTextBoxStyle InfoStyle;
-        FSlateColor BlackColor = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
-        InfoStyle.SetForegroundColor(BlackColor);
-        InfoStyle.SetFocusedForegroundColor(BlackColor);
-        InfoStyle.SetReadOnlyForegroundColor(BlackColor);
+        FLinearColor InfoTextColor = Theme ? Theme->InputTextColor : FLinearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        FSlateColor InfoSlateColor = FSlateColor(InfoTextColor);
+        InfoStyle.SetForegroundColor(InfoSlateColor);
+        InfoStyle.SetFocusedForegroundColor(InfoSlateColor);
+        InfoStyle.SetReadOnlyForegroundColor(InfoSlateColor);
         FSlateFontInfo InfoFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
         InfoStyle.SetFont(InfoFont);
         
@@ -223,8 +230,8 @@ void UMAEmergencyWidget::BuildUI()
         UBorder* InfoTextBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("InfoTextBorder"));
         InfoTextBorder->SetPadding(FMargin(8.0f, 4.0f));
         
-        // 应用圆角效果 - 只读文本框使用浅灰色背景
-        FLinearColor InfoBgColor = FLinearColor(0.85f, 0.85f, 0.85f, 1.0f);
+        // 应用圆角效果 - 只读文本框使用主题颜色背景
+        FLinearColor InfoBgColor = Theme ? Theme->SecondaryColor : FLinearColor(0.85f, 0.85f, 0.85f, 1.0f);
         MARoundedBorderUtils::ApplyRoundedCorners(InfoTextBorder, InfoBgColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
         
         InfoTextBorder->AddChild(InfoTextBox);
@@ -265,7 +272,8 @@ void UMAEmergencyWidget::BuildUI()
         if (Button1Text)
         {
             Button1Text->SetText(FText::FromString(TEXT("Expand Search Area")));
-            Button1Text->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
+            FLinearColor BtnTextColor = Theme ? Theme->TextColor : FLinearColor::Black;
+            Button1Text->SetColorAndOpacity(FSlateColor(BtnTextColor));
             ActionButton1->AddChild(Button1Text);
         }
         
@@ -290,7 +298,8 @@ void UMAEmergencyWidget::BuildUI()
         if (Button2Text)
         {
             Button2Text->SetText(FText::FromString(TEXT("Ignore and Return")));
-            Button2Text->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
+            FLinearColor BtnTextColor2 = Theme ? Theme->TextColor : FLinearColor::Black;
+            Button2Text->SetColorAndOpacity(FSlateColor(BtnTextColor2));
             ActionButton2->AddChild(Button2Text);
         }
         
@@ -315,7 +324,8 @@ void UMAEmergencyWidget::BuildUI()
         if (Button3Text)
         {
             Button3Text->SetText(FText::FromString(TEXT("Switch to Firefighting")));
-            Button3Text->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
+            FLinearColor BtnTextColor3 = Theme ? Theme->TextColor : FLinearColor::Black;
+            Button3Text->SetColorAndOpacity(FSlateColor(BtnTextColor3));
             ActionButton3->AddChild(Button3Text);
         }
         
@@ -335,11 +345,12 @@ void UMAEmergencyWidget::BuildUI()
         // Set hint text
         InputTextBox->SetHintText(FText::FromString(TEXT("Enter command or message...")));
         
-        // 设置样式：纯黑色，字号 12，透明背景
+        // 设置样式：使用主题颜色，字号 12，透明背景
         FEditableTextBoxStyle InputStyle;
-        FSlateColor BlackColor2 = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
-        InputStyle.SetForegroundColor(BlackColor2);
-        InputStyle.SetFocusedForegroundColor(BlackColor2);
+        FLinearColor InputTextColor = Theme ? Theme->InputTextColor : FLinearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        FSlateColor InputSlateColor = FSlateColor(InputTextColor);
+        InputStyle.SetForegroundColor(InputSlateColor);
+        InputStyle.SetFocusedForegroundColor(InputSlateColor);
         FSlateFontInfo InputFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
         InputStyle.SetFont(InputFont);
         
@@ -357,8 +368,8 @@ void UMAEmergencyWidget::BuildUI()
         UBorder* InputTextBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("InputTextBorder"));
         InputTextBorder->SetPadding(FMargin(8.0f, 4.0f));
         
-        // 应用圆角效果 - 可编辑文本框使用白色背景
-        FLinearColor InputBgColor = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+        // 应用圆角效果 - 可编辑文本框使用主题输入背景颜色
+        FLinearColor InputBgColor = Theme ? Theme->InputBackgroundColor : FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
         MARoundedBorderUtils::ApplyRoundedCorners(InputTextBorder, InputBgColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
         
         InputTextBorder->AddChild(InputTextBox);
@@ -393,7 +404,8 @@ void UMAEmergencyWidget::BuildUI()
         if (SendText)
         {
             SendText->SetText(FText::FromString(TEXT("Send")));
-            SendText->SetColorAndOpacity(FSlateColor(FLinearColor::Black));
+            FLinearColor SendTextColor = Theme ? Theme->TextColor : FLinearColor::Black;
+            SendText->SetColorAndOpacity(FSlateColor(SendTextColor));
             SendButton->AddChild(SendText);
         }
         
@@ -526,10 +538,11 @@ void UMAEmergencyWidget::ClearCameraSource()
     
     CurrentCameraSource.Reset();
     
-    // Set to black screen
+    // Set to black screen using theme color
     if (CameraFeedImage)
     {
-        CameraFeedImage->SetColorAndOpacity(FLinearColor::Black);
+        FLinearColor CameraBgColor = Theme ? Theme->CanvasBackgroundColor : FLinearColor::Black;
+        CameraFeedImage->SetColorAndOpacity(CameraBgColor);
         FSlateBrush Brush;
         Brush.SetResourceObject(nullptr);
         CameraFeedImage->SetBrush(Brush);
@@ -727,4 +740,40 @@ void UMAEmergencyWidget::SubmitMessage()
     {
         UE_LOG(LogMAEmergencyWidget, Warning, TEXT("Cannot submit empty message"));
     }
+}
+
+
+//=========================================================================
+// Theme Support
+//=========================================================================
+
+void UMAEmergencyWidget::ApplyTheme(UMAUITheme* InTheme)
+{
+    Theme = InTheme;
+    
+    if (!Theme)
+    {
+        UE_LOG(LogMAEmergencyWidget, Warning, TEXT("ApplyTheme: Theme is null, using fallback colors"));
+        return;
+    }
+    
+    UE_LOG(LogMAEmergencyWidget, Log, TEXT("Applying theme to EmergencyWidget"));
+    
+    // Update background border color
+    if (BackgroundBorder)
+    {
+        BackgroundBorder->SetBrushColor(Theme->BackgroundColor);
+    }
+    
+    // Update camera feed background color (when no camera source)
+    if (CameraFeedImage && !CurrentCameraSource.IsValid())
+    {
+        CameraFeedImage->SetColorAndOpacity(Theme->CanvasBackgroundColor);
+    }
+    
+    // Note: Other UI elements (text boxes, buttons) would need to be rebuilt
+    // or have their styles updated individually. For now, theme is applied
+    // on next BuildUI call.
+    
+    UE_LOG(LogMAEmergencyWidget, Log, TEXT("Theme applied successfully"));
 }

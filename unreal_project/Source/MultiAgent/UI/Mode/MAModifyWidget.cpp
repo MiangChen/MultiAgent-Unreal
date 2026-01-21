@@ -16,6 +16,7 @@
 #include "Blueprint/WidgetTree.h"
 #include "../Core/MARoundedBorderUtils.h"
 #include "../Core/MAUITheme.h"
+#include "../../Core/Config/MAConfigManager.h"
 #include "../../Core/Manager/MASceneGraphManager.h"
 #include "../../Utils/MAGeometryUtils.h"
 #include "Kismet/GameplayStatics.h"
@@ -24,6 +25,7 @@
 #include "Serialization/JsonSerializer.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "Engine/GameInstance.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMAModifyWidget, Log, All);
 
@@ -56,6 +58,40 @@ void UMAModifyWidget::NativePreConstruct()
     {
         BuildUI();
     }
+}
+
+//=========================================================================
+// ApplyTheme - 应用主题样式
+//=========================================================================
+
+void UMAModifyWidget::ApplyTheme(UMAUITheme* InTheme)
+{
+    Theme = InTheme;
+    if (!Theme)
+    {
+        UE_LOG(LogMAModifyWidget, Warning, TEXT("ApplyTheme: Theme is null, using default colors"));
+        return;
+    }
+
+    // 更新标题颜色
+    if (TitleText)
+    {
+        TitleText->SetColorAndOpacity(FSlateColor(Theme->ModeModifyColor));
+    }
+
+    // 更新提示文字颜色
+    if (HintText)
+    {
+        HintText->SetColorAndOpacity(FSlateColor(Theme->HintTextColor));
+    }
+
+    // 更新 JSON 预览文字颜色
+    if (JsonPreviewText)
+    {
+        JsonPreviewText->SetColorAndOpacity(FSlateColor(Theme->SuccessColor));
+    }
+
+    UE_LOG(LogMAModifyWidget, Log, TEXT("ApplyTheme: Theme applied successfully"));
 }
 
 void UMAModifyWidget::NativeConstruct()
@@ -140,7 +176,9 @@ void UMAModifyWidget::BuildUI()
     FSlateFontInfo TitleFont = TitleText->GetFont();
     TitleFont.Size = 16;
     TitleText->SetFont(TitleFont);
-    TitleText->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.6f, 0.0f)));  // Orange, matches Modify mode color
+    // 使用 Theme 颜色，fallback 到默认橙色 (Modify mode color)
+    FLinearColor TitleColor = Theme ? Theme->ModeModifyColor : FLinearColor(1.0f, 0.6f, 0.0f);
+    TitleText->SetColorAndOpacity(FSlateColor(TitleColor));
     
     UVerticalBoxSlot* TitleSlot = MainVBox->AddChildToVerticalBox(TitleText);
     TitleSlot->SetPadding(FMargin(0, 0, 0, 10));
@@ -151,7 +189,9 @@ void UMAModifyWidget::BuildUI()
     FSlateFontInfo HintFont = HintText->GetFont();
     HintFont.Size = 11;
     HintText->SetFont(HintFont);
-    HintText->SetColorAndOpacity(FSlateColor(FLinearColor(0.6f, 0.6f, 0.6f)));
+    // 使用 Theme 颜色，fallback 到默认灰色
+    FLinearColor HintColor = Theme ? Theme->HintTextColor : FLinearColor(0.6f, 0.6f, 0.6f);
+    HintText->SetColorAndOpacity(FSlateColor(HintColor));
     HintText->SetAutoWrapText(true);  // 启用自动换行
     
     UVerticalBoxSlot* HintSlot = MainVBox->AddChildToVerticalBox(HintText);
@@ -162,7 +202,8 @@ void UMAModifyWidget::BuildUI()
     JsonPreviewBorder->SetPadding(FMargin(8.0f));
     
     // 应用圆角效果 - 深灰色背景
-    FLinearColor JsonPreviewBgColor = FLinearColor(0.15f, 0.15f, 0.15f, 1.0f);
+    // 使用 Theme 颜色，fallback 到默认深灰色
+    FLinearColor JsonPreviewBgColor = Theme ? Theme->CanvasBackgroundColor : FLinearColor(0.15f, 0.15f, 0.15f, 1.0f);
     MARoundedBorderUtils::ApplyRoundedCorners(JsonPreviewBorder, JsonPreviewBgColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
     
     UScrollBox* JsonScrollBox = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass(), TEXT("JsonScrollBox"));
@@ -173,7 +214,9 @@ void UMAModifyWidget::BuildUI()
     FSlateFontInfo JsonFont = JsonPreviewText->GetFont();
     JsonFont.Size = 11;
     JsonPreviewText->SetFont(JsonFont);
-    JsonPreviewText->SetColorAndOpacity(FSlateColor(FLinearColor(0.7f, 0.9f, 0.7f)));  // Light green
+    // 使用 Theme 颜色，fallback 到默认浅绿色
+    FLinearColor JsonPreviewTextColor = Theme ? Theme->SuccessColor : FLinearColor(0.7f, 0.9f, 0.7f);
+    JsonPreviewText->SetColorAndOpacity(FSlateColor(JsonPreviewTextColor));
     JsonPreviewText->SetAutoWrapText(true);
     JsonScrollBox->AddChild(JsonPreviewText);
     
@@ -191,7 +234,9 @@ void UMAModifyWidget::BuildUI()
     
     // Set text color to strict black - via WidgetStyle property, with transparent background
     FEditableTextBoxStyle TextBoxStyle;
-    FSlateColor BlackColor = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
+    // 使用 Theme 颜色，fallback 到默认黑色
+    FLinearColor InputTextColor = Theme ? Theme->InputTextColor : FLinearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    FSlateColor BlackColor = FSlateColor(InputTextColor);
     TextBoxStyle.SetForegroundColor(BlackColor);
     TextBoxStyle.SetFocusedForegroundColor(BlackColor);
     FSlateFontInfo TextBoxFont = FCoreStyle::GetDefaultFontStyle("Regular", 11);
@@ -212,7 +257,8 @@ void UMAModifyWidget::BuildUI()
     LabelTextBorder->SetPadding(FMargin(8.0f, 4.0f));
     
     // 应用圆角效果 - 可编辑文本框使用白色背景
-    FLinearColor LabelTextBgColor = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    // 使用 Theme 颜色，fallback 到默认白色
+    FLinearColor LabelTextBgColor = Theme ? Theme->InputBackgroundColor : FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
     MARoundedBorderUtils::ApplyRoundedCorners(LabelTextBorder, LabelTextBgColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
     
     LabelTextBorder->AddChild(LabelTextBox);
@@ -294,7 +340,9 @@ void UMAModifyWidget::SetSelectedActor(AActor* Actor)
     if (HintText)
     {
         HintText->SetText(FText::FromString(FString::Printf(TEXT("Selected: %s"), *Actor->GetName())));
-        HintText->SetColorAndOpacity(FSlateColor(FLinearColor(0.3f, 0.8f, 0.3f)));  // Green indicates selected
+        // 使用 Theme 颜色，fallback 到默认绿色
+        FLinearColor SelectedHintColor = Theme ? Theme->SuccessColor : FLinearColor(0.3f, 0.8f, 0.3f);
+        HintText->SetColorAndOpacity(FSlateColor(SelectedHintColor));
     }
     
     // Update JSON preview
@@ -336,7 +384,9 @@ void UMAModifyWidget::SetSelectedActors(const TArray<AActor*>& Actors)
         {
             HintText->SetText(FText::FromString(FString::Printf(TEXT("Selected: %d Actors"), SelectedActors.Num())));
         }
-        HintText->SetColorAndOpacity(FSlateColor(FLinearColor(0.3f, 0.8f, 0.3f)));  // Green indicates selected
+        // 使用 Theme 颜色，fallback 到默认绿色
+        FLinearColor SelectedHintColor = Theme ? Theme->SuccessColor : FLinearColor(0.3f, 0.8f, 0.3f);
+        HintText->SetColorAndOpacity(FSlateColor(SelectedHintColor));
     }
     
     // Clear text box, let user input new label
@@ -384,7 +434,9 @@ void UMAModifyWidget::ClearSelection()
     if (HintText)
     {
         HintText->SetText(FText::FromString(ModifyDefaultHintText));
-        HintText->SetColorAndOpacity(FSlateColor(FLinearColor(0.6f, 0.6f, 0.6f)));  // Gray
+        // 使用 Theme 颜色，fallback 到默认灰色
+        FLinearColor DefaultHintColor = Theme ? Theme->HintTextColor : FLinearColor(0.6f, 0.6f, 0.6f);
+        HintText->SetColorAndOpacity(FSlateColor(DefaultHintColor));
     }
     
     // Clear JSON preview
@@ -597,7 +649,9 @@ void UMAModifyWidget::UpdateJsonPreview(AActor* Actor)
         }
         
         JsonPreviewText->SetText(FText::FromString(CombinedPreview));
-        JsonPreviewText->SetColorAndOpacity(FSlateColor(FLinearColor(0.7f, 0.9f, 0.7f)));  // Light green
+        // 使用 Theme 颜色，fallback 到默认浅绿色
+        FLinearColor JsonPreviewColor = Theme ? Theme->SuccessColor : FLinearColor(0.7f, 0.9f, 0.7f);
+        JsonPreviewText->SetColorAndOpacity(FSlateColor(JsonPreviewColor));
         
         UE_LOG(LogMAModifyWidget, Log, TEXT("UpdateJsonPreview: Found %d nodes for Actor GUID %s"), 
             AllMatchingNodes.Num(), *ActorGuid);
@@ -615,7 +669,9 @@ void UMAModifyWidget::UpdateJsonPreview(AActor* Actor)
         Location.Z
     );
     JsonPreviewText->SetText(FText::FromString(PreviewText));
-    JsonPreviewText->SetColorAndOpacity(FSlateColor(FLinearColor(0.9f, 0.7f, 0.5f)));  // Orange indicates not annotated
+    // 使用 Theme 颜色，fallback 到默认橙色
+    FLinearColor NotAnnotatedColor = Theme ? Theme->WarningColor : FLinearColor(0.9f, 0.7f, 0.5f);
+    JsonPreviewText->SetColorAndOpacity(FSlateColor(NotAnnotatedColor));
     
     UE_LOG(LogMAModifyWidget, Log, TEXT("UpdateJsonPreview: No node found for Actor GUID %s"), *ActorGuid);
 }
@@ -660,7 +716,9 @@ void UMAModifyWidget::UpdateJsonPreviewMultiSelect(const TArray<AActor*>& Actors
     PreviewText += TEXT("\nEnter shape:polygon or shape:linestring");
     
     JsonPreviewText->SetText(FText::FromString(PreviewText));
-    JsonPreviewText->SetColorAndOpacity(FSlateColor(FLinearColor(0.5f, 0.7f, 0.9f)));  // Light blue indicates multi-select
+    // 使用 Theme 颜色，fallback 到默认浅蓝色
+    FLinearColor MultiSelectColor = Theme ? Theme->PrimaryColor : FLinearColor(0.5f, 0.7f, 0.9f);
+    JsonPreviewText->SetColorAndOpacity(FSlateColor(MultiSelectColor));
 }
 
 //=========================================================================
@@ -1530,14 +1588,27 @@ TArray<FString> UMAModifyWidget::CollectActorGuids(const TArray<AActor*>& Actors
 
 //=========================================================================
 // GetNextAvailableId - 获取下一个可用的节点 ID
-// 读取 scene_graph_cyberworld.json，找到最大 ID 并返回 +1
+// 从配置管理器获取场景图路径，找到最大 ID 并返回 +1
 //=========================================================================
 
 FString UMAModifyWidget::GetNextAvailableId()
 {
-    // 获取项目路径
-    FString ProjectDir = FPaths::ProjectDir();
-    FString JsonFilePath = FPaths::Combine(ProjectDir, TEXT("datasets/scene_graph_cyberworld.json"));
+    // 从配置管理器获取场景图路径
+    FString JsonFilePath;
+    if (UGameInstance* GameInstance = UGameplayStatics::GetGameInstance(this))
+    {
+        if (UMAConfigManager* ConfigManager = GameInstance->GetSubsystem<UMAConfigManager>())
+        {
+            JsonFilePath = ConfigManager->GetSceneGraphFilePath();
+        }
+    }
+    
+    // Fallback: 使用默认路径
+    if (JsonFilePath.IsEmpty())
+    {
+        UE_LOG(LogMAModifyWidget, Warning, TEXT("GetNextAvailableId: ConfigManager not available, using default path"));
+        JsonFilePath = FPaths::Combine(FPaths::ProjectDir(), TEXT("datasets/scene_graph_cyberworld.json"));
+    }
     
     // 检查文件是否存在
     if (!FPaths::FileExists(JsonFilePath))

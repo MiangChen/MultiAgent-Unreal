@@ -17,15 +17,16 @@ AMAUGVCharacter::AMAUGVCharacter()
     StateTreeComponent = CreateDefaultSubobject<UMAStateTreeComponent>(TEXT("StateTreeComponent"));
     StateTreeComponent->SetStartLogicAutomatically(true);
     
+    // UGV 胶囊体设置 - 适配小车尺寸
+    // 小车大约 宽80cm x 长120cm x 高60cm，用胶囊体包裹
+    GetCapsuleComponent()->SetCapsuleSize(60.f, 50.f);  // 半径60，半高50
+    
     // 地面移动设置
     UCharacterMovementComponent* MovementComp = GetCharacterMovement();
     MovementComp->SetMovementMode(MOVE_Walking);
     MovementComp->MaxWalkSpeed = 500.f;
     MovementComp->bOrientRotationToMovement = true;
     MovementComp->RotationRate = FRotator(0.f, 120.f, 0.f);
-    // MovementComp->GravityScale = 1.f;
-    // MovementComp->bConstrainToPlane = false;
-    // MovementComp->bSnapToPlaneAtStart = false;
     
     // 加载 UGV 模型
     static ConstructorHelpers::FObjectFinder<UStaticMesh> MeshAsset(
@@ -36,9 +37,11 @@ AMAUGVCharacter::AMAUGVCharacter()
         UGVMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("UGVMesh"));
         UGVMeshComponent->SetupAttachment(RootComponent);
         UGVMeshComponent->SetStaticMesh(MeshAsset.Object);
+        
         // 调整模型位置，使其底部与胶囊体底部对齐
-        // 胶囊体半高默认 88cm，模型需要向下偏移
-        // UGVMeshComponent->SetRelativeLocation(FVector(0.f, 0.f, -8.f));
+        // 胶囊体半高 50cm，所以底部在 -50cm
+        // 模型需要向下偏移，使车轮底部对齐胶囊体底部
+        UGVMeshComponent->SetRelativeLocation(FVector(0.f, 0.f, -50.f));
         UGVMeshComponent->SetRelativeScale3D(FVector(1.f, 1.f, 1.f));
     }
     else

@@ -3,6 +3,7 @@
 
 #include "MAGanttCanvas.h"
 #include "MASkillAllocationModel.h"
+#include "../Core/MAUITheme.h"
 #include "Components/Border.h"
 #include "Components/CanvasPanel.h"
 #include "Blueprint/WidgetTree.h"
@@ -22,6 +23,57 @@ UMAGanttCanvas::UMAGanttCanvas(const FObjectInitializer& ObjectInitializer)
     {
         WidgetTree = NewObject<UWidgetTree>(this, TEXT("WidgetTree"));
     }
+}
+
+//=============================================================================
+// 主题
+//=============================================================================
+
+void UMAGanttCanvas::ApplyTheme(UMAUITheme* InTheme)
+{
+    Theme = InTheme;
+    
+    if (!Theme)
+    {
+        UE_LOG(LogMAGanttCanvas, Warning, TEXT("ApplyTheme: Theme is null, using fallback defaults"));
+        return;
+    }
+    
+    // 画布颜色
+    CanvasBackgroundColor = Theme->CanvasBackgroundColor;
+    GridLineColor = Theme->GridLineColor;
+    
+    // 文本颜色
+    TextColor = Theme->TextColor;
+    
+    // 状态颜色
+    PendingColor = Theme->StatusPendingColor;
+    InProgressColor = Theme->StatusInProgressColor;
+    CompletedColor = Theme->StatusCompletedColor;
+    FailedColor = Theme->StatusFailedColor;
+    
+    // 交互颜色
+    SelectionColor = Theme->SelectionColor;
+    ValidDropColor = Theme->ValidDropColor;
+    InvalidDropColor = Theme->InvalidDropColor;
+    
+    // 占位符颜色 - 使用 SecondaryTextColor 并调整透明度
+    PlaceholderColor = Theme->SecondaryTextColor;
+    PlaceholderColor.A = 0.8f;
+    
+    // 更新画布背景
+    if (CanvasBackground)
+    {
+        CanvasBackground->SetBrushColor(CanvasBackgroundColor);
+    }
+    
+    // 刷新技能条颜色
+    for (FMASkillBarRenderData& RenderData : SkillBarRenderData)
+    {
+        RenderData.Color = GetStatusColor(RenderData.Status);
+    }
+    
+    UE_LOG(LogMAGanttCanvas, Log, TEXT("ApplyTheme: Theme applied successfully"));
 }
 
 //=============================================================================
@@ -852,8 +904,10 @@ void UMAGanttCanvas::DrawRobotLabels(const FGeometry& AllottedGeometry, FSlateWi
 void UMAGanttCanvas::DrawTimeStepGridLines(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32 LayerId) const
 {
     // 绘制时间步之间的细竖线分隔
-    // 竖线颜色 - 使用较淡的颜色
-    FLinearColor GridLineColor = FLinearColor(0.3f, 0.3f, 0.35f, 0.5f);
+    // 使用成员变量 GridLineColor（从 Theme 获取或使用 fallback 默认值）
+    // 调整透明度使其更淡
+    FLinearColor GridColor = GridLineColor;
+    GridColor.A = 0.5f;
     
     // 获取可见区域
     FVector2D WidgetSize = AllottedGeometry.GetLocalSize();
@@ -885,7 +939,7 @@ void UMAGanttCanvas::DrawTimeStepGridLines(const FGeometry& AllottedGeometry, FS
             AllottedGeometry.ToPaintGeometry(),
             LinePoints,
             ESlateDrawEffect::None,
-            GridLineColor,
+            GridColor,
             true,
             1.0f  // 细线宽度
         );
@@ -909,7 +963,7 @@ void UMAGanttCanvas::DrawTimeStepGridLines(const FGeometry& AllottedGeometry, FS
                 AllottedGeometry.ToPaintGeometry(),
                 LinePoints,
                 ESlateDrawEffect::None,
-                GridLineColor,
+                GridColor,
                 true,
                 1.0f
             );
@@ -969,7 +1023,8 @@ void UMAGanttCanvas::DrawSkillBars(const FGeometry& AllottedGeometry, FSlateWind
         FVector2D TextSize(RenderData.Size.X - 4.0f, RenderData.Size.Y - 4.0f);
         
         // 使用深色文字以便在浅色背景上可见
-        FLinearColor TextOnBarColor = FLinearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        // 从 Theme 获取 InputTextColor，或使用 fallback 默认值
+        FLinearColor TextOnBarColor = Theme ? Theme->InputTextColor : FLinearColor(0.1f, 0.1f, 0.1f, 1.0f);
         
         FSlateDrawElement::MakeText(
             OutDrawElements,
@@ -1076,7 +1131,8 @@ void UMAGanttCanvas::DrawDragPreview(const FGeometry& AllottedGeometry, FSlateWi
         FVector2D TextSize(DragPreview.Size.X - 8.0f, DragPreview.Size.Y - 4.0f);
         
         // 使用深色文字以便在浅色背景上可见
-        FLinearColor TextOnBarColor = FLinearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        // 从 Theme 获取 InputTextColor，或使用 fallback 默认值
+        FLinearColor TextOnBarColor = Theme ? Theme->InputTextColor : FLinearColor(0.1f, 0.1f, 0.1f, 1.0f);
         
         FSlateDrawElement::MakeText(
             OutDrawElements,

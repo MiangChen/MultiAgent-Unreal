@@ -6,6 +6,7 @@
 #include "../../Input/MAPlayerController.h"
 #include "../../Agent/Character/MACharacter.h"
 #include "../Core/MAUIManager.h"
+#include "../Core/MAUITheme.h"
 #include "MAHUD.h"
 #include "Engine/Canvas.h"
 #include "GameFramework/PlayerController.h"
@@ -16,6 +17,7 @@
 
 AMASelectionHUD::AMASelectionHUD()
 {
+    Theme = nullptr;
 }
 
 bool AMASelectionHUD::IsAnyFullscreenWidgetVisible() const
@@ -36,6 +38,36 @@ bool AMASelectionHUD::IsAnyFullscreenWidgetVisible() const
     }
     
     return false;
+}
+
+void AMASelectionHUD::ApplyTheme(UMAUITheme* InTheme)
+{
+    Theme = InTheme;
+}
+
+FLinearColor AMASelectionHUD::GetModeColor(EMAMouseMode Mode) const
+{
+    if (!Theme)
+    {
+        // Fallback to original hardcoded values
+        switch (Mode)
+        {
+            case EMAMouseMode::Select: return FLinearColor::Green;
+            case EMAMouseMode::Deployment: return FLinearColor(0.2f, 0.6f, 1.0f, 1.0f);
+            case EMAMouseMode::Modify: return FLinearColor(1.0f, 0.6f, 0.0f, 1.0f);
+            case EMAMouseMode::Edit: return FLinearColor(0.0f, 0.5f, 1.0f, 1.0f);
+            default: return FLinearColor::White;
+        }
+    }
+    
+    switch (Mode)
+    {
+        case EMAMouseMode::Select: return Theme->ModeSelectColor;
+        case EMAMouseMode::Deployment: return Theme->ModeDeployColor;
+        case EMAMouseMode::Modify: return Theme->ModeModifyColor;
+        case EMAMouseMode::Edit: return Theme->ModeEditColor;
+        default: return Theme->TextColor;
+    }
 }
 
 void AMASelectionHUD::DrawHUD()
@@ -172,54 +204,37 @@ void AMASelectionHUD::DrawCircleAtAgent(AMACharacter* Agent, FLinearColor Color,
     float CircleRadius = 60.f;
     FColor DrawColor = Color.ToFColor(true);
     
-    // 绘制 3 个互相垂直的圆环
-    // XY 平面 (水平圆)
-    DrawDebugCircle(
-        World,
-        AgentLocation,
-        CircleRadius,
-        24,             // Segments
-        DrawColor,
-        false,          // bPersistentLines
-        -1.f,           // LifeTime
-        0,              // DepthPriority
-        2.f,            // Thickness
-        FVector(1, 0, 0),  // YAxis
-        FVector(0, 1, 0),  // ZAxis
-        false           // bDrawAxis
-    );
+    // 绘制多个圆环形成球体网格效果
+    float Thickness = 12.f;
     
-    // XZ 平面 (垂直圆 - 前后)
-    DrawDebugCircle(
-        World,
-        AgentLocation,
-        CircleRadius,
-        24,
-        DrawColor,
-        false,
-        -1.f,
-        0,
-        2.f,
-        FVector(1, 0, 0),  // YAxis
-        FVector(0, 0, 1),  // ZAxis
-        false
-    );
+    // XY 平面 (水平圆 - 赤道)
+    DrawDebugCircle(World, AgentLocation, CircleRadius, 24, DrawColor, false, -1.f, 0, Thickness,
+        FVector(1, 0, 0), FVector(0, 1, 0), false);
     
-    // YZ 平面 (垂直圆 - 左右)
-    DrawDebugCircle(
-        World,
-        AgentLocation,
-        CircleRadius,
-        24,
-        DrawColor,
-        false,
-        -1.f,
-        0,
-        2.f,
-        FVector(0, 1, 0),  // YAxis
-        FVector(0, 0, 1),  // ZAxis
-        false
-    );
+    // XZ 平面 (垂直圆 - 前后经线)
+    DrawDebugCircle(World, AgentLocation, CircleRadius, 24, DrawColor, false, -1.f, 0, Thickness,
+        FVector(1, 0, 0), FVector(0, 0, 1), false);
+    
+    // YZ 平面 (垂直圆 - 左右经线)
+    DrawDebugCircle(World, AgentLocation, CircleRadius, 24, DrawColor, false, -1.f, 0, Thickness,
+        FVector(0, 1, 0), FVector(0, 0, 1), false);
+    
+    // 45度倾斜的经线圆环
+    DrawDebugCircle(World, AgentLocation, CircleRadius, 24, DrawColor, false, -1.f, 0, Thickness,
+        FVector(0.707f, 0.707f, 0), FVector(0, 0, 1), false);
+    
+    DrawDebugCircle(World, AgentLocation, CircleRadius, 24, DrawColor, false, -1.f, 0, Thickness,
+        FVector(0.707f, -0.707f, 0), FVector(0, 0, 1), false);
+    
+    // 上下纬线圆环 (北纬/南纬 45度)
+    float LatRadius = CircleRadius * 0.707f;  // cos(45°)
+    float LatOffset = CircleRadius * 0.707f;  // sin(45°)
+    
+    DrawDebugCircle(World, AgentLocation + FVector(0, 0, LatOffset), LatRadius, 24, DrawColor, false, -1.f, 0, Thickness,
+        FVector(1, 0, 0), FVector(0, 1, 0), false);
+    
+    DrawDebugCircle(World, AgentLocation - FVector(0, 0, LatOffset), LatRadius, 24, DrawColor, false, -1.f, 0, Thickness,
+        FVector(1, 0, 0), FVector(0, 1, 0), false);
 }
 
 void AMASelectionHUD::DrawMouseMode()
@@ -260,16 +275,8 @@ void AMASelectionHUD::DrawMouseMode()
     float X = Canvas->SizeX - TextWidth - 20.f;
     float Y = 20.f;
 
-    // 根据模式选择颜色
-    FLinearColor ModeColor;
-    switch (PC->CurrentMouseMode)
-    {
-        case EMAMouseMode::Select: ModeColor = FLinearColor::Green; break;
-        case EMAMouseMode::Deployment: ModeColor = FLinearColor(0.2f, 0.6f, 1.f, 1.f); break;
-        case EMAMouseMode::Modify: ModeColor = FLinearColor(1.f, 0.6f, 0.f, 1.f); break;  // 橙色
-        case EMAMouseMode::Edit: ModeColor = FLinearColor(0.f, 0.5f, 1.f, 1.f); break;    // 蓝色
-        default: ModeColor = FLinearColor::White; break;
-    }
+    // 使用 GetModeColor 获取颜色（带 fallback 逻辑）
+    FLinearColor ModeColor = GetModeColor(PC->CurrentMouseMode);
 
     FCanvasTextItem TextItem(
         FVector2D(X, Y),
@@ -326,12 +333,23 @@ void AMASelectionHUD::DrawDeploymentInfo()
     float CenterX = Canvas->SizeX / 2.f;
     float Y = 60.f;
 
-    // 绘制背景
+    // 绘制背景 - 使用 Theme 颜色（带 fallback）
     float BoxWidth = 450.f;
     float BoxHeight = 55.f;
-    FLinearColor BgColor = bInDeploymentMode 
-        ? FLinearColor(0.f, 0.1f, 0.3f, 0.8f)  // 部署模式：深蓝
-        : FLinearColor(0.1f, 0.1f, 0.1f, 0.7f); // 非部署模式：深灰
+    FLinearColor BgColor;
+    if (Theme)
+    {
+        BgColor = bInDeploymentMode 
+            ? FLinearColor(Theme->ModeDeployColor.R, Theme->ModeDeployColor.G, Theme->ModeDeployColor.B, 0.3f)
+            : Theme->BackgroundColor;
+    }
+    else
+    {
+        // Fallback to original hardcoded values
+        BgColor = bInDeploymentMode 
+            ? FLinearColor(0.0f, 0.1f, 0.3f, 0.8f)
+            : FLinearColor(0.1f, 0.1f, 0.1f, 0.7f);
+    }
     
     FCanvasTileItem BgItem(
         FVector2D(CenterX - BoxWidth / 2.f, Y - 5.f),
@@ -341,10 +359,21 @@ void AMASelectionHUD::DrawDeploymentInfo()
     BgItem.BlendMode = SE_BLEND_Translucent;
     Canvas->DrawItem(BgItem);
 
-    // 绘制文字
-    FLinearColor InfoColor = bInDeploymentMode 
-        ? FLinearColor(0.2f, 0.8f, 1.f, 1.f)   // 部署模式：亮蓝
-        : FLinearColor(0.7f, 0.7f, 0.7f, 1.f); // 非部署模式：灰色
+    // 绘制文字 - 使用 Theme 颜色（带 fallback）
+    FLinearColor InfoColor;
+    if (Theme)
+    {
+        InfoColor = bInDeploymentMode 
+            ? Theme->PrimaryColor
+            : Theme->SecondaryTextColor;
+    }
+    else
+    {
+        // Fallback to original hardcoded values
+        InfoColor = bInDeploymentMode 
+            ? FLinearColor(0.2f, 0.8f, 1.0f, 1.0f)
+            : FLinearColor(0.7f, 0.7f, 0.7f, 1.0f);
+    }
     
     FCanvasTextItem InfoItem(
         FVector2D(CenterX - 180.f, Y),

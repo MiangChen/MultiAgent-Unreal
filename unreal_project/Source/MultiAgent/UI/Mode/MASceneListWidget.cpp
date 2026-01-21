@@ -18,6 +18,8 @@
 #include "../Core/MARoundedBorderUtils.h"
 #include "../Core/MAUITheme.h"
 #include "../../Core/Manager/MAEditModeManager.h"
+#include "../../Core/Manager/MASceneGraphManager.h"
+#include "Kismet/GameplayStatics.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMASceneListWidget, Log, All);
 
@@ -28,6 +30,45 @@ UMASceneListWidget::UMASceneListWidget(const FObjectInitializer& ObjectInitializ
     {
         WidgetTree = NewObject<UWidgetTree>(this, TEXT("WidgetTree"));
     }
+}
+
+//=========================================================================
+// ApplyTheme - 应用主题样式
+//=========================================================================
+
+void UMASceneListWidget::ApplyTheme(UMAUITheme* InTheme)
+{
+    Theme = InTheme;
+    if (!Theme)
+    {
+        UE_LOG(LogMASceneListWidget, Warning, TEXT("ApplyTheme: Theme is null, using default colors"));
+        return;
+    }
+
+    // 更新 Goal 标题颜色
+    if (GoalTitleText)
+    {
+        GoalTitleText->SetColorAndOpacity(FSlateColor(Theme->DangerColor));
+    }
+
+    // 更新 Zone 标题颜色
+    if (ZoneTitleText)
+    {
+        ZoneTitleText->SetColorAndOpacity(FSlateColor(Theme->PrimaryColor));
+    }
+
+    // 更新计数文字颜色
+    if (GoalCountText)
+    {
+        GoalCountText->SetColorAndOpacity(FSlateColor(Theme->SecondaryTextColor));
+    }
+
+    if (ZoneCountText)
+    {
+        ZoneCountText->SetColorAndOpacity(FSlateColor(Theme->SecondaryTextColor));
+    }
+
+    UE_LOG(LogMASceneListWidget, Log, TEXT("ApplyTheme: Theme applied successfully"));
 }
 
 void UMASceneListWidget::NativeConstruct()
@@ -109,7 +150,9 @@ void UMASceneListWidget::BuildUI()
     FSlateFontInfo TitleFont = TitleText->GetFont();
     TitleFont.Size = 14;
     TitleText->SetFont(TitleFont);
-    TitleText->SetColorAndOpacity(FSlateColor(FLinearColor(0.3f, 0.6f, 1.0f)));
+    // 使用 Theme 颜色，fallback 到默认蓝色
+    FLinearColor TitleColor = Theme ? Theme->PrimaryColor : FLinearColor(0.3f, 0.6f, 1.0f);
+    TitleText->SetColorAndOpacity(FSlateColor(TitleColor));
 
     UVerticalBoxSlot* TitleSlot = MainVBox->AddChildToVerticalBox(TitleText);
     TitleSlot->SetPadding(FMargin(0, 0, 0, 10));
@@ -126,7 +169,9 @@ void UMASceneListWidget::BuildUI()
     FSlateFontInfo GoalTitleFont = GoalTitleText->GetFont();
     GoalTitleFont.Size = 12;
     GoalTitleText->SetFont(GoalTitleFont);
-    GoalTitleText->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.4f, 0.4f)));  // 红色
+    // 使用 Theme 颜色，fallback 到默认红色
+    FLinearColor GoalTitleColor = Theme ? Theme->DangerColor : FLinearColor(1.0f, 0.4f, 0.4f);
+    GoalTitleText->SetColorAndOpacity(FSlateColor(GoalTitleColor));
 
     UHorizontalBoxSlot* GoalTitleSlot = GoalHeaderBox->AddChildToHorizontalBox(GoalTitleText);
     GoalTitleSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
@@ -136,7 +181,9 @@ void UMASceneListWidget::BuildUI()
     FSlateFontInfo GoalCountFont = GoalCountText->GetFont();
     GoalCountFont.Size = 11;
     GoalCountText->SetFont(GoalCountFont);
-    GoalCountText->SetColorAndOpacity(FSlateColor(FLinearColor(0.6f, 0.6f, 0.6f)));
+    // 使用 Theme 颜色，fallback 到默认灰色
+    FLinearColor CountTextColor = Theme ? Theme->SecondaryTextColor : FLinearColor(0.6f, 0.6f, 0.6f);
+    GoalCountText->SetColorAndOpacity(FSlateColor(CountTextColor));
     
     GoalHeaderBox->AddChildToHorizontalBox(GoalCountText);
 
@@ -161,7 +208,9 @@ void UMASceneListWidget::BuildUI()
     FSlateFontInfo ZoneTitleFont = ZoneTitleText->GetFont();
     ZoneTitleFont.Size = 12;
     ZoneTitleText->SetFont(ZoneTitleFont);
-    ZoneTitleText->SetColorAndOpacity(FSlateColor(FLinearColor(0.3f, 0.6f, 1.0f)));  // 蓝色
+    // 使用 Theme 颜色，fallback 到默认蓝色
+    FLinearColor ZoneTitleColor = Theme ? Theme->PrimaryColor : FLinearColor(0.3f, 0.6f, 1.0f);
+    ZoneTitleText->SetColorAndOpacity(FSlateColor(ZoneTitleColor));
 
     UHorizontalBoxSlot* ZoneTitleSlot = ZoneHeaderBox->AddChildToHorizontalBox(ZoneTitleText);
     ZoneTitleSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
@@ -171,7 +220,8 @@ void UMASceneListWidget::BuildUI()
     FSlateFontInfo ZoneCountFont = ZoneCountText->GetFont();
     ZoneCountFont.Size = 11;
     ZoneCountText->SetFont(ZoneCountFont);
-    ZoneCountText->SetColorAndOpacity(FSlateColor(FLinearColor(0.6f, 0.6f, 0.6f)));
+    // 使用 Theme 颜色，fallback 到默认灰色
+    ZoneCountText->SetColorAndOpacity(FSlateColor(CountTextColor));
     
     ZoneHeaderBox->AddChildToHorizontalBox(ZoneCountText);
 
@@ -190,13 +240,6 @@ void UMASceneListWidget::BuildUI()
 void UMASceneListWidget::SetEditModeManager(UMAEditModeManager* InManager)
 {
     EditModeManager = InManager;
-    
-    // 绑定场景图变化事件
-    if (EditModeManager)
-    {
-        EditModeManager->OnTempSceneGraphChanged.AddDynamic(this, &UMASceneListWidget::RefreshLists);
-    }
-    
     RefreshLists();
 }
 
@@ -210,8 +253,17 @@ void UMASceneListWidget::RefreshLists()
 
 void UMASceneListWidget::PopulateGoalList()
 {
-    if (!GoalListBox || !EditModeManager)
+    if (!GoalListBox)
     {
+        return;
+    }
+
+    // 获取 SceneGraphManager
+    UGameInstance* GI = UGameplayStatics::GetGameInstance(GetWorld());
+    UMASceneGraphManager* SceneGraphManager = GI ? GI->GetSubsystem<UMASceneGraphManager>() : nullptr;
+    if (!SceneGraphManager)
+    {
+        UE_LOG(LogMASceneListWidget, Warning, TEXT("PopulateGoalList: SceneGraphManager not found"));
         return;
     }
 
@@ -220,30 +272,30 @@ void UMASceneListWidget::PopulateGoalList()
     GoalButtons.Empty();
     GoalIds.Empty();
 
-    // 获取所有 Goal Node ID
-    TArray<FString> AllGoalIds = EditModeManager->GetAllGoalNodeIds();
+    // 获取所有 Goal 节点
+    TArray<FMASceneGraphNode> AllGoals = SceneGraphManager->GetAllGoals();
 
     // 更新计数
     if (GoalCountText)
     {
-        GoalCountText->SetText(FText::FromString(FString::Printf(TEXT("(%d)"), AllGoalIds.Num())));
+        GoalCountText->SetText(FText::FromString(FString::Printf(TEXT("(%d)"), AllGoals.Num())));
     }
 
     // 为每个 Goal 创建按钮
-    for (const FString& GoalId : AllGoalIds)
+    for (const FMASceneGraphNode& GoalNode : AllGoals)
     {
-        FString Label = EditModeManager->GetNodeLabel(GoalId);
+        FString Label = GoalNode.Label;
         if (Label.IsEmpty())
         {
-            Label = GoalId;
+            Label = GoalNode.Id;
         }
 
-        UButton* GoalButton = CreateListItemButton(Label, GoalId, true);
+        UButton* GoalButton = CreateListItemButton(Label, GoalNode.Id, true);
         if (GoalButton)
         {
             GoalButton->OnClicked.AddDynamic(this, &UMASceneListWidget::OnGoalButtonClicked);
             GoalButtons.Add(GoalButton);
-            GoalIds.Add(GoalId);
+            GoalIds.Add(GoalNode.Id);
 
             UVerticalBoxSlot* ButtonSlot = GoalListBox->AddChildToVerticalBox(GoalButton);
             ButtonSlot->SetPadding(FMargin(0, 2, 0, 2));
@@ -251,7 +303,7 @@ void UMASceneListWidget::PopulateGoalList()
     }
 
     // 如果没有 Goal，显示提示
-    if (AllGoalIds.Num() == 0)
+    if (AllGoals.Num() == 0)
     {
         UTextBlock* EmptyText = NewObject<UTextBlock>(this);
         EmptyText->SetText(FText::FromString(TEXT("  (No Goals)")));
@@ -262,13 +314,22 @@ void UMASceneListWidget::PopulateGoalList()
         GoalListBox->AddChildToVerticalBox(EmptyText);
     }
 
-    UE_LOG(LogMASceneListWidget, Log, TEXT("PopulateGoalList: Added %d goals"), AllGoalIds.Num());
+    UE_LOG(LogMASceneListWidget, Log, TEXT("PopulateGoalList: Added %d goals"), AllGoals.Num());
 }
 
 void UMASceneListWidget::PopulateZoneList()
 {
-    if (!ZoneListBox || !EditModeManager)
+    if (!ZoneListBox)
     {
+        return;
+    }
+
+    // 获取 SceneGraphManager
+    UGameInstance* GI = UGameplayStatics::GetGameInstance(GetWorld());
+    UMASceneGraphManager* SceneGraphManager = GI ? GI->GetSubsystem<UMASceneGraphManager>() : nullptr;
+    if (!SceneGraphManager)
+    {
+        UE_LOG(LogMASceneListWidget, Warning, TEXT("PopulateZoneList: SceneGraphManager not found"));
         return;
     }
 
@@ -277,30 +338,30 @@ void UMASceneListWidget::PopulateZoneList()
     ZoneButtons.Empty();
     ZoneIds.Empty();
 
-    // 获取所有 Zone Node ID
-    TArray<FString> AllZoneIds = EditModeManager->GetAllZoneNodeIds();
+    // 获取所有 Zone 节点
+    TArray<FMASceneGraphNode> AllZones = SceneGraphManager->GetAllZones();
 
     // 更新计数
     if (ZoneCountText)
     {
-        ZoneCountText->SetText(FText::FromString(FString::Printf(TEXT("(%d)"), AllZoneIds.Num())));
+        ZoneCountText->SetText(FText::FromString(FString::Printf(TEXT("(%d)"), AllZones.Num())));
     }
 
     // 为每个 Zone 创建按钮
-    for (const FString& ZoneId : AllZoneIds)
+    for (const FMASceneGraphNode& ZoneNode : AllZones)
     {
-        FString Label = EditModeManager->GetNodeLabel(ZoneId);
+        FString Label = ZoneNode.Label;
         if (Label.IsEmpty())
         {
-            Label = ZoneId;
+            Label = ZoneNode.Id;
         }
 
-        UButton* ZoneButton = CreateListItemButton(Label, ZoneId, false);
+        UButton* ZoneButton = CreateListItemButton(Label, ZoneNode.Id, false);
         if (ZoneButton)
         {
             ZoneButton->OnClicked.AddDynamic(this, &UMASceneListWidget::OnZoneButtonClicked);
             ZoneButtons.Add(ZoneButton);
-            ZoneIds.Add(ZoneId);
+            ZoneIds.Add(ZoneNode.Id);
 
             UVerticalBoxSlot* ButtonSlot = ZoneListBox->AddChildToVerticalBox(ZoneButton);
             ButtonSlot->SetPadding(FMargin(0, 2, 0, 2));
@@ -308,7 +369,7 @@ void UMASceneListWidget::PopulateZoneList()
     }
 
     // 如果没有 Zone，显示提示
-    if (AllZoneIds.Num() == 0)
+    if (AllZones.Num() == 0)
     {
         UTextBlock* EmptyText = NewObject<UTextBlock>(this);
         EmptyText->SetText(FText::FromString(TEXT("  (No Zones)")));
@@ -319,7 +380,7 @@ void UMASceneListWidget::PopulateZoneList()
         ZoneListBox->AddChildToVerticalBox(EmptyText);
     }
 
-    UE_LOG(LogMASceneListWidget, Log, TEXT("PopulateZoneList: Added %d zones"), AllZoneIds.Num());
+    UE_LOG(LogMASceneListWidget, Log, TEXT("PopulateZoneList: Added %d zones"), AllZones.Num());
 }
 
 UButton* UMASceneListWidget::CreateListItemButton(const FString& Label, const FString& Id, bool bIsGoal)
@@ -333,13 +394,16 @@ UButton* UMASceneListWidget::CreateListItemButton(const FString& Label, const FS
     ButtonText->SetFont(ButtonFont);
     
     // Goal 用红色，Zone 用蓝色
+    // 使用 Theme 颜色，fallback 到默认颜色
     if (bIsGoal)
     {
-        ButtonText->SetColorAndOpacity(FSlateColor(FLinearColor(0.8f, 0.2f, 0.2f)));
+        FLinearColor GoalButtonColor = Theme ? Theme->DangerColor : FLinearColor(0.8f, 0.2f, 0.2f);
+        ButtonText->SetColorAndOpacity(FSlateColor(GoalButtonColor));
     }
     else
     {
-        ButtonText->SetColorAndOpacity(FSlateColor(FLinearColor(0.2f, 0.4f, 0.8f)));
+        FLinearColor ZoneButtonColor = Theme ? Theme->PrimaryColor : FLinearColor(0.2f, 0.4f, 0.8f);
+        ButtonText->SetColorAndOpacity(FSlateColor(ZoneButtonColor));
     }
     
     Button->AddChild(ButtonText);

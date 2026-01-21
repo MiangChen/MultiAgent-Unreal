@@ -7,6 +7,7 @@
 #include "../../Core/Comm/MACommSubsystem.h"
 #include "../../Core/Manager/MATempDataManager.h"
 #include "../Core/MARoundedBorderUtils.h"
+#include "../Core/MAUITheme.h"
 #include "../Components/MAStyledButton.h"
 #include "../Core/MAUIManager.h"
 #include "../HUD/MAHUD.h"
@@ -229,8 +230,9 @@ void UMASkillAllocationViewer::BuildUI()
     WidgetTree->RootWidget = RootCanvas;
 
     // Create semi-transparent background overlay (click blocker)
-    UBorder* BackgroundOverlay = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("BackgroundOverlay"));
-    BackgroundOverlay->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.5f));  // Semi-transparent black
+    BackgroundOverlay = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("BackgroundOverlay"));
+    FLinearColor OverlayBgColor = Theme ? Theme->OverlayColor : FLinearColor(0.0f, 0.0f, 0.0f, 0.5f);
+    BackgroundOverlay->SetBrushColor(OverlayBgColor);
     
     UCanvasPanelSlot* OverlaySlot = RootCanvas->AddChildToCanvas(BackgroundOverlay);
     OverlaySlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
@@ -259,24 +261,27 @@ void UMASkillAllocationViewer::BuildUI()
     TitleBarSlot->SetPadding(FMargin(0, 0, 0, 5));
 
     // Title text
-    UTextBlock* TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TitleText"));
+    TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TitleText"));
     TitleText->SetText(FText::FromString(TEXT("Skill Allocation Workbench")));
     FSlateFontInfo TitleFont = TitleText->GetFont();
     TitleFont.Size = 16;
     TitleText->SetFont(TitleFont);
-    TitleText->SetColorAndOpacity(FSlateColor(TitleColor));
+    // 标题在深色背景上，使用 LabelTextColor（浅色）而不是 TextColor（黑色）
+    FLinearColor TitleTextColor = Theme ? Theme->LabelTextColor : FLinearColor(0.9f, 0.9f, 1.0f, 1.0f);
+    TitleText->SetColorAndOpacity(FSlateColor(TitleTextColor));
     
     UHorizontalBoxSlot* TitleTextSlot = TitleBar->AddChildToHorizontalBox(TitleText);
     TitleTextSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
     TitleTextSlot->SetVerticalAlignment(VAlign_Center);
 
     // Hint text
-    UTextBlock* HintText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("HintText"));
+    HintText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("HintText"));
     HintText->SetText(FText::FromString(TEXT("Press N to close the window")));
     FSlateFontInfo HintFont = HintText->GetFont();
     HintFont.Size = 10;
     HintText->SetFont(HintFont);
-    HintText->SetColorAndOpacity(FSlateColor(FLinearColor(0.5f, 0.5f, 0.6f)));
+    FLinearColor HintTextColor = Theme ? Theme->HintTextColor : FLinearColor(0.5f, 0.5f, 0.6f);
+    HintText->SetColorAndOpacity(FSlateColor(HintTextColor));
     
     UHorizontalBoxSlot* HintSlot = TitleBar->AddChildToHorizontalBox(HintText);
     HintSlot->SetVerticalAlignment(VAlign_Center);
@@ -290,19 +295,23 @@ void UMASkillAllocationViewer::BuildUI()
     NormalBrush.TintColor = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.0f));
     CloseButtonStyle.SetNormal(NormalBrush);
     
+    // Hover state - semi-transparent red (use Theme->DangerColor)
+    FLinearColor DangerCol = Theme ? Theme->DangerColor : FLinearColor(0.8f, 0.2f, 0.2f, 1.0f);
     FSlateBrush HoverBrush;
-    HoverBrush.TintColor = FSlateColor(FLinearColor(0.8f, 0.2f, 0.2f, 0.3f));
+    HoverBrush.TintColor = FSlateColor(FLinearColor(DangerCol.R, DangerCol.G, DangerCol.B, 0.3f));
     CloseButtonStyle.SetHovered(HoverBrush);
     
+    // Pressed state - darker red
     FSlateBrush PressedBrush;
-    PressedBrush.TintColor = FSlateColor(FLinearColor(0.6f, 0.1f, 0.1f, 0.5f));
+    PressedBrush.TintColor = FSlateColor(FLinearColor(DangerCol.R * 0.75f, DangerCol.G * 0.5f, DangerCol.B * 0.5f, 0.5f));
     CloseButtonStyle.SetPressed(PressedBrush);
     
     CloseButton->SetStyle(CloseButtonStyle);
     
-    UTextBlock* CloseText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("CloseText"));
+    CloseText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("CloseText"));
     CloseText->SetText(FText::FromString(TEXT("✕")));
-    CloseText->SetColorAndOpacity(FSlateColor(FLinearColor(0.7f, 0.7f, 0.7f, 1.0f)));
+    FLinearColor CloseTextColor = Theme ? Theme->SecondaryTextColor : FLinearColor(0.7f, 0.7f, 0.7f, 1.0f);
+    CloseText->SetColorAndOpacity(FSlateColor(CloseTextColor));
     FSlateFontInfo CloseFont = FCoreStyle::GetDefaultFontStyle("Regular", 18);
     CloseText->SetFont(CloseFont);
     CloseButton->AddChild(CloseText);
@@ -406,7 +415,8 @@ UBorder* UMASkillAllocationViewer::CreateLeftPanel()
     FSlateFontInfo HintFont = HintText->GetFont();
     HintFont.Size = 10;
     HintText->SetFont(HintFont);
-    HintText->SetColorAndOpacity(FSlateColor(FLinearColor(0.5f, 0.5f, 0.6f)));
+    FLinearColor LeftHintTextColor = Theme ? Theme->HintTextColor : FLinearColor(0.5f, 0.5f, 0.6f);
+    HintText->SetColorAndOpacity(FSlateColor(LeftHintTextColor));
     
     UVerticalBoxSlot* HintSlot = LeftVBox->AddChildToVerticalBox(HintText);
     HintSlot->SetPadding(FMargin(0, 0, 0, 15));
@@ -433,14 +443,15 @@ UVerticalBox* UMASkillAllocationViewer::CreateStatusLogSection()
 {
     UVerticalBox* Section = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("StatusLogSection"));
 
-    // Label - white color, font size 14
-    UTextBlock* Label = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("StatusLogLabel"));
-    Label->SetText(FText::FromString(TEXT("Status Log:")));
-    Label->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f)));  // White color
+    // Label - use Theme->LabelTextColor with fallback
+    StatusLogLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("StatusLogLabel"));
+    StatusLogLabel->SetText(FText::FromString(TEXT("Status Log:")));
+    FLinearColor LabelTextColor = Theme ? Theme->LabelTextColor : FLinearColor::White;
+    StatusLogLabel->SetColorAndOpacity(FSlateColor(LabelTextColor));
     FSlateFontInfo LabelFont = FCoreStyle::GetDefaultFontStyle("Bold", 14);
-    Label->SetFont(LabelFont);
+    StatusLogLabel->SetFont(LabelFont);
     
-    UVerticalBoxSlot* LabelSlot = Section->AddChildToVerticalBox(Label);
+    UVerticalBoxSlot* LabelSlot = Section->AddChildToVerticalBox(StatusLogLabel);
     LabelSlot->SetPadding(FMargin(0, 0, 0, 3));
 
     // Status log text box (read-only) - wrapped in rounded border
@@ -448,12 +459,13 @@ UVerticalBox* UMASkillAllocationViewer::CreateStatusLogSection()
     StatusLogBox->SetIsReadOnly(true);
     StatusLogBox->SetText(FText::GetEmpty());
     
-    // 设置文本样式：纯黑色，字号 12，透明背景
+    // 设置文本样式：使用主题颜色，字号 12，透明背景
     FEditableTextBoxStyle StatusLogStyle;
-    FSlateColor BlackColor = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
-    StatusLogStyle.SetForegroundColor(BlackColor);
-    StatusLogStyle.SetFocusedForegroundColor(BlackColor);
-    StatusLogStyle.SetReadOnlyForegroundColor(BlackColor);
+    FLinearColor StatusLogTextColor = Theme ? Theme->InputTextColor : FLinearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    FSlateColor StatusLogSlateColor = FSlateColor(StatusLogTextColor);
+    StatusLogStyle.SetForegroundColor(StatusLogSlateColor);
+    StatusLogStyle.SetFocusedForegroundColor(StatusLogSlateColor);
+    StatusLogStyle.SetReadOnlyForegroundColor(StatusLogSlateColor);
     StatusLogStyle.TextStyle.ColorAndOpacity = BlackColor;
     FSlateFontInfo StatusLogFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
     StatusLogStyle.SetFont(StatusLogFont);
@@ -472,8 +484,8 @@ UVerticalBox* UMASkillAllocationViewer::CreateStatusLogSection()
     UBorder* StatusLogBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("StatusLogBorder"));
     StatusLogBorder->SetPadding(FMargin(8.0f, 4.0f));
     
-    // 应用圆角效果 - 只读文本框使用深色背景
-    FLinearColor StatusLogBgColor = FLinearColor(0.85f, 0.85f, 0.85f, 1.0f);
+    // 应用圆角效果 - 只读文本框使用主题次要颜色背景
+    FLinearColor StatusLogBgColor = Theme ? Theme->SecondaryColor : FLinearColor(0.85f, 0.85f, 0.85f, 1.0f);
     MARoundedBorderUtils::ApplyRoundedCorners(StatusLogBorder, StatusLogBgColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
     
     StatusLogBorder->AddChild(StatusLogBox);
@@ -489,14 +501,15 @@ UVerticalBox* UMASkillAllocationViewer::CreateJsonEditorSection()
 {
     UVerticalBox* Section = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("JsonEditorSection"));
 
-    // Label - white color, font size 14
-    UTextBlock* Label = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("JsonEditorLabel"));
-    Label->SetText(FText::FromString(TEXT("JSON Editor:")));
-    Label->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f)));  // White color
+    // Label - use Theme->LabelTextColor with fallback
+    JsonEditorLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("JsonEditorLabel"));
+    JsonEditorLabel->SetText(FText::FromString(TEXT("JSON Editor:")));
+    FLinearColor LabelTextColor = Theme ? Theme->LabelTextColor : FLinearColor::White;
+    JsonEditorLabel->SetColorAndOpacity(FSlateColor(LabelTextColor));
     FSlateFontInfo LabelFont2 = FCoreStyle::GetDefaultFontStyle("Bold", 14);
-    Label->SetFont(LabelFont2);
+    JsonEditorLabel->SetFont(LabelFont2);
     
-    UVerticalBoxSlot* LabelSlot = Section->AddChildToVerticalBox(Label);
+    UVerticalBoxSlot* LabelSlot = Section->AddChildToVerticalBox(JsonEditorLabel);
     LabelSlot->SetPadding(FMargin(0, 0, 0, 3));
 
     // JSON editor text box (editable) - wrapped in rounded border
@@ -504,11 +517,12 @@ UVerticalBox* UMASkillAllocationViewer::CreateJsonEditorSection()
     JsonEditorBox->SetIsReadOnly(false);
     JsonEditorBox->SetText(FText::FromString(TEXT("{\n  \"name\": \"\",\n  \"description\": \"\",\n  \"data\": {}\n}")));
     
-    // 设置文本样式：纯黑色，字号 12，透明背景
+    // 设置文本样式：使用主题颜色，字号 12，透明背景
     FEditableTextBoxStyle JsonEditorStyle;
-    FSlateColor BlackColor2 = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
-    JsonEditorStyle.SetForegroundColor(BlackColor2);
-    JsonEditorStyle.SetFocusedForegroundColor(BlackColor2);
+    FLinearColor JsonEditorTextColor = Theme ? Theme->InputTextColor : FLinearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    FSlateColor JsonEditorSlateColor = FSlateColor(JsonEditorTextColor);
+    JsonEditorStyle.SetForegroundColor(JsonEditorSlateColor);
+    JsonEditorStyle.SetFocusedForegroundColor(JsonEditorSlateColor);
     FSlateFontInfo JsonEditorFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
     JsonEditorStyle.SetFont(JsonEditorFont);
     
@@ -526,8 +540,8 @@ UVerticalBox* UMASkillAllocationViewer::CreateJsonEditorSection()
     UBorder* JsonEditorBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("JsonEditorBorder"));
     JsonEditorBorder->SetPadding(FMargin(8.0f, 4.0f));
     
-    // 应用圆角效果 - 可编辑文本框使用白色背景
-    FLinearColor JsonEditorBgColor = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    // 应用圆角效果 - 可编辑文本框使用主题输入背景颜色
+    FLinearColor JsonEditorBgColor = Theme ? Theme->InputBackgroundColor : FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
     MARoundedBorderUtils::ApplyRoundedCorners(JsonEditorBorder, JsonEditorBgColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
     
     JsonEditorBorder->AddChild(JsonEditorBox);
@@ -699,7 +713,6 @@ void UMASkillAllocationViewer::SetJsonText(const FString& JsonText)
 
 bool UMASkillAllocationViewer::LoadMockData()
 {
-    // 已废弃: 不再从 datasets/skill_allocation_example.json 读取
     // 请使用 TempDataManager 从 skill_allocation_temp.json 读取数据
     AppendStatusLog(TEXT("[Warning] LoadMockData is deprecated. Use TempDataManager instead."));
     UE_LOG(LogMASkillAllocationViewer, Warning, TEXT("LoadMockData is deprecated. Data should be loaded from skill_allocation_temp.json via TempDataManager."));
@@ -1335,4 +1348,65 @@ bool UMASkillAllocationViewer::ConvertToSkillListMessage(
         }());
     
     return true;
+}
+
+
+//=============================================================================
+// 主题应用
+//=============================================================================
+
+void UMASkillAllocationViewer::ApplyTheme(UMAUITheme* InTheme)
+{
+    Theme = InTheme;
+    if (!Theme)
+    {
+        return;
+    }
+    
+    // 从 Theme 更新颜色配置
+    BackgroundColor = Theme->BackgroundColor;
+    PanelBackgroundColor = Theme->CanvasBackgroundColor;
+    TitleColor = Theme->TextColor;
+    LabelColor = Theme->InputTextColor;
+    ButtonColor = Theme->PrimaryColor;
+    
+    // 更新 UI 元素颜色
+    // 标题在深色背景上，使用 LabelTextColor（浅色）而不是 TextColor（黑色）
+    if (TitleText)
+    {
+        TitleText->SetColorAndOpacity(FSlateColor(Theme->LabelTextColor));
+    }
+    
+    if (HintText)
+    {
+        HintText->SetColorAndOpacity(FSlateColor(Theme->HintTextColor));
+    }
+    
+    if (CloseText)
+    {
+        CloseText->SetColorAndOpacity(FSlateColor(Theme->SecondaryTextColor));
+    }
+    
+    if (StatusLogLabel)
+    {
+        StatusLogLabel->SetColorAndOpacity(FSlateColor(Theme->LabelTextColor));
+    }
+    
+    if (JsonEditorLabel)
+    {
+        JsonEditorLabel->SetColorAndOpacity(FSlateColor(Theme->LabelTextColor));
+    }
+    
+    if (BackgroundOverlay)
+    {
+        BackgroundOverlay->SetBrushColor(Theme->OverlayColor);
+    }
+    
+    // 将主题传递给子组件
+    if (GanttCanvas)
+    {
+        GanttCanvas->ApplyTheme(Theme);
+    }
+    
+    UE_LOG(LogMASkillAllocationViewer, Verbose, TEXT("ApplyTheme: Theme applied to skill allocation viewer"));
 }

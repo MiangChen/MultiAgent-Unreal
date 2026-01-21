@@ -190,8 +190,9 @@ void UMAStyledButton::BuildUI()
     ButtonLabel->SetText(ButtonText);
     ButtonLabel->SetJustification(ETextJustify::Center);
 
-    // 设置字体 - 使用加粗字体
-    FSlateFontInfo ButtonFont = FCoreStyle::GetDefaultFontStyle("Bold", 14);
+    // 设置字体 - 使用 Roboto 字体（支持多语言）
+    FSlateFontInfo ButtonFont = ButtonLabel->GetFont();
+    ButtonFont.Size = 14;
     ButtonLabel->SetFont(ButtonFont);
 
     // 初始化颜色和圆角

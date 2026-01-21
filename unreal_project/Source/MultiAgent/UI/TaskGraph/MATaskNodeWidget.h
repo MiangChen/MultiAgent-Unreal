@@ -14,6 +14,7 @@ class UImage;
 class UVerticalBox;
 class UCanvasPanel;
 class USizeBox;
+class UMAUITheme;
 
 //=============================================================================
 // 委托声明
@@ -149,6 +150,10 @@ public:
     /** 获取高亮状态 */
     UFUNCTION(BlueprintPure, Category = "TaskNode")
     bool IsHighlighted() const { return bIsHighlighted; }
+
+    /** 应用主题样式 */
+    UFUNCTION(BlueprintCallable, Category = "TaskNode")
+    void ApplyTheme(UMAUITheme* InTheme);
 
     /** 设置输入端口高亮 */
     UFUNCTION(BlueprintCallable, Category = "TaskNode")
@@ -317,7 +322,15 @@ protected:
     float PortHitRadius = 12.0f;
 
     //=========================================================================
-    // 颜色配置
+    // 主题引用
+    //=========================================================================
+
+    /** 缓存的主题引用 */
+    UPROPERTY()
+    UMAUITheme* Theme;
+
+    //=========================================================================
+    // 颜色配置 (从 Theme 获取，带 fallback 默认值)
     //=========================================================================
 
     /** 默认背景颜色 */

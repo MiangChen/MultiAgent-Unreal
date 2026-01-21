@@ -2,6 +2,7 @@
 // HUD Widget 实现
 
 #include "MAHUDWidget.h"
+#include "../Core/MAUITheme.h"
 #include "Components/TextBlock.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
@@ -32,6 +33,7 @@ namespace MAHUDColors
 
 UMAHUDWidget::UMAHUDWidget(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
+    , Theme(nullptr)
     , RootCanvas(nullptr)
     , EmergencyText(nullptr)
     , EditModeText(nullptr)
@@ -121,16 +123,19 @@ void UMAHUDWidget::BuildUI()
     //=========================================================================
     EmergencyText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("EmergencyText"));
     EmergencyText->SetText(FText::FromString(TEXT("Emergency Event")));
-    EmergencyText->SetColorAndOpacity(FSlateColor(MAHUDColors::Emergency));
+    // 使用 Theme 颜色（带 fallback）
+    FLinearColor EmergencyColor = Theme ? Theme->DangerColor : MAHUDColors::Emergency;
+    EmergencyText->SetColorAndOpacity(FSlateColor(EmergencyColor));
 
     // 设置字体
     FSlateFontInfo EmergencyFont = EmergencyText->GetFont();
     EmergencyFont.Size = 24;
     EmergencyText->SetFont(EmergencyFont);
 
-    // 设置描边
+    // 设置描边 - 使用 Theme 阴影颜色（带 fallback）
     EmergencyText->SetShadowOffset(FVector2D(1.0f, 1.0f));
-    EmergencyText->SetShadowColorAndOpacity(MAHUDColors::Outline);
+    FLinearColor ShadowColor = Theme ? Theme->ShadowColor : MAHUDColors::Outline;
+    EmergencyText->SetShadowColorAndOpacity(ShadowColor);
 
     UCanvasPanelSlot* EmergencySlot = RootCanvas->AddChildToCanvas(EmergencyText);
     EmergencySlot->SetAnchors(FAnchors(1.0f, 0.0f, 1.0f, 0.0f));  // 右上角
@@ -146,14 +151,18 @@ void UMAHUDWidget::BuildUI()
     //=========================================================================
     EditModeText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("EditModeText"));
     EditModeText->SetText(FText::FromString(TEXT("Mode: Edit (M)")));
-    EditModeText->SetColorAndOpacity(FSlateColor(MAHUDColors::EditMode));
+    // 使用 Theme 颜色（带 fallback）
+    FLinearColor EditModeColor = Theme ? Theme->ModeEditColor : MAHUDColors::EditMode;
+    EditModeText->SetColorAndOpacity(FSlateColor(EditModeColor));
 
     FSlateFontInfo EditModeFont = EditModeText->GetFont();
     EditModeFont.Size = 18;
     EditModeText->SetFont(EditModeFont);
 
     EditModeText->SetShadowOffset(FVector2D(1.0f, 1.0f));
-    EditModeText->SetShadowColorAndOpacity(MAHUDColors::Outline);
+    // 使用 Theme 阴影颜色（带 fallback）
+    FLinearColor EditModeShadowColor = Theme ? Theme->ShadowColor : MAHUDColors::Outline;
+    EditModeText->SetShadowColorAndOpacity(EditModeShadowColor);
 
     UCanvasPanelSlot* EditModeSlot = RootCanvas->AddChildToCanvas(EditModeText);
     EditModeSlot->SetAnchors(FAnchors(1.0f, 0.0f, 1.0f, 0.0f));  // 右上角
@@ -169,14 +178,18 @@ void UMAHUDWidget::BuildUI()
     //=========================================================================
     POIListText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("POIListText"));
     POIListText->SetText(FText::FromString(TEXT("")));
-    POIListText->SetColorAndOpacity(FSlateColor(MAHUDColors::POI));
+    // 使用 Theme 颜色（带 fallback）
+    FLinearColor POIColor = Theme ? Theme->SuccessColor : MAHUDColors::POI;
+    POIListText->SetColorAndOpacity(FSlateColor(POIColor));
 
     FSlateFontInfo POIFont = POIListText->GetFont();
     POIFont.Size = 12;
     POIListText->SetFont(POIFont);
 
     POIListText->SetShadowOffset(FVector2D(1.0f, 1.0f));
-    POIListText->SetShadowColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, 0.5f));
+    // 使用 Theme 阴影颜色（带 fallback）
+    FLinearColor POIShadowColor = Theme ? Theme->ShadowColor : FLinearColor(0.0f, 0.0f, 0.0f, 0.5f);
+    POIListText->SetShadowColorAndOpacity(POIShadowColor);
 
     UCanvasPanelSlot* POISlot = RootCanvas->AddChildToCanvas(POIListText);
     POISlot->SetAnchors(FAnchors(0.0f, 1.0f, 0.0f, 1.0f));  // 左下角
@@ -192,14 +205,18 @@ void UMAHUDWidget::BuildUI()
     //=========================================================================
     GoalListText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("GoalListText"));
     GoalListText->SetText(FText::FromString(TEXT("")));
-    GoalListText->SetColorAndOpacity(FSlateColor(MAHUDColors::Goal));
+    // 使用 Theme 颜色（带 fallback）
+    FLinearColor GoalColor = Theme ? Theme->DangerColor : MAHUDColors::Goal;
+    GoalListText->SetColorAndOpacity(FSlateColor(GoalColor));
 
     FSlateFontInfo GoalFont = GoalListText->GetFont();
     GoalFont.Size = 12;
     GoalListText->SetFont(GoalFont);
 
     GoalListText->SetShadowOffset(FVector2D(1.0f, 1.0f));
-    GoalListText->SetShadowColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, 0.5f));
+    // 使用 Theme 阴影颜色（带 fallback）
+    FLinearColor GoalShadowColor = Theme ? Theme->ShadowColor : FLinearColor(0.0f, 0.0f, 0.0f, 0.5f);
+    GoalListText->SetShadowColorAndOpacity(GoalShadowColor);
 
     UCanvasPanelSlot* GoalSlot = RootCanvas->AddChildToCanvas(GoalListText);
     GoalSlot->SetAnchors(FAnchors(0.0f, 1.0f, 0.0f, 1.0f));  // 左下角
@@ -215,14 +232,18 @@ void UMAHUDWidget::BuildUI()
     //=========================================================================
     ZoneListText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ZoneListText"));
     ZoneListText->SetText(FText::FromString(TEXT("")));
-    ZoneListText->SetColorAndOpacity(FSlateColor(MAHUDColors::Zone));
+    // 使用 Theme 颜色（带 fallback）
+    FLinearColor ZoneColor = Theme ? Theme->PrimaryColor : MAHUDColors::Zone;
+    ZoneListText->SetColorAndOpacity(FSlateColor(ZoneColor));
 
     FSlateFontInfo ZoneFont = ZoneListText->GetFont();
     ZoneFont.Size = 12;
     ZoneListText->SetFont(ZoneFont);
 
     ZoneListText->SetShadowOffset(FVector2D(1.0f, 1.0f));
-    ZoneListText->SetShadowColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, 0.5f));
+    // 使用 Theme 阴影颜色（带 fallback）
+    FLinearColor ZoneShadowColor = Theme ? Theme->ShadowColor : FLinearColor(0.0f, 0.0f, 0.0f, 0.5f);
+    ZoneListText->SetShadowColorAndOpacity(ZoneShadowColor);
 
     UCanvasPanelSlot* ZoneSlot = RootCanvas->AddChildToCanvas(ZoneListText);
     ZoneSlot->SetAnchors(FAnchors(0.0f, 1.0f, 0.0f, 1.0f));  // 左下角
@@ -238,7 +259,9 @@ void UMAHUDWidget::BuildUI()
     //=========================================================================
     NotificationText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("NotificationText"));
     NotificationText->SetText(FText::FromString(TEXT("")));
-    NotificationText->SetColorAndOpacity(FSlateColor(MAHUDColors::Success));
+    // 使用 Theme 颜色（带 fallback）
+    FLinearColor NotificationColor = Theme ? Theme->SuccessColor : MAHUDColors::Success;
+    NotificationText->SetColorAndOpacity(FSlateColor(NotificationColor));
     NotificationText->SetJustification(ETextJustify::Center);
 
     FSlateFontInfo NotificationFont = NotificationText->GetFont();
@@ -246,7 +269,9 @@ void UMAHUDWidget::BuildUI()
     NotificationText->SetFont(NotificationFont);
 
     NotificationText->SetShadowOffset(FVector2D(1.0f, 1.0f));
-    NotificationText->SetShadowColorAndOpacity(MAHUDColors::Outline);
+    // 使用 Theme 阴影颜色（带 fallback）
+    FLinearColor NotificationShadowColor = Theme ? Theme->ShadowColor : MAHUDColors::Outline;
+    NotificationText->SetShadowColorAndOpacity(NotificationShadowColor);
 
     UCanvasPanelSlot* NotificationSlot = RootCanvas->AddChildToCanvas(NotificationText);
     NotificationSlot->SetAnchors(FAnchors(0.5f, 0.75f, 0.5f, 0.75f));  // 底部中央 75% 高度
@@ -411,19 +436,19 @@ void UMAHUDWidget::ShowNotification(const FString& Message, bool bIsError, bool 
     // 设置消息文本
     NotificationText->SetText(FText::FromString(Message));
 
-    // 设置颜色
+    // 设置颜色 - 使用 Theme 颜色（带 fallback）
     FLinearColor NotificationColor;
     if (bIsError)
     {
-        NotificationColor = MAHUDColors::Error;
+        NotificationColor = Theme ? Theme->DangerColor : MAHUDColors::Error;
     }
     else if (bIsWarning)
     {
-        NotificationColor = MAHUDColors::Warning;
+        NotificationColor = Theme ? Theme->WarningColor : MAHUDColors::Warning;
     }
     else
     {
-        NotificationColor = MAHUDColors::Success;
+        NotificationColor = Theme ? Theme->SuccessColor : MAHUDColors::Success;
     }
     NotificationText->SetColorAndOpacity(FSlateColor(NotificationColor));
 
@@ -505,4 +530,58 @@ void UMAHUDWidget::OnNotificationFadeComplete()
     }
 
     CurrentFadeAlpha = 1.0f;
+}
+
+//=============================================================================
+// 主题系统
+//=============================================================================
+
+void UMAHUDWidget::ApplyTheme(UMAUITheme* InTheme)
+{
+    Theme = InTheme;
+    if (!Theme) return;
+
+    // 更新 Emergency 指示器颜色
+    if (EmergencyText)
+    {
+        EmergencyText->SetColorAndOpacity(FSlateColor(Theme->DangerColor));
+        EmergencyText->SetShadowColorAndOpacity(Theme->ShadowColor);
+    }
+
+    // 更新 Edit 模式指示器颜色
+    if (EditModeText)
+    {
+        EditModeText->SetColorAndOpacity(FSlateColor(Theme->ModeEditColor));
+        EditModeText->SetShadowColorAndOpacity(Theme->ShadowColor);
+    }
+
+    // 更新 POI 列表颜色
+    if (POIListText)
+    {
+        POIListText->SetColorAndOpacity(FSlateColor(Theme->SuccessColor));
+        POIListText->SetShadowColorAndOpacity(Theme->ShadowColor);
+    }
+
+    // 更新 Goal 列表颜色
+    if (GoalListText)
+    {
+        GoalListText->SetColorAndOpacity(FSlateColor(Theme->DangerColor));
+        GoalListText->SetShadowColorAndOpacity(Theme->ShadowColor);
+    }
+
+    // 更新 Zone 列表颜色
+    if (ZoneListText)
+    {
+        ZoneListText->SetColorAndOpacity(FSlateColor(Theme->PrimaryColor));
+        ZoneListText->SetShadowColorAndOpacity(Theme->ShadowColor);
+    }
+
+    // 更新通知消息颜色（默认使用成功色，实际颜色在 ShowNotification 中根据类型设置）
+    if (NotificationText)
+    {
+        NotificationText->SetColorAndOpacity(FSlateColor(Theme->SuccessColor));
+        NotificationText->SetShadowColorAndOpacity(Theme->ShadowColor);
+    }
+
+    UE_LOG(LogMAHUDWidget, Log, TEXT("Theme applied to HUD Widget"));
 }
