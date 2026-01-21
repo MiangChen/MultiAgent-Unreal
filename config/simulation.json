@@ -5,7 +5,7 @@
         "use_setup_ui": false,
         "use_state_tree": false,
         "enable_energy_drain": false,
-        "default_map": "/Game/Map/LS_Scifi_ModernCity/Maps/Scifi_ModernCity"
+        "default_map": "/Game/Map/Downtown/Maps/Demo"
     },
     "server": {
         "planner_url": "http://localhost:8081",

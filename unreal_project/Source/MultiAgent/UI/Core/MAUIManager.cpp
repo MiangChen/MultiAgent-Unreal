@@ -320,7 +320,7 @@ UMABaseModalWidget* UMAUIManager::GetModalByType(EMAModalType ModalType) const
     {
     case EMAModalType::TaskGraph:
         return TaskGraphModal;
-    case EMAModalType::SkillList:
+    case EMAModalType::SkillAllocation:
         return SkillAllocationModal;
     case EMAModalType::Emergency:
         return EmergencyModal;
@@ -394,7 +394,7 @@ bool UMAUIManager::HideWidget(EMAWidgetType Type)
             bShouldReturnToNormal = (ActiveModal == EMAModalType::TaskGraph);
             break;
         case EMAWidgetType::SkillAllocation:
-            bShouldReturnToNormal = (ActiveModal == EMAModalType::SkillList);
+            bShouldReturnToNormal = (ActiveModal == EMAModalType::SkillAllocation);
             break;
         case EMAWidgetType::Emergency:
             bShouldReturnToNormal = (ActiveModal == EMAModalType::Emergency);
@@ -517,7 +517,7 @@ void UMAUIManager::NavigateFromViewerToSkillAllocationModal()
     // 4. 将 HUD 状态从 EditingModal 转换回 ReviewModal，以便 Edit 按钮可以再次工作
     if (HUDStateManager)
     {
-        HUDStateManager->TransitionToState(EMAHUDState::ReviewModal, EMAModalType::SkillList);
+        HUDStateManager->TransitionToState(EMAHUDState::ReviewModal, EMAModalType::SkillAllocation);
         UE_LOG(LogMAUIManager, Log, TEXT("NavigateFromViewerToSkillListModal: State transitioned back to ReviewModal"));
     }
 }
@@ -826,7 +826,7 @@ void UMAUIManager::CreateModalWidgets()
     {
         SkillAllocationModal->AddToViewport(ModalZOrder);
         SkillAllocationModal->SetVisibility(ESlateVisibility::Collapsed);
-        SkillAllocationModal->SetModalType(EMAModalType::SkillList);
+        SkillAllocationModal->SetModalType(EMAModalType::SkillAllocation);
         
         // 绑定模态按钮回调到 HUDStateManager
         if (HUDStateManager)
@@ -1036,7 +1036,7 @@ void UMAUIManager::OnModalEditRequested(EMAModalType ModalType)
         UE_LOG(LogMAUIManager, Log, TEXT("Showing TaskPlannerWidget for editing"));
         break;
 
-    case EMAModalType::SkillList:
+    case EMAModalType::SkillAllocation:
         // 显示 SkillAllocationViewer (技能列表编辑界面)
         ShowWidget(EMAWidgetType::SkillAllocation, true);
         UE_LOG(LogMAUIManager, Log, TEXT("Showing SkillAllocationViewer for editing"));
@@ -1164,7 +1164,7 @@ void UMAUIManager::LoadDataIntoModal(EMAModalType ModalType)
         }
         break;
 
-    case EMAModalType::SkillList:
+    case EMAModalType::SkillAllocation:
         if (SkillAllocationModal)
         {
             // 只从 TempDataManager 加载数据，不使用 mock 数据
@@ -1257,7 +1257,7 @@ EMAModalType UMAUIManager::GetModalTypeForNotification(EMANotificationType Notif
         return EMAModalType::TaskGraph;
 
     case EMANotificationType::SkillListUpdate:
-        return EMAModalType::SkillList;
+        return EMAModalType::SkillAllocation;
 
     case EMANotificationType::EmergencyEvent:
         return EMAModalType::Emergency;

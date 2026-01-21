@@ -1095,6 +1095,21 @@ void FMASkillParamsProcessor::ProcessPlace(AMACharacter* Agent, UMASkillComponen
                     *Agent->AgentName, *Context.PlacedObjectName, 
                     Object1Node.Center.X, Object1Node.Center.Y, Object1Node.Center.Z);
                 
+                // 关键修复：使用 UE5 场景查询获取实际的 Actor 引用
+                // 场景图只提供位置信息，技能执行需要 Actor 引用
+                FMAUESceneQueryResult ActorResult = FMAUESceneQuery::FindNearestObject(World, Label1, Agent->GetActorLocation());
+                if (ActorResult.bFound && ActorResult.Actor)
+                {
+                    SearchResults.Object1Actor = ActorResult.Actor;
+                    UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Resolved Actor for target '%s'"), 
+                        *Agent->AgentName, *Context.PlacedObjectName);
+                }
+                else
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("[ProcessPlace] %s: Scene graph found target but UE5 Actor not found!"), 
+                        *Agent->AgentName);
+                }
+                
                 bFoundInSceneGraph = true;
             }
         }
@@ -1165,6 +1180,20 @@ void FMASkillParamsProcessor::ProcessPlace(AMACharacter* Agent, UMASkillComponen
                         *Agent->AgentName, *Context.PlaceTargetName, 
                         RobotNode.Center.X, RobotNode.Center.Y, RobotNode.Center.Z);
                     
+                    // 关键修复：使用 UE5 场景查询获取实际的 Actor 引用
+                    AMACharacter* Robot = FMAUESceneQuery::FindRobotByName(World, RobotName);
+                    if (Robot)
+                    {
+                        SearchResults.Object2Actor = Robot;
+                        UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Resolved Actor for UGV '%s'"), 
+                            *Agent->AgentName, *RobotName);
+                    }
+                    else
+                    {
+                        UE_LOG(LogTemp, Warning, TEXT("[ProcessPlace] %s: Scene graph found UGV but UE5 Actor not found!"), 
+                            *Agent->AgentName);
+                    }
+                    
                     bFoundInSceneGraph = true;
                 }
             }
@@ -1213,6 +1242,20 @@ void FMASkillParamsProcessor::ProcessPlace(AMACharacter* Agent, UMASkillComponen
                     UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Found surface_target '%s' in scene graph at (%.0f, %.0f, %.0f)"), 
                         *Agent->AgentName, *Context.PlaceTargetName, 
                         Object2Node.Center.X, Object2Node.Center.Y, Object2Node.Center.Z);
+                    
+                    // 关键修复：使用 UE5 场景查询获取实际的 Actor 引用
+                    FMAUESceneQueryResult ActorResult = FMAUESceneQuery::FindNearestObject(World, Label2, Agent->GetActorLocation());
+                    if (ActorResult.bFound && ActorResult.Actor)
+                    {
+                        SearchResults.Object2Actor = ActorResult.Actor;
+                        UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Resolved Actor for surface_target '%s'"), 
+                            *Agent->AgentName, *Context.PlaceTargetName);
+                    }
+                    else
+                    {
+                        UE_LOG(LogTemp, Warning, TEXT("[ProcessPlace] %s: Scene graph found surface_target but UE5 Actor not found!"), 
+                            *Agent->AgentName);
+                    }
                     
                     bFoundInSceneGraph = true;
                 }

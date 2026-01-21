@@ -1631,7 +1631,6 @@ FString FMAReviewResponseMessage::ToJson() const
 {
     TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject());
 
-    JsonObject->SetStringField(TEXT("original_message_id"), OriginalMessageId);
     JsonObject->SetBoolField(TEXT("approved"), bApproved);
     
     if (!ModifiedDataJson.IsEmpty())
@@ -1673,9 +1672,6 @@ bool FMAReviewResponseMessage::FromJson(const FString& Json, FMAReviewResponseMe
         return false;
     }
 
-    // 解析 original_message_id
-    JsonObject->TryGetStringField(TEXT("original_message_id"), Out.OriginalMessageId);
-
     // 解析 approved
     JsonObject->TryGetBoolField(TEXT("approved"), Out.bApproved);
 
@@ -1708,7 +1704,6 @@ FString FMADecisionResponseMessage::ToJson() const
 {
     TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject());
 
-    JsonObject->SetStringField(TEXT("original_message_id"), OriginalMessageId);
     JsonObject->SetStringField(TEXT("decision"), Decision);
     
     if (!DecisionDataJson.IsEmpty())
@@ -1749,9 +1744,6 @@ bool FMADecisionResponseMessage::FromJson(const FString& Json, FMADecisionRespon
         UE_LOG(LogMACommTypes, Warning, TEXT("FMADecisionResponseMessage::FromJson - Failed to parse JSON"));
         return false;
     }
-
-    // 解析 original_message_id
-    JsonObject->TryGetStringField(TEXT("original_message_id"), Out.OriginalMessageId);
 
     // 解析 decision
     JsonObject->TryGetStringField(TEXT("decision"), Out.Decision);

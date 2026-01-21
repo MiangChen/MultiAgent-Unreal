@@ -634,16 +634,7 @@ void AMAHUD::BindControllerEvents()
     // 绑定 Modify 模式 Actor 选中委托 (多选模式)
     MAPC->OnModifyActorsSelected.AddDynamic(this, &AMAHUD::OnModifyActorsSelected);
     UE_LOG(LogMAHUD, Log, TEXT("BindControllerEvents: Bound OnModifyActorsSelected delegate"));
-
-    // 注意: 这里需要 MAPlayerController 定义 OnMainUIToggled 和 OnRefocusMainUI 委托
-    // 这些委托将在后续任务 4.2 中添加到 MAPlayerController
-    // 目前先记录日志，等待 MAPlayerController 扩展后再绑定
-
     UE_LOG(LogMAHUD, Log, TEXT("BindControllerEvents: Ready to bind when MAPlayerController delegates are available"));
-    
-    // TODO: 在任务 5.2 中完成绑定
-    // MAPC->OnMainUIToggled.AddDynamic(this, &AMAHUD::OnMainUIToggled);
-    // MAPC->OnRefocusMainUI.AddDynamic(this, &AMAHUD::OnRefocusMainUI);
 }
 
 void AMAHUD::BindEmergencyManagerEvents()
@@ -2133,7 +2124,7 @@ void AMAHUD::BindBackendEvents()
     UMACommSubsystem* CommSubsystem = GI->GetSubsystem<UMACommSubsystem>();
     if (CommSubsystem)
     {
-        // 绑定任务图更新事件 (Requirements: 4.1)
+        // 绑定任务图更新事件  (用于 UI 交互流程)
         if (!CommSubsystem->OnTaskPlanReceived.IsAlreadyBound(this, &AMAHUD::OnTaskGraphReceived))
         {
             CommSubsystem->OnTaskPlanReceived.AddDynamic(this, &AMAHUD::OnTaskGraphReceived);
@@ -2145,6 +2136,13 @@ void AMAHUD::BindBackendEvents()
         {
             CommSubsystem->OnSkillAllocationReceived.AddDynamic(this, &AMAHUD::OnSkillAllocationReceived);
             UE_LOG(LogMAHUD, Log, TEXT("BindBackendEvents: Bound OnSkillAllocationReceived"));
+        }
+
+        // 绑定技能列表接收事件 (PLATFORM 类别 - 直接执行，用于 UI 通知)
+        if (!CommSubsystem->OnSkillListReceived.IsAlreadyBound(this, &AMAHUD::OnSkillListReceived))
+        {
+            CommSubsystem->OnSkillListReceived.AddDynamic(this, &AMAHUD::OnSkillListReceived);
+            UE_LOG(LogMAHUD, Log, TEXT("BindBackendEvents: Bound OnSkillListReceived"));
         }
     }
     else
@@ -2331,21 +2329,26 @@ void AMAHUD::OnModalConfirmedHandler(EMAModalType ModalType)
         }
         break;
 
-    case EMAModalType::SkillList:
+    case EMAModalType::SkillAllocation:
         {
-            // 提交技能分配到后端 (Requirements: 7.3)
+            // 发送技能分配审阅响应到后端 (Requirements: 5.4)
             UGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
             if (GI)
             {
                 UMACommSubsystem* CommSubsystem = GI->GetSubsystem<UMACommSubsystem>();
                 if (CommSubsystem && UIManager)
                 {
-                    UMASkillAllocationModal* SkillAllocationModal = UIManager->GetSkillAllocationModal();
-                    if (SkillAllocationModal)
+                    UMASkillAllocationModal* SkillModal = UIManager->GetSkillAllocationModal();
+                    if (SkillModal)
                     {
-                        FMASkillAllocationMessage Message = SkillAllocationModal->GetSkillAllocationMessage();
-                        CommSubsystem->SendSkillAllocationMessage(Message);
-                        UE_LOG(LogMAHUD, Log, TEXT("OnModalConfirmedHandler: Skill allocation submitted to backend"));
+                        FMASkillAllocationData Data = SkillModal->GetSkillAllocationData();
+                        FString ModifiedDataJson = Data.ToJson();
+                        CommSubsystem->SendReviewResponseSimple(
+                            true,      // bApproved
+                            ModifiedDataJson,
+                            TEXT("")   // 无拒绝原因
+                        );
+                        UE_LOG(LogMAHUD, Log, TEXT("OnModalConfirmedHandler: Skill allocation approved"));
                     }
                 }
             }
@@ -2393,21 +2396,42 @@ void AMAHUD::OnModalRejectedHandler(EMAModalType ModalType)
     UE_LOG(LogMAHUD, Log, TEXT("OnModalRejectedHandler: Modal rejected, type=%s"),
         *UEnum::GetValueAsString(ModalType));
 
-    // 发送拒绝事件到后端
     UGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
-    if (GI)
+    if (!GI) return;
+
+    UMACommSubsystem* CommSubsystem = GI->GetSubsystem<UMACommSubsystem>();
+    if (!CommSubsystem) return;
+
+    // 根据模态类型发送不同的拒绝响应
+    switch (ModalType)
     {
-        UMACommSubsystem* CommSubsystem = GI->GetSubsystem<UMACommSubsystem>();
-        if (CommSubsystem)
+    case EMAModalType::SkillAllocation:
         {
+            // 发送技能分配审阅拒绝响应 (Requirements: 5.4)
+            if (UIManager)
+            {
+                UMASkillAllocationModal* SkillModal = UIManager->GetSkillAllocationModal();
+                if (SkillModal)
+                {
+                    CommSubsystem->SendReviewResponseSimple(
+                        false,     // bApproved
+                        TEXT(""),  // 无修改数据
+                        TEXT("User rejected the skill allocation")
+                    );
+                    UE_LOG(LogMAHUD, Log, TEXT("OnModalRejectedHandler: Skill allocation rejected"));
+                }
+            }
+        }
+        break;
+
+    default:
+        {
+            // 其他类型发送通用按钮事件
             FString WidgetName;
             switch (ModalType)
             {
             case EMAModalType::TaskGraph:
                 WidgetName = TEXT("TaskGraphModal");
-                break;
-            case EMAModalType::SkillList:
-                WidgetName = TEXT("SkillAllocationModal");
                 break;
             case EMAModalType::Emergency:
                 WidgetName = TEXT("EmergencyModal");
@@ -2416,13 +2440,11 @@ void AMAHUD::OnModalRejectedHandler(EMAModalType ModalType)
                 WidgetName = TEXT("UnknownModal");
                 break;
             }
-            
             CommSubsystem->SendButtonEventMessage(WidgetName, TEXT("reject"), TEXT("Reject"));
             UE_LOG(LogMAHUD, Log, TEXT("OnModalRejectedHandler: Reject event sent to backend for %s"), *WidgetName);
         }
+        break;
     }
-
-    // 状态恢复已由 HUDStateManager 处理
 
     // 显示拒绝通知
     ShowNotification(TEXT("Changes discarded"), false, true);

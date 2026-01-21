@@ -877,7 +877,6 @@ struct MULTIAGENT_API FMASkillStatusUpdateMessage
  * 
  * 消息格式:
  * {
- *   "original_message_id": "...",  // 原始审阅请求的消息 ID
  *   "approved": true/false,        // 是否批准
  *   "modified_data": {...},        // 修改后的数据 (可选，批准时可能包含修改)
  *   "rejection_reason": "..."      // 拒绝原因 (可选，拒绝时填写)
@@ -887,10 +886,6 @@ USTRUCT(BlueprintType)
 struct MULTIAGENT_API FMAReviewResponseMessage
 {
     GENERATED_BODY()
-
-    /** 原始审阅请求的消息 ID */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ReviewResponse")
-    FString OriginalMessageId;
 
     /** 是否批准 */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ReviewResponse")
@@ -918,9 +913,8 @@ struct MULTIAGENT_API FMAReviewResponseMessage
         MessageId = FMAMessageEnvelope::GenerateMessageId();
     }
 
-    FMAReviewResponseMessage(const FString& InOriginalMessageId, bool bInApproved, const FString& InModifiedDataJson = TEXT(""), const FString& InRejectionReason = TEXT(""))
-        : OriginalMessageId(InOriginalMessageId)
-        , bApproved(bInApproved)
+    FMAReviewResponseMessage(bool bInApproved, const FString& InModifiedDataJson = TEXT(""), const FString& InRejectionReason = TEXT(""))
+        : bApproved(bInApproved)
         , ModifiedDataJson(InModifiedDataJson)
         , RejectionReason(InRejectionReason)
     {
@@ -941,7 +935,6 @@ struct MULTIAGENT_API FMAReviewResponseMessage
  * 
  * 消息格式:
  * {
- *   "original_message_id": "...",  // 原始决策请求的消息 ID
  *   "decision": "...",             // 用户选择的决策选项
  *   "decision_data": {...},        // 决策相关数据 (可选)
  *   "comments": "..."              // 用户备注 (可选)
@@ -951,10 +944,6 @@ USTRUCT(BlueprintType)
 struct MULTIAGENT_API FMADecisionResponseMessage
 {
     GENERATED_BODY()
-
-    /** 原始决策请求的消息 ID */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DecisionResponse")
-    FString OriginalMessageId;
 
     /** 用户选择的决策选项 */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DecisionResponse")
@@ -982,9 +971,8 @@ struct MULTIAGENT_API FMADecisionResponseMessage
         MessageId = FMAMessageEnvelope::GenerateMessageId();
     }
 
-    FMADecisionResponseMessage(const FString& InOriginalMessageId, const FString& InDecision, const FString& InDecisionDataJson = TEXT(""), const FString& InComments = TEXT(""))
-        : OriginalMessageId(InOriginalMessageId)
-        , Decision(InDecision)
+    FMADecisionResponseMessage(const FString& InDecision, const FString& InDecisionDataJson = TEXT(""), const FString& InComments = TEXT(""))
+        : Decision(InDecision)
         , DecisionDataJson(InDecisionDataJson)
         , Comments(InComments)
     {

@@ -554,7 +554,7 @@ UVerticalBox* UMASkillAllocationViewer::CreateJsonEditorSection()
     // "Save" button - 黄色保存按钮，使用 MAStyledButton
     SaveButton = WidgetTree->ConstructWidget<UMAStyledButton>(UMAStyledButton::StaticClass(), TEXT("SaveButton"));
     SaveButton->SetButtonText(FText::FromString(TEXT("Save")));
-    SaveButton->SetButtonStyle(EMAButtonStyle::Warning);
+    SaveButton->SetButtonStyle(EMAButtonStyle::Success);
 
     UHorizontalBoxSlot* SaveButtonSlot = ButtonRow->AddChildToHorizontalBox(SaveButton);
     SaveButtonSlot->SetPadding(FMargin(0, 0, 0, 0));

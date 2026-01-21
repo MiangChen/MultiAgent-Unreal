@@ -92,9 +92,6 @@ private:
     /** 处理技能分配消息 (REVIEW 类别 - UI 交互流程) */
     void HandleSkillAllocation(const TSharedPtr<FJsonObject>& PayloadObject);
 
-    /** 处理技能分配消息 (带消息 ID，用于 HITL 响应) */
-    void HandleSkillAllocationWithMessageId(const TSharedPtr<FJsonObject>& PayloadObject, const FString& OriginalMessageId);
-
     /** 处理索要用户指令消息 */
     void HandleRequestUserCommand(const TSharedPtr<FJsonObject>& PayloadObject);
 

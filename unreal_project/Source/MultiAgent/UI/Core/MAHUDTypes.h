@@ -46,7 +46,7 @@ enum class EMAHUDState : uint8
  * 定义可显示的模态窗口类型：
  * - None: 无模态窗口
  * - TaskGraph: 任务图查看/编辑模态
- * - SkillList: 技能列表查看/编辑模态
+ * - SkillAllocation: 技能列表查看/编辑模态
  * - Emergency: 突发事件处理模态
  */
 UENUM(BlueprintType)
@@ -59,7 +59,7 @@ enum class EMAModalType : uint8
     TaskGraph   UMETA(DisplayName = "Task Graph"),
     
     /** 技能列表模态 - 用于查看和编辑技能分配 */
-    SkillList   UMETA(DisplayName = "Skill List"),
+    SkillAllocation   UMETA(DisplayName = "Skill Allocation"),
     
     /** 突发事件模态 - 用于处理紧急情况 */
     Emergency   UMETA(DisplayName = "Emergency")
