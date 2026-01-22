@@ -10,7 +10,7 @@
 | `use_state_tree` | 使用 StateTree 行为树 |
 | `enable_energy_drain` | 启用能量消耗 |
 | `default_map` | 默认地图路径 |
-| `scene_graph_path` | 场景图文件路径，`edit`需要有数据 |
+| `scene_graph_path` | 场景图文件路径，`edit`模式需要有`scene_graph.json`文件路径，`modify`模式可以是文件夹路径（此时完全从零开始创建`scene_graph.json`），也可以是已有`scene_graph.json`的路径（此时会增量更新内容） |
 
 ### server
 | 参数 | 说明 |
