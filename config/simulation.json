@@ -6,8 +6,8 @@
         "use_setup_ui": false,
         "use_state_tree": false,
         "enable_energy_drain": false,
-        "default_map": "/Game/Map/LS_Scifi_ModernCity/Maps/Scifi_ModernCity",
-        "scene_graph_path": "datasets/LS_Scifi_ModernCity/scene_graph.json"
+        "default_map": "/Game/Map/SimpleCity/Map/SimpleCity",
+        "scene_graph_path": ""
     },
     "server": {
         "planner_url": "http://localhost:8081",
