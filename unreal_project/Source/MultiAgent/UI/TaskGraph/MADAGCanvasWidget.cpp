@@ -5,6 +5,7 @@
 #include "MATaskNodeWidget.h"
 #include "MATaskGraphModel.h"
 #include "../Components/MAContextMenuWidget.h"
+#include "../Core/MAUITheme.h"
 #include "Components/Border.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
@@ -316,6 +317,42 @@ void UMADAGCanvasWidget::UpdateEdgePositions()
 void UMADAGCanvasWidget::ClearAllEdges()
 {
     EdgeRenderData.Empty();
+}
+
+//=============================================================================
+// 主题应用
+//=============================================================================
+
+void UMADAGCanvasWidget::ApplyTheme(UMAUITheme* InTheme)
+{
+    Theme = InTheme;
+    if (!Theme)
+    {
+        return;
+    }
+    
+    // 从 Theme 更新颜色配置
+    CanvasBackgroundColor = Theme->CanvasBackgroundColor;
+    DefaultEdgeColor = Theme->EdgeColor;
+    HighlightedEdgeColor = Theme->HighlightedEdgeColor;
+    // PreviewEdgeColor 保持特殊值 (黄色预览线)
+    
+    // 更新画布背景颜色
+    if (CanvasBackground)
+    {
+        CanvasBackground->SetBrushColor(CanvasBackgroundColor);
+    }
+    
+    // 将主题传递给所有节点 Widget
+    for (auto& Pair : NodeWidgets)
+    {
+        if (Pair.Value)
+        {
+            Pair.Value->ApplyTheme(Theme);
+        }
+    }
+    
+    UE_LOG(LogMADAGCanvas, Verbose, TEXT("ApplyTheme: Theme applied to DAG canvas"));
 }
 
 

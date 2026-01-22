@@ -111,6 +111,10 @@ public:
     UFUNCTION(BlueprintCallable, Category = "SkillAllocation")
     bool LoadMockData();
 
+    /** 应用主题样式 */
+    UFUNCTION(BlueprintCallable, Category = "SkillAllocation")
+    void ApplyTheme(class UMAUITheme* InTheme);
+
     /** 将 FMASkillAllocationData 转换为 FMASkillListMessage 格式
      * @param InData 输入的技能分配数据
      * @param OutMessage 输出的技能列表消息
@@ -276,6 +280,38 @@ protected:
     /** 甘特图画布 Widget */
     UPROPERTY()
     UMAGanttCanvas* GanttCanvas;
+
+    //=========================================================================
+    // 主题相关 TextBlock 引用 (用于 ApplyTheme 更新颜色)
+    //=========================================================================
+
+    /** 标题文字 */
+    UPROPERTY()
+    UTextBlock* TitleText;
+
+    /** 提示文字 */
+    UPROPERTY()
+    UTextBlock* HintText;
+
+    /** 关闭按钮文字 */
+    UPROPERTY()
+    UTextBlock* CloseText;
+
+    /** 状态日志标签 */
+    UPROPERTY()
+    UTextBlock* StatusLogLabel;
+
+    /** JSON 编辑器标签 */
+    UPROPERTY()
+    UTextBlock* JsonEditorLabel;
+
+    /** 背景遮罩 */
+    UPROPERTY()
+    UBorder* BackgroundOverlay;
+
+    /** 缓存的主题引用 */
+    UPROPERTY()
+    class UMAUITheme* Theme;
 
     //=========================================================================
     // 数据

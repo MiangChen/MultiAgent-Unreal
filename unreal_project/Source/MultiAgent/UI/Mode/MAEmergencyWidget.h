@@ -123,7 +123,25 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Events")
     FOnMessageSent OnMessageSent;
 
+    //=========================================================================
+    // Theme Support
+    //=========================================================================
+
+    /**
+     * Apply theme styles
+     * @param InTheme Theme to apply
+     */
+    UFUNCTION(BlueprintCallable, Category = "UI|Theme")
+    void ApplyTheme(class UMAUITheme* InTheme);
+
 protected:
+    //=========================================================================
+    // Theme Reference
+    //=========================================================================
+
+    /** Cached theme reference */
+    UPROPERTY()
+    class UMAUITheme* Theme;
     virtual void NativePreConstruct() override;
     virtual void NativeConstruct() override;
     virtual TSharedRef<SWidget> RebuildWidget() override;

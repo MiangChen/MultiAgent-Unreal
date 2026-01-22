@@ -5,9 +5,11 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/HUD.h"
+#include "../../Input/MAPlayerController.h"
 #include "MASelectionHUD.generated.h"
 
 class AMACharacter;
+class UMAUITheme;
 
 UCLASS()
 class MULTIAGENT_API AMASelectionHUD : public AHUD
@@ -18,6 +20,31 @@ public:
     AMASelectionHUD();
 
     virtual void DrawHUD() override;
+
+    //=========================================================================
+    // 主题系统
+    //=========================================================================
+
+    /** 应用主题样式 */
+    void ApplyTheme(UMAUITheme* InTheme);
+
+    //=========================================================================
+    // 框选状态设置 (由 PlayerController 调用)
+    //=========================================================================
+
+    /** 设置是否正在框选 */
+    void SetBoxSelecting(bool bSelecting) { bIsBoxSelecting = bSelecting; }
+
+    /** 设置框选起点 */
+    void SetBoxStart(const FVector2D& Start) { BoxStart = Start; }
+
+    /** 设置框选终点 */
+    void SetBoxEnd(const FVector2D& End) { BoxEnd = End; }
+
+protected:
+    /** 缓存的主题引用 */
+    UPROPERTY()
+    UMAUITheme* Theme;
 
     // ========== 框选状态 (由 PlayerController 设置) ==========
     
@@ -40,9 +67,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Selection|Style")
     FLinearColor BoxBorderColor = FLinearColor(0.f, 1.f, 0.f, 1.f);
 
-    // 选中圈颜色
+    // 选中圈颜色 (鲜艳橙色)
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Selection|Style")
-    FLinearColor SelectionCircleColor = FLinearColor(0.f, 1.f, 0.f, 1.f);
+    FLinearColor SelectionCircleColor = FLinearColor(1.f, 0.5f, 0.f, 1.f);
 
     // 选中圈半径
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Selection|Style")
@@ -81,4 +108,7 @@ private:
 
     // 检查是否有全屏 Widget 可见（通过 MAUIManager）
     bool IsAnyFullscreenWidgetVisible() const;
+
+    // 获取模式颜色（带 fallback 逻辑）
+    FLinearColor GetModeColor(EMAMouseMode Mode) const;
 };

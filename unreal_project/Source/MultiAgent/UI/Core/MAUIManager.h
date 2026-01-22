@@ -31,6 +31,8 @@ class UMAEmergencyModal;
 class UMABaseModalWidget;
 class UMANotificationWidget;
 class UMACommSubsystem;
+class UMAEmergencyManager;
+struct FMAEmergencyEventData;
 
 //=============================================================================
 // Widget 类型枚举
@@ -284,6 +286,25 @@ public:
      */
     UFUNCTION(BlueprintPure, Category = "UI|Theme")
     bool ValidateTheme(UMAUITheme* InTheme) const;
+
+    /**
+     * 分发主题到所有已注册的 Widget
+     * 遍历所有 Widget 并调用其 ApplyTheme 方法
+     * Requirements: 8.1, 8.2
+     */
+    UFUNCTION(BlueprintCallable, Category = "UI|Theme")
+    void DistributeThemeToWidgets();
+
+    //=========================================================================
+    // 主题变更委托 (Requirements: 8.4)
+    //=========================================================================
+
+    /** 主题变更委托 - 当主题加载或变更时广播 */
+    DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnThemeChanged, UMAUITheme*, NewTheme);
+
+    /** 主题变更事件 - Widget 可订阅此事件以接收主题更新 */
+    UPROPERTY(BlueprintAssignable, Category = "UI|Theme")
+    FOnThemeChanged OnThemeChanged;
 
     //=========================================================================
     // 通知处理 (Requirements: 4.1, 4.2, 4.3, 4.5)
@@ -550,6 +571,41 @@ private:
      * 绑定 CommSubsystem 委托事件
      */
     void BindCommSubsystemEvents();
+
+    /**
+     * 绑定 EmergencyManager 委托事件
+     * 监听 OnEmergencyEventReceived 委托，收到事件时显示通知
+     * Requirements: 4.1, 4.2, 4.3
+     */
+    void BindEmergencyManagerEvents();
+
+    /**
+     * 紧急事件接收回调
+     * 当 EmergencyManager 收到紧急事件时触发
+     * @param EventData 紧急事件数据
+     * Requirements: 4.1, 4.2, 4.3
+     */
+    UFUNCTION()
+    void OnEmergencyEventReceived(const FMAEmergencyEventData& EventData);
+
+    /**
+     * 紧急事件确认回调
+     * 当用户在 EmergencyModal 中点击确认按钮时触发
+     * 发送响应到后端
+     * @param Data 紧急事件响应数据
+     * Requirements: 7.1, 7.4, 7.5
+     */
+    UFUNCTION()
+    void OnEmergencyModalConfirmed(const FMAEmergencyEventData& Data);
+
+    /**
+     * 紧急事件拒绝回调
+     * 当用户在 EmergencyModal 中点击拒绝按钮时触发
+     * 发送拒绝响应到后端
+     * Requirements: 7.1, 7.4
+     */
+    UFUNCTION()
+    void OnEmergencyModalRejected();
 
     /**
      * 收到索要用户指令请求回调

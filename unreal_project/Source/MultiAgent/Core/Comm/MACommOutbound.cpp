@@ -3,6 +3,7 @@
 
 #include "MACommOutbound.h"
 #include "MACommSubsystem.h"
+#include "../../UI/Modal/MAEmergencyModal.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMACommOutbound, Log, All);
 
@@ -268,6 +269,52 @@ void FMACommOutbound::SendSkillAllocationMessage(const FMASkillAllocationMessage
 
     // 委托给 Owner 发送
     Owner->SendMessageEnvelopeInternal(Envelope);
+}
+
+void FMACommOutbound::SendEmergencyResponse(const FMAEmergencyEventData& ResponseData)
+{
+    // Requirements: 7.1, 7.2, 7.3, 7.4, 7.5
+    if (!Owner)
+    {
+        return;
+    }
+
+    UE_LOG(LogMACommOutbound, Log, TEXT("SendEmergencyResponse: AgentId=%s, EventType=%s, SelectedOption=%s, UserInputText=%s"),
+        *ResponseData.SourceAgentId, *ResponseData.EventType, *ResponseData.SelectedOption, *ResponseData.UserInputText);
+
+    // 构建 payload JSON - Requirements: 7.2
+    TSharedPtr<FJsonObject> PayloadObject = MakeShareable(new FJsonObject());
+    
+    // change_type 标识这是紧急事件响应
+    PayloadObject->SetStringField(TEXT("change_type"), TEXT("emergency_response"));
+    
+    // 必需字段 - Requirements: 7.2
+    PayloadObject->SetStringField(TEXT("source_agent_id"), ResponseData.SourceAgentId);
+    PayloadObject->SetStringField(TEXT("event_type"), ResponseData.EventType);
+    PayloadObject->SetStringField(TEXT("selected_option"), ResponseData.SelectedOption);
+    PayloadObject->SetNumberField(TEXT("timestamp"), FMAMessageEnvelope::GetCurrentTimestamp());
+
+    // 始终包含 user_input_text 字段 - Requirements: 7.5
+    // 即使为空也发送，让后端知道用户没有输入文本
+    PayloadObject->SetStringField(TEXT("user_input_text"), ResponseData.UserInputText);
+
+    // 也包含 user_response 字段（兼容旧格式）
+    PayloadObject->SetStringField(TEXT("user_response"), ResponseData.UserResponse);
+
+    // 序列化 payload
+    FString PayloadJson;
+    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&PayloadJson);
+    FJsonSerializer::Serialize(PayloadObject.ToSharedRef(), Writer);
+
+    UE_LOG(LogMACommOutbound, Log, TEXT("SendEmergencyResponse: Payload: %s"), *PayloadJson);
+
+    // 创建 scene_change 消息 - Requirements: 7.1, 7.3
+    FMASceneChangeMessage Message(EMASceneChangeType::EmergencyResponse, PayloadJson);
+
+    // 发送消息
+    SendSceneChangeMessage(Message);
+
+    UE_LOG(LogMACommOutbound, Log, TEXT("SendEmergencyResponse: Emergency response sent successfully"));
 }
 
 

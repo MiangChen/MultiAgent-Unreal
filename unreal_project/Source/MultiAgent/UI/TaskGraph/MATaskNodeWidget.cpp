@@ -17,6 +17,7 @@
 #include "Blueprint/WidgetTree.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "../Core/MARoundedBorderUtils.h"
+#include "../Core/MAUITheme.h"
 
 DEFINE_LOG_CATEGORY(LogMATaskNodeWidget);
 
@@ -156,6 +157,59 @@ void UMATaskNodeWidget::SetOutputPortHighlighted(bool bHighlighted)
         bOutputPortHighlighted = bHighlighted;
         UpdatePortColors();
     }
+}
+
+//=============================================================================
+// 主题应用
+//=============================================================================
+
+void UMATaskNodeWidget::ApplyTheme(UMAUITheme* InTheme)
+{
+    Theme = InTheme;
+    if (!Theme)
+    {
+        return;
+    }
+    
+    // 从 Theme 更新颜色配置
+    // 背景颜色
+    DefaultBackgroundColor = Theme->HighlightColor;  // 使用 HighlightColor 作为默认背景
+    SelectedBackgroundColor = Theme->SelectionColor;
+    HighlightedBackgroundColor = Theme->HighlightColor;
+    
+    // 边框颜色
+    DefaultBorderColor = Theme->GridLineColor;
+    SelectedBorderColor = Theme->PrimaryColor;
+    HighlightedBorderColor = Theme->SecondaryColor;
+    
+    // 端口颜色
+    DefaultPortColor = Theme->SecondaryColor;
+    HighlightedPortColor = Theme->SuccessColor;
+    
+    // 文字颜色
+    TitleTextColor = Theme->TextColor;
+    DescriptionTextColor = Theme->SecondaryTextColor;
+    LocationTextColor = Theme->SuccessColor;
+    
+    // 更新 UI 元素颜色
+    UpdateBorderColor();
+    UpdatePortColors();
+    
+    // 更新文字颜色
+    if (TaskIdText)
+    {
+        TaskIdText->SetColorAndOpacity(FSlateColor(TitleTextColor));
+    }
+    if (DescriptionText)
+    {
+        DescriptionText->SetColorAndOpacity(FSlateColor(DescriptionTextColor));
+    }
+    if (LocationText)
+    {
+        LocationText->SetColorAndOpacity(FSlateColor(LocationTextColor));
+    }
+    
+    UE_LOG(LogMATaskNodeWidget, Verbose, TEXT("ApplyTheme: Theme applied to node %s"), *NodeData.TaskId);
 }
 
 //=============================================================================

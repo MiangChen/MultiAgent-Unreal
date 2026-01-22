@@ -11,6 +11,7 @@ class UImage;
 class UCanvasPanel;
 class UTextureRenderTarget2D;
 class AMACharacter;
+class UMAUITheme;
 
 UCLASS()
 class MULTIAGENT_API UMAMiniMapWidget : public UUserWidget
@@ -30,6 +31,14 @@ public:
     UFUNCTION(BlueprintCallable, Category = "MiniMap")
     void UpdateCameraIndicator(FVector CameraLocation, FRotator CameraRotation);
 
+    /** 应用主题 */
+    UFUNCTION(BlueprintCallable, Category = "MiniMap|Theme")
+    void ApplyTheme(UMAUITheme* InTheme);
+
+    /** 获取当前主题 */
+    UFUNCTION(BlueprintPure, Category = "MiniMap|Theme")
+    UMAUITheme* GetTheme() const { return Theme; }
+
 protected:
     virtual void NativeConstruct() override;
     virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
@@ -44,6 +53,9 @@ protected:
 
     /** 绘制 Agent 图标 */
     void DrawAgentIcon(AMACharacter* Agent);
+
+    /** 根据 Agent 类型获取颜色 */
+    FLinearColor GetAgentColor(AMACharacter* Agent, bool bIsSelected) const;
 
 public:
     /** 小地图大小 (像素) */
@@ -98,6 +110,10 @@ protected:
     /** 相机视野右边线 */
     UPROPERTY()
     UImage* CameraFOVRight;
+
+    /** 主题引用 */
+    UPROPERTY()
+    UMAUITheme* Theme;
 
 private:
     /** Render Target 引用 */

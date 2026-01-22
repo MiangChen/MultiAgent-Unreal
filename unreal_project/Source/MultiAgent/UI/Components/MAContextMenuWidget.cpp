@@ -3,6 +3,7 @@
 
 #include "MAContextMenuWidget.h"
 #include "../Core/MARoundedBorderUtils.h"
+#include "../Core/MAUITheme.h"
 #include "Components/Border.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
@@ -15,6 +16,28 @@
 #include "GameFramework/PlayerController.h"
 
 DEFINE_LOG_CATEGORY(LogMAContextMenu);
+
+//=============================================================================
+// 主题辅助函数
+//=============================================================================
+
+namespace
+{
+    /** 获取主题或创建默认主题 */
+    UMAUITheme* GetOrCreateTheme(UMAContextMenuWidget* Widget)
+    {
+        // 尝试从 Widget 获取已设置的主题
+        // 由于 Theme 是 protected，我们需要在 Widget 内部处理
+        // 这里创建一个静态默认主题作为 fallback
+        static UMAUITheme* DefaultTheme = nullptr;
+        if (!DefaultTheme)
+        {
+            DefaultTheme = NewObject<UMAUITheme>();
+            DefaultTheme->AddToRoot(); // 防止被 GC
+        }
+        return DefaultTheme;
+    }
+}
 
 //=============================================================================
 // 构造函数
@@ -152,6 +175,29 @@ void UMAContextMenuWidget::BuildUI()
     }
 
     UE_LOG(LogMAContextMenu, Verbose, TEXT("BuildUI: Starting UI construction..."));
+
+    // 如果没有主题，使用默认主题初始化颜色
+    if (!Theme)
+    {
+        UMAUITheme* DefaultTheme = GetOrCreateTheme(this);
+        // 从默认主题初始化颜色变量
+        MenuBackgroundColor = DefaultTheme->BackgroundColor;
+        ItemDefaultColor = DefaultTheme->SecondaryColor;
+        ItemHoverColor = DefaultTheme->HighlightColor;
+        ItemDisabledColor = FLinearColor(
+            DefaultTheme->SecondaryColor.R * 0.5f,
+            DefaultTheme->SecondaryColor.G * 0.5f,
+            DefaultTheme->SecondaryColor.B * 0.5f,
+            0.5f
+        );
+        TextColor = DefaultTheme->TextColor;
+        DisabledTextColor = FLinearColor(
+            DefaultTheme->SecondaryTextColor.R,
+            DefaultTheme->SecondaryTextColor.G,
+            DefaultTheme->SecondaryTextColor.B,
+            0.5f
+        );
+    }
 
     // 创建菜单背景，带圆角
     MenuBackground = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("MenuBackground"));
@@ -293,4 +339,61 @@ void UMAContextMenuWidget::OnItem3Clicked()
     {
         OnMenuItemButtonClicked(MenuItems[3].ItemId);
     }
+}
+
+//=============================================================================
+// 主题
+//=============================================================================
+
+void UMAContextMenuWidget::ApplyTheme(UMAUITheme* InTheme)
+{
+    Theme = InTheme;
+    if (!Theme)
+    {
+        return;
+    }
+
+    // 从主题更新颜色变量
+    // 菜单背景使用 BackgroundColor
+    MenuBackgroundColor = Theme->BackgroundColor;
+    
+    // 菜单项默认颜色使用 SecondaryColor
+    ItemDefaultColor = Theme->SecondaryColor;
+    
+    // 菜单项悬浮颜色使用 HighlightColor
+    ItemHoverColor = Theme->HighlightColor;
+    
+    // 菜单项禁用颜色 - 使用 SecondaryColor 的暗化版本
+    ItemDisabledColor = FLinearColor(
+        Theme->SecondaryColor.R * 0.5f,
+        Theme->SecondaryColor.G * 0.5f,
+        Theme->SecondaryColor.B * 0.5f,
+        0.5f
+    );
+    
+    // 文本颜色使用 TextColor
+    TextColor = Theme->TextColor;
+    
+    // 禁用文本颜色使用 SecondaryTextColor
+    DisabledTextColor = FLinearColor(
+        Theme->SecondaryTextColor.R,
+        Theme->SecondaryTextColor.G,
+        Theme->SecondaryTextColor.B,
+        0.5f
+    );
+
+    // 更新菜单背景
+    if (MenuBackground)
+    {
+        MARoundedBorderUtils::ApplyRoundedCorners(
+            MenuBackground,
+            MenuBackgroundColor,
+            MARoundedBorderUtils::DefaultPanelCornerRadius
+        );
+    }
+
+    // 重建菜单项以应用新颜色
+    RebuildMenuItems();
+
+    UE_LOG(LogMAContextMenu, Verbose, TEXT("ApplyTheme: Theme applied successfully"));
 }

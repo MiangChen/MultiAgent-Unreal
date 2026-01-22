@@ -207,28 +207,28 @@ private:
     float BarPadding = 4.0f;
 
     //=========================================================================
-    // 颜色配置
+    // 颜色配置 (从 Theme 获取，以下为 fallback 默认值)
     //=========================================================================
 
-    /** 背景颜色 */
+    /** 背景颜色 (fallback: Theme->CanvasBackgroundColor) */
     FLinearColor BackgroundColor = FLinearColor(0.08f, 0.08f, 0.1f, 1.0f);
 
-    /** 网格线颜色 */
+    /** 网格线颜色 (fallback: Theme->GridLineColor) */
     FLinearColor GridLineColor = FLinearColor(0.15f, 0.15f, 0.2f, 0.5f);
 
-    /** 文本颜色 */
+    /** 文本颜色 (fallback: Theme->SecondaryTextColor) */
     FLinearColor TextColor = FLinearColor(0.7f, 0.7f, 0.7f, 1.0f);
 
-    /** Pending 状态颜色 (灰色) */
+    /** Pending 状态颜色 (fallback: Theme->StatusPendingColor) */
     FLinearColor PendingColor = FLinearColor(0.5f, 0.5f, 0.5f, 1.0f);
 
-    /** InProgress 状态颜色 (黄色) */
+    /** InProgress 状态颜色 (fallback: Theme->StatusInProgressColor) */
     FLinearColor InProgressColor = FLinearColor(0.9f, 0.8f, 0.2f, 1.0f);
 
-    /** Completed 状态颜色 (绿色) */
+    /** Completed 状态颜色 (fallback: Theme->StatusCompletedColor) */
     FLinearColor CompletedColor = FLinearColor(0.2f, 0.8f, 0.3f, 1.0f);
 
-    /** Failed 状态颜色 (红色) */
+    /** Failed 状态颜色 (fallback: Theme->StatusFailedColor) */
     FLinearColor FailedColor = FLinearColor(0.9f, 0.2f, 0.2f, 1.0f);
 
     //=========================================================================
@@ -278,12 +278,12 @@ private:
     /** 缓存的几何信息 */
     mutable FGeometry CachedGeometry;
 
-    /** 工具提示背景颜色 */
+    /** 工具提示背景颜色 (fallback: Theme->HighlightColor) */
     FLinearColor TooltipBgColor = FLinearColor(0.15f, 0.15f, 0.18f, 0.95f);
 
-    /** 工具提示文本颜色 */
+    /** 工具提示文本颜色 (fallback: Theme->TextColor) */
     FLinearColor TooltipTextColor = FLinearColor(0.9f, 0.9f, 0.9f, 1.0f);
 
-    /** 悬浮高亮颜色 */
+    /** 悬浮高亮颜色 (fallback: Theme->HighlightColor with alpha) */
     FLinearColor HoverHighlightColor = FLinearColor(1.0f, 1.0f, 1.0f, 0.3f);
 };

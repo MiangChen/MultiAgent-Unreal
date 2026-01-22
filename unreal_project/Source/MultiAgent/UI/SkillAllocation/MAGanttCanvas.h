@@ -9,6 +9,7 @@
 #include "MAGanttCanvas.generated.h"
 
 class UMASkillAllocationModel;
+class UMAUITheme;
 class UBorder;
 class UCanvasPanel;
 
@@ -80,6 +81,18 @@ public:
     /** 获取绑定的模型 */
     UFUNCTION(BlueprintPure, Category = "GanttCanvas")
     UMASkillAllocationModel* GetModel() const { return AllocationModel; }
+
+    //=========================================================================
+    // 主题
+    //=========================================================================
+
+    /** 应用主题样式 */
+    UFUNCTION(BlueprintCallable, Category = "GanttCanvas|Theme")
+    void ApplyTheme(UMAUITheme* InTheme);
+
+    /** 获取当前主题 */
+    UFUNCTION(BlueprintPure, Category = "GanttCanvas|Theme")
+    UMAUITheme* GetTheme() const { return Theme; }
 
     //=========================================================================
     // 视图操作
@@ -329,6 +342,10 @@ protected:
     // 数据
     //=========================================================================
 
+    /** 缓存的主题引用 */
+    UPROPERTY()
+    UMAUITheme* Theme;
+
     /** 绑定的数据模型 */
     UPROPERTY()
     UMASkillAllocationModel* AllocationModel;
@@ -397,31 +414,31 @@ protected:
     FString HoveredRobotId;
 
     //=========================================================================
-    // 颜色配置
+    // 颜色配置 (从 Theme 获取，以下为 fallback 默认值)
     //=========================================================================
 
-    /** 画布背景颜色 */
+    /** 画布背景颜色 (fallback: Theme->CanvasBackgroundColor) */
     FLinearColor CanvasBackgroundColor = FLinearColor(0.08f, 0.08f, 0.1f, 1.0f);
 
-    /** 网格线颜色 */
+    /** 网格线颜色 (fallback: Theme->GridLineColor) */
     FLinearColor GridLineColor = FLinearColor(0.15f, 0.15f, 0.2f, 1.0f);
 
-    /** 文本颜色 */
+    /** 文本颜色 (fallback: Theme->TextColor) */
     FLinearColor TextColor = FLinearColor(0.9f, 0.9f, 1.0f, 1.0f);
 
-    /** Pending 状态颜色 (灰色) */
+    /** Pending 状态颜色 (fallback: Theme->StatusPendingColor) */
     FLinearColor PendingColor = FLinearColor(0.4f, 0.4f, 0.4f, 1.0f);
 
-    /** InProgress 状态颜色 (黄色) */
+    /** InProgress 状态颜色 (fallback: Theme->StatusInProgressColor) */
     FLinearColor InProgressColor = FLinearColor(0.9f, 0.8f, 0.2f, 1.0f);
 
-    /** Completed 状态颜色 (绿色) */
+    /** Completed 状态颜色 (fallback: Theme->StatusCompletedColor) */
     FLinearColor CompletedColor = FLinearColor(0.2f, 0.8f, 0.3f, 1.0f);
 
-    /** Failed 状态颜色 (红色) */
+    /** Failed 状态颜色 (fallback: Theme->StatusFailedColor) */
     FLinearColor FailedColor = FLinearColor(0.9f, 0.2f, 0.2f, 1.0f);
 
-    /** 选中边框颜色 */
+    /** 选中边框颜色 (fallback: Theme->SelectionColor) */
     FLinearColor SelectionColor = FLinearColor(0.3f, 0.7f, 1.0f, 1.0f);
 
     //=========================================================================
@@ -459,12 +476,12 @@ protected:
     /** 拖拽预览透明度 */
     float DragPreviewAlpha = 0.7f;
 
-    /** 有效放置指示颜色 (绿色边框) */
+    /** 有效放置指示颜色 (fallback: Theme->ValidDropColor) */
     FLinearColor ValidDropColor = FLinearColor(0.2f, 0.8f, 0.3f, 0.5f);
 
-    /** 无效放置指示颜色 (红色边框) */
+    /** 无效放置指示颜色 (fallback: Theme->InvalidDropColor) */
     FLinearColor InvalidDropColor = FLinearColor(0.9f, 0.2f, 0.2f, 0.5f);
 
-    /** 占位符边框颜色 (虚线边框) */
+    /** 占位符边框颜色 (fallback: Theme->SecondaryTextColor with alpha) */
     FLinearColor PlaceholderColor = FLinearColor(0.5f, 0.5f, 0.5f, 0.8f);
 };

@@ -20,6 +20,9 @@
 #include "MACommHttpServer.h"
 #include "MACommSubsystem.generated.h"
 
+// Forward declaration for emergency event data
+struct FMAEmergencyEventData;
+
 /**
  * 通信子系统
  * 
@@ -114,6 +117,13 @@ public:
     /** 发送技能分配消息 */
     UFUNCTION(BlueprintCallable, Category = "Communication|SkillAllocation")
     void SendSkillAllocationMessage(const FMASkillAllocationMessage& Message);
+
+    /** 发送紧急事件响应
+     * Requirements: 7.1, 7.2, 7.3, 7.4, 7.5
+     * @param ResponseData 紧急事件响应数据
+     */
+    UFUNCTION(BlueprintCallable, Category = "Communication|Emergency")
+    void SendEmergencyResponse(const FMAEmergencyEventData& ResponseData);
 
     //=========================================================================
     // HITL 响应发送接口 (委托给 MACommOutbound)

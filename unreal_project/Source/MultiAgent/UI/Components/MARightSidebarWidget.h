@@ -276,6 +276,14 @@ private:
     UPROPERTY()
     UMAStyledButton* SubmitButton;
 
+    /** 命令输入框背景边框 */
+    UPROPERTY()
+    UBorder* CommandInputBorder;
+
+    /** 命令区标题 */
+    UPROPERTY()
+    UTextBlock* CommandTitle;
+
     //--- 任务图预览区 ---
 
     /** 任务图预览区边框 */

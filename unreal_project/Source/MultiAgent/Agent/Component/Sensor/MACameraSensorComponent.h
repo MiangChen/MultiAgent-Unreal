@@ -81,6 +81,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Camera")
     USceneCaptureComponent2D* GetSceneCaptureComponent() const { return SceneCaptureComponent; }
 
+    UFUNCTION(BlueprintCallable, Category = "Camera")
+    UTextureRenderTarget2D* GetRenderTarget() const { return RenderTarget; }
+
     // ========== Action 动态发现与执行 ==========
     virtual TArray<FString> GetAvailableActions() const override;
     virtual bool ExecuteAction(const FString& ActionName, const TMap<FString, FString>& Params) override;

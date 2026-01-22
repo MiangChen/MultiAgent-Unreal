@@ -193,8 +193,9 @@ void UMABaseModalWidget::BuildUI()
             OverlaySlot->SetOffsets(FMargin(0.0f));
         }
         
-        // 设置半透明黑色背景
-        BackgroundOverlay->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.5f));
+        // 设置遮罩背景颜色 - 使用 Theme 或 fallback 默认值
+        FLinearColor OverlayBgColor = Theme ? Theme->OverlayColor : FLinearColor(0.0f, 0.0f, 0.0f, 0.5f);
+        BackgroundOverlay->SetBrushColor(OverlayBgColor);
         
         // 设置为 Visible 以阻止点击穿透到场景
         BackgroundOverlay->SetVisibility(ESlateVisibility::Visible);
@@ -304,14 +305,21 @@ void UMABaseModalWidget::BuildUI()
             NormalBrush.TintColor = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.0f));
             CloseButtonStyle.SetNormal(NormalBrush);
             
-            // 悬浮状态 - 半透明红色
+            // 获取 DangerColor - 使用 Theme 或 fallback 默认值
+            FLinearColor DangerCol = Theme ? Theme->DangerColor : FLinearColor(0.8f, 0.2f, 0.2f, 1.0f);
+            
+            // 悬浮状态 - 使用 DangerColor 半透明
             FSlateBrush HoverBrush;
-            HoverBrush.TintColor = FSlateColor(FLinearColor(0.8f, 0.2f, 0.2f, 0.3f));
+            FLinearColor HoverColor = DangerCol;
+            HoverColor.A = 0.3f;
+            HoverBrush.TintColor = FSlateColor(HoverColor);
             CloseButtonStyle.SetHovered(HoverBrush);
             
-            // 按下状态 - 更深的红色
+            // 按下状态 - 使用 DangerColor 更深
             FSlateBrush PressedBrush;
-            PressedBrush.TintColor = FSlateColor(FLinearColor(0.6f, 0.1f, 0.1f, 0.5f));
+            FLinearColor PressedColor = DangerCol * 0.7f;
+            PressedColor.A = 0.5f;
+            PressedBrush.TintColor = FSlateColor(PressedColor);
             CloseButtonStyle.SetPressed(PressedBrush);
             
             CloseButton->SetStyle(CloseButtonStyle);
@@ -322,7 +330,10 @@ void UMABaseModalWidget::BuildUI()
             {
                 CloseButton->AddChild(CloseText);
                 CloseText->SetText(FText::FromString(TEXT("✕")));
-                CloseText->SetColorAndOpacity(FSlateColor(FLinearColor(0.7f, 0.7f, 0.7f, 1.0f)));
+                
+                // 使用 Theme 或 fallback 默认值
+                FLinearColor CloseTextColor = Theme ? Theme->SecondaryTextColor : FLinearColor(0.7f, 0.7f, 0.7f, 1.0f);
+                CloseText->SetColorAndOpacity(FSlateColor(CloseTextColor));
                 
                 FSlateFontInfo CloseFont = FCoreStyle::GetDefaultFontStyle("Regular", 18);
                 CloseText->SetFont(CloseFont);
@@ -570,6 +581,12 @@ void UMABaseModalWidget::ApplyTheme(UMAUITheme* InTheme)
         return;
     }
     
+    // 应用遮罩背景颜色 (Requirements: 7.1)
+    if (BackgroundOverlay)
+    {
+        BackgroundOverlay->SetBrushColor(Theme->OverlayColor);
+    }
+    
     // 应用圆角效果到背景边框 (Requirements: 3.1, 3.3)
     if (BackgroundBorder)
     {
@@ -586,6 +603,43 @@ void UMABaseModalWidget::ApplyTheme(UMAUITheme* InTheme)
     {
         TitleText->SetFont(Theme->TitleFont);
         TitleText->SetColorAndOpacity(FSlateColor(Theme->TextColor));
+    }
+    
+    // 应用关闭按钮样式 (Requirements: 7.1)
+    if (CloseButton)
+    {
+        FButtonStyle CloseButtonStyle;
+        
+        // 正常状态 - 透明
+        FSlateBrush NormalBrush;
+        NormalBrush.TintColor = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.0f));
+        CloseButtonStyle.SetNormal(NormalBrush);
+        
+        // 悬浮状态 - 使用 DangerColor 半透明
+        FSlateBrush HoverBrush;
+        FLinearColor HoverColor = Theme->DangerColor;
+        HoverColor.A = 0.3f;
+        HoverBrush.TintColor = FSlateColor(HoverColor);
+        CloseButtonStyle.SetHovered(HoverBrush);
+        
+        // 按下状态 - 使用 DangerColor 更深
+        FSlateBrush PressedBrush;
+        FLinearColor PressedColor = Theme->DangerColor * 0.7f;
+        PressedColor.A = 0.5f;
+        PressedBrush.TintColor = FSlateColor(PressedColor);
+        CloseButtonStyle.SetPressed(PressedBrush);
+        
+        CloseButton->SetStyle(CloseButtonStyle);
+        
+        // 更新关闭按钮文字颜色
+        if (CloseButton->GetChildrenCount() > 0)
+        {
+            UTextBlock* CloseText = Cast<UTextBlock>(CloseButton->GetChildAt(0));
+            if (CloseText)
+            {
+                CloseText->SetColorAndOpacity(FSlateColor(Theme->SecondaryTextColor));
+            }
+        }
     }
     
     // 应用按钮主题

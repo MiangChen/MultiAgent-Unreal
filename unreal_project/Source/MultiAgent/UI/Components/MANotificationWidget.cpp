@@ -262,10 +262,12 @@ void UMANotificationWidget::BuildUI()
     if (NotificationText)
     {
         NotificationText->SetText(FText::FromString(TEXT("")));
-        NotificationText->SetColorAndOpacity(FLinearColor::White);
+        // 使用主题颜色或 fallback 默认值
+        FLinearColor NotificationTextColor = Theme ? Theme->TextColor : FLinearColor::White;
+        NotificationText->SetColorAndOpacity(NotificationTextColor);
         
         // 设置字体
-        FSlateFontInfo FontInfo = NotificationText->GetFont();
+        FSlateFontInfo FontInfo = Theme ? Theme->BodyFont : NotificationText->GetFont();
         FontInfo.Size = 14;
         NotificationText->SetFont(FontInfo);
     }
@@ -275,10 +277,13 @@ void UMANotificationWidget::BuildUI()
     if (KeyHintText)
     {
         KeyHintText->SetText(FText::FromString(TEXT("")));
-        KeyHintText->SetColorAndOpacity(FLinearColor(0.7f, 0.7f, 0.7f, 1.0f));
+        // 使用主题颜色或 fallback 默认值 (稍暗的文字颜色)
+        FLinearColor HintColor = Theme ? Theme->TextColor : FLinearColor(0.7f, 0.7f, 0.7f, 1.0f);
+        HintColor.A = 0.8f;
+        KeyHintText->SetColorAndOpacity(HintColor);
         
         // 设置字体 (稍小)
-        FSlateFontInfo HintFontInfo = KeyHintText->GetFont();
+        FSlateFontInfo HintFontInfo = Theme ? Theme->BodyFont : KeyHintText->GetFont();
         HintFontInfo.Size = 12;
         KeyHintText->SetFont(HintFontInfo);
     }

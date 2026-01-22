@@ -67,6 +67,162 @@ public:
     FLinearColor TextColor;
 
     //=========================================================================
+    // 模式颜色 (Mode Colors) - 用于不同操作模式的视觉区分
+    //=========================================================================
+
+    /** 选择模式颜色 - 绿色 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Colors|Mode")
+    FLinearColor ModeSelectColor;
+
+    /** 部署模式颜色 - 蓝色 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Colors|Mode")
+    FLinearColor ModeDeployColor;
+
+    /** 修改模式颜色 - 橙色 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Colors|Mode")
+    FLinearColor ModeModifyColor;
+
+    /** 编辑模式颜色 - 蓝色 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Colors|Mode")
+    FLinearColor ModeEditColor;
+
+    //=========================================================================
+    // 状态颜色 (Status Colors) - 用于任务/技能状态显示
+    //=========================================================================
+
+    /** Pending 状态颜色 - 灰色 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Colors|Status")
+    FLinearColor StatusPendingColor;
+
+    /** InProgress 状态颜色 - 黄色 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Colors|Status")
+    FLinearColor StatusInProgressColor;
+
+    /** Completed 状态颜色 - 绿色 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Colors|Status")
+    FLinearColor StatusCompletedColor;
+
+    /** Failed 状态颜色 - 红色 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Colors|Status")
+    FLinearColor StatusFailedColor;
+
+    //=========================================================================
+    // 文字颜色 (Text Colors) - 用于不同类型文字
+    //=========================================================================
+
+    /** 次要文字颜色 - 灰色 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Colors|Text")
+    FLinearColor SecondaryTextColor;
+
+    /** 标签文字颜色 - 浅灰 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Colors|Text")
+    FLinearColor LabelTextColor;
+
+    /** 提示文字颜色 - 灰色 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Colors|Text")
+    FLinearColor HintTextColor;
+
+    /** 输入框文字颜色 - 黑色 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Colors|Text")
+    FLinearColor InputTextColor;
+
+    //=========================================================================
+    // 画布颜色 (Canvas Colors) - 用于 DAG/Gantt 画布
+    //=========================================================================
+
+    /** 画布背景颜色 - 深色 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Colors|Canvas")
+    FLinearColor CanvasBackgroundColor;
+
+    /** 网格线颜色 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Colors|Canvas")
+    FLinearColor GridLineColor;
+
+    /** 边线颜色 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Colors|Canvas")
+    FLinearColor EdgeColor;
+
+    /** 高亮边线颜色 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Colors|Canvas")
+    FLinearColor HighlightedEdgeColor;
+
+    //=========================================================================
+    // 交互颜色 (Interaction Colors) - 用于选中/高亮/拖放
+    //=========================================================================
+
+    /** 选中颜色 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Colors|Interaction")
+    FLinearColor SelectionColor;
+
+    /** 高亮颜色 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Colors|Interaction")
+    FLinearColor HighlightColor;
+
+    /** 有效放置颜色 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Colors|Interaction")
+    FLinearColor ValidDropColor;
+
+    /** 无效放置颜色 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Colors|Interaction")
+    FLinearColor InvalidDropColor;
+
+    //=========================================================================
+    // 输入框颜色 (Input Colors)
+    //=========================================================================
+
+    /** 输入框背景颜色 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Colors|Input")
+    FLinearColor InputBackgroundColor;
+
+    //=========================================================================
+    // 遮罩颜色 (Overlay Colors)
+    //=========================================================================
+
+    /** 遮罩背景颜色 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Colors|Overlay")
+    FLinearColor OverlayColor;
+
+    /** 阴影颜色 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Colors|Overlay")
+    FLinearColor ShadowColor;
+
+    //=========================================================================
+    // Agent 类型颜色 (Agent Colors) - 用于小地图和 Agent 列表显示
+    //=========================================================================
+
+    /** Humanoid Agent 颜色 - 黄色 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Colors|Agent")
+    FLinearColor AgentHumanoidColor;
+
+    /** UAV Agent 颜色 - 蓝色 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Colors|Agent")
+    FLinearColor AgentUAVColor;
+
+    /** UGV Agent 颜色 - 橙色 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Colors|Agent")
+    FLinearColor AgentUGVColor;
+
+    /** Quadruped Agent 颜色 - 绿色 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Colors|Agent")
+    FLinearColor AgentQuadrupedColor;
+
+    /** Agent 选中高亮颜色 - 白色 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Colors|Agent")
+    FLinearColor AgentSelectedColor;
+
+    //=========================================================================
+    // 小地图颜色 (MiniMap Colors) - 用于小地图显示
+    //=========================================================================
+
+    /** 小地图背景颜色 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Colors|MiniMap")
+    FLinearColor MiniMapBackgroundColor;
+
+    /** 小地图相机指示器颜色 - 红色 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Colors|MiniMap")
+    FLinearColor MiniMapCameraColor;
+
+    //=========================================================================
     // 字体设置 (Requirements: 1.2)
     //=========================================================================
 

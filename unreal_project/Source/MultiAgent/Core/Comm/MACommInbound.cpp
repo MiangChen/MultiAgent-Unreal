@@ -5,7 +5,9 @@
 #include "MACommSubsystem.h"
 #include "../Manager/MACommandManager.h"
 #include "../Manager/MATempDataManager.h"
+#include "../Manager/MAEmergencyManager.h"
 #include "../Types/MATaskGraphTypes.h"
+#include "../../UI/Modal/MAEmergencyModal.h"
 #include "HttpModule.h"
 #include "Interfaces/IHttpRequest.h"
 #include "Interfaces/IHttpResponse.h"
@@ -469,6 +471,11 @@ void FMACommInbound::HandleHITLMessage(const TSharedPtr<FJsonObject>& MsgObject,
         {
             HandleRequestUserCommand(*PayloadObject);
         }
+        else if (MessageTypeStr == TEXT("emergency_event"))
+        {
+            // 紧急事件消息 - Requirements: 2.1
+            HandleEmergencyEvent(*PayloadObject);
+        }
         else
         {
             UE_LOG(LogMACommInbound, Log, TEXT("HandleHITLMessage: Unknown Instruction message type: %s"), *MessageTypeStr);
@@ -762,4 +769,61 @@ void FMACommInbound::HandleRequestUserCommand(const TSharedPtr<FJsonObject>& Pay
 
     // 广播委托
     Owner->OnRequestUserCommandReceived.Broadcast();
+}
+
+void FMACommInbound::HandleEmergencyEvent(const TSharedPtr<FJsonObject>& PayloadObject)
+{
+    // Requirements: 2.1, 2.2, 2.3, 2.4, 2.5
+    if (!Owner)
+    {
+        return;
+    }
+
+    UE_LOG(LogMACommInbound, Log, TEXT("HandleEmergencyEvent: Received emergency event message"));
+
+    // 将 payload 对象序列化回 JSON 字符串用于解析
+    FString PayloadJson;
+    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&PayloadJson);
+    FJsonSerializer::Serialize(PayloadObject.ToSharedRef(), Writer);
+
+    UE_LOG(LogMACommInbound, Verbose, TEXT("HandleEmergencyEvent: Payload: %s"), *PayloadJson);
+
+    // 解析 payload 到 FMAEmergencyEventData - Requirements: 2.2, 2.4
+    FMAEmergencyEventData EventData;
+    if (!FMAEmergencyEventData::FromJsonObject(PayloadObject, EventData))
+    {
+        // Requirements: 2.5 - 解析失败时记录错误并丢弃消息
+        UE_LOG(LogMACommInbound, Warning, TEXT("HandleEmergencyEvent: Failed to parse emergency event payload, discarding message"));
+        return;
+    }
+
+    // 应用默认值确保数据完整性
+    EventData.ApplyDefaults();
+
+    // 验证数据有效性
+    if (!EventData.IsValid())
+    {
+        UE_LOG(LogMACommInbound, Warning, TEXT("HandleEmergencyEvent: Invalid emergency event data after applying defaults, discarding message"));
+        return;
+    }
+
+    UE_LOG(LogMACommInbound, Log, TEXT("HandleEmergencyEvent: Parsed emergency event - AgentId=%s, AgentName=%s, EventType=%s, Options=%d"),
+        *EventData.SourceAgentId, *EventData.SourceAgentName, *EventData.EventType, EventData.AvailableOptions.Num());
+
+    // Requirements: 2.3 - 通知 EmergencyManager
+    UWorld* World = Owner->GetWorld();
+    if (World)
+    {
+        UMAEmergencyManager* EmergencyMgr = World->GetSubsystem<UMAEmergencyManager>();
+        if (EmergencyMgr)
+        {
+            // Task 4.4 - 调用 EmergencyManager->TriggerEventWithData(EventData)
+            EmergencyMgr->TriggerEventWithData(EventData);
+            UE_LOG(LogMACommInbound, Log, TEXT("HandleEmergencyEvent: Triggered emergency event via EmergencyManager->TriggerEventWithData"));
+        }
+        else
+        {
+            UE_LOG(LogMACommInbound, Warning, TEXT("HandleEmergencyEvent: EmergencyManager not available"));
+        }
+    }
 }

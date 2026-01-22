@@ -9,6 +9,7 @@
 #include "../../Core/Comm/MACommSubsystem.h"
 #include "../../Core/Manager/MATempDataManager.h"
 #include "../Core/MARoundedBorderUtils.h"
+#include "../Core/MAUITheme.h"
 #include "../Components/MAStyledButton.h"
 #include "../Core/MAUIManager.h"
 #include "../HUD/MAHUD.h"
@@ -218,8 +219,9 @@ void UMATaskPlannerWidget::BuildUI()
     WidgetTree->RootWidget = RootCanvas;
 
     // Create semi-transparent background overlay (click blocker)
-    UBorder* BackgroundOverlay = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("BackgroundOverlay"));
-    BackgroundOverlay->SetBrushColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.5f));  // Semi-transparent black
+    BackgroundOverlay = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("BackgroundOverlay"));
+    FLinearColor OverlayBgColor = Theme ? Theme->OverlayColor : FLinearColor(0.0f, 0.0f, 0.0f, 0.5f);
+    BackgroundOverlay->SetBrushColor(OverlayBgColor);
     
     UCanvasPanelSlot* OverlaySlot = RootCanvas->AddChildToCanvas(BackgroundOverlay);
     OverlaySlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
@@ -248,24 +250,27 @@ void UMATaskPlannerWidget::BuildUI()
     TitleBarSlot->SetPadding(FMargin(0, 0, 0, 5));
 
     // Title text
-    UTextBlock* TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TitleText"));
+    TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TitleText"));
     TitleText->SetText(FText::FromString(TEXT("Task Decomposition Workbench")));
     FSlateFontInfo TitleFont = TitleText->GetFont();
     TitleFont.Size = 16;
     TitleText->SetFont(TitleFont);
-    TitleText->SetColorAndOpacity(FSlateColor(TitleColor));
+    // 标题在深色背景上，使用 LabelTextColor（浅色）而不是 TextColor（黑色）
+    FLinearColor TitleTextColor = Theme ? Theme->LabelTextColor : FLinearColor(0.9f, 0.9f, 1.0f, 1.0f);
+    TitleText->SetColorAndOpacity(FSlateColor(TitleTextColor));
     
     UHorizontalBoxSlot* TitleTextSlot = TitleBar->AddChildToHorizontalBox(TitleText);
     TitleTextSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
     TitleTextSlot->SetVerticalAlignment(VAlign_Center);
 
     // Hint text
-    UTextBlock* HintText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("HintText"));
+    HintText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("HintText"));
     HintText->SetText(FText::FromString(TEXT("Press Z to close the window")));
     FSlateFontInfo HintFont = HintText->GetFont();
     HintFont.Size = 10;
     HintText->SetFont(HintFont);
-    HintText->SetColorAndOpacity(FSlateColor(FLinearColor(0.5f, 0.5f, 0.6f)));
+    FLinearColor HintTextColor = Theme ? Theme->HintTextColor : FLinearColor(0.5f, 0.5f, 0.6f);
+    HintText->SetColorAndOpacity(FSlateColor(HintTextColor));
     
     UHorizontalBoxSlot* HintSlot = TitleBar->AddChildToHorizontalBox(HintText);
     HintSlot->SetVerticalAlignment(VAlign_Center);
@@ -282,22 +287,24 @@ void UMATaskPlannerWidget::BuildUI()
     NormalBrush.TintColor = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.0f));
     CloseButtonStyle.SetNormal(NormalBrush);
     
-    // Hover state - semi-transparent red
+    // Hover state - semi-transparent red (use Theme->DangerColor)
+    FLinearColor DangerCol = Theme ? Theme->DangerColor : FLinearColor(0.8f, 0.2f, 0.2f, 1.0f);
     FSlateBrush HoverBrush;
-    HoverBrush.TintColor = FSlateColor(FLinearColor(0.8f, 0.2f, 0.2f, 0.3f));
+    HoverBrush.TintColor = FSlateColor(FLinearColor(DangerCol.R, DangerCol.G, DangerCol.B, 0.3f));
     CloseButtonStyle.SetHovered(HoverBrush);
     
     // Pressed state - darker red
     FSlateBrush PressedBrush;
-    PressedBrush.TintColor = FSlateColor(FLinearColor(0.6f, 0.1f, 0.1f, 0.5f));
+    PressedBrush.TintColor = FSlateColor(FLinearColor(DangerCol.R * 0.75f, DangerCol.G * 0.5f, DangerCol.B * 0.5f, 0.5f));
     CloseButtonStyle.SetPressed(PressedBrush);
     
     CloseButton->SetStyle(CloseButtonStyle);
     
     // Create X text
-    UTextBlock* CloseText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("CloseText"));
+    CloseText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("CloseText"));
     CloseText->SetText(FText::FromString(TEXT("✕")));
-    CloseText->SetColorAndOpacity(FSlateColor(FLinearColor(0.7f, 0.7f, 0.7f, 1.0f)));
+    FLinearColor CloseTextColor = Theme ? Theme->SecondaryTextColor : FLinearColor(0.7f, 0.7f, 0.7f, 1.0f);
+    CloseText->SetColorAndOpacity(FSlateColor(CloseTextColor));
     FSlateFontInfo CloseFont = FCoreStyle::GetDefaultFontStyle("Regular", 18);
     CloseText->SetFont(CloseFont);
     CloseButton->AddChild(CloseText);
@@ -374,14 +381,15 @@ UVerticalBox* UMATaskPlannerWidget::CreateStatusLogSection()
 {
     UVerticalBox* Section = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("StatusLogSection"));
 
-    // Label - white color, font size 14
-    UTextBlock* Label = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("StatusLogLabel"));
-    Label->SetText(FText::FromString(TEXT("Status Log:")));
-    Label->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+    // Label - use Theme->LabelTextColor with fallback
+    StatusLogLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("StatusLogLabel"));
+    StatusLogLabel->SetText(FText::FromString(TEXT("Status Log:")));
+    FLinearColor LabelTextColor = Theme ? Theme->LabelTextColor : FLinearColor::White;
+    StatusLogLabel->SetColorAndOpacity(FSlateColor(LabelTextColor));
     FSlateFontInfo LabelFont = FCoreStyle::GetDefaultFontStyle("Bold", 14);
-    Label->SetFont(LabelFont);
+    StatusLogLabel->SetFont(LabelFont);
     
-    UVerticalBoxSlot* LabelSlot = Section->AddChildToVerticalBox(Label);
+    UVerticalBoxSlot* LabelSlot = Section->AddChildToVerticalBox(StatusLogLabel);
     LabelSlot->SetPadding(FMargin(0, 0, 0, 3));
 
     // Status log text box (read-only) - wrapped in rounded border
@@ -410,11 +418,11 @@ UVerticalBox* UMATaskPlannerWidget::CreateStatusLogSection()
     StatusLogBox->WidgetStyle = StatusLogStyle;
     
     // 创建圆角 Border 包装文本框
-    UBorder* StatusLogBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("StatusLogBorder"));
+    StatusLogBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("StatusLogBorder"));
     StatusLogBorder->SetPadding(FMargin(8.0f, 4.0f));
     
-    // 应用圆角效果 - 只读文本框使用浅灰色背景
-    FLinearColor StatusLogBgColor = FLinearColor(0.85f, 0.85f, 0.85f, 1.0f);
+    // 应用圆角效果 - 只读文本框使用主题输入框背景色（稍微变暗表示只读）
+    FLinearColor StatusLogBgColor = Theme ? FLinearColor(Theme->InputBackgroundColor.R * 0.85f, Theme->InputBackgroundColor.G * 0.85f, Theme->InputBackgroundColor.B * 0.85f, 1.0f) : FLinearColor(0.85f, 0.85f, 0.85f, 1.0f);
     MARoundedBorderUtils::ApplyRoundedCorners(StatusLogBorder, StatusLogBgColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
     
     StatusLogBorder->AddChild(StatusLogBox);
@@ -430,14 +438,15 @@ UVerticalBox* UMATaskPlannerWidget::CreateJsonEditorSection()
 {
     UVerticalBox* Section = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("JsonEditorSection"));
 
-    // Label - white color, font size 14
-    UTextBlock* Label = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("JsonEditorLabel"));
-    Label->SetText(FText::FromString(TEXT("JSON Editor:")));
-    Label->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+    // Label - use Theme->LabelTextColor with fallback
+    JsonEditorLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("JsonEditorLabel"));
+    JsonEditorLabel->SetText(FText::FromString(TEXT("JSON Editor:")));
+    FLinearColor LabelTextColor = Theme ? Theme->LabelTextColor : FLinearColor::White;
+    JsonEditorLabel->SetColorAndOpacity(FSlateColor(LabelTextColor));
     FSlateFontInfo LabelFont2 = FCoreStyle::GetDefaultFontStyle("Bold", 14);
-    Label->SetFont(LabelFont2);
+    JsonEditorLabel->SetFont(LabelFont2);
     
-    UVerticalBoxSlot* LabelSlot = Section->AddChildToVerticalBox(Label);
+    UVerticalBoxSlot* LabelSlot = Section->AddChildToVerticalBox(JsonEditorLabel);
     LabelSlot->SetPadding(FMargin(0, 0, 0, 5));
 
     // JSON editor text box (editable) - wrapped in rounded border
@@ -464,11 +473,11 @@ UVerticalBox* UMATaskPlannerWidget::CreateJsonEditorSection()
     JsonEditorBox->WidgetStyle = JsonEditorStyle;
     
     // 创建圆角 Border 包装文本框
-    UBorder* JsonEditorBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("JsonEditorBorder"));
+    JsonEditorBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("JsonEditorBorder"));
     JsonEditorBorder->SetPadding(FMargin(8.0f, 4.0f));
     
-    // 应用圆角效果 - 可编辑文本框使用白色背景
-    FLinearColor JsonEditorBgColor = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    // 应用圆角效果 - 可编辑文本框使用主题输入框背景色
+    FLinearColor JsonEditorBgColor = Theme ? Theme->InputBackgroundColor : FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
     MARoundedBorderUtils::ApplyRoundedCorners(JsonEditorBorder, JsonEditorBgColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
     
     JsonEditorBorder->AddChild(JsonEditorBox);
@@ -512,14 +521,15 @@ UVerticalBox* UMATaskPlannerWidget::CreateUserInputSection()
 {
     UVerticalBox* Section = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("UserInputSection"));
 
-    // Label - white color, font size 14
-    UTextBlock* Label = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("UserInputLabel"));
-    Label->SetText(FText::FromString(TEXT("Command Input:")));
-    Label->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+    // Label - use Theme->LabelTextColor with fallback
+    UserInputLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("UserInputLabel"));
+    UserInputLabel->SetText(FText::FromString(TEXT("Command Input:")));
+    FLinearColor LabelTextColor = Theme ? Theme->LabelTextColor : FLinearColor::White;
+    UserInputLabel->SetColorAndOpacity(FSlateColor(LabelTextColor));
     FSlateFontInfo LabelFont3 = FCoreStyle::GetDefaultFontStyle("Bold", 14);
-    Label->SetFont(LabelFont3);
+    UserInputLabel->SetFont(LabelFont3);
     
-    UVerticalBoxSlot* LabelSlot = Section->AddChildToVerticalBox(Label);
+    UVerticalBoxSlot* LabelSlot = Section->AddChildToVerticalBox(UserInputLabel);
     LabelSlot->SetPadding(FMargin(0, 0, 0, 5));
 
     // User input text box (editable) - wrapped in rounded border
@@ -546,11 +556,11 @@ UVerticalBox* UMATaskPlannerWidget::CreateUserInputSection()
     UserInputBox->WidgetStyle = UserInputStyle;
     
     // 创建圆角 Border 包装文本框
-    UBorder* UserInputBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("UserInputBorder"));
+    UserInputBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("UserInputBorder"));
     UserInputBorder->SetPadding(FMargin(8.0f, 4.0f));  // 内边距
     
-    // 应用圆角效果 - 使用白色背景
-    FLinearColor TextBoxBgColor = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);  // 白色背景
+    // 应用圆角效果 - 使用主题输入框背景色
+    FLinearColor TextBoxBgColor = Theme ? Theme->InputBackgroundColor : FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
     MARoundedBorderUtils::ApplyRoundedCorners(UserInputBorder, TextBoxBgColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
     
     UserInputBorder->AddChild(UserInputBox);
@@ -1225,4 +1235,92 @@ void UMATaskPlannerWidget::SaveToTempFile()
         UE_LOG(LogMATaskPlanner, Error, TEXT("SaveToTempFile: Failed to save task graph to temp file"));
         AppendStatusLog(TEXT("[Error] Failed to save task graph to temp file"));
     }
+}
+
+//=============================================================================
+// 主题应用
+//=============================================================================
+
+void UMATaskPlannerWidget::ApplyTheme(UMAUITheme* InTheme)
+{
+    Theme = InTheme;
+    if (!Theme)
+    {
+        return;
+    }
+    
+    // 从 Theme 更新颜色配置
+    BackgroundColor = Theme->BackgroundColor;
+    PanelBackgroundColor = Theme->CanvasBackgroundColor;
+    TitleColor = Theme->TextColor;
+    LabelColor = Theme->InputTextColor;
+    ButtonColor = Theme->PrimaryColor;
+    
+    // 更新 UI 元素颜色
+    // 标题在深色背景上，使用 LabelTextColor（浅色）而不是 TextColor（黑色）
+    if (TitleText)
+    {
+        TitleText->SetColorAndOpacity(FSlateColor(Theme->LabelTextColor));
+    }
+    
+    if (HintText)
+    {
+        HintText->SetColorAndOpacity(FSlateColor(Theme->HintTextColor));
+    }
+    
+    if (CloseText)
+    {
+        CloseText->SetColorAndOpacity(FSlateColor(Theme->SecondaryTextColor));
+    }
+    
+    if (StatusLogLabel)
+    {
+        StatusLogLabel->SetColorAndOpacity(FSlateColor(Theme->LabelTextColor));
+    }
+    
+    if (JsonEditorLabel)
+    {
+        JsonEditorLabel->SetColorAndOpacity(FSlateColor(Theme->LabelTextColor));
+    }
+    
+    if (UserInputLabel)
+    {
+        UserInputLabel->SetColorAndOpacity(FSlateColor(Theme->LabelTextColor));
+    }
+    
+    if (BackgroundOverlay)
+    {
+        BackgroundOverlay->SetBrushColor(Theme->OverlayColor);
+    }
+    
+    // 更新输入框 Border 背景颜色
+    if (StatusLogBorder)
+    {
+        // 只读文本框使用稍微变暗的输入框背景色
+        FLinearColor StatusLogBgColor = FLinearColor(Theme->InputBackgroundColor.R * 0.85f, Theme->InputBackgroundColor.G * 0.85f, Theme->InputBackgroundColor.B * 0.85f, 1.0f);
+        MARoundedBorderUtils::ApplyRoundedCorners(StatusLogBorder, StatusLogBgColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
+    }
+    
+    if (JsonEditorBorder)
+    {
+        MARoundedBorderUtils::ApplyRoundedCorners(JsonEditorBorder, Theme->InputBackgroundColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
+    }
+    
+    if (UserInputBorder)
+    {
+        MARoundedBorderUtils::ApplyRoundedCorners(UserInputBorder, Theme->InputBackgroundColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
+    }
+    
+    // 将主题传递给子组件
+    if (DAGCanvas)
+    {
+        DAGCanvas->ApplyTheme(Theme);
+    }
+    
+    if (NodePalette)
+    {
+        NodePalette->ApplyTheme(Theme);
+    }
+    
+    UE_LOG(LogMATaskPlanner, Verbose, TEXT("ApplyTheme: Theme applied to task planner widget"));
 }

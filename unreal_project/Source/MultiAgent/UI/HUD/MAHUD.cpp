@@ -17,6 +17,7 @@
 #include "../SkillAllocation/MASkillAllocationViewer.h"
 #include "../Components/MADirectControlIndicator.h"
 #include "../Components/MARightSidebarWidget.h"
+#include "../Components/MAMiniMapWidget.h"
 #include "../../Core/Types/MATaskGraphTypes.h"
 #include "../Mode/MAEmergencyWidget.h"
 #include "../Mode/MAModifyWidget.h"
@@ -187,66 +188,67 @@ void AMAHUD::ToggleSemanticMap()
 
 void AMAHUD::ShowEmergencyWidget()
 {
+    UE_LOG(LogMAHUD, Warning, TEXT("========== ShowEmergencyWidget called =========="));
+    
     if (!UIManager)
     {
         UE_LOG(LogMAHUD, Warning, TEXT("ShowEmergencyWidget: UIManager is null"));
         return;
     }
 
-    UMAEmergencyWidget* EmergencyWidget = UIManager->GetEmergencyWidget();
-    if (!EmergencyWidget)
-    {
-        UE_LOG(LogMAHUD, Warning, TEXT("ShowEmergencyWidget: EmergencyWidget is null"));
-        return;
-    }
-
-    if (IsEmergencyWidgetVisible())
-    {
-        // 已经显示，只需重新聚焦
-        EmergencyWidget->FocusInputBox();
-        return;
-    }
-
-    // 通过 UIManager 显示
-    UIManager->ShowWidget(EMAWidgetType::Emergency, true);
-
-    // 更新相机源
+    // 注意：旧的 EmergencyWidget 已被弃用，不再显示
+    // 相机视图功能已移植到 EmergencyModal 中
+    // 此方法保留仅用于兼容性，实际显示由 HUDStateManager 控制 EmergencyModal
+    
+    // 重要：不再在这里更新相机源！
+    // 相机源已经在 MAUIManager::OnEmergencyEventReceived 中设置
+    // 如果在这里再次调用 UpdateEmergencyCameraSource，可能会因为 SourceAgent 为 nullptr 而清除相机
+    
+    // 只有当相机源尚未设置时，才尝试设置
     FMASubsystem Subs = MA_SUBS;
     if (Subs.EmergencyManager && Subs.EmergencyManager->IsEventActive())
     {
         AMACharacter* SourceAgent = Subs.EmergencyManager->GetSourceAgent();
+        UE_LOG(LogMAHUD, Warning, TEXT("ShowEmergencyWidget: SourceAgent=%s"), 
+            SourceAgent ? *SourceAgent->AgentID : TEXT("nullptr"));
+        
         if (SourceAgent)
         {
             UMACameraSensorComponent* Camera = SourceAgent->GetCameraSensor();
-            UpdateEmergencyCameraSource(Camera);
+            UE_LOG(LogMAHUD, Warning, TEXT("ShowEmergencyWidget: Camera=%s"), 
+                Camera ? TEXT("Valid") : TEXT("nullptr"));
+            if (Camera)
+            {
+                UpdateEmergencyCameraSource(Camera);
+            }
+            // 如果 Camera 为 nullptr，不清除已有的相机源
         }
-        else
-        {
-            // 没有 Source Agent，显示黑屏
-            UpdateEmergencyCameraSource(nullptr);
-        }
+        // 如果 SourceAgent 为 nullptr，不清除已有的相机源
+        // 相机源可能已经在 OnEmergencyEventReceived 中设置好了
+    }
+    else
+    {
+        UE_LOG(LogMAHUD, Warning, TEXT("ShowEmergencyWidget: EmergencyManager not active or null"));
     }
 
-    UE_LOG(LogMAHUD, Log, TEXT("EmergencyWidget shown via UIManager"));
+    UE_LOG(LogMAHUD, Log, TEXT("ShowEmergencyWidget: Done"));
 }
 
 void AMAHUD::HideEmergencyWidget()
 {
+    UE_LOG(LogMAHUD, Warning, TEXT("========== HideEmergencyWidget called =========="));
+    
     if (!UIManager)
     {
         UE_LOG(LogMAHUD, Warning, TEXT("HideEmergencyWidget: UIManager is null"));
         return;
     }
 
-    if (!IsEmergencyWidgetVisible())
-    {
-        return;
-    }
+    // 注意：旧的 EmergencyWidget 已被弃用
+    // 清除相机源
+    UpdateEmergencyCameraSource(nullptr);
 
-    // 通过 UIManager 隐藏
-    UIManager->HideWidget(EMAWidgetType::Emergency);
-
-    UE_LOG(LogMAHUD, Log, TEXT("EmergencyWidget hidden via UIManager"));
+    UE_LOG(LogMAHUD, Log, TEXT("HideEmergencyWidget: Camera source cleared (old widget deprecated)"));
 }
 
 void AMAHUD::ToggleEmergencyWidget()
@@ -263,38 +265,62 @@ void AMAHUD::ToggleEmergencyWidget()
 
 bool AMAHUD::IsEmergencyWidgetVisible() const
 {
+    // 注意：旧的 EmergencyWidget 已被弃用
+    // 检查 EmergencyModal 是否可见
     if (!UIManager)
     {
         return false;
     }
     
-    return UIManager->IsWidgetVisible(EMAWidgetType::Emergency);
+    UMAEmergencyModal* EmergencyModal = UIManager->GetEmergencyModal();
+    if (EmergencyModal)
+    {
+        return EmergencyModal->IsVisible();
+    }
+    
+    return false;
 }
 
 void AMAHUD::UpdateEmergencyCameraSource(UMACameraSensorComponent* Camera)
 {
+    UE_LOG(LogMAHUD, Warning, TEXT("========== UpdateEmergencyCameraSource called, Camera=%s =========="),
+        Camera ? TEXT("Valid") : TEXT("nullptr"));
+    
     if (!UIManager)
     {
         UE_LOG(LogMAHUD, Warning, TEXT("UpdateEmergencyCameraSource: UIManager is null"));
         return;
     }
 
+    // 更新旧的 EmergencyWidget（如果存在）
     UMAEmergencyWidget* EmergencyWidget = UIManager->GetEmergencyWidget();
-    if (!EmergencyWidget)
+    if (EmergencyWidget)
     {
-        UE_LOG(LogMAHUD, Warning, TEXT("UpdateEmergencyCameraSource: EmergencyWidget is null"));
-        return;
+        if (Camera)
+        {
+            EmergencyWidget->SetCameraSource(Camera);
+        }
+        else
+        {
+            EmergencyWidget->ClearCameraSource();
+        }
     }
 
-    if (Camera)
+    // 更新新的 EmergencyModal
+    UMAEmergencyModal* EmergencyModal = UIManager->GetEmergencyModal();
+    if (EmergencyModal)
     {
-        EmergencyWidget->SetCameraSource(Camera);
-        UE_LOG(LogMAHUD, Log, TEXT("EmergencyWidget camera source updated"));
-    }
-    else
-    {
-        EmergencyWidget->ClearCameraSource();
-        UE_LOG(LogMAHUD, Log, TEXT("EmergencyWidget camera source cleared"));
+        if (Camera)
+        {
+            EmergencyModal->SetCameraSource(Camera);
+            UE_LOG(LogMAHUD, Log, TEXT("EmergencyModal camera source updated"));
+        }
+        else
+        {
+            UE_LOG(LogMAHUD, Warning, TEXT("UpdateEmergencyCameraSource: Clearing camera source (Camera is nullptr)"));
+            EmergencyModal->ClearCameraSource();
+            UE_LOG(LogMAHUD, Log, TEXT("EmergencyModal camera source cleared"));
+        }
     }
 }
 
@@ -507,7 +533,7 @@ void AMAHUD::OnRefocusMainUI()
 
 void AMAHUD::OnEmergencyStateChanged(bool bIsActive)
 {
-    UE_LOG(LogMAHUD, Log, TEXT("OnEmergencyStateChanged: %s"), bIsActive ? TEXT("Active") : TEXT("Inactive"));
+    UE_LOG(LogMAHUD, Warning, TEXT("========== OnEmergencyStateChanged: %s =========="), bIsActive ? TEXT("Active") : TEXT("Inactive"));
 
     if (bIsActive)
     {
@@ -520,6 +546,7 @@ void AMAHUD::OnEmergencyStateChanged(bool bIsActive)
         // 如果 Widget 可见且事件结束，清除相机源（显示黑屏）
         if (IsEmergencyWidgetVisible())
         {
+            UE_LOG(LogMAHUD, Warning, TEXT("OnEmergencyStateChanged: EmergencyWidget is visible, clearing camera source"));
             UpdateEmergencyCameraSource(nullptr);
         }
     }
@@ -941,6 +968,112 @@ bool AMAHUD::IsMouseOverEditWidget() const
 
         if (MouseX >= EditWidgetLeft && MouseX <= EditWidgetRight &&
             MouseY >= EditWidgetTop && MouseY <= EditWidgetBottom)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool AMAHUD::IsMouseOverRightSidebar() const
+{
+    // 获取 PlayerController
+    APlayerController* PC = GetOwningPlayerController();
+    if (!PC)
+    {
+        return false;
+    }
+
+    // 使用 GetMousePosition 获取相对于视口的鼠标位置
+    float MouseX, MouseY;
+    if (!PC->GetMousePosition(MouseX, MouseY))
+    {
+        return false;
+    }
+
+    // 获取视口大小
+    int32 ViewportSizeX, ViewportSizeY;
+    PC->GetViewportSize(ViewportSizeX, ViewportSizeY);
+
+    // 检查右侧边栏区域
+    // RightSidebarWidget 布局: 锚点 (1.0, 0.0, 1.0, 1.0), 右边距 20, 宽度 480
+    // 实际屏幕区域: X 从 (ViewportSizeX - 20 - 480) 到 (ViewportSizeX - 20), Y 从 0 到 ViewportSizeY
+    UMAMainHUDWidget* MainHUDWidget = UIManager ? UIManager->GetMainHUDWidget() : nullptr;
+    if (MainHUDWidget && MainHUDWidget->IsVisible())
+    {
+        UMARightSidebarWidget* RightSidebar = MainHUDWidget->GetRightSidebar();
+        if (RightSidebar && RightSidebar->IsVisible())
+        {
+            // 右侧边栏的布局参数
+            float SidebarRightMargin = 20.0f;
+            float SidebarWidth = 480.0f;  // MARightSidebarWidget 默认宽度
+            
+            float SidebarLeft = ViewportSizeX - SidebarRightMargin - SidebarWidth;
+            float SidebarRight = ViewportSizeX - SidebarRightMargin;
+            
+            if (MouseX >= SidebarLeft && MouseX <= SidebarRight)
+            {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+bool AMAHUD::IsMouseOverPersistentUI() const
+{
+    // 获取 PlayerController
+    APlayerController* PC = GetOwningPlayerController();
+    if (!PC)
+    {
+        return false;
+    }
+
+    // 使用 GetMousePosition 获取相对于视口的鼠标位置
+    float MouseX, MouseY;
+    if (!PC->GetMousePosition(MouseX, MouseY))
+    {
+        return false;
+    }
+
+    // 获取视口大小
+    int32 ViewportSizeX, ViewportSizeY;
+    PC->GetViewportSize(ViewportSizeX, ViewportSizeY);
+
+    UMAMainHUDWidget* MainHUDWidget = UIManager ? UIManager->GetMainHUDWidget() : nullptr;
+    if (!MainHUDWidget || !MainHUDWidget->IsVisible())
+    {
+        return false;
+    }
+
+    // 检查右侧边栏区域
+    UMARightSidebarWidget* RightSidebar = MainHUDWidget->GetRightSidebar();
+    if (RightSidebar && RightSidebar->IsVisible())
+    {
+        float SidebarRightMargin = 20.0f;
+        float SidebarWidth = 480.0f;
+        
+        float SidebarLeft = ViewportSizeX - SidebarRightMargin - SidebarWidth;
+        float SidebarRight = ViewportSizeX - SidebarRightMargin;
+        
+        if (MouseX >= SidebarLeft && MouseX <= SidebarRight)
+        {
+            return true;
+        }
+    }
+
+    // 检查小地图区域 (左上角)
+    UMAMiniMapWidget* MiniMap = MainHUDWidget->GetMiniMap();
+    if (MiniMap && MiniMap->IsVisible())
+    {
+        float MiniMapLeft = 20.0f;
+        float MiniMapTop = 20.0f;
+        float MiniMapSize = 200.0f;  // 默认小地图大小
+        
+        if (MouseX >= MiniMapLeft && MouseX <= MiniMapLeft + MiniMapSize &&
+            MouseY >= MiniMapTop && MouseY <= MiniMapTop + MiniMapSize)
         {
             return true;
         }

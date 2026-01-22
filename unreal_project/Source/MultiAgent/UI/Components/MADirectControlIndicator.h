@@ -10,6 +10,7 @@
 class UTextBlock;
 class UBorder;
 class UCanvasPanel;
+class UMAUITheme;
 
 /**
  * Direct Control 指示器 Widget
@@ -44,6 +45,13 @@ public:
     UFUNCTION(BlueprintPure, Category = "UI")
     FString GetAgentName() const;
 
+    /**
+     * 应用主题样式
+     * @param InTheme 主题数据资产
+     */
+    UFUNCTION(BlueprintCallable, Category = "UI|Theme")
+    void ApplyTheme(UMAUITheme* InTheme);
+
 protected:
     virtual void NativePreConstruct() override;
     virtual TSharedRef<SWidget> RebuildWidget() override;
@@ -64,4 +72,11 @@ private:
 
     /** 当前显示的 Agent 名称 */
     FString CurrentAgentName;
+
+    /** 缓存的主题引用 */
+    UPROPERTY()
+    UMAUITheme* Theme;
+
+    /** 指示器文字颜色 (默认绿色) */
+    FLinearColor IndicatorTextColor = FLinearColor(0.2f, 1.0f, 0.2f);
 };

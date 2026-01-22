@@ -32,6 +32,45 @@ UMASceneListWidget::UMASceneListWidget(const FObjectInitializer& ObjectInitializ
     }
 }
 
+//=========================================================================
+// ApplyTheme - 应用主题样式
+//=========================================================================
+
+void UMASceneListWidget::ApplyTheme(UMAUITheme* InTheme)
+{
+    Theme = InTheme;
+    if (!Theme)
+    {
+        UE_LOG(LogMASceneListWidget, Warning, TEXT("ApplyTheme: Theme is null, using default colors"));
+        return;
+    }
+
+    // 更新 Goal 标题颜色
+    if (GoalTitleText)
+    {
+        GoalTitleText->SetColorAndOpacity(FSlateColor(Theme->DangerColor));
+    }
+
+    // 更新 Zone 标题颜色
+    if (ZoneTitleText)
+    {
+        ZoneTitleText->SetColorAndOpacity(FSlateColor(Theme->PrimaryColor));
+    }
+
+    // 更新计数文字颜色
+    if (GoalCountText)
+    {
+        GoalCountText->SetColorAndOpacity(FSlateColor(Theme->SecondaryTextColor));
+    }
+
+    if (ZoneCountText)
+    {
+        ZoneCountText->SetColorAndOpacity(FSlateColor(Theme->SecondaryTextColor));
+    }
+
+    UE_LOG(LogMASceneListWidget, Log, TEXT("ApplyTheme: Theme applied successfully"));
+}
+
 void UMASceneListWidget::NativeConstruct()
 {
     Super::NativeConstruct();
@@ -111,7 +150,9 @@ void UMASceneListWidget::BuildUI()
     FSlateFontInfo TitleFont = TitleText->GetFont();
     TitleFont.Size = 14;
     TitleText->SetFont(TitleFont);
-    TitleText->SetColorAndOpacity(FSlateColor(FLinearColor(0.3f, 0.6f, 1.0f)));
+    // 使用 Theme 颜色，fallback 到默认蓝色
+    FLinearColor TitleColor = Theme ? Theme->PrimaryColor : FLinearColor(0.3f, 0.6f, 1.0f);
+    TitleText->SetColorAndOpacity(FSlateColor(TitleColor));
 
     UVerticalBoxSlot* TitleSlot = MainVBox->AddChildToVerticalBox(TitleText);
     TitleSlot->SetPadding(FMargin(0, 0, 0, 10));
@@ -128,7 +169,9 @@ void UMASceneListWidget::BuildUI()
     FSlateFontInfo GoalTitleFont = GoalTitleText->GetFont();
     GoalTitleFont.Size = 12;
     GoalTitleText->SetFont(GoalTitleFont);
-    GoalTitleText->SetColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.4f, 0.4f)));  // 红色
+    // 使用 Theme 颜色，fallback 到默认红色
+    FLinearColor GoalTitleColor = Theme ? Theme->DangerColor : FLinearColor(1.0f, 0.4f, 0.4f);
+    GoalTitleText->SetColorAndOpacity(FSlateColor(GoalTitleColor));
 
     UHorizontalBoxSlot* GoalTitleSlot = GoalHeaderBox->AddChildToHorizontalBox(GoalTitleText);
     GoalTitleSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
@@ -138,7 +181,9 @@ void UMASceneListWidget::BuildUI()
     FSlateFontInfo GoalCountFont = GoalCountText->GetFont();
     GoalCountFont.Size = 11;
     GoalCountText->SetFont(GoalCountFont);
-    GoalCountText->SetColorAndOpacity(FSlateColor(FLinearColor(0.6f, 0.6f, 0.6f)));
+    // 使用 Theme 颜色，fallback 到默认灰色
+    FLinearColor CountTextColor = Theme ? Theme->SecondaryTextColor : FLinearColor(0.6f, 0.6f, 0.6f);
+    GoalCountText->SetColorAndOpacity(FSlateColor(CountTextColor));
     
     GoalHeaderBox->AddChildToHorizontalBox(GoalCountText);
 
@@ -163,7 +208,9 @@ void UMASceneListWidget::BuildUI()
     FSlateFontInfo ZoneTitleFont = ZoneTitleText->GetFont();
     ZoneTitleFont.Size = 12;
     ZoneTitleText->SetFont(ZoneTitleFont);
-    ZoneTitleText->SetColorAndOpacity(FSlateColor(FLinearColor(0.3f, 0.6f, 1.0f)));  // 蓝色
+    // 使用 Theme 颜色，fallback 到默认蓝色
+    FLinearColor ZoneTitleColor = Theme ? Theme->PrimaryColor : FLinearColor(0.3f, 0.6f, 1.0f);
+    ZoneTitleText->SetColorAndOpacity(FSlateColor(ZoneTitleColor));
 
     UHorizontalBoxSlot* ZoneTitleSlot = ZoneHeaderBox->AddChildToHorizontalBox(ZoneTitleText);
     ZoneTitleSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
@@ -173,7 +220,8 @@ void UMASceneListWidget::BuildUI()
     FSlateFontInfo ZoneCountFont = ZoneCountText->GetFont();
     ZoneCountFont.Size = 11;
     ZoneCountText->SetFont(ZoneCountFont);
-    ZoneCountText->SetColorAndOpacity(FSlateColor(FLinearColor(0.6f, 0.6f, 0.6f)));
+    // 使用 Theme 颜色，fallback 到默认灰色
+    ZoneCountText->SetColorAndOpacity(FSlateColor(CountTextColor));
     
     ZoneHeaderBox->AddChildToHorizontalBox(ZoneCountText);
 
@@ -346,13 +394,16 @@ UButton* UMASceneListWidget::CreateListItemButton(const FString& Label, const FS
     ButtonText->SetFont(ButtonFont);
     
     // Goal 用红色，Zone 用蓝色
+    // 使用 Theme 颜色，fallback 到默认颜色
     if (bIsGoal)
     {
-        ButtonText->SetColorAndOpacity(FSlateColor(FLinearColor(0.8f, 0.2f, 0.2f)));
+        FLinearColor GoalButtonColor = Theme ? Theme->DangerColor : FLinearColor(0.8f, 0.2f, 0.2f);
+        ButtonText->SetColorAndOpacity(FSlateColor(GoalButtonColor));
     }
     else
     {
-        ButtonText->SetColorAndOpacity(FSlateColor(FLinearColor(0.2f, 0.4f, 0.8f)));
+        FLinearColor ZoneButtonColor = Theme ? Theme->PrimaryColor : FLinearColor(0.2f, 0.4f, 0.8f);
+        ButtonText->SetColorAndOpacity(FSlateColor(ZoneButtonColor));
     }
     
     Button->AddChild(ButtonText);

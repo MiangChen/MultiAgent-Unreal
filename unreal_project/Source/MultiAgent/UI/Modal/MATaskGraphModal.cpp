@@ -368,11 +368,12 @@ UVerticalBox* UMATaskGraphModal::CreateJsonPreviewArea()
             JsonScrollBox->AddChild(JsonPreviewBox);
             JsonPreviewBox->SetIsReadOnly(true); // 初始只读
             
-            // 设置样式：纯黑色，字号 12
+            // 设置样式：使用主题输入框文字颜色，字号 12
             FEditableTextBoxStyle JsonStyle;
-            FSlateColor BlackColor = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
-            JsonStyle.SetForegroundColor(BlackColor);
-            JsonStyle.SetFocusedForegroundColor(BlackColor);
+            FLinearColor InputTextCol = Theme ? Theme->InputTextColor : FLinearColor(0.0f, 0.0f, 0.0f, 1.0f);
+            FSlateColor InputTextColor = FSlateColor(InputTextCol);
+            JsonStyle.SetForegroundColor(InputTextColor);
+            JsonStyle.SetFocusedForegroundColor(InputTextColor);
             FSlateFontInfo JsonFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
             JsonStyle.SetFont(JsonFont);
             JsonPreviewBox->WidgetStyle = JsonStyle;
