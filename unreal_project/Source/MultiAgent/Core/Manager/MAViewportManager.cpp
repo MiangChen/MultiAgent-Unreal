@@ -2,7 +2,6 @@
 
 #include "MAViewportManager.h"
 #include "MAAgentManager.h"
-#include "MAExternalCameraManager.h"
 #include "../Agent/Character/MACharacter.h"
 #include "../Agent/Character/MAUAVCharacter.h"
 #include "../Agent/Component/Sensor/MACameraSensorComponent.h"
@@ -44,26 +43,10 @@ void UMAViewportManager::CollectAllCameraEntries(TArray<FMAViewportCameraEntry>&
 {
     OutEntries.Empty();
 
-    // 1. 先添加外部摄像头
-    UMAExternalCameraManager* ExternalCameraManager = GetWorld()->GetSubsystem<UMAExternalCameraManager>();
-    if (ExternalCameraManager)
-    {
-        int32 ExternalCount = ExternalCameraManager->GetExternalCameraCount();
-        for (int32 i = 0; i < ExternalCount; ++i)
-        {
-            ACameraActor* Camera = ExternalCameraManager->GetExternalCameraByIndex(i);
-            if (Camera)
-            {
-                FMAViewportCameraEntry Entry;
-                Entry.Type = EMAViewportCameraType::ExternalCamera;
-                Entry.ExternalCamera = Camera;
-                Entry.CameraName = ExternalCameraManager->GetCameraName(i);
-                OutEntries.Add(Entry);
-            }
-        }
-    }
+    // 1. 外部摄像头功能暂未实现 (MAExternalCameraManager 不存在)
+    // TODO: 如需外部摄像头支持，需要实现 MAExternalCameraManager
 
-    // 2. 再添加 Agent 相机
+    // 2. 添加 Agent 相机
     UMAAgentManager* AgentManager = GetWorld()->GetSubsystem<UMAAgentManager>();
     if (AgentManager)
     {
