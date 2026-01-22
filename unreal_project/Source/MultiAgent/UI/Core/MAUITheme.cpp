@@ -25,11 +25,11 @@ UMAUITheme::UMAUITheme()
     // 警告色 - 黄色
     WarningColor = FLinearColor(1.0f, 0.8f, 0.2f, 1.0f);
     
-    // 背景色 - 深色半透明
-    BackgroundColor = FLinearColor(0.1f, 0.1f, 0.12f, 0.95f);
+    // 背景色 - 中性灰透明 (让毛玻璃效果更明显)
+    BackgroundColor = FLinearColor(0.25f, 0.25f, 0.25f, 0.6f);
     
-    // 文字色 - 黑色
-    TextColor = FLinearColor(0.05f, 0.05f, 0.05f, 1.0f);
+    // 文字色 - 白色
+    TextColor = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
     //=========================================================================
     // 模式颜色默认值
@@ -67,24 +67,24 @@ UMAUITheme::UMAUITheme()
     // 文字颜色默认值
     //=========================================================================
     
-    // 次要文字 - 灰色
-    SecondaryTextColor = FLinearColor(0.6f, 0.6f, 0.6f, 1.0f);
+    // 次要文字 - 浅灰白
+    SecondaryTextColor = FLinearColor(0.8f, 0.8f, 0.8f, 1.0f);
     
-    // 标签文字 - 浅灰
-    LabelTextColor = FLinearColor(0.8f, 0.8f, 0.8f, 1.0f);
+    // 标签文字 - 白色
+    LabelTextColor = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
     
-    // 提示文字 - 灰色
-    HintTextColor = FLinearColor(0.6f, 0.6f, 0.6f, 1.0f);
+    // 提示文字 - 浅灰白
+    HintTextColor = FLinearColor(0.7f, 0.7f, 0.7f, 1.0f);
     
-    // 输入框文字 - 黑色
-    InputTextColor = FLinearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    // 输入框文字 - 白色
+    InputTextColor = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
     //=========================================================================
     // 画布颜色默认值
     //=========================================================================
     
-    // 画布背景 - 深色
-    CanvasBackgroundColor = FLinearColor(0.08f, 0.08f, 0.1f, 1.0f);
+    // 画布背景 - 中性灰透明 (让毛玻璃效果更明显)
+    CanvasBackgroundColor = FLinearColor(0.2f, 0.2f, 0.2f, 0.65f);
     
     // 网格线
     GridLineColor = FLinearColor(0.15f, 0.15f, 0.2f, 1.0f);
@@ -115,8 +115,8 @@ UMAUITheme::UMAUITheme()
     // 输入框颜色默认值
     //=========================================================================
     
-    // 输入框背景 - 白色
-    InputBackgroundColor = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    // 输入框背景 - 中性灰透明 (让毛玻璃效果更明显)
+    InputBackgroundColor = FLinearColor(0.22f, 0.22f, 0.22f, 0.7f);
 
     //=========================================================================
     // 遮罩颜色默认值
@@ -208,6 +208,43 @@ UMAUITheme::UMAUITheme()
     
     // 按钮悬停动画时长 - 100ms
     ButtonHoverDuration = 0.1f;
+
+    //=========================================================================
+    // 毛玻璃效果默认设置
+    //=========================================================================
+    
+    // 模糊强度 - 25.0 提供明显的毛玻璃效果
+    FrostedGlassBlurStrength = 25.0f;
+    
+    // 圆角半径
+    FrostedGlassCornerRadius = 16.0f;
+    
+    // 阴影偏移
+    FrostedGlassShadowOffset = 4.0f;
+    
+    // 阴影透明度
+    FrostedGlassShadowOpacity = 0.35f;
+    
+    // 边框透明度
+    FrostedGlassBorderOpacity = 0.15f;
+    
+    // 边框厚度
+    FrostedGlassBorderThickness = 1.5f;
+    
+    // 光泽透明度
+    FrostedGlassGlossOpacity = 0.03f;
+    
+    // 内容内边距
+    FrostedGlassContentPadding = 10.0f;
+    
+    // 启用阴影
+    bFrostedGlassEnableShadow = true;
+    
+    // 启用边框
+    bFrostedGlassEnableBorder = true;
+    
+    // 启用光泽 - 开启以增加玻璃质感
+    bFrostedGlassEnableGloss = true;
 }
 
 bool UMAUITheme::IsValid() const

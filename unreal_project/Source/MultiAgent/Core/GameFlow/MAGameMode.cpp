@@ -7,7 +7,10 @@
 #include "../../UI/HUD/MAHUD.h"
 #include "../../UI/Components/MAMiniMapManager.h"
 #include "../Manager/MAAgentManager.h"
+#include "../Manager/MAExternalCameraManager.h"
 #include "GameFramework/SpectatorPawn.h"
+#include "Engine/PostProcessVolume.h"
+#include "EngineUtils.h"
 
 AMAGameMode::AMAGameMode()
 {
@@ -22,12 +25,30 @@ void AMAGameMode::BeginPlay()
     
     UE_LOG(LogTemp, Log, TEXT("[GameMode] BeginPlay"));
     
+    // 禁用低质量背景模糊模式，确保毛玻璃效果正常显示
+    static IConsoleVariable* LowQualityBlurCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("Slate.EnableLowQualityBackgroundBlur"));
+    if (LowQualityBlurCVar)
+    {
+        LowQualityBlurCVar->Set(0);
+        UE_LOG(LogTemp, Log, TEXT("[GameMode] Disabled low quality background blur"));
+    }
+    
+    // 设置后处理以显示描边
+    SetupOutlinePostProcess();
+
     // 延迟一帧执行初始化
     GetWorld()->GetTimerManager().SetTimerForNextTick([this]()
     {
         SetupSpectatorStart();
         LoadAndSpawnAgents();
         SpawnMiniMapManager();
+        
+        // 延迟初始化外部摄像头，确保 Agent 已生成
+        GetWorld()->GetTimerManager().SetTimerForNextTick([this]()
+        {
+            InitializeExternalCameras();
+        });
+        
         UE_LOG(LogTemp, Log, TEXT("[GameMode] Initialization complete"));
     });
 }
@@ -160,4 +181,42 @@ FVector AMAGameMode::FindSafeSpectatorLocation(FVector DesiredLocation)
     }
     
     return FVector(DesiredLocation.X, DesiredLocation.Y, 3000.f);
+}
+
+
+void AMAGameMode::InitializeExternalCameras()
+{
+    UMAExternalCameraManager* ExternalCameraManager = GetWorld()->GetSubsystem<UMAExternalCameraManager>();
+    if (!ExternalCameraManager)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[GameMode] ExternalCameraManager not found!"));
+        return;
+    }
+
+    // 初始化预配置的外部摄像头
+    ExternalCameraManager->InitializeDefaultCameras();
+
+    UE_LOG(LogTemp, Log, TEXT("[GameMode] External cameras initialized: %d cameras"),
+        ExternalCameraManager->GetExternalCameraCount());
+}
+
+void AMAGameMode::SetupOutlinePostProcess()
+{
+    UWorld* World = GetWorld();
+    if (!World) return;
+
+    if (APlayerController* PC = World->GetFirstPlayerController())
+    {
+        // 启用引擎底层的 Selection Outline 系统
+        // 这些命令会启用编辑器风格的描边效果
+        PC->ConsoleCommand(TEXT("r.CustomDepth 3"));
+
+        // 启用 Selection Outline 渲染 (编辑器描边效果)
+        PC->ConsoleCommand(TEXT("ShowFlag.SelectionOutline 1"));
+
+        // 设置描边颜色为橙色 (可选)
+        // PC->ConsoleCommand(TEXT("r.Editor.SelectionOutlineColor 1.0 0.5 0.0"));
+
+        UE_LOG(LogTemp, Log, TEXT("[GameMode] Engine Selection Outline system enabled"));
+    }
 }

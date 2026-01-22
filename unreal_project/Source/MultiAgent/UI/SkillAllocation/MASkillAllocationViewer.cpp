@@ -7,6 +7,7 @@
 #include "../../Core/Comm/MACommSubsystem.h"
 #include "../../Core/Manager/MATempDataManager.h"
 #include "../Core/MARoundedBorderUtils.h"
+#include "../Core/MAFrostedGlassUtils.h"
 #include "../Core/MAUITheme.h"
 #include "../Components/MAStyledButton.h"
 #include "../Core/MAUIManager.h"
@@ -25,6 +26,7 @@
 #include "Components/VerticalBoxSlot.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/Spacer.h"
+#include "Components/BackgroundBlur.h"
 #include "Blueprint/WidgetTree.h"
 #include "Misc/DateTime.h"
 #include "Misc/FileHelper.h"
@@ -217,6 +219,15 @@ void UMASkillAllocationViewer::BuildUI()
     
     UE_LOG(LogMASkillAllocationViewer, Log, TEXT("BuildUI: Starting UI construction (top-bottom layout)..."));
 
+    // 在构建 UI 之前先从主题获取颜色
+    if (!Theme)
+    {
+        // 创建默认主题作为 fallback
+        Theme = NewObject<UMAUITheme>();
+    }
+    BackgroundColor = Theme->BackgroundColor;
+    PanelBackgroundColor = Theme->CanvasBackgroundColor;
+
     // Create data model
     AllocationModel = NewObject<UMASkillAllocationModel>(this, TEXT("AllocationModel"));
 
@@ -238,21 +249,25 @@ void UMASkillAllocationViewer::BuildUI()
     OverlaySlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
     OverlaySlot->SetOffsets(FMargin(0.0f));
 
-    // Create main background Border - windowed mode (80% width, 85% height, centered)
-    UBorder* MainBackground = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("MainBackground"));
-    MainBackground->SetPadding(FMargin(10.0f));
+    // === 使用 MAFrostedGlassUtils 创建毛玻璃效果容器 ===
+    FMAFrostedGlassResult FrostedGlass = MAFrostedGlassUtils::CreateFromTheme(
+        WidgetTree,
+        RootCanvas,
+        Theme,
+        FAnchors(0.1f, 0.075f, 0.9f, 0.925f),  // 窗口位置：居中 80% 宽度，85% 高度
+        FMargin(0.0f),
+        TEXT("SkillAllocation")
+    );
     
-    // Apply rounded corners using MARoundedBorderUtils (Requirements 4.2)
-    MARoundedBorderUtils::ApplyRoundedCorners(MainBackground, BackgroundColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
-    
-    UCanvasPanelSlot* MainSlot = RootCanvas->AddChildToCanvas(MainBackground);
-    // Windowed mode: centered with 80% width and 85% height
-    MainSlot->SetAnchors(FAnchors(0.1f, 0.075f, 0.9f, 0.925f));
-    MainSlot->SetOffsets(FMargin(0.0f));
+    if (!FrostedGlass.IsValid())
+    {
+        UE_LOG(LogMASkillAllocationViewer, Error, TEXT("BuildUI: Failed to create frosted glass container!"));
+        return;
+    }
 
     // Create main vertical layout (top-bottom: title bar + gantt + bottom panel)
     UVerticalBox* MainVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("MainVBox"));
-    MainBackground->AddChild(MainVBox);
+    FrostedGlass.ContentContainer->AddChild(MainVBox);
 
     // Create title bar with close button
     UHorizontalBox* TitleBar = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("TitleBar"));
@@ -346,6 +361,9 @@ UBorder* UMASkillAllocationViewer::CreateTopPanel()
     
     // Apply rounded corners using MARoundedBorderUtils (Requirements 4.2)
     MARoundedBorderUtils::ApplyRoundedCorners(TopPanelBorder, PanelBackgroundColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
+    
+    // 启用裁剪 - 确保内容不会溢出圆角边框
+    TopPanelBorder->SetClipping(EWidgetClipping::ClipToBoundsAlways);
 
     // Gantt canvas - will auto-size based on content
     GanttCanvas = WidgetTree->ConstructWidget<UMAGanttCanvas>(UMAGanttCanvas::StaticClass(), TEXT("GanttCanvas"));
@@ -364,6 +382,9 @@ UBorder* UMASkillAllocationViewer::CreateBottomPanel()
     
     // Apply rounded corners using MARoundedBorderUtils (Requirements 4.2)
     MARoundedBorderUtils::ApplyRoundedCorners(BottomPanelBorder, PanelBackgroundColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
+    
+    // 启用裁剪 - 确保内容不会溢出圆角边框
+    BottomPanelBorder->SetClipping(EWidgetClipping::ClipToBoundsAlways);
 
     // Horizontal layout (Status Log | JSON Editor + Buttons)
     UHorizontalBox* BottomHBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("BottomHBox"));
@@ -399,26 +420,26 @@ UBorder* UMASkillAllocationViewer::CreateLeftPanel()
     LeftPanelBorder->AddChild(LeftVBox);
 
     // Title
-    TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("LeftPanelTitle"));
-    TitleText->SetText(FText::FromString(TEXT("Skill Allocation Workbench")));
-    FSlateFontInfo TitleFont = TitleText->GetFont();
+    UTextBlock* LeftPanelTitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("LeftPanelTitle"));
+    LeftPanelTitleText->SetText(FText::FromString(TEXT("Skill Allocation Workbench")));
+    FSlateFontInfo TitleFont = LeftPanelTitleText->GetFont();
     TitleFont.Size = 16;
-    TitleText->SetFont(TitleFont);
-    TitleText->SetColorAndOpacity(FSlateColor(TitleColor));
+    LeftPanelTitleText->SetFont(TitleFont);
+    LeftPanelTitleText->SetColorAndOpacity(FSlateColor(TitleColor));
     
-    UVerticalBoxSlot* TitleSlot = LeftVBox->AddChildToVerticalBox(TitleText);
+    UVerticalBoxSlot* TitleSlot = LeftVBox->AddChildToVerticalBox(LeftPanelTitleText);
     TitleSlot->SetPadding(FMargin(0, 0, 0, 10));
 
     // Hint text
-    HintText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("HintText"));
-    HintText->SetText(FText::FromString(TEXT("Press X to toggle visibility")));
-    FSlateFontInfo HintFont = HintText->GetFont();
+    UTextBlock* LeftPanelHintText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("HintText"));
+    LeftPanelHintText->SetText(FText::FromString(TEXT("Press X to toggle visibility")));
+    FSlateFontInfo HintFont = LeftPanelHintText->GetFont();
     HintFont.Size = 10;
-    HintText->SetFont(HintFont);
+    LeftPanelHintText->SetFont(HintFont);
     FLinearColor LeftHintTextColor = Theme ? Theme->HintTextColor : FLinearColor(0.5f, 0.5f, 0.6f);
-    HintText->SetColorAndOpacity(FSlateColor(LeftHintTextColor));
+    LeftPanelHintText->SetColorAndOpacity(FSlateColor(LeftHintTextColor));
     
-    UVerticalBoxSlot* HintSlot = LeftVBox->AddChildToVerticalBox(HintText);
+    UVerticalBoxSlot* HintSlot = LeftVBox->AddChildToVerticalBox(LeftPanelHintText);
     HintSlot->SetPadding(FMargin(0, 0, 0, 15));
 
     // Status log section
@@ -466,7 +487,7 @@ UVerticalBox* UMASkillAllocationViewer::CreateStatusLogSection()
     StatusLogStyle.SetForegroundColor(StatusLogSlateColor);
     StatusLogStyle.SetFocusedForegroundColor(StatusLogSlateColor);
     StatusLogStyle.SetReadOnlyForegroundColor(StatusLogSlateColor);
-    StatusLogStyle.TextStyle.ColorAndOpacity = FSlateColor(FLinearColor::Black);
+    StatusLogStyle.TextStyle.ColorAndOpacity = StatusLogSlateColor;
     FSlateFontInfo StatusLogFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
     StatusLogStyle.SetFont(StatusLogFont);
     
@@ -484,8 +505,8 @@ UVerticalBox* UMASkillAllocationViewer::CreateStatusLogSection()
     UBorder* StatusLogBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("StatusLogBorder"));
     StatusLogBorder->SetPadding(FMargin(8.0f, 4.0f));
     
-    // 应用圆角效果 - 只读文本框使用主题次要颜色背景
-    FLinearColor StatusLogBgColor = Theme ? Theme->SecondaryColor : FLinearColor(0.85f, 0.85f, 0.85f, 1.0f);
+    // 应用圆角效果 - 只读文本框使用主题输入框背景色
+    FLinearColor StatusLogBgColor = Theme ? Theme->InputBackgroundColor : FLinearColor(0.22f, 0.22f, 0.22f, 0.7f);
     MARoundedBorderUtils::ApplyRoundedCorners(StatusLogBorder, StatusLogBgColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
     
     StatusLogBorder->AddChild(StatusLogBox);

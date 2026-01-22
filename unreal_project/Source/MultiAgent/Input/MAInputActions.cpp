@@ -39,7 +39,6 @@ void UMAInputActions::Initialize()
     IA_StartAvoid = CreateInputAction(TEXT("IA_StartAvoid"));
     IA_StartFormation = CreateInputAction(TEXT("IA_StartFormation"));
     IA_TakePhoto = CreateInputAction(TEXT("IA_TakePhoto"));
-    IA_ToggleRecording = CreateInputAction(TEXT("IA_ToggleRecording"));
     IA_ToggleTCPStream = CreateInputAction(TEXT("IA_ToggleTCPStream"));
 
     // 编组快捷键
@@ -51,8 +50,7 @@ void UMAInputActions::Initialize()
     IA_CreateSquad = CreateInputAction(TEXT("IA_CreateSquad"));
     IA_DisbandSquad = CreateInputAction(TEXT("IA_DisbandSquad"));
     IA_ToggleMouseMode = CreateInputAction(TEXT("IA_ToggleMouseMode"));
-    IA_ToggleModifyMode = CreateInputAction(TEXT("IA_ToggleModifyMode"));
-    
+
     // UI 切换
     IA_ToggleMainUI = CreateInputAction(TEXT("IA_ToggleMainUI"));
     IA_ToggleSkillAllocationViewer = CreateInputAction(TEXT("IA_ToggleSkillAllocationViewer"));
@@ -75,7 +73,6 @@ void UMAInputActions::Initialize()
     IA_MoveUp = CreateInputAction(TEXT("IA_MoveUp"));
     IA_MoveDown = CreateInputAction(TEXT("IA_MoveDown"));
     IA_Jump = CreateInputAction(TEXT("IA_Jump"));
-    IA_ToggleViewportRecording = CreateInputAction(TEXT("IA_ToggleViewportRecording"));
 
     // 创建 Input Mapping Contexts
     IMC_RTS = NewObject<UInputMappingContext>(this, TEXT("IMC_RTS"));
@@ -104,7 +101,6 @@ void UMAInputActions::Initialize()
     // AddKeyMapping(IMC_RTS, IA_StartAvoid, EKeys::A);  // 暂时禁用
     AddKeyMapping(IMC_RTS, IA_StartFormation, EKeys::B);
     AddKeyMapping(IMC_RTS, IA_TakePhoto, EKeys::L);  // L for Lens/Light
-    AddKeyMapping(IMC_RTS, IA_ToggleRecording, EKeys::R);  // R for Recording
     // TCP 视频流暂时禁用
     // AddKeyMapping(IMC_RTS, IA_ToggleTCPStream, EKeys::V);  // V for Video stream
     
@@ -141,9 +137,6 @@ void UMAInputActions::Initialize()
 
     // 跳跃 (空格键)
     AddKeyMapping(IMC_RTS, IA_Jump, EKeys::SpaceBar);
-    
-    // Viewport 录制 (F9 键)
-    AddKeyMapping(IMC_RTS, IA_ToggleViewportRecording, EKeys::F9);
 
     // ========== IMC_AgentControl 按键映射 (WASD、视角) ==========
     // 仅在 Agent View Mode 时由 MAAgentInputComponent 添加

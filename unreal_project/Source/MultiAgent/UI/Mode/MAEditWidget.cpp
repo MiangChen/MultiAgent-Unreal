@@ -15,9 +15,11 @@
 #include "Components/CanvasPanelSlot.h"
 #include "Components/ScrollBox.h"
 #include "Components/ComboBoxString.h"
+#include "Components/BackgroundBlur.h"
 #include "Blueprint/WidgetTree.h"
 #include "Framework/Application/SlateApplication.h"
 #include "../Core/MARoundedBorderUtils.h"
+#include "../Core/MAFrostedGlassUtils.h"
 #include "../Core/MAUITheme.h"
 #include "../../Core/Manager/MAEditModeManager.h"
 #include "../../Core/Manager/MASceneGraphManager.h"
@@ -251,29 +253,33 @@ void UMAEditWidget::BuildUI()
     }
     WidgetTree->RootWidget = RootCanvas;
 
-    // 创建背景 Border - 位于屏幕右侧
-    // 使用与 MAModifyWidget 相同的固定尺寸布局，确保 UI 点击不会穿透到场景
-    UBorder* BackgroundBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("BackgroundBorder"));
-    BackgroundBorder->SetPadding(FMargin(12.0f));
-    
-    // 应用圆角效果 (使用默认主题值)
-    MARoundedBorderUtils::ApplyRoundedCornersFromTheme(
-        BackgroundBorder,
-        nullptr,  // 使用默认主题值
-        EMARoundedElementType::Panel
+    // 获取主题
+    if (!Theme)
+    {
+        Theme = NewObject<UMAUITheme>();
+    }
+
+    // === 使用 MAFrostedGlassUtils 创建毛玻璃效果侧边栏 ===
+    FMAFrostedGlassResult FrostedGlass = MAFrostedGlassUtils::CreateFixedSizePanelFromTheme(
+        WidgetTree,
+        RootCanvas,
+        Theme,
+        FVector2D(20, -20),      // 位置：左边距 20，底部距离 20
+        FVector2D(380, 600),     // 尺寸：宽度 380，高度 600
+        FVector2D(0.0f, 1.0f),   // 对齐：底部对齐
+        FAnchors(0.0f, 1.0f, 0.0f, 1.0f),  // 锚点：左下角
+        TEXT("EditPanel")
     );
     
-    UCanvasPanelSlot* BorderSlot = RootCanvas->AddChildToCanvas(BackgroundBorder);
-    // 使用固定位置锚点，位于屏幕左下方
-    BorderSlot->SetAnchors(FAnchors(0.0f, 1.0f, 0.0f, 1.0f));  // 左下角锚点
-    BorderSlot->SetAlignment(FVector2D(0.0f, 1.0f));  // 底部对齐
-    BorderSlot->SetPosition(FVector2D(20, -20));  // 左边距 20，底部距离 20
-    BorderSlot->SetSize(FVector2D(380, 600));  // 固定尺寸：宽度 380，高度 600
-    BorderSlot->SetAutoSize(false);
+    if (!FrostedGlass.IsValid())
+    {
+        UE_LOG(LogMAEditWidget, Error, TEXT("BuildUI: Failed to create frosted glass panel!"));
+        return;
+    }
 
-    // 创建垂直布局容器 (与 MAModifyWidget 相同，不使用外层 ScrollBox)
+    // 创建垂直布局容器
     UVerticalBox* MainVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("MainVBox"));
-    BackgroundBorder->AddChild(MainVBox);
+    FrostedGlass.ContentContainer->AddChild(MainVBox);
 
     // =========================================================================
     // 标题区域

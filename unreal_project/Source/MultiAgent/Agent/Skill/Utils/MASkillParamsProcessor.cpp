@@ -1295,8 +1295,8 @@ void FMASkillParamsProcessor::ProcessTakeOff(UMASkillComponent* SkillComp, const
     FMASkillParams& Params = SkillComp->GetSkillParamsMutable();
     FMAFeedbackContext& Context = SkillComp->GetFeedbackContextMutable();
     
-    // 默认起飞高度 1000cm (10m)
-    float RequestedHeight = 1000.f;
+    // 使用 SkillParams 中配置的默认起飞高度（默认 2200cm = 22m）
+    float RequestedHeight = Params.TakeOffHeight;
     
     // 如果有传入参数，覆盖默认值
     if (Cmd && Cmd->Params.bHasDestPosition && Cmd->Params.DestPosition.Z > 0.f)

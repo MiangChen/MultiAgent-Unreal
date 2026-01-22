@@ -47,7 +47,18 @@ void USK_Search::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const 
     
     // 获取搜索参数
     const FMASkillParams& Params = SkillComp->GetSkillParams();
-    ScanWidth = Params.SearchScanWidth > 0.f ? Params.SearchScanWidth : 200.f;
+    ScanWidth = Params.SearchScanWidth > 0.f ? Params.SearchScanWidth : 800.f;  // 默认扫描宽度改为 800cm (8m)
+    
+    // 获取已找到的目标位置（用于提前结束）
+    const FMAFeedbackContext& Context = SkillComp->GetFeedbackContext();
+    FoundTargetLocations = Context.FoundLocations;
+    bHasFoundTarget = FoundTargetLocations.Num() > 0;
+    
+    if (bHasFoundTarget)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[SK_Search] %s: Found %d targets, will end early when reaching nearest target"),
+            *Character->AgentName, FoundTargetLocations.Num());
+    }
     
     // 生成搜索航线
     GenerateSearchPath();
@@ -84,6 +95,31 @@ bool USK_Search::TickSearch(float DeltaTime)
         return false; // 停止 Tick
     }
     
+    FVector CurrentLocation = Character->GetActorLocation();
+    
+    // 检查是否已经飞到目标附近（提前结束）
+    if (bHasFoundTarget)
+    {
+        for (const FVector& TargetLoc : FoundTargetLocations)
+        {
+            float DistToTarget = FVector::Dist2D(CurrentLocation, TargetLoc);
+            if (DistToTarget < 500.f)  // 距离目标 5m 以内就结束
+            {
+                UMASkillComponent* SkillComp = Character->GetSkillComponent();
+                int32 FoundCount = SkillComp ? SkillComp->GetFeedbackContext().FoundObjects.Num() : 0;
+                
+                bSearchSucceeded = true;
+                SearchResultMessage = FString::Printf(TEXT("Search succeeded: Found %d objects, reached target area at waypoint %d/%d"), 
+                    FoundCount, CurrentWaypointIndex, SearchPath.Num());
+                
+                UE_LOG(LogTemp, Log, TEXT("[SK_Search] %s: Reached target area, ending search early"), *Character->AgentName);
+                Character->ShowAbilityStatus(TEXT("Search"), TEXT("Target Found!"));
+                EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, false);
+                return false; // 停止 Tick
+            }
+        }
+    }
+    
     if (CurrentWaypointIndex >= SearchPath.Num())
     {
         // 搜索完成
@@ -100,7 +136,6 @@ bool USK_Search::TickSearch(float DeltaTime)
         return false; // 停止 Tick
     }
     
-    FVector CurrentLocation = Character->GetActorLocation();
     FVector TargetLocation = SearchPath[CurrentWaypointIndex];
     TargetLocation.Z = CurrentLocation.Z;  // 保持高度
     

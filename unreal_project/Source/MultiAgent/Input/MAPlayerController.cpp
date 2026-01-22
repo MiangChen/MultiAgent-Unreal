@@ -6,7 +6,6 @@
 #include "MAPlayerController.h"
 #include "MAInputActions.h"
 #include "../Core/Manager/MAAgentManager.h"
-#include "../Core/Manager/MAViewportRecorder.h"
 #include "../UI/HUD/MAHUD.h"
 #include "../UI/Core/MAUIManager.h"
 #include "../Core/Manager/MACommandManager.h"
@@ -159,7 +158,6 @@ void AMAPlayerController::SetupInputComponent()
 
         // 相机
         EIC->BindAction(InputActions->IA_TakePhoto, ETriggerEvent::Started, this, &AMAPlayerController::OnTakePhoto);
-        EIC->BindAction(InputActions->IA_ToggleRecording, ETriggerEvent::Started, this, &AMAPlayerController::OnToggleRecording);
         EIC->BindAction(InputActions->IA_ToggleTCPStream, ETriggerEvent::Started, this, &AMAPlayerController::OnToggleTCPStream);
 
         // 编组快捷键 (星际争霸风格: 1~5 选择, Ctrl+1~5 保存)
@@ -189,9 +187,6 @@ void AMAPlayerController::SetupInputComponent()
 
         // 跳跃 (空格键)
         EIC->BindAction(InputActions->IA_Jump, ETriggerEvent::Started, this, &AMAPlayerController::OnJumpPressed);
-
-        // Viewport 录制 (F9 键)
-        EIC->BindAction(InputActions->IA_ToggleViewportRecording, ETriggerEvent::Started, this, &AMAPlayerController::OnToggleViewportRecording);
 
         // ========== HUD 状态管理输入 (UI Visual Redesign) ==========
         // Requirements: 10.4
@@ -561,25 +556,6 @@ void AMAPlayerController::OnTakePhoto(const FInputActionValue& Value)
     {
         GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green,
             FString::Printf(TEXT("%s: Photo saved"), *Camera->SensorName));
-    }
-}
-
-void AMAPlayerController::OnToggleRecording(const FInputActionValue& Value)
-{
-    UMACameraSensorComponent* Camera = GetCurrentCamera();
-    if (!Camera) return;
-
-    if (Camera->bIsRecording)
-    {
-        Camera->StopRecording();
-        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green,
-            FString::Printf(TEXT("%s: Recording stopped"), *Camera->SensorName));
-    }
-    else
-    {
-        Camera->StartRecording(Camera->StreamFPS);
-        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red,
-            FString::Printf(TEXT("%s: Recording started"), *Camera->SensorName));
     }
 }
 
@@ -1896,36 +1872,5 @@ void AMAPlayerController::ExitEditMode()
     if (AMAHUD* HUD = Cast<AMAHUD>(GetHUD()))
     {
         HUD->HideEditWidget();
-    }
-}
-
-void AMAPlayerController::OnToggleViewportRecording(const FInputActionValue& Value)
-{
-    UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnToggleViewportRecording"));
-
-    UWorld* World = GetWorld();
-    if (!World)
-    {
-        return;
-    }
-
-    UMAViewportRecorder* ViewportRecorder = World->GetSubsystem<UMAViewportRecorder>();
-    if (ViewportRecorder)
-    {
-        ViewportRecorder->ToggleRecording();
-        
-        if (ViewportRecorder->IsRecording())
-        {
-            GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green, TEXT("Viewport Recording Started"));
-        }
-        else
-        {
-            GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Yellow, 
-                FString::Printf(TEXT("Viewport Recording Stopped (%d frames)"), ViewportRecorder->GetRecordedFrameCount()));
-        }
-    }
-    else
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] ViewportRecorder subsystem not found"));
     }
 }

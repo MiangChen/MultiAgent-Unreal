@@ -255,6 +255,54 @@ public:
     float ButtonCornerRadius;
 
     //=========================================================================
+    // 毛玻璃效果设置 (Frosted Glass)
+    //=========================================================================
+
+    /** 是否启用毛玻璃阴影 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FrostedGlass")
+    bool bFrostedGlassEnableShadow = true;
+
+    /** 是否启用毛玻璃边框 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FrostedGlass")
+    bool bFrostedGlassEnableBorder = true;
+
+    /** 是否启用毛玻璃光泽 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FrostedGlass")
+    bool bFrostedGlassEnableGloss = true;
+
+    /** 毛玻璃模糊强度 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FrostedGlass", meta = (ClampMin = "0.0", ClampMax = "100.0"))
+    float FrostedGlassBlurStrength = 25.0f;
+
+    /** 毛玻璃窗口圆角半径 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FrostedGlass", meta = (ClampMin = "0.0"))
+    float FrostedGlassCornerRadius = 16.0f;
+
+    /** 毛玻璃阴影偏移量 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FrostedGlass", meta = (ClampMin = "0.0"))
+    float FrostedGlassShadowOffset = 4.0f;
+
+    /** 毛玻璃阴影透明度 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FrostedGlass", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+    float FrostedGlassShadowOpacity = 0.35f;
+
+    /** 毛玻璃边框透明度 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FrostedGlass", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+    float FrostedGlassBorderOpacity = 0.15f;
+
+    /** 毛玻璃边框厚度 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FrostedGlass", meta = (ClampMin = "0.0"))
+    float FrostedGlassBorderThickness = 1.5f;
+
+    /** 毛玻璃光泽透明度 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FrostedGlass", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+    float FrostedGlassGlossOpacity = 0.03f;
+
+    /** 毛玻璃内容内边距 */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "FrostedGlass", meta = (ClampMin = "0.0"))
+    float FrostedGlassContentPadding = 10.0f;
+
+    //=========================================================================
     // 间距设置
     //=========================================================================
 

@@ -70,7 +70,6 @@ protected:
     void OnStartAvoid(const FInputActionValue& Value);
     void OnStartFormation(const FInputActionValue& Value);
     void OnTakePhoto(const FInputActionValue& Value);
-    void OnToggleRecording(const FInputActionValue& Value);
     void OnToggleTCPStream(const FInputActionValue& Value);
     
     // ========== 编组快捷键 (Ctrl+1~5 / 1~5) ==========
@@ -96,7 +95,7 @@ protected:
     
     // 切换 Modify 模式 (逗号键)
     void OnToggleModifyMode(const FInputActionValue& Value);
-    
+
     // 右键视角旋转
     void OnRightClickPressed(const FInputActionValue& Value);
     void OnRightClickReleased(const FInputActionValue& Value);
@@ -134,18 +133,15 @@ protected:
     // 跳跃 (空格键)
     void OnJumpPressed(const FInputActionValue& Value);
 
-    // Viewport 录制 (F9 键)
-    void OnToggleViewportRecording(const FInputActionValue& Value);
-
     // ========== HUD 状态管理输入 (UI Visual Redesign) ==========
     // Requirements: 10.4
-    
+
     /** 处理检查任务图输入 (Z 键) - 调用 HUDStateManager::HandleCheckTaskInput */
     void OnCheckTask(const FInputActionValue& Value);
-    
+
     /** 处理检查技能列表输入 (N 键) - 调用 HUDStateManager::HandleCheckSkillInput */
     void OnCheckSkill(const FInputActionValue& Value);
-    
+
     /** 处理检查突发事件输入 (X 键) - 调用 HUDStateManager::HandleCheckEmergencyInput */
     void OnCheckUnexpected(const FInputActionValue& Value);
 

@@ -49,6 +49,12 @@ protected:
     // 初始化 Edit Mode 管理器
     void InitializeEditModeManager();
 
+    // 初始化外部摄像头
+    void InitializeExternalCameras();
+
+    // 设置描边后处理效果
+    void SetupOutlinePostProcess();
+
 private:
     // 小地图管理器实例
     UPROPERTY()

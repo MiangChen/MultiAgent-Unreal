@@ -116,6 +116,13 @@ void UMATaskGraphPreview::BuildUI()
         return;
     }
     
+    // 在构建 UI 之前先从主题获取颜色
+    if (!Theme)
+    {
+        Theme = NewObject<UMAUITheme>();
+    }
+    BackgroundColor = Theme->CanvasBackgroundColor;
+    
     // 创建根 SizeBox
     RootSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("RootSizeBox"));
     if (!RootSizeBox)
@@ -700,11 +707,8 @@ void UMATaskGraphPreview::ApplyTheme(UMAUITheme* InTheme)
         return;
     }
     
-    // 应用背景颜色
-    BackgroundColor = Theme->BackgroundColor;
-    BackgroundColor.R -= 0.02f;
-    BackgroundColor.G -= 0.02f;
-    BackgroundColor.B -= 0.02f;
+    // 应用背景颜色 - 使用画布背景色保持与 SkillListPreview 一致
+    BackgroundColor = Theme->CanvasBackgroundColor;
     
     // 文本颜色
     TextColor = Theme->SecondaryTextColor;

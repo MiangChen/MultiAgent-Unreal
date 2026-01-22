@@ -1,0 +1,58 @@
+{
+  "agents": [
+    {
+      "type": "UAV",
+      "count": 2,
+      "instances": [
+        {
+          "label": "UAV_01",
+          "position": [600, 300, 0],
+          "rotation": [0, 0, 0]
+        },
+        {
+          "label": "UAV_02",
+          "position": [600, 500, 0],
+          "rotation": [0, 0, 0]
+        }
+      ]
+    },
+    {
+      "type": "UGV",
+      "count": 1,
+      "instances": [
+        {
+          "label": "UGV_01",
+          "position": [-500, 600, 0],
+          "rotation": [0, 0, 0]
+        }
+      ]
+    },
+    {
+      "type": "Quadruped",
+      "count": 2,
+      "instances": [
+        {
+          "label": "Quadruped_01",
+          "position": [0, 200, 0],
+          "rotation": [0, 0, 0]
+        },
+        {
+          "label": "Quadruped_02",
+          "position": [0, 400, 0],
+          "rotation": [0, 0, 0]
+        }
+      ]
+    },
+    {
+      "type": "Humanoid",
+      "count": 1,
+      "instances": [
+        {
+          "label": "Humanoid_01",
+          "position": [400, 600, 0],
+          "rotation": [0, 0, 0]
+        }
+      ]
+    }
+  ]
+}

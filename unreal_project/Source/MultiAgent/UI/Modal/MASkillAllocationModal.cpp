@@ -4,6 +4,7 @@
 
 #include "MASkillAllocationModal.h"
 #include "../Core/MAUITheme.h"
+#include "../Core/MARoundedBorderUtils.h"
 #include "../SkillAllocation/MAGanttCanvas.h"
 #include "../SkillAllocation/MASkillAllocationModel.h"
 #include "../../Core/Comm/MACommSubsystem.h"
@@ -175,12 +176,11 @@ void UMASkillAllocationModal::BuildContentArea(UVerticalBox* InContentContainer)
 
 void UMASkillAllocationModal::OnThemeApplied()
 {
-    // 应用主题到甘特图画布容器
+    // 应用主题到甘特图画布容器 - 使用画布背景色和圆角效果
     if (GanttCanvasContainer && Theme)
     {
-        FLinearColor CanvasBgColor = Theme->SecondaryColor;
-        CanvasBgColor.A = 0.5f;
-        GanttCanvasContainer->SetBrushColor(CanvasBgColor);
+        FLinearColor CanvasBgColor = Theme->CanvasBackgroundColor;
+        MARoundedBorderUtils::ApplyRoundedCorners(GanttCanvasContainer, CanvasBgColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
     }
     
     // 应用主题到 JSON 预览标签
@@ -261,14 +261,13 @@ UBorder* UMASkillAllocationModal::CreateGanttCanvasArea()
         return nullptr;
     }
     
-    // 设置背景颜色
-    FLinearColor BgColor = Theme ? Theme->SecondaryColor : FLinearColor(0.08f, 0.08f, 0.1f, 0.5f);
-    BgColor.A = 0.5f;
-    GanttCanvasContainer->SetBrushColor(BgColor);
+    // 设置背景颜色 - 使用画布背景色和圆角效果
+    FLinearColor BgColor = Theme ? Theme->CanvasBackgroundColor : FLinearColor(0.647f, 0.886f, 0.969f, 1.0f);
+    MARoundedBorderUtils::ApplyRoundedCorners(GanttCanvasContainer, BgColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
     GanttCanvasContainer->SetPadding(FMargin(4.0f));
     
     // 启用裁剪 - 确保甘特图内容不会溢出边界
-    GanttCanvasContainer->SetClipping(EWidgetClipping::ClipToBounds);
+    GanttCanvasContainer->SetClipping(EWidgetClipping::ClipToBoundsAlways);
     
     // 创建甘特图画布
     GanttCanvas = CreateWidget<UMAGanttCanvas>(this, UMAGanttCanvas::StaticClass());

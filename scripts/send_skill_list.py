@@ -26,7 +26,10 @@ import uuid
 
 # ========== 配置 ==========
 # 从 environment.json 读取的默认 RedBox 位置
-DEFAULT_REDBOX_POSITION = {"x": 300, "y": 2400, "z": 0}
+DEFAULT_REDBOX_POSITION = {"x": -2000, "y": 8800, "z": -155}
+
+# 运输目标位置
+TRANSPORT_DESTINATION = {"x": -8100, "y": 10100, "z": 0}
 
 # ========== 测试技能列表定义 ==========
 
@@ -66,15 +69,17 @@ SKILL_LIST_UAV_SEARCH = {
         "UAV_02": {"skill": "take_off", "params": {}}
     },
     "1": {
-        # UAV_01 搜索左半区域 (x: -1000 ~ 500)
+        # 原始搜索区域: (-7666,3674) (-5380,11669) (3650,11682) (3630,3675)
+        # 按 X 轴中点 (-2000) 划分为左右两半
+        # UAV_01 搜索左半区域 (x: -7666 ~ -2000)
         "UAV_01": {
             "skill": "search",
             "params": {
                 "search_area": [
-                    [-500, 1000],
-                    [1500, 1000],
-                    [1500, 2500],
-                    [-500, 2500]
+                    [-7666, 3674],
+                    [-5380, 11669],
+                    [-2000, 11669],
+                    [-2000, 3674]
                 ],
                 "target": {
                     "class": "object",
@@ -83,15 +88,16 @@ SKILL_LIST_UAV_SEARCH = {
                 }
             }
         },
-        # UAV_02 搜索右半区域 (x: 500 ~ 2000)
+        # UAV_02 搜索右半区域 (x: -2000 ~ 3650)
+        # RedBox 在 (-1200, 7100) 应该在这个区域内
         "UAV_02": {
             "skill": "search",
             "params": {
                 "search_area": [
-                    [-1000, 1000],
-                    [-2000, 1000],
-                    [-2000, 2500],
-                    [-500, 2500]
+                    [-2000, 3674],
+                    [-2000, 11669],
+                    [3650, 11682],
+                    [3630, 3675]
                 ],
                 "target": {
                     "class": "object",
@@ -100,12 +106,7 @@ SKILL_LIST_UAV_SEARCH = {
                 }
             }
         }
-    },
-    # "2": {
-    #     # 搜索完成后返航
-    #     "UAV_01": {"skill": "return_home", "params": {}},
-    #     "UAV_02": {"skill": "return_home", "params": {}}
-    # }
+    }
 }
 
 # ========== UGV+Humanoid 搬运技能列表 (第一阶段：导航到目标) ==========
@@ -122,11 +123,11 @@ def create_transport_skill_list_phase1(redbox_position=None):
         "0": {
             "UGV_01": {
                 "skill": "navigate",
-                "params": {"dest": {"x": redbox_position["x"] + 100, "y": redbox_position["y"] - 400, "z": 0}}
+                "params": {"dest": {"x": redbox_position["x"] + 100, "y": redbox_position["y"] - 300, "z": 0}}
             },
             "Humanoid_01": {
                 "skill": "navigate",
-                "params": {"dest": {"x": redbox_position["x"] - 100, "y": redbox_position["y"] - 200, "z": 0}}
+                "params": {"dest": {"x": redbox_position["x"] - 100, "y": redbox_position["y"] - 100, "z": 0}}
             },
             "UAV_01": {"skill": "return_home", "params": {}},
             "UAV_02": {"skill": "return_home", "params": {}}   
@@ -158,11 +159,11 @@ SKILL_LIST_TRANSPORT_PHASE2 = {
         # UGV 和 Humanoid 导航到终点
         "UGV_01": {
             "skill": "navigate",
-            "params": {"dest": {"x": -5100, "y": 2200, "z": 0}}
+            "params": {"dest": {"x": -8100, "y": 10100, "z": 0}}
         },
         "Humanoid_01": {
             "skill": "navigate",
-            "params": {"dest": {"x": -5200, "y": 2100, "z": 0}}
+            "params": {"dest": {"x": -8200, "y": 10000, "z": 0}}
         }
     },
     "1": {
@@ -363,11 +364,11 @@ SKILL_LIST_PLACE_COOP = {
     "0": {
         "UGV_01": {
             "skill": "navigate",
-            "params": {"dest": {"x": 400, "y": 1300, "z": 0}}
+            "params": {"dest": {"x": -1900, "y": 8500, "z": 0}}
         },
         "Humanoid_01": {
             "skill": "navigate",
-            "params": {"dest": {"x": 200, "y": 1850, "z": 0}}
+            "params": {"dest": {"x": -2100, "y": 8650, "z": 0}}
         }
     },
     "1": {

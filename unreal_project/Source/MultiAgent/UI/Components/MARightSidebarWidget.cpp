@@ -5,6 +5,7 @@
 #include "../Core/MAUITheme.h"
 #include "../Core/MAUIManager.h"
 #include "../Core/MARoundedBorderUtils.h"
+#include "../Core/MAFrostedGlassUtils.h"
 #include "MAStyledButton.h"
 #include "MATaskGraphPreview.h"
 #include "MASkillListPreview.h"
@@ -21,7 +22,11 @@
 #include "Components/TextBlock.h"
 #include "Components/SizeBox.h"
 #include "Components/Spacer.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
+#include "Components/BackgroundBlur.h"
 #include "GameFramework/PlayerController.h"
+#include "Styling/SlateTypes.h"
 
 //=============================================================================
 // 主题颜色辅助函数
@@ -116,7 +121,10 @@ void UMARightSidebarWidget::BuildUI()
     // 获取主题 (确保有可用的主题)
     UMAUITheme* CurrentTheme = GetOrCreateTheme(this);
     
-    // 创建根 SizeBox - 使用 WidgetTree 创建
+    // 获取毛玻璃配置
+    FMAFrostedGlassConfig GlassConfig = MAFrostedGlassUtils::GetConfigFromTheme(CurrentTheme);
+    
+    // 创建根 SizeBox - 控制侧边栏宽度
     RootSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("RootSizeBox"));
     if (!RootSizeBox)
     {
@@ -124,19 +132,49 @@ void UMARightSidebarWidget::BuildUI()
         return;
     }
     RootSizeBox->SetWidthOverride(SidebarWidth);
-    
-    // 设置为根 Widget
     WidgetTree->RootWidget = RootSizeBox;
     
-    // 创建背景边框 - 使用 WidgetTree 创建
-    SidebarBackground = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("SidebarBackground"));
-    if (!SidebarBackground)
+    // === 创建毛玻璃效果层级 ===
+    
+    // 1. 玻璃边框层
+    UBorder* GlassBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("RightSidebar_GlassBorder"));
+    if (GlassBorder)
     {
-        UE_LOG(LogMARightSidebar, Error, TEXT("BuildUI: Failed to create SidebarBackground"));
-        return;
+        FLinearColor GlassBorderColor(1.0f, 1.0f, 1.0f, GlassConfig.GlassBorderOpacity);
+        MARoundedBorderUtils::ApplyRoundedCorners(GlassBorder, GlassBorderColor, GlassConfig.CornerRadius);
+        // 增加 padding 以确保 BackgroundBlur 的矩形边缘被圆角边框覆盖
+        float EffectivePadding = FMath::Max(GlassConfig.GlassBorderThickness, GlassConfig.CornerRadius * 0.3f);
+        GlassBorder->SetPadding(FMargin(EffectivePadding));
+        // 启用裁剪，确保内容不会超出圆角边框
+        GlassBorder->SetClipping(EWidgetClipping::ClipToBoundsAlways);
+        RootSizeBox->AddChild(GlassBorder);
     }
-    SidebarBackground->SetBrushColor(CurrentTheme->BackgroundColor);
-    SidebarBackground->SetPadding(FMargin(8.0f));
+    
+    // 2. 模糊层
+    UBackgroundBlur* BlurBackground = WidgetTree->ConstructWidget<UBackgroundBlur>(UBackgroundBlur::StaticClass(), TEXT("RightSidebar_Blur"));
+    if (BlurBackground && GlassBorder)
+    {
+        BlurBackground->SetBlurStrength(GlassConfig.BlurStrength);
+        BlurBackground->SetApplyAlphaToBlur(true);
+        // 设置低质量回退画刷为透明，避免黑色背景
+        FSlateBrush TransparentFallbackBrush;
+        TransparentFallbackBrush.TintColor = FSlateColor(FLinearColor::Transparent);
+        BlurBackground->SetLowQualityFallbackBrush(TransparentFallbackBrush);
+        // 增加模糊层的 padding，使其边缘更靠内，避免超出圆角边框
+        float BlurPadding = 8.0f + GlassConfig.CornerRadius * 0.15f;
+        BlurBackground->SetPadding(FMargin(BlurPadding));
+        GlassBorder->AddChild(BlurBackground);
+    }
+    
+    // 3. 光泽层作为内容容器
+    SidebarBackground = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("RightSidebar_Gloss"));
+    if (SidebarBackground && BlurBackground)
+    {
+        FLinearColor GlossColor(1.0f, 1.0f, 1.0f, GlassConfig.GlossOpacity);
+        MARoundedBorderUtils::ApplyRoundedCorners(SidebarBackground, GlossColor, GlassConfig.CornerRadius - 2.0f);
+        SidebarBackground->SetPadding(FMargin(0.0f));
+        BlurBackground->AddChild(SidebarBackground);
+    }
     
     // 创建边栏容器 - 使用 WidgetTree 创建
     SidebarContainer = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("SidebarContainer"));
@@ -209,8 +247,7 @@ void UMARightSidebarWidget::BuildUI()
     }
     
     // 组装层级
-    SidebarBackground->SetContent(SidebarContainer);
-    RootSizeBox->SetContent(SidebarBackground);
+    SidebarBackground->AddChild(SidebarContainer);
 }
 
 UWidget* UMARightSidebarWidget::CreateCommandSection()

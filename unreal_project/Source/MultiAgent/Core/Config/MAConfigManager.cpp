@@ -55,7 +55,18 @@ FString UMAConfigManager::GetSceneGraphFilePath() const
         UE_LOG(LogMAConfig, Warning, TEXT("GetSceneGraphFilePath: SceneGraphPath not configured, using default"));
         return FPaths::ProjectDir() / TEXT("datasets/scene_graph_cyberworld.json");
     }
-    return FPaths::ProjectDir() / SceneGraphPath;
+    
+    FString FullPath = FPaths::ProjectDir() / SceneGraphPath;
+    
+    // 检查路径是否以 .json 结尾
+    if (!SceneGraphPath.EndsWith(TEXT(".json"), ESearchCase::IgnoreCase))
+    {
+        // 路径是文件夹，追加 scene_graph.json
+        FullPath = FullPath / TEXT("scene_graph.json");
+        UE_LOG(LogMAConfig, Log, TEXT("GetSceneGraphFilePath: Path is a folder, appending scene_graph.json: %s"), *FullPath);
+    }
+    
+    return FullPath;
 }
 
 //=============================================================================

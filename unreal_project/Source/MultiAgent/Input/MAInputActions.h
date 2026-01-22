@@ -83,9 +83,6 @@ public:
     TObjectPtr<UInputAction> IA_TakePhoto;
 
     UPROPERTY(BlueprintReadOnly, Category = "Input")
-    TObjectPtr<UInputAction> IA_ToggleRecording;
-
-    UPROPERTY(BlueprintReadOnly, Category = "Input")
     TObjectPtr<UInputAction> IA_ToggleTCPStream;
 
     // ========== 编组快捷键 (星际争霸风格) ==========
@@ -171,10 +168,6 @@ public:
     /** 跳跃输入 (空格键，用于地面单位跳跃) */
     UPROPERTY(BlueprintReadOnly, Category = "Input")
     TObjectPtr<UInputAction> IA_Jump;
-
-    /** 切换 Viewport 录制 (F9 键) */
-    UPROPERTY(BlueprintReadOnly, Category = "Input")
-    TObjectPtr<UInputAction> IA_ToggleViewportRecording;
 
     // ========== Input Mapping Contexts ==========
     

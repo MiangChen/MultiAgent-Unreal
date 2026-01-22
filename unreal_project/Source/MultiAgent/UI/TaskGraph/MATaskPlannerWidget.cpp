@@ -9,6 +9,7 @@
 #include "../../Core/Comm/MACommSubsystem.h"
 #include "../../Core/Manager/MATempDataManager.h"
 #include "../Core/MARoundedBorderUtils.h"
+#include "../Core/MAFrostedGlassUtils.h"
 #include "../Core/MAUITheme.h"
 #include "../Components/MAStyledButton.h"
 #include "../Core/MAUIManager.h"
@@ -27,6 +28,7 @@
 #include "Components/VerticalBoxSlot.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/Spacer.h"
+#include "Components/BackgroundBlur.h"
 #include "Blueprint/WidgetTree.h"
 #include "Misc/DateTime.h"
 #include "Misc/FileHelper.h"
@@ -206,6 +208,15 @@ void UMATaskPlannerWidget::BuildUI()
     
     UE_LOG(LogMATaskPlanner, Log, TEXT("BuildUI: Starting UI construction..."));
 
+    // 在构建 UI 之前先从主题获取颜色
+    if (!Theme)
+    {
+        // 创建默认主题作为 fallback
+        Theme = NewObject<UMAUITheme>();
+    }
+    BackgroundColor = Theme->BackgroundColor;
+    PanelBackgroundColor = Theme->CanvasBackgroundColor;
+
     // Create data model
     GraphModel = NewObject<UMATaskGraphModel>(this, TEXT("GraphModel"));
 
@@ -227,21 +238,25 @@ void UMATaskPlannerWidget::BuildUI()
     OverlaySlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
     OverlaySlot->SetOffsets(FMargin(0.0f));
 
-    // Create main background Border - windowed mode (80% width, 85% height, centered)
-    UBorder* MainBackground = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("MainBackground"));
-    MainBackground->SetPadding(FMargin(10.0f));
+    // === 使用 MAFrostedGlassUtils 创建毛玻璃效果容器 ===
+    FMAFrostedGlassResult FrostedGlass = MAFrostedGlassUtils::CreateFromTheme(
+        WidgetTree,
+        RootCanvas,
+        Theme,
+        FAnchors(0.1f, 0.075f, 0.9f, 0.925f),  // 窗口位置：居中 80% 宽度，85% 高度
+        FMargin(0.0f),
+        TEXT("TaskPlanner")
+    );
     
-    // Apply rounded corners using MARoundedBorderUtils (Requirements 4.1)
-    MARoundedBorderUtils::ApplyRoundedCorners(MainBackground, BackgroundColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
-    
-    UCanvasPanelSlot* MainSlot = RootCanvas->AddChildToCanvas(MainBackground);
-    // Windowed mode: centered with 80% width and 85% height (Requirements 6.7, 6.8)
-    MainSlot->SetAnchors(FAnchors(0.1f, 0.075f, 0.9f, 0.925f));  // 10% margin on sides, 7.5% on top/bottom
-    MainSlot->SetOffsets(FMargin(0.0f));
+    if (!FrostedGlass.IsValid())
+    {
+        UE_LOG(LogMATaskPlanner, Error, TEXT("BuildUI: Failed to create frosted glass container!"));
+        return;
+    }
 
     // Create main vertical layout (title bar + content)
     UVerticalBox* MainVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("MainVBox"));
-    MainBackground->AddChild(MainVBox);
+    FrostedGlass.ContentContainer->AddChild(MainVBox);
 
     // Create title bar with close button
     UHorizontalBox* TitleBar = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("TitleBar"));
@@ -255,8 +270,8 @@ void UMATaskPlannerWidget::BuildUI()
     FSlateFontInfo TitleFont = TitleText->GetFont();
     TitleFont.Size = 16;
     TitleText->SetFont(TitleFont);
-    // 标题在深色背景上，使用 LabelTextColor（浅色）而不是 TextColor（黑色）
-    FLinearColor TitleTextColor = Theme ? Theme->LabelTextColor : FLinearColor(0.9f, 0.9f, 1.0f, 1.0f);
+    // 标题在毛玻璃背景上，使用深色文字
+    FLinearColor TitleTextColor = Theme ? Theme->TextColor : FLinearColor(0.1f, 0.1f, 0.1f, 1.0f);
     TitleText->SetColorAndOpacity(FSlateColor(TitleTextColor));
     
     UHorizontalBoxSlot* TitleTextSlot = TitleBar->AddChildToHorizontalBox(TitleText);
@@ -397,13 +412,13 @@ UVerticalBox* UMATaskPlannerWidget::CreateStatusLogSection()
     StatusLogBox->SetIsReadOnly(true);
     StatusLogBox->SetText(FText::GetEmpty());
     
-    // 设置文本样式：纯黑色，字号 12，透明背景
+    // 设置文本样式：使用主题输入文字颜色，字号 12，透明背景
     FEditableTextBoxStyle StatusLogStyle;
-    FSlateColor BlackColor = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
-    StatusLogStyle.SetForegroundColor(BlackColor);
-    StatusLogStyle.SetFocusedForegroundColor(BlackColor);
-    StatusLogStyle.SetReadOnlyForegroundColor(BlackColor);
-    StatusLogStyle.TextStyle.ColorAndOpacity = BlackColor;
+    FSlateColor StatusLogSlateColor = FSlateColor(Theme ? Theme->InputTextColor : FLinearColor::White);
+    StatusLogStyle.SetForegroundColor(StatusLogSlateColor);
+    StatusLogStyle.SetFocusedForegroundColor(StatusLogSlateColor);
+    StatusLogStyle.SetReadOnlyForegroundColor(StatusLogSlateColor);
+    StatusLogStyle.TextStyle.ColorAndOpacity = StatusLogSlateColor;
     FSlateFontInfo StatusLogFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
     StatusLogStyle.SetFont(StatusLogFont);
     
@@ -421,8 +436,8 @@ UVerticalBox* UMATaskPlannerWidget::CreateStatusLogSection()
     StatusLogBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("StatusLogBorder"));
     StatusLogBorder->SetPadding(FMargin(8.0f, 4.0f));
     
-    // 应用圆角效果 - 只读文本框使用主题输入框背景色（稍微变暗表示只读）
-    FLinearColor StatusLogBgColor = Theme ? FLinearColor(Theme->InputBackgroundColor.R * 0.85f, Theme->InputBackgroundColor.G * 0.85f, Theme->InputBackgroundColor.B * 0.85f, 1.0f) : FLinearColor(0.85f, 0.85f, 0.85f, 1.0f);
+    // 应用圆角效果 - 只读文本框使用主题输入框背景色
+    FLinearColor StatusLogBgColor = Theme ? Theme->InputBackgroundColor : FLinearColor(0.22f, 0.22f, 0.22f, 0.7f);
     MARoundedBorderUtils::ApplyRoundedCorners(StatusLogBorder, StatusLogBgColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
     
     StatusLogBorder->AddChild(StatusLogBox);
@@ -454,11 +469,11 @@ UVerticalBox* UMATaskPlannerWidget::CreateJsonEditorSection()
     JsonEditorBox->SetIsReadOnly(false);
     JsonEditorBox->SetText(FText::FromString(TEXT("{\n  \"description\": \"\",\n  \"nodes\": [],\n  \"edges\": []\n}")));
     
-    // 设置文本样式：纯黑色，字号 12，透明背景
+    // 设置文本样式：使用主题输入文字颜色，字号 12，透明背景
     FEditableTextBoxStyle JsonEditorStyle;
-    FSlateColor BlackColor2 = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
-    JsonEditorStyle.SetForegroundColor(BlackColor2);
-    JsonEditorStyle.SetFocusedForegroundColor(BlackColor2);
+    FSlateColor JsonEditorSlateColor = FSlateColor(Theme ? Theme->InputTextColor : FLinearColor::White);
+    JsonEditorStyle.SetForegroundColor(JsonEditorSlateColor);
+    JsonEditorStyle.SetFocusedForegroundColor(JsonEditorSlateColor);
     FSlateFontInfo JsonEditorFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
     JsonEditorStyle.SetFont(JsonEditorFont);
     
@@ -537,11 +552,11 @@ UVerticalBox* UMATaskPlannerWidget::CreateUserInputSection()
     UserInputBox->SetIsReadOnly(false);
     UserInputBox->SetHintText(FText::FromString(TEXT("Enter natural language command, e.g.: Have the robot patrol...")));
     
-    // 设置文本样式：纯黑色，字号 12，透明背景
+    // 设置文本样式：使用主题输入文字颜色，字号 12，透明背景
     FEditableTextBoxStyle UserInputStyle;
-    FSlateColor BlackColor3 = FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
-    UserInputStyle.SetForegroundColor(BlackColor3);
-    UserInputStyle.SetFocusedForegroundColor(BlackColor3);
+    FSlateColor UserInputSlateColor = FSlateColor(Theme ? Theme->InputTextColor : FLinearColor::White);
+    UserInputStyle.SetForegroundColor(UserInputSlateColor);
+    UserInputStyle.SetFocusedForegroundColor(UserInputSlateColor);
     FSlateFontInfo UserInputFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
     UserInputStyle.SetFont(UserInputFont);
     

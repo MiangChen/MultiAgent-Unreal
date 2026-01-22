@@ -2,12 +2,14 @@
 
 #include "MAViewportManager.h"
 #include "MAAgentManager.h"
+#include "MAExternalCameraManager.h"
 #include "../Agent/Character/MACharacter.h"
 #include "../Agent/Character/MAUAVCharacter.h"
 #include "../Agent/Component/Sensor/MACameraSensorComponent.h"
 #include "../Input/MAAgentInputComponent.h"
 #include "../../UI/HUD/MAHUD.h"
 #include "Engine/Engine.h"
+#include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/PlayerController.h"
 
@@ -38,6 +40,51 @@ void UMAViewportManager::CollectCameras(TArray<UMACameraSensorComponent*>& OutCa
     }
 }
 
+void UMAViewportManager::CollectAllCameraEntries(TArray<FMAViewportCameraEntry>& OutEntries) const
+{
+    OutEntries.Empty();
+
+    // 1. 先添加外部摄像头
+    UMAExternalCameraManager* ExternalCameraManager = GetWorld()->GetSubsystem<UMAExternalCameraManager>();
+    if (ExternalCameraManager)
+    {
+        int32 ExternalCount = ExternalCameraManager->GetExternalCameraCount();
+        for (int32 i = 0; i < ExternalCount; ++i)
+        {
+            ACameraActor* Camera = ExternalCameraManager->GetExternalCameraByIndex(i);
+            if (Camera)
+            {
+                FMAViewportCameraEntry Entry;
+                Entry.Type = EMAViewportCameraType::ExternalCamera;
+                Entry.ExternalCamera = Camera;
+                Entry.CameraName = ExternalCameraManager->GetCameraName(i);
+                OutEntries.Add(Entry);
+            }
+        }
+    }
+
+    // 2. 再添加 Agent 相机
+    UMAAgentManager* AgentManager = GetWorld()->GetSubsystem<UMAAgentManager>();
+    if (AgentManager)
+    {
+        for (AMACharacter* Agent : AgentManager->GetAllAgents())
+        {
+            if (Agent)
+            {
+                if (UMACameraSensorComponent* Camera = Agent->GetCameraSensor())
+                {
+                    FMAViewportCameraEntry Entry;
+                    Entry.Type = EMAViewportCameraType::AgentCamera;
+                    Entry.Agent = Agent;
+                    Entry.AgentCamera = Camera;
+                    Entry.CameraName = Agent->AgentName;
+                    OutEntries.Add(Entry);
+                }
+            }
+        }
+    }
+}
+
 TArray<UMACameraSensorComponent*> UMAViewportManager::GetAllCameras() const
 {
     TArray<UMACameraSensorComponent*> Cameras;
@@ -46,27 +93,40 @@ TArray<UMACameraSensorComponent*> UMAViewportManager::GetAllCameras() const
     return Cameras;
 }
 
+int32 UMAViewportManager::GetTotalCameraCount() const
+{
+    TArray<FMAViewportCameraEntry> Entries;
+    CollectAllCameraEntries(Entries);
+    return Entries.Num();
+}
+
 UMACameraSensorComponent* UMAViewportManager::GetCurrentCamera() const
 {
-    TArray<UMACameraSensorComponent*> Cameras;
-    TArray<AMACharacter*> Owners;
-    CollectCameras(Cameras, Owners);
+    TArray<FMAViewportCameraEntry> Entries;
+    CollectAllCameraEntries(Entries);
 
-    if (Cameras.Num() == 0) return nullptr;
+    if (Entries.Num() == 0) return nullptr;
 
-    int32 Index = (CurrentCameraIndex >= 0 && CurrentCameraIndex < Cameras.Num()) ? CurrentCameraIndex : 0;
-    return Cameras[Index];
+    if (CurrentCameraIndex >= 0 && CurrentCameraIndex < Entries.Num())
+    {
+        const FMAViewportCameraEntry& Entry = Entries[CurrentCameraIndex];
+        if (Entry.Type == EMAViewportCameraType::AgentCamera)
+        {
+            return Entry.AgentCamera;
+        }
+    }
+
+    return nullptr;
 }
 
 void UMAViewportManager::SwitchToNextCamera(APlayerController* PC)
 {
     if (!PC) return;
 
-    TArray<UMACameraSensorComponent*> Cameras;
-    TArray<AMACharacter*> Owners;
-    CollectCameras(Cameras, Owners);
+    TArray<FMAViewportCameraEntry> Entries;
+    CollectAllCameraEntries(Entries);
 
-    if (Cameras.Num() == 0) return;
+    if (Entries.Num() == 0) return;
 
     // 保存原始 Pawn
     if (!OriginalPawn.IsValid() && PC->GetPawn())
@@ -75,22 +135,44 @@ void UMAViewportManager::SwitchToNextCamera(APlayerController* PC)
     }
 
     // 切换到下一个
-    CurrentCameraIndex = (CurrentCameraIndex + 1) % Cameras.Num();
+    CurrentCameraIndex = (CurrentCameraIndex + 1) % Entries.Num();
 
-    AMACharacter* TargetAgent = Owners[CurrentCameraIndex];
-    if (TargetAgent)
+    const FMAViewportCameraEntry& Entry = Entries[CurrentCameraIndex];
+
+    if (Entry.Type == EMAViewportCameraType::ExternalCamera)
     {
-        PC->SetViewTargetWithBlend(TargetAgent, 0.3f);
+        // 外部摄像头：退出 Agent View Mode，切换到摄像头视角
+        ExitAgentViewMode();
         
-        // 进入 Agent View Mode，启用直接控制
-        EnterAgentViewMode(TargetAgent);
-        
-        // 显示 Direct Control 消息
-        GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green,
-            FString::Printf(TEXT("Direct Control: %s (%d/%d)"), 
-                *TargetAgent->AgentName, 
-                CurrentCameraIndex + 1, 
-                Cameras.Num()));
+        if (Entry.ExternalCamera)
+        {
+            PC->SetViewTargetWithBlend(Entry.ExternalCamera, 0.3f);
+            
+            GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Yellow,
+                FString::Printf(TEXT("Camera: %s (%d/%d)"), 
+                    *Entry.CameraName, 
+                    CurrentCameraIndex + 1, 
+                    Entries.Num()));
+        }
+    }
+    else if (Entry.Type == EMAViewportCameraType::AgentCamera)
+    {
+        // Agent 相机：进入 Agent View Mode
+        AMACharacter* TargetAgent = Entry.Agent.Get();
+        if (TargetAgent)
+        {
+            PC->SetViewTargetWithBlend(TargetAgent, 0.3f);
+            
+            // 进入 Agent View Mode，启用直接控制
+            EnterAgentViewMode(TargetAgent);
+            
+            // 显示 Direct Control 消息
+            GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green,
+                FString::Printf(TEXT("Direct Control: %s (%d/%d)"), 
+                    *TargetAgent->AgentName, 
+                    CurrentCameraIndex + 1, 
+                    Entries.Num()));
+        }
     }
 }
 

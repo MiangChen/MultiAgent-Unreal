@@ -5,6 +5,7 @@
 #include "../Components/MAStyledButton.h"
 #include "../Core/MAUITheme.h"
 #include "../Core/MARoundedBorderUtils.h"
+#include "../Core/MAFrostedGlassUtils.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/Border.h"
@@ -16,7 +17,9 @@
 #include "Components/SizeBox.h"
 #include "Components/Spacer.h"
 #include "Components/Button.h"
+#include "Components/BackgroundBlur.h"
 #include "Blueprint/WidgetTree.h"
+#include "Styling/SlateTypes.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMABaseModal, Log, All);
 
@@ -201,6 +204,32 @@ void UMABaseModalWidget::BuildUI()
         BackgroundOverlay->SetVisibility(ESlateVisibility::Visible);
     }
 
+    // === 使用毛玻璃效果创建模态背景 ===
+    // 获取毛玻璃配置
+    FMAFrostedGlassConfig GlassConfig = MAFrostedGlassUtils::GetConfigFromTheme(Theme);
+    
+    // 1. 创建阴影层 (必须在 ModalSizeBox 之前添加，这样阴影才会在弹窗下面)
+    UBorder* ShadowBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("Modal_Shadow"));
+    if (ShadowBorder)
+    {
+        FLinearColor ShadowColor(0.0f, 0.0f, 0.0f, GlassConfig.ShadowOpacity);
+        MARoundedBorderUtils::ApplyRoundedCorners(ShadowBorder, ShadowColor, GlassConfig.CornerRadius);
+        ShadowBorder->SetPadding(FMargin(0.0f));
+        
+        // 阴影作为独立元素添加到 RootPanel，位置与 ModalSizeBox 相同但有偏移
+        RootPanel->AddChild(ShadowBorder);
+        if (UCanvasPanelSlot* ShadowSlot = Cast<UCanvasPanelSlot>(ShadowBorder->Slot))
+        {
+            // 使用与 ModalSizeBox 相同的锚点和对齐方式
+            ShadowSlot->SetAnchors(FAnchors(0.55f, 0.5f, 0.55f, 0.5f));
+            ShadowSlot->SetAlignment(FVector2D(0.5f, 0.5f));
+            // 阴影偏移：向右下偏移
+            ShadowSlot->SetPosition(FVector2D(GlassConfig.ShadowOffset, GlassConfig.ShadowOffset));
+            ShadowSlot->SetSize(FVector2D(ModalWidth, ModalHeight));
+            ShadowSlot->SetAutoSize(false);
+        }
+    }
+
     // 创建模态 SizeBox (用于控制模态大小和居中偏右)
     ModalSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("ModalSizeBox"));
     if (ModalSizeBox)
@@ -223,23 +252,48 @@ void UMABaseModalWidget::BuildUI()
         ModalSizeBox->SetHeightOverride(ModalHeight);
     }
 
-    // 创建模态背景边框 (圆角)
-    BackgroundBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("BackgroundBorder"));
-    if (BackgroundBorder && ModalSizeBox)
+    // 2. 创建玻璃边框层
+    UBorder* GlassBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("Modal_GlassBorder"));
+    if (GlassBorder && ModalSizeBox)
     {
-        ModalSizeBox->AddChild(BackgroundBorder);
-        
-        // 应用圆角效果 (Requirements: 3.1, 3.2)
-        MARoundedBorderUtils::ApplyRoundedCornersFromTheme(
-            BackgroundBorder, 
-            Theme, 
-            EMARoundedElementType::Panel
-        );
-        
-        // 设置内边距
-        FMargin Padding = Theme ? Theme->ContentPadding : FMargin(20.0f);
-        BackgroundBorder->SetPadding(Padding);
+        FLinearColor GlassBorderColor(1.0f, 1.0f, 1.0f, GlassConfig.GlassBorderOpacity);
+        MARoundedBorderUtils::ApplyRoundedCorners(GlassBorder, GlassBorderColor, GlassConfig.CornerRadius);
+        // 增加 padding 以确保 BackgroundBlur 的矩形边缘被圆角边框覆盖
+        float EffectivePadding = FMath::Max(GlassConfig.GlassBorderThickness, GlassConfig.CornerRadius * 0.3f);
+        GlassBorder->SetPadding(FMargin(EffectivePadding));
+        // 启用裁剪，确保内容不会超出圆角边框
+        GlassBorder->SetClipping(EWidgetClipping::ClipToBoundsAlways);
+        ModalSizeBox->AddChild(GlassBorder);
     }
+    
+    // 3. 创建模糊层
+    UBackgroundBlur* BlurBackground = WidgetTree->ConstructWidget<UBackgroundBlur>(UBackgroundBlur::StaticClass(), TEXT("Modal_Blur"));
+    if (BlurBackground && GlassBorder)
+    {
+        BlurBackground->SetBlurStrength(GlassConfig.BlurStrength);
+        BlurBackground->SetApplyAlphaToBlur(true);
+        // 设置低质量回退画刷为透明，避免黑色背景
+        FSlateBrush TransparentFallbackBrush;
+        TransparentFallbackBrush.TintColor = FSlateColor(FLinearColor::Transparent);
+        BlurBackground->SetLowQualityFallbackBrush(TransparentFallbackBrush);
+        // 增加模糊层的 padding，使其边缘更靠内，避免超出圆角边框
+        float BlurPadding = GlassConfig.ContentPadding + GlassConfig.CornerRadius * 0.15f;
+        BlurBackground->SetPadding(FMargin(BlurPadding));
+        GlassBorder->AddChild(BlurBackground);
+    }
+    
+    // 4. 创建光泽层
+    UBorder* GlossOverlay = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("Modal_Gloss"));
+    if (GlossOverlay && BlurBackground)
+    {
+        FLinearColor GlossColor(1.0f, 1.0f, 1.0f, GlassConfig.GlossOpacity);
+        MARoundedBorderUtils::ApplyRoundedCorners(GlossOverlay, GlossColor, GlassConfig.CornerRadius - 2.0f);
+        GlossOverlay->SetPadding(FMargin(0.0f));
+        BlurBackground->AddChild(GlossOverlay);
+    }
+    
+    // BackgroundBorder 现在指向光泽层作为内容容器
+    BackgroundBorder = GlossOverlay;
 
     // 创建模态内容垂直布局
     ModalVerticalBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("ModalVerticalBox"));

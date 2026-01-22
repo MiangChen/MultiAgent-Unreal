@@ -4,6 +4,7 @@
 
 #include "MATaskGraphModal.h"
 #include "../Core/MAUITheme.h"
+#include "../Core/MARoundedBorderUtils.h"
 #include "../TaskGraph/MADAGCanvasWidget.h"
 #include "../TaskGraph/MATaskGraphModel.h"
 #include "Components/CanvasPanel.h"
@@ -172,12 +173,11 @@ void UMATaskGraphModal::BuildContentArea(UVerticalBox* InContentContainer)
 
 void UMATaskGraphModal::OnThemeApplied()
 {
-    // 应用主题到 DAG 画布容器
+    // 应用主题到 DAG 画布容器 - 使用画布背景色和圆角效果
     if (DAGCanvasContainer && Theme)
     {
-        FLinearColor CanvasBgColor = Theme->SecondaryColor;
-        CanvasBgColor.A = 0.5f;
-        DAGCanvasContainer->SetBrushColor(CanvasBgColor);
+        FLinearColor CanvasBgColor = Theme->CanvasBackgroundColor;
+        MARoundedBorderUtils::ApplyRoundedCorners(DAGCanvasContainer, CanvasBgColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
     }
     
     // 应用主题到 JSON 预览标签
@@ -264,14 +264,13 @@ UBorder* UMATaskGraphModal::CreateDAGCanvasArea()
         return nullptr;
     }
     
-    // 设置背景颜色
-    FLinearColor BgColor = Theme ? Theme->SecondaryColor : FLinearColor(0.08f, 0.08f, 0.1f, 0.5f);
-    BgColor.A = 0.5f;
-    DAGCanvasContainer->SetBrushColor(BgColor);
+    // 设置背景颜色 - 使用画布背景色和圆角效果
+    FLinearColor BgColor = Theme ? Theme->CanvasBackgroundColor : FLinearColor(0.647f, 0.886f, 0.969f, 1.0f);
+    MARoundedBorderUtils::ApplyRoundedCorners(DAGCanvasContainer, BgColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
     DAGCanvasContainer->SetPadding(FMargin(4.0f));
     
     // 启用裁剪 - 确保 DAG 内容不会溢出边界
-    DAGCanvasContainer->SetClipping(EWidgetClipping::ClipToBounds);
+    DAGCanvasContainer->SetClipping(EWidgetClipping::ClipToBoundsAlways);
     
     // 创建 DAG 画布
     DAGCanvas = CreateWidget<UMADAGCanvasWidget>(this, UMADAGCanvasWidget::StaticClass());

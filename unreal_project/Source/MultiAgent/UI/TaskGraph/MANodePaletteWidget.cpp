@@ -3,6 +3,7 @@
 
 #include "MANodePaletteWidget.h"
 #include "../Core/MAUITheme.h"
+#include "../Core/MARoundedBorderUtils.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "Components/ScrollBox.h"
@@ -95,14 +96,14 @@ void UMANodePaletteWidget::BuildUI()
     
     UE_LOG(LogMANodePalette, Log, TEXT("BuildUI: Starting UI construction..."));
 
-    // 创建根 Border 作为背景
+    // 创建根 Border 作为背景 - 使用圆角效果
     BackgroundBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("BackgroundBorder"));
     if (!BackgroundBorder)
     {
         UE_LOG(LogMANodePalette, Error, TEXT("BuildUI: Failed to create BackgroundBorder!"));
         return;
     }
-    BackgroundBorder->SetBrushColor(BackgroundColor);
+    MARoundedBorderUtils::ApplyRoundedCorners(BackgroundBorder, BackgroundColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
     BackgroundBorder->SetPadding(FMargin(10.0f));
     WidgetTree->RootWidget = BackgroundBorder;
 
@@ -429,10 +430,10 @@ void UMANodePaletteWidget::ApplyTheme(UMAUITheme* InTheme)
     ButtonHoverColor = Theme->HighlightColor;
     ButtonTextColor = Theme->TextColor;
     
-    // 更新背景颜色
+    // 更新背景颜色 - 使用圆角效果
     if (BackgroundBorder)
     {
-        BackgroundBorder->SetBrushColor(BackgroundColor);
+        MARoundedBorderUtils::ApplyRoundedCorners(BackgroundBorder, BackgroundColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
     }
     
     // 更新标题颜色

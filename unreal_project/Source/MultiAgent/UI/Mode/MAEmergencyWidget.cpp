@@ -14,6 +14,7 @@
 #include "Components/VerticalBoxSlot.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/SizeBox.h"
+#include "Components/BackgroundBlur.h"
 #include "Blueprint/WidgetTree.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -21,6 +22,7 @@
 #include "MACameraSensorComponent.h"
 #include "../../Core/Comm/MACommSubsystem.h"
 #include "../Core/MARoundedBorderUtils.h"
+#include "../Core/MAFrostedGlassUtils.h"
 #include "../Core/MAUITheme.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMAEmergencyWidget, Log, All);
@@ -111,28 +113,39 @@ void UMAEmergencyWidget::BuildUI()
     WidgetTree->RootWidget = RootCanvas;
     
     //=========================================================================
-    // Create background border - semi-transparent dark background
+    // Create background using frosted glass effect
     // Position: (20, 100), Size: (960, 500)
     //=========================================================================
-    BackgroundBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("BackgroundBorder"));
-    if (BackgroundBorder)
+    
+    // 获取主题
+    if (!Theme)
     {
-        // Use theme color with fallback
-        FLinearColor BgColor = Theme ? Theme->BackgroundColor : FLinearColor(0.02f, 0.02f, 0.05f, 0.95f);
-        BackgroundBorder->SetBrushColor(BgColor);
-        BackgroundBorder->SetPadding(FMargin(20.0f));
-        
-        UCanvasPanelSlot* BorderSlot = RootCanvas->AddChildToCanvas(BackgroundBorder);
-        if (BorderSlot)
-        {
-            BorderSlot->SetAnchors(FAnchors(0.0f, 0.0f, 0.0f, 0.0f));
-            BorderSlot->SetPosition(FVector2D(20, 100));
-            BorderSlot->SetSize(FVector2D(960, 500));
-            BorderSlot->SetAutoSize(false);
-        }
-        
-        UE_LOG(LogMAEmergencyWidget, Log, TEXT("Created BackgroundBorder"));
+        Theme = NewObject<UMAUITheme>();
     }
+    
+    // === 使用 MAFrostedGlassUtils 创建毛玻璃效果面板 ===
+    FMAFrostedGlassResult FrostedGlass = MAFrostedGlassUtils::CreateFixedSizePanelFromTheme(
+        WidgetTree,
+        RootCanvas,
+        Theme,
+        FVector2D(20, 100),      // 位置
+        FVector2D(960, 500),     // 尺寸
+        FVector2D(0.0f, 0.0f),   // 对齐：左上角
+        FAnchors(0.0f, 0.0f, 0.0f, 0.0f),  // 锚点：左上角
+        TEXT("EmergencyPanel")
+    );
+    
+    if (!FrostedGlass.IsValid())
+    {
+        UE_LOG(LogMAEmergencyWidget, Error, TEXT("Failed to create frosted glass panel"));
+        return;
+    }
+    
+    // BackgroundBorder 指向内容容器
+    BackgroundBorder = FrostedGlass.ContentContainer;
+    BackgroundBorder->SetPadding(FMargin(20.0f));
+    
+    UE_LOG(LogMAEmergencyWidget, Log, TEXT("Created frosted glass BackgroundBorder"));
     
     // Create inner Canvas for layout
     UCanvasPanel* InnerCanvas = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("InnerCanvas"));

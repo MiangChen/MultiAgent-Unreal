@@ -4,6 +4,7 @@
 #include "MAGanttCanvas.h"
 #include "MASkillAllocationModel.h"
 #include "../Core/MAUITheme.h"
+#include "../Core/MARoundedBorderUtils.h"
 #include "Components/Border.h"
 #include "Components/CanvasPanel.h"
 #include "Blueprint/WidgetTree.h"
@@ -62,9 +63,10 @@ void UMAGanttCanvas::ApplyTheme(UMAUITheme* InTheme)
     PlaceholderColor.A = 0.8f;
     
     // 更新画布背景
+    // 更新画布背景颜色 - 使用圆角效果
     if (CanvasBackground)
     {
-        CanvasBackground->SetBrushColor(CanvasBackgroundColor);
+        MARoundedBorderUtils::ApplyRoundedCorners(CanvasBackground, CanvasBackgroundColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
     }
     
     // 刷新技能条颜色
@@ -331,13 +333,20 @@ void UMAGanttCanvas::BuildUI()
 
     UE_LOG(LogMAGanttCanvas, Verbose, TEXT("BuildUI: Starting UI construction..."));
 
-    // 创建背景边框
+    // 在构建 UI 之前先从主题获取颜色
+    if (!Theme)
+    {
+        Theme = NewObject<UMAUITheme>();
+    }
+    CanvasBackgroundColor = Theme->CanvasBackgroundColor;
+
+    // 创建背景边框 - 使用圆角效果
     CanvasBackground = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("CanvasBackground"));
-    CanvasBackground->SetBrushColor(CanvasBackgroundColor);
+    MARoundedBorderUtils::ApplyRoundedCorners(CanvasBackground, CanvasBackgroundColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
     WidgetTree->RootWidget = CanvasBackground;
     
     // 启用裁剪 - 确保内容不会溢出边界
-    CanvasBackground->SetClipping(EWidgetClipping::ClipToBounds);
+    CanvasBackground->SetClipping(EWidgetClipping::ClipToBoundsAlways);
 
     UE_LOG(LogMAGanttCanvas, Verbose, TEXT("BuildUI: UI construction completed"));
 }

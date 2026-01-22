@@ -8,6 +8,7 @@
 #include "AIController.h"
 #include "Navigation/PathFollowingComponent.h"
 #include "NavigationSystem.h"
+#include "GameFramework/CharacterMovementComponent.h"
 
 USK_Navigate::USK_Navigate()
 {
@@ -134,36 +135,132 @@ void USK_Navigate::StartNavigation()
         return;
     }
     
+    // 调试：打印角色信息
+    UE_LOG(LogTemp, Log, TEXT("[SK_Navigate] %s: Starting ground navigation. AgentType=%d, Location=(%.0f, %.0f, %.0f), Target=(%.0f, %.0f, %.0f)"),
+        *Character->AgentName, (int32)Character->AgentType,
+        Character->GetActorLocation().X, Character->GetActorLocation().Y, Character->GetActorLocation().Z,
+        TargetLocation.X, TargetLocation.Y, TargetLocation.Z);
+    
     if (UPathFollowingComponent* PathComp = AICtrl->GetPathFollowingComponent())
     {
         PathComp->OnRequestFinished.AddUObject(this, &USK_Navigate::OnMoveCompleted);
+        
+        UE_LOG(LogTemp, Log, TEXT("[SK_Navigate] %s: PathFollowingComponent found - Status=%d, HasValidPath=%s"),
+            *Character->AgentName,
+            (int32)PathComp->GetStatus(),
+            PathComp->HasValidPath() ? TEXT("true") : TEXT("false"));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("[SK_Navigate] %s: No PathFollowingComponent!"), *Character->AgentName);
     }
     
     Character->ShowAbilityStatus(TEXT("Navigate"), FString::Printf(TEXT("-> (%.0f, %.0f)"), TargetLocation.X, TargetLocation.Y));
     Character->bIsMoving = true;
     
-    // // 将目标点投影到 NavMesh 上，确保目标可达
-    // FNavLocation ProjectedLocation;
-    // UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(Character->GetWorld());
-    // if (NavSys)
-    // {
-    //     FVector QueryExtent(500.f, 500.f, 500.f);
-    //     if (NavSys->ProjectPointToNavigation(TargetLocation, ProjectedLocation, QueryExtent))
-    //     {
-    //         if (!ProjectedLocation.Location.Equals(TargetLocation, 1.f))
-    //         {
-    //             TargetLocation = ProjectedLocation.Location;
-    //         }
-    //     }
-    // }
+    // 将目标点投影到 NavMesh 上，确保目标可达
+    FNavLocation ProjectedLocation;
+    UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(Character->GetWorld());
+    if (NavSys)
+    {
+        // 使用较大的查询范围来处理高度差
+        FVector QueryExtent(500.f, 500.f, 500.f);
+        if (NavSys->ProjectPointToNavigation(TargetLocation, ProjectedLocation, QueryExtent))
+        {
+            if (!ProjectedLocation.Location.Equals(TargetLocation, 1.f))
+            {
+                UE_LOG(LogTemp, Log, TEXT("[SK_Navigate] %s: Target projected from (%.0f, %.0f, %.0f) to (%.0f, %.0f, %.0f)"),
+                    *Character->AgentName,
+                    TargetLocation.X, TargetLocation.Y, TargetLocation.Z,
+                    ProjectedLocation.Location.X, ProjectedLocation.Location.Y, ProjectedLocation.Location.Z);
+                TargetLocation = ProjectedLocation.Location;
+            }
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[SK_Navigate] %s: Failed to project target (%.0f, %.0f, %.0f) to NavMesh"),
+                *Character->AgentName, TargetLocation.X, TargetLocation.Y, TargetLocation.Z);
+        }
+    }
+    
+    // 在调用 MoveToLocation 之前，先检查距离
+    float DistanceToTarget = FVector::Dist(Character->GetActorLocation(), TargetLocation);
+    UE_LOG(LogTemp, Log, TEXT("[SK_Navigate] %s: Distance to target BEFORE move: %.1f cm"), 
+        *Character->AgentName, DistanceToTarget);
     
     EPathFollowingRequestResult::Type Result = AICtrl->MoveToLocation(TargetLocation, AcceptanceRadius, true, true, false, true, nullptr);
+    
+    // 调试：打印导航请求结果和当前状态
+    UE_LOG(LogTemp, Log, TEXT("[SK_Navigate] %s: MoveToLocation result = %d (0=Failed, 1=AlreadyAtGoal, 2=RequestSuccessful)"),
+        *Character->AgentName, (int32)Result);
+    
+    // 打印 CharacterMovement 状态
+    if (UCharacterMovementComponent* MoveComp = Character->GetCharacterMovement())
+    {
+        UE_LOG(LogTemp, Log, TEXT("[SK_Navigate] %s: MovementMode=%d, Velocity=(%.1f, %.1f, %.1f), MaxSpeed=%.1f"),
+            *Character->AgentName,
+            (int32)MoveComp->MovementMode,
+            MoveComp->Velocity.X, MoveComp->Velocity.Y, MoveComp->Velocity.Z,
+            MoveComp->MaxWalkSpeed);
+    }
+    
+    // 打印 PathFollowingComponent 状态
+    if (UPathFollowingComponent* PathComp = AICtrl->GetPathFollowingComponent())
+    {
+        UE_LOG(LogTemp, Log, TEXT("[SK_Navigate] %s: PathStatus=%d, CurrentRequestID=%d, HasValidPath=%s"),
+            *Character->AgentName,
+            (int32)PathComp->GetStatus(),
+            PathComp->GetCurrentRequestId().GetID(),
+            PathComp->HasValidPath() ? TEXT("true") : TEXT("false"));
+    }
     
     // 保存当前请求 ID
     if (UPathFollowingComponent* PathComp = AICtrl->GetPathFollowingComponent())
     {
         CurrentRequestID = PathComp->GetCurrentRequestId();
         bHasActiveRequest = true;
+    }
+    
+    // 如果距离很远但 NavMesh 说成功，立即切换到手动导航
+    if (Result == EPathFollowingRequestResult::RequestSuccessful && DistanceToTarget > AcceptanceRadius * 3.f)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[SK_Navigate] %s: Distance %.1f too far for immediate success, will monitor for false success"),
+            *Character->AgentName, DistanceToTarget);
+        
+        // 设置一个短延迟检查，如果 0.5 秒后还没移动就切换手动导航
+        if (UWorld* World = Character->GetWorld())
+        {
+            FVector StartLocation = Character->GetActorLocation();
+            FTimerHandle CheckHandle;
+            
+            World->GetTimerManager().SetTimer(
+                CheckHandle,
+                [this, StartLocation, DistanceToTarget]()
+                {
+                    AMACharacter* Char = GetOwningCharacter();
+                    if (!Char || !bHasActiveRequest) return;
+                    
+                    float MovedDistance = FVector::Dist(Char->GetActorLocation(), StartLocation);
+                    if (MovedDistance < 50.f)  // 0.5秒内移动不到50cm
+                    {
+                        UE_LOG(LogTemp, Error, TEXT("[SK_Navigate] %s: NavMesh FALSE SUCCESS detected! Only moved %.1f cm in 0.5s, distance to target %.1f cm"),
+                            *Char->AgentName, MovedDistance, DistanceToTarget);
+                        
+                        // 取消 NavMesh 导航
+                        if (AAIController* AI = Cast<AAIController>(Char->GetController()))
+                        {
+                            AI->StopMovement();
+                        }
+                        
+                        // 切换到手动导航
+                        bHasActiveRequest = false;
+                        StartManualNavigation();
+                    }
+                },
+                0.5f,
+                false
+            );
+        }
     }
     
     if (Result == EPathFollowingRequestResult::Failed)
@@ -432,16 +529,63 @@ void USK_Navigate::CheckFlightArrival()
 
 void USK_Navigate::OnMoveCompleted(FAIRequestID RequestID, const FPathFollowingResult& Result)
 {
+    AMACharacter* Character = GetOwningCharacter();
+    
+    // 详细日志：记录回调信息
+    UE_LOG(LogTemp, Warning, TEXT("[SK_Navigate] %s: OnMoveCompleted called - RequestID=%d, CurrentRequestID=%d, bHasActiveRequest=%s, Result.Code=%d, IsSuccess=%s"),
+        Character ? *Character->AgentName : TEXT("NULL"),
+        RequestID.GetID(),
+        CurrentRequestID.GetID(),
+        bHasActiveRequest ? TEXT("true") : TEXT("false"),
+        (int32)Result.Code,
+        Result.IsSuccess() ? TEXT("true") : TEXT("false"));
+    
     // 检查是否是当前请求的回调（忽略旧请求的回调）
     if (!bHasActiveRequest || RequestID != CurrentRequestID)
     {
+        UE_LOG(LogTemp, Warning, TEXT("[SK_Navigate] %s: Ignoring callback - not current request"), 
+            Character ? *Character->AgentName : TEXT("NULL"));
         return;
     }
     
     bHasActiveRequest = false;
-    AMACharacter* Character = GetOwningCharacter();
     
-    if (Character) Character->ShowStatus(TEXT(""), 0.f);
+    if (Character) 
+    {
+        Character->ShowStatus(TEXT(""), 0.f);
+        
+        // 检查是否真的到达了目标
+        float ActualDistance = FVector::Dist(Character->GetActorLocation(), TargetLocation);
+        UE_LOG(LogTemp, Warning, TEXT("[SK_Navigate] %s: Actual distance to target: %.1f cm (AcceptanceRadius=%.1f)"),
+            *Character->AgentName, ActualDistance, AcceptanceRadius);
+        
+        // 如果距离太远但报告成功，这是一个假成功 - 切换到手动导航
+        if (Result.IsSuccess() && ActualDistance > AcceptanceRadius * 2.f)
+        {
+            UE_LOG(LogTemp, Error, TEXT("[SK_Navigate] %s: FALSE SUCCESS! Distance %.1f > threshold %.1f, switching to manual navigation"),
+                *Character->AgentName, ActualDistance, AcceptanceRadius * 2.f);
+            
+            // 不结束技能，而是切换到手动导航
+            StartManualNavigation();
+            return;
+        }
+        
+        // 如果 NavMesh 报告 Blocked/OffPath 但距离还很远，尝试手动导航
+        if (!Result.IsSuccess() && ActualDistance > AcceptanceRadius * 2.f)
+        {
+            if (Result.Code == EPathFollowingResult::Blocked || Result.Code == EPathFollowingResult::OffPath)
+            {
+                UE_LOG(LogTemp, Warning, TEXT("[SK_Navigate] %s: NavMesh %s (distance %.1f), trying manual navigation"),
+                    *Character->AgentName, 
+                    Result.Code == EPathFollowingResult::Blocked ? TEXT("BLOCKED") : TEXT("OFF_PATH"),
+                    ActualDistance);
+                
+                // 切换到手动导航而不是放弃
+                StartManualNavigation();
+                return;
+            }
+        }
+    }
     
     // 根据结果码设置成功状态和消息
     bNavigationSucceeded = Result.IsSuccess();
@@ -465,6 +609,9 @@ void USK_Navigate::OnMoveCompleted(FAIRequestID RequestID, const FPathFollowingR
             NavigationResultMessage = TEXT("Navigate failed: Unknown error"); 
             break;
     }
+    
+    UE_LOG(LogTemp, Warning, TEXT("[SK_Navigate] %s: Navigation completed - %s"), 
+        Character ? *Character->AgentName : TEXT("NULL"), *NavigationResultMessage);
     
     EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, !Result.IsSuccess());
 }

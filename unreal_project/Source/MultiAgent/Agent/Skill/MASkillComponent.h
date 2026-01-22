@@ -59,7 +59,7 @@ struct FMASkillParams
     FMASemanticTarget SearchTarget;
     
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float SearchScanWidth = 200.f;
+    float SearchScanWidth = 1600.f;  // 扫描宽度默认 16m，航点更稀疏
 
     // Place
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -70,7 +70,7 @@ struct FMASkillParams
 
     // TakeOff / Land / ReturnHome
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float TakeOffHeight = 1000.f;  // 默认 10m
+    float TakeOffHeight = 3000.f;  // 默认 30m (搜索高度)
     
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     float LandHeight = 0.f;

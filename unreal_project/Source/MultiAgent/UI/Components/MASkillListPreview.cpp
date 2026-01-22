@@ -83,6 +83,13 @@ void UMASkillListPreview::BuildUI()
         return;
     }
     
+    // 在构建 UI 之前先从主题获取颜色
+    if (!Theme)
+    {
+        Theme = NewObject<UMAUITheme>();
+    }
+    BackgroundColor = Theme->CanvasBackgroundColor;
+    
     // 创建根 SizeBox
     RootSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("RootSizeBox"));
     if (!RootSizeBox)
