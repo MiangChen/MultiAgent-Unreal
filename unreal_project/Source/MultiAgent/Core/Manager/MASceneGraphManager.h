@@ -256,6 +256,15 @@ public:
     int32 GetTypeCount(const FString& Type) const;
 
     /**
+     * 获取下一个可用的节点 ID
+     * 遍历所有节点找到最大数字 ID，返回 最大ID + 1
+     * 
+     * @return 下一个可用的 ID 字符串
+     */
+    UFUNCTION(BlueprintCallable, Category = "SceneGraph")
+    FString GetNextAvailableId() const;
+
+    /**
      * 获取场景图文件路径
      * 
      * @return JSON 文件的完整路径

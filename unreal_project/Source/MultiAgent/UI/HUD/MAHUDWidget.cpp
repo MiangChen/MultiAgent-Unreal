@@ -192,9 +192,9 @@ void UMAHUDWidget::BuildUI()
     POIListText->SetShadowColorAndOpacity(POIShadowColor);
 
     UCanvasPanelSlot* POISlot = RootCanvas->AddChildToCanvas(POIListText);
-    POISlot->SetAnchors(FAnchors(0.0f, 1.0f, 0.0f, 1.0f));  // 左下角
-    POISlot->SetAlignment(FVector2D(0.0f, 1.0f));
-    POISlot->SetPosition(FVector2D(20.0f, -30.0f));
+    POISlot->SetAnchors(FAnchors(0.5f, 0.85f, 0.5f, 0.85f));  // 屏幕中下方 (85%高度)
+    POISlot->SetAlignment(FVector2D(0.5f, 0.5f));
+    POISlot->SetPosition(FVector2D(0.0f, 0.0f));
     POISlot->SetAutoSize(true);
 
     // 默认隐藏

@@ -50,6 +50,7 @@ void UMAInputActions::Initialize()
     IA_CreateSquad = CreateInputAction(TEXT("IA_CreateSquad"));
     IA_DisbandSquad = CreateInputAction(TEXT("IA_DisbandSquad"));
     IA_ToggleMouseMode = CreateInputAction(TEXT("IA_ToggleMouseMode"));
+    IA_ToggleModifyMode = CreateInputAction(TEXT("IA_ToggleModifyMode"));
 
     // UI 切换
     IA_ToggleMainUI = CreateInputAction(TEXT("IA_ToggleMainUI"));

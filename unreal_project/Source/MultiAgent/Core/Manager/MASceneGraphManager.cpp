@@ -96,7 +96,9 @@ void UMASceneGraphManager::Deinitialize()
 
 bool UMASceneGraphManager::ParseLabelInput(const FString& InputText, FString& OutId, FString& OutType, FString& OutErrorMessage)
 {
-    // 解析格式: "id:值,type:值"
+    // 支持两种格式:
+    // 1. 旧格式: "id:值,type:值" - id 必填
+    // 2. 新格式: "cate:值,type:值" - id 自动分配
 
     OutId.Empty();
     OutType.Empty();
@@ -104,7 +106,7 @@ bool UMASceneGraphManager::ParseLabelInput(const FString& InputText, FString& Ou
 
     if (InputText.IsEmpty())
     {
-        OutErrorMessage = TEXT("输入格式错误，请使用: id:值,type:值");
+        OutErrorMessage = TEXT("输入格式错误，请使用: cate:building/trans_facility/prop,type:值");
         return false;
     }
 
@@ -114,6 +116,7 @@ bool UMASceneGraphManager::ParseLabelInput(const FString& InputText, FString& Ou
 
     bool bFoundId = false;
     bool bFoundType = false;
+    bool bFoundCate = false;  // 新格式标志
 
     for (const FString& Part : Parts)
     {
@@ -125,7 +128,9 @@ bool UMASceneGraphManager::ParseLabelInput(const FString& InputText, FString& Ou
             Value = Value.TrimStartAndEnd();
 
             // 键名大小写不敏感
-            if (Key.ToLower() == TEXT("id"))
+            FString KeyLower = Key.ToLower();
+            
+            if (KeyLower == TEXT("id"))
             {
                 if (Value.IsEmpty())
                 {
@@ -135,7 +140,7 @@ bool UMASceneGraphManager::ParseLabelInput(const FString& InputText, FString& Ou
                 OutId = Value;
                 bFoundId = true;
             }
-            else if (Key.ToLower() == TEXT("type"))
+            else if (KeyLower == TEXT("type"))
             {
                 if (Value.IsEmpty())
                 {
@@ -145,21 +150,42 @@ bool UMASceneGraphManager::ParseLabelInput(const FString& InputText, FString& Ou
                 OutType = Value;
                 bFoundType = true;
             }
+            else if (KeyLower == TEXT("cate") || KeyLower == TEXT("category"))
+            {
+                // 新格式: cate:building/trans_facility/prop
+                FString ValueLower = Value.ToLower();
+                if (ValueLower != TEXT("building") && ValueLower != TEXT("trans_facility") && ValueLower != TEXT("prop"))
+                {
+                    OutErrorMessage = FString::Printf(TEXT("无效的 cate 值: %s (应为 building, trans_facility 或 prop)"), *Value);
+                    return false;
+                }
+                bFoundCate = true;
+            }
         }
     }
-    if (!bFoundId)
-    {
-        OutErrorMessage = TEXT("缺少必填字段: id");
-        return false;
-    }
 
+    // 验证必填字段
     if (!bFoundType)
     {
         OutErrorMessage = TEXT("缺少必填字段: type");
         return false;
     }
 
-    UE_LOG(LogMASceneGraphManager, Log, TEXT("ParseLabelInput: id=%s, type=%s"), *OutId, *OutType);
+    // 如果使用新格式 (cate:xxx) 且没有指定 id，自动分配
+    if (bFoundCate && !bFoundId)
+    {
+        OutId = GetNextAvailableId();
+        UE_LOG(LogMASceneGraphManager, Log, TEXT("ParseLabelInput: Auto-assigned ID = %s"), *OutId);
+    }
+    else if (!bFoundId)
+    {
+        // 旧格式必须有 id
+        OutErrorMessage = TEXT("缺少必填字段: id (或使用 cate:xxx 格式自动分配)");
+        return false;
+    }
+
+    UE_LOG(LogMASceneGraphManager, Log, TEXT("ParseLabelInput: id=%s, type=%s, cate=%s"), 
+        *OutId, *OutType, bFoundCate ? TEXT("true") : TEXT("false"));
     return true;
 }
 
@@ -252,6 +278,51 @@ int32 UMASceneGraphManager::GetTypeCount(const FString& Type) const
     }
 
     return Count;
+}
+
+FString UMASceneGraphManager::GetNextAvailableId() const
+{
+    if (!WorkingCopy.IsValid())
+    {
+        return TEXT("1");
+    }
+
+    TArray<TSharedPtr<FJsonValue>>* NodesArray = GetNodesArray();
+    if (!NodesArray)
+    {
+        return TEXT("1");
+    }
+
+    // 遍历节点找到最大数字 ID
+    int32 MaxId = 0;
+    for (const TSharedPtr<FJsonValue>& NodeValue : *NodesArray)
+    {
+        if (NodeValue.IsValid() && NodeValue->Type == EJson::Object)
+        {
+            TSharedPtr<FJsonObject> NodeObject = NodeValue->AsObject();
+            if (NodeObject.IsValid())
+            {
+                FString IdStr;
+                if (NodeObject->TryGetStringField(TEXT("id"), IdStr))
+                {
+                    // 尝试将 ID 转换为数字
+                    if (IdStr.IsNumeric())
+                    {
+                        int32 IdNum = FCString::Atoi(*IdStr);
+                        if (IdNum > MaxId)
+                        {
+                            MaxId = IdNum;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 返回 (最大 ID + 1) 的字符串
+    int32 NextId = MaxId + 1;
+    UE_LOG(LogMASceneGraphManager, Log, TEXT("GetNextAvailableId: Max ID = %d, Next ID = %d"), MaxId, NextId);
+    return FString::FromInt(NextId);
 }
 
 bool UMASceneGraphManager::AddSceneNode(const FString& Id, const FString& Type, const FVector& WorldLocation,
