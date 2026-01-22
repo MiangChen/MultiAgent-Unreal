@@ -2,6 +2,7 @@
 // UI 主题数据资产实现
 
 #include "MAUITheme.h"
+#include "Styling/CoreStyle.h"
 
 UMAUITheme::UMAUITheme()
 {
@@ -160,15 +161,14 @@ UMAUITheme::UMAUITheme()
     // 默认字体设置
     //=========================================================================
     
-    // 标题字体 - 使用 Roboto Bold, Size 24
-    // 注意: Inter 字体需要单独导入，这里使用引擎默认字体
-    TitleFont = FSlateFontInfo(FPaths::EngineContentDir() / TEXT("Slate/Fonts/Roboto-Bold.ttf"), 24);
+    // 标题字体 - 使用引擎默认 Bold 字体, Size 24
+    TitleFont = FCoreStyle::GetDefaultFontStyle("Bold", 24);
     
-    // 正文字体 - 使用 Roboto Regular, Size 14
-    BodyFont = FSlateFontInfo(FPaths::EngineContentDir() / TEXT("Slate/Fonts/Roboto-Regular.ttf"), 14);
+    // 正文字体 - 使用引擎默认 Regular 字体, Size 14
+    BodyFont = FCoreStyle::GetDefaultFontStyle("Regular", 14);
     
-    // 按钮字体 - 使用 Roboto Medium, Size 14
-    ButtonFont = FSlateFontInfo(FPaths::EngineContentDir() / TEXT("Slate/Fonts/Roboto-Regular.ttf"), 14);
+    // 按钮字体 - 使用引擎默认 Regular 字体, Size 14
+    ButtonFont = FCoreStyle::GetDefaultFontStyle("Regular", 14);
     
     // 行高 - 推荐 1.5-1.6
     LineHeight = 1.5f;

@@ -399,7 +399,7 @@ UBorder* UMASkillAllocationViewer::CreateLeftPanel()
     LeftPanelBorder->AddChild(LeftVBox);
 
     // Title
-    UTextBlock* TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("LeftPanelTitle"));
+    TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("LeftPanelTitle"));
     TitleText->SetText(FText::FromString(TEXT("Skill Allocation Workbench")));
     FSlateFontInfo TitleFont = TitleText->GetFont();
     TitleFont.Size = 16;
@@ -410,7 +410,7 @@ UBorder* UMASkillAllocationViewer::CreateLeftPanel()
     TitleSlot->SetPadding(FMargin(0, 0, 0, 10));
 
     // Hint text
-    UTextBlock* HintText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("HintText"));
+    HintText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("HintText"));
     HintText->SetText(FText::FromString(TEXT("Press X to toggle visibility")));
     FSlateFontInfo HintFont = HintText->GetFont();
     HintFont.Size = 10;
@@ -466,7 +466,7 @@ UVerticalBox* UMASkillAllocationViewer::CreateStatusLogSection()
     StatusLogStyle.SetForegroundColor(StatusLogSlateColor);
     StatusLogStyle.SetFocusedForegroundColor(StatusLogSlateColor);
     StatusLogStyle.SetReadOnlyForegroundColor(StatusLogSlateColor);
-    StatusLogStyle.TextStyle.ColorAndOpacity = BlackColor;
+    StatusLogStyle.TextStyle.ColorAndOpacity = FSlateColor(FLinearColor::Black);
     FSlateFontInfo StatusLogFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
     StatusLogStyle.SetFont(StatusLogFont);
     
