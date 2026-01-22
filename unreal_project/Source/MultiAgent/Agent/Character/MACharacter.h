@@ -106,6 +106,13 @@ public:
     virtual TArray<FString> GetAvailableActions() const { return TArray<FString>(); }
     virtual bool ExecuteAction(const FString& ActionName, const TMap<FString, FString>& Params) { return false; }
 
+    // ========== 描边效果 ==========
+    UFUNCTION(BlueprintCallable, Category = "Outline")
+    virtual void EnableOutline();
+    
+    UFUNCTION(BlueprintCallable, Category = "Outline")
+    virtual void DisableOutline();
+
 protected:
     UPROPERTY(BlueprintReadOnly, Category = "Control")
     bool bIsUnderDirectControl = false;

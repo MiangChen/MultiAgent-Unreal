@@ -1,5 +1,5 @@
 // MACameraSensorComponent.h
-// 摄像头传感器组件 - 支持拍照、录像、TCP流
+// 摄像头传感器组件 - 支持拍照、TCP流
 
 #pragma once
 
@@ -34,16 +34,6 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Camera")
     TArray<uint8> GetFrameAsJPEG(int32 Quality = 85);
 
-    // ========== 录像功能 ==========
-    UFUNCTION(BlueprintCallable, Category = "Camera|Recording")
-    void StartRecording(float FPS = 30.f);
-
-    UFUNCTION(BlueprintCallable, Category = "Camera|Recording")
-    void StopRecording();
-
-    UPROPERTY(BlueprintReadOnly, Category = "Camera|Recording")
-    bool bIsRecording = false;
-
     // ========== TCP 流 ==========
     UFUNCTION(BlueprintCallable, Category = "Camera|Stream")
     bool StartTCPStream(int32 Port = 9000, float FPS = 30.f);
@@ -67,7 +57,7 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera", meta = (ClampMin = "0.5", ClampMax = "5.0"))
     float BrightnessMultiplier = 2.0f;
 
-    // 流/录像参数
+    // 流参数
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera|Stream", meta = (ClampMin = "10", ClampMax = "100"))
     int32 JPEGQuality = 50;
     
@@ -103,12 +93,6 @@ protected:
     void InitializeRenderTarget();
 
 private:
-    // 录像相关
-    FTimerHandle RecordTimerHandle;
-    FString RecordingDirectory;
-    int32 RecordingFrameIndex = 0;
-    void OnRecordTick();
-
     // TCP 流相关
     FTimerHandle StreamTimerHandle;
     FSocket* ListenSocket = nullptr;

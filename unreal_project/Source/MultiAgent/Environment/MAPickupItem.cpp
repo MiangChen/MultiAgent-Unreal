@@ -28,7 +28,7 @@ AMAPickupItem::AMAPickupItem()
     if (CubeMesh.Succeeded())
     {
         MeshComponent->SetStaticMesh(CubeMesh.Object);
-        MeshComponent->SetRelativeScale3D(FVector(0.5f, 0.5f, 0.5f)); // 50cm 方块
+        MeshComponent->SetRelativeScale3D(FVector(1.0f, 1.0f, 1.0f)); // 100cm 方块（原来的两倍）
     }
 
     // 设置物理
@@ -65,18 +65,33 @@ void AMAPickupItem::SetItemColor(FLinearColor NewColor)
     
     if (MeshComponent)
     {
-        // 创建动态材质实例
-        UMaterialInstanceDynamic* DynMaterial = MeshComponent->CreateAndSetMaterialInstanceDynamic(0);
-        if (DynMaterial)
+        // 创建一个简单的彩色材质
+        UMaterial* BaseMaterial = LoadObject<UMaterial>(nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+        if (BaseMaterial)
         {
-            // 设置基础颜色
-            DynMaterial->SetVectorParameterValue(TEXT("BaseColor"), NewColor);
-            // 也尝试设置其他常见的颜色参数名
-            DynMaterial->SetVectorParameterValue(TEXT("Color"), NewColor);
-            DynMaterial->SetVectorParameterValue(TEXT("Tint"), NewColor);
-            
-            UE_LOG(LogTemp, Log, TEXT("[MAPickupItem] %s color set to (R=%.2f, G=%.2f, B=%.2f)"), 
-                *ItemName, NewColor.R, NewColor.G, NewColor.B);
+            UMaterialInstanceDynamic* DynMaterial = UMaterialInstanceDynamic::Create(BaseMaterial, this);
+            if (DynMaterial)
+            {
+                // BasicShapeMaterial 支持 Color 参数
+                DynMaterial->SetVectorParameterValue(TEXT("Color"), NewColor);
+                MeshComponent->SetMaterial(0, DynMaterial);
+                
+                UE_LOG(LogTemp, Log, TEXT("[MAPickupItem] %s color set to (R=%.2f, G=%.2f, B=%.2f)"), 
+                    *ItemName, NewColor.R, NewColor.G, NewColor.B);
+            }
+        }
+        else
+        {
+            // 如果找不到 BasicShapeMaterial，直接修改顶点颜色或使用纯色
+            UMaterialInstanceDynamic* DynMaterial = MeshComponent->CreateAndSetMaterialInstanceDynamic(0);
+            if (DynMaterial)
+            {
+                DynMaterial->SetVectorParameterValue(TEXT("BaseColor"), NewColor);
+                DynMaterial->SetVectorParameterValue(TEXT("Color"), NewColor);
+                
+                UE_LOG(LogTemp, Log, TEXT("[MAPickupItem] %s color set (fallback) to (R=%.2f, G=%.2f, B=%.2f)"), 
+                    *ItemName, NewColor.R, NewColor.G, NewColor.B);
+            }
         }
     }
 }

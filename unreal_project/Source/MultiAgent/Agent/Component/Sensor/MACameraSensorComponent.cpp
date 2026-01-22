@@ -53,7 +53,6 @@ void UMACameraSensorComponent::OnRegister()
 
 void UMACameraSensorComponent::BeginDestroy()
 {
-    StopRecording();
     StopTCPStream();
     Super::BeginDestroy();
 }
@@ -163,45 +162,6 @@ TArray<uint8> UMACameraSensorComponent::GetFrameAsJPEG(int32 Quality)
     }
     
     return JPEGData;
-}
-
-// ========== 录像功能 ==========
-void UMACameraSensorComponent::StartRecording(float FPS)
-{
-    if (bIsRecording) return;
-    
-    FString Timestamp = FDateTime::Now().ToString(TEXT("%Y%m%d_%H%M%S"));
-    RecordingDirectory = FPaths::ProjectSavedDir() / TEXT("Recordings") / FString::Printf(TEXT("%s_%s"), *SensorName, *Timestamp);
-    IFileManager::Get().MakeDirectory(*RecordingDirectory, true);
-    
-    RecordingFrameIndex = 0;
-    bIsRecording = true;
-    
-    float Interval = 1.0f / FPS;
-    GetWorld()->GetTimerManager().SetTimer(RecordTimerHandle, this, &UMACameraSensorComponent::OnRecordTick, Interval, true);
-    
-    UE_LOG(LogTemp, Log, TEXT("[Camera] %s started recording at %.0f FPS to %s"), *SensorName, FPS, *RecordingDirectory);
-}
-
-void UMACameraSensorComponent::StopRecording()
-{
-    if (!bIsRecording) return;
-    
-    GetWorld()->GetTimerManager().ClearTimer(RecordTimerHandle);
-    bIsRecording = false;
-    
-    UE_LOG(LogTemp, Log, TEXT("[Camera] %s stopped recording. %d frames saved to %s"), *SensorName, RecordingFrameIndex, *RecordingDirectory);
-}
-
-void UMACameraSensorComponent::OnRecordTick()
-{
-    TArray<uint8> JPEGData = GetFrameAsJPEG(JPEGQuality);
-    if (JPEGData.Num() > 0)
-    {
-        FString FramePath = RecordingDirectory / FString::Printf(TEXT("frame_%06d.jpg"), RecordingFrameIndex);
-        FFileHelper::SaveArrayToFile(JPEGData, *FramePath);
-        RecordingFrameIndex++;
-    }
 }
 
 // ========== TCP 流 ==========
@@ -373,10 +333,6 @@ TArray<FString> UMACameraSensorComponent::GetAvailableActions() const
     // 拍照
     Actions.Add(TEXT("Camera.TakePhoto"));
     
-    // 录像
-    Actions.Add(TEXT("Camera.StartRecording"));
-    Actions.Add(TEXT("Camera.StopRecording"));
-    
     // TCP 流
     Actions.Add(TEXT("Camera.StartTCPStream"));
     Actions.Add(TEXT("Camera.StopTCPStream"));
@@ -397,23 +353,6 @@ bool UMACameraSensorComponent::ExecuteAction(const FString& ActionName, const TM
             FilePath = *PathParam;
         }
         return TakePhoto(FilePath);
-    }
-    
-    if (ActionName == TEXT("Camera.StartRecording"))
-    {
-        float FPS = 30.f;
-        if (const FString* FPSParam = Params.Find(TEXT("fps")))
-        {
-            FPS = FCString::Atof(**FPSParam);
-        }
-        StartRecording(FPS);
-        return true;
-    }
-    
-    if (ActionName == TEXT("Camera.StopRecording"))
-    {
-        StopRecording();
-        return true;
     }
     
     if (ActionName == TEXT("Camera.StartTCPStream"))

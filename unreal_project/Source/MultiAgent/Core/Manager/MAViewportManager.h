@@ -2,6 +2,7 @@
 // 视角管理器 - 管理相机视角切换
 // 支持在不同 Agent 的相机之间切换，以及返回观察者视角
 // 支持 Agent View Mode 下的 WASD 直接控制
+// 支持外部摄像头（固定摄像头和跟随摄像头）
 
 #pragma once
 
@@ -12,6 +13,37 @@
 class AMACharacter;
 class UMACameraSensorComponent;
 class UMAAgentInputComponent;
+class ACameraActor;
+
+// 摄像头条目类型
+UENUM(BlueprintType)
+enum class EMAViewportCameraType : uint8
+{
+    AgentCamera     UMETA(DisplayName = "Agent Camera"),      // Agent 自身的相机
+    ExternalCamera  UMETA(DisplayName = "External Camera")    // 外部摄像头
+};
+
+// 摄像头条目
+USTRUCT()
+struct FMAViewportCameraEntry
+{
+    GENERATED_BODY()
+
+    EMAViewportCameraType Type = EMAViewportCameraType::AgentCamera;
+    
+    // Agent 相机
+    UPROPERTY()
+    TWeakObjectPtr<AMACharacter> Agent;
+    
+    UPROPERTY()
+    UMACameraSensorComponent* AgentCamera = nullptr;
+
+    // 外部摄像头
+    UPROPERTY()
+    ACameraActor* ExternalCamera = nullptr;
+    
+    FString CameraName;
+};
 
 UCLASS()
 class MULTIAGENT_API UMAViewportManager : public UWorldSubsystem
@@ -43,6 +75,10 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Viewport")
     TArray<UMACameraSensorComponent*> GetAllCameras() const;
 
+    // 获取相机总数（包括外部摄像头）
+    UFUNCTION(BlueprintCallable, Category = "Viewport")
+    int32 GetTotalCameraCount() const;
+
     // ========== Agent View Mode (Direct Control) ==========
     
     // 是否处于 Agent 视角模式
@@ -70,6 +106,9 @@ private:
 
     // 收集所有相机及其所属 Agent
     void CollectCameras(TArray<UMACameraSensorComponent*>& OutCameras, TArray<AMACharacter*>& OutOwners) const;
+
+    // 收集所有摄像头条目（包括外部摄像头）
+    void CollectAllCameraEntries(TArray<FMAViewportCameraEntry>& OutEntries) const;
     
     // ========== Agent View Mode 状态 ==========
     

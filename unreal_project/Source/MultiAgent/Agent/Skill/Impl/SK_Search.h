@@ -46,7 +46,11 @@ private:
     
     // 搜索参数
     UPROPERTY()
-    float ScanWidth = 200.f;  // 扫描宽度
+    float ScanWidth = 1600.f;  // 扫描宽度（默认 16m）
+    
+    // 提前结束相关
+    TArray<FVector> FoundTargetLocations;  // 已找到的目标位置
+    bool bHasFoundTarget = false;  // 是否有找到目标
     
     FTimerHandle UpdateTimerHandle;
     FTimerHandle CheckTimerHandle;

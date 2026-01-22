@@ -51,6 +51,10 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI")
     UMAStateTreeComponent* StateTreeComponent;
 
+    // 重写描边函数以支持 StaticMesh
+    virtual void EnableOutline() override;
+    virtual void DisableOutline() override;
+
 protected:
     virtual void BeginPlay() override;
     virtual void InitializeSkillSet() override;
