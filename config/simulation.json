@@ -6,11 +6,11 @@
         "use_setup_ui": false,
         "use_state_tree": false,
         "enable_energy_drain": false,
-        "default_map": "/Game/Map/SimpleCity/Map/SimpleCity",
-        "scene_graph_path": ""
+        "default_map": "/Game/Map/Downtown/Scenes/Demo",
+        "scene_graph_path": "datasets/Downtown/scene_graph.json"
     },
     "server": {
-        "planner_url": "http://localhost:8081",
+        "planner_url": "http://localhost:8080",
         "use_mock_data": false,
         "enable_polling": true,
         "enable_hitl_polling": true,

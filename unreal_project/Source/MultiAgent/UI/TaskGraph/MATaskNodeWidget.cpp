@@ -79,6 +79,24 @@ void UMATaskNodeWidget::UpdateDisplay()
     
     // 更新 Tooltip
     SetToolTipText(FText::FromString(GenerateTooltipText()));
+    
+    // 更新输出端口位置 (因为内容变化可能导致节点高度变化)
+    UpdateOutputPortPosition();
+}
+
+void UMATaskNodeWidget::UpdateOutputPortPosition()
+{
+    if (!OutputPortSlot)
+    {
+        return;
+    }
+    
+    // 获取节点实际高度
+    float ActualHeight = GetActualNodeHeight();
+    float ActualWidth = GetActualNodeWidth();
+    
+    // 更新输出端口位置: 底部中央
+    OutputPortSlot->SetPosition(FVector2D(ActualWidth / 2.0f - PortRadius, ActualHeight - PortRadius));
 }
 
 //=============================================================================
@@ -88,13 +106,43 @@ void UMATaskNodeWidget::UpdateDisplay()
 FVector2D UMATaskNodeWidget::GetInputPortLocalPosition() const
 {
     // 输入端口在节点顶部中央
-    return FVector2D(NodeSize.X / 2.0f, 0.0f);
+    return FVector2D(GetActualNodeWidth() / 2.0f, 0.0f);
 }
 
 FVector2D UMATaskNodeWidget::GetOutputPortLocalPosition() const
 {
     // 输出端口在节点底部中央
-    return FVector2D(NodeSize.X / 2.0f, NodeSize.Y);
+    return FVector2D(GetActualNodeWidth() / 2.0f, GetActualNodeHeight());
+}
+
+float UMATaskNodeWidget::GetActualNodeWidth() const
+{
+    // 尝试获取实际渲染宽度
+    if (TSharedPtr<SWidget> SlateWidget = GetCachedWidget())
+    {
+        FVector2D DesiredSize = SlateWidget->GetDesiredSize();
+        if (DesiredSize.X > 0)
+        {
+            return DesiredSize.X;
+        }
+    }
+    // 回退到默认值
+    return NodeSize.X;
+}
+
+float UMATaskNodeWidget::GetActualNodeHeight() const
+{
+    // 尝试获取实际渲染高度
+    if (TSharedPtr<SWidget> SlateWidget = GetCachedWidget())
+    {
+        FVector2D DesiredSize = SlateWidget->GetDesiredSize();
+        if (DesiredSize.Y > 0)
+        {
+            return DesiredSize.Y;
+        }
+    }
+    // 回退到默认值
+    return NodeSize.Y;
 }
 
 FVector2D UMATaskNodeWidget::GetInputPortPosition() const
@@ -509,9 +557,9 @@ void UMATaskNodeWidget::BuildUI()
     OutputPortBrush.OutlineSettings.RoundingType = ESlateBrushRoundingType::FixedRadius;
     OutputPort->SetBrush(OutputPortBrush);
     
-    UCanvasPanelSlot* OutputPortSlot = RootCanvas->AddChildToCanvas(OutputPort);
+    OutputPortSlot = RootCanvas->AddChildToCanvas(OutputPort);
     OutputPortSlot->SetAnchors(FAnchors(0.0f, 0.0f, 0.0f, 0.0f));
-    // 端口位置: 底部中央，向下偏移半个端口高度
+    // 端口位置: 底部中央，向下偏移半个端口高度 (初始位置，会在 UpdateOutputPortPosition 中更新)
     OutputPortSlot->SetPosition(FVector2D(NodeSize.X / 2.0f - PortRadius, NodeSize.Y - PortRadius));
     OutputPortSlot->SetSize(FVector2D(PortRadius * 2, PortRadius * 2));
     OutputPortSlot->SetAutoSize(false);

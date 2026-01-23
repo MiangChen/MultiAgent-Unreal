@@ -20,7 +20,7 @@ API Endpoints:
 - GET  /api/messages         - Get received messages (SSE stream)
 
 Usage:
-    python3 scripts/mock_backend.py [--port 8080]
+    python3 scripts/mock_backend.py [--port 8081]
 """
 
 import json
@@ -1229,15 +1229,18 @@ class MockBackendHandler(BaseHTTPRequestHandler):
         Messages are returned by category priority: REVIEW, DECISION, INSTRUCTION.
         """
         global hitl_messages
+        print(f"[HITL Poll] UE5 polling HITL endpoint, queue size: {len(hitl_messages)}")
         with hitl_lock:
             if hitl_messages:
                 msg = hitl_messages.pop(0)
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json')
                 self.end_headers()
-                self.wfile.write(json.dumps([msg], ensure_ascii=False).encode('utf-8'))
+                response_data = json.dumps([msg], ensure_ascii=False)
+                self.wfile.write(response_data.encode('utf-8'))
                 msg_type = msg.get('message_type', 'unknown')
                 msg_category = msg.get('message_category', 'unknown')
+                print(f"[HITL Poll] ✅ Sent message to UE5: type={msg_type}, category={msg_category}")
                 broadcast_message('sent', f'HITL ({msg_category}): {msg_type}', msg, 'outgoing')
             else:
                 self.send_response(204)
@@ -1488,7 +1491,7 @@ def main():
     global server_port
     
     parser = argparse.ArgumentParser(description='MultiAgent-Unreal Mock Backend Server with Web UI')
-    parser.add_argument('--port', type=int, default=8080, help='Server port (default: 8081, matches UE5 planner_url)')
+    parser.add_argument('--port', type=int, default=8081, help='Server port (default: 8081, matches UE5 planner_url)')
     parser.add_argument('--host', type=str, default='0.0.0.0', help='Server address (default: 0.0.0.0)')
     args = parser.parse_args()
     

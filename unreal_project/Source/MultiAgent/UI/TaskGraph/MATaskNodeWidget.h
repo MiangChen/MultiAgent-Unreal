@@ -13,6 +13,7 @@ class UTextBlock;
 class UImage;
 class UVerticalBox;
 class UCanvasPanel;
+class UCanvasPanelSlot;
 class USizeBox;
 class UMAUITheme;
 
@@ -107,6 +108,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "TaskNode")
     void UpdateDisplay();
 
+    /** 更新输出端口位置 (根据节点实际高度) */
+    void UpdateOutputPortPosition();
+
     //=========================================================================
     // 端口位置
     //=========================================================================
@@ -118,6 +122,12 @@ public:
     /** 获取输出端口位置 (相对于节点左上角) */
     UFUNCTION(BlueprintPure, Category = "TaskNode")
     FVector2D GetOutputPortLocalPosition() const;
+
+    /** 获取节点实际宽度 (考虑内容自适应) */
+    float GetActualNodeWidth() const;
+
+    /** 获取节点实际高度 (考虑内容自适应) */
+    float GetActualNodeHeight() const;
 
     /** 获取输入端口世界位置 (相对于画布) */
     UFUNCTION(BlueprintPure, Category = "TaskNode")
@@ -271,6 +281,10 @@ protected:
     /** 输出端口图像 */
     UPROPERTY()
     UBorder* OutputPort;
+
+    /** 输出端口的 Canvas Slot (用于动态更新位置) */
+    UPROPERTY()
+    UCanvasPanelSlot* OutputPortSlot;
 
     //=========================================================================
     // 数据

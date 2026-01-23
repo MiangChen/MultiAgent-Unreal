@@ -29,6 +29,9 @@
 #include "Blueprint/UserWidget.h"
 #include "GameFramework/PlayerController.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Engine/GameViewportClient.h"
+#include "Widgets/SViewport.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/FileHelper.h"
 
@@ -736,9 +739,24 @@ void UMAUIManager::SetInputModeGameOnly()
         return;
     }
 
+    // 先清除任何 Widget 的焦点
+    if (FSlateApplication::IsInitialized())
+    {
+        FSlateApplication::Get().ClearKeyboardFocus(EFocusCause::SetDirectly);
+    }
+
     FInputModeGameOnly InputMode;
     OwningPC->SetInputMode(InputMode);
     OwningPC->SetShowMouseCursor(true);  // 保持鼠标可见用于 RTS 操作
+    
+    // 确保视口获得焦点
+    if (UGameViewportClient* ViewportClient = GetWorld()->GetGameViewport())
+    {
+        if (TSharedPtr<SViewport> ViewportWidget = ViewportClient->GetGameViewportWidget())
+        {
+            FSlateApplication::Get().SetKeyboardFocus(StaticCastSharedPtr<SWidget>(ViewportWidget));
+        }
+    }
 }
 
 

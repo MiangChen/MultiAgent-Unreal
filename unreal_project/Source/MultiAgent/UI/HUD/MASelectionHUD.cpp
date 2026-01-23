@@ -3,6 +3,7 @@
 
 #include "MASelectionHUD.h"
 #include "../../Core/Manager/MASelectionManager.h"
+#include "../../Core/Manager/MAAgentManager.h"
 #include "../../Input/MAPlayerController.h"
 #include "../../Agent/Character/MACharacter.h"
 #include "../Core/MAUIManager.h"
@@ -87,10 +88,10 @@ void AMASelectionHUD::DrawHUD()
         DrawSelectionBox(bIsDeploymentMode);
     }
 
-    // 绘制选中 Agent 的高亮（仅在没有全屏 Widget 时）
+    // 绘制所有 Agent 的圆圈（仅在没有全屏 Widget 时）
     if (bShouldDrawDebug)
     {
-        DrawSelectedAgents();
+        DrawAllAgentCircles();
     }
 
     // 绘制编组信息
@@ -141,19 +142,35 @@ void AMASelectionHUD::DrawSelectionBox(bool bIsDeploymentMode)
     DrawLine(MaxX, MinY, MaxX, MaxY, BorderColor, BorderThickness);
 }
 
-void AMASelectionHUD::DrawSelectedAgents()
+void AMASelectionHUD::DrawAllAgentCircles()
 {
     UWorld* World = GetWorld();
     if (!World) return;
 
-    UMASelectionManager* SelectionManager = World->GetSubsystem<UMASelectionManager>();
-    if (!SelectionManager) return;
+    // 获取 AgentManager 以遍历所有 Agent
+    UMAAgentManager* AgentManager = World->GetSubsystem<UMAAgentManager>();
+    if (!AgentManager) return;
 
-    for (AMACharacter* Agent : SelectionManager->GetSelectedAgents())
+    // 获取 SelectionManager 以判断选中状态
+    UMASelectionManager* SelectionManager = World->GetSubsystem<UMASelectionManager>();
+
+    // 遍历所有 Agent 并绘制圆圈
+    for (AMACharacter* Agent : AgentManager->GetAllAgents())
     {
         if (Agent)
         {
-            DrawCircleAtAgent(Agent, SelectionCircleColor, SelectionCircleRadius);
+            // 根据选中状态选择颜色
+            FLinearColor CircleColor;
+            if (SelectionManager && SelectionManager->IsSelected(Agent))
+            {
+                CircleColor = SelectionCircleColor;  // 绿色
+            }
+            else
+            {
+                CircleColor = UnselectedCircleColor;  // 橙色
+            }
+            
+            DrawCircleAtAgent(Agent, CircleColor, SelectionCircleRadius);
         }
     }
 }
@@ -204,8 +221,8 @@ void AMASelectionHUD::DrawCircleAtAgent(AMACharacter* Agent, FLinearColor Color,
     float CircleRadius = 60.f;
     FColor DrawColor = Color.ToFColor(true);
     
-    // 绘制多个圆环形成球体网格效果
-    float Thickness = 12.f;
+    // 绘制多个圆环形成球体网格效果 - 使用可配置的线条粗细
+    float Thickness = CircleThickness;
     
     // XY 平面 (水平圆 - 赤道)
     DrawDebugCircle(World, AgentLocation, CircleRadius, 24, DrawColor, false, -1.f, 0, Thickness,

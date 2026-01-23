@@ -67,13 +67,21 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Selection|Style")
     FLinearColor BoxBorderColor = FLinearColor(0.f, 1.f, 0.f, 1.f);
 
-    // 选中圈颜色 (鲜艳橙色)
+    // 选中 Agent 圈颜色 (绿色)
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Selection|Style")
-    FLinearColor SelectionCircleColor = FLinearColor(1.f, 0.5f, 0.f, 1.f);
+    FLinearColor SelectionCircleColor = FLinearColor(0.f, 1.f, 0.f, 1.f);
+
+    // 未选中 Agent 圈颜色 (橙色)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Selection|Style")
+    FLinearColor UnselectedCircleColor = FLinearColor(1.f, 0.5f, 0.f, 1.f);
+
+    // 圈线条粗细 (选中和未选中统一)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Selection|Style")
+    float CircleThickness = 8.f;
 
     // 选中圈半径
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Selection|Style")
-    float SelectionCircleRadius = 50.f;
+    float SelectionCircleRadius = 60.f;
 
     // 编组数字颜色
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Selection|Style")
@@ -91,8 +99,8 @@ private:
     // 绘制框选矩形
     void DrawSelectionBox(bool bIsDeploymentMode = false);
 
-    // 绘制选中 Agent 的高亮圈
-    void DrawSelectedAgents();
+    // 绘制所有 Agent 的圆圈（选中/未选中使用不同颜色）
+    void DrawAllAgentCircles();
 
     // 绘制编组信息
     void DrawControlGroupInfo();
