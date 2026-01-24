@@ -12,7 +12,7 @@
 
 ## 环境要求
 
-- Unreal Engine 5.5～5.7（源码编译版本）
+- Unreal Engine >=5.7.1（源码编译版本）
 - Linux / Windows / Mac
 - Python 3.8+（用于外部规划器）
 
