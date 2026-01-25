@@ -3,7 +3,7 @@
   "description": "Coordinated patrol and surveillance mission with multiple robot types",
   "data": {
     "0": {
-      "UAV_01": {
+      "UAV-1": {
         "skill": "navigate",
         "params": {
           "target": "waypoint_A",
@@ -11,7 +11,7 @@
           "speed": 5.0
         }
       },
-      "UAV_02": {
+      "UAV-2": {
         "skill": "navigate",
         "params": {
           "target": "waypoint_B",
@@ -19,7 +19,7 @@
           "speed": 5.0
         }
       },
-      "UGV_01": {
+      "UGV-1": {
         "skill": "navigate",
         "params": {
           "target": "patrol_start",
@@ -28,7 +28,7 @@
       }
     },
     "1": {
-      "UAV_01": {
+      "UAV-1": {
         "skill": "search",
         "params": {
           "area": "zone_A",
@@ -36,7 +36,7 @@
           "altitude": 50.0
         }
       },
-      "UAV_02": {
+      "UAV-2": {
         "skill": "search",
         "params": {
           "area": "zone_B",
@@ -44,14 +44,14 @@
           "altitude": 50.0
         }
       },
-      "UGV_01": {
+      "UGV-1": {
         "skill": "patrol",
         "params": {
           "path": "patrol_route_1",
           "speed": 2.0
         }
       },
-      "Humanoid_01": {
+      "Humanoid-1": {
         "skill": "navigate",
         "params": {
           "target": "building_entrance",
@@ -60,15 +60,15 @@
       }
     },
     "2": {
-      "UAV_01": {
+      "UAV-1": {
         "skill": "follow",
         "params": {
-          "target": "Humanoid_01",
+          "target": "Humanoid-1",
           "distance": 10.0,
           "altitude": 30.0
         }
       },
-      "UAV_02": {
+      "UAV-2": {
         "skill": "navigate",
         "params": {
           "target": "charging_station",
@@ -76,14 +76,14 @@
           "speed": 3.0
         }
       },
-      "UGV_01": {
+      "UGV-1": {
         "skill": "patrol",
         "params": {
           "path": "patrol_route_2",
           "speed": 2.0
         }
       },
-      "Humanoid_01": {
+      "Humanoid-1": {
         "skill": "place",
         "params": {
           "object": "sensor_package",
@@ -92,28 +92,28 @@
       }
     },
     "3": {
-      "UAV_01": {
+      "UAV-1": {
         "skill": "follow",
         "params": {
-          "target": "Humanoid_01",
+          "target": "Humanoid-1",
           "distance": 10.0,
           "altitude": 30.0
         }
       },
-      "UAV_02": {
+      "UAV-2": {
         "skill": "charge",
         "params": {
           "station": "charging_station_A"
         }
       },
-      "UGV_01": {
+      "UGV-1": {
         "skill": "navigate",
         "params": {
           "target": "base",
           "speed": 2.0
         }
       },
-      "Humanoid_01": {
+      "Humanoid-1": {
         "skill": "navigate",
         "params": {
           "target": "extraction_point",
@@ -122,7 +122,7 @@
       }
     },
     "4": {
-      "UAV_01": {
+      "UAV-1": {
         "skill": "navigate",
         "params": {
           "target": "base",
@@ -130,11 +130,11 @@
           "speed": 5.0
         }
       },
-      "UGV_01": {
+      "UGV-1": {
         "skill": "idle",
         "params": {}
       },
-      "Humanoid_01": {
+      "Humanoid-1": {
         "skill": "idle",
         "params": {}
       }

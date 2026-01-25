@@ -245,37 +245,47 @@ void USK_Place::HandleBendDownPickup()
     
     Character->ShowAbilityStatus(TEXT("Place"), TEXT("Picking up..."));
     
-    // 播放俯身动画
+    // 卸货模式（UnloadToGround）：物品在 UGV 上，不需要俯身动画
+    // 直接拾取后进入移动阶段
+    if (CurrentMode == EPlaceMode::UnloadToGround)
+    {
+        PerformPickupFromUGV();
+        CurrentPhase = EPlacePhase::MoveToTarget;
+        UpdatePhase();
+        return;
+    }
+    
+    // 装货模式（LoadToUGV）和堆叠模式（StackOnObject）：
+    // 物品在地面上，需要俯身动画
     AMAHumanoidCharacter* Humanoid = GetHumanoidCharacter();
     if (Humanoid)
     {
+        // 绑定动画完成回调
+        Humanoid->OnBendAnimationComplete.AddDynamic(this, &USK_Place::OnBendDownComplete);
         Humanoid->PlayBendDownAnimation();
     }
-    
-    // 等待俯身动画完成后执行拾取
-    if (UWorld* World = Character->GetWorld())
+    else
     {
-        World->GetTimerManager().SetTimer(PhaseTimerHandle, [this]()
-        {
-            OnBendDownComplete();
-        }, BendDuration, false);
+        // 非 Humanoid 角色，直接执行拾取并进入下一阶段
+        PerformPickup();
+        CurrentPhase = EPlacePhase::StandUpWithItem;
+        UpdatePhase();
     }
 }
 
 void USK_Place::OnBendDownComplete()
 {
-    // 根据当前阶段执行不同操作
+    AMAHumanoidCharacter* Humanoid = GetHumanoidCharacter();
+    if (Humanoid)
+    {
+        Humanoid->OnBendAnimationComplete.RemoveDynamic(this, &USK_Place::OnBendDownComplete);
+    }
+    
+    // 俯身完成，执行拾取或放置
     if (CurrentPhase == EPlacePhase::BendDownPickup)
     {
-        // 执行拾取
-        if (CurrentMode == EPlaceMode::UnloadToGround && TargetUGV.IsValid())
-        {
-            PerformPickupFromUGV();
-        }
-        else
-        {
-            PerformPickup();
-        }
+        // 装货模式和堆叠模式：从地面拾取
+        PerformPickup();
         
         // 进入起身阶段
         CurrentPhase = EPlacePhase::StandUpWithItem;
@@ -283,19 +293,8 @@ void USK_Place::OnBendDownComplete()
     }
     else if (CurrentPhase == EPlacePhase::BendDownPlace)
     {
-        // 执行放置
-        switch (CurrentMode)
-        {
-            case EPlaceMode::LoadToUGV:
-                PerformPlaceOnUGV();
-                break;
-            case EPlaceMode::UnloadToGround:
-                PerformPlaceOnGround();
-                break;
-            case EPlaceMode::StackOnObject:
-                PerformPlaceOnObject();
-                break;
-        }
+        // 卸货模式：放置到地面
+        PerformPlaceOnGround();
         
         // 进入起身阶段
         CurrentPhase = EPlacePhase::StandUpEmpty;
@@ -310,25 +309,29 @@ void USK_Place::HandleStandUpWithItem()
     
     Character->ShowAbilityStatus(TEXT("Place"), TEXT("Standing up..."));
     
-    // 播放起身动画
+    // 播放起身动画（动画后半段）
     AMAHumanoidCharacter* Humanoid = GetHumanoidCharacter();
     if (Humanoid)
     {
+        Humanoid->OnBendAnimationComplete.AddDynamic(this, &USK_Place::OnStandUpComplete);
         Humanoid->PlayStandUpAnimation();
     }
-    
-    // 等待起身动画完成
-    if (UWorld* World = Character->GetWorld())
+    else
     {
-        World->GetTimerManager().SetTimer(PhaseTimerHandle, [this]()
-        {
-            OnStandUpComplete();
-        }, BendDuration, false);
+        // 非 Humanoid 角色，直接进入下一阶段
+        CurrentPhase = EPlacePhase::MoveToTarget;
+        UpdatePhase();
     }
 }
 
 void USK_Place::OnStandUpComplete()
 {
+    AMAHumanoidCharacter* Humanoid = GetHumanoidCharacter();
+    if (Humanoid)
+    {
+        Humanoid->OnBendAnimationComplete.RemoveDynamic(this, &USK_Place::OnStandUpComplete);
+    }
+    
     if (CurrentPhase == EPlacePhase::StandUpWithItem)
     {
         // 起身后移动到目标
@@ -417,20 +420,36 @@ void USK_Place::HandleBendDownPlace()
     
     Character->ShowAbilityStatus(TEXT("Place"), TEXT("Placing..."));
     
-    // 播放俯身动画
+    // 装货模式（LoadToUGV）和堆叠模式（StackOnObject）：
+    // 放置到高处（UGV 或另一个物体上），不需要俯身动画
+    if (CurrentMode == EPlaceMode::LoadToUGV)
+    {
+        PerformPlaceOnUGV();
+        CurrentPhase = EPlacePhase::Complete;
+        UpdatePhase();
+        return;
+    }
+    else if (CurrentMode == EPlaceMode::StackOnObject)
+    {
+        PerformPlaceOnObject();
+        CurrentPhase = EPlacePhase::Complete;
+        UpdatePhase();
+        return;
+    }
+    
+    // 卸货模式（UnloadToGround）：放置到地面，需要俯身动画
     AMAHumanoidCharacter* Humanoid = GetHumanoidCharacter();
     if (Humanoid)
     {
+        Humanoid->OnBendAnimationComplete.AddDynamic(this, &USK_Place::OnBendDownComplete);
         Humanoid->PlayBendDownAnimation();
     }
-    
-    // 等待俯身动画完成后执行放置
-    if (UWorld* World = Character->GetWorld())
+    else
     {
-        World->GetTimerManager().SetTimer(PhaseTimerHandle, [this]()
-        {
-            OnBendDownComplete();
-        }, BendDuration, false);
+        // 非 Humanoid 角色，直接执行放置并完成
+        PerformPlaceOnGround();
+        CurrentPhase = EPlacePhase::Complete;
+        UpdatePhase();
     }
 }
 
@@ -441,20 +460,18 @@ void USK_Place::HandleStandUpEmpty()
     
     Character->ShowAbilityStatus(TEXT("Place"), TEXT("Standing up..."));
     
-    // 播放起身动画
+    // 播放起身动画（动画后半段）
     AMAHumanoidCharacter* Humanoid = GetHumanoidCharacter();
     if (Humanoid)
     {
+        Humanoid->OnBendAnimationComplete.AddDynamic(this, &USK_Place::OnStandUpComplete);
         Humanoid->PlayStandUpAnimation();
     }
-    
-    // 等待起身动画完成
-    if (UWorld* World = Character->GetWorld())
+    else
     {
-        World->GetTimerManager().SetTimer(PhaseTimerHandle, [this]()
-        {
-            OnStandUpComplete();
-        }, BendDuration, false);
+        // 非 Humanoid 角色，直接完成
+        CurrentPhase = EPlacePhase::Complete;
+        UpdatePhase();
     }
 }
 
@@ -496,7 +513,6 @@ void USK_Place::HandleComplete()
     
     //=========================================================================
     // 更新场景图状态
-    // Place 完成后调用 UpdatePickupItemPosition() 和 UpdatePickupItemCarrierStatus()
     //=========================================================================
     if (UWorld* World = Character->GetWorld())
     {
@@ -504,10 +520,8 @@ void USK_Place::HandleComplete()
         {
             if (UMASceneGraphManager* SceneGraphManager = GameInstance->GetSubsystem<UMASceneGraphManager>())
             {
-                // 获取物品节点ID (从参数处理阶段存储的)
                 FString Object1NodeId = Context.ObjectAttributes.FindRef(TEXT("object1_node_id"));
                 
-                // 如果没有存储节点ID，尝试使用物品名称
                 if (Object1NodeId.IsEmpty() && !Context.PlacedObjectName.IsEmpty())
                 {
                     Object1NodeId = Context.PlacedObjectName;
@@ -515,39 +529,30 @@ void USK_Place::HandleComplete()
                 
                 if (!Object1NodeId.IsEmpty())
                 {
-                    // 更新物品位置
                     SceneGraphManager->UpdatePickupItemPosition(Object1NodeId, FinalLocation);
                     
-                    // 更新携带状态
                     switch (CurrentMode)
                     {
                         case EPlaceMode::LoadToUGV:
-                            // 装货到 UGV：物品被 UGV 携带
                             if (TargetUGV.IsValid())
                             {
                                 SceneGraphManager->UpdatePickupItemCarrierStatus(Object1NodeId, true, TargetUGV->AgentID);
                             }
                             break;
                         case EPlaceMode::UnloadToGround:
-                            // 卸货到地面：物品不再被携带
-                            SceneGraphManager->UpdatePickupItemCarrierStatus(Object1NodeId, false, TEXT(""));
-                            break;
                         case EPlaceMode::StackOnObject:
-                            // 堆叠到另一个物体：物品不再被携带
                             SceneGraphManager->UpdatePickupItemCarrierStatus(Object1NodeId, false, TEXT(""));
                             break;
                     }
                     
-                    UE_LOG(LogTemp, Log, TEXT("[SK_Place] Updated scene graph for item '%s': Position=(%.0f, %.0f, %.0f), Mode=%d"),
-                        *Object1NodeId, FinalLocation.X, FinalLocation.Y, FinalLocation.Z, (int32)CurrentMode);
+                    UE_LOG(LogTemp, Log, TEXT("[SK_Place] Updated scene graph for item '%s'"), *Object1NodeId);
                 }
             }
         }
     }
     
-    PlaceResultMessage = FString::Printf(TEXT("Place succeeded: Moved %s to %s at (%.0f, %.0f, %.0f)"), 
-        *Context.PlacedObjectName, *TargetName,
-        FinalLocation.X, FinalLocation.Y, FinalLocation.Z);
+    PlaceResultMessage = FString::Printf(TEXT("Place succeeded: Moved %s to %s"), 
+        *Context.PlacedObjectName, *TargetName);
     
     Character->ShowAbilityStatus(TEXT("Place"), TEXT("Complete!"));
     EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, false);
@@ -563,12 +568,9 @@ void USK_Place::PerformPickup()
     AMAPickupItem* Item = Cast<AMAPickupItem>(SourceObject.Get());
     if (Item)
     {
-        // 使用 MAPickupItem 的附着方法（处理物理禁用和承载者跟踪）
         Item->AttachToHand(Character);
-        
         HeldObject = Item;
         
-        // 更新反馈上下文
         if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
         {
             SkillComp->GetFeedbackContextMutable().PlacedObjectName = Item->ItemName;
@@ -584,16 +586,10 @@ void USK_Place::PerformPickupFromUGV()
     AMAPickupItem* Item = Cast<AMAPickupItem>(SourceObject.Get());
     if (!Item) return;
     
-    // 从 UGV 分离并附着到角色手部
-    // DetachFromCarrier 会处理从 UGV 的 CarriedItems 列表移除
     Item->DetachFromCarrier();
-    
-    // 使用 MAPickupItem 的附着方法
     Item->AttachToHand(Character);
-    
     HeldObject = Item;
     
-    // 更新反馈上下文
     if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
     {
         SkillComp->GetFeedbackContextMutable().PlacedObjectName = Item->ItemName;
@@ -608,16 +604,11 @@ void USK_Place::PerformPlaceOnGround()
     AMAPickupItem* Item = Cast<AMAPickupItem>(HeldObject.Get());
     if (Item)
     {
-        // 计算放置位置
         FVector PlaceLocation = DropLocation;
         PlaceLocation.Z = Character->GetActorLocation().Z;
-        
-        // 使用 MAPickupItem 的放置方法（处理分离、物理启用）
         Item->PlaceOnGround(PlaceLocation);
-        
         HeldObject.Reset();
         
-        // 更新反馈上下文
         if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
         {
             SkillComp->GetFeedbackContextMutable().PlaceTargetName = TEXT("ground");
@@ -633,12 +624,9 @@ void USK_Place::PerformPlaceOnUGV()
     AMAPickupItem* Item = Cast<AMAPickupItem>(HeldObject.Get());
     if (Item)
     {
-        // 使用 MAPickupItem 的 UGV 附着方法（处理分离、物理禁用、添加到 CarriedItems）
         Item->AttachToUGV(TargetUGV.Get());
-        
         HeldObject.Reset();
         
-        // 更新反馈上下文
         if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
         {
             SkillComp->GetFeedbackContextMutable().PlaceTargetName = TargetUGV->AgentName;
@@ -656,12 +644,9 @@ void USK_Place::PerformPlaceOnObject()
     
     if (Item && Target)
     {
-        // 使用 MAPickupItem 的堆叠方法（处理分离、位置计算、物理启用）
         Item->PlaceOnObject(Target);
-        
         HeldObject.Reset();
         
-        // 更新反馈上下文
         if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
         {
             SkillComp->GetFeedbackContextMutable().PlaceTargetName = Target->ItemName;
@@ -695,7 +680,6 @@ void USK_Place::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGamep
 {
     AMACharacter* Character = GetOwningCharacter();
     
-    // 保存通知所需的信息
     bool bShouldNotify = false;
     bool bSuccessToNotify = bPlaceSucceeded;
     FString MessageToNotify = PlaceResultMessage;
@@ -703,6 +687,14 @@ void USK_Place::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGamep
     
     if (Character)
     {
+        // 清理动画回调
+        AMAHumanoidCharacter* Humanoid = GetHumanoidCharacter();
+        if (Humanoid)
+        {
+            Humanoid->OnBendAnimationComplete.RemoveDynamic(this, &USK_Place::OnBendDownComplete);
+            Humanoid->OnBendAnimationComplete.RemoveDynamic(this, &USK_Place::OnStandUpComplete);
+        }
+        
         if (UWorld* World = Character->GetWorld())
         {
             World->GetTimerManager().ClearTimer(PhaseTimerHandle);
@@ -711,34 +703,29 @@ void USK_Place::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGamep
         
         Character->ShowStatus(TEXT(""), 0.f);
         
-        // 如果被取消且持有物体，先放下
         if (bWasCancelled && HeldObject.IsValid())
         {
             AMAPickupItem* Item = Cast<AMAPickupItem>(HeldObject.Get());
             if (Item)
             {
-                // 使用 MAPickupItem 的放置方法
                 FVector DropPos = Character->GetActorLocation();
                 Item->PlaceOnGround(DropPos);
             }
             HeldObject.Reset();
         }
         
-        // 如果被取消且没有设置结果消息，说明是外部取消
         if (bWasCancelled && PlaceResultMessage.IsEmpty())
         {
             bSuccessToNotify = false;
             FString PhaseStr = GetPhaseString();
             MessageToNotify = FString::Printf(TEXT("Place cancelled: Stopped while %s"), *PhaseStr);
             
-            // 设置取消阶段到反馈上下文
             if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
             {
                 SkillComp->GetFeedbackContextMutable().PlaceCancelledPhase = PhaseStr;
             }
         }
         
-        // 检查是否需要通知完成
         if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
         {
             FGameplayTag PlaceTag = FGameplayTag::RequestGameplayTag(FName("Command.Place"));
@@ -751,16 +738,13 @@ void USK_Place::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGamep
         }
     }
     
-    // 清理引用
     SourceObject.Reset();
     TargetObject.Reset();
     HeldObject.Reset();
     TargetUGV.Reset();
     
-    // 先调用父类 EndAbility
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
     
-    // 在技能完全结束后再通知完成
     if (bShouldNotify && SkillCompToNotify)
     {
         SkillCompToNotify->NotifySkillCompleted(bSuccessToNotify, MessageToNotify);

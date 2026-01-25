@@ -1,0 +1,67 @@
+{
+	"name": "GSI Allocation",
+	"description": "Skill allocation from GSI planner",
+	"data":
+	{
+		"0":
+		{
+			"UGV-1":
+			{
+				"skill": "navigate<RedBox>",
+				"params":
+				{
+					"task_id": "T2"
+				}
+			},
+			"Humanoid-1":
+			{
+				"skill": "navigate<RedBox>",
+				"params":
+				{
+					"task_id": "T2"
+				}
+			}
+		},
+		"1":
+		{
+			"Humanoid-1":
+			{
+				"skill": "place<Red_Box>_on<UGV>",
+				"params":
+				{
+					"task_id": "T2"
+				}
+			}
+		},
+		"2":
+		{
+			"UGV-1":
+			{
+				"skill": "navigate<Streetlight-69>",
+				"params":
+				{
+					"task_id": "T2"
+				}
+			},
+			"Humanoid-1":
+			{
+				"skill": "navigate<Streetlight-69>",
+				"params":
+				{
+					"task_id": "T2"
+				}
+			}
+		},
+		"3":
+		{
+			"Humanoid-1":
+			{
+				"skill": "place<Red_Box>_on<ground>",
+				"params":
+				{
+					"task_id": "T2"
+				}
+			}
+		}
+	}
+}

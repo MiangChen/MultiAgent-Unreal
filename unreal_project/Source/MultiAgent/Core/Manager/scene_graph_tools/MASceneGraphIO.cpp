@@ -569,27 +569,44 @@ void FMASceneGraphIO::ParseFeatures(const TSharedPtr<FJsonObject>& PropertiesObj
         return;
     }
 
-    // 解析常见的feature字段
-    static const TArray<FString> FeatureKeys = {
-        TEXT("color"),
-        TEXT("name"),
-        TEXT("item_type"),
-        TEXT("status"),
-        TEXT("visibility"),
-        TEXT("wind_condition"),
-        TEXT("congestion")
+    // 已知的非 feature 字段（这些字段已经在其他地方解析）
+    static const TSet<FString> ReservedKeys = {
+        TEXT("type"),
+        TEXT("label"),
+        TEXT("category"),
+        TEXT("is_carried"),
+        TEXT("carrier_id")
     };
 
-    for (const FString& Key : FeatureKeys)
+    // 遍历 properties 中的所有字段，将非保留字段都作为 feature
+    for (const auto& Pair : PropertiesObject->Values)
     {
-        FString Value;
-        if (PropertiesObject->TryGetStringField(Key, Value))
+        const FString& Key = Pair.Key;
+        
+        // 跳过保留字段
+        if (ReservedKeys.Contains(Key))
         {
-            OutFeatures.Add(Key, Value);
+            continue;
+        }
+        
+        // 解析字符串类型
+        if (Pair.Value.IsValid() && Pair.Value->Type == EJson::String)
+        {
+            OutFeatures.Add(Key, Pair.Value->AsString());
+        }
+        // 解析布尔类型（转换为字符串）
+        else if (Pair.Value.IsValid() && Pair.Value->Type == EJson::Boolean)
+        {
+            OutFeatures.Add(Key, Pair.Value->AsBool() ? TEXT("true") : TEXT("false"));
+        }
+        // 解析数字类型（转换为字符串）
+        else if (Pair.Value.IsValid() && Pair.Value->Type == EJson::Number)
+        {
+            OutFeatures.Add(Key, FString::SanitizeFloat(Pair.Value->AsNumber()));
         }
     }
 
-    // 也检查嵌套的features对象
+    // 也检查嵌套的features对象（向后兼容）
     const TSharedPtr<FJsonObject>* FeaturesObject;
     if (PropertiesObject->TryGetObjectField(TEXT("features"), FeaturesObject))
     {
@@ -598,6 +615,10 @@ void FMASceneGraphIO::ParseFeatures(const TSharedPtr<FJsonObject>& PropertiesObj
             if (Pair.Value.IsValid() && Pair.Value->Type == EJson::String)
             {
                 OutFeatures.Add(Pair.Key, Pair.Value->AsString());
+            }
+            else if (Pair.Value.IsValid() && Pair.Value->Type == EJson::Boolean)
+            {
+                OutFeatures.Add(Pair.Key, Pair.Value->AsBool() ? TEXT("true") : TEXT("false"));
             }
         }
     }

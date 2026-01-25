@@ -26,11 +26,15 @@ public:
     UMAStateTreeComponent* StateTreeComponent;
 
     // ========== 动画播放接口 ==========
-    /** 播放俯身动画 */
+    /** 播放俯身动画（动画前半段：站立→弯腰）
+     * 动画播放到中点后停止，角色保持弯腰姿势
+     */
     UFUNCTION(BlueprintCallable, Category = "Animation")
     void PlayBendDownAnimation();
     
-    /** 播放起身动画 */
+    /** 播放起身动画（动画后半段：弯腰→站立）
+     * 从中点开始播放到结束，然后切换到 Idle 动画
+     */
     UFUNCTION(BlueprintCallable, Category = "Animation")
     void PlayStandUpAnimation();
     
@@ -53,9 +57,13 @@ public:
     UPROPERTY(EditDefaultsOnly, Category = "Animation")
     FVector HandAttachOffset = FVector(60.f, 0.f, -20.f);
     
-    /** 俯身动画持续时间 */
-    UPROPERTY(EditDefaultsOnly, Category = "Animation")
-    float BendAnimDuration = 0.8f;
+    /** 拾取动画总时长（从动画资产获取） */
+    UPROPERTY(VisibleAnywhere, Category = "Animation")
+    float PickupAnimDuration = 2.0f;
+    
+    /** 拾取动画中点时间（弯腰最低点） */
+    UPROPERTY(VisibleAnywhere, Category = "Animation")
+    float PickupAnimMidPoint = 1.0f;
 
 protected:
     virtual void BeginPlay() override;
@@ -71,12 +79,10 @@ private:
     UPROPERTY()
     UAnimSequence* WalkAnim = nullptr;
     
-    // 俯身/起身动画
+    // 拾取动画（Item Pickup Set）
+    // 动画结构: 站立(0%) → 弯腰(~50%) → 站立(100%)
     UPROPERTY()
-    UAnimSequence* BendDownAnim = nullptr;
-    
-    UPROPERTY()
-    UAnimSequence* StandUpAnim = nullptr;
+    UAnimSequence* PickupAnim = nullptr;
     
     // 动画状态
     bool bIsPlayingWalk = false;
@@ -88,6 +94,9 @@ private:
     /** 动画完成定时器 */
     FTimerHandle BendAnimTimerHandle;
     
-    /** 动画完成回调 */
-    void OnBendAnimFinished();
+    /** 俯身动画完成回调（内部） */
+    void OnBendDownAnimFinished();
+    
+    /** 起身动画完成回调（内部） */
+    void OnStandUpAnimFinished();
 };

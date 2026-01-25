@@ -36,22 +36,22 @@ TRANSPORT_DESTINATION = {"x": -8100, "y": 10100, "z": 0}
 # 单个技能列表：UAV 起飞 -> 导航 -> Humanoid 导航两次
 SKILL_LIST_SINGLE = {
     "0": {
-        "UAV_01": {"skill": "take_off", "params": {}}
+        "UAV-1": {"skill": "take_off", "params": {}}
     },
     "1": {
-        "UAV_01": {
+        "UAV-1": {
             "skill": "navigate",
             "params": {"dest": {"x": 1350, "y": -450, "z": 545}, "target_entity": "SM_FireHydrant"}
         }
     },
     "2": {
-        "Humanoid_01": {
+        "Humanoid-1": {
             "skill": "navigate",
             "params": {"dest": {"x": -1200, "y": 1200, "z": 0}}
         }
     },
     "3": {
-        "Humanoid_01": {
+        "Humanoid-1": {
             "skill": "navigate",
             "params": {"dest": {"x": 0, "y": 2400, "z": 0}}
         }
@@ -64,15 +64,15 @@ SKILL_LIST_SINGLE = {
 
 SKILL_LIST_UAV_SEARCH = {
     "0": {
-        # UAV_01 和 UAV_02 同时起飞
-        "UAV_01": {"skill": "take_off", "params": {}},
-        "UAV_02": {"skill": "take_off", "params": {}}
+        # UAV-1 和 UAV-2 同时起飞
+        "UAV-1": {"skill": "take_off", "params": {}},
+        "UAV-2": {"skill": "take_off", "params": {}}
     },
     "1": {
         # 原始搜索区域: (-7666,3674) (-5380,11669) (3650,11682) (3630,3675)
         # 按 X 轴中点 (-2000) 划分为左右两半
-        # UAV_01 搜索左半区域 (x: -7666 ~ -2000)
-        "UAV_01": {
+        # UAV-1 搜索左半区域 (x: -7666 ~ -2000)
+        "UAV-1": {
             "skill": "search",
             "params": {
                 "search_area": [
@@ -88,9 +88,9 @@ SKILL_LIST_UAV_SEARCH = {
                 }
             }
         },
-        # UAV_02 搜索右半区域 (x: -2000 ~ 3650)
+        # UAV-2 搜索右半区域 (x: -2000 ~ 3650)
         # RedBox 在 (-1200, 7100) 应该在这个区域内
-        "UAV_02": {
+        "UAV-2": {
             "skill": "search",
             "params": {
                 "search_area": [
@@ -121,20 +121,20 @@ def create_transport_skill_list_phase1(redbox_position=None):
     # Humanoid 需要更靠近物体以便拾取
     return {
         "0": {
-            "UGV_01": {
+            "UGV-1": {
                 "skill": "navigate",
                 "params": {"dest": {"x": redbox_position["x"] + 100, "y": redbox_position["y"] - 300, "z": 0}}
             },
-            "Humanoid_01": {
+            "Humanoid-1": {
                 "skill": "navigate",
                 "params": {"dest": {"x": redbox_position["x"] - 100, "y": redbox_position["y"] - 100, "z": 0}}
             },
-            "UAV_01": {"skill": "return_home", "params": {}},
-            "UAV_02": {"skill": "return_home", "params": {}}   
+            "UAV-1": {"skill": "return_home", "params": {}},
+            "UAV-2": {"skill": "return_home", "params": {}}   
         },
         "1": {
             # Humanoid 执行 place 技能：将 RedBox 放到 UGV 上
-            "Humanoid_01": {
+            "Humanoid-1": {
                 "skill": "place",
                 "params": {
                     "target": {
@@ -145,7 +145,7 @@ def create_transport_skill_list_phase1(redbox_position=None):
                     "surface_target": {
                         "class": "robot",
                         "type": "UGV",
-                        "features": {"label": "UGV_01"}
+                        "features": {"label": "UGV-1"}
                     }
                 }
             }
@@ -157,18 +157,18 @@ def create_transport_skill_list_phase1(redbox_position=None):
 SKILL_LIST_TRANSPORT_PHASE2 = {
     "0": {
         # UGV 和 Humanoid 导航到终点
-        "UGV_01": {
+        "UGV-1": {
             "skill": "navigate",
             "params": {"dest": {"x": -8100, "y": 10100, "z": 0}}
         },
-        "Humanoid_01": {
+        "Humanoid-1": {
             "skill": "navigate",
             "params": {"dest": {"x": -8200, "y": 10000, "z": 0}}
         }
     },
     "1": {
         # Humanoid 执行 place 技能：将 RedBox 从 UGV 卸到地面
-        "Humanoid_01": {
+        "Humanoid-1": {
             "skill": "place",
             "params": {
                 "target": {
@@ -191,14 +191,14 @@ SKILL_LIST_TRANSPORT_PHASE2 = {
 # 示例1: UGV+Humanoid 协作搬运任务（导航 -> 装货 -> 导航 -> 卸货）
 SKILL_LIST_PLANNER_EXAMPLE_1 = {
     "0": {
-        "UGV_01": {
+        "UGV-1": {
             "skill": "navigate",
             "params": {
                 "area_token": "Red_Box",
                 "dest": {"x": -9249.13092208624, "y": -4359.999976826766, "z": 0.0}
             }
         },
-        "Humanoid_01": {
+        "Humanoid-1": {
             "skill": "navigate",
             "params": {
                 "area_token": "Red_Box",
@@ -207,7 +207,7 @@ SKILL_LIST_PLANNER_EXAMPLE_1 = {
         }
     },
     "1": {
-        "Humanoid_01": {
+        "Humanoid-1": {
             "skill": "place",
             "params": {
                 "target": {
@@ -222,13 +222,13 @@ SKILL_LIST_PLANNER_EXAMPLE_1 = {
                 "surface_target": {
                     "class": "robot",
                     "type": "UGV",
-                    "features": {"label": "UGV_01"}
+                    "features": {"label": "UGV-1"}
                 }
             }
         }
     },
     "2": {
-        "UGV_01": {
+        "UGV-1": {
             "skill": "navigate",
             "params": {
                 "area_token": "Building-58",
@@ -244,7 +244,7 @@ SKILL_LIST_PLANNER_EXAMPLE_1 = {
                 "dest": {"x": -9249.13092208624, "y": -4359.999976826766, "z": 0.0}
             }
         },
-        "Humanoid_01": {
+        "Humanoid-1": {
             "skill": "navigate",
             "params": {
                 "area_token": "Building-58",
@@ -262,7 +262,7 @@ SKILL_LIST_PLANNER_EXAMPLE_1 = {
         }
     },
     "3": {
-        "Humanoid_01": {
+        "Humanoid-1": {
             "skill": "place",
             "params": {
                 "target": {
@@ -287,7 +287,7 @@ SKILL_LIST_PLANNER_EXAMPLE_1 = {
 # 示例2: Quadruped 搜索任务
 SKILL_LIST_PLANNER_EXAMPLE_2 = {
     "0": {
-        "Quadruped_01": {
+        "Quadruped-1": {
             "skill": "search",
             "params": {
                 "area": {
@@ -320,7 +320,7 @@ SKILL_LIST_PLANNER_EXAMPLE_2 = {
 # Place 测试 - 装货到 UGV
 SKILL_LIST_PLACE_LOAD = {
     "0": {
-        "Humanoid_01": {
+        "Humanoid-1": {
             "skill": "place",
             "params": {
                 "target": {
@@ -331,7 +331,7 @@ SKILL_LIST_PLACE_LOAD = {
                 "surface_target": {
                     "class": "robot",
                     "type": "UGV",
-                    "features": {"label": "UGV_01"}
+                    "features": {"label": "UGV-1"}
                 }
             }
         }
@@ -341,7 +341,7 @@ SKILL_LIST_PLACE_LOAD = {
 # Place 测试 - 卸货到地面
 SKILL_LIST_PLACE_UNLOAD = {
     "0": {
-        "Humanoid_01": {
+        "Humanoid-1": {
             "skill": "place",
             "params": {
                 "target": {
@@ -362,17 +362,17 @@ SKILL_LIST_PLACE_UNLOAD = {
 # Place 测试 - UGV 和 Humanoid 协作搬运场景
 SKILL_LIST_PLACE_COOP = {
     "0": {
-        "UGV_01": {
+        "UGV-1": {
             "skill": "navigate",
             "params": {"dest": {"x": -1900, "y": 8500, "z": 0}}
         },
-        "Humanoid_01": {
+        "Humanoid-1": {
             "skill": "navigate",
             "params": {"dest": {"x": -2100, "y": 8650, "z": 0}}
         }
     },
     "1": {
-        "Humanoid_01": {
+        "Humanoid-1": {
             "skill": "place",
             "params": {
                 "target": {
@@ -383,25 +383,25 @@ SKILL_LIST_PLACE_COOP = {
                 "surface_target": {
                     "class": "robot",
                     "type": "UGV",
-                    "features": {"label": "UGV_01"}
+                    "features": {"label": "UGV-1"}
                 }
             }
         }
     },
     "2": {
-        "UGV_01": {
+        "UGV-1": {
             "skill": "navigate",
             "params": {"dest": {"x": 1000, "y": 1000, "z": 0}}
         }
     },
     "3": {
-        "Humanoid_01": {
+        "Humanoid-1": {
             "skill": "navigate",
             "params": {"dest": {"x": 1150, "y": 1000, "z": 0}}
         }
     },
     "4": {
-        "Humanoid_01": {
+        "Humanoid-1": {
             "skill": "place",
             "params": {
                 "target": {

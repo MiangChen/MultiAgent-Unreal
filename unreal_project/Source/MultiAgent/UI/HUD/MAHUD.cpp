@@ -1215,15 +1215,14 @@ void AMAHUD::OnMultiSelectModifyConfirmed(const TArray<AActor*>& Actors, const F
 
     // 获取 ModifyWidget 通过 UIManager
     UMAModifyWidget* ModifyWidget = UIManager ? UIManager->GetModifyWidget() : nullptr;
+    FString ErrorMessage;
 
-    // 解析输入以获取 ID
-    FString Id, Type, ErrorMessage;
-    if (!SceneGraphManager->ParseLabelInput(LabelText, Id, Type, ErrorMessage))
+    // 解析 JSON 检查是否为编辑模式
+    TSharedPtr<FJsonObject> JsonObject;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(GeneratedJson);
+    if (!FJsonSerializer::Deserialize(Reader, JsonObject) || !JsonObject.IsValid())
     {
-        // 解析失败 - 显示错误
-        ShowNotification(ErrorMessage, true);
-
-        // 保留输入状态
+        ShowNotification(TEXT("JSON parse failed"), true);
         if (ModifyWidget)
         {
             ModifyWidget->SetSelectedActors(Actors);
@@ -1232,43 +1231,83 @@ void AMAHUD::OnMultiSelectModifyConfirmed(const TArray<AActor*>& Actors, const F
         return;
     }
 
-    // 检查 ID 是否已存在
-    if (SceneGraphManager->IsIdExists(Id))
+    // 检查是否有 _edit_mode 标记
+    bool bIsEditMode = false;
+    FString EditNodeId;
+    if (JsonObject->TryGetBoolField(TEXT("_edit_mode"), bIsEditMode) && bIsEditMode)
     {
-        ShowNotification(FString::Printf(TEXT("ID '%s' already exists, please use a different ID"), *Id), false, true);
-
-        // 保留输入状态
-        if (ModifyWidget)
+        JsonObject->TryGetStringField(TEXT("_edit_node_id"), EditNodeId);
+        
+        // 移除临时标记字段
+        JsonObject->RemoveField(TEXT("_edit_mode"));
+        JsonObject->RemoveField(TEXT("_edit_node_id"));
+        
+        // 重新序列化
+        FString CleanJson;
+        TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&CleanJson);
+        FJsonSerializer::Serialize(JsonObject.ToSharedRef(), Writer);
+        
+        UE_LOG(LogMAHUD, Log, TEXT("OnMultiSelectModifyConfirmed: Edit mode, updating node %s"), *EditNodeId);
+        
+        // 调用 EditNode
+        if (!SceneGraphManager->EditNode(EditNodeId, CleanJson, ErrorMessage))
         {
-            ModifyWidget->SetSelectedActors(Actors);
-            ModifyWidget->SetLabelText(LabelText);
+            ShowNotification(ErrorMessage, true);
+            if (ModifyWidget)
+            {
+                ModifyWidget->SetSelectedActors(Actors);
+                ModifyWidget->SetLabelText(LabelText);
+            }
+            return;
         }
-        return;
+        
+        // 保存到源文件 (仅 Modify 模式会实际保存)
+        SceneGraphManager->SaveToSource();
+        
+        ShowNotification(FString::Printf(TEXT("Node %s updated"), *EditNodeId), false);
     }
-
-    UE_LOG(LogMAHUD, Log, TEXT("OnMultiSelectModifyConfirmed: Saving JSON:\n%s"), *GeneratedJson);
-
-    // 调用统一的 AddNode API 添加节点到 Working Copy
-    if (!SceneGraphManager->AddNode(GeneratedJson, ErrorMessage))
+    else
     {
-        // 添加失败
-        ShowNotification(ErrorMessage, true);
-
-        // 保留输入状态
-        if (ModifyWidget)
+        // 新增模式 - 原有逻辑
+        FString Id, Type;
+        if (!SceneGraphManager->ParseLabelInput(LabelText, Id, Type, ErrorMessage))
         {
-            ModifyWidget->SetSelectedActors(Actors);
-            ModifyWidget->SetLabelText(LabelText);
+            ShowNotification(ErrorMessage, true);
+            if (ModifyWidget)
+            {
+                ModifyWidget->SetSelectedActors(Actors);
+                ModifyWidget->SetLabelText(LabelText);
+            }
+            return;
         }
-        return;
+
+        if (SceneGraphManager->IsIdExists(Id))
+        {
+            ShowNotification(FString::Printf(TEXT("ID '%s' already exists, please use a different ID"), *Id), false, true);
+            if (ModifyWidget)
+            {
+                ModifyWidget->SetSelectedActors(Actors);
+                ModifyWidget->SetLabelText(LabelText);
+            }
+            return;
+        }
+
+        UE_LOG(LogMAHUD, Log, TEXT("OnMultiSelectModifyConfirmed: Add mode, saving JSON:\n%s"), *GeneratedJson);
+
+        if (!SceneGraphManager->AddNode(GeneratedJson, ErrorMessage))
+        {
+            ShowNotification(ErrorMessage, true);
+            if (ModifyWidget)
+            {
+                ModifyWidget->SetSelectedActors(Actors);
+                ModifyWidget->SetLabelText(LabelText);
+            }
+            return;
+        }
+
+        SceneGraphManager->SaveToSource();
+        ShowNotification(FString::Printf(TEXT("Multi-select annotation saved: %d Actors"), Actors.Num()), false);
     }
-
-    // 保存到源文件 (仅 Modify 模式会实际保存)
-    SceneGraphManager->SaveToSource();
-
-    // 显示成功消息
-    FString SuccessMessage = FString::Printf(TEXT("Multi-select annotation saved: %d Actors"), Actors.Num());
-    ShowNotification(SuccessMessage, false);
 
     // 刷新可视化
     LoadSceneGraphForVisualization();
@@ -1282,7 +1321,7 @@ void AMAHUD::OnMultiSelectModifyConfirmed(const TArray<AActor*>& Actors, const F
     // 清除高亮
     ClearHighlightedActor();
 
-    UE_LOG(LogMAHUD, Log, TEXT("OnMultiSelectModifyConfirmed: Successfully processed multi-select annotation"));
+    UE_LOG(LogMAHUD, Log, TEXT("OnMultiSelectModifyConfirmed: Successfully processed annotation"));
 }
 
 //=============================================================================

@@ -151,10 +151,10 @@ UE5 端通过 HTTP 轮询与 Python 端通信，支持以下消息类型：
 ```json
 {
     "0": {
-        "UAV_0": { "skill": "navigate", "params": { "dest_position": [1000, 2000, 500] } }
+        "UAV-": { "skill": "navigate", "params": { "dest_position": [1000, 2000, 500] } }
     },
     "1": {
-        "UAV_0": { "skill": "search", "params": { "search_area": [[0,0], [1000,0], [1000,1000], [0,1000]] } }
+        "UAV-": { "skill": "search", "params": { "search_area": [[0,0], [1000,0], [1000,1000], [0,1000]] } }
     }
 }
 ```

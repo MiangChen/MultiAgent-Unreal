@@ -57,37 +57,37 @@ SKILL_ALLOCATIONS = {
         "description": "完整测试: UAV 搜索 → 导航装载 → 运输卸载",
         "data": {
             "0": {
-                "UAV_01": {"skill": "take_off", "params": {}},
-                "UAV_02": {"skill": "take_off", "params": {}}
+                "UAV-1": {"skill": "take_off", "params": {}},
+                "UAV-2": {"skill": "take_off", "params": {}}
             },
             "1": {
-                "UAV_01": {"skill": "search", "params": {
+                "UAV-1": {"skill": "search", "params": {
                     "search_area": [[-500, 1000], [1500, 1000], [1500, 2500], [-500, 2500]],
                     "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}}
                 }},
-                "UAV_02": {"skill": "search", "params": {
+                "UAV-2": {"skill": "search", "params": {
                     "search_area": [[-1000, 1000], [-2000, 1000], [-2000, 2500], [-500, 2500]],
                     "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}}
                 }}
             },
             "2": {
-                "UGV_01": {"skill": "navigate", "params": {"dest": {"x": "redbox_x + 100", "y": "redbox_y - 400", "z": 0}}},
-                "Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": "redbox_x - 100", "y": "redbox_y - 200", "z": 0}}},
-                "UAV_01": {"skill": "return_home", "params": {}},
-                "UAV_02": {"skill": "return_home", "params": {}}
+                "UGV-1": {"skill": "navigate", "params": {"dest": {"x": "redbox_x + 100", "y": "redbox_y - 400", "z": 0}}},
+                "Humanoid-1": {"skill": "navigate", "params": {"dest": {"x": "redbox_x - 100", "y": "redbox_y - 200", "z": 0}}},
+                "UAV-1": {"skill": "return_home", "params": {}},
+                "UAV-2": {"skill": "return_home", "params": {}}
             },
             "3": {
-                "Humanoid_01": {"skill": "place", "params": {
+                "Humanoid-1": {"skill": "place", "params": {
                     "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}},
-                    "surface_target": {"class": "robot", "type": "UGV", "features": {"label": "UGV_01"}}
+                    "surface_target": {"class": "robot", "type": "UGV", "features": {"label": "UGV-1"}}
                 }}
             },
             "4": {
-                "UGV_01": {"skill": "navigate", "params": {"dest": {"x": -5100, "y": 2200, "z": 0}}},
-                "Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": -5200, "y": 2100, "z": 0}}}
+                "UGV-1": {"skill": "navigate", "params": {"dest": {"x": -5100, "y": 2200, "z": 0}}},
+                "Humanoid-1": {"skill": "navigate", "params": {"dest": {"x": -5200, "y": 2100, "z": 0}}}
             },
             "5": {
-                "Humanoid_01": {"skill": "place", "params": {
+                "Humanoid-1": {"skill": "place", "params": {
                     "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}},
                     "surface_target": {"class": "ground", "type": "", "features": {}}
                 }}
@@ -99,15 +99,15 @@ SKILL_ALLOCATIONS = {
         "description": "2个 UAV 协同搜索 RedBox",
         "data": {
             "0": {
-                "UAV_01": {"skill": "take_off", "params": {}},
-                "UAV_02": {"skill": "take_off", "params": {}}
+                "UAV-1": {"skill": "take_off", "params": {}},
+                "UAV-2": {"skill": "take_off", "params": {}}
             },
             "1": {
-                "UAV_01": {"skill": "search", "params": {
+                "UAV-1": {"skill": "search", "params": {
                     "search_area": [[-500, 1000], [1500, 1000], [1500, 2500], [-500, 2500]],
                     "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}}
                 }},
-                "UAV_02": {"skill": "search", "params": {
+                "UAV-2": {"skill": "search", "params": {
                     "search_area": [[-1000, 1000], [-2000, 1000], [-2000, 2500], [-500, 2500]],
                     "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}}
                 }}
@@ -119,15 +119,15 @@ SKILL_ALLOCATIONS = {
         "description": "UGV 和 Humanoid 导航到 RedBox 位置，Humanoid 将 RedBox 装载到 UGV 上",
         "data": {
             "0": {
-                "UGV_01": {"skill": "navigate", "params": {"dest": {"x": "redbox_x + 100", "y": "redbox_y - 400", "z": 0}}},
-                "Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": "redbox_x - 100", "y": "redbox_y - 200", "z": 0}}},
-                "UAV_01": {"skill": "return_home", "params": {}},
-                "UAV_02": {"skill": "return_home", "params": {}}
+                "UGV-1": {"skill": "navigate", "params": {"dest": {"x": "redbox_x + 100", "y": "redbox_y - 400", "z": 0}}},
+                "Humanoid-1": {"skill": "navigate", "params": {"dest": {"x": "redbox_x - 100", "y": "redbox_y - 200", "z": 0}}},
+                "UAV-1": {"skill": "return_home", "params": {}},
+                "UAV-2": {"skill": "return_home", "params": {}}
             },
             "1": {
-                "Humanoid_01": {"skill": "place", "params": {
+                "Humanoid-1": {"skill": "place", "params": {
                     "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}},
-                    "surface_target": {"class": "robot", "type": "UGV", "features": {"label": "UGV_01"}}
+                    "surface_target": {"class": "robot", "type": "UGV", "features": {"label": "UGV-1"}}
                 }}
             }
         }
@@ -137,11 +137,11 @@ SKILL_ALLOCATIONS = {
         "description": "UGV 和 Humanoid 导航到目的地，Humanoid 将 RedBox 从 UGV 卸载到地面",
         "data": {
             "0": {
-                "UGV_01": {"skill": "navigate", "params": {"dest": {"x": -5100, "y": 2200, "z": 0}}},
-                "Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": -5200, "y": 2100, "z": 0}}}
+                "UGV-1": {"skill": "navigate", "params": {"dest": {"x": -5100, "y": 2200, "z": 0}}},
+                "Humanoid-1": {"skill": "navigate", "params": {"dest": {"x": -5200, "y": 2100, "z": 0}}}
             },
             "1": {
-                "Humanoid_01": {"skill": "place", "params": {
+                "Humanoid-1": {"skill": "place", "params": {
                     "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}},
                     "surface_target": {"class": "ground", "type": "", "features": {}}
                 }}
@@ -152,10 +152,10 @@ SKILL_ALLOCATIONS = {
         "name": "Single Test",
         "description": "UAV 起飞 -> 导航 -> Humanoid 导航",
         "data": {
-            "0": {"UAV_01": {"skill": "take_off", "params": {}}},
-            "1": {"UAV_01": {"skill": "navigate", "params": {"dest": {"x": 1350, "y": -450, "z": 545}}}},
-            "2": {"Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": -1200, "y": 1200, "z": 0}}}},
-            "3": {"Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": 0, "y": 2400, "z": 0}}}}
+            "0": {"UAV-1": {"skill": "take_off", "params": {}}},
+            "1": {"UAV-1": {"skill": "navigate", "params": {"dest": {"x": 1350, "y": -450, "z": 545}}}},
+            "2": {"Humanoid-1": {"skill": "navigate", "params": {"dest": {"x": -1200, "y": 1200, "z": 0}}}},
+            "3": {"Humanoid-1": {"skill": "navigate", "params": {"dest": {"x": 0, "y": 2400, "z": 0}}}}
         }
     },
     "place_coop": {
@@ -163,19 +163,19 @@ SKILL_ALLOCATIONS = {
         "description": "UGV + Humanoid 协作搬运",
         "data": {
             "0": {
-                "UGV_01": {"skill": "navigate", "params": {"dest": {"x": 400, "y": 1300, "z": 0}}},
-                "Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": 200, "y": 1850, "z": 0}}}
+                "UGV-1": {"skill": "navigate", "params": {"dest": {"x": 400, "y": 1300, "z": 0}}},
+                "Humanoid-1": {"skill": "navigate", "params": {"dest": {"x": 200, "y": 1850, "z": 0}}}
             },
             "1": {
-                "Humanoid_01": {"skill": "place", "params": {
+                "Humanoid-1": {"skill": "place", "params": {
                     "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}},
-                    "surface_target": {"class": "robot", "type": "UGV", "features": {"label": "UGV_01"}}
+                    "surface_target": {"class": "robot", "type": "UGV", "features": {"label": "UGV-1"}}
                 }}
             },
-            "2": {"UGV_01": {"skill": "navigate", "params": {"dest": {"x": 1000, "y": 1000, "z": 0}}}},
-            "3": {"Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": 1150, "y": 1000, "z": 0}}}},
+            "2": {"UGV-1": {"skill": "navigate", "params": {"dest": {"x": 1000, "y": 1000, "z": 0}}}},
+            "3": {"Humanoid-1": {"skill": "navigate", "params": {"dest": {"x": 1150, "y": 1000, "z": 0}}}},
             "4": {
-                "Humanoid_01": {"skill": "place", "params": {
+                "Humanoid-1": {"skill": "place", "params": {
                     "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}},
                     "surface_target": {"class": "ground", "type": "", "features": {}}
                 }}
@@ -192,37 +192,37 @@ SKILL_LISTS = {
         "description": "完整测试: UAV 搜索 → 导航装载 → 运输卸载",
         "data": {
             "0": {
-                "UAV_01": {"skill": "take_off", "params": {}},
-                "UAV_02": {"skill": "take_off", "params": {}}
+                "UAV-1": {"skill": "take_off", "params": {}},
+                "UAV-2": {"skill": "take_off", "params": {}}
             },
             "1": {
-                "UAV_01": {"skill": "search", "params": {
-                    "search_area": [[-500, 1000], [1500, 1000], [1500, 2500], [-500, 2500]],
+                "UAV-1": {"skill": "search", "params": {
+                    "search_area": [[-2000, 6000], [-5000, 6000], [-5000, 9000], [-2000, 9000]],
                     "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}}
                 }},
-                "UAV_02": {"skill": "search", "params": {
-                    "search_area": [[-1000, 1000], [-2000, 1000], [-2000, 2500], [-500, 2500]],
+                "UAV-2": {"skill": "search", "params": {
+                    "search_area": [[-2000, 9000], [-5000, 9000], [-5000, 12000], [-2000, 12000]],
                     "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}}
                 }}
             },
             "2": {
-                "UGV_01": {"skill": "navigate", "params": {"dest": {"x": "redbox_x + 100", "y": "redbox_y - 400", "z": 0}}},
-                "Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": "redbox_x - 100", "y": "redbox_y - 200", "z": 0}}},
-                "UAV_01": {"skill": "return_home", "params": {}},
-                "UAV_02": {"skill": "return_home", "params": {}}
+                "UGV-1": {"skill": "navigate", "params": {"dest": {"x": -2300, "y": 9000, "z": 0}}},
+                "Humanoid-1": {"skill": "navigate", "params": {"dest": {"x": -2400, "y": 9100, "z": 0}}},
+                "UAV-1": {"skill": "return_home", "params": {}},
+                "UAV-2": {"skill": "return_home", "params": {}}
             },
             "3": {
-                "Humanoid_01": {"skill": "place", "params": {
+                "Humanoid-1": {"skill": "place", "params": {
                     "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}},
-                    "surface_target": {"class": "robot", "type": "UGV", "features": {"label": "UGV_01"}}
+                    "surface_target": {"class": "robot", "type": "UGV", "features": {"label": "UGV-1"}}
                 }}
             },
             "4": {
-                "UGV_01": {"skill": "navigate", "params": {"dest": {"x": -5100, "y": 2200, "z": 0}}},
-                "Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": -5200, "y": 2100, "z": 0}}}
+                "UGV-1": {"skill": "navigate", "params": {"dest": {"x": -8100, "y": 9200, "z": 0}}},
+                "Humanoid-1": {"skill": "navigate", "params": {"dest": {"x": -8200, "y": 9500, "z": 0}}}
             },
             "5": {
-                "Humanoid_01": {"skill": "place", "params": {
+                "Humanoid-1": {"skill": "place", "params": {
                     "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}},
                     "surface_target": {"class": "ground", "type": "", "features": {}}
                 }}
@@ -234,15 +234,15 @@ SKILL_LISTS = {
         "description": "2个 UAV 协同搜索 RedBox",
         "data": {
             "0": {
-                "UAV_01": {"skill": "take_off", "params": {}},
-                "UAV_02": {"skill": "take_off", "params": {}}
+                "UAV-1": {"skill": "take_off", "params": {}},
+                "UAV-2": {"skill": "take_off", "params": {}}
             },
             "1": {
-                "UAV_01": {"skill": "search", "params": {
+                "UAV-1": {"skill": "search", "params": {
                     "search_area": [[-500, 1000], [1500, 1000], [1500, 2500], [-500, 2500]],
                     "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}}
                 }},
-                "UAV_02": {"skill": "search", "params": {
+                "UAV-2": {"skill": "search", "params": {
                     "search_area": [[-1000, 1000], [-2000, 1000], [-2000, 2500], [-500, 2500]],
                     "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}}
                 }}
@@ -254,15 +254,15 @@ SKILL_LISTS = {
         "description": "UGV 和 Humanoid 导航到 RedBox 位置，Humanoid 将 RedBox 装载到 UGV 上",
         "data": {
             "0": {
-                "UGV_01": {"skill": "navigate", "params": {"dest": {"x": "redbox_x + 100", "y": "redbox_y - 400", "z": 0}}},
-                "Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": "redbox_x - 100", "y": "redbox_y - 200", "z": 0}}},
-                "UAV_01": {"skill": "return_home", "params": {}},
-                "UAV_02": {"skill": "return_home", "params": {}}
+                "UGV-1": {"skill": "navigate", "params": {"dest": {"x": "redbox_x + 100", "y": "redbox_y - 400", "z": 0}}},
+                "Humanoid-1": {"skill": "navigate", "params": {"dest": {"x": "redbox_x - 100", "y": "redbox_y - 200", "z": 0}}},
+                "UAV-1": {"skill": "return_home", "params": {}},
+                "UAV-2": {"skill": "return_home", "params": {}}
             },
             "1": {
-                "Humanoid_01": {"skill": "place", "params": {
+                "Humanoid-1": {"skill": "place", "params": {
                     "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}},
-                    "surface_target": {"class": "robot", "type": "UGV", "features": {"label": "UGV_01"}}
+                    "surface_target": {"class": "robot", "type": "UGV", "features": {"label": "UGV-1"}}
                 }}
             }
         }
@@ -272,11 +272,11 @@ SKILL_LISTS = {
         "description": "UGV 和 Humanoid 导航到目的地，Humanoid 将 RedBox 从 UGV 卸载到地面",
         "data": {
             "0": {
-                "UGV_01": {"skill": "navigate", "params": {"dest": {"x": -5100, "y": 2200, "z": 0}}},
-                "Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": -5200, "y": 2100, "z": 0}}}
+                "UGV-1": {"skill": "navigate", "params": {"dest": {"x": -5100, "y": 2200, "z": 0}}},
+                "Humanoid-1": {"skill": "navigate", "params": {"dest": {"x": -5200, "y": 2100, "z": 0}}}
             },
             "1": {
-                "Humanoid_01": {"skill": "place", "params": {
+                "Humanoid-1": {"skill": "place", "params": {
                     "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}},
                     "surface_target": {"class": "ground", "type": "", "features": {}}
                 }}
@@ -287,10 +287,23 @@ SKILL_LISTS = {
         "name": "Single Test",
         "description": "UAV 起飞 -> 导航 -> Humanoid 导航",
         "data": {
-            "0": {"UAV_01": {"skill": "take_off", "params": {}}},
-            "1": {"UAV_01": {"skill": "navigate", "params": {"dest": {"x": 1350, "y": -450, "z": 545}}}},
-            "2": {"Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": -1200, "y": 1200, "z": 0}}}},
-            "3": {"Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": 0, "y": 2400, "z": 0}}}}
+            # "0": {"UAV-1": {"skill": "take_off", "params": {}}},
+            # "1": {"UAV-1": {"skill": "navigate", "params": {"dest": {"x": 1350, "y": -450, "z": 545}}}},
+            "0": {
+                # "Humanoid-1": {"skill": "navigate", "params": {"dest": {"x": -2200, "y": 3200, "z": 0}}},
+                # "Quadruped-1": {"skill": "navigate", "params": {"dest": {"x": -2200, "y": 3200, "z": 0}}},
+                "UGV-1": {"skill": "navigate", "params": {"dest": {"x": -2200, "y": 3200, "z": 0}}}
+            },
+            "1": {
+                # "Humanoid-1": {"skill": "navigate", "params": {"dest": {"x": 0, "y": 8400, "z": 0}}},
+                # "Quadruped-1": {"skill": "navigate", "params": {"dest": {"x": -4000, "y": 9000, "z": 0}}},
+                "UGV-1": {"skill": "navigate", "params": {"dest": {"x": -4000, "y": 9000, "z": 0}}}
+            },
+            "2": {
+                # "Humanoid-1": {"skill": "navigate", "params": {"dest": {"x": -5000, "y": 12400, "z": 0}}},
+                # "Quadruped-1": {"skill": "navigate", "params": {"dest": {"x": -5000, "y": 12400, "z": 0}}},
+                "UGV-1": {"skill": "navigate", "params": {"dest": {"x": -5000, "y": 12400, "z": 0}}}
+            }
         }
     },
     "place_coop": {
@@ -298,19 +311,21 @@ SKILL_LISTS = {
         "description": "UGV + Humanoid 协作搬运",
         "data": {
             "0": {
-                "UGV_01": {"skill": "navigate", "params": {"dest": {"x": 400, "y": 1300, "z": 0}}},
-                "Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": 200, "y": 1850, "z": 0}}}
+                "UGV-1": {"skill": "navigate", "params": {"dest": {"x": -2900, "y": 9000, "z": 0}}},
+                "Humanoid-1": {"skill": "navigate", "params": {"dest": {"x": -2400, "y": 9300, "z": 0}}},
             },
             "1": {
-                "Humanoid_01": {"skill": "place", "params": {
+                "Humanoid-1": {"skill": "place", "params": {
                     "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}},
-                    "surface_target": {"class": "robot", "type": "UGV", "features": {"label": "UGV_01"}}
+                    "surface_target": {"class": "robot", "type": "UGV", "features": {"label": "UGV-1"}}
                 }}
             },
-            "2": {"UGV_01": {"skill": "navigate", "params": {"dest": {"x": 1000, "y": 1000, "z": 0}}}},
-            "3": {"Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": 1150, "y": 1000, "z": 0}}}},
-            "4": {
-                "Humanoid_01": {"skill": "place", "params": {
+            "2": {
+                "UGV-1": {"skill": "navigate", "params": {"dest": {"x": -8100, "y": 12200, "z": 0}}},
+                "Humanoid-1": {"skill": "navigate", "params": {"dest": {"x": -8200, "y": 12700, "z": 0}}}
+            },
+            "3": {
+                "Humanoid-1": {"skill": "place", "params": {
                     "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}},
                     "surface_target": {"class": "ground", "type": "", "features": {}}
                 }}
@@ -325,7 +340,7 @@ EMERGENCY_EVENTS = {
         "name": "Obstacle Detected",
         "description": "Obstacle blocking path",
         "data": {
-            "agent_id": "Quadruped_01",
+            "agent_id": "Quadruped-1",
             "agent_name": "Scout Dog",
             "event_type": "obstacle_detected",
             "description": "Obstacle detected ahead blocking the path. Please decide the next action.",
@@ -337,7 +352,7 @@ EMERGENCY_EVENTS = {
         "name": "Low Battery Warning",
         "description": "Battery level critical",
         "data": {
-            "agent_id": "UAV_01",
+            "agent_id": "UAV-1",
             "agent_name": "Recon Drone",
             "event_type": "low_battery",
             "description": "UAV battery level below 20%. Please decide whether to return.",
@@ -349,7 +364,7 @@ EMERGENCY_EVENTS = {
         "name": "Target Found",
         "description": "Target located",
         "data": {
-            "agent_id": "UAV_02",
+            "agent_id": "UAV-2",
             "agent_name": "Search Drone",
             "event_type": "target_found",
             "description": "Potential target found in search area. Please confirm next action.",
@@ -361,7 +376,7 @@ EMERGENCY_EVENTS = {
         "name": "Communication Lost",
         "description": "Connection interrupted",
         "data": {
-            "agent_id": "UGV_01",
+            "agent_id": "UGV-1",
             "agent_name": "Transport Vehicle",
             "event_type": "communication_lost",
             "description": "Communication with command center lost. Please select emergency action.",
@@ -373,7 +388,7 @@ EMERGENCY_EVENTS = {
         "name": "Intruder Detected",
         "description": "Unauthorized personnel detected",
         "data": {
-            "agent_id": "Quadruped_02",
+            "agent_id": "Quadruped-2",
             "agent_name": "Patrol Dog",
             "event_type": "intruder_detected",
             "description": "Unauthorized personnel detected in patrol area. Please select response.",
@@ -509,10 +524,10 @@ TASK_GRAPHS = {
             },
             "task_graph": {
                 "nodes": [
-                    {"task_id": "T1", "description": "UAV_01 搜索区域 A", "location": "search_zone_A",
+                    {"task_id": "T1", "description": "UAV-1 搜索区域 A", "location": "search_zone_A",
                      "required_skills": [{"skill_name": "search(zone_A)", "assigned_robot_type": ["UAV"], "assigned_robot_count": 1}],
                      "produces": ["zone_A_scanned"]},
-                    {"task_id": "T2", "description": "UAV_02 搜索区域 B", "location": "search_zone_B",
+                    {"task_id": "T2", "description": "UAV-2 搜索区域 B", "location": "search_zone_B",
                      "required_skills": [{"skill_name": "search(zone_B)", "assigned_robot_type": ["UAV"], "assigned_robot_count": 1}],
                      "produces": ["zone_B_scanned"]},
                     {"task_id": "T3", "description": "汇总搜索结果确定目标位置", "location": "command_center",

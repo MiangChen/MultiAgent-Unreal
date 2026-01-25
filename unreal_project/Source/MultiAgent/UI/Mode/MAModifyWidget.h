@@ -287,6 +287,18 @@ protected:
     UPROPERTY()
     UTextBlock* TitleText;
 
+    /** 模式指示器文本 */
+    UPROPERTY()
+    UTextBlock* ModeIndicatorText;
+
+    /** 当前标注模式 */
+    UPROPERTY()
+    EMAAnnotationMode CurrentAnnotationMode = EMAAnnotationMode::AddNew;
+
+    /** 编辑模式下的节点 ID */
+    UPROPERTY()
+    FString EditingNodeId;
+
 private:
     //=========================================================================
     // 内部状态
@@ -367,4 +379,39 @@ private:
      * @return GUID 字符串数组
      */
     TArray<FString> CollectActorGuids(const TArray<AActor*>& Actors);
+
+    /**
+     * 设置标注模式
+     * @param Mode 新模式
+     * @param NodeId 编辑模式下的节点 ID
+     */
+    void SetAnnotationMode(EMAAnnotationMode Mode, const FString& NodeId);
+
+    /**
+     * 更新模式指示器 UI
+     */
+    void UpdateModeIndicator();
+
+    /**
+     * 从节点属性填充输入框
+     * @param Node 要编辑的节点
+     */
+    void PopulateInputFromNode(const FMASceneGraphNode& Node);
+
+    /**
+     * 生成编辑节点的 JSON
+     * 只更新 properties，保留原有的 shape 和 Guid
+     * @param Input 解析后的输入
+     * @param NodeId 要编辑的节点 ID
+     * @return JSON 字符串
+     */
+    FString GenerateEditNodeJson(const FMAAnnotationInput& Input, const FString& NodeId);
+
+    /**
+     * 查找选中 Actor 对应的已标记节点
+     * @param ActorGuid Actor 的 GUID
+     * @param OutNodes 输出匹配的节点数组
+     * @return 是否找到匹配节点
+     */
+    bool FindMatchingNodes(const FString& ActorGuid, TArray<FMASceneGraphNode>& OutNodes);
 };
