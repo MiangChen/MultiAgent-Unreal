@@ -12,29 +12,29 @@
         {
             "type": "UAV",
             "instances": [
-                { "label": "UAV_01", "position": [7700, 9000, 20], "rotation": [0, 180, 0] },
-                { "label": "UAV_02", "position": [8000, 9000, 20], "rotation": [0, 180, 0] }
+                { "label": "UAV-1", "position": [7700, 9000, 20], "rotation": [0, 180, 0] },
+                { "label": "UAV-2", "position": [8000, 9000, 20], "rotation": [0, 180, 0] }
             ]
         },
         {
             "type": "UGV",
             "instances": [
-                { "label": "UGV_01", "position": [7700, 9400, 20], "rotation": [0, 180, 0] },
-                { "label": "UGV_02", "position": [8000, 9400, 20], "rotation": [0, 180, 0] }
+                { "label": "UGV-1", "position": [7700, 9400, 20], "rotation": [0, 180, 0] },
+                { "label": "UGV-2", "position": [8000, 9400, 20], "rotation": [0, 180, 0] }
             ]
         },
         {
             "type": "Quadruped",
             "instances": [
-                { "label": "Quadruped_01", "position": [7700, 9800, 20], "rotation": [0, 180, 0] },
-                { "label": "Quadruped_02", "position": [8000, 9800, 20], "rotation": [0, 180, 0] }
+                { "label": "Quadruped-1", "position": [7700, 9800, 20], "rotation": [0, 180, 0] },
+                { "label": "Quadruped-2", "position": [8000, 9800, 20], "rotation": [0, 180, 0] }
             ]
         },
         {
             "type": "Humanoid",
             "instances": [
-                { "label": "Humanoid_01", "position": [7700, 10200, 20], "rotation": [0, 180, 0] },
-                { "label": "Humanoid_02", "position": [8000, 10200, 20], "rotation": [0, 180, 0] }
+                { "label": "Humanoid-1", "position": [7700, 10200, 20], "rotation": [0, 180, 0] },
+                { "label": "Humanoid-2", "position": [8000, 10200, 20], "rotation": [0, 180, 0] }
             ]
         }
     ],

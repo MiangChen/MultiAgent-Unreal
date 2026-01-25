@@ -533,7 +533,7 @@ FMASceneGraphNode FMASceneGraphQuery::FindNodeByIdOrLabel(
     const FString& NodeId)
 {
     // 统一查询逻辑：按 Id, Label, Features["label"], Features["name"] 顺序查找
-    // 这样可以用 "UAV_01", "UAV-1", "RedBox", "101" 等任意标识符查找节点
+    // 这样可以用 "UAV-1", "UAV-1", "RedBox", "101" 等任意标识符查找节点
     
     if (NodeId.IsEmpty())
     {

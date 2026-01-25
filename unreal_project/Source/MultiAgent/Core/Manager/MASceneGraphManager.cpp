@@ -428,7 +428,7 @@ void UMASceneGraphManager::LoadDynamicNodes()
             AgentConfig.Position,
             AgentConfig.Rotation
         );
-        Node.Label = AgentConfig.ID;  // 使用配置文件中的 label (如 "UAV_01")
+        Node.Label = AgentConfig.ID;  // 使用配置文件中的 label (如 "UAV-1")
         Node.Features.Add(TEXT("label"), AgentConfig.ID);
         
         DynamicNodes.Add(Node);

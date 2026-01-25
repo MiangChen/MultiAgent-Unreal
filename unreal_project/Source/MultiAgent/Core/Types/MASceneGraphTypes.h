@@ -14,7 +14,7 @@
  * 
  * 
  * 使用示例:
- * - 引用机器人: {"class": "robot", "type": "UGV", "features": {"label": "UGV_01"}}
+ * - 引用机器人: {"class": "robot", "type": "UGV", "features": {"label": "UGV-1"}}
  * - 引用地面: {"class": "ground"}
  * - 引用物品: {"class": "pickup_item", "type": "cargo", "features": {"color": "red"}}
  */

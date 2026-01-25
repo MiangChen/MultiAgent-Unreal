@@ -54,24 +54,24 @@ void UMAExternalCameraManager::InitializeDefaultCameras()
         AddExternalCamera(Config);
     }
 
-    // 2. UAV_01 身后 500 距离摄像头
+    // 2. UAV-1 身后 500 距离摄像头
     {
         FMAExternalCameraConfig Config;
-        Config.CameraName = TEXT("UAV_01_Behind");
+        Config.CameraName = TEXT("UAV-1_Behind");
         Config.CameraType = EMAExternalCameraType::Follow;
-        Config.TargetAgentLabel = TEXT("UAV_01");
+        Config.TargetAgentLabel = TEXT("UAV-1");
         Config.FollowViewType = EMAFollowViewType::Behind;
         Config.FollowDistance = 500.f;
         Config.FOV = 90.f;
         AddExternalCamera(Config);
     }
 
-    // 3. UAV_02 头顶上 500 距离摄像头
+    // 3. UAV-2 头顶上 500 距离摄像头
     {
         FMAExternalCameraConfig Config;
-        Config.CameraName = TEXT("UAV_02_TopDown");
+        Config.CameraName = TEXT("UAV-2_TopDown");
         Config.CameraType = EMAExternalCameraType::Follow;
-        Config.TargetAgentLabel = TEXT("UAV_02");
+        Config.TargetAgentLabel = TEXT("UAV-2");
         Config.FollowViewType = EMAFollowViewType::TopDown;
         Config.FollowDistance = 500.f;
         Config.FOV = 90.f;
@@ -83,7 +83,7 @@ void UMAExternalCameraManager::InitializeDefaultCameras()
         FMAExternalCameraConfig Config;
         Config.CameraName = TEXT("UGV_Behind");
         Config.CameraType = EMAExternalCameraType::Follow;
-        Config.TargetAgentLabel = TEXT("UGV_01");
+        Config.TargetAgentLabel = TEXT("UGV-1");
         Config.FollowViewType = EMAFollowViewType::Behind;
         Config.FollowDistance = 500.f;
         Config.FOV = 90.f;

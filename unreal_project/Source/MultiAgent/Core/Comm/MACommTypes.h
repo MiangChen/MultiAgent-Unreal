@@ -826,7 +826,7 @@ struct MULTIAGENT_API FMASkillAllocationMessage
  * 消息格式:
  * {
  *   "time_step": 0,
- *   "robot_id": "UAV_01",
+ *   "robot_id": "UAV-1",
  *   "status": "InProgress" | "Completed" | "Failed"
  * }
  */

@@ -5,7 +5,7 @@
 	{
 		"0":
 		{
-			"UGV_01":
+			"UGV-1":
 			{
 				"skill": "navigate<RedBox>",
 				"params":
@@ -13,7 +13,7 @@
 					"task_id": "T2"
 				}
 			},
-			"Humanoid_01":
+			"Humanoid-1":
 			{
 				"skill": "navigate<RedBox>",
 				"params":
@@ -24,7 +24,7 @@
 		},
 		"1":
 		{
-			"Humanoid_01":
+			"Humanoid-1":
 			{
 				"skill": "place<Red_Box>_on<UGV>",
 				"params":
@@ -35,7 +35,7 @@
 		},
 		"2":
 		{
-			"UGV_01":
+			"UGV-1":
 			{
 				"skill": "navigate<Streetlight-69>",
 				"params":
@@ -43,7 +43,7 @@
 					"task_id": "T2"
 				}
 			},
-			"Humanoid_01":
+			"Humanoid-1":
 			{
 				"skill": "navigate<Streetlight-69>",
 				"params":
@@ -54,7 +54,7 @@
 		},
 		"3":
 		{
-			"Humanoid_01":
+			"Humanoid-1":
 			{
 				"skill": "place<Red_Box>_on<ground>",
 				"params":

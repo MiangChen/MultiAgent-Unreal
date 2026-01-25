@@ -34,7 +34,7 @@ public:
      *     {
      *       "type": "UAV",
      *       "instances": [
-     *         {"label": "UAV_01", "position": [x, y, z], "rotation": [pitch, yaw, roll]}
+     *         {"label": "UAV-1", "position": [x, y, z], "rotation": [pitch, yaw, roll]}
      *       ]
      *     }
      *   ]

@@ -50,9 +50,9 @@ DECLARE_LOG_CATEGORY_EXTERN(LogMASkillAllocationViewer, Log, All);
  * │  │ Status Log    │  │  │    Gantt Canvas                         │ │
  * │  │ (ReadOnly)    │  │  │  Time Step 0  1  2  3  4  ...           │ │
  * │  └───────────────┘  │  │  ├──────────────────────────────────────┤ │
- * │  ┌───────────────┐  │  │  │ UAV_01   [■][■][■]                  │ │
- * │  │ JSON Editor   │  │  │  │ UAV_02   [■][■][■]                  │ │
- * │  │ (Editable)    │  │  │  │ UGV_01      [■■■■]                  │ │
+ * │  ┌───────────────┐  │  │  │ UAV-1   [■][■][■]                  │ │
+ * │  │ JSON Editor   │  │  │  │ UAV-2   [■][■][■]                  │ │
+ * │  │ (Editable)    │  │  │  │ UGV-1      [■■■■]                  │ │
  * │  └───────────────┘  │  │  │ Humanoid [■][■■■]                  │ │
  * │  ┌───────────────┐  │  │  └──────────────────────────────────────┘ │
  * │  │ Update Button │  │  │                                             │
