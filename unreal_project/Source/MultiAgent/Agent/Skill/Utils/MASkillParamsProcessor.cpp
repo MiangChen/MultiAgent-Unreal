@@ -349,7 +349,7 @@ void FMASkillParamsProcessor::ProcessNavigate(UMASkillComponent* SkillComp, cons
     
     // 安全距离常量
     const float SafetyMargin = 500.f;      // 飞行器与障碍物的安全距离
-    const float GroundOffset = 100.f;      // 地面机器人与障碍物边缘的距离
+    const float GroundOffset = 120.f;      // 地面机器人与障碍物边缘的距离
     
     //=========================================================================
     // 辅助 Lambda: 找到多边形边缘上距离点最近的位置

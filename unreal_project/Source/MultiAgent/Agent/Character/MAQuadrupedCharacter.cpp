@@ -48,7 +48,7 @@ AMAQuadrupedCharacter::AMAQuadrupedCharacter()
         GetMesh()->Play(true);
     }
     
-    GetCharacterMovement()->MaxWalkSpeed = 200.f;
+    GetCharacterMovement()->MaxWalkSpeed = 500.f;
 }
 
 void AMAQuadrupedCharacter::BeginPlay()

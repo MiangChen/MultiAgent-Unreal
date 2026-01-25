@@ -8,6 +8,20 @@
 #include "MAModifyTypes.generated.h"
 
 /**
+ * 标注操作模式枚举
+ * 用于区分新增节点和编辑现有节点
+ */
+UENUM(BlueprintType)
+enum class EMAAnnotationMode : uint8
+{
+    /** 新增节点模式 */
+    AddNew          UMETA(DisplayName = "Add New"),
+    
+    /** 编辑现有节点模式 */
+    EditExisting    UMETA(DisplayName = "Edit Existing")
+};
+
+/**
  * 节点分类枚举
  * 用于标识场景图节点的分类类型
  */

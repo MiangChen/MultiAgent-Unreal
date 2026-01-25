@@ -7,6 +7,7 @@
 #include "../MASkillBase.h"
 #include "AITypes.h"
 #include "Navigation/PathFollowingComponent.h"
+#include "../../../Utils/MAPathPlanner.h"
 #include "SK_Navigate.generated.h"
 
 UCLASS()
@@ -21,7 +22,7 @@ public:
     void SetTargetLocation(FVector InTargetLocation);
 
     UPROPERTY(EditDefaultsOnly, Category = "Navigate")
-    float AcceptanceRadius = 100.f;
+    float AcceptanceRadius = 200.f;
 
 protected:
     virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
@@ -38,8 +39,6 @@ private:
     // 手动导航（NavMesh 失败时的备选方案）
     void StartManualNavigation();
     void UpdateManualNavigation();
-    FVector CalculatePotentialFieldDirection(class AMACharacter* Character);
-    FVector CalculateGroundAvoidanceDirection(class AMACharacter* Character, const FVector& DesiredDirection);
 
     FGameplayAbilitySpecHandle CachedHandle;
     FGameplayAbilityActivationInfo CachedActivationInfo;
@@ -58,6 +57,9 @@ private:
     bool bUsingManualNavigation = false;
     float ManualNavStuckTime = 0.f;
     FVector LastManualNavLocation;
+    
+    /** 路径规划器实例 */
+    TUniquePtr<IMAPathPlanner> PathPlanner;
     
     // 飞行检查日志时间（避免刷屏）
     float LastFlightCheckLogTime = 0.f;

@@ -22,7 +22,7 @@ AMAHumanoidCharacter::AMAHumanoidCharacter()
     
     // 加载 Humanoid 模型
     static ConstructorHelpers::FObjectFinder<USkeletalMesh> MeshAsset(
-        TEXT("/Game/Characters/Mannequins/Meshes/SKM_Manny.SKM_Manny"));
+        TEXT("/Game/Robot/Mannequins/Meshes/SKM_Manny.SKM_Manny"));
     if (MeshAsset.Succeeded())
     {
         GetMesh()->SetSkeletalMesh(MeshAsset.Object);
@@ -33,44 +33,41 @@ AMAHumanoidCharacter::AMAHumanoidCharacter()
     
     // 加载基础动画序列
     static ConstructorHelpers::FObjectFinder<UAnimSequence> IdleAnimAsset(
-        TEXT("/Game/Characters/Mannequins/Animations/Manny/MM_Idle.MM_Idle"));
+        TEXT("/Game/Robot/Mannequins/Animations/Manny/MM_Idle.MM_Idle"));
     if (IdleAnimAsset.Succeeded())
     {
         IdleAnim = IdleAnimAsset.Object;
     }
     
     static ConstructorHelpers::FObjectFinder<UAnimSequence> WalkAnimAsset(
-        TEXT("/Game/Characters/Mannequins/Animations/Manny/MM_Walk_Fwd.MM_Walk_Fwd"));
+        TEXT("/Game/Robot/Mannequins/Animations/Manny/MM_Walk_Fwd.MM_Walk_Fwd"));
     if (WalkAnimAsset.Succeeded())
     {
         WalkAnim = WalkAnimAsset.Object;
     }
     
-    // 加载俯身/起身动画序列
-    // 使用 MM_Land 作为俯身动画（蹲下姿势）
-    // 使用 MM_Jump 作为起身动画（跳起/站立姿势）
-    static ConstructorHelpers::FObjectFinder<UAnimSequence> BendDownAnimAsset(
-        TEXT("/Game/Characters/Mannequins/Animations/Manny/MM_Land.MM_Land"));
-    if (BendDownAnimAsset.Succeeded())
+    // 加载拾取动画（Item Pickup Set）
+    // 动画结构: 站立(0%) → 弯腰(~50%) → 站立(100%)
+    // 我们将其分为两半使用：
+    //   - BendDown: 播放 0% → 50%（站立→弯腰）
+    //   - StandUp:  播放 50% → 100%（弯腰→站立）
+    static ConstructorHelpers::FObjectFinder<UAnimSequence> PickupAnimAsset(
+        TEXT("/Game/ItemPickupSet/Animations/Mannequin/fromIdle/A_ItemPickup_fromIdle_RH_0cm.A_ItemPickup_fromIdle_RH_0cm"));
+    if (PickupAnimAsset.Succeeded())
     {
-        BendDownAnim = BendDownAnimAsset.Object;
-        UE_LOG(LogTemp, Log, TEXT("[Humanoid] BendDown animation loaded (MM_Land)"));
+        PickupAnim = PickupAnimAsset.Object;
+        
+        // 获取动画实际时长
+        PickupAnimDuration = PickupAnim->GetPlayLength();
+        // 动画中点（弯腰最低点）大约在 45-50% 处
+        PickupAnimMidPoint = PickupAnimDuration * 0.5f;
+        
+        UE_LOG(LogTemp, Log, TEXT("[Humanoid] Pickup animation loaded, Duration: %.2fs, MidPoint: %.2fs"), 
+            PickupAnimDuration, PickupAnimMidPoint);
     }
     else
     {
-        UE_LOG(LogTemp, Warning, TEXT("[Humanoid] BendDown animation (MM_Land) not found, will use timer fallback"));
-    }
-    
-    static ConstructorHelpers::FObjectFinder<UAnimSequence> StandUpAnimAsset(
-        TEXT("/Game/Characters/Mannequins/Animations/Manny/MM_Jump.MM_Jump"));
-    if (StandUpAnimAsset.Succeeded())
-    {
-        StandUpAnim = StandUpAnimAsset.Object;
-        UE_LOG(LogTemp, Log, TEXT("[Humanoid] StandUp animation loaded (MM_Jump)"));
-    }
-    else
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[Humanoid] StandUp animation (MM_Jump) not found, will use timer fallback"));
+        UE_LOG(LogTemp, Warning, TEXT("[Humanoid] Pickup animation not found!"));
     }
     
     if (IdleAnim)
@@ -157,71 +154,121 @@ void AMAHumanoidCharacter::PlayBendDownAnimation()
 {
     if (bIsBending)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[Humanoid %s] Already playing bend animation"), *AgentID);
+        UE_LOG(LogTemp, Warning, TEXT("[Humanoid %s] Already playing animation"), *AgentID);
         return;
     }
     
     bIsBending = true;
     bIsPlayingWalk = false;
     
-    UE_LOG(LogTemp, Log, TEXT("[Humanoid %s] Playing bend down animation"), *AgentID);
+    UE_LOG(LogTemp, Log, TEXT("[Humanoid %s] Playing bend down animation (0%% -> 50%%)"), *AgentID);
     
-    // 播放俯身动画（如果存在）
-    if (BendDownAnim)
+    if (PickupAnim)
     {
-        GetMesh()->SetAnimation(BendDownAnim);
-        GetMesh()->Play(false); // 不循环
+        // 播放动画前半段：从开始(0)到中点(弯腰最低点)
+        GetMesh()->SetAnimation(PickupAnim);
+        GetMesh()->SetPlayRate(1.0f);
+        GetMesh()->SetPosition(0.0f);  // 从头开始
+        GetMesh()->Play(false);        // 不循环
+        
+        // 定时器：在中点停止
+        if (UWorld* World = GetWorld())
+        {
+            World->GetTimerManager().SetTimer(
+                BendAnimTimerHandle,
+                this,
+                &AMAHumanoidCharacter::OnBendDownAnimFinished,
+                PickupAnimMidPoint,
+                false
+            );
+        }
+    }
+    else
+    {
+        // 没有动画，直接完成
+        if (UWorld* World = GetWorld())
+        {
+            World->GetTimerManager().SetTimer(
+                BendAnimTimerHandle,
+                this,
+                &AMAHumanoidCharacter::OnBendDownAnimFinished,
+                0.5f,
+                false
+            );
+        }
+    }
+}
+
+void AMAHumanoidCharacter::OnBendDownAnimFinished()
+{
+    UE_LOG(LogTemp, Log, TEXT("[Humanoid %s] Bend down animation finished (at midpoint)"), *AgentID);
+    
+    // 停止动画播放，保持在弯腰姿势
+    if (PickupAnim)
+    {
+        GetMesh()->Stop();
+        GetMesh()->SetPosition(PickupAnimMidPoint);  // 保持在中点位置
     }
     
-    // 设置定时器，动画完成后回调
-    if (UWorld* World = GetWorld())
-    {
-        World->GetTimerManager().SetTimer(
-            BendAnimTimerHandle,
-            this,
-            &AMAHumanoidCharacter::OnBendAnimFinished,
-            BendAnimDuration,
-            false
-        );
-    }
+    bIsBending = false;
+    
+    // 广播动画完成事件
+    OnBendAnimationComplete.Broadcast();
 }
 
 void AMAHumanoidCharacter::PlayStandUpAnimation()
 {
     if (bIsBending)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[Humanoid %s] Already playing bend animation"), *AgentID);
+        UE_LOG(LogTemp, Warning, TEXT("[Humanoid %s] Already playing animation"), *AgentID);
         return;
     }
     
     bIsBending = true;
     bIsPlayingWalk = false;
     
-    UE_LOG(LogTemp, Log, TEXT("[Humanoid %s] Playing stand up animation"), *AgentID);
+    UE_LOG(LogTemp, Log, TEXT("[Humanoid %s] Playing stand up animation (50%% -> 100%%)"), *AgentID);
     
-    // 播放起身动画（如果存在）
-    if (StandUpAnim)
+    if (PickupAnim)
     {
-        GetMesh()->SetAnimation(StandUpAnim);
-        GetMesh()->Play(false); // 不循环
+        // 播放动画后半段：从中点(弯腰)到结束(站立)
+        GetMesh()->SetAnimation(PickupAnim);
+        GetMesh()->SetPlayRate(1.0f);
+        GetMesh()->SetPosition(PickupAnimMidPoint);  // 从中点开始
+        GetMesh()->Play(false);
+        
+        // 定时器：播放后半段时长
+        float StandUpDuration = PickupAnimDuration - PickupAnimMidPoint;
+        if (UWorld* World = GetWorld())
+        {
+            World->GetTimerManager().SetTimer(
+                BendAnimTimerHandle,
+                this,
+                &AMAHumanoidCharacter::OnStandUpAnimFinished,
+                StandUpDuration,
+                false
+            );
+        }
     }
-    
-    // 设置定时器，动画完成后回调
-    if (UWorld* World = GetWorld())
+    else
     {
-        World->GetTimerManager().SetTimer(
-            BendAnimTimerHandle,
-            this,
-            &AMAHumanoidCharacter::OnBendAnimFinished,
-            BendAnimDuration,
-            false
-        );
+        // 没有动画，直接完成
+        if (UWorld* World = GetWorld())
+        {
+            World->GetTimerManager().SetTimer(
+                BendAnimTimerHandle,
+                this,
+                &AMAHumanoidCharacter::OnStandUpAnimFinished,
+                0.5f,
+                false
+            );
+        }
     }
 }
 
-void AMAHumanoidCharacter::OnBendAnimFinished()
+void AMAHumanoidCharacter::OnStandUpAnimFinished()
 {
-    UE_LOG(LogTemp, Log, TEXT("[Humanoid %s] Bend animation finished"), *AgentID);
+    UE_LOG(LogTemp, Log, TEXT("[Humanoid %s] Stand up animation finished"), *AgentID);
     
     bIsBending = false;
     
@@ -229,6 +276,7 @@ void AMAHumanoidCharacter::OnBendAnimFinished()
     if (IdleAnim)
     {
         GetMesh()->SetAnimation(IdleAnim);
+        GetMesh()->SetPlayRate(1.0f);
         GetMesh()->Play(true);
     }
     

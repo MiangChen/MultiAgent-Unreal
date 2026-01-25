@@ -5,6 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
+#include "../../Utils/MAPathPlanner.h"
 #include "MAConfigManager.generated.h"
 
 // 前向声明
@@ -95,6 +96,7 @@ struct FMAPickupItemConfig
  * - 提供配置数据的访问接口
  * - 处理配置文件路径
  * - 支持 UI 设置覆盖默认配置
+ * - 根据 map_type 自动加载对应地图配置
  */
 UCLASS()
 class MULTIAGENT_API UMAConfigManager : public UGameInstanceSubsystem
@@ -137,10 +139,15 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "Config|Simulation")
     bool bEnableEnergyDrain = false;
 
+    /** 地图类型 (如 Downtown, SciFiModernCity, Port) */
+    UPROPERTY(BlueprintReadOnly, Category = "Config|Simulation")
+    FString MapType;
+
+    /** 地图路径 (从地图配置自动推导) */
     UPROPERTY(BlueprintReadOnly, Category = "Config|Simulation")
     FString DefaultMapPath;
 
-    /** 场景图文件相对路径 (相对于项目根目录) */
+    /** 场景图文件夹路径 (从地图配置自动推导) */
     UPROPERTY(BlueprintReadOnly, Category = "Config|Simulation")
     FString SceneGraphPath;
 
@@ -163,6 +170,10 @@ public:
     /** 是否为 Edit 模式 (运行模式，修改只存在于内存中) */
     UFUNCTION(BlueprintPure, Category = "Config")
     bool IsEditMode() const { return RunMode == EMARunMode::Edit; }
+
+    /** 获取当前地图类型 */
+    UFUNCTION(BlueprintPure, Category = "Config")
+    FString GetMapType() const { return MapType; }
 
     //=========================================================================
     // Server 配置
@@ -231,6 +242,60 @@ public:
     float SpawnRadius = 400.f;
 
     //=========================================================================
+    // Navigation 配置 (手动导航路径规划)
+    //=========================================================================
+
+    /** 路径规划算法类型: "MultiLayerRaycast" 或 "AStar" */
+    UPROPERTY(BlueprintReadOnly, Category = "Config|Navigation")
+    FString PathPlannerType = TEXT("MultiLayerRaycast");
+
+    /** 多层射线扫描 - 射线层数 (2-5) */
+    UPROPERTY(BlueprintReadOnly, Category = "Config|Navigation")
+    int32 RaycastLayerCount = 3;
+
+    /** 多层射线扫描 - 每层距离 */
+    UPROPERTY(BlueprintReadOnly, Category = "Config|Navigation")
+    float RaycastLayerDistance = 300.f;
+
+    /** 多层射线扫描 - 扫描角度范围 (±度) */
+    UPROPERTY(BlueprintReadOnly, Category = "Config|Navigation")
+    float ScanAngleRange = 120.f;
+
+    /** 多层射线扫描 - 扫描角度步长 */
+    UPROPERTY(BlueprintReadOnly, Category = "Config|Navigation")
+    float ScanAngleStep = 15.f;
+
+    //=========================================================================
+    // ElevationMap 配置 (2.5D 高程图路径规划)
+    //=========================================================================
+
+    /** 高程图 - 栅格单元大小 (cm, 范围 50-200) */
+    UPROPERTY(BlueprintReadOnly, Category = "Config|Navigation")
+    float ElevationCellSize = 100.f;
+
+    /** 高程图 - 搜索半径 (cm, 范围 1000-10000) */
+    UPROPERTY(BlueprintReadOnly, Category = "Config|Navigation")
+    float ElevationSearchRadius = 3000.f;
+
+    /** 高程图 - 最大可通行坡度角 (度, 范围 10-45) */
+    UPROPERTY(BlueprintReadOnly, Category = "Config|Navigation")
+    float ElevationMaxSlopeAngle = 30.f;
+
+    /** 高程图 - 最大可通行台阶高度 (cm, 范围 20-100) */
+    UPROPERTY(BlueprintReadOnly, Category = "Config|Navigation")
+    float ElevationMaxStepHeight = 50.f;
+
+    /** 高程图 - 路径平滑因子 (范围 0.1-0.5) */
+    UPROPERTY(BlueprintReadOnly, Category = "Config|Navigation")
+    float PathSmoothingFactor = 0.15f;
+
+    /** 获取路径规划器类型枚举 */
+    EMAPathPlannerType GetPathPlannerTypeEnum() const;
+
+    /** 获取路径规划器配置结构体 */
+    FMAPathPlannerConfig GetPathPlannerConfig() const;
+
+    //=========================================================================
     // Agent 配置
     //=========================================================================
 
@@ -278,6 +343,10 @@ private:
     bool bConfigLoaded = false;
 
     bool LoadSimulationConfig();
-    bool LoadAgentsConfig();
-    bool LoadEnvironmentConfig();
+    bool LoadMapConfig(const FString& InMapType);
+    
+    // 辅助方法：从 JSON 对象解析 agents 数组
+    void ParseAgentsFromJson(const TSharedPtr<FJsonObject>& RootObject);
+    // 辅助方法：从 JSON 对象解析 environment
+    void ParseEnvironmentFromJson(const TSharedPtr<FJsonObject>& RootObject);
 };

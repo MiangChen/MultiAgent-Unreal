@@ -77,15 +77,21 @@ bool UMAConfigManager::LoadAllConfigs()
 {
     bool bSuccess = true;
     
+    // 1. 加载 simulation.json (获取 map_type)
     bSuccess &= LoadSimulationConfig();
-    bSuccess &= LoadAgentsConfig();
-    bSuccess &= LoadEnvironmentConfig();
+    
+    // 2. 根据 map_type 加载对应的地图配置
+    if (bSuccess && !MapType.IsEmpty())
+    {
+        bSuccess &= LoadMapConfig(MapType);
+    }
     
     bConfigLoaded = bSuccess;
     
     if (bSuccess)
     {
         UE_LOG(LogMAConfig, Log, TEXT("All configs loaded successfully"));
+        UE_LOG(LogMAConfig, Log, TEXT("  MapType: %s"), *MapType);
         UE_LOG(LogMAConfig, Log, TEXT("  bUseSetupUI: %s"), bUseSetupUI ? TEXT("true") : TEXT("false"));
         UE_LOG(LogMAConfig, Log, TEXT("  bUseStateTree: %s"), bUseStateTree ? TEXT("true") : TEXT("false"));
         UE_LOG(LogMAConfig, Log, TEXT("  bEnableEnergyDrain: %s"), bEnableEnergyDrain ? TEXT("true") : TEXT("false"));
@@ -100,6 +106,13 @@ bool UMAConfigManager::LoadAllConfigs()
         UE_LOG(LogMAConfig, Log, TEXT("  HITLPollIntervalSeconds: %.2f"), HITLPollIntervalSeconds);
         UE_LOG(LogMAConfig, Log, TEXT("  LocalServerPort: %d"), LocalServerPort);
         UE_LOG(LogMAConfig, Log, TEXT("  bEnableLocalServer: %s"), bEnableLocalServer ? TEXT("true") : TEXT("false"));
+        UE_LOG(LogMAConfig, Log, TEXT("  PathPlannerType: %s"), *PathPlannerType);
+        UE_LOG(LogMAConfig, Log, TEXT("  RaycastLayerCount: %d"), RaycastLayerCount);
+        UE_LOG(LogMAConfig, Log, TEXT("  ElevationCellSize: %.1f"), ElevationCellSize);
+        UE_LOG(LogMAConfig, Log, TEXT("  ElevationSearchRadius: %.1f"), ElevationSearchRadius);
+        UE_LOG(LogMAConfig, Log, TEXT("  ElevationMaxSlopeAngle: %.1f"), ElevationMaxSlopeAngle);
+        UE_LOG(LogMAConfig, Log, TEXT("  ElevationMaxStepHeight: %.1f"), ElevationMaxStepHeight);
+        UE_LOG(LogMAConfig, Log, TEXT("  PathSmoothingFactor: %.2f"), PathSmoothingFactor);
         UE_LOG(LogMAConfig, Log, TEXT("  AgentConfigs: %d"), AgentConfigs.Num());
         UE_LOG(LogMAConfig, Log, TEXT("  ChargingStations: %d"), ChargingStations.Num());
         UE_LOG(LogMAConfig, Log, TEXT("  PickupItems: %d"), PickupItems.Num());
@@ -145,8 +158,7 @@ bool UMAConfigManager::LoadSimulationConfig()
         (*SimObj)->TryGetBoolField(TEXT("use_setup_ui"), bUseSetupUI);
         (*SimObj)->TryGetBoolField(TEXT("use_state_tree"), bUseStateTree);
         (*SimObj)->TryGetBoolField(TEXT("enable_energy_drain"), bEnableEnergyDrain);
-        (*SimObj)->TryGetStringField(TEXT("default_map"), DefaultMapPath);
-        (*SimObj)->TryGetStringField(TEXT("scene_graph_path"), SceneGraphPath);
+        (*SimObj)->TryGetStringField(TEXT("map_type"), MapType);
         
         // 解析 run_mode 字段
         FString RunModeStr;
@@ -162,14 +174,12 @@ bool UMAConfigManager::LoadSimulationConfig()
             }
             else
             {
-                // 无效值，使用默认 Edit 模式
                 UE_LOG(LogMAConfig, Warning, TEXT("Invalid run_mode value '%s', defaulting to 'edit'"), *RunModeStr);
                 RunMode = EMARunMode::Edit;
             }
         }
         else
         {
-            // 缺失时默认使用 Edit 模式
             RunMode = EMARunMode::Edit;
         }
     }
@@ -195,13 +205,131 @@ bool UMAConfigManager::LoadSimulationConfig()
             HITLPollIntervalSeconds = static_cast<float>(HITLPollInterval);
         }
         
-        // 解析本地HTTP服务器配置
         int32 ServerPort = 8080;
         if ((*ServerObj)->TryGetNumberField(TEXT("local_server_port"), ServerPort))
         {
             LocalServerPort = ServerPort;
         }
         (*ServerObj)->TryGetBoolField(TEXT("enable_local_server"), bEnableLocalServer);
+    }
+    
+    // 解析 spawn_settings 部分
+    if (const TSharedPtr<FJsonObject>* SpawnObj; RootObject->TryGetObjectField(TEXT("spawn_settings"), SpawnObj))
+    {
+        (*SpawnObj)->TryGetBoolField(TEXT("use_player_start"), bUsePlayerStart);
+        (*SpawnObj)->TryGetNumberField(TEXT("spawn_radius"), SpawnRadius);
+        
+        if (const TArray<TSharedPtr<FJsonValue>>* OriginArray; (*SpawnObj)->TryGetArrayField(TEXT("fallback_origin"), OriginArray))
+        {
+            if (OriginArray->Num() >= 3)
+            {
+                FallbackOrigin = FVector(
+                    (*OriginArray)[0]->AsNumber(),
+                    (*OriginArray)[1]->AsNumber(),
+                    (*OriginArray)[2]->AsNumber()
+                );
+            }
+        }
+    }
+    
+    // 解析 navigation 部分
+    if (const TSharedPtr<FJsonObject>* NavObj; RootObject->TryGetObjectField(TEXT("navigation"), NavObj))
+    {
+        (*NavObj)->TryGetStringField(TEXT("path_planner_type"), PathPlannerType);
+        
+        // 多层射线扫描配置
+        if (const TSharedPtr<FJsonObject>* RaycastObj; (*NavObj)->TryGetObjectField(TEXT("multi_layer_raycast"), RaycastObj))
+        {
+            int32 LayerCount = 3;
+            if ((*RaycastObj)->TryGetNumberField(TEXT("layer_count"), LayerCount))
+            {
+                RaycastLayerCount = FMath::Clamp(LayerCount, 2, 5);
+            }
+            
+            double LayerDist = 300.0;
+            if ((*RaycastObj)->TryGetNumberField(TEXT("layer_distance"), LayerDist))
+            {
+                RaycastLayerDistance = static_cast<float>(LayerDist);
+            }
+            
+            double AngleRange = 120.0;
+            if ((*RaycastObj)->TryGetNumberField(TEXT("scan_angle_range"), AngleRange))
+            {
+                ScanAngleRange = static_cast<float>(AngleRange);
+            }
+            
+            double AngleStep = 15.0;
+            if ((*RaycastObj)->TryGetNumberField(TEXT("scan_angle_step"), AngleStep))
+            {
+                ScanAngleStep = static_cast<float>(AngleStep);
+            }
+        }
+        
+        // 高程图配置
+        if (const TSharedPtr<FJsonObject>* ElevationObj; (*NavObj)->TryGetObjectField(TEXT("elevation_map"), ElevationObj))
+        {
+            double ElevCellSize = 100.0;
+            if ((*ElevationObj)->TryGetNumberField(TEXT("cell_size"), ElevCellSize))
+            {
+                ElevationCellSize = FMath::Clamp(static_cast<float>(ElevCellSize), 50.f, 200.f);
+            }
+            
+            double ElevSearchRadius = 3000.0;
+            if ((*ElevationObj)->TryGetNumberField(TEXT("search_radius"), ElevSearchRadius))
+            {
+                ElevationSearchRadius = FMath::Clamp(static_cast<float>(ElevSearchRadius), 1000.f, 10000.f);
+            }
+            
+            double MaxSlopeAngle = 30.0;
+            if ((*ElevationObj)->TryGetNumberField(TEXT("max_slope_angle"), MaxSlopeAngle))
+            {
+                ElevationMaxSlopeAngle = FMath::Clamp(static_cast<float>(MaxSlopeAngle), 10.f, 45.f);
+            }
+            
+            double MaxStepHeight = 50.0;
+            if ((*ElevationObj)->TryGetNumberField(TEXT("max_step_height"), MaxStepHeight))
+            {
+                ElevationMaxStepHeight = FMath::Clamp(static_cast<float>(MaxStepHeight), 20.f, 100.f);
+            }
+            
+            double SmoothingFactor = 0.15;
+            if ((*ElevationObj)->TryGetNumberField(TEXT("path_smoothing_factor"), SmoothingFactor))
+            {
+                PathSmoothingFactor = FMath::Clamp(static_cast<float>(SmoothingFactor), 0.1f, 0.5f);
+            }
+        }
+    }
+    
+    UE_LOG(LogMAConfig, Log, TEXT("Loaded simulation config from: %s"), *ConfigPath);
+    return true;
+}
+
+
+bool UMAConfigManager::LoadMapConfig(const FString& InMapType)
+{
+    FString ConfigPath = GetConfigFilePath(FString::Printf(TEXT("maps/%s.json"), *InMapType));
+    
+    FString JsonString;
+    if (!FFileHelper::LoadFileToString(JsonString, *ConfigPath))
+    {
+        UE_LOG(LogMAConfig, Warning, TEXT("Failed to load map config: %s"), *ConfigPath);
+        return false;
+    }
+    
+    TSharedPtr<FJsonObject> RootObject;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
+    
+    if (!FJsonSerializer::Deserialize(Reader, RootObject) || !RootObject.IsValid())
+    {
+        UE_LOG(LogMAConfig, Error, TEXT("Failed to parse map config JSON: %s"), *ConfigPath);
+        return false;
+    }
+    
+    // 解析 map_info 部分
+    if (const TSharedPtr<FJsonObject>* MapInfoObj; RootObject->TryGetObjectField(TEXT("map_info"), MapInfoObj))
+    {
+        (*MapInfoObj)->TryGetStringField(TEXT("map_path"), DefaultMapPath);
+        (*MapInfoObj)->TryGetStringField(TEXT("scene_graph_folder"), SceneGraphPath);
     }
     
     // 解析 spectator 部分
@@ -232,52 +360,18 @@ bool UMAConfigManager::LoadSimulationConfig()
         }
     }
     
-    // 解析 spawn_settings 部分
-    if (const TSharedPtr<FJsonObject>* SpawnObj; RootObject->TryGetObjectField(TEXT("spawn_settings"), SpawnObj))
-    {
-        (*SpawnObj)->TryGetBoolField(TEXT("use_player_start"), bUsePlayerStart);
-        (*SpawnObj)->TryGetNumberField(TEXT("spawn_radius"), SpawnRadius);
-        
-        if (const TArray<TSharedPtr<FJsonValue>>* OriginArray; (*SpawnObj)->TryGetArrayField(TEXT("fallback_origin"), OriginArray))
-        {
-            if (OriginArray->Num() >= 3)
-            {
-                FallbackOrigin = FVector(
-                    (*OriginArray)[0]->AsNumber(),
-                    (*OriginArray)[1]->AsNumber(),
-                    (*OriginArray)[2]->AsNumber()
-                );
-            }
-        }
-    }
+    // 解析 agents 和 environment
+    ParseAgentsFromJson(RootObject);
+    ParseEnvironmentFromJson(RootObject);
     
-    UE_LOG(LogMAConfig, Log, TEXT("Loaded simulation config from: %s"), *ConfigPath);
+    UE_LOG(LogMAConfig, Log, TEXT("Loaded map config [%s] from: %s"), *InMapType, *ConfigPath);
     return true;
 }
 
-bool UMAConfigManager::LoadAgentsConfig()
+void UMAConfigManager::ParseAgentsFromJson(const TSharedPtr<FJsonObject>& RootObject)
 {
-    FString ConfigPath = GetConfigFilePath(TEXT("agents.json"));
-    
-    FString JsonString;
-    if (!FFileHelper::LoadFileToString(JsonString, *ConfigPath))
-    {
-        UE_LOG(LogMAConfig, Warning, TEXT("Failed to load agents config: %s"), *ConfigPath);
-        return false;
-    }
-    
-    TSharedPtr<FJsonObject> RootObject;
-    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
-    
-    if (!FJsonSerializer::Deserialize(Reader, RootObject) || !RootObject.IsValid())
-    {
-        UE_LOG(LogMAConfig, Error, TEXT("Failed to parse agents config JSON"));
-        return false;
-    }
-    
     AgentConfigs.Empty();
     
-    // 解析 agents 数组
     if (const TArray<TSharedPtr<FJsonValue>>* AgentsArray; RootObject->TryGetArrayField(TEXT("agents"), AgentsArray))
     {
         for (const TSharedPtr<FJsonValue>& AgentValue : *AgentsArray)
@@ -288,7 +382,6 @@ bool UMAConfigManager::LoadAgentsConfig()
             FString TypeName;
             AgentObj->TryGetStringField(TEXT("type"), TypeName);
             
-            // 解析 instances 数组
             if (const TArray<TSharedPtr<FJsonValue>>* InstancesArray; AgentObj->TryGetArrayField(TEXT("instances"), InstancesArray))
             {
                 for (const TSharedPtr<FJsonValue>& InstanceValue : *InstancesArray)
@@ -300,7 +393,6 @@ bool UMAConfigManager::LoadAgentsConfig()
                     Config.TypeName = TypeName;
                     InstanceObj->TryGetStringField(TEXT("label"), Config.ID);
                     
-                    // 解析 position
                     if (const TArray<TSharedPtr<FJsonValue>>* PosArray; InstanceObj->TryGetArrayField(TEXT("position"), PosArray))
                     {
                         if (PosArray->Num() >= 3)
@@ -314,7 +406,6 @@ bool UMAConfigManager::LoadAgentsConfig()
                         }
                     }
                     
-                    // 解析 rotation
                     if (const TArray<TSharedPtr<FJsonValue>>* RotArray; InstanceObj->TryGetArrayField(TEXT("rotation"), RotArray))
                     {
                         if (RotArray->Num() >= 3)
@@ -332,36 +423,23 @@ bool UMAConfigManager::LoadAgentsConfig()
             }
         }
     }
-    
-    UE_LOG(LogMAConfig, Log, TEXT("Loaded %d agent configs from: %s"), AgentConfigs.Num(), *ConfigPath);
-    return AgentConfigs.Num() > 0;
 }
 
-bool UMAConfigManager::LoadEnvironmentConfig()
+void UMAConfigManager::ParseEnvironmentFromJson(const TSharedPtr<FJsonObject>& RootObject)
 {
-    FString ConfigPath = GetConfigFilePath(TEXT("environment.json"));
-    
-    FString JsonString;
-    if (!FFileHelper::LoadFileToString(JsonString, *ConfigPath))
-    {
-        UE_LOG(LogMAConfig, Warning, TEXT("Failed to load environment config: %s"), *ConfigPath);
-        return true; // 环境配置是可选的
-    }
-    
-    TSharedPtr<FJsonObject> RootObject;
-    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
-    
-    if (!FJsonSerializer::Deserialize(Reader, RootObject) || !RootObject.IsValid())
-    {
-        UE_LOG(LogMAConfig, Error, TEXT("Failed to parse environment config JSON"));
-        return true; // 环境配置是可选的
-    }
-    
     ChargingStations.Empty();
     PickupItems.Empty();
     
+    // 解析 environment 对象
+    const TSharedPtr<FJsonObject>* EnvObj = nullptr;
+    if (!RootObject->TryGetObjectField(TEXT("environment"), EnvObj))
+    {
+        // 兼容旧格式：直接从根对象解析
+        EnvObj = &RootObject;
+    }
+    
     // 解析 charging_stations 数组
-    if (const TArray<TSharedPtr<FJsonValue>>* StationsArray; RootObject->TryGetArrayField(TEXT("charging_stations"), StationsArray))
+    if (const TArray<TSharedPtr<FJsonValue>>* StationsArray; (*EnvObj)->TryGetArrayField(TEXT("charging_stations"), StationsArray))
     {
         for (const TSharedPtr<FJsonValue>& StationValue : *StationsArray)
         {
@@ -388,7 +466,7 @@ bool UMAConfigManager::LoadEnvironmentConfig()
     }
     
     // 解析 objects 数组 (PickupItems)
-    if (const TArray<TSharedPtr<FJsonValue>>* ObjectsArray; RootObject->TryGetArrayField(TEXT("objects"), ObjectsArray))
+    if (const TArray<TSharedPtr<FJsonValue>>* ObjectsArray; (*EnvObj)->TryGetArrayField(TEXT("objects"), ObjectsArray))
     {
         for (const TSharedPtr<FJsonValue>& ObjectValue : *ObjectsArray)
         {
@@ -400,7 +478,6 @@ bool UMAConfigManager::LoadEnvironmentConfig()
             ObjectObj->TryGetStringField(TEXT("label"), Config.Name);
             ObjectObj->TryGetStringField(TEXT("type"), Config.Type);
             
-            // 解析 position
             if (const TArray<TSharedPtr<FJsonValue>>* PosArray; ObjectObj->TryGetArrayField(TEXT("position"), PosArray))
             {
                 if (PosArray->Num() >= 3)
@@ -413,7 +490,6 @@ bool UMAConfigManager::LoadEnvironmentConfig()
                 }
             }
             
-            // 解析 features
             if (const TSharedPtr<FJsonObject>* FeaturesObj; ObjectObj->TryGetObjectField(TEXT("features"), FeaturesObj))
             {
                 for (const auto& Pair : (*FeaturesObj)->Values)
@@ -429,8 +505,33 @@ bool UMAConfigManager::LoadEnvironmentConfig()
             PickupItems.Add(Config);
         }
     }
+}
+
+EMAPathPlannerType UMAConfigManager::GetPathPlannerTypeEnum() const
+{
+    if (PathPlannerType.Equals(TEXT("ElevationMap"), ESearchCase::IgnoreCase) ||
+        PathPlannerType.Equals(TEXT("AStar"), ESearchCase::IgnoreCase) ||
+        PathPlannerType.Equals(TEXT("A*"), ESearchCase::IgnoreCase))
+    {
+        return EMAPathPlannerType::ElevationMap;
+    }
+    return EMAPathPlannerType::MultiLayerRaycast;
+}
+
+FMAPathPlannerConfig UMAConfigManager::GetPathPlannerConfig() const
+{
+    FMAPathPlannerConfig Config;
     
-    UE_LOG(LogMAConfig, Log, TEXT("Loaded %d charging stations and %d pickup items from: %s"), 
-        ChargingStations.Num(), PickupItems.Num(), *ConfigPath);
-    return true;
+    Config.RaycastLayerCount = RaycastLayerCount;
+    Config.RaycastLayerDistance = RaycastLayerDistance;
+    Config.ScanAngleRange = ScanAngleRange;
+    Config.ScanAngleStep = ScanAngleStep;
+    
+    Config.ElevationCellSize = ElevationCellSize;
+    Config.ElevationSearchRadius = ElevationSearchRadius;
+    Config.ElevationMaxSlopeAngle = ElevationMaxSlopeAngle;
+    Config.ElevationMaxStepHeight = ElevationMaxStepHeight;
+    Config.PathSmoothingFactor = PathSmoothingFactor;
+    
+    return Config;
 }

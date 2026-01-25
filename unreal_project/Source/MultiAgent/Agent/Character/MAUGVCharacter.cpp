@@ -1,5 +1,26 @@
 // MAUGVCharacter.cpp
 // 无人车实现
+//
+// ============================================================================
+// 重要提示：StaticMesh 碰撞与 NavMesh 导航
+// ============================================================================
+// 如果你的 Character 使用 StaticMeshComponent 来显示模型（而不是 SkeletalMesh），
+// 必须禁用 StaticMesh 的碰撞，否则会导致 NavMesh 路径查询失败！
+//
+// 原因：
+// - ACharacter 使用 CapsuleComponent 作为碰撞体和 NavMesh 查询的依据
+// - 如果 StaticMeshComponent 启用了碰撞，它会与 CapsuleComponent 产生冲突
+// - NavMesh 系统可能会把角色判定为"在障碍物内部"，导致 MoveToLocation 返回 Failed
+// - SkeletalMesh 在基类 MACharacter 中已经设置了 SetCollisionEnabled(NoCollision)
+//
+// 解决方案：
+// UGVMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+//
+// 症状：
+// - MoveToLocation 返回 0 (Failed)
+// - PathStatus=0, HasValidPath=false
+// - 其他使用 SkeletalMesh 的角色（如 Humanoid）导航正常
+// ============================================================================
 
 #include "MAUGVCharacter.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -17,16 +38,14 @@ AMAUGVCharacter::AMAUGVCharacter()
     StateTreeComponent = CreateDefaultSubobject<UMAStateTreeComponent>(TEXT("StateTreeComponent"));
     StateTreeComponent->SetStartLogicAutomatically(true);
     
-    // UGV 胶囊体设置 - 适配小车尺寸
-    // 小车大约 宽80cm x 长120cm x 高60cm，用胶囊体包裹
-    GetCapsuleComponent()->SetCapsuleSize(60.f, 50.f);  // 半径60，半高50
-    
     // 地面移动设置
     UCharacterMovementComponent* MovementComp = GetCharacterMovement();
-    MovementComp->SetMovementMode(MOVE_Walking);
     MovementComp->MaxWalkSpeed = 500.f;
     MovementComp->bOrientRotationToMovement = true;
     MovementComp->RotationRate = FRotator(0.f, 120.f, 0.f);
+    
+    // UGV 胶囊体设置 - 适配小车尺寸
+    GetCapsuleComponent()->SetCapsuleSize(60.f, 50.f);  // 半径60，半高50
     
     // 加载 UGV 模型
     static ConstructorHelpers::FObjectFinder<UStaticMesh> MeshAsset(
@@ -38,9 +57,14 @@ AMAUGVCharacter::AMAUGVCharacter()
         UGVMeshComponent->SetupAttachment(RootComponent);
         UGVMeshComponent->SetStaticMesh(MeshAsset.Object);
         
+        // 禁用 StaticMesh 的碰撞！
+        // 如果不禁用，StaticMesh 的碰撞会干扰 NavMesh 路径查询，
+        // 导致 AIController::MoveToLocation() 返回 Failed (0)。
+        // 碰撞应该由 CapsuleComponent 统一处理，StaticMesh 仅用于视觉显示。
+        // 详见文件顶部的注释说明。
+        UGVMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        
         // 调整模型位置，使其底部与胶囊体底部对齐
-        // 胶囊体半高 50cm，所以底部在 -50cm
-        // 模型需要向下偏移，使车轮底部对齐胶囊体底部
         UGVMeshComponent->SetRelativeLocation(FVector(0.f, 0.f, -50.f));
         UGVMeshComponent->SetRelativeScale3D(FVector(1.f, 1.f, 1.f));
     }

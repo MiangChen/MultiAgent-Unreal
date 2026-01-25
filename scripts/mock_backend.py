@@ -197,17 +197,17 @@ SKILL_LISTS = {
             },
             "1": {
                 "UAV_01": {"skill": "search", "params": {
-                    "search_area": [[-500, 1000], [1500, 1000], [1500, 2500], [-500, 2500]],
+                    "search_area": [[-2000, 6000], [-5000, 6000], [-5000, 9000], [-2000, 9000]],
                     "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}}
                 }},
                 "UAV_02": {"skill": "search", "params": {
-                    "search_area": [[-1000, 1000], [-2000, 1000], [-2000, 2500], [-500, 2500]],
+                    "search_area": [[-2000, 9000], [-5000, 9000], [-5000, 12000], [-2000, 12000]],
                     "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}}
                 }}
             },
             "2": {
-                "UGV_01": {"skill": "navigate", "params": {"dest": {"x": "redbox_x + 100", "y": "redbox_y - 400", "z": 0}}},
-                "Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": "redbox_x - 100", "y": "redbox_y - 200", "z": 0}}},
+                "UGV_01": {"skill": "navigate", "params": {"dest": {"x": -2300, "y": 9000, "z": 0}}},
+                "Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": -2400, "y": 9100, "z": 0}}},
                 "UAV_01": {"skill": "return_home", "params": {}},
                 "UAV_02": {"skill": "return_home", "params": {}}
             },
@@ -218,8 +218,8 @@ SKILL_LISTS = {
                 }}
             },
             "4": {
-                "UGV_01": {"skill": "navigate", "params": {"dest": {"x": -5100, "y": 2200, "z": 0}}},
-                "Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": -5200, "y": 2100, "z": 0}}}
+                "UGV_01": {"skill": "navigate", "params": {"dest": {"x": -8100, "y": 9200, "z": 0}}},
+                "Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": -8200, "y": 9500, "z": 0}}}
             },
             "5": {
                 "Humanoid_01": {"skill": "place", "params": {
@@ -287,10 +287,23 @@ SKILL_LISTS = {
         "name": "Single Test",
         "description": "UAV 起飞 -> 导航 -> Humanoid 导航",
         "data": {
-            "0": {"UAV_01": {"skill": "take_off", "params": {}}},
-            "1": {"UAV_01": {"skill": "navigate", "params": {"dest": {"x": 1350, "y": -450, "z": 545}}}},
-            "2": {"Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": -1200, "y": 1200, "z": 0}}}},
-            "3": {"Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": 0, "y": 2400, "z": 0}}}}
+            # "0": {"UAV_01": {"skill": "take_off", "params": {}}},
+            # "1": {"UAV_01": {"skill": "navigate", "params": {"dest": {"x": 1350, "y": -450, "z": 545}}}},
+            "0": {
+                # "Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": -2200, "y": 3200, "z": 0}}},
+                # "Quadruped_01": {"skill": "navigate", "params": {"dest": {"x": -2200, "y": 3200, "z": 0}}},
+                "UGV_01": {"skill": "navigate", "params": {"dest": {"x": -2200, "y": 3200, "z": 0}}}
+            },
+            "1": {
+                # "Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": 0, "y": 8400, "z": 0}}},
+                # "Quadruped_01": {"skill": "navigate", "params": {"dest": {"x": -4000, "y": 9000, "z": 0}}},
+                "UGV_01": {"skill": "navigate", "params": {"dest": {"x": -4000, "y": 9000, "z": 0}}}
+            },
+            "2": {
+                # "Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": -5000, "y": 12400, "z": 0}}},
+                # "Quadruped_01": {"skill": "navigate", "params": {"dest": {"x": -5000, "y": 12400, "z": 0}}},
+                "UGV_01": {"skill": "navigate", "params": {"dest": {"x": -5000, "y": 12400, "z": 0}}}
+            }
         }
     },
     "place_coop": {
@@ -298,8 +311,8 @@ SKILL_LISTS = {
         "description": "UGV + Humanoid 协作搬运",
         "data": {
             "0": {
-                "UGV_01": {"skill": "navigate", "params": {"dest": {"x": 400, "y": 1300, "z": 0}}},
-                "Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": 200, "y": 1850, "z": 0}}}
+                "UGV_01": {"skill": "navigate", "params": {"dest": {"x": -2900, "y": 9000, "z": 0}}},
+                "Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": -2400, "y": 9300, "z": 0}}},
             },
             "1": {
                 "Humanoid_01": {"skill": "place", "params": {
@@ -307,9 +320,11 @@ SKILL_LISTS = {
                     "surface_target": {"class": "robot", "type": "UGV", "features": {"label": "UGV_01"}}
                 }}
             },
-            "2": {"UGV_01": {"skill": "navigate", "params": {"dest": {"x": 1000, "y": 1000, "z": 0}}}},
-            "3": {"Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": 1150, "y": 1000, "z": 0}}}},
-            "4": {
+            "2": {
+                "UGV_01": {"skill": "navigate", "params": {"dest": {"x": -8100, "y": 12200, "z": 0}}},
+                "Humanoid_01": {"skill": "navigate", "params": {"dest": {"x": -8200, "y": 12700, "z": 0}}}
+            },
+            "3": {
                 "Humanoid_01": {"skill": "place", "params": {
                     "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}},
                     "surface_target": {"class": "ground", "type": "", "features": {}}

@@ -81,7 +81,10 @@ private:
     void PerformPlaceOnObject();
     
     // ========== 动画回调 ==========
+    UFUNCTION()
     void OnBendDownComplete();
+    
+    UFUNCTION()
     void OnStandUpComplete();
     
     // ========== 辅助方法 ==========

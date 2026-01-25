@@ -5,6 +5,7 @@
 #include "../MASkillComponent.h"
 #include "../../Character/MACharacter.h"
 #include "../../../Core/Types/MATypes.h"
+#include "../../../Core/Config/MAConfigManager.h"
 #include "AIController.h"
 #include "Navigation/PathFollowingComponent.h"
 #include "NavigationSystem.h"
@@ -163,8 +164,8 @@ void USK_Navigate::StartNavigation()
     UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(Character->GetWorld());
     if (NavSys)
     {
-        // 使用较大的查询范围来处理高度差
-        FVector QueryExtent(500.f, 500.f, 500.f);
+        // 使用更大的查询范围来处理高度差和远距离目标
+        FVector QueryExtent(2000.f, 2000.f, 1000.f);
         if (NavSys->ProjectPointToNavigation(TargetLocation, ProjectedLocation, QueryExtent))
         {
             if (!ProjectedLocation.Location.Equals(TargetLocation, 1.f))
@@ -241,7 +242,7 @@ void USK_Navigate::StartNavigation()
                     if (!Char || !bHasActiveRequest) return;
                     
                     float MovedDistance = FVector::Dist(Char->GetActorLocation(), StartLocation);
-                    if (MovedDistance < 50.f)  // 0.5秒内移动不到50cm
+                    if (MovedDistance < 30.f)  // 0.5秒内移动不到30cm
                     {
                         UE_LOG(LogTemp, Error, TEXT("[SK_Navigate] %s: NavMesh FALSE SUCCESS detected! Only moved %.1f cm in 0.5s, distance to target %.1f cm"),
                             *Char->AgentName, MovedDistance, DistanceToTarget);
@@ -307,6 +308,38 @@ void USK_Navigate::StartManualNavigation()
     ManualNavStuckTime = 0.f;
     LastManualNavLocation = Character->GetActorLocation();
     
+    // 从配置管理器获取路径规划器类型和配置
+    EMAPathPlannerType PlannerType = EMAPathPlannerType::MultiLayerRaycast;
+    FMAPathPlannerConfig PlannerConfig;
+    
+    if (UMAConfigManager* ConfigManager = Character->GetGameInstance()->GetSubsystem<UMAConfigManager>())
+    {
+        PlannerType = ConfigManager->GetPathPlannerTypeEnum();
+        PlannerConfig = ConfigManager->GetPathPlannerConfig();
+    }
+    
+    // 创建并初始化路径规划器
+    PathPlanner.Reset();
+    switch (PlannerType)
+    {
+        case EMAPathPlannerType::MultiLayerRaycast:
+            PathPlanner = MakeUnique<FMAMultiLayerRaycast>(PlannerConfig);
+            UE_LOG(LogTemp, Log, TEXT("[SK_Navigate] %s: Using MultiLayerRaycast path planner"), *Character->AgentName);
+            break;
+        case EMAPathPlannerType::ElevationMap:
+            PathPlanner = MakeUnique<FMAElevationMapPathfinder>(PlannerConfig);
+            UE_LOG(LogTemp, Log, TEXT("[SK_Navigate] %s: Using ElevationMap path planner (CellSize=%.0f, SearchRadius=%.0f, MaxSlope=%.0f, MaxStep=%.0f)"), 
+                *Character->AgentName, PlannerConfig.ElevationCellSize, PlannerConfig.ElevationSearchRadius, 
+                PlannerConfig.ElevationMaxSlopeAngle, PlannerConfig.ElevationMaxStepHeight);
+            break;
+        default:
+            PathPlanner = MakeUnique<FMAMultiLayerRaycast>(PlannerConfig);
+            UE_LOG(LogTemp, Warning, TEXT("[SK_Navigate] %s: Unknown path planner type, defaulting to MultiLayerRaycast"), *Character->AgentName);
+            break;
+    }
+    
+    PathPlanner->Reset();
+    
     Character->ShowAbilityStatus(TEXT("Navigate"), TEXT("Manual mode"));
     
     // 启动手动导航更新定时器
@@ -368,136 +401,50 @@ void USK_Navigate::UpdateManualNavigation()
         LastManualNavLocation = CurrentLocation;
     }
     
-    // 计算移动方向（使用势场法）
-    FVector MoveDirection = CalculatePotentialFieldDirection(Character);
-    
-    // 使用 AddMovementInput 移动
-    Character->AddMovementInput(MoveDirection, 1.0f);
-}
-
-FVector USK_Navigate::CalculatePotentialFieldDirection(AMACharacter* Character)
-{
-    if (!Character) return FVector::ZeroVector;
-    
-    FVector CurrentLocation = Character->GetActorLocation();
-    
-    // 吸引力：指向目标
-    FVector AttractiveForce = (TargetLocation - CurrentLocation).GetSafeNormal2D();
-    
-    // 排斥力：来自障碍物
-    FVector RepulsiveForce = FVector::ZeroVector;
-    float DetectionDistance = 300.f;
-    float RepulsiveStrength = 1.5f;
-    
-    FCollisionQueryParams Params;
-    Params.AddIgnoredActor(Character);
-    
-    // 多方向检测障碍物
-    TArray<FVector> CheckDirections;
-    CheckDirections.Add(AttractiveForce);  // 前方
-    CheckDirections.Add(FVector::CrossProduct(FVector::UpVector, AttractiveForce).GetSafeNormal());  // 右
-    CheckDirections.Add(-FVector::CrossProduct(FVector::UpVector, AttractiveForce).GetSafeNormal()); // 左
-    CheckDirections.Add((AttractiveForce + CheckDirections[1]).GetSafeNormal());  // 右前
-    CheckDirections.Add((AttractiveForce + CheckDirections[2]).GetSafeNormal());  // 左前
-    
-    FVector TraceStart = CurrentLocation + FVector(0.f, 0.f, 50.f);
-    
-    for (const FVector& Dir : CheckDirections)
+    // 使用路径规划器计算移动方向
+    if (!PathPlanner.IsValid())
     {
-        FHitResult HitResult;
-        FVector TraceEnd = TraceStart + Dir * DetectionDistance;
-        
-        bool bHit = Character->GetWorld()->SweepSingleByChannel(
-            HitResult,
-            TraceStart,
-            TraceEnd,
-            FQuat::Identity,
-            ECC_WorldStatic,
-            FCollisionShape::MakeSphere(40.f),
-            Params
-        );
-        
-        if (bHit && HitResult.Distance > 0.f)
+        UE_LOG(LogTemp, Error, TEXT("[SK_Navigate] %s: PathPlanner is null in UpdateManualNavigation"), *Character->AgentName);
+        bNavigationSucceeded = false;
+        NavigationResultMessage = TEXT("Navigate failed: Path planner not initialized");
+        CleanupNavigation();
+        EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
+        return;
+    }
+    
+    FVector MoveDirection = PathPlanner->CalculateDirection(
+        Character->GetWorld(),
+        CurrentLocation,
+        TargetLocation,
+        Character
+    );
+    
+    // 检查路径规划器是否认为有有效路径
+    if (!PathPlanner->HasValidPath())
+    {
+        // 如果当前使用 ElevationMap，尝试回退到多层射线扫描
+        if (PathPlanner->GetType() == EMAPathPlannerType::ElevationMap)
         {
-            // 距离越近，排斥力越大
-            float DistanceFactor = 1.f - (HitResult.Distance / DetectionDistance);
-            DistanceFactor = FMath::Square(DistanceFactor);  // 平方增强近距离效果
-            RepulsiveForce -= Dir * DistanceFactor * RepulsiveStrength;
+            UE_LOG(LogTemp, Warning, TEXT("[SK_Navigate] %s: ElevationMap found no path, falling back to MultiLayerRaycast"), 
+                *Character->AgentName);
+            FMAPathPlannerConfig PlannerConfig;
+            if (UMAConfigManager* ConfigManager = Character->GetGameInstance()->GetSubsystem<UMAConfigManager>())
+            {
+                PlannerConfig = ConfigManager->GetPathPlannerConfig();
+            }
+            PathPlanner = MakeUnique<FMAMultiLayerRaycast>(PlannerConfig);
+            PathPlanner->Reset();
+            MoveDirection = PathPlanner->CalculateDirection(
+                Character->GetWorld(),
+                CurrentLocation,
+                TargetLocation,
+                Character
+            );
         }
     }
     
-    // 合成最终方向
-    FVector ResultDirection = AttractiveForce + RepulsiveForce;
-    
-    if (ResultDirection.IsNearlyZero())
-    {
-        // 如果合力为零，尝试侧向移动
-        return FVector::CrossProduct(FVector::UpVector, AttractiveForce).GetSafeNormal();
-    }
-    
-    return ResultDirection.GetSafeNormal2D();
-}
-
-FVector USK_Navigate::CalculateGroundAvoidanceDirection(AMACharacter* Character, const FVector& DesiredDirection)
-{
-    if (!Character) return DesiredDirection;
-    
-    FVector CurrentLocation = Character->GetActorLocation();
-    float DetectionDistance = 200.f;
-    float AvoidanceRadius = 50.f;
-    
-    // 前方障碍物检测
-    FHitResult HitResult;
-    FCollisionQueryParams Params;
-    Params.AddIgnoredActor(Character);
-    
-    FVector TraceStart = CurrentLocation + FVector(0.f, 0.f, 50.f);  // 稍微抬高避免地面干扰
-    FVector TraceEnd = TraceStart + DesiredDirection * DetectionDistance;
-    
-    bool bHit = Character->GetWorld()->SweepSingleByChannel(
-        HitResult,
-        TraceStart,
-        TraceEnd,
-        FQuat::Identity,
-        ECC_WorldStatic,
-        FCollisionShape::MakeSphere(AvoidanceRadius),
-        Params
-    );
-    
-    if (!bHit)
-    {
-        return DesiredDirection;
-    }
-    
-    // 尝试左右绕行
-    FVector RightDir = FVector::CrossProduct(FVector::UpVector, DesiredDirection).GetSafeNormal();
-    FVector LeftDir = -RightDir;
-    
-    // 测试右侧
-    TraceEnd = TraceStart + RightDir * DetectionDistance;
-    bool bRightBlocked = Character->GetWorld()->SweepSingleByChannel(
-        HitResult, TraceStart, TraceEnd, FQuat::Identity,
-        ECC_WorldStatic, FCollisionShape::MakeSphere(AvoidanceRadius), Params
-    );
-    
-    // 测试左侧
-    TraceEnd = TraceStart + LeftDir * DetectionDistance;
-    bool bLeftBlocked = Character->GetWorld()->SweepSingleByChannel(
-        HitResult, TraceStart, TraceEnd, FQuat::Identity,
-        ECC_WorldStatic, FCollisionShape::MakeSphere(AvoidanceRadius), Params
-    );
-    
-    if (!bRightBlocked)
-    {
-        return (DesiredDirection * 0.3f + RightDir * 0.7f).GetSafeNormal();
-    }
-    else if (!bLeftBlocked)
-    {
-        return (DesiredDirection * 0.3f + LeftDir * 0.7f).GetSafeNormal();
-    }
-    
-    // 两侧都被阻挡，尝试后退
-    return -DesiredDirection;
+    // 使用 AddMovementInput 移动（方向已经在路径规划器内部平滑过）
+    Character->AddMovementInput(MoveDirection, 1.0f);
 }
 
 void USK_Navigate::CheckFlightArrival()
@@ -654,6 +601,9 @@ void USK_Navigate::CleanupNavigation()
             }
         }
     }
+    
+    // 清理路径规划器
+    PathPlanner.Reset();
     
     // 重置状态
     bHasActiveRequest = false;

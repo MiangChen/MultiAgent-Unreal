@@ -188,7 +188,19 @@ void UMAModifyWidget::BuildUI()
     TitleText->SetColorAndOpacity(FSlateColor(TitleColor));
     
     UVerticalBoxSlot* TitleSlot = MainVBox->AddChildToVerticalBox(TitleText);
-    TitleSlot->SetPadding(FMargin(0, 0, 0, 10));
+    TitleSlot->SetPadding(FMargin(0, 0, 0, 8));
+
+    // Mode Indicator - 显示当前操作模式 (Add New / Edit Existing)
+    ModeIndicatorText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ModeIndicatorText"));
+    ModeIndicatorText->SetText(FText::FromString(TEXT("➕ Add New Node")));
+    FSlateFontInfo ModeFont = ModeIndicatorText->GetFont();
+    ModeFont.Size = 12;
+    ModeIndicatorText->SetFont(ModeFont);
+    FLinearColor ModeColor = Theme ? Theme->SuccessColor : FLinearColor(0.3f, 0.8f, 0.3f);
+    ModeIndicatorText->SetColorAndOpacity(FSlateColor(ModeColor));
+    
+    UVerticalBoxSlot* ModeSlot = MainVBox->AddChildToVerticalBox(ModeIndicatorText);
+    ModeSlot->SetPadding(FMargin(0, 0, 0, 10));
 
     // Hint text
     HintText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("HintText"));
@@ -336,26 +348,44 @@ void UMAModifyWidget::SetSelectedActor(AActor* Actor)
     SelectedActors.Empty();
     SelectedActors.Add(Actor);
     
-    // Clear text box, let user input new label
-    if (LabelTextBox)
+    // 检测是否已标记
+    FString ActorGuid = Actor->GetActorGuid().ToString();
+    TArray<FMASceneGraphNode> MatchingNodes;
+    
+    if (FindMatchingNodes(ActorGuid, MatchingNodes) && MatchingNodes.Num() > 0)
     {
-        LabelTextBox->SetText(FText::GetEmpty());
-        LabelTextBox->SetHintText(FText::FromString(ModifyDefaultHintText));
+        // 已标记 - 进入编辑模式
+        const FMASceneGraphNode& Node = MatchingNodes[0];
+        SetAnnotationMode(EMAAnnotationMode::EditExisting, Node.Id);
+        PopulateInputFromNode(Node);
+        
+        UE_LOG(LogMAModifyWidget, Log, TEXT("SetSelectedActor: Actor %s is marked, entering EditExisting mode for node %s"),
+            *Actor->GetName(), *Node.Id);
+    }
+    else
+    {
+        // 未标记 - 进入新增模式
+        SetAnnotationMode(EMAAnnotationMode::AddNew, TEXT(""));
+        if (LabelTextBox)
+        {
+            LabelTextBox->SetText(FText::GetEmpty());
+            LabelTextBox->SetHintText(FText::FromString(ModifyDefaultHintText));
+        }
+        
+        UE_LOG(LogMAModifyWidget, Log, TEXT("SetSelectedActor: Actor %s is not marked, entering AddNew mode"),
+            *Actor->GetName());
     }
     
     // Update hint text
     if (HintText)
     {
         HintText->SetText(FText::FromString(FString::Printf(TEXT("Selected: %s"), *Actor->GetName())));
-        // 使用 Theme 颜色，fallback 到默认绿色
         FLinearColor SelectedHintColor = Theme ? Theme->SuccessColor : FLinearColor(0.3f, 0.8f, 0.3f);
         HintText->SetColorAndOpacity(FSlateColor(SelectedHintColor));
     }
     
     // Update JSON preview
     UpdateJsonPreview(Actor);
-    
-    UE_LOG(LogMAModifyWidget, Log, TEXT("SetSelectedActor: %s"), *Actor->GetName());
 }
 
 //=========================================================================
@@ -380,6 +410,78 @@ void UMAModifyWidget::SetSelectedActors(const TArray<AActor*>& Actors)
         return;
     }
     
+    // 检测是否所有选中的 Actor 都属于同一个已标记节点
+    // 收集所有 Actor 的 GUID
+    TSet<FString> AllActorGuids;
+    for (AActor* Actor : SelectedActors)
+    {
+        AllActorGuids.Add(Actor->GetActorGuid().ToString());
+    }
+    
+    // 查找第一个 Actor 对应的节点
+    FString FirstActorGuid = SelectedActors[0]->GetActorGuid().ToString();
+    TArray<FMASceneGraphNode> MatchingNodes;
+    bool bFoundMatchingNode = false;
+    FMASceneGraphNode MatchedNode;
+    
+    if (FindMatchingNodes(FirstActorGuid, MatchingNodes))
+    {
+        // 检查是否有节点包含所有选中的 Actor
+        for (const FMASceneGraphNode& Node : MatchingNodes)
+        {
+            if (Node.GuidArray.Num() > 0)
+            {
+                // 检查节点的 GuidArray 是否包含所有选中的 Actor
+                TSet<FString> NodeGuids(Node.GuidArray);
+                bool bAllMatch = true;
+                for (const FString& ActorGuid : AllActorGuids)
+                {
+                    if (!NodeGuids.Contains(ActorGuid))
+                    {
+                        bAllMatch = false;
+                        break;
+                    }
+                }
+                if (bAllMatch)
+                {
+                    bFoundMatchingNode = true;
+                    MatchedNode = Node;
+                    break;
+                }
+            }
+        }
+    }
+    
+    if (bFoundMatchingNode)
+    {
+        // 所有选中的 Actor 都属于同一个节点 - 进入编辑模式
+        SetAnnotationMode(EMAAnnotationMode::EditExisting, MatchedNode.Id);
+        PopulateInputFromNode(MatchedNode);
+        
+        UE_LOG(LogMAModifyWidget, Log, TEXT("SetSelectedActors: All %d actors belong to node %s, entering EditExisting mode"),
+            SelectedActors.Num(), *MatchedNode.Id);
+    }
+    else
+    {
+        // 未找到匹配节点或选中的 Actor 不属于同一个节点 - 进入新增模式
+        SetAnnotationMode(EMAAnnotationMode::AddNew, TEXT(""));
+        if (LabelTextBox)
+        {
+            LabelTextBox->SetText(FText::GetEmpty());
+            if (SelectedActors.Num() > 1)
+            {
+                LabelTextBox->SetHintText(FText::FromString(ModifyMultiSelectHintText));
+            }
+            else
+            {
+                LabelTextBox->SetHintText(FText::FromString(ModifyDefaultHintText));
+            }
+        }
+        
+        UE_LOG(LogMAModifyWidget, Log, TEXT("SetSelectedActors: %d actors selected, entering AddNew mode"),
+            SelectedActors.Num());
+    }
+    
     // Update hint text to display selection count
     if (HintText)
     {
@@ -391,23 +493,8 @@ void UMAModifyWidget::SetSelectedActors(const TArray<AActor*>& Actors)
         {
             HintText->SetText(FText::FromString(FString::Printf(TEXT("Selected: %d Actors"), SelectedActors.Num())));
         }
-        // 使用 Theme 颜色，fallback 到默认绿色
         FLinearColor SelectedHintColor = Theme ? Theme->SuccessColor : FLinearColor(0.3f, 0.8f, 0.3f);
         HintText->SetColorAndOpacity(FSlateColor(SelectedHintColor));
-    }
-    
-    // Clear text box, let user input new label
-    if (LabelTextBox)
-    {
-        LabelTextBox->SetText(FText::GetEmpty());
-        if (SelectedActors.Num() > 1)
-        {
-            LabelTextBox->SetHintText(FText::FromString(ModifyMultiSelectHintText));
-        }
-        else
-        {
-            LabelTextBox->SetHintText(FText::FromString(ModifyDefaultHintText));
-        }
     }
     
     // Update JSON preview
@@ -430,6 +517,9 @@ void UMAModifyWidget::SetSelectedActors(const TArray<AActor*>& Actors)
 void UMAModifyWidget::ClearSelection()
 {
     SelectedActors.Empty();
+    
+    // 重置为新增模式
+    SetAnnotationMode(EMAAnnotationMode::AddNew, TEXT(""));
     
     // Clear text box
     if (LabelTextBox)
@@ -483,7 +573,8 @@ void UMAModifyWidget::SetLabelText(const FString& Text)
 
 void UMAModifyWidget::OnConfirmButtonClicked()
 {
-    UE_LOG(LogMAModifyWidget, Log, TEXT("ConfirmButton clicked"));
+    UE_LOG(LogMAModifyWidget, Log, TEXT("ConfirmButton clicked, Mode=%s"),
+        CurrentAnnotationMode == EMAAnnotationMode::AddNew ? TEXT("AddNew") : TEXT("EditExisting"));
     
     // 检查是否有选中的 Actor
     if (SelectedActors.Num() == 0)
@@ -505,37 +596,44 @@ void UMAModifyWidget::OnConfirmButtonClicked()
         OnModifyConfirmed.Broadcast(SelectedActors[0], LabelContent);
         return;
     }
-    if (ParsedInput.HasCategory())
+    
+    // 编辑模式下跳过 Category 验证（因为我们只是更新属性）
+    if (CurrentAnnotationMode == EMAAnnotationMode::AddNew && ParsedInput.HasCategory())
     {
         FString ValidationError;
         if (!ValidateSelectionForCategory(ParsedInput.Category, SelectedActors.Num(), ValidationError))
         {
             UE_LOG(LogMAModifyWidget, Warning, TEXT("OnConfirmButtonClicked: Validation failed - %s"), *ValidationError);
-            // 验证失败，广播单选委托让 MAHUD 处理错误显示
-            // 将错误信息附加到 LabelContent 以便 MAHUD 显示
             OnModifyConfirmed.Broadcast(SelectedActors[0], FString::Printf(TEXT("ERROR: %s"), *ValidationError));
             return;
         }
     }
     
-    // 根据是否有 Category 决定使用哪个 JSON 生成方法
+    // 根据模式生成 JSON
     FString GeneratedJson;
-    if (ParsedInput.HasCategory())
+    
+    if (CurrentAnnotationMode == EMAAnnotationMode::EditExisting)
     {
-        // 新格式 (cate:xxx,type:xxx) - 使用 GenerateSceneGraphNodeV2
+        // 编辑模式 - 使用 GenerateEditNodeJson
+        GeneratedJson = GenerateEditNodeJson(ParsedInput, EditingNodeId);
+        UE_LOG(LogMAModifyWidget, Log, TEXT("OnConfirmButtonClicked: EditExisting mode, NodeId=%s"), *EditingNodeId);
+    }
+    else if (ParsedInput.HasCategory())
+    {
+        // 新增模式 + 新格式 (cate:xxx,type:xxx) - 使用 GenerateSceneGraphNodeV2
         GeneratedJson = GenerateSceneGraphNodeV2(ParsedInput, SelectedActors);
-        UE_LOG(LogMAModifyWidget, Log, TEXT("OnConfirmButtonClicked: Using GenerateSceneGraphNodeV2 for Category=%s"), 
+        UE_LOG(LogMAModifyWidget, Log, TEXT("OnConfirmButtonClicked: AddNew mode with Category=%s"), 
             *ParsedInput.GetCategoryString());
     }
     else if (ParsedInput.IsMultiSelect())
     {
-        // 旧格式多选 (id:xxx,type:xxx,shape:polygon) - 使用 GenerateSceneGraphNode
+        // 新增模式 + 旧格式多选 (id:xxx,type:xxx,shape:polygon) - 使用 GenerateSceneGraphNode
         GeneratedJson = GenerateSceneGraphNode(ParsedInput, SelectedActors);
-        UE_LOG(LogMAModifyWidget, Log, TEXT("OnConfirmButtonClicked: Using GenerateSceneGraphNode for legacy multi-select"));
+        UE_LOG(LogMAModifyWidget, Log, TEXT("OnConfirmButtonClicked: AddNew mode with legacy multi-select"));
     }
     else
     {
-        // 旧格式单选 - 不生成 JSON，由 MAHUD 处理
+        // 新增模式 + 旧格式单选 - 不生成 JSON，由 MAHUD 处理
         UE_LOG(LogMAModifyWidget, Log, TEXT("OnConfirmButtonClicked: Legacy single-select mode, Actor=%s, LabelText=%s"), 
             *SelectedActors[0]->GetName(), *LabelContent);
         OnModifyConfirmed.Broadcast(SelectedActors[0], LabelContent);
@@ -1951,4 +2049,222 @@ FString UMAModifyWidget::GetHintTextForCategory(EMANodeCategory Category) const
     default:
         return ModifyDefaultHintText;
     }
+}
+
+//=========================================================================
+// SetAnnotationMode - 设置标注模式
+//=========================================================================
+
+void UMAModifyWidget::SetAnnotationMode(EMAAnnotationMode Mode, const FString& NodeId)
+{
+    CurrentAnnotationMode = Mode;
+    EditingNodeId = NodeId;
+    UpdateModeIndicator();
+    
+    UE_LOG(LogMAModifyWidget, Log, TEXT("SetAnnotationMode: %s, NodeId=%s"),
+        Mode == EMAAnnotationMode::AddNew ? TEXT("AddNew") : TEXT("EditExisting"),
+        *NodeId);
+}
+
+//=========================================================================
+// UpdateModeIndicator - 更新模式指示器 UI
+//=========================================================================
+
+void UMAModifyWidget::UpdateModeIndicator()
+{
+    if (!ModeIndicatorText)
+    {
+        return;
+    }
+    
+    if (CurrentAnnotationMode == EMAAnnotationMode::EditExisting)
+    {
+        ModeIndicatorText->SetText(FText::FromString(
+            FString::Printf(TEXT("✏️ Editing: %s"), *EditingNodeId)));
+        FLinearColor EditColor = Theme ? Theme->WarningColor : FLinearColor(1.0f, 0.8f, 0.0f);
+        ModeIndicatorText->SetColorAndOpacity(FSlateColor(EditColor));
+    }
+    else
+    {
+        ModeIndicatorText->SetText(FText::FromString(TEXT("➕ Add New Node")));
+        FLinearColor AddColor = Theme ? Theme->SuccessColor : FLinearColor(0.3f, 0.8f, 0.3f);
+        ModeIndicatorText->SetColorAndOpacity(FSlateColor(AddColor));
+    }
+}
+
+//=========================================================================
+// FindMatchingNodes - 查找选中 Actor 对应的已标记节点
+//=========================================================================
+
+bool UMAModifyWidget::FindMatchingNodes(const FString& ActorGuid, TArray<FMASceneGraphNode>& OutNodes)
+{
+    OutNodes.Empty();
+    
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return false;
+    }
+    
+    UGameInstance* GI = World->GetGameInstance();
+    if (!GI)
+    {
+        return false;
+    }
+    
+    UMASceneGraphManager* SceneGraphManager = GI->GetSubsystem<UMASceneGraphManager>();
+    if (!SceneGraphManager)
+    {
+        return false;
+    }
+    
+    // 1. 通过 GuidArray 查找 (polygon/linestring 类型)
+    TArray<FMASceneGraphNode> GuidArrayMatches = SceneGraphManager->FindNodesByGuid(ActorGuid);
+    OutNodes.Append(GuidArrayMatches);
+    
+    // 2. 通过单个 guid 字段查找 (point 类型)
+    TArray<FMASceneGraphNode> AllNodes = SceneGraphManager->GetAllNodes();
+    for (const FMASceneGraphNode& Node : AllNodes)
+    {
+        if (Node.Guid == ActorGuid)
+        {
+            // 检查是否已添加 (避免重复)
+            bool bAlreadyAdded = false;
+            for (const FMASceneGraphNode& ExistingNode : OutNodes)
+            {
+                if (ExistingNode.Id == Node.Id)
+                {
+                    bAlreadyAdded = true;
+                    break;
+                }
+            }
+            if (!bAlreadyAdded)
+            {
+                OutNodes.Add(Node);
+            }
+        }
+    }
+    
+    return OutNodes.Num() > 0;
+}
+
+//=========================================================================
+// PopulateInputFromNode - 从节点属性填充输入框
+//=========================================================================
+
+void UMAModifyWidget::PopulateInputFromNode(const FMASceneGraphNode& Node)
+{
+    TArray<FString> Parts;
+    
+    // 1. Category
+    if (!Node.Category.IsEmpty())
+    {
+        Parts.Add(FString::Printf(TEXT("cate:%s"), *Node.Category));
+    }
+    
+    // 2. Type
+    if (!Node.Type.IsEmpty())
+    {
+        Parts.Add(FString::Printf(TEXT("type:%s"), *Node.Type));
+    }
+    
+    // 3. Features (跳过 label，因为它是自动生成的)
+    for (const auto& Feature : Node.Features)
+    {
+        if (Feature.Key != TEXT("label"))
+        {
+            Parts.Add(FString::Printf(TEXT("%s:%s"), *Feature.Key, *Feature.Value));
+        }
+    }
+    
+    // 组合成输入字符串
+    FString InputText = FString::Join(Parts, TEXT(","));
+    
+    if (LabelTextBox)
+    {
+        LabelTextBox->SetText(FText::FromString(InputText));
+    }
+    
+    UE_LOG(LogMAModifyWidget, Log, TEXT("PopulateInputFromNode: %s -> %s"), 
+        *Node.Id, *InputText);
+}
+
+//=========================================================================
+// GenerateEditNodeJson - 生成编辑节点的 JSON
+//=========================================================================
+
+FString UMAModifyWidget::GenerateEditNodeJson(const FMAAnnotationInput& Input, const FString& NodeId)
+{
+    UWorld* World = GetWorld();
+    UGameInstance* GI = World ? World->GetGameInstance() : nullptr;
+    UMASceneGraphManager* SceneGraphManager = GI ? GI->GetSubsystem<UMASceneGraphManager>() : nullptr;
+    
+    if (!SceneGraphManager)
+    {
+        UE_LOG(LogMAModifyWidget, Warning, TEXT("GenerateEditNodeJson: SceneGraphManager not found"));
+        return TEXT("{}");
+    }
+    
+    // 获取原节点
+    FMASceneGraphNode OriginalNode = SceneGraphManager->GetNodeById(NodeId);
+    if (!OriginalNode.IsValid())
+    {
+        UE_LOG(LogMAModifyWidget, Warning, 
+            TEXT("GenerateEditNodeJson: Node %s not found"), *NodeId);
+        return TEXT("{}");
+    }
+    
+    // 从原始 JSON 解析
+    TSharedPtr<FJsonObject> RootObject;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(OriginalNode.RawJson);
+    if (!FJsonSerializer::Deserialize(Reader, RootObject) || !RootObject.IsValid())
+    {
+        UE_LOG(LogMAModifyWidget, Warning, 
+            TEXT("GenerateEditNodeJson: Failed to parse original JSON"));
+        return TEXT("{}");
+    }
+    
+    // 获取或创建 properties 对象
+    TSharedPtr<FJsonObject> PropertiesObject = RootObject->GetObjectField(TEXT("properties"));
+    if (!PropertiesObject.IsValid())
+    {
+        PropertiesObject = MakeShareable(new FJsonObject());
+        RootObject->SetObjectField(TEXT("properties"), PropertiesObject);
+    }
+    
+    // 更新 type
+    PropertiesObject->SetStringField(TEXT("type"), Input.Type);
+    
+    // 更新 category
+    if (Input.HasCategory())
+    {
+        PropertiesObject->SetStringField(TEXT("category"), Input.GetCategoryString());
+    }
+    
+    // 更新用户指定的属性
+    for (const auto& Prop : Input.Properties)
+    {
+        if (Prop.Value.Equals(TEXT("true"), ESearchCase::IgnoreCase) || 
+            Prop.Value.Equals(TEXT("false"), ESearchCase::IgnoreCase))
+        {
+            PropertiesObject->SetBoolField(Prop.Key, 
+                Prop.Value.Equals(TEXT("true"), ESearchCase::IgnoreCase));
+        }
+        else
+        {
+            PropertiesObject->SetStringField(Prop.Key, Prop.Value);
+        }
+    }
+    
+    // 添加编辑模式标记 (供 MAHUD 识别)
+    RootObject->SetBoolField(TEXT("_edit_mode"), true);
+    RootObject->SetStringField(TEXT("_edit_node_id"), NodeId);
+    
+    // 序列化
+    FString OutputString;
+    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
+    FJsonSerializer::Serialize(RootObject.ToSharedRef(), Writer);
+    
+    UE_LOG(LogMAModifyWidget, Log, TEXT("GenerateEditNodeJson: Generated edit JSON for node %s"), *NodeId);
+    return OutputString;
 }
