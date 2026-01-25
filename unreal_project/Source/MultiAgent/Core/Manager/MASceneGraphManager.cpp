@@ -395,33 +395,83 @@ bool UMASceneGraphManager::AddSceneNode(const FString& Id, const FString& Type, 
 
 void UMASceneGraphManager::LoadDynamicNodes()
 {
-    // 从 agents.json 和 environment.json 加载动态节点
+    // 从 MAConfigManager 获取已解析的配置数据
+    // 配置数据来自 config/maps/{MapType}.json 文件
 
     DynamicNodes.Empty();
 
-    // 获取配置文件路径
-    // 注意: 配置文件在 unreal_project 的上一级目录的 config 文件夹中
-    // 与 MAConfigManager::GetConfigRootPath() 保持一致
-    FString ConfigDir = FPaths::ProjectDir() / TEXT("..") / TEXT("config");
-    FString AgentsJsonPath = ConfigDir / TEXT("agents.json");
-    FString EnvironmentJsonPath = ConfigDir / TEXT("environment.json");
-    
-    UE_LOG(LogMASceneGraphManager, Log, TEXT("LoadDynamicNodes: ConfigDir=%s"), *FPaths::ConvertRelativePathToFull(ConfigDir));
+    // 获取 ConfigManager
+    UMAConfigManager* ConfigManager = nullptr;
+    if (UGameInstance* GameInstance = GetGameInstance())
+    {
+        ConfigManager = GameInstance->GetSubsystem<UMAConfigManager>();
+    }
 
-    // 加载机器人节点
-    TArray<FMASceneGraphNode> RobotNodes = FMADynamicNodeManager::CreateRobotNodes(AgentsJsonPath);
-    DynamicNodes.Append(RobotNodes);
-    UE_LOG(LogMASceneGraphManager, Log, TEXT("LoadDynamicNodes: Loaded %d robot nodes from agents.json"), RobotNodes.Num());
+    if (!ConfigManager)
+    {
+        UE_LOG(LogMASceneGraphManager, Warning, TEXT("LoadDynamicNodes: ConfigManager not available, cannot load dynamic nodes"));
+        return;
+    }
 
-    // 加载可拾取物品节点
-    TArray<FMASceneGraphNode> PickupItemNodes = FMADynamicNodeManager::CreatePickupItemNodes(EnvironmentJsonPath);
-    DynamicNodes.Append(PickupItemNodes);
-    UE_LOG(LogMASceneGraphManager, Log, TEXT("LoadDynamicNodes: Loaded %d pickup item nodes from environment.json"), PickupItemNodes.Num());
+    UE_LOG(LogMASceneGraphManager, Log, TEXT("LoadDynamicNodes: Loading from ConfigManager (MapType=%s)"), *ConfigManager->GetMapType());
 
-    // 加载充电站节点
-    TArray<FMASceneGraphNode> ChargingStationNodes = FMADynamicNodeManager::CreateChargingStationNodes(EnvironmentJsonPath);
-    DynamicNodes.Append(ChargingStationNodes);
-    UE_LOG(LogMASceneGraphManager, Log, TEXT("LoadDynamicNodes: Loaded %d charging station nodes from environment.json"), ChargingStationNodes.Num());
+    // 加载机器人节点 (从 AgentConfigs)
+    int32 RobotIndex = 1;
+    for (const FMAAgentConfigData& AgentConfig : ConfigManager->AgentConfigs)
+    {
+        // 生成数字 ID (格式: 机器人从 5001 开始)
+        FString NumericId = FString::Printf(TEXT("%d"), 5000 + RobotIndex);
+        
+        FMASceneGraphNode Node = FMADynamicNodeManager::CreateRobotNode(
+            NumericId,
+            AgentConfig.TypeName,
+            AgentConfig.Position,
+            AgentConfig.Rotation
+        );
+        Node.Label = AgentConfig.ID;  // 使用配置文件中的 label (如 "UAV_01")
+        Node.Features.Add(TEXT("label"), AgentConfig.ID);
+        
+        DynamicNodes.Add(Node);
+        RobotIndex++;
+        
+        UE_LOG(LogMASceneGraphManager, Log, TEXT("LoadDynamicNodes: Created robot node - Id: %s, Type: %s, Label: %s"),
+            *Node.Id, *Node.Type, *Node.Label);
+    }
+    UE_LOG(LogMASceneGraphManager, Log, TEXT("LoadDynamicNodes: Loaded %d robot nodes from ConfigManager"), ConfigManager->AgentConfigs.Num());
+
+    // 加载可拾取物品节点 (从 PickupItems)
+    for (const FMAPickupItemConfig& ItemConfig : ConfigManager->PickupItems)
+    {
+        FMASceneGraphNode Node = FMADynamicNodeManager::CreatePickupItemNode(
+            ItemConfig.ID,
+            ItemConfig.Name,
+            ItemConfig.Type,
+            ItemConfig.Position,
+            ItemConfig.Features
+        );
+        
+        DynamicNodes.Add(Node);
+        
+        UE_LOG(LogMASceneGraphManager, Log, TEXT("LoadDynamicNodes: Created pickup item node - Id: %s, Label: %s"),
+            *Node.Id, *Node.Label);
+    }
+    UE_LOG(LogMASceneGraphManager, Log, TEXT("LoadDynamicNodes: Loaded %d pickup item nodes from ConfigManager"), ConfigManager->PickupItems.Num());
+
+    // 加载充电站节点 (从 ChargingStations)
+    for (const FMAChargingStationConfig& StationConfig : ConfigManager->ChargingStations)
+    {
+        FMASceneGraphNode Node = FMADynamicNodeManager::CreateChargingStationNode(
+            StationConfig.ID,
+            StationConfig.ID,  // 使用 ID 作为 Label
+            StationConfig.Position
+        );
+        
+        DynamicNodes.Add(Node);
+        
+        UE_LOG(LogMASceneGraphManager, Log, TEXT("LoadDynamicNodes: Created charging station node - Id: %s"),
+            *Node.Id);
+    }
+    UE_LOG(LogMASceneGraphManager, Log, TEXT("LoadDynamicNodes: Loaded %d charging station nodes from ConfigManager"), ConfigManager->ChargingStations.Num());
 
     UE_LOG(LogMASceneGraphManager, Log, TEXT("LoadDynamicNodes: Total %d dynamic nodes loaded"), DynamicNodes.Num());
     

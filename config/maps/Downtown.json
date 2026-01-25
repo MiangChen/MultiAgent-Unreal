@@ -45,7 +45,7 @@
         "objects": [
             {
                 "id": "1001", "label": "RedBox", "type": "cargo",
-                "position": [-2360, 9600, -140],
+                "position": [-2360, 9600, 0],
                 "features": { "color": "red", "subtype": "box" }
             },
             {
