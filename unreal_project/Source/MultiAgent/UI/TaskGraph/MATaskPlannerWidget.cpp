@@ -538,7 +538,7 @@ UVerticalBox* UMATaskPlannerWidget::CreateUserInputSection()
 
     // Label - use Theme->LabelTextColor with fallback
     UserInputLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("UserInputLabel"));
-    UserInputLabel->SetText(FText::FromString(TEXT("Command Input:")));
+    UserInputLabel->SetText(FText::FromString(TEXT("Instruction:")));
     FLinearColor LabelTextColor = Theme ? Theme->LabelTextColor : FLinearColor::White;
     UserInputLabel->SetColorAndOpacity(FSlateColor(LabelTextColor));
     FSlateFontInfo LabelFont3 = FCoreStyle::GetDefaultFontStyle("Bold", 14);

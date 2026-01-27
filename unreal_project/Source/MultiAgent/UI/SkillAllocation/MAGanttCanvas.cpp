@@ -1013,23 +1013,39 @@ void UMAGanttCanvas::DrawSkillBars(const FGeometry& AllottedGeometry, FSlateWind
         );
         
         // 在技能条上绘制技能名称 - 自适应字号并居中显示
-        // 根据技能条大小计算合适的字号
+        // 根据技能条大小和技能名称长度计算合适的字号
+        float BarWidth = RenderData.Size.X;
         float BarHeight = RenderData.Size.Y;
-        int32 FontSize = FMath::Clamp(static_cast<int32>(BarHeight * 0.4f), 10, 16);
+        int32 TextLength = RenderData.SkillName.Len();
+        
+        // 计算基于高度的最大字号
+        int32 MaxFontSizeByHeight = FMath::Clamp(static_cast<int32>(BarHeight * 0.4f), 8, 16);
+        
+        // 计算基于宽度的最大字号（确保文本不超出技能条）
+        // 预留左右各 4 像素的边距
+        float AvailableWidth = BarWidth - 8.0f;
+        // 估算每个字符的宽度约为字号的 0.6 倍
+        int32 MaxFontSizeByWidth = TextLength > 0 ? static_cast<int32>(AvailableWidth / (TextLength * 0.6f)) : MaxFontSizeByHeight;
+        MaxFontSizeByWidth = FMath::Clamp(MaxFontSizeByWidth, 6, 16);
+        
+        // 取两者中较小的值，确保文本既不超出宽度也不超出高度
+        int32 FontSize = FMath::Min(MaxFontSizeByHeight, MaxFontSizeByWidth);
+        FontSize = FMath::Max(FontSize, 6);  // 最小字号为 6
+        
         FSlateFontInfo FontInfo = FCoreStyle::GetDefaultFontStyle("Regular", FontSize);
         
         // 计算文本居中位置
-        float EstimatedTextWidth = RenderData.SkillName.Len() * (FontSize * 0.6f);
+        float EstimatedTextWidth = TextLength * (FontSize * 0.6f);
         float EstimatedTextHeight = FontSize * 1.2f;
         
-        float CenteredX = RenderData.Position.X + (RenderData.Size.X - EstimatedTextWidth) / 2.0f;
-        float CenteredY = RenderData.Position.Y + (RenderData.Size.Y - EstimatedTextHeight) / 2.0f;
+        float CenteredX = RenderData.Position.X + (BarWidth - EstimatedTextWidth) / 2.0f;
+        float CenteredY = RenderData.Position.Y + (BarHeight - EstimatedTextHeight) / 2.0f;
         
         // 确保文本不会超出技能条边界
-        CenteredX = FMath::Max(CenteredX, RenderData.Position.X + 2.0f);
+        CenteredX = FMath::Max(CenteredX, RenderData.Position.X + 4.0f);
         
         FVector2D TextPosition(CenteredX, CenteredY);
-        FVector2D TextSize(RenderData.Size.X - 4.0f, RenderData.Size.Y - 4.0f);
+        FVector2D TextSize(BarWidth - 8.0f, BarHeight - 4.0f);
         
         // 使用深色文字以便在浅色背景上可见
         // 从 Theme 获取 InputTextColor，或使用 fallback 默认值
@@ -1134,10 +1150,25 @@ void UMAGanttCanvas::DrawDragPreview(const FGeometry& AllottedGeometry, FSlateWi
     // 在预览上绘制技能名称 (Requirements 1.5)
     if (!DragPreview.SkillName.IsEmpty())
     {
-        FSlateFontInfo FontInfo = FCoreStyle::GetDefaultFontStyle("Regular", 9);
+        // 自适应字号计算
+        float BarWidth = DragPreview.Size.X;
+        float BarHeight = DragPreview.Size.Y;
+        int32 TextLength = DragPreview.SkillName.Len();
         
-        FVector2D TextPosition(DragPreview.Position.X + 4.0f, DragPreview.Position.Y + DragPreview.Size.Y / 2.0f - 7.0f);
-        FVector2D TextSize(DragPreview.Size.X - 8.0f, DragPreview.Size.Y - 4.0f);
+        int32 MaxFontSizeByHeight = FMath::Clamp(static_cast<int32>(BarHeight * 0.35f), 6, 12);
+        float AvailableWidth = BarWidth - 8.0f;
+        int32 MaxFontSizeByWidth = TextLength > 0 ? static_cast<int32>(AvailableWidth / (TextLength * 0.6f)) : MaxFontSizeByHeight;
+        MaxFontSizeByWidth = FMath::Clamp(MaxFontSizeByWidth, 6, 12);
+        
+        int32 FontSize = FMath::Max(FMath::Min(MaxFontSizeByHeight, MaxFontSizeByWidth), 6);
+        FSlateFontInfo FontInfo = FCoreStyle::GetDefaultFontStyle("Regular", FontSize);
+        
+        float EstimatedTextWidth = TextLength * (FontSize * 0.6f);
+        float CenteredX = DragPreview.Position.X + (BarWidth - EstimatedTextWidth) / 2.0f;
+        CenteredX = FMath::Max(CenteredX, DragPreview.Position.X + 4.0f);
+        
+        FVector2D TextPosition(CenteredX, DragPreview.Position.Y + DragPreview.Size.Y / 2.0f - FontSize * 0.6f);
+        FVector2D TextSize(BarWidth - 8.0f, DragPreview.Size.Y - 4.0f);
         
         // 使用深色文字以便在浅色背景上可见
         // 从 Theme 获取 InputTextColor，或使用 fallback 默认值

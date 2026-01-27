@@ -22,7 +22,7 @@ AMAHumanoidCharacter::AMAHumanoidCharacter()
     
     // 加载 Humanoid 模型
     static ConstructorHelpers::FObjectFinder<USkeletalMesh> MeshAsset(
-        TEXT("/Game/Robot/Mannequins/Meshes/SKM_Manny.SKM_Manny"));
+        TEXT("/Game/Characters/Mannequins/Meshes/SKM_Manny.SKM_Manny"));
     if (MeshAsset.Succeeded())
     {
         GetMesh()->SetSkeletalMesh(MeshAsset.Object);
@@ -33,14 +33,14 @@ AMAHumanoidCharacter::AMAHumanoidCharacter()
     
     // 加载基础动画序列
     static ConstructorHelpers::FObjectFinder<UAnimSequence> IdleAnimAsset(
-        TEXT("/Game/Robot/Mannequins/Animations/Manny/MM_Idle.MM_Idle"));
+        TEXT("/Game/Characters/Mannequins/Animations/Manny/MM_Idle.MM_Idle"));
     if (IdleAnimAsset.Succeeded())
     {
         IdleAnim = IdleAnimAsset.Object;
     }
     
     static ConstructorHelpers::FObjectFinder<UAnimSequence> WalkAnimAsset(
-        TEXT("/Game/Robot/Mannequins/Animations/Manny/MM_Walk_Fwd.MM_Walk_Fwd"));
+        TEXT("/Game/Characters/Mannequins/Animations/Manny/MM_Walk_Fwd.MM_Walk_Fwd"));
     if (WalkAnimAsset.Succeeded())
     {
         WalkAnim = WalkAnimAsset.Object;

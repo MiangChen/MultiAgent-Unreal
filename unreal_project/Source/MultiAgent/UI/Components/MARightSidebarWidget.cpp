@@ -285,7 +285,7 @@ UWidget* UMARightSidebarWidget::CreateCommandSection()
     CommandTitle = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("CommandTitle"));
     if (CommandTitle)
     {
-        CommandTitle->SetText(FText::FromString(TEXT("Command Input")));
+        CommandTitle->SetText(FText::FromString(TEXT("Instruction")));
         CommandTitle->SetColorAndOpacity(FSlateColor(CurrentTheme->TextColor));
         
         FSlateFontInfo TitleFont = FCoreStyle::GetDefaultFontStyle("Bold", 14);

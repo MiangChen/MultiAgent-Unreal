@@ -117,7 +117,7 @@ void UMASimpleMainWidget::BuildUI()
 
     // Title
     UTextBlock* TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TitleText"));
-    TitleText->SetText(FText::FromString(TEXT("MultiAgent Command Input")));
+    TitleText->SetText(FText::FromString(TEXT("MultiAgent Instruction")));
     FSlateFontInfo TitleFont = TitleText->GetFont();
     TitleFont.Size = 18;
     TitleText->SetFont(TitleFont);
@@ -173,7 +173,7 @@ void UMASimpleMainWidget::BuildUI()
     // Result display box - wrapped in rounded border
     ResultTextBox = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(UMultiLineEditableTextBox::StaticClass(), TEXT("ResultTextBox"));
     ResultTextBox->SetIsReadOnly(true);
-    ResultTextBox->SetText(FText::FromString(TEXT("Waiting for command input...\n\nTips:\n- Enter any text and press Enter to send\n- System will return simulated response")));
+    ResultTextBox->SetText(FText::FromString(TEXT("Waiting for instruction...\n\nTips:\n- Enter any text and press Enter to send\n- System will return simulated response")));
     
     // 设置样式：纯黑色，字号 12，透明背景
     FEditableTextBoxStyle ResultStyle;
