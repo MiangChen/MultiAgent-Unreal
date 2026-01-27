@@ -319,7 +319,13 @@ protected:
     /** 拖拽的是输出端口 */
     bool bDraggingOutputPort = false;
 
-    /** 拖拽起始位置 */
+    /** 拖拽起始屏幕位置 (用于节点拖拽时的屏幕坐标计算) */
+    FVector2D DragStartScreenPosition;
+
+    /** 拖拽开始时的画布位置 (用于计算正确的拖拽偏移) */
+    FVector2D DragStartCanvasPosition;
+
+    /** 端口拖拽起始位置 */
     FVector2D DragStartPosition;
 
     //=========================================================================

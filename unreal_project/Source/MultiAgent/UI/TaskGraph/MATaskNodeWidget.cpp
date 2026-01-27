@@ -49,8 +49,19 @@ void UMATaskNodeWidget::InitializeNode(const FMATaskNodeData& Data)
 
 void UMATaskNodeWidget::SetNodeData(const FMATaskNodeData& Data)
 {
+    // 检查是否只是位置变化（拖拽时）
+    bool bOnlyPositionChanged = (NodeData.TaskId == Data.TaskId && 
+                                  NodeData.Description == Data.Description &&
+                                  NodeData.Location == Data.Location &&
+                                  NodeData.CanvasPosition != Data.CanvasPosition);
+    
     NodeData = Data;
-    UpdateDisplay();
+    
+    // 如果只是位置变化，不需要更新显示内容和端口位置
+    if (!bOnlyPositionChanged)
+    {
+        UpdateDisplay();
+    }
 }
 
 void UMATaskNodeWidget::UpdateDisplay()
@@ -91,12 +102,13 @@ void UMATaskNodeWidget::UpdateOutputPortPosition()
         return;
     }
     
-    // 获取节点实际高度
-    float ActualHeight = GetActualNodeHeight();
-    float ActualWidth = GetActualNodeWidth();
+    // 使用固定的节点尺寸，而不是动态获取的实际尺寸
+    // 动态尺寸在拖拽过程中可能不稳定，导致端口位置异常偏移
+    float Width = NodeSize.X;
+    float Height = NodeSize.Y;
     
     // 更新输出端口位置: 底部中央
-    OutputPortSlot->SetPosition(FVector2D(ActualWidth / 2.0f - PortRadius, ActualHeight - PortRadius));
+    OutputPortSlot->SetPosition(FVector2D(Width / 2.0f - PortRadius, Height - PortRadius));
 }
 
 //=============================================================================
@@ -329,7 +341,9 @@ FReply UMATaskNodeWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, c
         {
             // 开始拖拽节点
             bIsDraggingNode = true;
-            DragStartPosition = LocalPosition;
+            // 使用屏幕坐标记录拖拽起始位置，避免因节点移动导致的坐标系变化
+            DragStartScreenPosition = InMouseEvent.GetScreenSpacePosition();
+            DragStartCanvasPosition = NodeData.CanvasPosition;
             
             // 选中节点
             SetSelected(true);
@@ -388,9 +402,10 @@ FReply UMATaskNodeWidget::NativeOnMouseMove(const FGeometry& InGeometry, const F
     
     if (bIsDraggingNode)
     {
-        // 计算拖拽偏移
-        FVector2D Delta = LocalPosition - DragStartPosition;
-        FVector2D NewPosition = NodeData.CanvasPosition + Delta;
+        // 使用屏幕坐标计算拖拽偏移，避免因节点移动导致的本地坐标系变化
+        FVector2D CurrentScreenPosition = InMouseEvent.GetScreenSpacePosition();
+        FVector2D ScreenDelta = CurrentScreenPosition - DragStartScreenPosition;
+        FVector2D NewPosition = DragStartCanvasPosition + ScreenDelta;
         
         OnDragging.Broadcast(NodeData.TaskId, NewPosition);
         

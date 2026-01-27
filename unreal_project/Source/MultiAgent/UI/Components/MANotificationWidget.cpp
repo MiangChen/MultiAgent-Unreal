@@ -101,7 +101,7 @@ FString UMANotificationWidget::GetNotificationMessage(EMANotificationType Type)
         case EMANotificationType::EmergencyEvent:
             return TEXT("Unexpected Situation Detected");
         case EMANotificationType::RequestUserCommand:
-            return TEXT("Command Input Required");
+            return TEXT("Instruction Required");
         default:
             return TEXT("");
     }
