@@ -1,17 +1,15 @@
 // SK_Land.cpp
+// 降落技能 - 使用 MANavigationService 统一接口
 
 #include "SK_Land.h"
 #include "../MASkillTags.h"
 #include "../MASkillComponent.h"
 #include "../../Character/MACharacter.h"
-#include "../../Character/MAUAVCharacter.h"
-#include "TimerManager.h"
+#include "../../Component/MANavigationService.h"
 
 USK_Land::USK_Land()
 {
     ActivationOwnedTags.AddTag(FMASkillTags::Get().Status_Moving);
-    bLandSucceeded = false;
-    LandResultMessage = TEXT("");
 }
 
 void USK_Land::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
@@ -20,117 +18,107 @@ void USK_Land::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FG
     
     CachedHandle = Handle;
     CachedActivationInfo = ActivationInfo;
-    
-    // 重置结果状态
     bLandSucceeded = false;
     LandResultMessage = TEXT("");
     
     AMACharacter* Character = GetOwningCharacter();
     if (!Character)
     {
-        bLandSucceeded = false;
-        LandResultMessage = TEXT("Land failed: Character not found");
-        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+        FailAndEnd(TEXT("Land failed: Character not found"));
         return;
     }
     
     UMASkillComponent* SkillComp = Character->GetSkillComponent();
     if (!SkillComp)
     {
-        bLandSucceeded = false;
-        LandResultMessage = TEXT("Land failed: SkillComponent not found");
-        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+        FailAndEnd(TEXT("Land failed: SkillComponent not found"));
+        return;
+    }
+    
+    UMANavigationService* NavService = Character->GetNavigationService();
+    if (!NavService)
+    {
+        FailAndEnd(TEXT("Land failed: NavigationService not found"));
         return;
     }
     
     // 获取降落高度参数
     const FMASkillParams& Params = SkillComp->GetSkillParams();
-    float LandHeight = Params.LandHeight;
+    TargetAltitude = Params.LandHeight;
     
-    StartLocation = Character->GetActorLocation();
-    TargetLocation = StartLocation;
-    TargetLocation.Z = LandHeight;
-    
-    Character->ShowAbilityStatus(TEXT("Land"), FString::Printf(TEXT("-> %.0fm"), LandHeight / 100.f));
+    Character->ShowAbilityStatus(TEXT("Land"), FString::Printf(TEXT("-> %.0fm"), TargetAltitude / 100.f));
     Character->bIsMoving = true;
     
-    // 开始降落更新
-    if (UWorld* World = Character->GetWorld())
+    // 绑定导航完成回调
+    NavService->OnNavigationCompleted.AddDynamic(this, &USK_Land::OnNavigationCompleted);
+    
+    // 调用 NavigationService 的 Land
+    if (!NavService->Land(TargetAltitude))
     {
-        World->GetTimerManager().SetTimer(UpdateTimerHandle, this, &USK_Land::UpdateLand, 0.05f, true);
+        NavService->OnNavigationCompleted.RemoveDynamic(this, &USK_Land::OnNavigationCompleted);
+        FailAndEnd(TEXT("Land failed: NavigationService rejected request"));
     }
 }
 
-void USK_Land::UpdateLand()
+void USK_Land::OnNavigationCompleted(bool bSuccess, const FString& Message)
 {
+    bLandSucceeded = bSuccess;
+    LandResultMessage = Message;
+    
     AMACharacter* Character = GetOwningCharacter();
-    if (!Character)
+    if (Character)
     {
-        bLandSucceeded = false;
-        LandResultMessage = TEXT("Land failed: Character lost during landing");
-        EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
-        return;
-    }
-    
-    FVector CurrentLocation = Character->GetActorLocation();
-    float DistanceToTarget = FMath::Abs(CurrentLocation.Z - TargetLocation.Z);
-    
-    if (DistanceToTarget < 10.f)
-    {
-        // 到达目标高度
-        Character->SetActorLocation(TargetLocation);
+        Character->ShowAbilityStatus(TEXT("Land"), bSuccess ? TEXT("Complete!") : TEXT("Failed"));
         
-        // 更新 UAV 的飞行状态为 Landed
-        if (AMAUAVCharacter* UAV = Cast<AMAUAVCharacter>(Character))
+        // 降落成功后停止螺旋桨
+        if (bSuccess)
         {
-            UAV->SetFlightState(EMAFlightState::Landed);
+            if (USkeletalMeshComponent* Mesh = Character->GetMesh())
+            {
+                Mesh->Stop();
+            }
         }
-        
-        bLandSucceeded = true;
-        LandResultMessage = FString::Printf(TEXT("Land succeeded: Landed at altitude %.0fm"), TargetLocation.Z / 100.f);
-        Character->ShowAbilityStatus(TEXT("Land"), TEXT("Complete!"));
-        EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, false);
-        return;
     }
     
-    // 向下移动
-    FVector NewLocation = CurrentLocation;
-    float DeltaZ = LandSpeed * 0.05f;
-    NewLocation.Z = FMath::Max(NewLocation.Z - DeltaZ, TargetLocation.Z);
-    Character->SetActorLocation(NewLocation);
+    EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, !bSuccess);
+}
+
+void USK_Land::FailAndEnd(const FString& Message)
+{
+    bLandSucceeded = false;
+    LandResultMessage = Message;
+    EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
 }
 
 void USK_Land::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
     AMACharacter* Character = GetOwningCharacter();
-    
-    // 保存通知所需的信息
-    bool bShouldNotify = false;
-    bool bSuccessToNotify = bLandSucceeded;
-    FString MessageToNotify = LandResultMessage;
     UMASkillComponent* SkillCompToNotify = nullptr;
+    bool bShouldNotify = false;
     
     if (Character)
     {
-        if (UWorld* World = Character->GetWorld())
+        // 解绑回调
+        if (UMANavigationService* NavService = Character->GetNavigationService())
         {
-            World->GetTimerManager().ClearTimer(UpdateTimerHandle);
+            NavService->OnNavigationCompleted.RemoveDynamic(this, &USK_Land::OnNavigationCompleted);
+            
+            if (bWasCancelled)
+            {
+                NavService->CancelNavigation();
+            }
         }
-        UpdateTimerHandle.Invalidate();
         
         Character->bIsMoving = false;
         Character->ShowStatus(TEXT(""), 0.f);
         
-        // 如果被取消且没有设置结果消息，说明是外部取消
         if (bWasCancelled && LandResultMessage.IsEmpty())
         {
-            bSuccessToNotify = false;
             FVector CurrentLocation = Character->GetActorLocation();
-            MessageToNotify = FString::Printf(TEXT("Land cancelled: Stopped at altitude %.0fm (target: %.0fm)"), 
-                CurrentLocation.Z / 100.f, TargetLocation.Z / 100.f);
+            LandResultMessage = FString::Printf(TEXT("Land cancelled: Stopped at altitude %.0fm (target: %.0fm)"), 
+                CurrentLocation.Z / 100.f, TargetAltitude / 100.f);
         }
         
-        // 检查是否需要通知完成
         if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
         {
             FGameplayTag LandTag = FGameplayTag::RequestGameplayTag(FName("Command.Land"));
@@ -143,12 +131,10 @@ void USK_Land::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGamepl
         }
     }
     
-    // 先调用父类 EndAbility
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
     
-    // 在技能完全结束后再通知完成
     if (bShouldNotify && SkillCompToNotify)
     {
-        SkillCompToNotify->NotifySkillCompleted(bSuccessToNotify, MessageToNotify);
+        SkillCompToNotify->NotifySkillCompleted(bLandSucceeded, LandResultMessage);
     }
 }

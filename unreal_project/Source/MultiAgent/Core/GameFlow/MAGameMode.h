@@ -9,6 +9,7 @@
 #include "MAGameMode.generated.h"
 
 class UMAAgentManager;
+class UMAEnvironmentManager;
 class AMAMiniMapManager;
 class UMAEditModeManager;
 
@@ -23,6 +24,10 @@ public:
     // 获取 AgentManager
     UFUNCTION(BlueprintCallable, Category = "Subsystem")
     UMAAgentManager* GetAgentManager() const;
+
+    // 获取 EnvironmentManager
+    UFUNCTION(BlueprintCallable, Category = "Subsystem")
+    UMAEnvironmentManager* GetEnvironmentManager() const;
 
     // 小地图管理器类
     UPROPERTY(EditDefaultsOnly, Category = "MiniMap")

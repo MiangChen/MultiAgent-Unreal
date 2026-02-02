@@ -167,7 +167,7 @@ void UMAEmergencyManager::TriggerEventWithData(const FMAEmergencyEventData& Even
             UMAAgentManager* AgentManager = World->GetSubsystem<UMAAgentManager>();
             if (AgentManager)
             {
-                AMACharacter* FoundAgent = AgentManager->GetAgentByID(CurrentEventData.SourceAgentId);
+                AMACharacter* FoundAgent = AgentManager->GetAgentByIDOrLabel(CurrentEventData.SourceAgentId);
                 if (FoundAgent)
                 {
                     SourceAgent = FoundAgent;
@@ -244,8 +244,8 @@ void UMAEmergencyManager::TriggerEventFromAgentWithData(
     // 从 Agent 自动填充 SourceAgentId
     EventData.SourceAgentId = ReportingAgent->AgentID;
     
-    // 从 Agent 自动填充 SourceAgentName
-    EventData.SourceAgentName = ReportingAgent->GetName();
+    // 从 Agent 自动填充 SourceAgentLabel
+    EventData.SourceAgentLabel = ReportingAgent->GetName();
     
     // 从 Agent 自动填充 Location
     EventData.Location = ReportingAgent->GetActorLocation();

@@ -33,17 +33,17 @@ public:
 
     /**
      * 设置显示的 Agent 名称
-     * @param AgentName Agent 的名称
+     * @param AgentLabel Agent 的名称
      */
     UFUNCTION(BlueprintCallable, Category = "UI")
-    void SetAgentName(const FString& AgentName);
+    void SetAgentLabel(const FString& AgentLabel);
 
     /**
      * 获取当前显示的 Agent 名称
      * @return Agent 名称
      */
     UFUNCTION(BlueprintPure, Category = "UI")
-    FString GetAgentName() const;
+    FString GetAgentLabel() const;
 
     /**
      * 应用主题样式
@@ -71,7 +71,7 @@ private:
     void BuildUI();
 
     /** 当前显示的 Agent 名称 */
-    FString CurrentAgentName;
+    FString CurrentAgentLabel;
 
     /** 缓存的主题引用 */
     UPROPERTY()

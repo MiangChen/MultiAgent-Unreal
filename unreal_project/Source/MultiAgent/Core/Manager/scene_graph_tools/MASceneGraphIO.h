@@ -62,8 +62,6 @@ public:
      * - trans_facility (road_segment, intersection)
      * - prop (point形状)
      * - robot (动态节点)
-     * - pickup_item (动态节点)
-     * - charging_station (动态节点)
      * 
      * @param NodesArray JSON节点数组
      * @return 解析后的节点数组

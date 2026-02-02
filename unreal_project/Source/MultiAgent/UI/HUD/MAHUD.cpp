@@ -32,11 +32,12 @@
 #include "../../Core/Manager/MAEmergencyManager.h"
 #include "../../Core/Manager/MAEditModeManager.h"
 #include "../../Core/Manager/MASceneGraphManager.h"
+#include "../../Core/Manager/MAPIPCameraManager.h"
 #include "../../Agent/Character/MACharacter.h"
 #include "../../Agent/Component/Sensor/MACameraSensorComponent.h"
-#include "../../Environment/MAPointOfInterest.h"
-#include "../../Environment/MAZoneActor.h"
-#include "../../Environment/MAGoalActor.h"
+#include "../../Environment/Utils/MAPointOfInterest.h"
+#include "../../Environment/Utils/MAZoneActor.h"
+#include "../../Environment/Utils/MAGoalActor.h"
 #include "Blueprint/UserWidget.h"
 #include "Engine/Canvas.h"
 #include "DrawDebugHelpers.h"
@@ -384,6 +385,9 @@ void AMAHUD::DrawHUD()
 
     // Edit 模式指示器 - 数据收集并更新 HUDWidget
     DrawEditModeIndicator();
+
+    // 绘制画中画相机
+    DrawPIPCameras();
 }
 
 void AMAHUD::ShowDirectControlIndicator(AMACharacter* Agent)
@@ -408,12 +412,12 @@ void AMAHUD::ShowDirectControlIndicator(AMACharacter* Agent)
     }
 
     // 设置 Agent 名称
-    DirectControlIndicator->SetAgentName(Agent->AgentName);
+    DirectControlIndicator->SetAgentLabel(Agent->AgentLabel);
     
     // 通过 UIManager 显示指示器
     UIManager->ShowWidget(EMAWidgetType::DirectControl, false);
     
-    UE_LOG(LogMAHUD, Log, TEXT("DirectControlIndicator shown for Agent: %s"), *Agent->AgentName);
+    UE_LOG(LogMAHUD, Log, TEXT("DirectControlIndicator shown for Agent: %s"), *Agent->AgentLabel);
 }
 
 void AMAHUD::HideDirectControlIndicator()
@@ -1635,6 +1639,28 @@ void AMAHUD::DrawSceneLabels()
             false              // bDrawShadow
         );
     }
+}
+
+void AMAHUD::DrawPIPCameras()
+{
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return;
+    }
+
+    UMAPIPCameraManager* PIPManager = World->GetSubsystem<UMAPIPCameraManager>();
+    if (!PIPManager || PIPManager->GetVisiblePIPCameraCount() == 0)
+    {
+        return;
+    }
+
+    // 获取视口大小
+    int32 ViewportWidth = Canvas->SizeX;
+    int32 ViewportHeight = Canvas->SizeY;
+
+    // 调用 Manager 的绘制方法
+    PIPManager->DrawPIPCameras(Canvas, ViewportWidth, ViewportHeight);
 }
 
 void AMAHUD::StartSceneLabelVisualization()

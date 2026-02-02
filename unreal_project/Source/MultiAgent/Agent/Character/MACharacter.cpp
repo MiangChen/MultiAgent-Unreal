@@ -9,6 +9,7 @@
 #include "../Skill/MASkillComponent.h"
 #include "../Skill/MASkillTags.h"
 #include "../Component/Sensor/MACameraSensorComponent.h"
+#include "../Component/MANavigationService.h"
 #include "Kismet/GameplayStatics.h"
 #include "../../Core/Config/MAConfigManager.h"
 #include "../../UI/Core/MAUIManager.h"
@@ -19,7 +20,7 @@ AMACharacter::AMACharacter()
     PrimaryActorTick.bCanEverTick = true;
     
     AgentID = TEXT("");
-    AgentName = TEXT("Agent");
+    AgentLabel = TEXT("Agent");
     AgentType = EMAAgentType::Humanoid;
     bIsMoving = false;
 
@@ -43,6 +44,9 @@ AMACharacter::AMACharacter()
 
     // 创建技能组件
     SkillComponent = CreateDefaultSubobject<UMASkillComponent>(TEXT("SkillComponent"));
+    
+    // 创建导航服务组件
+    NavigationService = CreateDefaultSubobject<UMANavigationService>(TEXT("NavigationService"));
     
     GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
@@ -98,7 +102,7 @@ void AMACharacter::CancelNavigation()
     }
 }
 
-bool AMACharacter::TryFollowActor(AMACharacter* TargetActor, float FollowDistance)
+bool AMACharacter::TryFollowActor(AActor* TargetActor, float FollowDistance)
 {
     if (SkillComponent)
     {
@@ -229,7 +233,7 @@ UMACameraSensorComponent* AMACharacter::AddCameraSensor(FVector RelativeLocation
         CameraSensor->SetRelativeLocation(RelativeLocation);
         CameraSensor->SetRelativeRotation(RelativeRotation);
         CameraSensor->RegisterComponent();
-        CameraSensor->SensorName = FString::Printf(TEXT("%s_Camera"), *AgentName);
+        CameraSensor->SensorName = FString::Printf(TEXT("%s_Camera"), *AgentLabel);
     }
     
     return CameraSensor;

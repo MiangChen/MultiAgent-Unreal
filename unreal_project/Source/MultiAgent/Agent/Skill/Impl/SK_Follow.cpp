@@ -1,23 +1,22 @@
 // SK_Follow.cpp
+// 跟随技能 - 支持跟随任意场景对象
+// 使用 NavigationService 进行统一导航
 
 #include "SK_Follow.h"
 #include "../MASkillTags.h"
 #include "../MASkillComponent.h"
 #include "../../Character/MACharacter.h"
+#include "../../Component/MANavigationService.h"
+#include "../../../Core/Types/MATypes.h"
+#include "../../../Core/Config/MAConfigManager.h"
 #include "AIController.h"
 #include "TimerManager.h"
 
 USK_Follow::USK_Follow()
 {
     ActivationOwnedTags.AddTag(FMASkillTags::Get().Status_Moving);
-    LastTargetLocation = FVector::ZeroVector;
     bFollowSucceeded = false;
     FollowResultMessage = TEXT("");
-}
-
-void USK_Follow::SetTargetCharacter(AMACharacter* InTargetCharacter)
-{
-    TargetActor = InTargetCharacter;
 }
 
 void USK_Follow::SetTargetActor(AActor* InTargetActor)
@@ -35,6 +34,37 @@ void USK_Follow::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const 
     // 重置结果状态
     bFollowSucceeded = false;
     FollowResultMessage = TEXT("");
+    ContinuousFollowTime = 0.f;
+    
+    AMACharacter* Character = GetOwningCharacter();
+    
+    // 从 ConfigManager 加载跟随配置参数
+    if (Character)
+    {
+        if (UWorld* World = Character->GetWorld())
+        {
+            if (UGameInstance* GI = World->GetGameInstance())
+            {
+                if (UMAConfigManager* ConfigMgr = GI->GetSubsystem<UMAConfigManager>())
+                {
+                    const FMAFollowConfig& FollowCfg = ConfigMgr->GetFollowConfig();
+                    // 只有当使用默认值时才从配置加载
+                    if (FMath::IsNearlyEqual(FollowDistance, 300.f))
+                    {
+                        FollowDistance = FollowCfg.Distance;
+                    }
+                    if (FMath::IsNearlyEqual(FollowPositionTolerance, 200.f))
+                    {
+                        FollowPositionTolerance = FollowCfg.PositionTolerance;
+                    }
+                    if (FMath::IsNearlyEqual(ContinuousFollowTimeThreshold, 30.f))
+                    {
+                        ContinuousFollowTimeThreshold = FollowCfg.ContinuousTimeThreshold;
+                    }
+                }
+            }
+        }
+    }
     
     if (!TargetActor.IsValid())
     {
@@ -44,7 +74,6 @@ void USK_Follow::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const 
         return;
     }
     
-    AMACharacter* Character = GetOwningCharacter();
     if (!Character)
     {
         bFollowSucceeded = false;
@@ -53,96 +82,106 @@ void USK_Follow::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const 
         return;
     }
     
+    // 获取 NavigationService
+    NavigationService = Character->GetNavigationService();
+    if (!NavigationService)
+    {
+        bFollowSucceeded = false;
+        FollowResultMessage = TEXT("Follow failed: NavigationService not found");
+        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+        return;
+    }
+    
     FString TargetName = TargetActor->GetName();
     Character->ShowAbilityStatus(TEXT("Following"), FString::Printf(TEXT("-> %s"), *TargetName));
-    UpdateFollow();
     
+    // 使用跟随模式 API
+    NavigationService->FollowActor(TargetActor.Get(), FollowDistance, FollowPositionTolerance);
+    
+    // 启动状态检查定时器
     if (UWorld* World = Character->GetWorld())
     {
         World->GetTimerManager().SetTimer(UpdateTimerHandle, this, &USK_Follow::UpdateFollow, UpdateInterval, true);
     }
 }
 
+void USK_Follow::OnNavigationCompleted(bool bSuccess, const FString& Message)
+{
+    // 跟随模式下，此回调仅在目标丢失时触发
+    if (!bSuccess)
+    {
+        bFollowSucceeded = false;
+        FollowResultMessage = Message;
+        EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
+    }
+}
+
 void USK_Follow::UpdateFollow()
 {
     AMACharacter* Character = GetOwningCharacter();
-    if (!Character || !TargetActor.IsValid())
+    if (!Character)
     {
         bFollowSucceeded = false;
-        FollowResultMessage = TargetActor.IsValid() ? 
-            TEXT("Follow failed: Owner character lost") : 
-            TEXT("Follow failed: Target lost");
+        FollowResultMessage = TEXT("Follow failed: Owner character lost");
         EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
         return;
     }
     
-    FVector CurrentTargetLocation = TargetActor->GetActorLocation();
-    FVector FollowLocation = CalculateFollowLocation();
-    
-    float DistanceToFollow = FVector::Dist(Character->GetActorLocation(), FollowLocation);
-    if (DistanceToFollow < FollowDistance * 1.1f)
+    if (!TargetActor.IsValid())
     {
-        Character->ShowStatus(TEXT(""), 0.f);
-        Character->bIsMoving = false;
-        // 跟随成功（保持在跟随距离内）
-        bFollowSucceeded = true;
-        FString TargetName = TargetActor->GetName();
-        FollowResultMessage = FString::Printf(TEXT("Follow succeeded: Following %s at distance %.0f"), 
-            *TargetName, DistanceToFollow);
+        bFollowSucceeded = false;
+        FollowResultMessage = TEXT("Follow failed: Target lost");
+        EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
         return;
     }
     
-    float DistanceMoved = FVector::Dist(CurrentTargetLocation, LastTargetLocation);
-    if (DistanceMoved < RepathThreshold && Character->bIsMoving) return;
+    // 使用 NavigationService 统一计算跟随位置
+    FVector FollowLocation = NavigationService ? NavigationService->GetCurrentFollowPosition() : FVector::ZeroVector;
+    // 飞行机器人使用 2D 距离（高度固定），地面机器人也使用 2D 距离（更稳定）
+    float DistanceToFollow = FVector::Dist2D(Character->GetActorLocation(), FollowLocation);
+    bool bInFollowPosition = (DistanceToFollow < FollowPositionTolerance);
     
-    AAIController* AICtrl = Cast<AAIController>(Character->GetController());
-    if (AICtrl)
+    FString TargetName = TargetActor->GetName();
+    
+    // 只要满足跟随位置条件就累计时长（不重置）
+    if (bInFollowPosition)
     {
-        EPathFollowingRequestResult::Type Result = AICtrl->MoveToLocation(FollowLocation, 50.f, true, true, true, true);
-        if ((int32)Result == 0)
+        ContinuousFollowTime += UpdateInterval;
+        Character->bIsMoving = false;
+        
+        // 持续跟随达到阈值时间，技能成功
+        if (ContinuousFollowTime >= ContinuousFollowTimeThreshold)
         {
-            Result = AICtrl->MoveToLocation(CurrentTargetLocation, FollowDistance, true, true, true, true);
-        }
-        Character->bIsMoving = ((int32)Result != 0);
-        if (Character->bIsMoving) LastTargetLocation = CurrentTargetLocation;
-    }
-}
-
-FVector USK_Follow::CalculateFollowLocation() const
-{
-    if (!TargetActor.IsValid()) return FVector::ZeroVector;
-    
-    AMACharacter* Character = const_cast<USK_Follow*>(this)->GetOwningCharacter();
-    if (!Character) return TargetActor->GetActorLocation();
-    
-    FVector TargetLoc = TargetActor->GetActorLocation();
-    FVector MyLocation = Character->GetActorLocation();
-    
-    FVector Direction = (MyLocation - TargetLoc).GetSafeNormal();
-    if (Direction.IsNearlyZero())
-    {
-        // 如果目标是 AMACharacter，使用其朝向
-        if (AMACharacter* TargetChar = Cast<AMACharacter>(TargetActor.Get()))
-        {
-            Direction = -TargetChar->GetActorForwardVector();
-        }
-        else
-        {
-            // 否则使用目标 Actor 的朝向
-            Direction = -TargetActor->GetActorForwardVector();
+            bFollowSucceeded = true;
+            FollowResultMessage = FString::Printf(TEXT("Follow succeeded: Continuously followed %s for %.1fs"), 
+                *TargetName, ContinuousFollowTime);
+            
+            if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
+            {
+                FMAFeedbackContext& FeedbackCtx = SkillComp->GetFeedbackContextMutable();
+                FeedbackCtx.FollowDurationSeconds = ContinuousFollowTime;
+                FeedbackCtx.FollowTargetDistance = DistanceToFollow;
+            }
+            
+            EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, false);
         }
     }
     
-    FVector FollowLoc = TargetLoc + Direction * FollowDistance;
-    FollowLoc.Z = TargetLoc.Z;
-    return FollowLoc;
+    // 状态显示：第一次满足条件前显示 "Moving to track"，满足后显示 "Tracking"
+    if (ContinuousFollowTime > 0.f)
+    {
+        Character->ShowStatus(FString::Printf(TEXT("Tracking %s..."), *TargetName), UpdateInterval + 0.1f);
+    }
+    else
+    {
+        Character->ShowStatus(FString::Printf(TEXT("Moving to track %s..."), *TargetName), UpdateInterval + 0.1f);
+    }
 }
 
 void USK_Follow::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
     AMACharacter* Character = GetOwningCharacter();
     
-    // 保存通知所需的信息
     bool bShouldNotify = false;
     bool bSuccessToNotify = bFollowSucceeded;
     FString MessageToNotify = FollowResultMessage;
@@ -154,16 +193,17 @@ void USK_Follow::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGame
         {
             World->GetTimerManager().ClearTimer(UpdateTimerHandle);
         }
-        UpdateTimerHandle.Invalidate();
         
         Character->bIsMoving = false;
-        if (AAIController* AICtrl = Cast<AAIController>(Character->GetController()))
+        
+        // 停止跟随
+        if (NavigationService)
         {
-            AICtrl->StopMovement();
+            NavigationService->StopFollowing();
         }
+        
         Character->ShowStatus(TEXT(""), 0.f);
         
-        // 如果被取消且没有设置结果消息，说明是外部取消
         if (bWasCancelled && FollowResultMessage.IsEmpty())
         {
             bSuccessToNotify = false;
@@ -171,7 +211,6 @@ void USK_Follow::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGame
             MessageToNotify = FString::Printf(TEXT("Follow cancelled: Stopped following %s"), *TargetName);
         }
         
-        // 检查是否需要通知完成
         if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
         {
             FGameplayTag FollowTag = FGameplayTag::RequestGameplayTag(FName("Command.Follow"));
@@ -184,12 +223,11 @@ void USK_Follow::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGame
         }
     }
     
+    NavigationService = nullptr;
     TargetActor.Reset();
     
-    // 先调用父类 EndAbility
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
     
-    // 在技能完全结束后再通知完成
     if (bShouldNotify && SkillCompToNotify)
     {
         SkillCompToNotify->NotifySkillCompleted(bSuccessToNotify, MessageToNotify);

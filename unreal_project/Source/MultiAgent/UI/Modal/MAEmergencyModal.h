@@ -43,7 +43,7 @@ struct MULTIAGENT_API FMAEmergencyEventData
 
     /** 来源 Agent 名称 */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Emergency")
-    FString SourceAgentName;
+    FString SourceAgentLabel;
 
     /** 事件类型 */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Emergency")

@@ -8,9 +8,10 @@
 #include "../MASkillBase.h"
 #include "SK_Place.generated.h"
 
-class AMAPickupItem;
+class IMAPickupItem;
 class AMAUGVCharacter;
 class AMAHumanoidCharacter;
+class UMANavigationService;
 
 // Place 操作模式
 UENUM(BlueprintType)
@@ -80,6 +81,13 @@ private:
     void PerformPlaceOnUGV();
     void PerformPlaceOnObject();
     
+    // ========== 导航回调 ==========
+    UFUNCTION()
+    void OnNavigationToSourceCompleted(bool bSuccess, const FString& Message);
+    
+    UFUNCTION()
+    void OnNavigationToTargetCompleted(bool bSuccess, const FString& Message);
+    
     // ========== 动画回调 ==========
     UFUNCTION()
     void OnBendDownComplete();
@@ -94,6 +102,10 @@ private:
     // ========== 缓存数据 ==========
     FGameplayAbilitySpecHandle CachedHandle;
     FGameplayAbilityActivationInfo CachedActivationInfo;
+    
+    // ========== 导航服务 ==========
+    UPROPERTY()
+    UMANavigationService* NavigationService = nullptr;
     
     // ========== 状态 ==========
     EPlaceMode CurrentMode = EPlaceMode::LoadToUGV;

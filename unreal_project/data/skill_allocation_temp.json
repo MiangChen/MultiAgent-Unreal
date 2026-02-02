@@ -1,54 +1,47 @@
 {
-	"name": "GSI Allocation",
-	"description": "Skill allocation from GSI planner",
+	"name": "Single Test",
+	"description": "UAV 起飞 -> 导航 -> Humanoid 导航",
 	"data":
 	{
 		"0":
 		{
-			"UGV-1":
+			"UAV-1":
 			{
-				"skill": "navigate<RedBox>",
+				"skill": "take_off",
 				"params":
 				{
-					"task_id": "T2"
-				}
-			},
-			"Humanoid-1":
-			{
-				"skill": "navigate<RedBox>",
-				"params":
-				{
-					"task_id": "T2"
 				}
 			}
 		},
 		"1":
 		{
-			"Humanoid-1":
+			"UAV-1":
 			{
-				"skill": "place<Red_Box>_on<UGV>",
+				"skill": "navigate",
 				"params":
 				{
-					"task_id": "T2"
+					"dest":
+					{
+						"x": 1350,
+						"y": -450,
+						"z": 545
+					}
 				}
 			}
 		},
 		"2":
 		{
-			"UGV-1":
-			{
-				"skill": "navigate<Streetlight-69>",
-				"params":
-				{
-					"task_id": "T2"
-				}
-			},
 			"Humanoid-1":
 			{
-				"skill": "navigate<Streetlight-69>",
+				"skill": "navigate",
 				"params":
 				{
-					"task_id": "T2"
+					"dest":
+					{
+						"x": -1200,
+						"y": 1200,
+						"z": 0
+					}
 				}
 			}
 		},
@@ -56,10 +49,15 @@
 		{
 			"Humanoid-1":
 			{
-				"skill": "place<Red_Box>_on<ground>",
+				"skill": "navigate",
 				"params":
 				{
-					"task_id": "T2"
+					"dest":
+					{
+						"x": 0,
+						"y": 2400,
+						"z": 0
+					}
 				}
 			}
 		}

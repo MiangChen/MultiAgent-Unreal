@@ -38,26 +38,36 @@
             ]
         }
     ],
-    "environment": {
-        "charging_stations": [
-            { "id": "2001", "label": "ChargingStation_1", "position": [7700, 8400, 20] }
-        ],
-        "objects": [
-            {
-                "id": "1001", "label": "RedBox", "type": "cargo",
-                "position": [-2360, 9600, -140],
-                "features": { "color": "red", "subtype": "box" }
-            },
-            {
-                "id": "1002", "label": "BlueBox", "type": "cargo",
-                "position": [2600, 1400, 0],
-                "features": { "color": "blue", "subtype": "box" }
-            },
-            {
-                "id": "1003", "label": "GreenBox", "type": "cargo",
-                "position": [5500, 2000, 0],
-                "features": { "color": "green", "subtype": "box" }
-            }
-        ]
-    }
+    "environment": [
+        {
+            "id": "2001", "label": "ChargingStation_1", "type": "charging_station",
+            "position": [7700, 8400, 20],
+            "features": {}
+        },
+        {
+            "id": "1001", "label": "RedBox", "type": "cargo",
+            "position": [-2360, 9600, -140],
+            "features": { "color": "red", "subtype": "box" }
+        },
+        {
+            "id": "1002", "label": "BlueBox", "type": "cargo",
+            "position": [2600, 1400, 0],
+            "features": { "color": "blue", "subtype": "box" }
+        },
+        {
+            "id": "1003", "label": "GreenBox", "type": "cargo",
+            "position": [5500, 2000, 0],
+            "features": { "color": "green", "subtype": "box" }
+        },
+        {
+            "label": "Boat_1", "type": "boat",
+            "position": [5000, 3000, 0], "rotation": [0, 45, 0],
+            "features": { "subtype": "lifeboat" }
+        },
+        {
+            "label": "Boat_2", "type": "boat",
+            "position": [5200, 3200, 0], "rotation": [0, -30, 0],
+            "features": { "subtype": "canoe" }
+        }
+    ]
 }

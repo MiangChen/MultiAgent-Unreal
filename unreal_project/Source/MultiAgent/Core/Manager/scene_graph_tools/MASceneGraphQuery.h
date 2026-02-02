@@ -28,7 +28,7 @@ public:
      * 按类别获取节点
      * 
      * @param AllNodes 所有节点数组
-     * @param Category 类别名称 (building, trans_facility, prop, robot, pickup_item, charging_station)
+     * @param Category 类别名称 (building, trans_facility, prop, robot)
      * @return 匹配类别的节点数组
      */
     static TArray<FMASceneGraphNode> GetNodesByCategory(
@@ -211,12 +211,34 @@ public:
      * 统一查询逻辑：按 Id, Label, Features["label"], Features["name"] 顺序查找
      * 
      * @param AllNodes 所有节点数组
-     * @param NodeId 节点ID或标签
+     * @param NodeIdOrLabel 节点ID或标签
      * @return 匹配的节点，如果未找到则返回无效节点
      */
     static FMASceneGraphNode FindNodeByIdOrLabel(
         const TArray<FMASceneGraphNode>& AllNodes,
-        const FString& NodeId);
+        const FString& NodeIdOrLabel);
+
+    /**
+     * 根据 Label 获取节点 ID
+     * 
+     * @param AllNodes 所有节点数组
+     * @param Label 节点标签
+     * @return 节点 ID，如果未找到则返回空字符串
+     */
+    static FString GetIdByLabel(
+        const TArray<FMASceneGraphNode>& AllNodes,
+        const FString& Label);
+
+    /**
+     * 根据 ID 获取节点 Label
+     * 
+     * @param AllNodes 所有节点数组
+     * @param Id 节点 ID
+     * @return 节点 Label，如果未找到或 Label 为空则返回 ID 本身
+     */
+    static FString GetLabelById(
+        const TArray<FMASceneGraphNode>& AllNodes,
+        const FString& Id);
 
     /**
      * 查找所有匹配语义标签的节点

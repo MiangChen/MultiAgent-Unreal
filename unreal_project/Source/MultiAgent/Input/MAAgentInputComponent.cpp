@@ -53,7 +53,7 @@ void UMAAgentInputComponent::Initialize(APlayerController* PC, AMACharacter* Age
         EIC->BindAction(InputActions->IA_LookArrow, ETriggerEvent::Triggered, this, &UMAAgentInputComponent::OnLookArrowInput);
         EIC->BindAction(InputActions->IA_Jump, ETriggerEvent::Triggered, this, &UMAAgentInputComponent::OnJump);
         
-        UE_LOG(LogTemp, Log, TEXT("[AgentInputComponent] Input bindings created for %s"), *Agent->AgentName);
+        UE_LOG(LogTemp, Log, TEXT("[AgentInputComponent] Input bindings created for %s"), *Agent->AgentLabel);
     }
 }
 
@@ -148,16 +148,10 @@ void UMAAgentInputComponent::OnMoveUp(const FInputActionValue& Value)
     // E 键用于 UAV 上升
     if (AMAUAVCharacter* UAV = Cast<AMAUAVCharacter>(ControlledAgent.Get()))
     {
-        if (UAV->FlightState == EMAFlightState::Landed)
-        {
-            UAV->TakeOff();
-        }
-        else
-        {
-            // 在空中时上升
-            FVector Loc = UAV->GetActorLocation();
-            UAV->FlyTo(Loc + FVector(0.f, 0.f, 100.f));
-        }
+        // 直接上升（通过移动输入）
+        FVector Loc = UAV->GetActorLocation();
+        FVector TargetLoc = Loc + FVector(0.f, 0.f, 100.f);
+        UAV->SetActorLocation(TargetLoc);
     }
 }
 
@@ -165,13 +159,14 @@ void UMAAgentInputComponent::OnMoveDown(const FInputActionValue& Value)
 {
     if (!ControlledAgent.IsValid()) return;
     
-    // Q 键用于 UAV 下降/降落
+    // Q 键用于 UAV 下降
     if (AMAUAVCharacter* UAV = Cast<AMAUAVCharacter>(ControlledAgent.Get()))
     {
         if (UAV->IsInAir())
         {
             FVector Loc = UAV->GetActorLocation();
-            UAV->FlyTo(Loc - FVector(0.f, 0.f, 100.f));
+            FVector TargetLoc = Loc - FVector(0.f, 0.f, 100.f);
+            UAV->SetActorLocation(TargetLoc);
         }
     }
 }
@@ -182,18 +177,12 @@ void UMAAgentInputComponent::OnJump(const FInputActionValue& Value)
     
     AMACharacter* Agent = ControlledAgent.Get();
     
-    // UAV: Space 起飞或上升
+    // UAV: Space 上升
     if (AMAUAVCharacter* UAV = Cast<AMAUAVCharacter>(Agent))
     {
-        if (UAV->FlightState == EMAFlightState::Landed)
-        {
-            UAV->TakeOff();
-        }
-        else
-        {
-            FVector Loc = UAV->GetActorLocation();
-            UAV->FlyTo(Loc + FVector(0.f, 0.f, 100.f));
-        }
+        FVector Loc = UAV->GetActorLocation();
+        FVector TargetLoc = Loc + FVector(0.f, 0.f, 100.f);
+        UAV->SetActorLocation(TargetLoc);
     }
     else
     {

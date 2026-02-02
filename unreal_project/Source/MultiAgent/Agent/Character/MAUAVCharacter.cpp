@@ -1,11 +1,14 @@
 // MAUAVCharacter.cpp
 // 多旋翼无人机实现
+// 飞行控制由 MANavigationService 中的 FlightController 统一管理
 
 #include "MAUAVCharacter.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "UObject/ConstructorHelpers.h"
 #include "../Skill/MASkillComponent.h"
 #include "../StateTree/MAStateTreeComponent.h"
+#include "../Component/MANavigationService.h"
+#include "../../Core/Config/MAConfigManager.h"
 #include "StateTree.h"
 
 AMAUAVCharacter::AMAUAVCharacter()
@@ -44,6 +47,34 @@ void AMAUAVCharacter::BeginPlay()
 {
     Super::BeginPlay();
     
+    // 从 ConfigManager 加载统一飞行配置
+    if (UWorld* World = GetWorld())
+    {
+        if (UGameInstance* GI = World->GetGameInstance())
+        {
+            if (UMAConfigManager* ConfigMgr = GI->GetSubsystem<UMAConfigManager>())
+            {
+                const FMAFlightConfig& FlightCfg = ConfigMgr->GetFlightConfig();
+                MinFlightAltitude = FlightCfg.MinAltitude;
+                DefaultFlightAltitude = FlightCfg.DefaultAltitude;
+                MaxFlightSpeed = FlightCfg.MaxSpeed;
+                ObstacleDetectionRange = FlightCfg.ObstacleDetectionRange;
+                ObstacleAvoidanceRadius = FlightCfg.ObstacleAvoidanceRadius;
+                AcceptanceRadius = FlightCfg.AcceptanceRadius;
+                
+                UE_LOG(LogTemp, Log, TEXT("[UAV %s] Loaded flight config from ConfigManager"), *AgentID);
+            }
+        }
+    }
+    
+    // 配置导航服务为飞行模式
+    if (NavigationService)
+    {
+        NavigationService->bIsFlying = true;
+        NavigationService->bIsFixedWing = false;
+        NavigationService->MinFlightAltitude = MinFlightAltitude;
+    }
+    
     if (SkillComponent)
     {
         SkillComponent->OnEnergyDepleted.AddDynamic(this, &AMAUAVCharacter::OnEnergyDepleted);
@@ -76,22 +107,20 @@ void AMAUAVCharacter::BeginPlay()
         UE_LOG(LogTemp, Log, TEXT("[UAV %s] StateTree disabled, using direct skill activation"), *AgentID);
     }
     
-    SetFlightState(EMAFlightState::Landed);
-    
     // 初始时螺旋桨不转，等待起飞
     if (PropellerAnim)
     {
         GetMesh()->SetAnimationMode(EAnimationMode::AnimationSingleNode);
         GetMesh()->SetAnimation(PropellerAnim);
-        GetMesh()->Stop();  // 初始停止
+        GetMesh()->Stop();
     }
 }
 
 void AMAUAVCharacter::SnapToGround()
 {
     FVector CurrentLocation = GetActorLocation();
-    FVector Start = CurrentLocation + FVector(0.f, 0.f, 1000.f);  // 从更高处开始
-    FVector End = Start - FVector(0.f, 0.f, 5000.f);  // 向下检测
+    FVector Start = CurrentLocation + FVector(0.f, 0.f, 1000.f);
+    FVector End = Start - FVector(0.f, 0.f, 5000.f);
     
     FHitResult HitResult;
     FCollisionQueryParams Params;
@@ -99,20 +128,18 @@ void AMAUAVCharacter::SnapToGround()
     
     if (GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_WorldStatic, Params))
     {
-        // UAV 放在地面上，稍微抬高一点（50cm）避免穿模
         FVector NewLocation = FVector(CurrentLocation.X, CurrentLocation.Y, HitResult.Location.Z + 50.f);
         SetActorLocation(NewLocation);
         UE_LOG(LogTemp, Log, TEXT("[UAV %s] Snapped to ground at Z=%.1f"), *AgentID, NewLocation.Z);
     }
     else
     {
-        UE_LOG(LogTemp, Warning, TEXT("[UAV %s] SnapToGround failed - no ground detected, keeping Z=%.1f"), *AgentID, CurrentLocation.Z);
+        UE_LOG(LogTemp, Warning, TEXT("[UAV %s] SnapToGround failed - no ground detected"), *AgentID);
     }
 }
 
 void AMAUAVCharacter::InitializeSkillSet()
 {
-    // UAV 技能: Navigate, Search, Follow
     AvailableSkills.Add(EMASkillType::Navigate);
     AvailableSkills.Add(EMASkillType::Search);
     AvailableSkills.Add(EMASkillType::Follow);
@@ -122,267 +149,61 @@ void AMAUAVCharacter::InitializeSkillSet()
 void AMAUAVCharacter::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
-    UpdateFlight(DeltaTime);
     
+    // 更新螺旋桨动画（根据导航状态）
+    UpdatePropellerAnimation();
+    
+    // 能量消耗（在空中时）
     if (IsInAir() && ShouldDrainEnergy() && SkillComponent && SkillComponent->HasEnergy())
     {
         SkillComponent->DrainEnergy(DeltaTime);
     }
 }
 
+void AMAUAVCharacter::UpdatePropellerAnimation()
+{
+    if (!PropellerAnim) return;
+    
+    // 根据导航服务状态控制螺旋桨
+    bool bShouldSpin = IsInAir();
+    
+    USkeletalMeshComponent* Mesh = GetMesh();
+    if (!Mesh) return;
+    
+    if (bShouldSpin && !Mesh->IsPlaying())
+    {
+        Mesh->Play(true);
+    }
+    else if (!bShouldSpin && Mesh->IsPlaying())
+    {
+        Mesh->Stop();
+    }
+}
+
+bool AMAUAVCharacter::IsInAir() const
+{
+    // 检查当前高度是否高于地面一定距离
+    FVector CurrentLocation = GetActorLocation();
+    FVector Start = CurrentLocation;
+    FVector End = Start - FVector(0.f, 0.f, 200.f);
+    
+    FHitResult HitResult;
+    FCollisionQueryParams Params;
+    Params.AddIgnoredActor(this);
+    
+    bool bGroundNearby = GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility, Params);
+    
+    // 如果200cm内没有地面，认为在空中
+    return !bGroundNearby;
+}
+
 void AMAUAVCharacter::OnEnergyDepleted()
 {
-    Land();
-}
-
-// ========== 飞行系统 ==========
-
-void AMAUAVCharacter::UpdateFlight(float DeltaTime)
-{
-    if (FlightState != EMAFlightState::Flying && 
-        FlightState != EMAFlightState::TakingOff && 
-        FlightState != EMAFlightState::Landing)
+    // 能量耗尽时，取消当前导航
+    if (NavigationService)
     {
-        CurrentSpeed = 0.f;
-        return;
+        NavigationService->CancelNavigation();
     }
     
-    FVector CurrentLocation = GetActorLocation();
-    FVector ToTarget = CurrentFlightTarget - CurrentLocation;
-    float Distance = ToTarget.Size();
-    
-    if (Distance < AcceptanceRadius)
-    {
-        CurrentSpeed = 0.f;
-        
-        if (FlightState == EMAFlightState::TakingOff)
-        {
-            SetFlightState(EMAFlightState::Hovering);
-            if (bHasPendingFlyTarget)
-            {
-                bHasPendingFlyTarget = false;
-                FlyTo(PendingFlyTarget);
-            }
-        }
-        else if (FlightState == EMAFlightState::Landing)
-        {
-            SetFlightState(EMAFlightState::Landed);
-        }
-        else
-        {
-            SetFlightState(EMAFlightState::Hovering);
-        }
-        return;
-    }
-    
-    float TargetSpeed = FMath::Min(MaxFlightSpeed, Distance * 0.5f);
-    TargetSpeed = FMath::Max(100.f, TargetSpeed);
-    CurrentSpeed = FMath::FInterpTo(CurrentSpeed, TargetSpeed, DeltaTime, 2.f);
-    
-    // 计算移动方向（带避障）
-    FVector Direction = ToTarget.GetSafeNormal();
-    FVector AvoidanceDirection = CalculateAvoidanceDirection(Direction);
-    
-    FVector NewLocation = CurrentLocation + AvoidanceDirection * CurrentSpeed * DeltaTime;
-    SetActorLocation(NewLocation);
-    
-    // 朝向使用实际移动方向
-    if (!AvoidanceDirection.IsNearlyZero())
-    {
-        FRotator TargetRotation = AvoidanceDirection.Rotation();
-        TargetRotation.Pitch = 0.f;
-        TargetRotation.Roll = 0.f;
-        SetActorRotation(FMath::RInterpTo(GetActorRotation(), TargetRotation, DeltaTime, 5.f));
-    }
-    
-    bIsMoving = true;
-}
-
-FVector AMAUAVCharacter::CalculateAvoidanceDirection(const FVector& DesiredDirection)
-{
-    FVector CurrentLocation = GetActorLocation();
-    
-    // 前方障碍物检测
-    FHitResult HitResult;
-    FCollisionQueryParams Params;
-    Params.AddIgnoredActor(this);
-    
-    float DetectionDistance = ObstacleDetectionRange;
-    FVector TraceEnd = CurrentLocation + DesiredDirection * DetectionDistance;
-    
-    // 使用球形检测，更可靠
-    bool bHit = GetWorld()->SweepSingleByChannel(
-        HitResult,
-        CurrentLocation,
-        TraceEnd,
-        FQuat::Identity,
-        ECC_WorldStatic,
-        FCollisionShape::MakeSphere(ObstacleAvoidanceRadius),
-        Params
-    );
-    
-    if (!bHit)
-    {
-        // 前方无障碍，直接前进
-        return DesiredDirection;
-    }
-    
-    // 检测到障碍物，尝试绕行
-    float ObstacleDistance = HitResult.Distance;
-    
-    // 如果障碍物很近，优先向上爬升
-    if (ObstacleDistance < ObstacleAvoidanceRadius * 2.f)
-    {
-        return FVector(0.f, 0.f, 1.f);  // 向上
-    }
-    
-    // 尝试多个绕行方向：上、左、右
-    TArray<FVector> AvoidanceDirections;
-    AvoidanceDirections.Add(FVector(0.f, 0.f, 1.f));  // 上
-    AvoidanceDirections.Add(FVector::CrossProduct(DesiredDirection, FVector::UpVector).GetSafeNormal());  // 左
-    AvoidanceDirections.Add(-FVector::CrossProduct(DesiredDirection, FVector::UpVector).GetSafeNormal()); // 右
-    
-    for (const FVector& AvoidDir : AvoidanceDirections)
-    {
-        FVector TestEnd = CurrentLocation + AvoidDir * DetectionDistance;
-        bool bTestHit = GetWorld()->SweepSingleByChannel(
-            HitResult,
-            CurrentLocation,
-            TestEnd,
-            FQuat::Identity,
-            ECC_WorldStatic,
-            FCollisionShape::MakeSphere(ObstacleAvoidanceRadius),
-            Params
-        );
-        
-        if (!bTestHit)
-        {
-            // 找到可行方向，混合原方向和避障方向
-            return (DesiredDirection * 0.3f + AvoidDir * 0.7f).GetSafeNormal();
-        }
-    }
-    
-    // 所有方向都被阻挡，向上爬升
-    return FVector(0.f, 0.f, 1.f);
-}
-
-bool AMAUAVCharacter::TakeOff(float TargetAltitude)
-{
-    if (!SkillComponent || !SkillComponent->HasEnergy()) return false;
-    if (FlightState != EMAFlightState::Landed) return false;
-    
-    float GroundZ = GetGroundHeight();
-    float Altitude = (TargetAltitude > 0.f) ? TargetAltitude : (GroundZ + DefaultFlightAltitude);
-    
-    FVector CurrentLocation = GetActorLocation();
-    CurrentFlightTarget = FVector(CurrentLocation.X, CurrentLocation.Y, Altitude);
-    SetFlightState(EMAFlightState::TakingOff);
-    return true;
-}
-
-bool AMAUAVCharacter::Land()
-{
-    if (FlightState == EMAFlightState::Landed) return false;
-    
-    FVector CurrentLocation = GetActorLocation();
-    float GroundZ = GetGroundHeight();
-    CurrentFlightTarget = FVector(CurrentLocation.X, CurrentLocation.Y, GroundZ + 50.f);
-    SetFlightState(EMAFlightState::Landing);
-    return true;
-}
-
-void AMAUAVCharacter::Hover()
-{
-    if (FlightState == EMAFlightState::Landed) return;
-    CurrentFlightTarget = GetActorLocation();
-    CurrentSpeed = 0.f;
-    bIsMoving = false;
-    SetFlightState(EMAFlightState::Hovering);
-}
-
-bool AMAUAVCharacter::FlyTo(FVector Destination)
-{
-    UE_LOG(LogTemp, Log, TEXT("[UAV %s] FlyTo: Dest=(%.1f, %.1f, %.1f), FlightState=%d, HasEnergy=%d"),
-        *AgentName, Destination.X, Destination.Y, Destination.Z,
-        (int32)FlightState, (SkillComponent && SkillComponent->HasEnergy()) ? 1 : 0);
-    
-    if (!SkillComponent || !SkillComponent->HasEnergy()) return false;
-    if (FlightState == EMAFlightState::Landed) return false;
-    CurrentFlightTarget = Destination;
-    SetFlightState(EMAFlightState::Flying);
-    return true;
-}
-
-void AMAUAVCharacter::SetFlightState(EMAFlightState NewState)
-{
-    if (FlightState != NewState)
-    {
-        EMAFlightState OldState = FlightState;
-        FlightState = NewState;
-        bIsMoving = (NewState == EMAFlightState::Flying || 
-                     NewState == EMAFlightState::TakingOff || 
-                     NewState == EMAFlightState::Landing);
-        
-        // 控制螺旋桨动画
-        if (NewState == EMAFlightState::Landed)
-        {
-            // 降落后停止螺旋桨
-            GetMesh()->Stop();
-        }
-        else if (OldState == EMAFlightState::Landed)
-        {
-            // 从地面起飞时启动螺旋桨
-            GetMesh()->Play(true);
-        }
-    }
-}
-
-float AMAUAVCharacter::GetGroundHeight() const
-{
-    FVector Start = GetActorLocation();
-    FVector End = Start - FVector(0.f, 0.f, 10000.f);
-    
-    FHitResult HitResult;
-    FCollisionQueryParams Params;
-    Params.AddIgnoredActor(this);
-    
-    if (GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility, Params))
-    {
-        return HitResult.Location.Z;
-    }
-    return 0.f;
-}
-
-bool AMAUAVCharacter::TryNavigateTo(FVector Destination)
-{
-    UE_LOG(LogTemp, Log, TEXT("[UAV %s] TryNavigateTo: Dest=(%.1f, %.1f, %.1f), FlightState=%d, HasEnergy=%d"),
-        *AgentName, Destination.X, Destination.Y, Destination.Z,
-        (int32)FlightState, (SkillComponent && SkillComponent->HasEnergy()) ? 1 : 0);
-    
-    if (!SkillComponent || !SkillComponent->HasEnergy()) return false;
-    
-    // 使用传入的目标高度（参数处理阶段已确保高度可达）
-    FVector FlyTarget = Destination;
-    
-    if (FlightState == EMAFlightState::Landed)
-    {
-        bHasPendingFlyTarget = true;
-        PendingFlyTarget = FlyTarget;
-        TakeOff(Destination.Z);
-        return true;
-    }
-    
-    if (FlightState == EMAFlightState::TakingOff)
-    {
-        bHasPendingFlyTarget = true;
-        PendingFlyTarget = FlyTarget;
-        return true;
-    }
-    
-    return FlyTo(Destination);
-}
-
-void AMAUAVCharacter::CancelNavigation()
-{
-    Hover();
+    UE_LOG(LogTemp, Warning, TEXT("[UAV %s] Energy depleted!"), *AgentLabel);
 }

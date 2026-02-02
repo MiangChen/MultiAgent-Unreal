@@ -1,5 +1,5 @@
 // SK_Land.h
-// 降落技能 - UAV 从当前高度降落到地面
+// 降落技能 - 使用 MANavigationService 统一接口
 
 #pragma once
 
@@ -19,19 +19,16 @@ public:
     virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 
 protected:
-    void UpdateLand();
+    UFUNCTION()
+    void OnNavigationCompleted(bool bSuccess, const FString& Message);
+    
+    void FailAndEnd(const FString& Message);
 
 private:
     FGameplayAbilitySpecHandle CachedHandle;
     FGameplayAbilityActivationInfo CachedActivationInfo;
     
-    FVector StartLocation;
-    FVector TargetLocation;
-    float LandSpeed = 150.f;
-    
-    FTimerHandle UpdateTimerHandle;
-    
-    // 结果缓存（用于 EndAbility 生成反馈消息）
+    float TargetAltitude = 0.f;
     bool bLandSucceeded = false;
     FString LandResultMessage;
 };

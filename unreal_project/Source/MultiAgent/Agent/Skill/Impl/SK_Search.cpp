@@ -57,7 +57,7 @@ void USK_Search::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const 
     if (bHasFoundTarget)
     {
         UE_LOG(LogTemp, Log, TEXT("[SK_Search] %s: Found %d targets, will end early when reaching nearest target"),
-            *Character->AgentName, FoundTargetLocations.Num());
+            *Character->AgentLabel, FoundTargetLocations.Num());
     }
     
     // 生成搜索航线
@@ -112,7 +112,7 @@ bool USK_Search::TickSearch(float DeltaTime)
                 SearchResultMessage = FString::Printf(TEXT("Search succeeded: Found %d objects, reached target area at waypoint %d/%d"), 
                     FoundCount, CurrentWaypointIndex, SearchPath.Num());
                 
-                UE_LOG(LogTemp, Log, TEXT("[SK_Search] %s: Reached target area, ending search early"), *Character->AgentName);
+                UE_LOG(LogTemp, Log, TEXT("[SK_Search] %s: Reached target area, ending search early"), *Character->AgentLabel);
                 Character->ShowAbilityStatus(TEXT("Search"), TEXT("Target Found!"));
                 EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, false);
                 return false; // 停止 Tick

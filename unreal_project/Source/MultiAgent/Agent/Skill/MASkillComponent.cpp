@@ -73,9 +73,9 @@ void UMASkillComponent::CancelNavigate()
     }
 }
 
-bool UMASkillComponent::TryActivateFollow(AMACharacter* TargetCharacter, float FollowDistance)
+bool UMASkillComponent::TryActivateFollow(AActor* TargetActor, float FollowDistance)
 {
-    if (!FollowSkillHandle.IsValid() || !TargetCharacter) return false;
+    if (!FollowSkillHandle.IsValid() || !TargetActor) return false;
     
     // 先取消当前正在运行的跟随技能（如果有）
     CancelAbilityHandle(FollowSkillHandle);
@@ -91,12 +91,20 @@ bool UMASkillComponent::TryActivateFollow(AMACharacter* TargetCharacter, float F
         
         if (USK_Follow* FollowSkill = Cast<USK_Follow>(Instance))
         {
-            FollowSkill->SetTargetCharacter(TargetCharacter);
+            FollowSkill->SetTargetActor(TargetActor);
             FollowSkill->SetFollowDistance(FollowDistance);
         }
     }
     
-    FeedbackContext.TargetName = TargetCharacter->AgentName;
+    // 获取目标名称（优先使用 AMACharacter 的 AgentLabel，否则使用 Actor 名称）
+    if (AMACharacter* TargetChar = Cast<AMACharacter>(TargetActor))
+    {
+        FeedbackContext.TargetName = TargetChar->AgentLabel;
+    }
+    else
+    {
+        FeedbackContext.TargetName = TargetActor->GetName();
+    }
     
     return TryActivateAbility(FollowSkillHandle);
 }

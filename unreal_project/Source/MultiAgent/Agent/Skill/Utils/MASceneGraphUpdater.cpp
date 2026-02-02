@@ -48,6 +48,12 @@ void FMASceneGraphUpdater::UpdateAfterSkillCompletion(AMACharacter* Agent, EMACo
         case EMACommand::ReturnHome:
             UpdateAfterReturnHome(Agent, bSuccess);
             break;
+        case EMACommand::HandleHazard:
+            UpdateAfterHandleHazard(Agent, bSuccess);
+            break;
+        case EMACommand::Guide:
+            UpdateAfterGuide(Agent, bSuccess);
+            break;
         default:
             // 其他技能不需要更新场景图
             break;
@@ -94,7 +100,7 @@ void FMASceneGraphUpdater::UpdateRobotPosition(AMACharacter* Agent)
         return;
     }
     
-    SceneGraphManager->UpdateRobotPosition(Agent->AgentID, Agent->GetActorLocation());
+    SceneGraphManager->UpdateDynamicNodePosition(Agent->AgentID, Agent->GetActorLocation());
     UE_LOG(LogMASceneGraphUpdater, Verbose, TEXT("Updated robot '%s' position in scene graph to (%f, %f, %f)"),
         *Agent->AgentID, Agent->GetActorLocation().X, Agent->GetActorLocation().Y, Agent->GetActorLocation().Z);
 }
@@ -179,7 +185,7 @@ void FMASceneGraphUpdater::UpdateAfterPlace(AMACharacter* Agent, bool bSuccess)
     }
     
     // 更新物品位置
-    SceneGraphManager->UpdatePickupItemPosition(Object1NodeId, Context.PlaceFinalLocation);
+    SceneGraphManager->UpdateDynamicNodePosition(Object1NodeId, Context.PlaceFinalLocation);
     
     // 判断是否放到了机器人上
     bool bPlacedOnRobot = false;
@@ -198,7 +204,11 @@ void FMASceneGraphUpdater::UpdateAfterPlace(AMACharacter* Agent, bool bSuccess)
     }
     
     // 更新携带状态
-    SceneGraphManager->UpdatePickupItemCarrierStatus(Object1NodeId, bPlacedOnRobot, CarrierId);
+    SceneGraphManager->UpdateDynamicNodeFeature(Object1NodeId, TEXT("is_carried"), bPlacedOnRobot ? TEXT("true") : TEXT("false"));
+    if (bPlacedOnRobot)
+    {
+        SceneGraphManager->UpdateDynamicNodeFeature(Object1NodeId, TEXT("carrier_id"), CarrierId);
+    }
     
     UE_LOG(LogMASceneGraphUpdater, Log, TEXT("Updated scene graph after Place: Item=%s, Location=(%f, %f, %f), Carried=%s, Carrier=%s"),
         *Object1NodeId, Context.PlaceFinalLocation.X, Context.PlaceFinalLocation.Y, Context.PlaceFinalLocation.Z,
@@ -233,4 +243,53 @@ void FMASceneGraphUpdater::UpdateAfterReturnHome(AMACharacter* Agent, bool bSucc
     }
     
     UpdateRobotPosition(Agent);
+}
+
+void FMASceneGraphUpdater::UpdateAfterHandleHazard(AMACharacter* Agent, bool bSuccess)
+{
+    if (!bSuccess || !Agent)
+    {
+        return;
+    }
+    
+    // 更新机器人位置
+    UpdateRobotPosition(Agent);
+    
+    // 获取技能组件和反馈上下文
+    UMASkillComponent* SkillComp = Agent->GetSkillComponent();
+    if (!SkillComp)
+    {
+        return;
+    }
+    
+    const FMAFeedbackContext& Context = SkillComp->GetFeedbackContext();
+    
+    // 如果有目标环境对象，更新其 is_fire 特征为 false
+    if (!Context.HazardTargetId.IsEmpty())
+    {
+        UMASceneGraphManager* SceneGraphManager = GetSceneGraphManager(Agent);
+        if (SceneGraphManager)
+        {
+            SceneGraphManager->UpdateDynamicNodeFeature(Context.HazardTargetId, TEXT("is_fire"), TEXT("false"));
+            UE_LOG(LogMASceneGraphUpdater, Log, TEXT("Updated scene graph: %s is_fire=false"), *Context.HazardTargetId);
+        }
+    }
+    
+    UE_LOG(LogMASceneGraphUpdater, Log, TEXT("Updated scene graph after HandleHazard for %s"), *Agent->AgentID);
+}
+
+void FMASceneGraphUpdater::UpdateAfterGuide(AMACharacter* Agent, bool bSuccess)
+{
+    if (!bSuccess || !Agent)
+    {
+        return;
+    }
+    
+    // 更新机器人位置
+    UpdateRobotPosition(Agent);
+    
+    // Guide 技能完成后，被引导对象的位置由其自身导航更新
+    // 这里只需要更新机器人位置
+    
+    UE_LOG(LogMASceneGraphUpdater, Log, TEXT("Updated scene graph after Guide for %s"), *Agent->AgentID);
 }

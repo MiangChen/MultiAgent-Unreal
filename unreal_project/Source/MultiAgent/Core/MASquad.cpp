@@ -48,7 +48,7 @@ bool UMASquad::AddMember(AMACharacter* Agent)
     }
 
     UE_LOG(LogTemp, Log, TEXT("[Squad %s] Added member: %s (Total: %d)"),
-        *SquadID, *Agent->AgentName, GetMemberCount());
+        *SquadID, *Agent->AgentLabel, GetMemberCount());
 
     OnMemberAdded.Broadcast(this, Agent);
     return true;
@@ -83,7 +83,7 @@ bool UMASquad::RemoveMember(AMACharacter* Agent)
         }
 
         UE_LOG(LogTemp, Log, TEXT("[Squad %s] Removed member: %s (Remaining: %d)"),
-            *SquadID, *Agent->AgentName, GetMemberCount());
+            *SquadID, *Agent->AgentLabel, GetMemberCount());
 
         OnMemberRemoved.Broadcast(this, Agent);
 
@@ -111,7 +111,7 @@ void UMASquad::SetLeader(AMACharacter* NewLeader)
         Leader = NewLeader;
         OnLeaderChanged.Broadcast(this, NewLeader);
         
-        UE_LOG(LogTemp, Log, TEXT("[Squad %s] New leader: %s"), *SquadID, *NewLeader->AgentName);
+        UE_LOG(LogTemp, Log, TEXT("[Squad %s] New leader: %s"), *SquadID, *NewLeader->AgentLabel);
     }
 }
 

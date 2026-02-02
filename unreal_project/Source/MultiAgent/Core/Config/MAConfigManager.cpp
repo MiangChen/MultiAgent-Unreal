@@ -114,8 +114,7 @@ bool UMAConfigManager::LoadAllConfigs()
         UE_LOG(LogMAConfig, Log, TEXT("  ElevationMaxStepHeight: %.1f"), ElevationMaxStepHeight);
         UE_LOG(LogMAConfig, Log, TEXT("  PathSmoothingFactor: %.2f"), PathSmoothingFactor);
         UE_LOG(LogMAConfig, Log, TEXT("  AgentConfigs: %d"), AgentConfigs.Num());
-        UE_LOG(LogMAConfig, Log, TEXT("  ChargingStations: %d"), ChargingStations.Num());
-        UE_LOG(LogMAConfig, Log, TEXT("  PickupItems: %d"), PickupItems.Num());
+        UE_LOG(LogMAConfig, Log, TEXT("  EnvironmentObjects: %d"), EnvironmentObjects.Num());
     }
     
     return bSuccess;
@@ -124,8 +123,7 @@ bool UMAConfigManager::LoadAllConfigs()
 bool UMAConfigManager::ReloadConfigs()
 {
     AgentConfigs.Empty();
-    ChargingStations.Empty();
-    PickupItems.Empty();
+    EnvironmentObjects.Empty();
     bConfigLoaded = false;
     
     return LoadAllConfigs();
@@ -300,6 +298,174 @@ bool UMAConfigManager::LoadSimulationConfig()
         }
     }
     
+    // 解析 flight 部分 (统一飞行参数)
+    if (const TSharedPtr<FJsonObject>* FlightObj; RootObject->TryGetObjectField(TEXT("flight"), FlightObj))
+    {
+        double Value;
+        if ((*FlightObj)->TryGetNumberField(TEXT("min_altitude"), Value))
+        {
+            FlightConfig.MinAltitude = static_cast<float>(Value);
+        }
+        if ((*FlightObj)->TryGetNumberField(TEXT("default_altitude"), Value))
+        {
+            FlightConfig.DefaultAltitude = static_cast<float>(Value);
+        }
+        if ((*FlightObj)->TryGetNumberField(TEXT("max_speed"), Value))
+        {
+            FlightConfig.MaxSpeed = static_cast<float>(Value);
+        }
+        if ((*FlightObj)->TryGetNumberField(TEXT("obstacle_detection_range"), Value))
+        {
+            FlightConfig.ObstacleDetectionRange = static_cast<float>(Value);
+        }
+        if ((*FlightObj)->TryGetNumberField(TEXT("obstacle_avoidance_radius"), Value))
+        {
+            FlightConfig.ObstacleAvoidanceRadius = static_cast<float>(Value);
+        }
+        if ((*FlightObj)->TryGetNumberField(TEXT("acceptance_radius"), Value))
+        {
+            FlightConfig.AcceptanceRadius = static_cast<float>(Value);
+        }
+        
+        UE_LOG(LogMAConfig, Log, TEXT("Loaded flight config: MinAlt=%.0f, DefaultAlt=%.0f, MaxSpeed=%.0f"),
+            FlightConfig.MinAltitude, FlightConfig.DefaultAltitude, FlightConfig.MaxSpeed);
+    }
+    
+    // 解析 ground_navigation 部分 (统一地面导航参数)
+    if (const TSharedPtr<FJsonObject>* GroundNavObj; RootObject->TryGetObjectField(TEXT("ground_navigation"), GroundNavObj))
+    {
+        double Value;
+        if ((*GroundNavObj)->TryGetNumberField(TEXT("acceptance_radius"), Value))
+        {
+            GroundNavigationConfig.AcceptanceRadius = static_cast<float>(Value);
+        }
+        if ((*GroundNavObj)->TryGetNumberField(TEXT("stuck_timeout"), Value))
+        {
+            GroundNavigationConfig.StuckTimeout = static_cast<float>(Value);
+        }
+        
+        UE_LOG(LogMAConfig, Log, TEXT("Loaded ground navigation config: AcceptRadius=%.0f, StuckTimeout=%.0f"),
+            GroundNavigationConfig.AcceptanceRadius, GroundNavigationConfig.StuckTimeout);
+    }
+    
+    // 解析 follow 部分 (统一跟随参数，适用于所有机器人)
+    if (const TSharedPtr<FJsonObject>* FollowObj; RootObject->TryGetObjectField(TEXT("follow"), FollowObj))
+    {
+        double Value;
+        if ((*FollowObj)->TryGetNumberField(TEXT("distance"), Value))
+        {
+            FollowConfig.Distance = static_cast<float>(Value);
+        }
+        if ((*FollowObj)->TryGetNumberField(TEXT("position_tolerance"), Value))
+        {
+            FollowConfig.PositionTolerance = static_cast<float>(Value);
+        }
+        if ((*FollowObj)->TryGetNumberField(TEXT("continuous_time_threshold"), Value))
+        {
+            FollowConfig.ContinuousTimeThreshold = static_cast<float>(Value);
+        }
+        
+        UE_LOG(LogMAConfig, Log, TEXT("Loaded follow config: Distance=%.0f, PositionTolerance=%.0f, ContinuousTimeThreshold=%.0f"),
+            FollowConfig.Distance, FollowConfig.PositionTolerance, FollowConfig.ContinuousTimeThreshold);
+    }
+
+    // 解析 guide 部分 (引导技能参数)
+    if (const TSharedPtr<FJsonObject>* GuideObj; RootObject->TryGetObjectField(TEXT("guide"), GuideObj))
+    {
+        FString StrValue;
+        double Value;
+        if ((*GuideObj)->TryGetStringField(TEXT("target_move_mode"), StrValue))
+        {
+            GuideConfig.TargetMoveMode = StrValue;
+        }
+        if ((*GuideObj)->TryGetNumberField(TEXT("wait_distance_threshold"), Value))
+        {
+            GuideConfig.WaitDistanceThreshold = static_cast<float>(Value);
+        }
+        
+        UE_LOG(LogMAConfig, Log, TEXT("Loaded guide config: TargetMoveMode=%s, WaitDistanceThreshold=%.0f"),
+            *GuideConfig.TargetMoveMode, GuideConfig.WaitDistanceThreshold);
+    }
+
+    // 解析 handle_hazard 部分 (处理危险技能参数)
+    if (const TSharedPtr<FJsonObject>* HandleHazardObj; RootObject->TryGetObjectField(TEXT("handle_hazard"), HandleHazardObj))
+    {
+        double Value;
+        if ((*HandleHazardObj)->TryGetNumberField(TEXT("safe_distance"), Value))
+        {
+            HandleHazardConfig.SafeDistance = static_cast<float>(Value);
+        }
+        if ((*HandleHazardObj)->TryGetNumberField(TEXT("duration"), Value))
+        {
+            HandleHazardConfig.Duration = static_cast<float>(Value);
+        }
+        if ((*HandleHazardObj)->TryGetNumberField(TEXT("spray_speed"), Value))
+        {
+            HandleHazardConfig.SpraySpeed = static_cast<float>(Value);
+        }
+        if ((*HandleHazardObj)->TryGetNumberField(TEXT("spray_width"), Value))
+        {
+            HandleHazardConfig.SprayWidth = static_cast<float>(Value);
+        }
+        
+        UE_LOG(LogMAConfig, Log, TEXT("Loaded handle_hazard config: SafeDistance=%.0f, Duration=%.1f, SpraySpeed=%.0f, SprayWidth=%.0f"),
+            HandleHazardConfig.SafeDistance, HandleHazardConfig.Duration, HandleHazardConfig.SpraySpeed, HandleHazardConfig.SprayWidth);
+    }
+
+    // 解析 take_photo 部分 (拍照技能参数)
+    if (const TSharedPtr<FJsonObject>* TakePhotoObj; RootObject->TryGetObjectField(TEXT("take_photo"), TakePhotoObj))
+    {
+        double Value;
+        if ((*TakePhotoObj)->TryGetNumberField(TEXT("photo_distance"), Value))
+        {
+            TakePhotoConfig.PhotoDistance = static_cast<float>(Value);
+        }
+        if ((*TakePhotoObj)->TryGetNumberField(TEXT("photo_duration"), Value))
+        {
+            TakePhotoConfig.PhotoDuration = static_cast<float>(Value);
+        }
+        if ((*TakePhotoObj)->TryGetNumberField(TEXT("camera_fov"), Value))
+        {
+            TakePhotoConfig.CameraFOV = static_cast<float>(Value);
+        }
+        if ((*TakePhotoObj)->TryGetNumberField(TEXT("camera_forward_offset"), Value))
+        {
+            TakePhotoConfig.CameraForwardOffset = static_cast<float>(Value);
+        }
+        
+        UE_LOG(LogMAConfig, Log, TEXT("Loaded take_photo config: PhotoDistance=%.0f, Duration=%.1f, FOV=%.0f, ForwardOffset=%.0f"),
+            TakePhotoConfig.PhotoDistance, TakePhotoConfig.PhotoDuration, TakePhotoConfig.CameraFOV, TakePhotoConfig.CameraForwardOffset);
+    }
+
+    // 解析 broadcast 部分 (喊话技能参数)
+    if (const TSharedPtr<FJsonObject>* BroadcastObj; RootObject->TryGetObjectField(TEXT("broadcast"), BroadcastObj))
+    {
+        double Value;
+        if ((*BroadcastObj)->TryGetNumberField(TEXT("broadcast_distance"), Value))
+        {
+            BroadcastConfig.BroadcastDistance = static_cast<float>(Value);
+        }
+        if ((*BroadcastObj)->TryGetNumberField(TEXT("broadcast_duration"), Value))
+        {
+            BroadcastConfig.BroadcastDuration = static_cast<float>(Value);
+        }
+        if ((*BroadcastObj)->TryGetNumberField(TEXT("effect_speed"), Value))
+        {
+            BroadcastConfig.EffectSpeed = static_cast<float>(Value);
+        }
+        if ((*BroadcastObj)->TryGetNumberField(TEXT("effect_width"), Value))
+        {
+            BroadcastConfig.EffectWidth = static_cast<float>(Value);
+        }
+        if ((*BroadcastObj)->TryGetNumberField(TEXT("shock_rate"), Value))
+        {
+            BroadcastConfig.ShockRate = static_cast<float>(Value);
+        }
+        
+        UE_LOG(LogMAConfig, Log, TEXT("Loaded broadcast config: BroadcastDistance=%.0f, Duration=%.1f, EffectSpeed=%.0f, EffectWidth=%.0f, ShockRate=%.1f"),
+            BroadcastConfig.BroadcastDistance, BroadcastConfig.BroadcastDuration, BroadcastConfig.EffectSpeed, BroadcastConfig.EffectWidth, BroadcastConfig.ShockRate);
+    }
+    
     UE_LOG(LogMAConfig, Log, TEXT("Loaded simulation config from: %s"), *ConfigPath);
     return true;
 }
@@ -372,6 +538,9 @@ void UMAConfigManager::ParseAgentsFromJson(const TSharedPtr<FJsonObject>& RootOb
 {
     AgentConfigs.Empty();
     
+    // Agent ID 起始值: 5001
+    static int32 AgentIdCounter = 5001;
+    
     if (const TArray<TSharedPtr<FJsonValue>>* AgentsArray; RootObject->TryGetArrayField(TEXT("agents"), AgentsArray))
     {
         for (const TSharedPtr<FJsonValue>& AgentValue : *AgentsArray)
@@ -390,8 +559,9 @@ void UMAConfigManager::ParseAgentsFromJson(const TSharedPtr<FJsonObject>& RootOb
                     if (!InstanceObj.IsValid()) continue;
                     
                     FMAAgentConfigData Config;
-                    Config.TypeName = TypeName;
-                    InstanceObj->TryGetStringField(TEXT("label"), Config.ID);
+                    Config.Type = TypeName;
+                    Config.ID = FString::Printf(TEXT("%d"), AgentIdCounter++);
+                    InstanceObj->TryGetStringField(TEXT("label"), Config.Label);
                     
                     if (const TArray<TSharedPtr<FJsonValue>>* PosArray; InstanceObj->TryGetArrayField(TEXT("position"), PosArray))
                     {
@@ -427,84 +597,147 @@ void UMAConfigManager::ParseAgentsFromJson(const TSharedPtr<FJsonObject>& RootOb
 
 void UMAConfigManager::ParseEnvironmentFromJson(const TSharedPtr<FJsonObject>& RootObject)
 {
-    ChargingStations.Empty();
-    PickupItems.Empty();
-    
-    // 解析 environment 对象
-    const TSharedPtr<FJsonObject>* EnvObj = nullptr;
-    if (!RootObject->TryGetObjectField(TEXT("environment"), EnvObj))
+    EnvironmentObjects.Empty();
+
+    const TArray<TSharedPtr<FJsonValue>>* EnvArray = nullptr;
+    if (RootObject->TryGetArrayField(TEXT("environment"), EnvArray))
     {
-        // 兼容旧格式：直接从根对象解析
-        EnvObj = &RootObject;
-    }
-    
-    // 解析 charging_stations 数组
-    if (const TArray<TSharedPtr<FJsonValue>>* StationsArray; (*EnvObj)->TryGetArrayField(TEXT("charging_stations"), StationsArray))
-    {
-        for (const TSharedPtr<FJsonValue>& StationValue : *StationsArray)
-        {
-            const TSharedPtr<FJsonObject>& StationObj = StationValue->AsObject();
-            if (!StationObj.IsValid()) continue;
-            
-            FMAChargingStationConfig Config;
-            StationObj->TryGetStringField(TEXT("id"), Config.ID);
-            
-            if (const TArray<TSharedPtr<FJsonValue>>* PosArray; StationObj->TryGetArrayField(TEXT("position"), PosArray))
-            {
-                if (PosArray->Num() >= 3)
-                {
-                    Config.Position = FVector(
-                        (*PosArray)[0]->AsNumber(),
-                        (*PosArray)[1]->AsNumber(),
-                        (*PosArray)[2]->AsNumber()
-                    );
-                }
-            }
-            
-            ChargingStations.Add(Config);
-        }
-    }
-    
-    // 解析 objects 数组 (PickupItems)
-    if (const TArray<TSharedPtr<FJsonValue>>* ObjectsArray; (*EnvObj)->TryGetArrayField(TEXT("objects"), ObjectsArray))
-    {
-        for (const TSharedPtr<FJsonValue>& ObjectValue : *ObjectsArray)
+        for (const TSharedPtr<FJsonValue>& ObjectValue : *EnvArray)
         {
             const TSharedPtr<FJsonObject>& ObjectObj = ObjectValue->AsObject();
             if (!ObjectObj.IsValid()) continue;
             
-            FMAPickupItemConfig Config;
-            ObjectObj->TryGetStringField(TEXT("id"), Config.ID);
-            ObjectObj->TryGetStringField(TEXT("label"), Config.Name);
-            ObjectObj->TryGetStringField(TEXT("type"), Config.Type);
-            
-            if (const TArray<TSharedPtr<FJsonValue>>* PosArray; ObjectObj->TryGetArrayField(TEXT("position"), PosArray))
-            {
-                if (PosArray->Num() >= 3)
-                {
-                    Config.Position = FVector(
-                        (*PosArray)[0]->AsNumber(),
-                        (*PosArray)[1]->AsNumber(),
-                        (*PosArray)[2]->AsNumber()
-                    );
-                }
-            }
-            
-            if (const TSharedPtr<FJsonObject>* FeaturesObj; ObjectObj->TryGetObjectField(TEXT("features"), FeaturesObj))
-            {
-                for (const auto& Pair : (*FeaturesObj)->Values)
-                {
-                    FString Value;
-                    if (Pair.Value->TryGetString(Value))
-                    {
-                        Config.Features.Add(Pair.Key, Value);
-                    }
-                }
-            }
-            
-            PickupItems.Add(Config);
+            ParseEnvironmentObject(ObjectObj);
         }
     }
+    
+    UE_LOG(LogMAConfig, Log, TEXT("Parsed environment: %d environment objects"), EnvironmentObjects.Num());
+}
+
+void UMAConfigManager::ParseEnvironmentObject(const TSharedPtr<FJsonObject>& ObjectObj)
+{
+    // 环境对象 ID 起始值 (按类型分配不同范围)
+    // 1000-1999: cargo
+    // 2000-2999: charging_station
+    // 3000-3999: person
+    // 4000-4999: vehicle/boat
+    // 6000-6999: fire/smoke/wind (特效)
+    static int32 CargoIdCounter = 1000;
+    static int32 ChargingStationIdCounter = 2000;
+    static int32 HumanIdCounter = 3000;
+    static int32 VehicleIdCounter = 4000;
+    static int32 EffectIdCounter = 6000;
+
+    // 解析通用环境对象配置
+    FMAEnvironmentObjectConfig EnvConfig;
+    ObjectObj->TryGetStringField(TEXT("label"), EnvConfig.Label);
+    ObjectObj->TryGetStringField(TEXT("type"), EnvConfig.Type);
+    
+    // 跳过缺少必要字段的对象
+    if (EnvConfig.Type.IsEmpty())
+    {
+        UE_LOG(LogMAConfig, Warning, TEXT("Skipping environment object with missing type"));
+        return;
+    }
+    
+    // 自动生成 ID (按类型分配)
+    if (EnvConfig.Type.Equals(TEXT("cargo"), ESearchCase::IgnoreCase))
+    {
+        EnvConfig.ID = FString::Printf(TEXT("%d"), CargoIdCounter++);
+    }
+    else if (EnvConfig.Type.Equals(TEXT("charging_station"), ESearchCase::IgnoreCase))
+    {
+        EnvConfig.ID = FString::Printf(TEXT("%d"), ChargingStationIdCounter++);
+    }
+    else if (EnvConfig.Type.Equals(TEXT("person"), ESearchCase::IgnoreCase))
+    {
+        EnvConfig.ID = FString::Printf(TEXT("%d"), HumanIdCounter++);
+    }
+    else if (EnvConfig.Type.Equals(TEXT("vehicle"), ESearchCase::IgnoreCase) ||
+             EnvConfig.Type.Equals(TEXT("boat"), ESearchCase::IgnoreCase))
+    {
+        EnvConfig.ID = FString::Printf(TEXT("%d"), VehicleIdCounter++);
+    }
+    else if (EnvConfig.Type.Equals(TEXT("fire"), ESearchCase::IgnoreCase) ||
+             EnvConfig.Type.Equals(TEXT("smoke"), ESearchCase::IgnoreCase) ||
+             EnvConfig.Type.Equals(TEXT("wind"), ESearchCase::IgnoreCase))
+    {
+        EnvConfig.ID = FString::Printf(TEXT("%d"), EffectIdCounter++);
+    }
+    else
+    {
+        // 未知类型，使用通用计数器
+        static int32 GenericIdCounter = 9000;
+        EnvConfig.ID = FString::Printf(TEXT("%d"), GenericIdCounter++);
+    }
+    
+    // 解析 position 数组
+    if (const TArray<TSharedPtr<FJsonValue>>* PosArray; ObjectObj->TryGetArrayField(TEXT("position"), PosArray))
+    {
+        if (PosArray->Num() >= 3)
+        {
+            EnvConfig.Position = FVector(
+                (*PosArray)[0]->AsNumber(),
+                (*PosArray)[1]->AsNumber(),
+                (*PosArray)[2]->AsNumber()
+            );
+        }
+    }
+    
+    // 解析 rotation 数组 (可选)
+    if (const TArray<TSharedPtr<FJsonValue>>* RotArray; ObjectObj->TryGetArrayField(TEXT("rotation"), RotArray))
+    {
+        if (RotArray->Num() >= 3)
+        {
+            EnvConfig.Rotation = FRotator(
+                (*RotArray)[0]->AsNumber(),  // Pitch
+                (*RotArray)[1]->AsNumber(),  // Yaw
+                (*RotArray)[2]->AsNumber()   // Roll
+            );
+        }
+    }
+    
+    // 解析 features 对象 (可选，默认为空 map)
+    if (const TSharedPtr<FJsonObject>* FeaturesObj; ObjectObj->TryGetObjectField(TEXT("features"), FeaturesObj))
+    {
+        for (const auto& Pair : (*FeaturesObj)->Values)
+        {
+            FString Value;
+            if (Pair.Value->TryGetString(Value))
+            {
+                EnvConfig.Features.Add(Pair.Key, Value);
+            }
+        }
+    }
+    
+    // 解析 patrol 配置 (可选)
+    if (const TSharedPtr<FJsonObject>* PatrolObj; ObjectObj->TryGetObjectField(TEXT("patrol"), PatrolObj))
+    {
+        (*PatrolObj)->TryGetBoolField(TEXT("enabled"), EnvConfig.Patrol.bEnabled);
+        (*PatrolObj)->TryGetBoolField(TEXT("loop"), EnvConfig.Patrol.bLoop);
+        (*PatrolObj)->TryGetNumberField(TEXT("wait_time"), EnvConfig.Patrol.WaitTime);
+        
+        // 解析 waypoints 数组
+        if (const TArray<TSharedPtr<FJsonValue>>* WaypointsArray; (*PatrolObj)->TryGetArrayField(TEXT("waypoints"), WaypointsArray))
+        {
+            for (const TSharedPtr<FJsonValue>& WaypointValue : *WaypointsArray)
+            {
+                const TArray<TSharedPtr<FJsonValue>>* PointArray;
+                if (WaypointValue->TryGetArray(PointArray) && PointArray->Num() >= 3)
+                {
+                    FVector Waypoint(
+                        (*PointArray)[0]->AsNumber(),
+                        (*PointArray)[1]->AsNumber(),
+                        (*PointArray)[2]->AsNumber()
+                    );
+                    EnvConfig.Patrol.Waypoints.Add(Waypoint);
+                }
+            }
+        }
+    }
+    
+    // 添加到 EnvironmentObjects 数组
+    EnvironmentObjects.Add(EnvConfig);
 }
 
 EMAPathPlannerType UMAConfigManager::GetPathPlannerTypeEnum() const

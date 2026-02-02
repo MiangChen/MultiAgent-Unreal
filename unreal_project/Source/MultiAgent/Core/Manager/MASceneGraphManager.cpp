@@ -415,63 +415,27 @@ void UMASceneGraphManager::LoadDynamicNodes()
 
     UE_LOG(LogMASceneGraphManager, Log, TEXT("LoadDynamicNodes: Loading from ConfigManager (MapType=%s)"), *ConfigManager->GetMapType());
 
-    // 加载机器人节点 (从 AgentConfigs)
-    int32 RobotIndex = 1;
+    // 加载机器人节点
     for (const FMAAgentConfigData& AgentConfig : ConfigManager->AgentConfigs)
     {
-        // 生成数字 ID (格式: 机器人从 5001 开始)
-        FString NumericId = FString::Printf(TEXT("%d"), 5000 + RobotIndex);
-        
-        FMASceneGraphNode Node = FMADynamicNodeManager::CreateRobotNode(
-            NumericId,
-            AgentConfig.TypeName,
-            AgentConfig.Position,
-            AgentConfig.Rotation
-        );
-        Node.Label = AgentConfig.ID;  // 使用配置文件中的 label (如 "UAV-1")
-        Node.Features.Add(TEXT("label"), AgentConfig.ID);
-        
+        FMASceneGraphNode Node = FMADynamicNodeManager::CreateAgentNode(AgentConfig);
         DynamicNodes.Add(Node);
-        RobotIndex++;
         
-        UE_LOG(LogMASceneGraphManager, Log, TEXT("LoadDynamicNodes: Created robot node - Id: %s, Type: %s, Label: %s"),
+        UE_LOG(LogMASceneGraphManager, Log, TEXT("LoadDynamicNodes: Created agent node - Id: %s, Type: %s, Label: %s"),
             *Node.Id, *Node.Type, *Node.Label);
     }
-    UE_LOG(LogMASceneGraphManager, Log, TEXT("LoadDynamicNodes: Loaded %d robot nodes from ConfigManager"), ConfigManager->AgentConfigs.Num());
+    UE_LOG(LogMASceneGraphManager, Log, TEXT("LoadDynamicNodes: Loaded %d agent nodes"), ConfigManager->AgentConfigs.Num());
 
-    // 加载可拾取物品节点 (从 PickupItems)
-    for (const FMAPickupItemConfig& ItemConfig : ConfigManager->PickupItems)
+    // 加载环境对象节点
+    for (const FMAEnvironmentObjectConfig& EnvConfig : ConfigManager->EnvironmentObjects)
     {
-        FMASceneGraphNode Node = FMADynamicNodeManager::CreatePickupItemNode(
-            ItemConfig.ID,
-            ItemConfig.Name,
-            ItemConfig.Type,
-            ItemConfig.Position,
-            ItemConfig.Features
-        );
-        
+        FMASceneGraphNode Node = FMADynamicNodeManager::CreateEnvironmentObjectNode(EnvConfig);
         DynamicNodes.Add(Node);
         
-        UE_LOG(LogMASceneGraphManager, Log, TEXT("LoadDynamicNodes: Created pickup item node - Id: %s, Label: %s"),
-            *Node.Id, *Node.Label);
+        UE_LOG(LogMASceneGraphManager, Log, TEXT("LoadDynamicNodes: Created %s node - Id: %s, Label: %s"),
+            *EnvConfig.Type, *Node.Id, *Node.Label);
     }
-    UE_LOG(LogMASceneGraphManager, Log, TEXT("LoadDynamicNodes: Loaded %d pickup item nodes from ConfigManager"), ConfigManager->PickupItems.Num());
-
-    // 加载充电站节点 (从 ChargingStations)
-    for (const FMAChargingStationConfig& StationConfig : ConfigManager->ChargingStations)
-    {
-        FMASceneGraphNode Node = FMADynamicNodeManager::CreateChargingStationNode(
-            StationConfig.ID,
-            StationConfig.ID,  // 使用 ID 作为 Label
-            StationConfig.Position
-        );
-        
-        DynamicNodes.Add(Node);
-        
-        UE_LOG(LogMASceneGraphManager, Log, TEXT("LoadDynamicNodes: Created charging station node - Id: %s"),
-            *Node.Id);
-    }
-    UE_LOG(LogMASceneGraphManager, Log, TEXT("LoadDynamicNodes: Loaded %d charging station nodes from ConfigManager"), ConfigManager->ChargingStations.Num());
+    UE_LOG(LogMASceneGraphManager, Log, TEXT("LoadDynamicNodes: Loaded %d environment object nodes"), ConfigManager->EnvironmentObjects.Num());
 
     UE_LOG(LogMASceneGraphManager, Log, TEXT("LoadDynamicNodes: Total %d dynamic nodes loaded"), DynamicNodes.Num());
     
@@ -500,43 +464,30 @@ void UMASceneGraphManager::LoadDynamicNodes()
 // 动态节点管理接口
 //=============================================================================
 
-FMASceneGraphNode* UMASceneGraphManager::FindDynamicNodeById(const FString& NodeId)
+FMASceneGraphNode* UMASceneGraphManager::FindDynamicNodeByIdMutable(const FString& NodeId)
 {
-    // 委托给 MASceneGraphQuery 的统一查询接口
-    TArray<FMASceneGraphNode> AllNodes = GetAllNodes();
-    FMASceneGraphNode Node = FMASceneGraphQuery::FindNodeByIdOrLabel(AllNodes, NodeId);
-    
-    // 在动态节点数组中查找匹配的节点并返回指针
     for (FMASceneGraphNode& DynNode : DynamicNodes)
     {
-        if (DynNode.Id == Node.Id)
+        if (DynNode.Id == NodeId || DynNode.Label == NodeId)
         {
             return &DynNode;
         }
     }
-    
     return nullptr;
 }
 
-void UMASceneGraphManager::UpdateRobotPosition(const FString& RobotId, const FVector& NewPosition)
+void UMASceneGraphManager::UpdateDynamicNodePosition(const FString& NodeId, const FVector& NewPosition)
 {
-    // 更新机器人位置并重新计算 LocationLabel
-
-    FMASceneGraphNode* Node = FindDynamicNodeById(RobotId);
+    FMASceneGraphNode* Node = FindDynamicNodeByIdMutable(NodeId);
     if (!Node)
     {
-        UE_LOG(LogMASceneGraphManager, Warning, TEXT("UpdateRobotPosition: Robot node not found: %s"), *RobotId);
-        return;
-    }
-
-    if (!Node->IsRobot())
-    {
-        UE_LOG(LogMASceneGraphManager, Warning, TEXT("UpdateRobotPosition: Node %s is not a robot"), *RobotId);
+        UE_LOG(LogMASceneGraphManager, Warning, TEXT("UpdateDynamicNodePosition: Node not found: %s"), *NodeId);
         return;
     }
 
     if (FMADynamicNodeManager::UpdateNodePosition(*Node, NewPosition))
     {
+        // 重新计算 LocationLabel
         TArray<FMASceneGraphNode> AllNodes = GetAllNodes();
         Node->LocationLabel = FMALocationUtils::InferNearestLocationLabel(
             AllNodes,
@@ -545,65 +496,197 @@ void UMASceneGraphManager::UpdateRobotPosition(const FString& RobotId, const FVe
             Node->Id
         );
         
-        UE_LOG(LogMASceneGraphManager, Verbose, TEXT("UpdateRobotPosition: Updated %s to (%f, %f, %f), location_label='%s'"), 
-            *RobotId, NewPosition.X, NewPosition.Y, NewPosition.Z, *Node->LocationLabel);
+        UE_LOG(LogMASceneGraphManager, Verbose, TEXT("UpdateDynamicNodePosition: Updated %s to (%f, %f, %f), location_label='%s'"), 
+            *NodeId, NewPosition.X, NewPosition.Y, NewPosition.Z, *Node->LocationLabel);
     }
 }
 
-void UMASceneGraphManager::UpdatePickupItemPosition(const FString& ItemId, const FVector& NewPosition)
+void UMASceneGraphManager::UpdateDynamicNodeFeature(const FString& NodeId, const FString& Key, const FString& Value)
 {
-    // 更新可拾取物品位置并重新计算 LocationLabel
-
-    FMASceneGraphNode* Node = FindDynamicNodeById(ItemId);
+    FMASceneGraphNode* Node = FindDynamicNodeByIdMutable(NodeId);
     if (!Node)
     {
-        UE_LOG(LogMASceneGraphManager, Warning, TEXT("UpdatePickupItemPosition: PickupItem node not found: %s"), *ItemId);
+        UE_LOG(LogMASceneGraphManager, Warning, TEXT("UpdateDynamicNodeFeature: Node not found: %s"), *NodeId);
         return;
     }
 
-    if (!Node->IsPickupItem())
+    if (FMADynamicNodeManager::UpdateNodeFeature(*Node, Key, Value))
     {
-        UE_LOG(LogMASceneGraphManager, Warning, TEXT("UpdatePickupItemPosition: Node %s is not a pickup item"), *ItemId);
-        return;
-    }
-
-    if (FMADynamicNodeManager::UpdateNodePosition(*Node, NewPosition))
-    {
-        TArray<FMASceneGraphNode> AllNodes = GetAllNodes();
-        Node->LocationLabel = FMALocationUtils::InferNearestLocationLabel(
-            AllNodes,
-            NewPosition,
-            5000.f,
-            Node->Id
-        );
-        
-        UE_LOG(LogMASceneGraphManager, Verbose, TEXT("UpdatePickupItemPosition: Updated %s to (%f, %f, %f), location_label='%s'"), 
-            *ItemId, NewPosition.X, NewPosition.Y, NewPosition.Z, *Node->LocationLabel);
+        UE_LOG(LogMASceneGraphManager, Verbose, TEXT("UpdateDynamicNodeFeature: Updated %s - %s=%s"), 
+            *NodeId, *Key, *Value);
     }
 }
 
-void UMASceneGraphManager::UpdatePickupItemCarrierStatus(const FString& ItemId, bool bIsCarried, const FString& CarrierId)
+bool UMASceneGraphManager::BindDynamicNodeGuid(const FString& NodeIdOrLabel, const FString& ActorGuid)
 {
-    // 更新可拾取物品携带状态
+    if (NodeIdOrLabel.IsEmpty())
+    {
+        UE_LOG(LogMASceneGraphManager, Warning, TEXT("BindDynamicNodeGuid: NodeIdOrLabel 为空"));
+        return false;
+    }
 
-    FMASceneGraphNode* Node = FindDynamicNodeById(ItemId);
+    if (ActorGuid.IsEmpty())
+    {
+        UE_LOG(LogMASceneGraphManager, Warning, TEXT("BindDynamicNodeGuid: ActorGuid 为空"));
+        return false;
+    }
+
+    // 在 DynamicNodes 中查找匹配的节点 (按 Id 或 Label)
+    FMASceneGraphNode* Node = FindDynamicNodeByIdMutable(NodeIdOrLabel);
     if (!Node)
     {
-        UE_LOG(LogMASceneGraphManager, Warning, TEXT("UpdatePickupItemCarrierStatus: PickupItem node not found: %s"), *ItemId);
-        return;
+        UE_LOG(LogMASceneGraphManager, Warning, TEXT("BindDynamicNodeGuid: 未找到节点: %s"), *NodeIdOrLabel);
+        return false;
     }
 
-    if (!Node->IsPickupItem())
+    // 调用 MADynamicNodeManager::UpdateNodeGuid() 更新节点
+    if (!FMADynamicNodeManager::UpdateNodeGuid(*Node, ActorGuid))
     {
-        UE_LOG(LogMASceneGraphManager, Warning, TEXT("UpdatePickupItemCarrierStatus: Node %s is not a pickup item"), *ItemId);
-        return;
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("BindDynamicNodeGuid: 更新节点 GUID 失败: %s"), *NodeIdOrLabel);
+        return false;
     }
 
-    if (FMADynamicNodeManager::UpdatePickupItemCarrierStatus(*Node, bIsCarried, CarrierId))
+    UE_LOG(LogMASceneGraphManager, Log, TEXT("BindDynamicNodeGuid: 成功绑定节点 %s (Label: %s) 到 GUID %s"), 
+        *Node->Id, *Node->Label, *ActorGuid);
+    return true;
+}
+
+bool UMASceneGraphManager::EditDynamicNode(const FString& NodeId, const FString& NewNodeJson, FString& OutError)
+{
+    OutError.Empty();
+
+    if (NodeId.IsEmpty())
     {
-        UE_LOG(LogMASceneGraphManager, Log, TEXT("UpdatePickupItemCarrierStatus: Updated %s - bIsCarried=%s, CarrierId=%s"), 
-            *ItemId, bIsCarried ? TEXT("true") : TEXT("false"), *CarrierId);
+        OutError = TEXT("节点 ID 为空");
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("EditDynamicNode: NodeId 为空"));
+        return false;
     }
+
+    if (NewNodeJson.IsEmpty())
+    {
+        OutError = TEXT("新节点 JSON 为空");
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("EditDynamicNode: NewNodeJson 为空"));
+        return false;
+    }
+
+    // 解析 JSON 字符串
+    TSharedPtr<FJsonObject> NewNodeObject;
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(NewNodeJson);
+    if (!FJsonSerializer::Deserialize(Reader, NewNodeObject) || !NewNodeObject.IsValid())
+    {
+        OutError = TEXT("JSON 解析失败");
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("EditDynamicNode: JSON 解析失败: %s"), *NewNodeJson);
+        return false;
+    }
+
+    // 验证 JSON 结构
+    if (!ValidateNodeJsonStructure(NewNodeObject, OutError))
+    {
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("EditDynamicNode: JSON 验证失败: %s"), *OutError);
+        return false;
+    }
+
+    // 查找动态节点
+    FMASceneGraphNode* Node = FindDynamicNodeByIdMutable(NodeId);
+    if (!Node)
+    {
+        OutError = FString::Printf(TEXT("动态节点不存在: %s"), *NodeId);
+        UE_LOG(LogMASceneGraphManager, Warning, TEXT("EditDynamicNode: 未找到动态节点: %s"), *NodeId);
+        return false;
+    }
+
+    // 从 JSON 更新节点内存数据
+    // 更新 id (如果提供)
+    FString NewId;
+    if (NewNodeObject->TryGetStringField(TEXT("id"), NewId) && !NewId.IsEmpty())
+    {
+        Node->Id = NewId;
+    }
+
+    // 更新 guid (如果提供)
+    FString NewGuid;
+    if (NewNodeObject->TryGetStringField(TEXT("guid"), NewGuid))
+    {
+        Node->Guid = NewGuid;
+    }
+
+    // 更新 properties
+    const TSharedPtr<FJsonObject>* PropertiesObject;
+    if (NewNodeObject->TryGetObjectField(TEXT("properties"), PropertiesObject) && PropertiesObject->IsValid())
+    {
+        // 更新 type
+        FString NewType;
+        if ((*PropertiesObject)->TryGetStringField(TEXT("type"), NewType) && !NewType.IsEmpty())
+        {
+            Node->Type = NewType;
+        }
+
+        // 更新 label
+        FString NewLabel;
+        if ((*PropertiesObject)->TryGetStringField(TEXT("label"), NewLabel) && !NewLabel.IsEmpty())
+        {
+            Node->Label = NewLabel;
+        }
+
+        // 更新 category
+        FString NewCategory;
+        if ((*PropertiesObject)->TryGetStringField(TEXT("category"), NewCategory) && !NewCategory.IsEmpty())
+        {
+            Node->Category = NewCategory;
+        }
+
+        // 更新 is_dynamic
+        bool bNewIsDynamic;
+        if ((*PropertiesObject)->TryGetBoolField(TEXT("is_dynamic"), bNewIsDynamic))
+        {
+            Node->bIsDynamic = bNewIsDynamic;
+        }
+
+        // 更新 Features (遍历 properties 中的其他字段)
+        for (const auto& Pair : (*PropertiesObject)->Values)
+        {
+            const FString& Key = Pair.Key;
+            // 跳过已处理的标准字段
+            if (Key == TEXT("type") || Key == TEXT("label") || Key == TEXT("category") || Key == TEXT("is_dynamic"))
+            {
+                continue;
+            }
+
+            // 将其他字段作为 Feature 添加
+            FString Value;
+            if (Pair.Value.IsValid() && Pair.Value->TryGetString(Value))
+            {
+                Node->Features.Add(Key, Value);
+            }
+        }
+    }
+
+    // 更新 shape
+    const TSharedPtr<FJsonObject>* ShapeObject;
+    if (NewNodeObject->TryGetObjectField(TEXT("shape"), ShapeObject) && ShapeObject->IsValid())
+    {
+        // 更新 shape type
+        FString NewShapeType;
+        if ((*ShapeObject)->TryGetStringField(TEXT("type"), NewShapeType) && !NewShapeType.IsEmpty())
+        {
+            Node->ShapeType = NewShapeType;
+        }
+
+        // 更新 center
+        const TArray<TSharedPtr<FJsonValue>>* CenterArray;
+        if ((*ShapeObject)->TryGetArrayField(TEXT("center"), CenterArray) && CenterArray->Num() == 3)
+        {
+            Node->Center.X = (*CenterArray)[0]->AsNumber();
+            Node->Center.Y = (*CenterArray)[1]->AsNumber();
+            Node->Center.Z = (*CenterArray)[2]->AsNumber();
+        }
+    }
+
+    // 重新生成 RawJson
+    Node->RawJson = FMADynamicNodeManager::GenerateRawJson(*Node);
+
+    UE_LOG(LogMASceneGraphManager, Log, TEXT("EditDynamicNode: 成功编辑动态节点 %s"), *NodeId);
+    return true;
 }
 
 
@@ -1217,20 +1300,30 @@ bool UMASceneGraphManager::EditNode(const FString& NodeId, const FString& NewNod
         return false;
     }
 
+    // 根据节点类型分发到对应的编辑函数
+    if (FindDynamicNodeByIdMutable(NodeId) != nullptr)
+    {
+        return EditDynamicNode(NodeId, NewNodeJson, OutError);
+    }
+    return EditStaticNode(NodeId, NewNodeJson, OutError);
+}
+
+bool UMASceneGraphManager::EditStaticNode(const FString& NodeId, const FString& NewNodeJson, FString& OutError)
+{
     // 解析新的 JSON 字符串
     TSharedPtr<FJsonObject> NewNodeObject;
     TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(NewNodeJson);
     if (!FJsonSerializer::Deserialize(Reader, NewNodeObject) || !NewNodeObject.IsValid())
     {
         OutError = TEXT("新节点 JSON 解析失败");
-        UE_LOG(LogMASceneGraphManager, Error, TEXT("EditNode: Failed to parse new JSON: %s"), *NewNodeJson);
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("EditStaticNode: Failed to parse JSON: %s"), *NewNodeJson);
         return false;
     }
 
     // 验证新 JSON 结构
     if (!ValidateNodeJsonStructure(NewNodeObject, OutError))
     {
-        UE_LOG(LogMASceneGraphManager, Error, TEXT("EditNode: JSON validation failed: %s"), *OutError);
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("EditStaticNode: JSON validation failed: %s"), *OutError);
         return false;
     }
 
@@ -1238,7 +1331,7 @@ bool UMASceneGraphManager::EditNode(const FString& NodeId, const FString& NewNod
     if (!WorkingCopy.IsValid())
     {
         OutError = TEXT("Working Copy 无效");
-        UE_LOG(LogMASceneGraphManager, Error, TEXT("EditNode: WorkingCopy is invalid"));
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("EditStaticNode: WorkingCopy is invalid"));
         return false;
     }
 
@@ -1247,7 +1340,7 @@ bool UMASceneGraphManager::EditNode(const FString& NodeId, const FString& NewNod
     if (!NodesArray)
     {
         OutError = TEXT("无法获取节点数组");
-        UE_LOG(LogMASceneGraphManager, Error, TEXT("EditNode: Failed to get nodes array"));
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("EditStaticNode: Failed to get nodes array"));
         return false;
     }
 
@@ -1273,8 +1366,8 @@ bool UMASceneGraphManager::EditNode(const FString& NodeId, const FString& NewNod
 
     if (NodeIndex == INDEX_NONE)
     {
-        OutError = FString::Printf(TEXT("节点不存在: %s"), *NodeId);
-        UE_LOG(LogMASceneGraphManager, Warning, TEXT("EditNode: Node not found: %s"), *NodeId);
+        OutError = FString::Printf(TEXT("静态节点不存在: %s"), *NodeId);
+        UE_LOG(LogMASceneGraphManager, Warning, TEXT("EditStaticNode: Node not found: %s"), *NodeId);
         return false;
     }
 
@@ -1284,7 +1377,7 @@ bool UMASceneGraphManager::EditNode(const FString& NodeId, const FString& NewNod
     // 重新解析 StaticNodes 数组
     StaticNodes = FMASceneGraphIO::ParseNodes(*NodesArray);
 
-    UE_LOG(LogMASceneGraphManager, Log, TEXT("EditNode: Successfully edited node with id=%s"), *NodeId);
+    UE_LOG(LogMASceneGraphManager, Log, TEXT("EditStaticNode: Successfully edited node %s"), *NodeId);
 
     // 发送场景变更通知 (仅 Edit 模式)
     NotifySceneChange(TEXT("edit_node"), NewNodeJson);

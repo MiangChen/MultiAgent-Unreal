@@ -597,6 +597,12 @@ private:
     void DrawSceneLabels();
 
     /**
+     * 绘制画中画相机
+     * 在 DrawHUD() 中调用，使用 Canvas 绘制所有活动的画中画
+     */
+    void DrawPIPCameras();
+
+    /**
      * 清除高亮的 Actor
      * 通过 PlayerController 清除当前高亮
      */

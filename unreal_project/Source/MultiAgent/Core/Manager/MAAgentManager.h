@@ -10,7 +10,6 @@
 
 class AMACharacter;
 class UMAConfigManager;
-class AMAPickupItem;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAgentSpawned, AMACharacter*, Agent);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAgentDestroyed, AMACharacter*, Agent);
@@ -22,6 +21,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAgentDestroyed, AMACharacter*, Ag
  * - 从 ConfigManager 获取配置并生成 Agent
  * - 管理 Agent 生命周期
  * - 按类型/ID 查询 Agent
+ * 
+ * 注意: 环境对象 (person, vehicle, boat, cargo 等) 由 MAEnvironmentManager 管理
  */
 UCLASS()
 class MULTIAGENT_API UMAAgentManager : public UWorldSubsystem
@@ -51,7 +52,7 @@ public:
     TArray<AMACharacter*> GetAgentsByType(EMAAgentType Type) const;
 
     UFUNCTION(BlueprintPure, Category = "AgentManager")
-    AMACharacter* GetAgentByID(const FString& AgentID) const;
+    AMACharacter* GetAgentByIDOrLabel(const FString& AgentID) const;
 
     UFUNCTION(BlueprintPure, Category = "AgentManager")
     int32 GetAgentCount() const { return SpawnedAgents.Num(); }
@@ -77,21 +78,14 @@ private:
     UPROPERTY()
     TArray<AMACharacter*> SpawnedAgents;
 
-    UPROPERTY()
-    TArray<AMAPickupItem*> SpawnedPickupItems;
-
     int32 NextAgentIndex = 0;
     
     UMAConfigManager* GetConfigManager() const;
-    AMACharacter* SpawnAgentInternal(const FString& TypeName, const FString& ID, FVector Location, FRotator Rotation, bool bAutoPosition, int32 Index, int32 TotalCount);
-    void SpawnChargingStations();
-    void SpawnPickupItems();
+    AMACharacter* SpawnAgentInternal(const FString& TypeName, const FString& ID, const FString& Label, FVector Location, FRotator Rotation, bool bAutoPosition, int32 Index, int32 TotalCount);
+    
     FVector CalculateAutoPosition(int32 Index, int32 TotalCount) const;
     FVector AdjustSpawnHeight(FVector Location, bool bIsFlying) const;
     
     EMAAgentType StringToAgentType(const FString& TypeString) const;
     FString GetClassPathForType(const FString& TypeName) const;
-    
-    /** 解析颜色字符串为 FLinearColor */
-    FLinearColor ParseColorString(const FString& ColorString) const;
 };

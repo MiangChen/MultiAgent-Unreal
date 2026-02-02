@@ -256,6 +256,27 @@ public:
      */
     static FVector GetPolygonCenter(const TArray<FVector>& Vertices);
 
+    /**
+     * 计算 2D 多边形面积 (Shoelace 公式，忽略 Z 坐标)
+     * 
+     * @param Vertices 多边形顶点数组 (顺时针或逆时针均可)
+     * @return 多边形面积 (平方单位，与输入坐标单位一致)
+     */
+    static float CalculatePolygonArea2D(const TArray<FVector>& Vertices);
+
+    /**
+     * 根据多边形面积计算自适应扫描宽度
+     * 
+     * @param Vertices 多边形顶点数组
+     * @param MinWidth 最小扫描宽度 (默认 200)
+     * @param MaxWidth 最大扫描宽度 (默认 1600)
+     * @return 自适应扫描宽度，范围 [MinWidth, MaxWidth]
+     * 
+     * 算法: 使用面积平方根的 1/10 作为扫描宽度，限制在 [MinWidth, MaxWidth] 范围内
+     * 这样小区域用窄扫描（更精细），大区域用宽扫描（更高效）
+     */
+    static float CalculateAdaptiveScanWidth(const TArray<FVector>& Vertices, float MinWidth = 200.f, float MaxWidth = 1600.f);
+
 private:
     /** 用于极角排序的比较函数 */
     static bool CompareByPolarAngle(const FVector2D& Pivot, const FVector2D& A, const FVector2D& B);

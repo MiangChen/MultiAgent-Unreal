@@ -153,7 +153,7 @@ void UMACommandManager::ExecuteCurrentTimeStep()
     
     for (const FMAAgentSkillCommand& Cmd : TimeStep->Commands)
     {
-        AMACharacter* Agent = AgentManager->GetAgentByID(Cmd.AgentId);
+        AMACharacter* Agent = AgentManager->GetAgentByIDOrLabel(Cmd.AgentId);
         if (!Agent)
         {
             UE_LOG(LogMACommandManager, Warning, TEXT("    Agent '%s' not found"), *Cmd.AgentId);
@@ -172,6 +172,7 @@ void UMACommandManager::ExecuteCurrentTimeStep()
         }
     }
     
+    // 如果没有有效命令，进入下一时间步
     if (ValidCommands.Num() == 0)
     {
         AllFeedbacks.Add(CurrentTimeStepFeedback);
@@ -381,7 +382,7 @@ bool UMACommandManager::ActivateSkillDirectly(AMACharacter* Agent, UMASkillCompo
     if (!bActivated && Command != EMACommand::Idle && Command != EMACommand::None)
     {
         UE_LOG(LogMACommandManager, Warning, TEXT("    Failed to activate skill: %s for %s"), 
-            *CommandToString(Command), *Agent->AgentName);
+            *CommandToString(Command), *Agent->AgentLabel);
         SkillComp->NotifySkillCompleted(false, FString::Printf(TEXT("%s failed to activate"), *CommandToString(Command)));
     }
     

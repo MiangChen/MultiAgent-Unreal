@@ -62,7 +62,7 @@ UMASquad* UMASquadManager::CreateSquad(const TArray<AMACharacter*>& Members,
     UE_LOG(LogTemp, Log, TEXT("[SquadManager] Created Squad '%s' with %d members, Leader: %s"),
         *NewSquad->SquadName,
         NewSquad->GetMemberCount(),
-        NewSquad->GetLeader() ? *NewSquad->GetLeader()->AgentName : TEXT("None"));
+        NewSquad->GetLeader() ? *NewSquad->GetLeader()->AgentLabel : TEXT("None"));
 
     GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green,
         FString::Printf(TEXT("Squad '%s' created: %d members"),
@@ -230,7 +230,7 @@ UMASquad* UMASquadManager::GetOrCreateDefaultSquad()
 
     for (AMACharacter* Robot : AgentManager->GetAgentsByType(EMAAgentType::Quadruped))
     {
-        if (Robot && !Robot->AgentName.Contains(TEXT("Tracker")))
+        if (Robot && !Robot->AgentLabel.Contains(TEXT("Tracker")))
         {
             Members.Add(Robot);
         }

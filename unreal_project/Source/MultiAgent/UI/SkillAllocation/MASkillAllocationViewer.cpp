@@ -1205,152 +1205,20 @@ bool UMASkillAllocationViewer::ConvertToSkillListMessage(
             Cmd.AgentId = RobotId;
             Cmd.SkillName = Assignment.SkillName;
             
-            // Parse parameters from JSON string
+            // 保存原始 params JSON
+            Cmd.Params.RawParamsJson = Assignment.ParamsJson;
+            
             if (!Assignment.ParamsJson.IsEmpty())
             {
-                TSharedPtr<FJsonObject> ParamsObject;
-                TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Assignment.ParamsJson);
-                if (FJsonSerializer::Deserialize(Reader, ParamsObject) && ParamsObject.IsValid())
-                {
-                    // Store raw params JSON for later use
-                    Cmd.Params.RawParamsJson = Assignment.ParamsJson;
-                    
-                    // Parse common parameters
-                    
-                    // dest_position (for navigate)
-                    const TSharedPtr<FJsonObject>* DestPosObj;
-                    if (ParamsObject->TryGetObjectField(TEXT("dest_position"), DestPosObj))
-                    {
-                        double X = 0, Y = 0, Z = 0;
-                        (*DestPosObj)->TryGetNumberField(TEXT("x"), X);
-                        (*DestPosObj)->TryGetNumberField(TEXT("y"), Y);
-                        (*DestPosObj)->TryGetNumberField(TEXT("z"), Z);
-                        Cmd.Params.DestPosition = FVector(X, Y, Z);
-                        Cmd.Params.bHasDestPosition = true;
-                    }
-                    
-                    // goal_type (for search)
-                    FString GoalType;
-                    if (ParamsObject->TryGetStringField(TEXT("goal_type"), GoalType))
-                    {
-                        Cmd.Params.GoalType = GoalType;
-                    }
-                    
-                    // task_id
-                    FString TaskId;
-                    if (ParamsObject->TryGetStringField(TEXT("task_id"), TaskId))
-                    {
-                        Cmd.Params.TaskId = TaskId;
-                    }
-                    
-                    // area_token
-                    FString AreaToken;
-                    if (ParamsObject->TryGetStringField(TEXT("area_token"), AreaToken))
-                    {
-                        Cmd.Params.AreaToken = AreaToken;
-                    }
-                    
-                    // target_token
-                    FString TargetToken;
-                    if (ParamsObject->TryGetStringField(TEXT("target_token"), TargetToken))
-                    {
-                        Cmd.Params.TargetToken = TargetToken;
-                    }
-                    
-                    // target_entity
-                    FString TargetEntity;
-                    if (ParamsObject->TryGetStringField(TEXT("target_entity"), TargetEntity))
-                    {
-                        Cmd.Params.TargetEntity = TargetEntity;
-                    }
-                    
-                    // target (JSON object for search)
-                    const TSharedPtr<FJsonObject>* TargetObj;
-                    if (ParamsObject->TryGetObjectField(TEXT("target"), TargetObj))
-                    {
-                        FString TargetJsonStr;
-                        TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&TargetJsonStr);
-                        FJsonSerializer::Serialize((*TargetObj).ToSharedRef(), Writer);
-                        Cmd.Params.TargetJson = TargetJsonStr;
-                    }
-                    
-                    // object1 / target (for Place skill)
-                    const TSharedPtr<FJsonObject>* Object1Obj;
-                    if (ParamsObject->TryGetObjectField(TEXT("object1"), Object1Obj))
-                    {
-                        FString Object1JsonStr;
-                        TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Object1JsonStr);
-                        FJsonSerializer::Serialize((*Object1Obj).ToSharedRef(), Writer);
-                        Cmd.Params.Object1Json = Object1JsonStr;
-                    }
-                    
-                    // object2 / surface_target (for Place skill)
-                    const TSharedPtr<FJsonObject>* Object2Obj;
-                    if (ParamsObject->TryGetObjectField(TEXT("object2"), Object2Obj))
-                    {
-                        FString Object2JsonStr;
-                        TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Object2JsonStr);
-                        FJsonSerializer::Serialize((*Object2Obj).ToSharedRef(), Writer);
-                        Cmd.Params.Object2Json = Object2JsonStr;
-                    }
-                    
-                    // search_area (polygon vertices)
-                    // Supports two formats:
-                    // 1. Array format: [[x, y], [x, y], ...] (from backend)
-                    // 2. Object format: [{x, y}, {x, y}, ...] (legacy)
-                    const TArray<TSharedPtr<FJsonValue>>* SearchAreaArray;
-                    if (ParamsObject->TryGetArrayField(TEXT("search_area"), SearchAreaArray))
-                    {
-                        for (const TSharedPtr<FJsonValue>& PointValue : *SearchAreaArray)
-                        {
-                            // Try array format first: [x, y]
-                            const TArray<TSharedPtr<FJsonValue>>* PointArray;
-                            if (PointValue->TryGetArray(PointArray) && PointArray->Num() >= 2)
-                            {
-                                double X = (*PointArray)[0]->AsNumber();
-                                double Y = (*PointArray)[1]->AsNumber();
-                                Cmd.Params.SearchArea.Add(FVector2D(X, Y));
-                            }
-                            // Fallback to object format: {x, y}
-                            else
-                            {
-                                const TSharedPtr<FJsonObject>* PointObj;
-                                if (PointValue->TryGetObject(PointObj))
-                                {
-                                    double X = 0, Y = 0;
-                                    (*PointObj)->TryGetNumberField(TEXT("x"), X);
-                                    (*PointObj)->TryGetNumberField(TEXT("y"), Y);
-                                    Cmd.Params.SearchArea.Add(FVector2D(X, Y));
-                                }
-                            }
-                        }
-                        UE_LOG(LogMASkillAllocationViewer, Log, 
-                            TEXT("ConvertToSkillListMessage: Parsed search_area with %d vertices"),
-                            Cmd.Params.SearchArea.Num());
-                    }
-                    
-                    // target_features (key-value pairs)
-                    const TSharedPtr<FJsonObject>* FeaturesObj;
-                    if (ParamsObject->TryGetObjectField(TEXT("target_features"), FeaturesObj))
-                    {
-                        for (const auto& FeaturePair : (*FeaturesObj)->Values)
-                        {
-                            FString FeatureValue;
-                            if (FeaturePair.Value->TryGetString(FeatureValue))
-                            {
-                                Cmd.Params.TargetFeatures.Add(FeaturePair.Key, FeatureValue);
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    UE_LOG(LogMASkillAllocationViewer, Warning, 
-                        TEXT("ConvertToSkillListMessage: Failed to parse params JSON for %s at TimeStep %d: %s"),
-                        *RobotId, TimeStep, *Assignment.ParamsJson);
-                    // Still add the command, but with raw params only
-                    Cmd.Params.RawParamsJson = Assignment.ParamsJson;
-                }
+                UE_LOG(LogMASkillAllocationViewer, Verbose, 
+                    TEXT("ConvertToSkillListMessage: %s at TimeStep %d - skill=%s, params=%s"),
+                    *RobotId, TimeStep, *Assignment.SkillName, *Assignment.ParamsJson);
+            }
+            else
+            {
+                UE_LOG(LogMASkillAllocationViewer, Warning, 
+                    TEXT("ConvertToSkillListMessage: Empty params JSON for %s at TimeStep %d"),
+                    *RobotId, TimeStep);
             }
             
             TimeStepCmd.Commands.Add(Cmd);

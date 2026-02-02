@@ -14,6 +14,173 @@ struct FMASensorConfig;
 struct FMASpawnSettings;
 
 /**
+ * 飞行参数配置 (统一配置，供所有飞行相关类使用)
+ */
+USTRUCT(BlueprintType)
+struct FMAFlightConfig
+{
+    GENERATED_BODY()
+
+    /** 最低飞行高度 (cm) */
+    UPROPERTY(BlueprintReadOnly)
+    float MinAltitude = 800.f;
+
+    /** 默认飞行高度 (cm) */
+    UPROPERTY(BlueprintReadOnly)
+    float DefaultAltitude = 1000.f;
+
+    /** 最大飞行速度 (cm/s) */
+    UPROPERTY(BlueprintReadOnly)
+    float MaxSpeed = 600.f;
+
+    /** 障碍物检测距离 (cm) */
+    UPROPERTY(BlueprintReadOnly)
+    float ObstacleDetectionRange = 800.f;
+
+    /** 障碍物避让半径 (cm) */
+    UPROPERTY(BlueprintReadOnly)
+    float ObstacleAvoidanceRadius = 150.f;
+
+    /** 到达判定半径 (cm) */
+    UPROPERTY(BlueprintReadOnly)
+    float AcceptanceRadius = 200.f;
+};
+
+/**
+ * 地面导航参数配置 (统一配置，供所有地面导航相关类使用)
+ */
+USTRUCT(BlueprintType)
+struct FMAGroundNavigationConfig
+{
+    GENERATED_BODY()
+
+    /** 到达判定半径 (cm) */
+    UPROPERTY(BlueprintReadOnly)
+    float AcceptanceRadius = 200.f;
+
+    /** 卡住超时时间 (秒) */
+    UPROPERTY(BlueprintReadOnly)
+    float StuckTimeout = 10.f;
+};
+
+/**
+ * 跟随参数配置 (统一配置，供所有机器人的跟随技能使用)
+ */
+USTRUCT(BlueprintType)
+struct FMAFollowConfig
+{
+    GENERATED_BODY()
+
+    /** 跟随距离 (cm) */
+    UPROPERTY(BlueprintReadOnly)
+    float Distance = 300.f;
+
+    /** 跟随位置容差 (cm) - 判断是否到达跟随位置 */
+    UPROPERTY(BlueprintReadOnly)
+    float PositionTolerance = 200.f;
+
+    /** 持续跟踪时间阈值 (秒) - 达到此时间视为跟随成功 */
+    UPROPERTY(BlueprintReadOnly)
+    float ContinuousTimeThreshold = 30.f;
+};
+
+/**
+ * 引导参数配置 (Guide 技能)
+ */
+USTRUCT(BlueprintType)
+struct FMAGuideConfig
+{
+    GENERATED_BODY()
+
+    /** 被引导对象移动模式: "direct" 或 "navmesh" */
+    UPROPERTY(BlueprintReadOnly)
+    FString TargetMoveMode = TEXT("navmesh");
+
+    /** 等待距离阈值 (cm) - 机器人与被引导对象距离超过此值时停下等待 */
+    UPROPERTY(BlueprintReadOnly)
+    float WaitDistanceThreshold = 500.f;
+};
+
+/**
+ * 处理危险参数配置 (HandleHazard 技能)
+ */
+USTRUCT(BlueprintType)
+struct FMAHandleHazardConfig
+{
+    GENERATED_BODY()
+
+    /** 安全距离 (cm) - 机器人与危险源保持的距离 */
+    UPROPERTY(BlueprintReadOnly)
+    float SafeDistance = 500.f;
+
+    /** 处理持续时间 (秒) */
+    UPROPERTY(BlueprintReadOnly)
+    float Duration = 15.0f;
+
+    /** 喷射速度/范围 (cm) */
+    UPROPERTY(BlueprintReadOnly)
+    float SpraySpeed = 500.f;
+
+    /** 水柱宽度 (cm) */
+    UPROPERTY(BlueprintReadOnly)
+    float SprayWidth = 30.f;
+};
+
+/**
+ * 拍照参数配置 (TakePhoto 技能)
+ */
+USTRUCT(BlueprintType)
+struct FMATakePhotoConfig
+{
+    GENERATED_BODY()
+
+    /** 拍照距离 (cm) - 与目标保持的水平距离 */
+    UPROPERTY(BlueprintReadOnly)
+    float PhotoDistance = 500.f;
+
+    /** 拍照持续时间 (秒) - 相机画面显示时长 */
+    UPROPERTY(BlueprintReadOnly)
+    float PhotoDuration = 3.0f;
+
+    /** 相机视场角 */
+    UPROPERTY(BlueprintReadOnly)
+    float CameraFOV = 60.f;
+
+    /** 相机前置偏移 (cm) - 模拟眼睛在前部 */
+    UPROPERTY(BlueprintReadOnly)
+    float CameraForwardOffset = 50.f;
+};
+
+/**
+ * 喊话参数配置 (Broadcast 技能)
+ */
+USTRUCT(BlueprintType)
+struct FMABroadcastConfig
+{
+    GENERATED_BODY()
+
+    /** 喊话距离 (cm) - 与目标保持的水平距离 */
+    UPROPERTY(BlueprintReadOnly)
+    float BroadcastDistance = 500.f;
+
+    /** 喊话持续时间 (秒) */
+    UPROPERTY(BlueprintReadOnly)
+    float BroadcastDuration = 5.0f;
+
+    /** 特效速度/范围 (cm) - 占位参数 */
+    UPROPERTY(BlueprintReadOnly)
+    float EffectSpeed = 500.f;
+
+    /** 特效宽度 (cm) - 占位参数 */
+    UPROPERTY(BlueprintReadOnly)
+    float EffectWidth = 30.f;
+
+    /** 声波发射频率 (次/秒) */
+    UPROPERTY(BlueprintReadOnly)
+    float ShockRate = 5.0f;
+};
+
+/**
  * 运行模式枚举
  * - Edit: 运行模式，修改只存在于内存中，不保存到文件
  * - Modify: 标注模式，修改会保存到源文件
@@ -33,11 +200,17 @@ struct FMAAgentConfigData
 {
     GENERATED_BODY()
 
+    /** 唯一标识 (如 "5001") */
     UPROPERTY(BlueprintReadOnly)
     FString ID;
 
+    /** 显示标签 (如 "UAV-1") */
     UPROPERTY(BlueprintReadOnly)
-    FString TypeName;
+    FString Label;
+
+    /** 机器人类型 (UAV, UGV, Quadruped, Humanoid, FixedWingUAV) */
+    UPROPERTY(BlueprintReadOnly)
+    FString Type;
 
     UPROPERTY(BlueprintReadOnly)
     FVector Position = FVector::ZeroVector;
@@ -50,42 +223,66 @@ struct FMAAgentConfigData
 };
 
 /**
- * 充电站配置数据
+ * 巡逻配置数据
  */
 USTRUCT(BlueprintType)
-struct FMAChargingStationConfig
+struct FMAPatrolConfig
 {
     GENERATED_BODY()
 
+    /** 是否启用巡逻 */
     UPROPERTY(BlueprintReadOnly)
-    FString ID;
+    bool bEnabled = false;
 
+    /** 巡逻路径点 */
     UPROPERTY(BlueprintReadOnly)
-    FVector Position = FVector::ZeroVector;
+    TArray<FVector> Waypoints;
+
+    /** 是否循环巡逻 */
+    UPROPERTY(BlueprintReadOnly)
+    bool bLoop = true;
+
+    /** 到达每个点后的等待时间 (秒) */
+    UPROPERTY(BlueprintReadOnly)
+    float WaitTime = 2.0f;
 };
 
 /**
- * 可拾取物品配置数据
+ * 环境对象配置数据 (统一配置结构)
+ * 支持类型: person, vehicle, boat, fire, smoke, wind, cargo
  */
 USTRUCT(BlueprintType)
-struct FMAPickupItemConfig
+struct FMAEnvironmentObjectConfig
 {
     GENERATED_BODY()
 
+    /** 唯一标识 */
     UPROPERTY(BlueprintReadOnly)
     FString ID;
 
+    /** 显示标签 */
     UPROPERTY(BlueprintReadOnly)
-    FString Name;
+    FString Label;
 
+    /** 对象类型: person/vehicle/boat/fire/smoke/wind/cargo */
     UPROPERTY(BlueprintReadOnly)
     FString Type;
 
+    /** 位置 */
     UPROPERTY(BlueprintReadOnly)
     FVector Position = FVector::ZeroVector;
 
+    /** 旋转 */
+    UPROPERTY(BlueprintReadOnly)
+    FRotator Rotation = FRotator::ZeroRotator;
+
+    /** 特征键值对 (如 color, subtype, animation, gender 等) */
     UPROPERTY(BlueprintReadOnly)
     TMap<FString, FString> Features;
+
+    /** 巡逻配置 (可选) */
+    UPROPERTY(BlueprintReadOnly)
+    FMAPatrolConfig Patrol;
 };
 
 /**
@@ -296,6 +493,90 @@ public:
     FMAPathPlannerConfig GetPathPlannerConfig() const;
 
     //=========================================================================
+    // Flight 配置 (统一飞行参数)
+    //=========================================================================
+
+    /** 飞行参数配置 */
+    UPROPERTY(BlueprintReadOnly, Category = "Config|Flight")
+    FMAFlightConfig FlightConfig;
+
+    /** 获取飞行配置 */
+    UFUNCTION(BlueprintPure, Category = "Config")
+    const FMAFlightConfig& GetFlightConfig() const { return FlightConfig; }
+
+    //=========================================================================
+    // Ground Navigation 配置 (统一地面导航参数)
+    //=========================================================================
+
+    /** 地面导航参数配置 */
+    UPROPERTY(BlueprintReadOnly, Category = "Config|Navigation")
+    FMAGroundNavigationConfig GroundNavigationConfig;
+
+    /** 获取地面导航配置 */
+    UFUNCTION(BlueprintPure, Category = "Config")
+    const FMAGroundNavigationConfig& GetGroundNavigationConfig() const { return GroundNavigationConfig; }
+
+    //=========================================================================
+    // Follow 配置 (统一跟随参数，适用于所有机器人)
+    //=========================================================================
+
+    /** 跟随参数配置 */
+    UPROPERTY(BlueprintReadOnly, Category = "Config|Follow")
+    FMAFollowConfig FollowConfig;
+
+    /** 获取跟随配置 */
+    UFUNCTION(BlueprintPure, Category = "Config")
+    const FMAFollowConfig& GetFollowConfig() const { return FollowConfig; }
+
+    //=========================================================================
+    // Guide 配置 (引导技能参数)
+    //=========================================================================
+
+    /** 引导参数配置 */
+    UPROPERTY(BlueprintReadOnly, Category = "Config|Guide")
+    FMAGuideConfig GuideConfig;
+
+    /** 获取引导配置 */
+    UFUNCTION(BlueprintPure, Category = "Config")
+    const FMAGuideConfig& GetGuideConfig() const { return GuideConfig; }
+
+    //=========================================================================
+    // HandleHazard 配置 (处理危险技能参数)
+    //=========================================================================
+
+    /** 处理危险参数配置 */
+    UPROPERTY(BlueprintReadOnly, Category = "Config|HandleHazard")
+    FMAHandleHazardConfig HandleHazardConfig;
+
+    /** 获取处理危险配置 */
+    UFUNCTION(BlueprintPure, Category = "Config")
+    const FMAHandleHazardConfig& GetHandleHazardConfig() const { return HandleHazardConfig; }
+
+    //=========================================================================
+    // TakePhoto 配置 (拍照技能参数)
+    //=========================================================================
+
+    /** 拍照参数配置 */
+    UPROPERTY(BlueprintReadOnly, Category = "Config|TakePhoto")
+    FMATakePhotoConfig TakePhotoConfig;
+
+    /** 获取拍照配置 */
+    UFUNCTION(BlueprintPure, Category = "Config")
+    const FMATakePhotoConfig& GetTakePhotoConfig() const { return TakePhotoConfig; }
+
+    //=========================================================================
+    // Broadcast 配置 (喊话技能参数)
+    //=========================================================================
+
+    /** 喊话参数配置 */
+    UPROPERTY(BlueprintReadOnly, Category = "Config|Broadcast")
+    FMABroadcastConfig BroadcastConfig;
+
+    /** 获取喊话配置 */
+    UFUNCTION(BlueprintPure, Category = "Config")
+    const FMABroadcastConfig& GetBroadcastConfig() const { return BroadcastConfig; }
+
+    //=========================================================================
     // Agent 配置
     //=========================================================================
 
@@ -306,11 +587,9 @@ public:
     // Environment 配置
     //=========================================================================
 
+    /** 所有环境对象配置 (person, vehicle, boat, cargo, charging_station, fire, smoke, wind) */
     UPROPERTY(BlueprintReadOnly, Category = "Config|Environment")
-    TArray<FMAChargingStationConfig> ChargingStations;
-
-    UPROPERTY(BlueprintReadOnly, Category = "Config|Environment")
-    TArray<FMAPickupItemConfig> PickupItems;
+    TArray<FMAEnvironmentObjectConfig> EnvironmentObjects;
 
     //=========================================================================
     // 状态查询
@@ -349,4 +628,6 @@ private:
     void ParseAgentsFromJson(const TSharedPtr<FJsonObject>& RootObject);
     // 辅助方法：从 JSON 对象解析 environment
     void ParseEnvironmentFromJson(const TSharedPtr<FJsonObject>& RootObject);
+    // 辅助方法：解析单个环境对象
+    void ParseEnvironmentObject(const TSharedPtr<FJsonObject>& ObjectObj);
 };

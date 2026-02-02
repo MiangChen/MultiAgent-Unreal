@@ -44,7 +44,7 @@ enum class EMACommMessageType : uint8
 
 /**
  * 消息类别枚举 - 匹配 Python 端 MessageCategory
- * 用于 HITL (Human-In-The-Loop) 消息路由
+ * 用于 HITL (Person-In-The-Loop) 消息路由
  */
 UENUM(BlueprintType)
 enum class EMAMessageCategory : uint8
@@ -438,69 +438,16 @@ struct MULTIAGENT_API FMAWorldModelGraph
 
 /**
  * 单个技能指令的参数
+ * 只保留原始 JSON，参数解析由 MASkillParamsProcessor 负责
  */
 USTRUCT(BlueprintType)
 struct MULTIAGENT_API FMASkillParams_Comm
 {
     GENERATED_BODY()
 
-    /** 目标位置 (用于 navigate) */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
-    FVector DestPosition = FVector::ZeroVector;
-
-    /** 是否有目标位置 */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
-    bool bHasDestPosition = false;
-
-    /** 目标类型 (用于 search) */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
-    FString GoalType;
-
-    /** 任务 ID */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
-    FString TaskId;
-
-    /** 搜索区域 (多边形顶点) */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
-    TArray<FVector2D> SearchArea;
-
-    /** 区域标识 */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
-    FString AreaToken;
-
-    /** 目标标识 */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
-    FString TargetToken;
-
-    /** 目标特征 (键值对) */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
-    TMap<FString, FString> TargetFeatures;
-
-    /** 目标语义标签 JSON (用于 Search 技能)
-     * 格式: {"class": "...", "type": "...", "features": {"key": "value", ...}}
-     */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
-    FString TargetJson;
-
-    /** 目标实体名称 (用于智能参数调整) */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
-    FString TargetEntity;
-
-    /** 原始 JSON 参数 (保留完整数据) */
+    /** 原始 JSON 参数 (保留完整数据，由 MASkillParamsProcessor 解析) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill")
     FString RawParamsJson;
-
-    //=========================================================================
-    // Place 技能参数
-    //=========================================================================
-
-    /** target 语义标签 JSON (Place 技能源对象) */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill|Place")
-    FString Object1Json;
-
-    /** surface_target 语义标签 JSON (Place 技能目标对象) */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skill|Place")
-    FString Object2Json;
 
     FMASkillParams_Comm() {}
 };

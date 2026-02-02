@@ -978,24 +978,19 @@ bool FMASkillListMessage::FromJson(const FString& Json, FMASkillListMessage& Out
     TArray<int32> TimeStepIndices;
     for (const auto& Pair : JsonObject->Values)
     {
-        // 尝试将 key 解析为数字（时间步索引）
         if (Pair.Key.IsNumeric())
         {
-            int32 StepIndex = FCString::Atoi(*Pair.Key);
-            TimeStepIndices.Add(StepIndex);
+            TimeStepIndices.Add(FCString::Atoi(*Pair.Key));
         }
     }
 
-    // 排序时间步
     TimeStepIndices.Sort();
 
     // 解析每个时间步
     for (int32 StepIndex : TimeStepIndices)
     {
-        FString StepKey = FString::FromInt(StepIndex);
         const TSharedPtr<FJsonObject>* StepObject;
-
-        if (!JsonObject->TryGetObjectField(StepKey, StepObject))
+        if (!JsonObject->TryGetObjectField(FString::FromInt(StepIndex), StepObject))
         {
             continue;
         }
@@ -1006,144 +1001,24 @@ bool FMASkillListMessage::FromJson(const FString& Json, FMASkillListMessage& Out
         // 遍历该时间步内的所有 Agent
         for (const auto& AgentPair : (*StepObject)->Values)
         {
-            FString AgentId = AgentPair.Key;
             const TSharedPtr<FJsonObject>* AgentCmdObject;
-
             if (!AgentPair.Value->TryGetObject(AgentCmdObject))
             {
                 continue;
             }
 
             FMAAgentSkillCommand Cmd;
-            Cmd.AgentId = AgentId;
-
-            // 解析 skill
+            Cmd.AgentId = AgentPair.Key;
             (*AgentCmdObject)->TryGetStringField(TEXT("skill"), Cmd.SkillName);
 
-            // 解析 params
+            // 保存原始 params JSON
             const TSharedPtr<FJsonObject>* ParamsObject;
             if ((*AgentCmdObject)->TryGetObjectField(TEXT("params"), ParamsObject))
             {
-                // 保存原始 JSON
                 FString ParamsJson;
                 TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&ParamsJson);
                 FJsonSerializer::Serialize(ParamsObject->ToSharedRef(), Writer);
                 Cmd.Params.RawParamsJson = ParamsJson;
-
-                // 解析常用参数
-                (*ParamsObject)->TryGetStringField(TEXT("goal_type"), Cmd.Params.GoalType);
-                (*ParamsObject)->TryGetStringField(TEXT("task_id"), Cmd.Params.TaskId);
-                (*ParamsObject)->TryGetStringField(TEXT("area_token"), Cmd.Params.AreaToken);
-                (*ParamsObject)->TryGetStringField(TEXT("target_token"), Cmd.Params.TargetToken);
-
-                // 解析 dest (目标位置)
-                const TSharedPtr<FJsonObject>* DestObject;
-                if ((*ParamsObject)->TryGetObjectField(TEXT("dest"), DestObject))
-                {
-                    double X = 0, Y = 0, Z = 0;
-                    (*DestObject)->TryGetNumberField(TEXT("x"), X);
-                    (*DestObject)->TryGetNumberField(TEXT("y"), Y);
-                    (*DestObject)->TryGetNumberField(TEXT("z"), Z);
-                    Cmd.Params.DestPosition = FVector(X, Y, Z);
-                    Cmd.Params.bHasDestPosition = true;
-                }
-
-                // 解析 target_entity (目标实体名称)
-                (*ParamsObject)->TryGetStringField(TEXT("target_entity"), Cmd.Params.TargetEntity);
-
-                // 解析 area (搜索区域多边形) - 格式: { "area": { "coords": [[x,y], ...] } }
-                const TSharedPtr<FJsonObject>* AreaObject;
-                if ((*ParamsObject)->TryGetObjectField(TEXT("area"), AreaObject))
-                {
-                    const TArray<TSharedPtr<FJsonValue>>* CoordsArray;
-                    if ((*AreaObject)->TryGetArrayField(TEXT("coords"), CoordsArray))
-                    {
-                        for (const auto& CoordValue : *CoordsArray)
-                        {
-                            const TArray<TSharedPtr<FJsonValue>>* PointArray;
-                            if (CoordValue->TryGetArray(PointArray) && PointArray->Num() >= 2)
-                            {
-                                double PX = (*PointArray)[0]->AsNumber();
-                                double PY = (*PointArray)[1]->AsNumber();
-                                Cmd.Params.SearchArea.Add(FVector2D(PX, PY));
-                            }
-                        }
-                    }
-                }
-
-                // 解析 search_area (搜索区域多边形) - 格式: { "search_area": [[x,y], ...] }
-                // 这是简化格式，直接是坐标数组
-                if (Cmd.Params.SearchArea.Num() == 0)
-                {
-                    const TArray<TSharedPtr<FJsonValue>>* SearchAreaArray;
-                    if ((*ParamsObject)->TryGetArrayField(TEXT("search_area"), SearchAreaArray))
-                    {
-                        for (const auto& CoordValue : *SearchAreaArray)
-                        {
-                            const TArray<TSharedPtr<FJsonValue>>* PointArray;
-                            if (CoordValue->TryGetArray(PointArray) && PointArray->Num() >= 2)
-                            {
-                                double PX = (*PointArray)[0]->AsNumber();
-                                double PY = (*PointArray)[1]->AsNumber();
-                                Cmd.Params.SearchArea.Add(FVector2D(PX, PY));
-                            }
-                        }
-                        UE_LOG(LogMACommTypes, Log, TEXT("  Parsed search_area with %d vertices"), Cmd.Params.SearchArea.Num());
-                    }
-                }
-
-                // 解析 target.features
-                const TSharedPtr<FJsonObject>* TargetObject;
-                if ((*ParamsObject)->TryGetObjectField(TEXT("target"), TargetObject))
-                {
-                    // 保存完整的 target JSON 字符串 (用于 Search 技能)
-                    FString TargetJsonStr;
-                    TSharedRef<TJsonWriter<>> TargetWriter = TJsonWriterFactory<>::Create(&TargetJsonStr);
-                    FJsonSerializer::Serialize(TargetObject->ToSharedRef(), TargetWriter);
-                    Cmd.Params.TargetJson = TargetJsonStr;
-
-                    UE_LOG(LogMACommTypes, Verbose, TEXT("  Parsed target: %s"), *TargetJsonStr);
-
-                    const TSharedPtr<FJsonObject>* FeaturesObject;
-                    if ((*TargetObject)->TryGetObjectField(TEXT("features"), FeaturesObject))
-                    {
-                        for (const auto& FeaturePair : (*FeaturesObject)->Values)
-                        {
-                            FString FeatureValue;
-                            if (FeaturePair.Value->TryGetString(FeatureValue))
-                            {
-                                Cmd.Params.TargetFeatures.Add(FeaturePair.Key, FeatureValue);
-                            }
-                        }
-                    }
-                }
-
-                //=============================================================
-                // 解析 Place 技能参数: target 和 surface_target
-                // 格式: { "target": { "class": "...", "type": "...", "features": {...} },
-                //         "surface_target": { "class": "...", "type": "...", "features": {...} } }
-                //=============================================================
-                const TSharedPtr<FJsonObject>* Object1JsonObj;
-                if ((*ParamsObject)->TryGetObjectField(TEXT("target"), Object1JsonObj))
-                {
-                    FString Object1JsonStr;
-                    TSharedRef<TJsonWriter<>> Object1Writer = TJsonWriterFactory<>::Create(&Object1JsonStr);
-                    FJsonSerializer::Serialize(Object1JsonObj->ToSharedRef(), Object1Writer);
-                    Cmd.Params.Object1Json = Object1JsonStr;
-
-                    UE_LOG(LogMACommTypes, Verbose, TEXT("  Parsed target: %s"), *Object1JsonStr);
-                }
-
-                const TSharedPtr<FJsonObject>* Object2JsonObj;
-                if ((*ParamsObject)->TryGetObjectField(TEXT("surface_target"), Object2JsonObj))
-                {
-                    FString Object2JsonStr;
-                    TSharedRef<TJsonWriter<>> Object2Writer = TJsonWriterFactory<>::Create(&Object2JsonStr);
-                    FJsonSerializer::Serialize(Object2JsonObj->ToSharedRef(), Object2Writer);
-                    Cmd.Params.Object2Json = Object2JsonStr;
-
-                    UE_LOG(LogMACommTypes, Verbose, TEXT("  Parsed surface_target: %s"), *Object2JsonStr);
-                }
             }
 
             TimeStepCmd.Commands.Add(Cmd);
@@ -1153,7 +1028,6 @@ bool FMASkillListMessage::FromJson(const FString& Json, FMASkillListMessage& Out
     }
 
     Out.TotalTimeSteps = Out.TimeSteps.Num();
-
     UE_LOG(LogMACommTypes, Log, TEXT("FMASkillListMessage::FromJson - Parsed %d time steps"), Out.TotalTimeSteps);
 
     return Out.TotalTimeSteps > 0;
@@ -1172,7 +1046,7 @@ FString FMASkillListMessage::ToJson() const
             TSharedPtr<FJsonObject> CmdObject = MakeShareable(new FJsonObject());
             CmdObject->SetStringField(TEXT("skill"), Cmd.SkillName);
 
-            // 优先使用 RawParamsJson（保留原始参数）
+            // 直接使用 RawParamsJson
             if (!Cmd.Params.RawParamsJson.IsEmpty())
             {
                 TSharedPtr<FJsonObject> ParamsObject;
@@ -1183,31 +1057,12 @@ FString FMASkillListMessage::ToJson() const
                 }
                 else
                 {
-                    // 解析失败，使用空对象
                     CmdObject->SetObjectField(TEXT("params"), MakeShareable(new FJsonObject()));
                 }
             }
             else
             {
-                // 没有 RawParamsJson，手动构建参数对象（向后兼容）
-                TSharedPtr<FJsonObject> ParamsObject = MakeShareable(new FJsonObject());
-                if (!Cmd.Params.GoalType.IsEmpty())
-                {
-                    ParamsObject->SetStringField(TEXT("goal_type"), Cmd.Params.GoalType);
-                }
-                if (!Cmd.Params.TaskId.IsEmpty())
-                {
-                    ParamsObject->SetStringField(TEXT("task_id"), Cmd.Params.TaskId);
-                }
-                if (Cmd.Params.bHasDestPosition)
-                {
-                    TSharedPtr<FJsonObject> DestObject = MakeShareable(new FJsonObject());
-                    DestObject->SetNumberField(TEXT("x"), Cmd.Params.DestPosition.X);
-                    DestObject->SetNumberField(TEXT("y"), Cmd.Params.DestPosition.Y);
-                    DestObject->SetNumberField(TEXT("z"), Cmd.Params.DestPosition.Z);
-                    ParamsObject->SetObjectField(TEXT("dest"), DestObject);
-                }
-                CmdObject->SetObjectField(TEXT("params"), ParamsObject);
+                CmdObject->SetObjectField(TEXT("params"), MakeShareable(new FJsonObject()));
             }
 
             StepObject->SetObjectField(Cmd.AgentId, CmdObject);
