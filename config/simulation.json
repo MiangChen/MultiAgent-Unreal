@@ -14,8 +14,48 @@
         "spawn_radius": 400,
         "project_to_navmesh": true
     },
+    "flight": {
+        "min_altitude": 800.0,
+        "default_altitude": 1000.0,
+        "max_speed": 600.0,
+        "obstacle_detection_range": 800.0,
+        "obstacle_avoidance_radius": 150.0,
+        "acceptance_radius": 200.0
+    },
+    "ground_navigation": {
+        "acceptance_radius": 200.0,
+        "stuck_timeout": 10.0
+    },
+    "follow": {
+        "distance": 700.0,
+        "position_tolerance": 250.0,
+        "continuous_time_threshold": 30.0
+    },
+    "guide": {
+        "target_move_mode": "direct",
+        "wait_distance_threshold": 1000.0
+    },
+    "handle_hazard": {
+        "safe_distance": 1000.0,
+        "duration": 15.0,
+        "spray_speed": 800.0,
+        "spray_width": 1.0
+    },
+    "take_photo": {
+        "photo_distance": 500.0,
+        "photo_duration": 15.0,
+        "camera_fov": 60.0,
+        "camera_forward_offset": 50.0
+    },
+    "broadcast": {
+        "broadcast_distance": 800.0,
+        "broadcast_duration": 55.0,
+        "effect_speed": 1000.0,
+        "effect_width": 1000.0,
+        "shock_rate": 3.0
+    },
     "navigation": {
-        "path_planner_type": "ElevationMap",
+        "path_planner_type": "MultiLayerRaycast",
         "multi_layer_raycast": {
             "layer_count": 3,
             "layer_distance": 300.0,

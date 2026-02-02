@@ -11,7 +11,7 @@ EStateTreeRunStatus FMASTTask_Follow::EnterState(
     const FStateTreeTransitionResult& Transition) const
 {
     FMASTTask_FollowInstanceData& Data = Context.GetInstanceData<FMASTTask_FollowInstanceData>(*this);
-    Data.TargetCharacter.Reset();
+    Data.TargetActor.Reset();
     Data.bSkillActivated = false;
 
     AActor* Owner = Cast<AActor>(Context.GetOwner());
@@ -23,23 +23,23 @@ EStateTreeRunStatus FMASTTask_Follow::EnterState(
 
     const FMASkillParams& Params = SkillComp->GetSkillParams();
     
-    AMACharacter* TargetCharacter = Params.FollowTarget.Get();
-    if (!TargetCharacter)
+    AActor* TargetActor = Params.FollowTarget.Get();
+    if (!TargetActor)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[STTask_Follow] %s: No FollowTarget"), *Character->AgentName);
+        UE_LOG(LogTemp, Warning, TEXT("[STTask_Follow] %s: No FollowTarget"), *Character->AgentLabel);
         return EStateTreeRunStatus::Failed;
     }
     
-    Data.TargetCharacter = TargetCharacter;
+    Data.TargetActor = TargetActor;
 
-    if (!SkillComp->TryActivateFollow(TargetCharacter, Params.FollowDistance))
+    if (!SkillComp->TryActivateFollow(TargetActor, Params.FollowDistance))
     {
         return EStateTreeRunStatus::Failed;
     }
     
     Data.bSkillActivated = true;
     UE_LOG(LogTemp, Log, TEXT("[STTask_Follow] %s following %s"), 
-        *Character->AgentName, *TargetCharacter->AgentName);
+        *Character->AgentLabel, *TargetActor->GetName());
 
     return EStateTreeRunStatus::Running;
 }
@@ -60,7 +60,7 @@ EStateTreeRunStatus FMASTTask_Follow::Tick(
         return EStateTreeRunStatus::Succeeded;
     }
 
-    if (!Data.TargetCharacter.IsValid())
+    if (!Data.TargetActor.IsValid())
     {
         return EStateTreeRunStatus::Failed;
     }

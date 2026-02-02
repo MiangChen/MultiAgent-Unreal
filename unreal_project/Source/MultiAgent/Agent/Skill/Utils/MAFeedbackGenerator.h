@@ -57,13 +57,13 @@ struct FMAFeedbackContext
     
     // 搜索技能扩展字段
     UPROPERTY(BlueprintReadOnly)
-    FString SearchAreaToken;  // 搜索区域标识 (如 Building-3)
+    FString SearchAreaToken;
     
     UPROPERTY(BlueprintReadOnly)
-    float SearchDurationSeconds = 0.f;  // 搜索持续时间（秒）
+    float SearchDurationSeconds = 0.f;
     
     UPROPERTY(BlueprintReadOnly)
-    FString SearchTargetSpec;  // 搜索目标规格 (JSON 字符串)
+    FString SearchTargetSpec;
 
     // Place 结果
     UPROPERTY(BlueprintReadOnly)
@@ -93,10 +93,10 @@ struct FMAFeedbackContext
 
     // Follow 技能信息
     UPROPERTY(BlueprintReadOnly)
-    FString FollowTargetRobotName;
+    FString FollowTargetName;
     
     UPROPERTY(BlueprintReadOnly)
-    float FollowTargetDistance = 0.f;
+    float FollowTargetDistance = 0.f;  // UE5 单位 (cm)
     
     UPROPERTY(BlueprintReadOnly)
     bool bFollowTargetFound = false;
@@ -105,16 +105,16 @@ struct FMAFeedbackContext
     FString FollowErrorReason;
     
     UPROPERTY(BlueprintReadOnly)
-    FString FollowRobotId;  // 执行 Follow 的机器人 ID
+    FString FollowRobotId;
     
     UPROPERTY(BlueprintReadOnly)
-    FString FollowTargetId;  // 被跟随目标的 ID
+    FString FollowTargetId;
     
     UPROPERTY(BlueprintReadOnly)
-    float FollowDurationSeconds = 0.f;  // 跟随持续时间（秒）
+    float FollowDurationSeconds = 0.f;
     
     UPROPERTY(BlueprintReadOnly)
-    FString FollowTargetSpec;  // 跟随目标规格 (JSON 字符串)
+    FString FollowTargetSpec;
 
     // Charge 技能信息
     UPROPERTY(BlueprintReadOnly)
@@ -134,39 +134,39 @@ struct FMAFeedbackContext
     float TakeOffTargetHeight = 0.f;
     
     UPROPERTY(BlueprintReadOnly)
-    float TakeOffMinSafeHeight = 0.f;  // 附近建筑物最高点 + 安全距离
+    float TakeOffMinSafeHeight = 0.f;
     
     UPROPERTY(BlueprintReadOnly)
-    FString TakeOffNearbyBuildingLabel;  // 附近最高建筑物标签
+    FString TakeOffNearbyBuildingLabel;
     
     UPROPERTY(BlueprintReadOnly)
-    float TakeOffNearbyBuildingHeight = 0.f;  // 附近最高建筑物高度
+    float TakeOffNearbyBuildingHeight = 0.f;
     
     UPROPERTY(BlueprintReadOnly)
-    bool bTakeOffHeightAdjusted = false;  // 高度是否被调整
+    bool bTakeOffHeightAdjusted = false;
 
     // Land 技能信息
     UPROPERTY(BlueprintReadOnly)
     FVector LandTargetLocation = FVector::ZeroVector;
     
     UPROPERTY(BlueprintReadOnly)
-    FString LandGroundType;  // 地面类型 (road, intersection, building_roof, etc.)
+    FString LandGroundType;
     
     UPROPERTY(BlueprintReadOnly)
-    FString LandNearbyLandmarkLabel;  // 着陆点附近地标
+    FString LandNearbyLandmarkLabel;
     
     UPROPERTY(BlueprintReadOnly)
-    bool bLandLocationSafe = true;  // 着陆位置是否安全
+    bool bLandLocationSafe = true;
 
     // ReturnHome 技能信息
     UPROPERTY(BlueprintReadOnly)
     FVector HomeLocationFromSceneGraph = FVector::ZeroVector;
     
     UPROPERTY(BlueprintReadOnly)
-    FString HomeLandmarkLabel;  // 家位置附近地标标签
+    FString HomeLandmarkLabel;
     
     UPROPERTY(BlueprintReadOnly)
-    bool bHomeLocationFromSceneGraph = false;  // 是否从场景图获取家位置
+    bool bHomeLocationFromSceneGraph = false;
 
     // TakePhoto 反馈字段
     UPROPERTY(BlueprintReadOnly)
@@ -178,6 +178,9 @@ struct FMAFeedbackContext
     UPROPERTY(BlueprintReadOnly)
     FString PhotoTargetId;
     
+    UPROPERTY(BlueprintReadOnly)
+    float PhotoRobotTargetDistance = -1.f;  // 米
+    
     // Broadcast 反馈字段
     UPROPERTY(BlueprintReadOnly)
     FString BroadcastMessage;
@@ -187,6 +190,12 @@ struct FMAFeedbackContext
     
     UPROPERTY(BlueprintReadOnly)
     FString BroadcastTargetName;
+    
+    UPROPERTY(BlueprintReadOnly)
+    float BroadcastRobotTargetDistance = -1.f;  // 米
+    
+    UPROPERTY(BlueprintReadOnly)
+    float BroadcastDurationSeconds = 0.f;
     
     // HandleHazard 反馈字段
     UPROPERTY(BlueprintReadOnly)
@@ -239,58 +248,27 @@ struct FMASkillExecutionFeedback
     FString Message;
 
     UPROPERTY(BlueprintReadOnly)
-    TMap<FString, FString> Data;  // 额外数据
+    TMap<FString, FString> Data;
 };
 
 /**
  * 反馈生成器
- * 
- * 职责:
- * - 统一的反馈生成接口
- * - 根据技能类型和执行结果生成反馈
- * - 优先使用场景图数据，回退到 UE5 场景查询
- * - 确保反馈包含实体标签和位置
- * - 技能完成后更新场景图状态
- * - 使用场景图节点格式返回发现的目标
  */
 class MULTIAGENT_API FMAFeedbackGenerator
 {
 public:
     /**
      * 生成技能执行反馈（统一入口）
-     * @param Agent 执行技能的 Agent
-     * @param Command 技能类型
-     * @param bSuccess 执行是否成功
-     * @param Message 执行消息（来自 NotifySkillCompleted）
-     * @return 完整的反馈结构
      */
     static FMASkillExecutionFeedback Generate(AMACharacter* Agent, EMACommand Command, bool bSuccess, const FString& Message);
 
-    //=========================================================================
-    // 场景图节点 JSON 构建方法
-    //=========================================================================
-
     /**
      * 从场景图节点构建 JSON 对象
-     * 包含 id, properties, shape 字段
-     * 
-     * @param Node 场景图节点
-     * @return JSON 对象，包含完整的节点信息
-     * 
      */
     static TSharedPtr<FJsonObject> BuildNodeJsonFromSceneGraph(const FMASceneGraphNode& Node);
 
     /**
-     * 从 UE5 场景数据构建 JSON 对象（场景图查询失败时的回退方案）
-     * 
-     * @param Id 实体 ID
-     * @param Label 实体标签
-     * @param Location 实体位置
-     * @param Type 实体类型
-     * @param Category 实体类别
-     * @param Features 实体特征属性
-     * @return JSON 对象，包含最小化的节点信息
-     * 
+     * 从 UE5 场景数据构建 JSON 对象（回退方案）
      */
     static TSharedPtr<FJsonObject> BuildNodeJsonFromUE5Data(
         const FString& Id,
@@ -301,7 +279,7 @@ public:
         const TMap<FString, FString>& Features = TMap<FString, FString>());
 
 private:
-    // 各技能的反馈生成（填充 Data 和 Message 字段）
+    // 各技能的反馈生成
     static void GenerateNavigateFeedback(FMASkillExecutionFeedback& Feedback, AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message);
     static void GenerateSearchFeedback(FMASkillExecutionFeedback& Feedback, AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message);
     static void GenerateFollowFeedback(FMASkillExecutionFeedback& Feedback, AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message);
@@ -316,114 +294,7 @@ private:
     static void GenerateHandleHazardFeedback(FMASkillExecutionFeedback& Feedback, AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message);
     static void GenerateGuideFeedback(FMASkillExecutionFeedback& Feedback, AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message);
     
-    //=========================================================================
-    // 场景图查询辅助方法
-    //=========================================================================
-    
-    /**
-     * 获取场景图管理器
-     * @param Agent Agent 指针
-     * @return 场景图管理器指针，如果获取失败则返回 nullptr
-     */
+    // 辅助方法
     static UMASceneGraphManager* GetSceneGraphManager(AMACharacter* Agent);
-    
-    /**
-     * 从场景图获取实体信息，带回退机制
-     * 优先使用场景图数据，如果未找到则回退到 UE5 场景查询
-     * 
-     * @param Agent Agent 指针
-     * @param EntityId 实体 ID
-     * @param OutLabel 输出的实体标签
-     * @param OutLocation 输出的实体位置
-     * @param OutType 输出的实体类型
-     * @return 是否成功获取实体信息
-     * 
-     */
-    static bool GetEntityInfoWithFallback(
-        AMACharacter* Agent,
-        const FString& EntityId,
-        FString& OutLabel,
-        FVector& OutLocation,
-        FString& OutType);
-    
-    /**
-     * 从场景图获取机器人信息
-     * 
-     * @param Agent Agent 指针
-     * @param RobotId 机器人 ID
-     * @param OutLabel 输出的机器人标签
-     * @param OutLocation 输出的机器人位置
-     * @param OutAgentType 输出的机器人类型 (UAV, UGV, etc.)
-     * @return 是否成功获取机器人信息
-     * 
-     */
-    static bool GetRobotInfoFromSceneGraph(
-        AMACharacter* Agent,
-        const FString& RobotId,
-        FString& OutLabel,
-        FVector& OutLocation,
-        FString& OutAgentType);
-    
-    /**
-     * 从场景图获取可拾取物品信息
-     * 
-     * @param Agent Agent 指针
-     * @param ItemId 物品 ID
-     * @param OutLabel 输出的物品标签
-     * @param OutLocation 输出的物品位置
-     * @param OutFeatures 输出的物品特征
-     * @return 是否成功获取物品信息
-     * 
-     */
-    static bool GetPickupItemInfoFromSceneGraph(
-        AMACharacter* Agent,
-        const FString& ItemId,
-        FString& OutLabel,
-        FVector& OutLocation,
-        TMap<FString, FString>& OutFeatures);
-    
-    /**
-     * 从场景图获取充电站信息
-     * 
-     * @param Agent Agent 指针
-     * @param StationId 充电站 ID
-     * @param OutLabel 输出的充电站标签
-     * @param OutLocation 输出的充电站位置
-     * @return 是否成功获取充电站信息
-     * 
-     */
-    static bool GetChargingStationInfoFromSceneGraph(
-        AMACharacter* Agent,
-        const FString& StationId,
-        FString& OutLabel,
-        FVector& OutLocation);
-    
-    /**
-     * 添加实体信息到反馈数据
-     * 统一格式添加实体标签和位置
-     * 
-     * @param Feedback 反馈结构
-     * @param Prefix 数据键前缀 (如 "object", "target")
-     * @param Label 实体标签
-     * @param Location 实体位置
-     * @param Type 实体类型
-     * 
-     */
-    static void AddEntityInfoToFeedback(
-        FMASkillExecutionFeedback& Feedback,
-        const FString& Prefix,
-        const FString& Label,
-        const FVector& Location,
-        const FString& Type);
-    
-    /**
-     * 添加通用字段到反馈数据
-     * 包括 task_id 等所有技能共用的字段
-     * 
-     * @param Feedback 反馈结构
-     * @param SkillComp 技能组件（用于获取 FeedbackContext）
-     */
-    static void AddCommonFieldsToFeedback(
-        FMASkillExecutionFeedback& Feedback,
-        UMASkillComponent* SkillComp);
+    static void AddCommonFieldsToFeedback(FMASkillExecutionFeedback& Feedback, UMASkillComponent* SkillComp, AMACharacter* Agent);
 };

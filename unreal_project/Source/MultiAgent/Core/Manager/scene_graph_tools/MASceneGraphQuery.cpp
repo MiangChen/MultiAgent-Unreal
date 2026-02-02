@@ -203,71 +203,13 @@ bool FMASceneGraphQuery::MatchesLabel(const FMASceneGraphNode& Node, const FMASe
     }
 
     // 调试日志
-    UE_LOG(LogMASceneGraphQuery, Verbose, TEXT("MatchesLabel: Checking Node[Id=%s, Category=%s, Type=%s, Label=%s] against Label[Class=%s, Type=%s]"),
-        *Node.Id, *Node.Category, *Node.Type, *Node.Label, *Label.Class, *Label.Type);
-
-    // 检查 Class 匹配
-    if (!Label.Class.IsEmpty())
-    {
-        // Class 可以匹配 Category 或 Type
-        bool bClassMatches = 
-            Label.Class.Equals(Node.Category, ESearchCase::IgnoreCase) ||
-            Label.Class.Equals(Node.Type, ESearchCase::IgnoreCase);
-
-        // 特殊处理: "robot" 类别
-        if (Label.IsRobot() && Node.IsRobot())
-        {
-            bClassMatches = true;
-        }
-
-        // 特殊处理: "pickup_item" 或 "cargo" 类别
-        if (Label.IsPickupItem() && Node.IsPickupItem())
-        {
-            bClassMatches = true;
-        }
-
-        // 特殊处理: "object" 类别 - 匹配 cargo 节点
-        // 这是因为外部系统可能使用 "object" 来表示可拾取物品
-        if (Label.Class.Equals(TEXT("object"), ESearchCase::IgnoreCase) && Node.IsPickupItem())
-        {
-            bClassMatches = true;
-        }
-
-        // 特殊处理: "charging_station" 类别
-        if (Label.IsChargingStation() && Node.IsChargingStation())
-        {
-            bClassMatches = true;
-        }
-
-        // 特殊处理: "building" 类别
-        if (Label.IsBuilding() && Node.IsBuilding())
-        {
-            bClassMatches = true;
-        }
-
-        if (!bClassMatches)
-        {
-            return false;
-        }
-    }
+    UE_LOG(LogMASceneGraphQuery, Verbose, TEXT("MatchesLabel: Checking Node[Id=%s, Type=%s, Label=%s] against Label[Type=%s, Features=%d]"),
+        *Node.Id, *Node.Type, *Node.Label, *Label.Type, Label.Features.Num());
 
     // 检查 Type 匹配
     if (!Label.Type.IsEmpty())
     {
-        // Type 可以匹配 Node.Type 或 Features["subtype"]
         bool bTypeMatches = Label.Type.Equals(Node.Type, ESearchCase::IgnoreCase);
-        
-        // 对于 cargo 类型节点，Type 也可以匹配 Features["subtype"]
-        // 例如: Label.Type="box" 可以匹配 Node.Features["subtype"]="box"
-        if (!bTypeMatches && Node.IsPickupItem())
-        {
-            const FString* Subtype = Node.Features.Find(TEXT("subtype"));
-            if (Subtype && Label.Type.Equals(*Subtype, ESearchCase::IgnoreCase))
-            {
-                bTypeMatches = true;
-            }
-        }
-
         if (!bTypeMatches)
         {
             return false;
@@ -287,7 +229,6 @@ bool FMASceneGraphQuery::MatchesLabel(const FMASceneGraphNode& Node, const FMASe
                 Value.Equals(Node.Id, ESearchCase::IgnoreCase) ||
                 Value.Equals(Node.Label, ESearchCase::IgnoreCase);
 
-            // 也检查 Features 中的 label
             const FString* NodeLabel = Node.Features.Find(TEXT("label"));
             if (NodeLabel && Value.Equals(*NodeLabel, ESearchCase::IgnoreCase))
             {
@@ -299,21 +240,19 @@ bool FMASceneGraphQuery::MatchesLabel(const FMASceneGraphNode& Node, const FMASe
                 return false;
             }
         }
-        // 特殊处理 "name" 特征 (向后兼容) - 可以匹配 Id, Label, 或 Features["name"/"label"]
+        // 特殊处理 "name" 特征 - 可以匹配 Id, Label, 或 Features["name"/"label"]
         else if (Key.Equals(TEXT("name"), ESearchCase::IgnoreCase))
         {
             bool bNameMatches = 
                 Value.Equals(Node.Id, ESearchCase::IgnoreCase) ||
                 Value.Equals(Node.Label, ESearchCase::IgnoreCase);
 
-            // 检查 Features 中的 label (优先)
             const FString* NodeLabel = Node.Features.Find(TEXT("label"));
             if (NodeLabel && Value.Equals(*NodeLabel, ESearchCase::IgnoreCase))
             {
                 bNameMatches = true;
             }
 
-            // 也检查 Features 中的 name (向后兼容)
             const FString* NodeName = Node.Features.Find(TEXT("name"));
             if (NodeName && Value.Equals(*NodeName, ESearchCase::IgnoreCase))
             {
@@ -530,12 +469,12 @@ FMASceneGraphNode FMASceneGraphQuery::FindNearestLandmark(
 
 FMASceneGraphNode FMASceneGraphQuery::FindNodeByIdOrLabel(
     const TArray<FMASceneGraphNode>& AllNodes,
-    const FString& NodeId)
+    const FString& NodeIdOrLabel)
 {
     // 统一查询逻辑：按 Id, Label, Features["label"], Features["name"] 顺序查找
     // 这样可以用 "UAV-1", "UAV-1", "RedBox", "101" 等任意标识符查找节点
     
-    if (NodeId.IsEmpty())
+    if (NodeIdOrLabel.IsEmpty())
     {
         return FMASceneGraphNode();
     }
@@ -543,9 +482,9 @@ FMASceneGraphNode FMASceneGraphQuery::FindNodeByIdOrLabel(
     // 1. 首先精确匹配 Id
     for (const FMASceneGraphNode& Node : AllNodes)
     {
-        if (Node.Id.Equals(NodeId, ESearchCase::IgnoreCase))
+        if (Node.Id.Equals(NodeIdOrLabel, ESearchCase::IgnoreCase))
         {
-            UE_LOG(LogMASceneGraphQuery, Verbose, TEXT("FindNodeByIdOrLabel: Found node by Id match: %s"), *NodeId);
+            UE_LOG(LogMASceneGraphQuery, Verbose, TEXT("FindNodeByIdOrLabel: Found node by Id match: %s"), *NodeIdOrLabel);
             return Node;
         }
     }
@@ -553,9 +492,9 @@ FMASceneGraphNode FMASceneGraphQuery::FindNodeByIdOrLabel(
     // 2. 然后匹配 Label
     for (const FMASceneGraphNode& Node : AllNodes)
     {
-        if (Node.Label.Equals(NodeId, ESearchCase::IgnoreCase))
+        if (Node.Label.Equals(NodeIdOrLabel, ESearchCase::IgnoreCase))
         {
-            UE_LOG(LogMASceneGraphQuery, Verbose, TEXT("FindNodeByIdOrLabel: Found node by Label match: %s -> Id=%s"), *NodeId, *Node.Id);
+            UE_LOG(LogMASceneGraphQuery, Verbose, TEXT("FindNodeByIdOrLabel: Found node by Label match: %s -> Id=%s"), *NodeIdOrLabel, *Node.Id);
             return Node;
         }
     }
@@ -564,9 +503,9 @@ FMASceneGraphNode FMASceneGraphQuery::FindNodeByIdOrLabel(
     for (const FMASceneGraphNode& Node : AllNodes)
     {
         const FString* NodeLabel = Node.Features.Find(TEXT("label"));
-        if (NodeLabel && NodeLabel->Equals(NodeId, ESearchCase::IgnoreCase))
+        if (NodeLabel && NodeLabel->Equals(NodeIdOrLabel, ESearchCase::IgnoreCase))
         {
-            UE_LOG(LogMASceneGraphQuery, Verbose, TEXT("FindNodeByIdOrLabel: Found node by Features[label] match: %s -> Id=%s"), *NodeId, *Node.Id);
+            UE_LOG(LogMASceneGraphQuery, Verbose, TEXT("FindNodeByIdOrLabel: Found node by Features[label] match: %s -> Id=%s"), *NodeIdOrLabel, *Node.Id);
             return Node;
         }
     }
@@ -575,15 +514,49 @@ FMASceneGraphNode FMASceneGraphQuery::FindNodeByIdOrLabel(
     for (const FMASceneGraphNode& Node : AllNodes)
     {
         const FString* NodeName = Node.Features.Find(TEXT("name"));
-        if (NodeName && NodeName->Equals(NodeId, ESearchCase::IgnoreCase))
+        if (NodeName && NodeName->Equals(NodeIdOrLabel, ESearchCase::IgnoreCase))
         {
-            UE_LOG(LogMASceneGraphQuery, Verbose, TEXT("FindNodeByIdOrLabel: Found node by Features[name] match: %s -> Id=%s"), *NodeId, *Node.Id);
+            UE_LOG(LogMASceneGraphQuery, Verbose, TEXT("FindNodeByIdOrLabel: Found node by Features[name] match: %s -> Id=%s"), *NodeIdOrLabel, *Node.Id);
             return Node;
         }
     }
 
-    UE_LOG(LogMASceneGraphQuery, Verbose, TEXT("FindNodeByIdOrLabel: No node found for: %s"), *NodeId);
+    UE_LOG(LogMASceneGraphQuery, Verbose, TEXT("FindNodeByIdOrLabel: No node found for: %s"), *NodeIdOrLabel);
     return FMASceneGraphNode();
+}
+
+FString FMASceneGraphQuery::GetIdByLabel(
+    const TArray<FMASceneGraphNode>& AllNodes,
+    const FString& Label)
+{
+    if (Label.IsEmpty())
+    {
+        return FString();
+    }
+    
+    FMASceneGraphNode Node = FindNodeByIdOrLabel(AllNodes, Label);
+    return Node.IsValid() ? Node.Id : FString();
+}
+
+FString FMASceneGraphQuery::GetLabelById(
+    const TArray<FMASceneGraphNode>& AllNodes,
+    const FString& Id)
+{
+    if (Id.IsEmpty())
+    {
+        return FString();
+    }
+    
+    for (const FMASceneGraphNode& Node : AllNodes)
+    {
+        if (Node.Id.Equals(Id, ESearchCase::IgnoreCase))
+        {
+            // 优先返回 Label，如果为空则返回 Id
+            return Node.Label.IsEmpty() ? Node.Id : Node.Label;
+        }
+    }
+    
+    return Id;  // 未找到时返回原 Id
 }
 
 

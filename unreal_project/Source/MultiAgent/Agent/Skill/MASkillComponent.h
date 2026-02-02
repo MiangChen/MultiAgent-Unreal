@@ -42,11 +42,11 @@ struct FMASkillParams
     FVector TargetLocation = FVector::ZeroVector;
     
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float AcceptanceRadius = 100.f;
+    float AcceptanceRadius = 200.f;
 
     // Follow
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    TWeakObjectPtr<AMACharacter> FollowTarget;
+    TWeakObjectPtr<AActor> FollowTarget;  // 跟踪目标（可以是任何 Actor，不限于机器人）
     
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     float FollowDistance = 300.f;
@@ -59,7 +59,7 @@ struct FMASkillParams
     FMASemanticTarget SearchTarget;
     
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float SearchScanWidth = 1600.f;  // 扫描宽度默认 16m，航点更稀疏
+    float SearchScanWidth = 200.f;  // 扫描宽度默认 16m，航点更稀疏
 
     // Place
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -70,7 +70,7 @@ struct FMASkillParams
 
     // TakeOff / Land / ReturnHome
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float TakeOffHeight = 3000.f;  // 默认 30m (搜索高度)
+    float TakeOffHeight = 2500.f;  // 默认 25m
     
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     float LandHeight = 0.f;
@@ -97,6 +97,15 @@ struct FMASkillParams
     
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     float DefaultSearchRadius = 1000.f;  // 默认搜索半径 10m
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    TWeakObjectPtr<AActor> HazardTargetActor;  // HandleHazard 目标 Actor
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    TWeakObjectPtr<AActor> PhotoTargetActor;  // TakePhoto 目标 Actor
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    TWeakObjectPtr<AActor> BroadcastTargetActor;  // Broadcast 目标 Actor
     
     // Broadcast 专用参数
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -165,7 +174,7 @@ public:
     void CancelNavigate();
     
     UFUNCTION(BlueprintCallable, Category = "Skill")
-    bool TryActivateFollow(AMACharacter* TargetCharacter, float FollowDistance = 200.f);
+    bool TryActivateFollow(AActor* TargetActor, float FollowDistance = 300.f);
     
     UFUNCTION(BlueprintCallable, Category = "Skill")
     void CancelFollow();

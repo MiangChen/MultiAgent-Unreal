@@ -196,6 +196,14 @@ FMASceneGraphNode FMASceneGraphIO::ParseSingleNode(const TSharedPtr<FJsonObject>
 
         // 解析Features (color, name等)
         ParseFeatures(*PropertiesObject, Node.Features);
+
+        // 解析is_dynamic字段，默认为false
+        // 注意：动态节点通过MADynamicNodeManager创建时会设置bIsDynamic=true
+        // 静态节点从JSON加载时，如果没有is_dynamic字段则默认为false
+        if (!(*PropertiesObject)->TryGetBoolField(TEXT("is_dynamic"), Node.bIsDynamic))
+        {
+            Node.bIsDynamic = false;
+        }
     }
 
     // 解析shape对象
@@ -213,9 +221,6 @@ FMASceneGraphNode FMASceneGraphIO::ParseSingleNode(const TSharedPtr<FJsonObject>
         UE_LOG(LogMASceneGraphIO, Warning, TEXT("ParseSingleNode: Node %s missing shape field"), *Node.Id);
         Node.Center = FVector::ZeroVector;
     }
-
-    // 判断是否为动态节点
-    Node.bIsDynamic = Node.IsRobot() || Node.IsPickupItem() || Node.IsChargingStation();
 
     // 保存原始JSON字符串
     FString NodeJsonString;
@@ -575,7 +580,8 @@ void FMASceneGraphIO::ParseFeatures(const TSharedPtr<FJsonObject>& PropertiesObj
         TEXT("label"),
         TEXT("category"),
         TEXT("is_carried"),
-        TEXT("carrier_id")
+        TEXT("carrier_id"),
+        TEXT("is_dynamic")
     };
 
     // 遍历 properties 中的所有字段，将非保留字段都作为 feature

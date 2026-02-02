@@ -4,7 +4,7 @@
 #include "MASTTask_Charge.h"
 #include "../../Character/MACharacter.h"
 #include "../../Skill/MASkillComponent.h"
-#include "../../../Environment/MAChargingStation.h"
+#include "../../../Environment/Entity/MAChargingStation.h"
 #include "StateTreeExecutionContext.h"
 #include "Kismet/GameplayStatics.h"
 #include "NavigationSystem.h"

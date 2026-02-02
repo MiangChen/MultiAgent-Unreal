@@ -1,5 +1,5 @@
 // SK_TakeOff.h
-// 起飞技能 - UAV 从地面起飞到指定高度
+// 起飞技能 - 使用 MANavigationService 统一接口
 
 #pragma once
 
@@ -19,19 +19,16 @@ public:
     virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 
 protected:
-    void UpdateTakeOff();
+    UFUNCTION()
+    void OnNavigationCompleted(bool bSuccess, const FString& Message);
+    
+    void FailAndEnd(const FString& Message);
 
 private:
     FGameplayAbilitySpecHandle CachedHandle;
     FGameplayAbilityActivationInfo CachedActivationInfo;
     
-    FVector StartLocation;
-    FVector TargetLocation;
-    float TakeOffSpeed = 200.f;
-    
-    FTimerHandle UpdateTimerHandle;
-    
-    // 结果缓存（用于 EndAbility 生成反馈消息）
+    float TargetAltitude = 0.f;
     bool bTakeOffSucceeded = false;
     FString TakeOffResultMessage;
 };

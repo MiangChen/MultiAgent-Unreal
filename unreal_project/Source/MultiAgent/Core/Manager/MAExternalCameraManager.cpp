@@ -253,7 +253,7 @@ AMACharacter* UMAExternalCameraManager::FindAgentByLabel(const FString& Label) c
 
     for (AMACharacter* Agent : AgentManager->GetAllAgents())
     {
-        if (Agent && Agent->AgentName == Label)
+        if (Agent && Agent->AgentLabel == Label)
         {
             return Agent;
         }

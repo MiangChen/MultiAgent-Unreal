@@ -2,399 +2,105 @@
 // 动态节点管理模块实现
 
 #include "MADynamicNodeManager.h"
-#include "Misc/FileHelper.h"
-#include "Misc/Paths.h"
-#include "Serialization/JsonReader.h"
+#include "../../Config/MAConfigManager.h"
+#include "Dom/JsonObject.h"
+#include "Serialization/JsonWriter.h"
 #include "Serialization/JsonSerializer.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMADynamicNodeManager, Log, All);
 
 //=============================================================================
-// 节点创建 - 从配置文件
+// 节点创建
 //=============================================================================
 
-TArray<FMASceneGraphNode> FMADynamicNodeManager::CreateRobotNodes(const FString& AgentsJsonPath)
+FMASceneGraphNode FMADynamicNodeManager::CreateAgentNode(const FMAAgentConfigData& Config)
 {
-
-    TArray<FMASceneGraphNode> Result;
-
-    // 加载 JSON 文件
-    TSharedPtr<FJsonObject> JsonData;
-    if (!LoadJsonFile(AgentsJsonPath, JsonData))
-    {
-        UE_LOG(LogMADynamicNodeManager, Warning, TEXT("CreateRobotNodes: Failed to load agents.json from: %s"), *AgentsJsonPath);
-        return Result;
-    }
-
-    // 获取 agents 数组
-    const TArray<TSharedPtr<FJsonValue>>* AgentsArray;
-    if (!JsonData->TryGetArrayField(TEXT("agents"), AgentsArray))
-    {
-        UE_LOG(LogMADynamicNodeManager, Warning, TEXT("CreateRobotNodes: No 'agents' array found in JSON"));
-        return Result;
-    }
-
-    // 用于跟踪每种类型的机器人数量，以生成标签
-    TMap<FString, int32> TypeCountMap;
-
-    // 遍历每种机器人类型
-    for (const TSharedPtr<FJsonValue>& AgentTypeValue : *AgentsArray)
-    {
-        if (!AgentTypeValue.IsValid() || AgentTypeValue->Type != EJson::Object)
-        {
-            continue;
-        }
-
-        TSharedPtr<FJsonObject> AgentTypeObject = AgentTypeValue->AsObject();
-        if (!AgentTypeObject.IsValid())
-        {
-            continue;
-        }
-
-        // 获取机器人类型
-        FString AgentType;
-        if (!AgentTypeObject->TryGetStringField(TEXT("type"), AgentType))
-        {
-            UE_LOG(LogMADynamicNodeManager, Warning, TEXT("CreateRobotNodes: Agent entry missing 'type' field"));
-            continue;
-        }
-
-        // 获取 instances 数组
-        const TArray<TSharedPtr<FJsonValue>>* InstancesArray;
-        if (!AgentTypeObject->TryGetArrayField(TEXT("instances"), InstancesArray))
-        {
-            UE_LOG(LogMADynamicNodeManager, Warning, TEXT("CreateRobotNodes: Agent type %s missing 'instances' array"), *AgentType);
-            continue;
-        }
-
-        // 遍历每个实例
-        for (const TSharedPtr<FJsonValue>& InstanceValue : *InstancesArray)
-        {
-            if (!InstanceValue.IsValid() || InstanceValue->Type != EJson::Object)
-            {
-                continue;
-            }
-
-            TSharedPtr<FJsonObject> InstanceObject = InstanceValue->AsObject();
-            if (!InstanceObject.IsValid())
-            {
-                continue;
-            }
-
-            // 获取实例标签 (label 字段，用于显示名称)
-            FString InstanceLabel;
-            if (!InstanceObject->TryGetStringField(TEXT("label"), InstanceLabel))
-            {
-                UE_LOG(LogMADynamicNodeManager, Warning, TEXT("CreateRobotNodes: Instance missing 'label' field"));
-                continue;
-            }
-
-            // 解析位置
-            FVector Position = FVector::ZeroVector;
-            const TArray<TSharedPtr<FJsonValue>>* PositionArray;
-            if (InstanceObject->TryGetArrayField(TEXT("position"), PositionArray))
-            {
-                Position = ParsePositionFromArray(*PositionArray);
-            }
-
-            // 解析旋转
-            FRotator Rotation = FRotator::ZeroRotator;
-            const TArray<TSharedPtr<FJsonValue>>* RotationArray;
-            if (InstanceObject->TryGetArrayField(TEXT("rotation"), RotationArray))
-            {
-                Rotation = ParseRotationFromArray(*RotationArray);
-            }
-
-            // 生成数字 ID (格式: 机器人从 5001 开始)
-            int32& TypeCount = TypeCountMap.FindOrAdd(AgentType);
-            TypeCount++;
-            int32 GlobalRobotIndex = Result.Num() + 1;
-            FString NumericId = FString::Printf(TEXT("%d"), 5000 + GlobalRobotIndex);
-
-            // 创建机器人节点 (使用数字 ID 和 label)
-            FMASceneGraphNode Node = CreateRobotNode(NumericId, AgentType, Position, Rotation);
-            Node.Label = InstanceLabel;  // 使用配置文件中的 label
-            Node.Features.Add(TEXT("label"), InstanceLabel);  // 同时存入 Features
-
-            Result.Add(Node);
-
-            UE_LOG(LogMADynamicNodeManager, Log, TEXT("CreateRobotNodes: Created robot node - Id: %s, Type: %s, Label: %s, Position: %s"),
-                *Node.Id, *Node.Type, *Node.Label, *Position.ToString());
-        }
-    }
-
-    UE_LOG(LogMADynamicNodeManager, Log, TEXT("CreateRobotNodes: Created %d robot nodes"), Result.Num());
-    return Result;
-}
-
-TArray<FMASceneGraphNode> FMADynamicNodeManager::CreatePickupItemNodes(const FString& EnvironmentJsonPath)
-{
-
-    TArray<FMASceneGraphNode> Result;
-
-    // 加载 JSON 文件
-    TSharedPtr<FJsonObject> JsonData;
-    if (!LoadJsonFile(EnvironmentJsonPath, JsonData))
-    {
-        UE_LOG(LogMADynamicNodeManager, Warning, TEXT("CreatePickupItemNodes: Failed to load environment.json from: %s"), *EnvironmentJsonPath);
-        return Result;
-    }
-
-    // 获取 objects 数组
-    const TArray<TSharedPtr<FJsonValue>>* ObjectsArray;
-    if (!JsonData->TryGetArrayField(TEXT("objects"), ObjectsArray))
-    {
-        UE_LOG(LogMADynamicNodeManager, Log, TEXT("CreatePickupItemNodes: No 'objects' array found in JSON"));
-        return Result;
-    }
-
-    // 遍历每个物品
-    for (const TSharedPtr<FJsonValue>& ObjectValue : *ObjectsArray)
-    {
-        if (!ObjectValue.IsValid() || ObjectValue->Type != EJson::Object)
-        {
-            continue;
-        }
-
-        TSharedPtr<FJsonObject> ObjectData = ObjectValue->AsObject();
-        if (!ObjectData.IsValid())
-        {
-            continue;
-        }
-
-        // 获取物品 ID
-        FString ItemId;
-        if (!ObjectData->TryGetStringField(TEXT("id"), ItemId))
-        {
-            UE_LOG(LogMADynamicNodeManager, Warning, TEXT("CreatePickupItemNodes: Object missing 'id' field"));
-            continue;
-        }
-
-        // 获取物品标签 (label 字段)
-        FString ItemLabel;
-        ObjectData->TryGetStringField(TEXT("label"), ItemLabel);
-
-        // 获取物品类型
-        FString ItemType;
-        ObjectData->TryGetStringField(TEXT("type"), ItemType);
-
-        // 解析位置
-        FVector Position = FVector::ZeroVector;
-        const TArray<TSharedPtr<FJsonValue>>* PositionArray;
-        if (ObjectData->TryGetArrayField(TEXT("position"), PositionArray))
-        {
-            Position = ParsePositionFromArray(*PositionArray);
-        }
-
-        // 解析 Features
-        TMap<FString, FString> Features;
-        const TSharedPtr<FJsonObject>* FeaturesObject;
-        if (ObjectData->TryGetObjectField(TEXT("features"), FeaturesObject))
-        {
-            Features = ParseFeaturesFromObject(*FeaturesObject);
-        }
-
-        // 如果有标签，添加到 Features
-        if (!ItemLabel.IsEmpty())
-        {
-            Features.Add(TEXT("label"), ItemLabel);
-        }
-
-        // 如果有类型，添加到 Features
-        if (!ItemType.IsEmpty())
-        {
-            Features.Add(TEXT("item_type"), ItemType);
-        }
-
-        // 创建可拾取物品节点
-        FMASceneGraphNode Node = CreatePickupItemNode(ItemId, ItemLabel, ItemType, Position, Features);
-        Result.Add(Node);
-
-        UE_LOG(LogMADynamicNodeManager, Log, TEXT("CreatePickupItemNodes: Created pickup item node - Id: %s, Label: %s, Position: %s"),
-            *Node.Id, *Node.Label, *Position.ToString());
-    }
-
-    UE_LOG(LogMADynamicNodeManager, Log, TEXT("CreatePickupItemNodes: Created %d pickup item nodes"), Result.Num());
-    return Result;
-}
-
-TArray<FMASceneGraphNode> FMADynamicNodeManager::CreateChargingStationNodes(const FString& EnvironmentJsonPath)
-{
-
-    TArray<FMASceneGraphNode> Result;
-
-    // 加载 JSON 文件
-    TSharedPtr<FJsonObject> JsonData;
-    if (!LoadJsonFile(EnvironmentJsonPath, JsonData))
-    {
-        UE_LOG(LogMADynamicNodeManager, Warning, TEXT("CreateChargingStationNodes: Failed to load environment.json from: %s"), *EnvironmentJsonPath);
-        return Result;
-    }
-
-    // 获取 charging_stations 数组
-    const TArray<TSharedPtr<FJsonValue>>* StationsArray;
-    if (!JsonData->TryGetArrayField(TEXT("charging_stations"), StationsArray))
-    {
-        UE_LOG(LogMADynamicNodeManager, Log, TEXT("CreateChargingStationNodes: No 'charging_stations' array found in JSON"));
-        return Result;
-    }
-
-    int32 StationIndex = 1;
-
-    // 遍历每个充电站
-    for (const TSharedPtr<FJsonValue>& StationValue : *StationsArray)
-    {
-        if (!StationValue.IsValid() || StationValue->Type != EJson::Object)
-        {
-            continue;
-        }
-
-        TSharedPtr<FJsonObject> StationData = StationValue->AsObject();
-        if (!StationData.IsValid())
-        {
-            continue;
-        }
-
-        // 获取充电站 ID
-        FString StationId;
-        if (!StationData->TryGetStringField(TEXT("id"), StationId))
-        {
-            // 如果没有 ID，自动生成数字 ID
-            StationId = FString::Printf(TEXT("%d"), 2000 + StationIndex);
-        }
-
-        // 获取充电站标签
-        FString StationLabel;
-        StationData->TryGetStringField(TEXT("label"), StationLabel);
-
-        // 解析位置
-        FVector Position = FVector::ZeroVector;
-        const TArray<TSharedPtr<FJsonValue>>* PositionArray;
-        if (StationData->TryGetArrayField(TEXT("position"), PositionArray))
-        {
-            Position = ParsePositionFromArray(*PositionArray);
-        }
-
-        // 创建充电站节点
-        FMASceneGraphNode Node = CreateChargingStationNode(StationId, StationLabel, Position);
-        Result.Add(Node);
-
-        UE_LOG(LogMADynamicNodeManager, Log, TEXT("CreateChargingStationNodes: Created charging station node - Id: %s, Position: %s"),
-            *Node.Id, *Position.ToString());
-
-        StationIndex++;
-    }
-
-    UE_LOG(LogMADynamicNodeManager, Log, TEXT("CreateChargingStationNodes: Created %d charging station nodes"), Result.Num());
-    return Result;
-}
-
-
-//=============================================================================
-// 节点创建 - 工厂方法
-//=============================================================================
-
-FMASceneGraphNode FMADynamicNodeManager::CreateRobotNode(
-    const FString& Id,
-    const FString& RobotType,
-    const FVector& Position,
-    const FRotator& Rotation)
-{
-
     FMASceneGraphNode Node;
 
-    Node.Id = Id;
-    Node.Type = RobotType;  // 使用具体的机器人类型 (UAV, UGV, Quadruped, Humanoid)
+    Node.Id = Config.ID;
+    Node.Type = Config.Type;
     Node.Category = TEXT("robot");
-    Node.Label = Id;  // 默认使用 ID 作为标签，可以后续更新
-    Node.Center = Position;
-    Node.Rotation = Rotation;
+    Node.Label = Config.Label.IsEmpty() ? Config.ID : Config.Label;
+    Node.Center = Config.Position;
+    Node.Rotation = Config.Rotation;
     Node.ShapeType = TEXT("point");
     Node.bIsDynamic = true;
     Node.bIsCarried = false;
-
-    // 添加 Features
     Node.Features.Add(TEXT("status"), TEXT("idle"));
+    
+    if (!Config.Label.IsEmpty())
+    {
+        Node.Features.Add(TEXT("label"), Config.Label);
+    }
+
+    // 生成 RawJson
+    Node.RawJson = GenerateRawJson(Node);
+
+    UE_LOG(LogMADynamicNodeManager, Verbose, TEXT("CreateAgentNode: Id=%s, Type=%s, Label=%s"),
+        *Node.Id, *Node.Type, *Node.Label);
 
     return Node;
 }
 
-FMASceneGraphNode FMADynamicNodeManager::CreatePickupItemNode(
-    const FString& Id,
-    const FString& ItemLabel,
-    const FString& ItemType,
-    const FVector& Position,
-    const TMap<FString, FString>& Features)
+FMASceneGraphNode FMADynamicNodeManager::CreateEnvironmentObjectNode(const FMAEnvironmentObjectConfig& Config)
 {
-
     FMASceneGraphNode Node;
 
-    Node.Id = Id;
-    Node.Type = TEXT("cargo");  // 统一使用 cargo 作为类型
-    Node.Category = TEXT("prop");  // 使用 prop 作为类别，与静态道具一致
-    Node.Label = ItemLabel.IsEmpty() ? Id : ItemLabel;
-    Node.Center = Position;
+    Node.Id = Config.ID;
+    Node.Type = Config.Type;
+    Node.Label = Config.Label.IsEmpty() ? Config.ID : Config.Label;
+    Node.Center = Config.Position;
+    Node.Rotation = Config.Rotation;
     Node.ShapeType = TEXT("point");
     Node.bIsDynamic = true;
-    Node.bIsCarried = false;
-    Node.CarrierId = TEXT("");
+    Node.Features = Config.Features;
 
-    // 复制 Features
-    Node.Features = Features;
+    // 根据类型设置 Category
+    if (Config.Type == TEXT("cargo") || Config.Type == TEXT("assembly_component"))
+    {
+        Node.Category = TEXT("prop");
+        Node.bIsCarried = false;
+        Node.CarrierId = TEXT("");
+    }
+    else if (Config.Type == TEXT("charging_station"))
+    {
+        Node.Category = TEXT("prop");
+        if (!Node.Features.Contains(TEXT("status")))
+        {
+            Node.Features.Add(TEXT("status"), TEXT("available"));
+        }
+    }
+    else if (Config.Type == TEXT("person"))
+    {
+        Node.Category = TEXT("dynamic_entity");
+    }
+    else if (Config.Type == TEXT("vehicle") || Config.Type == TEXT("boat"))
+    {
+        Node.Category = TEXT("dynamic_entity");
+    }
+    else if (Config.Type == TEXT("fire") || Config.Type == TEXT("smoke") || Config.Type == TEXT("wind"))
+    {
+        Node.Category = TEXT("effect");
+    }
+    else
+    {
+        Node.Category = TEXT("prop");
+    }
 
     // 确保 label 在 Features 中
-    if (!ItemLabel.IsEmpty() && !Node.Features.Contains(TEXT("label")))
+    if (!Config.Label.IsEmpty() && !Node.Features.Contains(TEXT("label")))
     {
-        Node.Features.Add(TEXT("label"), ItemLabel);
+        Node.Features.Add(TEXT("label"), Config.Label);
     }
 
-    // 如果没有 subtype，尝试从 label 推断 (例如 "RedBox" -> "box")
-    if (!Node.Features.Contains(TEXT("subtype")) && !ItemLabel.IsEmpty())
-    {
-        // 常见的物品类型后缀
-        TArray<FString> KnownSubtypes = { TEXT("Box"), TEXT("Crate"), TEXT("Container"), TEXT("Package") };
-        for (const FString& Subtype : KnownSubtypes)
-        {
-            if (ItemLabel.EndsWith(Subtype, ESearchCase::IgnoreCase))
-            {
-                Node.Features.Add(TEXT("subtype"), Subtype.ToLower());
-                UE_LOG(LogMADynamicNodeManager, Verbose, TEXT("CreatePickupItemNode: Inferred subtype '%s' from label '%s'"),
-                    *Subtype.ToLower(), *ItemLabel);
-                break;
-            }
-        }
-    }
+    // 生成 RawJson
+    Node.RawJson = GenerateRawJson(Node);
+
+    UE_LOG(LogMADynamicNodeManager, Verbose, TEXT("CreateEnvironmentObjectNode: Id=%s, Type=%s, Category=%s, Label=%s"),
+        *Node.Id, *Node.Type, *Node.Category, *Node.Label);
 
     return Node;
 }
-
-FMASceneGraphNode FMADynamicNodeManager::CreateChargingStationNode(
-    const FString& Id,
-    const FString& StationLabel,
-    const FVector& Position)
-{
-
-    FMASceneGraphNode Node;
-
-    Node.Id = Id;
-    Node.Type = TEXT("charging_station");
-    Node.Category = TEXT("prop");  // 充电站归类为 prop
-    Node.Label = StationLabel.IsEmpty() ? Id : StationLabel;
-    Node.Center = Position;
-    Node.ShapeType = TEXT("point");
-    Node.bIsDynamic = true;  // 充电站位置可能需要更新
-    Node.bIsCarried = false;
-
-    // 添加 Features
-    if (!StationLabel.IsEmpty())
-    {
-        Node.Features.Add(TEXT("label"), StationLabel);
-    }
-    Node.Features.Add(TEXT("status"), TEXT("available"));
-
-    return Node;
-}
-
 
 //=============================================================================
 // 节点更新
@@ -402,109 +108,181 @@ FMASceneGraphNode FMADynamicNodeManager::CreateChargingStationNode(
 
 bool FMADynamicNodeManager::UpdateNodePosition(FMASceneGraphNode& Node, const FVector& NewPosition)
 {
-
-    // 验证节点有效性
     if (!Node.IsValid())
     {
         UE_LOG(LogMADynamicNodeManager, Warning, TEXT("UpdateNodePosition: Invalid node"));
         return false;
     }
 
-    // 验证位置有效性
     if (!IsValidPosition(NewPosition))
     {
         UE_LOG(LogMADynamicNodeManager, Warning, TEXT("UpdateNodePosition: Invalid position for node %s"), *Node.Id);
         return false;
     }
 
-    // 检查是否为静态节点
     if (!Node.bIsDynamic)
     {
         UE_LOG(LogMADynamicNodeManager, Warning, TEXT("UpdateNodePosition: Cannot update position of static node %s"), *Node.Id);
         return false;
     }
 
-    // 更新位置
     Node.Center = NewPosition;
-
-    UE_LOG(LogMADynamicNodeManager, Verbose, TEXT("UpdateNodePosition: Updated node %s position to %s"),
-        *Node.Id, *NewPosition.ToString());
-
     return true;
 }
 
 bool FMADynamicNodeManager::UpdateNodeRotation(FMASceneGraphNode& Node, const FRotator& NewRotation)
 {
-    // 验证节点有效性
     if (!Node.IsValid())
     {
         UE_LOG(LogMADynamicNodeManager, Warning, TEXT("UpdateNodeRotation: Invalid node"));
         return false;
     }
 
-    // 检查是否为静态节点
     if (!Node.bIsDynamic)
     {
         UE_LOG(LogMADynamicNodeManager, Warning, TEXT("UpdateNodeRotation: Cannot update rotation of static node %s"), *Node.Id);
         return false;
     }
 
-    // 更新旋转
     Node.Rotation = NewRotation;
-
-    UE_LOG(LogMADynamicNodeManager, Verbose, TEXT("UpdateNodeRotation: Updated node %s rotation to %s"),
-        *Node.Id, *NewRotation.ToString());
-
     return true;
 }
 
-bool FMADynamicNodeManager::UpdatePickupItemCarrierStatus(
-    FMASceneGraphNode& Node,
-    bool bIsCarried,
-    const FString& CarrierId)
+bool FMADynamicNodeManager::UpdateNodeFeature(FMASceneGraphNode& Node, const FString& Key, const FString& Value)
 {
-
-    // 验证节点有效性
     if (!Node.IsValid())
     {
-        UE_LOG(LogMADynamicNodeManager, Warning, TEXT("UpdatePickupItemCarrierStatus: Invalid node"));
+        UE_LOG(LogMADynamicNodeManager, Warning, TEXT("UpdateNodeFeature: Invalid node"));
         return false;
     }
 
-    // 验证节点类型
-    if (!Node.IsPickupItem())
+    if (Key.IsEmpty())
     {
-        UE_LOG(LogMADynamicNodeManager, Warning, TEXT("UpdatePickupItemCarrierStatus: Node %s is not a pickup item"), *Node.Id);
+        UE_LOG(LogMADynamicNodeManager, Warning, TEXT("UpdateNodeFeature: Key is empty"));
         return false;
     }
 
-    // 更新携带状态
-    Node.bIsCarried = bIsCarried;
-
-    if (bIsCarried)
+    Node.Features.Add(Key, Value);
+    
+    // 特殊处理: 同步 bIsCarried 字段
+    if (Key == TEXT("is_carried"))
     {
-        // 被拾取
-        Node.CarrierId = CarrierId;
-        Node.Features.Add(TEXT("is_carried"), TEXT("true"));
-        Node.Features.Add(TEXT("carrier_id"), CarrierId);
-
-        UE_LOG(LogMADynamicNodeManager, Log, TEXT("UpdatePickupItemCarrierStatus: Item %s picked up by %s"),
-            *Node.Id, *CarrierId);
+        Node.bIsCarried = Value.Equals(TEXT("true"), ESearchCase::IgnoreCase);
     }
-    else
+    else if (Key == TEXT("carrier_id"))
     {
-        // 被放下
-        Node.CarrierId = TEXT("");
-        Node.Features.Add(TEXT("is_carried"), TEXT("false"));
-        Node.Features.Remove(TEXT("carrier_id"));
-
-        UE_LOG(LogMADynamicNodeManager, Log, TEXT("UpdatePickupItemCarrierStatus: Item %s dropped"),
-            *Node.Id);
+        Node.CarrierId = Value;
     }
 
     return true;
 }
 
+bool FMADynamicNodeManager::RemoveNodeFeature(FMASceneGraphNode& Node, const FString& Key)
+{
+    if (!Node.IsValid())
+    {
+        UE_LOG(LogMADynamicNodeManager, Warning, TEXT("RemoveNodeFeature: Invalid node"));
+        return false;
+    }
+
+    if (Key.IsEmpty())
+    {
+        UE_LOG(LogMADynamicNodeManager, Warning, TEXT("RemoveNodeFeature: Key is empty"));
+        return false;
+    }
+
+    Node.Features.Remove(Key);
+    
+    // 特殊处理: 同步 bIsCarried 字段
+    if (Key == TEXT("is_carried"))
+    {
+        Node.bIsCarried = false;
+    }
+    else if (Key == TEXT("carrier_id"))
+    {
+        Node.CarrierId = TEXT("");
+    }
+
+    return true;
+}
+
+//=============================================================================
+// GUID 绑定相关
+//=============================================================================
+
+FString FMADynamicNodeManager::GenerateRawJson(const FMASceneGraphNode& Node)
+{
+    TSharedPtr<FJsonObject> RootObject = MakeShareable(new FJsonObject());
+
+    // 基础字段
+    RootObject->SetStringField(TEXT("id"), Node.Id);
+    
+    // GUID (如果有)
+    if (!Node.Guid.IsEmpty())
+    {
+        RootObject->SetStringField(TEXT("guid"), Node.Guid);
+    }
+
+    // properties 对象
+    TSharedPtr<FJsonObject> PropertiesObject = MakeShareable(new FJsonObject());
+    PropertiesObject->SetStringField(TEXT("type"), Node.Type);
+    PropertiesObject->SetStringField(TEXT("label"), Node.Label);
+    PropertiesObject->SetStringField(TEXT("category"), Node.Category);
+    PropertiesObject->SetBoolField(TEXT("is_dynamic"), Node.bIsDynamic);
+
+    // 添加 Features 到 properties
+    for (const auto& Pair : Node.Features)
+    {
+        PropertiesObject->SetStringField(Pair.Key, Pair.Value);
+    }
+
+    RootObject->SetObjectField(TEXT("properties"), PropertiesObject);
+
+    // shape 对象
+    TSharedPtr<FJsonObject> ShapeObject = MakeShareable(new FJsonObject());
+    ShapeObject->SetStringField(TEXT("type"), Node.ShapeType.IsEmpty() ? TEXT("point") : Node.ShapeType);
+
+    // center 数组 [x, y, z]
+    TArray<TSharedPtr<FJsonValue>> CenterArray;
+    CenterArray.Add(MakeShareable(new FJsonValueNumber(Node.Center.X)));
+    CenterArray.Add(MakeShareable(new FJsonValueNumber(Node.Center.Y)));
+    CenterArray.Add(MakeShareable(new FJsonValueNumber(Node.Center.Z)));
+    ShapeObject->SetArrayField(TEXT("center"), CenterArray);
+
+    RootObject->SetObjectField(TEXT("shape"), ShapeObject);
+
+    // 序列化为字符串
+    FString OutputString;
+    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
+    FJsonSerializer::Serialize(RootObject.ToSharedRef(), Writer);
+
+    return OutputString;
+}
+
+bool FMADynamicNodeManager::UpdateNodeGuid(FMASceneGraphNode& Node, const FString& NewGuid)
+{
+    if (!Node.IsValid())
+    {
+        UE_LOG(LogMADynamicNodeManager, Warning, TEXT("UpdateNodeGuid: Invalid node"));
+        return false;
+    }
+
+    if (NewGuid.IsEmpty())
+    {
+        UE_LOG(LogMADynamicNodeManager, Warning, TEXT("UpdateNodeGuid: NewGuid is empty for node %s"), *Node.Id);
+        return false;
+    }
+
+    // 更新 Guid 字段
+    Node.Guid = NewGuid;
+
+    // 重新生成 RawJson 以包含新 GUID
+    Node.RawJson = GenerateRawJson(Node);
+
+    UE_LOG(LogMADynamicNodeManager, Verbose, TEXT("UpdateNodeGuid: Node %s bound to GUID %s"), *Node.Id, *NewGuid);
+
+    return true;
+}
 
 //=============================================================================
 // 辅助方法
@@ -512,111 +290,8 @@ bool FMADynamicNodeManager::UpdatePickupItemCarrierStatus(
 
 bool FMADynamicNodeManager::IsValidPosition(const FVector& Position)
 {
-    // 检查是否为 NaN 或 Inf
     return !Position.ContainsNaN() &&
            FMath::IsFinite(Position.X) &&
            FMath::IsFinite(Position.Y) &&
            FMath::IsFinite(Position.Z);
-}
-
-FString FMADynamicNodeManager::GenerateRobotLabel(const FString& AgentType, int32 Index)
-{
-    // 格式: "AgentType-N" (如 "UAV-1", "UGV-1")
-    return FString::Printf(TEXT("%s-%d"), *AgentType, Index);
-}
-
-
-//=============================================================================
-// 内部辅助方法
-//=============================================================================
-
-bool FMADynamicNodeManager::LoadJsonFile(const FString& FilePath, TSharedPtr<FJsonObject>& OutData)
-{
-    OutData.Reset();
-
-    // 检查文件是否存在
-    if (!FPaths::FileExists(FilePath))
-    {
-        UE_LOG(LogMADynamicNodeManager, Warning, TEXT("LoadJsonFile: File not found: %s"), *FilePath);
-        return false;
-    }
-
-    // 读取文件内容
-    FString JsonString;
-    if (!FFileHelper::LoadFileToString(JsonString, *FilePath))
-    {
-        UE_LOG(LogMADynamicNodeManager, Error, TEXT("LoadJsonFile: Failed to read file: %s"), *FilePath);
-        return false;
-    }
-
-    // 解析 JSON
-    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
-    if (!FJsonSerializer::Deserialize(Reader, OutData) || !OutData.IsValid())
-    {
-        UE_LOG(LogMADynamicNodeManager, Error, TEXT("LoadJsonFile: Failed to parse JSON: %s"), *FilePath);
-        return false;
-    }
-
-    return true;
-}
-
-FVector FMADynamicNodeManager::ParsePositionFromArray(const TArray<TSharedPtr<FJsonValue>>& PositionArray)
-{
-    if (PositionArray.Num() < 3)
-    {
-        return FVector::ZeroVector;
-    }
-
-    return FVector(
-        PositionArray[0]->AsNumber(),
-        PositionArray[1]->AsNumber(),
-        PositionArray[2]->AsNumber()
-    );
-}
-
-FRotator FMADynamicNodeManager::ParseRotationFromArray(const TArray<TSharedPtr<FJsonValue>>& RotationArray)
-{
-    if (RotationArray.Num() < 3)
-    {
-        return FRotator::ZeroRotator;
-    }
-
-    // 数组格式: [pitch, yaw, roll]
-    return FRotator(
-        RotationArray[0]->AsNumber(),  // Pitch
-        RotationArray[1]->AsNumber(),  // Yaw
-        RotationArray[2]->AsNumber()   // Roll
-    );
-}
-
-TMap<FString, FString> FMADynamicNodeManager::ParseFeaturesFromObject(const TSharedPtr<FJsonObject>& FeaturesObject)
-{
-    TMap<FString, FString> Result;
-
-    if (!FeaturesObject.IsValid())
-    {
-        return Result;
-    }
-
-    // 遍历所有字段
-    for (const auto& Pair : FeaturesObject->Values)
-    {
-        if (Pair.Value.IsValid())
-        {
-            if (Pair.Value->Type == EJson::String)
-            {
-                Result.Add(Pair.Key, Pair.Value->AsString());
-            }
-            else if (Pair.Value->Type == EJson::Number)
-            {
-                Result.Add(Pair.Key, FString::SanitizeFloat(Pair.Value->AsNumber()));
-            }
-            else if (Pair.Value->Type == EJson::Boolean)
-            {
-                Result.Add(Pair.Key, Pair.Value->AsBool() ? TEXT("true") : TEXT("false"));
-            }
-        }
-    }
-
-    return Result;
 }

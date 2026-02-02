@@ -4,7 +4,7 @@
 #include "../MASkillTags.h"
 #include "../MASkillComponent.h"
 #include "../../Character/MACharacter.h"
-#include "../../../Environment/MAChargingStation.h"
+#include "../../../Environment/Entity/MAChargingStation.h"
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
 

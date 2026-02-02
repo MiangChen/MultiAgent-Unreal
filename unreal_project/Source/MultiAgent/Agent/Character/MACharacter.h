@@ -12,6 +12,7 @@
 
 class UMASkillComponent;
 class UMACameraSensorComponent;
+class UMANavigationService;
 
 UCLASS()
 class MULTIAGENT_API AMACharacter : public ACharacter, public IAbilitySystemInterface
@@ -27,6 +28,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Skill")
     UMASkillComponent* GetSkillComponent() const { return SkillComponent; }
 
+    UFUNCTION(BlueprintCallable, Category = "Navigation")
+    UMANavigationService* GetNavigationService() const { return NavigationService; }
+
     // ========== 技能接口 ==========
     UFUNCTION(BlueprintCallable, Category = "Skill")
     virtual bool TryNavigateTo(FVector Destination);
@@ -35,7 +39,7 @@ public:
     virtual void CancelNavigation();
 
     UFUNCTION(BlueprintCallable, Category = "Skill")
-    bool TryFollowActor(AMACharacter* TargetActor, float FollowDistance = 200.f);
+    bool TryFollowActor(AActor* TargetActor, float FollowDistance = 300.f);
 
     UFUNCTION(BlueprintCallable, Category = "Skill")
     void StopFollowing();
@@ -52,7 +56,7 @@ public:
     FString AgentID;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Agent")
-    FString AgentName;
+    FString AgentLabel;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Agent")
     EMAAgentType AgentType;
@@ -125,6 +129,9 @@ protected:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Skill")
     UMASkillComponent* SkillComponent;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Navigation")
+    UMANavigationService* NavigationService;
 
 private:
     FString CurrentStatusText;

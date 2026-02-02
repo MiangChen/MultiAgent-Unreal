@@ -77,7 +77,7 @@ void UMAViewportManager::CollectAllCameraEntries(TArray<FMAViewportCameraEntry>&
                     Entry.Type = EMAViewportCameraType::AgentCamera;
                     Entry.Agent = Agent;
                     Entry.AgentCamera = Camera;
-                    Entry.CameraName = Agent->AgentName;
+                    Entry.CameraName = Agent->AgentLabel;
                     OutEntries.Add(Entry);
                 }
             }
@@ -169,7 +169,7 @@ void UMAViewportManager::SwitchToNextCamera(APlayerController* PC)
             // 显示 Direct Control 消息
             GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green,
                 FString::Printf(TEXT("Direct Control: %s (%d/%d)"), 
-                    *TargetAgent->AgentName, 
+                    *TargetAgent->AgentLabel, 
                     CurrentCameraIndex + 1, 
                     Entries.Num()));
         }
@@ -202,7 +202,7 @@ void UMAViewportManager::SwitchToAgentCamera(APlayerController* PC, AMACharacter
     
     // 显示 Direct Control 消息
     GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green,
-        FString::Printf(TEXT("Direct Control: %s"), *Agent->AgentName));
+        FString::Printf(TEXT("Direct Control: %s"), *Agent->AgentLabel));
 }
 
 void UMAViewportManager::ReturnToSpectator(APlayerController* PC)
@@ -267,7 +267,7 @@ void UMAViewportManager::EnterAgentViewMode(AMACharacter* Agent)
         }
     }
     
-    UE_LOG(LogTemp, Log, TEXT("[ViewportManager] Entered Agent View Mode: %s"), *Agent->AgentName);
+    UE_LOG(LogTemp, Log, TEXT("[ViewportManager] Entered Agent View Mode: %s"), *Agent->AgentLabel);
 }
 
 void UMAViewportManager::ExitAgentViewMode()
@@ -281,7 +281,7 @@ void UMAViewportManager::ExitAgentViewMode()
     if (ControlledAgent.IsValid())
     {
         ControlledAgent->SetDirectControl(false);
-        UE_LOG(LogTemp, Log, TEXT("[ViewportManager] Exited Agent View Mode: %s"), *ControlledAgent->AgentName);
+        UE_LOG(LogTemp, Log, TEXT("[ViewportManager] Exited Agent View Mode: %s"), *ControlledAgent->AgentLabel);
     }
     
     bIsInAgentViewMode = false;
@@ -313,7 +313,7 @@ void UMAViewportManager::CreateAgentInputComponent(APlayerController* PC, AMACha
     AgentInputComponent->RegisterComponent();
     AgentInputComponent->Initialize(PC, Agent);
     
-    UE_LOG(LogTemp, Log, TEXT("[ViewportManager] Created AgentInputComponent for %s"), *Agent->AgentName);
+    UE_LOG(LogTemp, Log, TEXT("[ViewportManager] Created AgentInputComponent for %s"), *Agent->AgentLabel);
 }
 
 void UMAViewportManager::DestroyAgentInputComponent()

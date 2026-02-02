@@ -7,16 +7,14 @@
 #include "StateTreeTaskBase.h"
 #include "MASTTask_Follow.generated.h"
 
-class AMACharacter;
-
 USTRUCT()
 struct FMASTTask_FollowInstanceData
 {
     GENERATED_BODY()
 
-    // 跟随目标
+    // 跟随目标（可以是任何 Actor，不限于机器人）
     UPROPERTY()
-    TWeakObjectPtr<AMACharacter> TargetCharacter;
+    TWeakObjectPtr<AActor> TargetActor;
 
     // 是否已激活跟随技能
     bool bSkillActivated = false;
@@ -24,7 +22,7 @@ struct FMASTTask_FollowInstanceData
 
 /**
  * StateTree Task: 跟随目标
- * 机器人持续跟随指定目标
+ * 机器人持续跟随指定目标（可以是任何场景对象）
  */
 USTRUCT(meta = (DisplayName = "MA Follow"))
 struct MULTIAGENT_API FMASTTask_Follow : public FStateTreeTaskCommonBase

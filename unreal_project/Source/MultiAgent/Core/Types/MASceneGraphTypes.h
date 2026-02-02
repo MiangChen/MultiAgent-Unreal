@@ -12,11 +12,12 @@
  * 
  * JSON 格式: {"class": "...", "type": "...", "features": {"key": "value", ...}}
  * 
+ * Class 只有两种: "robot" 或 "object"
  * 
  * 使用示例:
  * - 引用机器人: {"class": "robot", "type": "UGV", "features": {"label": "UGV-1"}}
  * - 引用地面: {"class": "ground"}
- * - 引用物品: {"class": "pickup_item", "type": "cargo", "features": {"color": "red"}}
+ * - 引用物品: {"class": "object", "type": "cargo", "features": {"label": "box-1", "color": "red"}}
  */
 USTRUCT(BlueprintType)
 struct FMASemanticLabel
@@ -27,7 +28,7 @@ struct FMASemanticLabel
     // 核心字段
     //=========================================================================
 
-    /** 对象类别: robot, ground, pickup_item, building, prop, etc. */
+    /** 对象类别: robot, object, ground, building, prop, etc. */
     UPROPERTY(BlueprintReadWrite, Category = "SemanticLabel")
     FString Class;
 
@@ -80,12 +81,12 @@ struct FMASemanticLabel
         return Class.Equals(TEXT("ground"), ESearchCase::IgnoreCase);
     }
 
-    /** 是否引用可拾取物品 (class 为 "pickup_item", "object", 或 "cargo") */
+    /** 是否引用可拾取物品 (class 为 "object", "cargo", 或 "assembly_component") */
     bool IsPickupItem() const
     {
-        return Class.Equals(TEXT("pickup_item"), ESearchCase::IgnoreCase) ||
-               Class.Equals(TEXT("object"), ESearchCase::IgnoreCase) ||
-               Class.Equals(TEXT("cargo"), ESearchCase::IgnoreCase);
+        return Class.Equals(TEXT("object"), ESearchCase::IgnoreCase) ||
+               Class.Equals(TEXT("cargo"), ESearchCase::IgnoreCase) ||
+               Class.Equals(TEXT("assembly_component"), ESearchCase::IgnoreCase);
     }
 
     /** 是否引用建筑物 */
@@ -103,20 +104,6 @@ struct FMASemanticLabel
     //=========================================================================
     // 辅助方法 - 特征访问
     //=========================================================================
-
-    /** 获取名称特征 (features.name) */
-    FString GetName() const
-    {
-        const FString* NamePtr = Features.Find(TEXT("name"));
-        return NamePtr ? *NamePtr : FString();
-    }
-
-    /** 获取颜色特征 (features.color) */
-    FString GetColor() const
-    {
-        const FString* ColorPtr = Features.Find(TEXT("color"));
-        return ColorPtr ? *ColorPtr : FString();
-    }
 
     /** 获取标签特征 (features.label) */
     FString GetLabel() const
@@ -254,7 +241,7 @@ struct FMASemanticLabel
     /** 创建可拾取物品引用标签 */
     static FMASemanticLabel MakePickupItem(const FString& ItemLabel = FString(), const FString& Color = FString())
     {
-        FMASemanticLabel Label(TEXT("pickup_item"));
+        FMASemanticLabel Label(TEXT("object"));
         if (!ItemLabel.IsEmpty())
         {
             Label.Features.Add(TEXT("label"), ItemLabel);

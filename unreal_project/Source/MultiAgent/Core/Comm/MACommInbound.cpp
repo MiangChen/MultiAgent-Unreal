@@ -807,8 +807,8 @@ void FMACommInbound::HandleEmergencyEvent(const TSharedPtr<FJsonObject>& Payload
         return;
     }
 
-    UE_LOG(LogMACommInbound, Log, TEXT("HandleEmergencyEvent: Parsed emergency event - AgentId=%s, AgentName=%s, EventType=%s, Options=%d"),
-        *EventData.SourceAgentId, *EventData.SourceAgentName, *EventData.EventType, EventData.AvailableOptions.Num());
+    UE_LOG(LogMACommInbound, Log, TEXT("HandleEmergencyEvent: Parsed emergency event - AgentId=%s, AgentLabel=%s, EventType=%s, Options=%d"),
+        *EventData.SourceAgentId, *EventData.SourceAgentLabel, *EventData.EventType, EventData.AvailableOptions.Num());
 
     // Requirements: 2.3 - 通知 EmergencyManager
     UWorld* World = Owner->GetWorld();

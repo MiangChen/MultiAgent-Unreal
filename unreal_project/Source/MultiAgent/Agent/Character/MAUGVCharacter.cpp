@@ -29,6 +29,7 @@
 #include "UObject/ConstructorHelpers.h"
 #include "../Skill/MASkillComponent.h"
 #include "../StateTree/MAStateTreeComponent.h"
+#include "../../Environment/IMAPickupItem.h"
 #include "StateTree.h"
 
 AMAUGVCharacter::AMAUGVCharacter()
@@ -45,7 +46,7 @@ AMAUGVCharacter::AMAUGVCharacter()
     MovementComp->RotationRate = FRotator(0.f, 120.f, 0.f);
     
     // UGV 胶囊体设置 - 适配小车尺寸
-    GetCapsuleComponent()->SetCapsuleSize(60.f, 50.f);  // 半径60，半高50
+    GetCapsuleComponent()->SetCapsuleSize(50.f, 30.f);  // 半径50，半高50
     
     // 加载 UGV 模型
     static ConstructorHelpers::FObjectFinder<UStaticMesh> MeshAsset(
@@ -156,31 +157,54 @@ bool AMAUGVCharacter::LoadCargo(AActor* Item)
     if (!Item) return false;
     if (CarriedItems.Contains(Item)) return false;
     
-    // TODO: 检查重量限制
     CarriedItems.Add(Item);
     
     // 附着到 UGV
     Item->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
     
-    // 计算物体放置高度：UGV 顶部甲板
-    // UGV 模型向下偏移了 88cm（与胶囊体底部对齐）
-    // UGV 模型高度大约 50-60cm，所以顶部甲板大约在 -88 + 50 = -38cm
-    // 再加上物体自身的半高（假设 25cm 的方块）
-    // 最终高度约 -38 + 25 = -13cm，取整为 -10cm
-    // 
-    // 但实际上我们需要根据物体的边界来计算
-    float CargoHeight = 58.f;  // UGV 顶部甲板高度（相对于角色原点）
-    
-    // 如果物体有边界信息，加上物体的半高
-    if (UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(Item->GetRootComponent()))
+    // 计算 UGV 顶部甲板高度（相对于角色原点）
+    // 使用运行时世界边界，更准确
+    float DeckHeight = 0.f;
+    if (UGVMeshComponent)
     {
-        FVector BoundsExtent = PrimComp->Bounds.BoxExtent;
-        CargoHeight += BoundsExtent.Z;  // 加上物体半高，使物体底部贴在甲板上
+        // 获取 UGV 模型的世界边界
+        FVector MeshWorldLocation = UGVMeshComponent->GetComponentLocation();
+        FVector ActorLocation = GetActorLocation();
+        FBoxSphereBounds WorldBounds = UGVMeshComponent->Bounds;
+        
+        // 甲板高度 = 模型世界顶部 - 角色世界位置
+        float MeshTopZ = WorldBounds.Origin.Z + WorldBounds.BoxExtent.Z;
+        DeckHeight = MeshTopZ - ActorLocation.Z;
+        
+        UE_LOG(LogTemp, Log, TEXT("[UGV %s] Bounds: Origin.Z=%.1f, Extent.Z=%.1f, ActorZ=%.1f, DeckHeight=%.1f"), 
+            *AgentLabel, WorldBounds.Origin.Z, WorldBounds.BoxExtent.Z, ActorLocation.Z, DeckHeight);
+    }
+    else
+    {
+        // 回退：使用胶囊体顶部
+        DeckHeight = GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
     }
     
-    Item->SetActorRelativeLocation(FVector(0.f, 0.f, CargoHeight));
+    float CargoHeight = DeckHeight;
     
-    UE_LOG(LogTemp, Log, TEXT("[UGV %s] Loaded cargo at relative Z=%.1f"), *AgentName, CargoHeight);
+    // 使用 IMAPickupItem 接口获取精确的底部偏移
+    if (IMAPickupItem* PickupItem = Cast<IMAPickupItem>(Item))
+    {
+        float BottomOffset = PickupItem->GetBottomOffset();
+        CargoHeight = DeckHeight - BottomOffset;
+        
+        UE_LOG(LogTemp, Log, TEXT("[UGV %s] LoadCargo: %s, DeckHeight=%.1f, BottomOffset=%.1f, CargoHeight=%.1f"), 
+            *AgentLabel, *PickupItem->GetItemName(), DeckHeight, BottomOffset, CargoHeight);
+    }
+    else if (UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(Item->GetRootComponent()))
+    {
+        FVector BoundsExtent = PrimComp->Bounds.BoxExtent;
+        CargoHeight = DeckHeight + BoundsExtent.Z;
+    }
+    
+    // 设置相对位置，并摆正姿态
+    Item->SetActorRelativeLocation(FVector(0.f, 0.f, CargoHeight));
+    Item->SetActorRelativeRotation(FRotator::ZeroRotator);
     
     return true;
 }

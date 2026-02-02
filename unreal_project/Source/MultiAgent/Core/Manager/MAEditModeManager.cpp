@@ -6,9 +6,10 @@
 #include "MAEditModeManager.h"
 #include "MASceneGraphManager.h"
 #include "../Config/MAConfigManager.h"
-#include "../../Environment/MAPointOfInterest.h"
-#include "../../Environment/MAZoneActor.h"
-#include "../../Environment/MAGoalActor.h"
+#include "../../Agent/Skill/Utils/MAUESceneQuery.h"
+#include "../../Environment/Utils/MAPointOfInterest.h"
+#include "../../Environment/Utils/MAZoneActor.h"
+#include "../../Environment/Utils/MAGoalActor.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/MeshComponent.h"
@@ -893,26 +894,6 @@ bool UMAEditModeManager::IsEditModeAvailable() const
 
 AActor* UMAEditModeManager::FindActorByGuid(const FString& Guid) const
 {
-    if (Guid.IsEmpty())
-    {
-        return nullptr;
-    }
-    
     UWorld* World = GetWorld();
-    if (!World)
-    {
-        return nullptr;
-    }
-    
-    // 遍历所有 Actor 查找匹配的 GUID
-    for (TActorIterator<AActor> It(World); It; ++It)
-    {
-        AActor* Actor = *It;
-        if (Actor && Actor->GetActorGuid().ToString() == Guid)
-        {
-            return Actor;
-        }
-    }
-    
-    return nullptr;
+    return FMAUESceneQuery::FindActorByGuid(World, Guid);
 }

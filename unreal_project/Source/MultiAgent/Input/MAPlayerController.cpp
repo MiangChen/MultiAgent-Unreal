@@ -15,7 +15,7 @@
 #include "../Core/Manager/MAViewportManager.h"
 #include "../Core/Manager/MAEmergencyManager.h"
 #include "../Core/Manager/MAEditModeManager.h"
-#include "../Environment/MAPointOfInterest.h"
+#include "../Environment/Utils/MAPointOfInterest.h"
 #include "../UI/Core/MAHUDStateManager.h"
 #include "../UI/HUD/MASelectionHUD.h"
 #include "../Agent/Character/MACharacter.h"
@@ -490,7 +490,7 @@ void AMAPlayerController::OnPrintAgentInfo(const FInputActionValue& Value)
     {
         if (Agent)
         {
-            FString Info = FString::Printf(TEXT("  [%s] %s"), *Agent->AgentID, *Agent->AgentName);
+            FString Info = FString::Printf(TEXT("  [%s] %s"), *Agent->AgentID, *Agent->AgentLabel);
             GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, Info);
         }
     }
@@ -504,7 +504,7 @@ void AMAPlayerController::OnDestroyLastAgent(const FInputActionValue& Value)
     if (AllAgents.Num() > 0)
     {
         AMACharacter* LastAgent = AllAgents.Last();
-        FString Name = LastAgent->AgentName;
+        FString Name = LastAgent->AgentLabel;
         if (AgentManager->DestroyAgent(LastAgent))
         {
             GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red,

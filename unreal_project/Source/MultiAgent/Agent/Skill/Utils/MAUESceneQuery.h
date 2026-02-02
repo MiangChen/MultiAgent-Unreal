@@ -11,9 +11,9 @@
 
 #include "CoreMinimal.h"
 #include "../../../Core/Types/MASceneGraphTypes.h"
+#include "../../../Environment/IMAEnvironmentObject.h"
 
 class AActor;
-class AMAPickupItem;
 class AMACharacter;
 
 // 查询结果
@@ -36,6 +36,35 @@ struct FMAUESceneQueryResult
 class MULTIAGENT_API FMAUESceneQuery
 {
 public:
+    //=========================================================================
+    // GUID 查找接口 (通用)
+    //=========================================================================
+    
+    /**
+     * 根据 GUID 查找 Actor
+     * 
+     * 遍历场景中所有 Actor，查找 GUID 匹配的 Actor
+     * 这是将场景图节点关联到实际 Actor 的核心方法
+     * 
+     * @param World 世界指针
+     * @param Guid Actor 的 GUID 字符串 (通过 Actor->GetActorGuid().ToString() 获取)
+     * @return 找到的 Actor，未找到返回 nullptr
+     */
+    static AActor* FindActorByGuid(UWorld* World, const FString& Guid);
+    
+    /**
+     * 根据 GUID 数组查找多个 Actor
+     * 
+     * @param World 世界指针
+     * @param GuidArray GUID 字符串数组
+     * @return 找到的 Actor 数组
+     */
+    static TArray<AActor*> FindActorsByGuidArray(UWorld* World, const TArray<FString>& GuidArray);
+
+    //=========================================================================
+    // 语义标签查找接口
+    //=========================================================================
+    
     /**
      * 根据语义标签查找场景中的对象
      * 
@@ -83,36 +112,13 @@ public:
     static FMASemanticLabel ExtractLabel(AActor* Actor);
     
     /**
-     * 查找机器人 (回退方法)
+     * 根据标签查找机器人 (回退方法)
      * 
      * 当场景图中未找到机器人时，使用此方法从 UE5 场景中查找
      * 
      * @param World 世界指针
-     * @param RobotName 机器人名称
+     * @param RobotLabel 机器人标签 (如 "UAV-1", "UGV-2")
      * @return 找到的机器人 Actor，未找到返回 nullptr
      */
-    static AMACharacter* FindRobotByName(UWorld* World, const FString& RobotName);
-
-private:
-    /**
-     * 检查 PickupItem 是否匹配语义标签
-     * 
-     * 匹配策略:
-     * 1. 如果 features 中有 "name"，直接用 name 匹配 ItemName
-     * 2. 如果 features 中有 "color"，检查 ItemName 是否包含该颜色
-     * 3. 如果有 type，检查 ItemName 是否包含该类型
-     * 
-     * @param Item 要检查的 PickupItem
-     * @param Label 语义标签
-     * @return 是否匹配
-     */
-    static bool MatchesPickupItemLabel(AMAPickupItem* Item, const FMASemanticLabel& Label);
-    
-    /**
-     * 从 PickupItem 提取语义标签
-     * 
-     * @param Item 源 PickupItem
-     * @return 提取的语义标签
-     */
-    static FMASemanticLabel ExtractPickupItemLabel(AMAPickupItem* Item);
+    static AMACharacter* FindRobotByLabel(UWorld* World, const FString& RobotLabel);
 };

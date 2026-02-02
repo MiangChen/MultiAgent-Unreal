@@ -66,6 +66,35 @@ config/
 | `max_step_height` | 最大可通行台阶高度 (cm) | 50 | 20-100 |
 | `path_smoothing_factor` | 路径平滑因子 | 0.15 | 0.1-0.5 |
 
+### flight - 飞行参数 (统一配置)
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `min_altitude` | 最低飞行高度 (cm) | 800 |
+| `default_altitude` | 默认飞行高度 (cm) | 1000 |
+| `max_speed` | 最大飞行速度 (cm/s) | 600 |
+| `obstacle_detection_range` | 障碍物检测距离 (cm) | 800 |
+| `obstacle_avoidance_radius` | 障碍物避让半径 (cm) | 150 |
+| `acceptance_radius` | 到达判定半径 (cm) | 200 |
+
+### ground_navigation - 地面导航参数 (统一配置)
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `acceptance_radius` | 到达判定半径 (cm) | 200 |
+| `stuck_timeout` | 卡住超时时间 (秒) | 10 |
+
+### follow - 跟随参数 (统一配置，适用于所有机器人)
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `distance` | 跟随距离 (cm) | 300 |
+| `position_tolerance` | 跟随位置容差 (cm) - 判断是否到达跟随位置 | 350 |
+| `continuous_time_threshold` | 持续跟踪时间阈值 (秒) - 达到此时间视为跟随成功 | 30 |
+
+### guide - 引导参数 (Guide 技能)
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `target_move_mode` | 被引导对象移动模式: `direct`(直接移动，无避障) / `navmesh`(导航服务，有避障) | navmesh |
+| `wait_distance_threshold` | 等待距离阈值 (cm) - 机器人与被引导对象距离超过此值时停下等待 | 500 |
+
 ---
 
 ## maps/{MapType}.json - 地图配置

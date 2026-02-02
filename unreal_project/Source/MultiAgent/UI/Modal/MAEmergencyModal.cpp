@@ -61,10 +61,10 @@ void FMAEmergencyEventData::ApplyDefaults()
         SourceAgentId = TEXT("System");
     }
     
-    // Apply default for SourceAgentName
-    if (SourceAgentName.IsEmpty())
+    // Apply default for SourceAgentLabel
+    if (SourceAgentLabel.IsEmpty())
     {
-        SourceAgentName = TEXT("Unknown Agent");
+        SourceAgentLabel = TEXT("Unknown Agent");
     }
     
     // Apply default for EventType
@@ -98,7 +98,7 @@ FString FMAEmergencyEventData::ToJson() const
     
     // Basic fields
     JsonObject->SetStringField(TEXT("agent_id"), SourceAgentId);
-    JsonObject->SetStringField(TEXT("agent_name"), SourceAgentName);
+    JsonObject->SetStringField(TEXT("agent_name"), SourceAgentLabel);
     JsonObject->SetStringField(TEXT("event_type"), EventType);
     JsonObject->SetStringField(TEXT("description"), Description);
     JsonObject->SetStringField(TEXT("timestamp"), FString::Printf(TEXT("%lld"), Timestamp.ToUnixTimestamp()));
@@ -153,7 +153,7 @@ bool FMAEmergencyEventData::FromJsonObject(const TSharedPtr<FJsonObject>& JsonOb
     
     // Parse basic string fields
     OutData.SourceAgentId = JsonObject->GetStringField(TEXT("agent_id"));
-    OutData.SourceAgentName = JsonObject->GetStringField(TEXT("agent_name"));
+    OutData.SourceAgentLabel = JsonObject->GetStringField(TEXT("agent_name"));
     OutData.EventType = JsonObject->GetStringField(TEXT("event_type"));
     OutData.Description = JsonObject->GetStringField(TEXT("description"));
     OutData.UserResponse = JsonObject->GetStringField(TEXT("user_response"));
@@ -519,14 +519,14 @@ void UMAEmergencyModal::LoadFromAgent(AMACharacter* SourceAgent, const FString& 
     if (SourceAgent)
     {
         Data.SourceAgentId = SourceAgent->AgentID;
-        Data.SourceAgentName = SourceAgent->GetName();
+        Data.SourceAgentLabel = SourceAgent->GetName();
         Data.Location = SourceAgent->GetActorLocation();
         SourceAgentRef = SourceAgent;
     }
     else
     {
         Data.SourceAgentId = TEXT("Unknown");
-        Data.SourceAgentName = TEXT("Unknown Agent");
+        Data.SourceAgentLabel = TEXT("Unknown Agent");
         Data.Location = FVector::ZeroVector;
     }
     
@@ -1031,9 +1031,9 @@ void UMAEmergencyModal::UpdateEventDetailsDisplay()
     // 更新来源 Agent
     if (SourceAgentText)
     {
-        FString AgentDisplay = EventData.SourceAgentName.IsEmpty() 
+        FString AgentDisplay = EventData.SourceAgentLabel.IsEmpty() 
             ? EventData.SourceAgentId 
-            : FString::Printf(TEXT("%s (%s)"), *EventData.SourceAgentName, *EventData.SourceAgentId);
+            : FString::Printf(TEXT("%s (%s)"), *EventData.SourceAgentLabel, *EventData.SourceAgentId);
         SourceAgentText->SetText(FText::FromString(AgentDisplay));
     }
     
@@ -1220,7 +1220,7 @@ FString UMAEmergencyModal::GetResponseJson() const
     
     // 添加事件数据
     JsonObject->SetStringField(TEXT("source_agent_id"), EventData.SourceAgentId);
-    JsonObject->SetStringField(TEXT("source_agent_name"), EventData.SourceAgentName);
+    JsonObject->SetStringField(TEXT("source_agent_name"), EventData.SourceAgentLabel);
     JsonObject->SetStringField(TEXT("event_type"), EventData.EventType);
     JsonObject->SetStringField(TEXT("timestamp"), EventData.Timestamp.ToString(TEXT("%Y-%m-%d %H:%M:%S")));
     JsonObject->SetStringField(TEXT("description"), EventData.Description);

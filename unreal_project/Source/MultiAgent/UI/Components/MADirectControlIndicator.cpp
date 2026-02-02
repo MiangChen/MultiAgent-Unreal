@@ -106,21 +106,21 @@ void UMADirectControlIndicator::BuildUI()
     UE_LOG(LogMADirectControlIndicator, Log, TEXT("BuildUI: UI construction completed successfully"));
 }
 
-void UMADirectControlIndicator::SetAgentName(const FString& AgentName)
+void UMADirectControlIndicator::SetAgentLabel(const FString& AgentLabel)
 {
-    CurrentAgentName = AgentName;
+    CurrentAgentLabel = AgentLabel;
     
     if (IndicatorText)
     {
-        FString DisplayText = FString::Printf(TEXT("Direct Control: %s"), *AgentName);
+        FString DisplayText = FString::Printf(TEXT("Direct Control: %s"), *AgentLabel);
         IndicatorText->SetText(FText::FromString(DisplayText));
-        UE_LOG(LogMADirectControlIndicator, Log, TEXT("SetAgentName: %s"), *AgentName);
+        UE_LOG(LogMADirectControlIndicator, Log, TEXT("SetAgentLabel: %s"), *AgentLabel);
     }
 }
 
-FString UMADirectControlIndicator::GetAgentName() const
+FString UMADirectControlIndicator::GetAgentLabel() const
 {
-    return CurrentAgentName;
+    return CurrentAgentLabel;
 }
 
 void UMADirectControlIndicator::ApplyTheme(UMAUITheme* InTheme)

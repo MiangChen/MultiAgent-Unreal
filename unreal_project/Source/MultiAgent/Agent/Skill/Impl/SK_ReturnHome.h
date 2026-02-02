@@ -1,5 +1,5 @@
 // SK_ReturnHome.h
-// 返航技能 - UAV/FixedWingUAV 返回起始位置并降落
+// 返航技能 - 使用 MANavigationService 统一接口
 
 #pragma once
 
@@ -19,23 +19,17 @@ public:
     virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 
 protected:
-    void UpdateReturnHome();
-    void StartLanding();
-    void UpdateLanding();
+    UFUNCTION()
+    void OnNavigationCompleted(bool bSuccess, const FString& Message);
+    
+    void FailAndEnd(const FString& Message);
 
 private:
     FGameplayAbilitySpecHandle CachedHandle;
     FGameplayAbilityActivationInfo CachedActivationInfo;
     
     FVector HomeLocation;
-    float LandHeight = 0.f;
-    float FlySpeed = 500.f;
-    float LandSpeed = 150.f;
-    
-    bool bIsLanding = false;
-    FTimerHandle UpdateTimerHandle;
-    
-    // 结果缓存（用于 EndAbility 生成反馈消息）
+    float LandAltitude = 0.f;
     bool bReturnHomeSucceeded = false;
     FString ReturnHomeResultMessage;
 };

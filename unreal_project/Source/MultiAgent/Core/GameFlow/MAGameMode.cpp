@@ -7,6 +7,7 @@
 #include "../../UI/HUD/MAHUD.h"
 #include "../../UI/Components/MAMiniMapManager.h"
 #include "../Manager/MAAgentManager.h"
+#include "../Manager/MAEnvironmentManager.h"
 #include "../Manager/MAExternalCameraManager.h"
 #include "GameFramework/SpectatorPawn.h"
 #include "Engine/PostProcessVolume.h"
@@ -58,6 +59,11 @@ UMAAgentManager* AMAGameMode::GetAgentManager() const
     return GetWorld()->GetSubsystem<UMAAgentManager>();
 }
 
+UMAEnvironmentManager* AMAGameMode::GetEnvironmentManager() const
+{
+    return GetWorld()->GetSubsystem<UMAEnvironmentManager>();
+}
+
 void AMAGameMode::SetupSpectatorStart()
 {
     UMAConfigManager* ConfigMgr = GetGameInstance()->GetSubsystem<UMAConfigManager>();
@@ -88,6 +94,13 @@ void AMAGameMode::LoadAndSpawnAgents()
         return;
     }
 
+    UMAEnvironmentManager* EnvironmentManager = GetEnvironmentManager();
+    if (!EnvironmentManager)
+    {
+        UE_LOG(LogTemp, Error, TEXT("[GameMode] EnvironmentManager not found!"));
+        return;
+    }
+
     UMAGameInstance* GameInstance = Cast<UMAGameInstance>(GetGameInstance());
     UMAConfigManager* ConfigMgr = GetGameInstance()->GetSubsystem<UMAConfigManager>();
     
@@ -102,6 +115,9 @@ void AMAGameMode::LoadAndSpawnAgents()
         AgentManager->SpawnAgentsFromConfig();
         UE_LOG(LogTemp, Log, TEXT("[GameMode] Spawned %d agents from config"), AgentManager->GetAgentCount());
     }
+
+    // 先生成环境对象
+    EnvironmentManager->SpawnEnvironmentObjectsFromConfig();
 }
 
 void AMAGameMode::SpawnAgentsFromSetupConfig(UMAGameInstance* GameInstance)

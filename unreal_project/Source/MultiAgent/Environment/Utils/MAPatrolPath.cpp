@@ -4,7 +4,7 @@
 #include "Components/SplineComponent.h"
 #include "Components/BillboardComponent.h"
 #include "DrawDebugHelpers.h"
-#include "../UI/Core/MAUIManager.h"
+#include "../../UI/Core/MAUIManager.h"
 #include "GameFramework/HUD.h"
 #include "Kismet/GameplayStatics.h"
 #include "Blueprint/UserWidget.h"

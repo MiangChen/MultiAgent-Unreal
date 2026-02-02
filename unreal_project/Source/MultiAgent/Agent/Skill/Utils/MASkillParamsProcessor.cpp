@@ -11,11 +11,121 @@
 #include "../../../Core/Manager/MASceneGraphManager.h"
 #include "../../../Core/Manager/scene_graph_tools/MASceneGraphQuery.h"
 #include "../../../Utils/MAGeometryUtils.h"
-#include "../../../Environment/MAChargingStation.h"
+#include "../../../Environment/Entity/MAChargingStation.h"
 #include "Kismet/GameplayStatics.h"
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
+
+//=============================================================================
+// JSON 解析辅助函数
+//=============================================================================
+
+namespace MAParamsHelper
+{
+    /** 解析 RawParamsJson 为 JsonObject */
+    bool ParseRawParams(const FString& RawParamsJson, TSharedPtr<FJsonObject>& OutJson)
+    {
+        if (RawParamsJson.IsEmpty())
+        {
+            return false;
+        }
+        TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(RawParamsJson);
+        return FJsonSerializer::Deserialize(Reader, OutJson) && OutJson.IsValid();
+    }
+
+    /** 从 JsonObject 提取 dest 坐标 */
+    bool ExtractDestPosition(const TSharedPtr<FJsonObject>& Json, FVector& OutPosition)
+    {
+        const TSharedPtr<FJsonObject>* DestObject;
+        if (Json->TryGetObjectField(TEXT("dest"), DestObject))
+        {
+            double X = 0, Y = 0, Z = 0;
+            (*DestObject)->TryGetNumberField(TEXT("x"), X);
+            (*DestObject)->TryGetNumberField(TEXT("y"), Y);
+            (*DestObject)->TryGetNumberField(TEXT("z"), Z);
+            OutPosition = FVector(X, Y, Z);
+            return true;
+        }
+        return false;
+    }
+
+    /** 从 JsonObject 提取 search_area 多边形 */
+    bool ExtractSearchArea(const TSharedPtr<FJsonObject>& Json, TArray<FVector>& OutBoundary)
+    {
+        OutBoundary.Empty();
+        
+        // 格式1: { "area": { "coords": [[x,y], ...] } }
+        const TSharedPtr<FJsonObject>* AreaObject;
+        if (Json->TryGetObjectField(TEXT("area"), AreaObject))
+        {
+            const TArray<TSharedPtr<FJsonValue>>* CoordsArray;
+            if ((*AreaObject)->TryGetArrayField(TEXT("coords"), CoordsArray))
+            {
+                for (const auto& CoordValue : *CoordsArray)
+                {
+                    const TArray<TSharedPtr<FJsonValue>>* PointArray;
+                    if (CoordValue->TryGetArray(PointArray) && PointArray->Num() >= 2)
+                    {
+                        double PX = (*PointArray)[0]->AsNumber();
+                        double PY = (*PointArray)[1]->AsNumber();
+                        OutBoundary.Add(FVector(PX, PY, 0.0f));
+                    }
+                }
+            }
+        }
+        
+        // 格式2: { "search_area": [[x,y], ...] }
+        if (OutBoundary.Num() == 0)
+        {
+            const TArray<TSharedPtr<FJsonValue>>* SearchAreaArray;
+            if (Json->TryGetArrayField(TEXT("search_area"), SearchAreaArray))
+            {
+                for (const auto& CoordValue : *SearchAreaArray)
+                {
+                    const TArray<TSharedPtr<FJsonValue>>* PointArray;
+                    if (CoordValue->TryGetArray(PointArray) && PointArray->Num() >= 2)
+                    {
+                        double PX = (*PointArray)[0]->AsNumber();
+                        double PY = (*PointArray)[1]->AsNumber();
+                        OutBoundary.Add(FVector(PX, PY, 0.0f));
+                    }
+                }
+            }
+        }
+        
+        return OutBoundary.Num() >= 3;
+    }
+
+    /** 从 JsonObject 提取 target 并序列化为 JSON 字符串 */
+    bool ExtractTargetJson(const TSharedPtr<FJsonObject>& Json, const FString& FieldName, FString& OutTargetJson)
+    {
+        const TSharedPtr<FJsonObject>* TargetObj;
+        if (Json->TryGetObjectField(FieldName, TargetObj))
+        {
+            TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutTargetJson);
+            FJsonSerializer::Serialize((*TargetObj).ToSharedRef(), Writer);
+            return true;
+        }
+        return false;
+    }
+
+    /** 从 JsonObject 提取 task_id */
+    FString ExtractTaskId(const TSharedPtr<FJsonObject>& Json)
+    {
+        FString TaskId;
+        Json->TryGetStringField(TEXT("task_id"), TaskId);
+        return TaskId;
+    }
+
+    /** 从 JsonObject 提取 object_id */
+    FString ExtractObjectId(const TSharedPtr<FJsonObject>& Json)
+    {
+        FString ObjectId;
+        Json->TryGetStringField(TEXT("object_id"), ObjectId);
+        return ObjectId;
+    }
+}
 
 //=============================================================================
 // 辅助方法实现
@@ -57,14 +167,14 @@ bool FMASkillParamsProcessor::MatchTargetObject(
             bFoundInSceneGraph = true;
             
             UE_LOG(LogTemp, Log, TEXT("[MatchTargetObject] %s: Found target by object_id '%s' at (%.0f, %.0f, %.0f)"),
-                *Agent->AgentName, *ObjectId, OutFoundLocation.X, OutFoundLocation.Y, OutFoundLocation.Z);
+                *Agent->AgentLabel, *ObjectId, OutFoundLocation.X, OutFoundLocation.Y, OutFoundLocation.Z);
             
             return true;
         }
         else
         {
             UE_LOG(LogTemp, Warning, TEXT("[MatchTargetObject] %s: object_id '%s' not found in scene graph"),
-                *Agent->AgentName, *ObjectId);
+                *Agent->AgentLabel, *ObjectId);
         }
     }
     
@@ -107,14 +217,14 @@ bool FMASkillParamsProcessor::MatchTargetObject(
             
             float Distance = FMath::Sqrt(MinDistanceSq);
             UE_LOG(LogTemp, Log, TEXT("[MatchTargetObject] %s: Found target by semantic label (Class=%s, Type=%s) at distance %.0f"),
-                *Agent->AgentName, *SemanticTarget.Class, *SemanticTarget.Type, Distance);
+                *Agent->AgentLabel, *SemanticTarget.Class, *SemanticTarget.Type, Distance);
             
             return true;
         }
         else
         {
             UE_LOG(LogTemp, Warning, TEXT("[MatchTargetObject] %s: No matching target found within radius %.0f (Class=%s, Type=%s)"),
-                *Agent->AgentName, SearchRadius, *SemanticTarget.Class, *SemanticTarget.Type);
+                *Agent->AgentLabel, SearchRadius, *SemanticTarget.Class, *SemanticTarget.Type);
         }
     }
     
@@ -124,7 +234,7 @@ bool FMASkillParamsProcessor::MatchTargetObject(
     if (!bFoundInSceneGraph && !SemanticTarget.IsEmpty())
     {
         UE_LOG(LogTemp, Log, TEXT("[MatchTargetObject] %s: Falling back to UE5 scene query"),
-            *Agent->AgentName);
+            *Agent->AgentLabel);
         
         // 构建 UE5 查询标签
         FMASemanticLabel UE5Label;
@@ -141,14 +251,14 @@ bool FMASkillParamsProcessor::MatchTargetObject(
             OutFoundLocation = Result.Location;
             
             UE_LOG(LogTemp, Log, TEXT("[MatchTargetObject] %s: Found target '%s' via UE5 query at (%.0f, %.0f, %.0f)"),
-                *Agent->AgentName, *Result.Name, Result.Location.X, Result.Location.Y, Result.Location.Z);
+                *Agent->AgentLabel, *Result.Name, Result.Location.X, Result.Location.Y, Result.Location.Z);
             
             return true;
         }
     }
     
     UE_LOG(LogTemp, Warning, TEXT("[MatchTargetObject] %s: Target not found"),
-        *Agent->AgentName);
+        *Agent->AgentLabel);
     return false;
 }
 
@@ -177,16 +287,80 @@ void FMASkillParamsProcessor::ParseSemanticTargetFromJson(const FString& JsonStr
     // 解析 type 字段
     JsonObject->TryGetStringField(TEXT("type"), OutTarget.Type);
     
-    // 解析 features 字段 (键值对)
-    const TSharedPtr<FJsonObject>* FeaturesObject;
-    if (JsonObject->TryGetObjectField(TEXT("features"), FeaturesObject))
+    //=========================================================================
+    // 特殊处理: event 类型转换
+    // 输入格式: {"class": "event", "event_type": "illegal_parking", "conf_ge": 0.85, "persist_ge_s": 2.0}
+    // 转换为:   {"class": "prop", "type": "vehicle", "features": {"illegal_parking": "true"}, ...}
+    //=========================================================================
+    if (OutTarget.Class.Equals(TEXT("event"), ESearchCase::IgnoreCase))
     {
-        for (const auto& Pair : (*FeaturesObject)->Values)
+        FString EventType;
+        if (JsonObject->TryGetStringField(TEXT("event_type"), EventType))
         {
-            FString FeatureValue;
-            if (Pair.Value->TryGetString(FeatureValue))
+            // 转换 class 和 type
+            OutTarget.Class = TEXT("prop");
+            OutTarget.Type = TEXT("vehicle");
+            
+            // 将 event_type 作为 feature，值为 "true"
+            OutTarget.Features.Add(EventType, TEXT("true"));
+            
+            UE_LOG(LogTemp, Log, TEXT("[ParseSemanticTargetFromJson] Converted event type '%s' to prop/vehicle with feature"), *EventType);
+        }
+    }
+    else
+    {
+        // 标准格式: 解析 features 字段 (键值对)
+        const TSharedPtr<FJsonObject>* FeaturesObject;
+        if (JsonObject->TryGetObjectField(TEXT("features"), FeaturesObject))
+        {
+            for (const auto& Pair : (*FeaturesObject)->Values)
             {
-                OutTarget.Features.Add(Pair.Key, FeatureValue);
+                FString FeatureValue;
+                if (Pair.Value->TryGetString(FeatureValue))
+                {
+                    OutTarget.Features.Add(Pair.Key, FeatureValue);
+                }
+                else if (Pair.Value->Type == EJson::Boolean)
+                {
+                    // 支持布尔类型的 feature 值
+                    OutTarget.Features.Add(Pair.Key, Pair.Value->AsBool() ? TEXT("true") : TEXT("false"));
+                }
+                else if (Pair.Value->Type == EJson::Number)
+                {
+                    // 支持数字类型的 feature 值
+                    OutTarget.Features.Add(Pair.Key, FString::Printf(TEXT("%g"), Pair.Value->AsNumber()));
+                }
+            }
+        }
+        
+        // 也支持 "feature" 单数形式（兼容性）
+        const TSharedPtr<FJsonObject>* FeatureObject;
+        if (JsonObject->TryGetObjectField(TEXT("feature"), FeatureObject))
+        {
+            for (const auto& Pair : (*FeatureObject)->Values)
+            {
+                FString FeatureValue;
+                if (Pair.Value->TryGetString(FeatureValue))
+                {
+                    if (!OutTarget.Features.Contains(Pair.Key))
+                    {
+                        OutTarget.Features.Add(Pair.Key, FeatureValue);
+                    }
+                }
+                else if (Pair.Value->Type == EJson::Boolean)
+                {
+                    if (!OutTarget.Features.Contains(Pair.Key))
+                    {
+                        OutTarget.Features.Add(Pair.Key, Pair.Value->AsBool() ? TEXT("true") : TEXT("false"));
+                    }
+                }
+                else if (Pair.Value->Type == EJson::Number)
+                {
+                    if (!OutTarget.Features.Contains(Pair.Key))
+                    {
+                        OutTarget.Features.Add(Pair.Key, FString::Printf(TEXT("%g"), Pair.Value->AsNumber()));
+                    }
+                }
             }
         }
     }
@@ -244,10 +418,18 @@ void FMASkillParamsProcessor::Process(AMACharacter* Agent, EMACommand Command, c
     // 重置反馈上下文
     SkillComp->ResetFeedbackContext();
     
-    // 设置 TaskId
-    if (Cmd && !Cmd->Params.TaskId.IsEmpty())
+    // 设置 TaskId (从 RawParamsJson 提取)
+    if (Cmd && !Cmd->Params.RawParamsJson.IsEmpty())
     {
-        SkillComp->GetFeedbackContextMutable().TaskId = Cmd->Params.TaskId;
+        TSharedPtr<FJsonObject> ParamsJson;
+        if (MAParamsHelper::ParseRawParams(Cmd->Params.RawParamsJson, ParamsJson))
+        {
+            FString TaskId = MAParamsHelper::ExtractTaskId(ParamsJson);
+            if (!TaskId.IsEmpty())
+            {
+                SkillComp->GetFeedbackContextMutable().TaskId = TaskId;
+            }
+        }
     }
     
     // 根据指令类型分发处理
@@ -304,9 +486,23 @@ void FMASkillParamsProcessor::ProcessNavigate(UMASkillComponent* SkillComp, cons
     FMASkillParams& Params = SkillComp->GetSkillParamsMutable();
     FMAFeedbackContext& Context = SkillComp->GetFeedbackContextMutable();
     
-    if (!Cmd->Params.bHasDestPosition) return;
+    //=========================================================================
+    // Step 1: 从 RawParamsJson 解析 dest 坐标
+    //=========================================================================
+    TSharedPtr<FJsonObject> ParamsJson;
+    if (!MAParamsHelper::ParseRawParams(Cmd->Params.RawParamsJson, ParamsJson))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ProcessNavigate] %s: Failed to parse RawParamsJson"), *Agent->AgentLabel);
+        return;
+    }
     
-    FVector TargetLocation = Cmd->Params.DestPosition;
+    FVector TargetLocation;
+    if (!MAParamsHelper::ExtractDestPosition(ParamsJson, TargetLocation))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ProcessNavigate] %s: No dest position in params"), *Agent->AgentLabel);
+        return;
+    }
+    
     bool bIsFlying = (Agent->AgentType == EMAAgentType::UAV || Agent->AgentType == EMAAgentType::FixedWingUAV);
     bool bIsUGV = (Agent->AgentType == EMAAgentType::UGV);
     
@@ -331,25 +527,25 @@ void FMASkillParamsProcessor::ProcessNavigate(UMASkillComponent* SkillComp, cons
         return 0.f;
     };
     
-    //=========================================================================
-    // UGV 特殊处理：只调整 Z 分量，保持 X、Y 不变
-    //=========================================================================
-    if (bIsUGV)
-    {
-        // 只调整 Z 到地面高度
-        float GroundZ = GetGroundHeightAt(TargetLocation.X, TargetLocation.Y);
-        TargetLocation.Z = GroundZ;
+    // //=========================================================================
+    // // UGV 特殊处理：只调整 Z 分量，保持 X、Y 不变
+    // //=========================================================================
+    // if (bIsUGV)
+    // {
+    //     // 只调整 Z 到地面高度
+    //     float GroundZ = GetGroundHeightAt(TargetLocation.X, TargetLocation.Y);
+    //     TargetLocation.Z = GroundZ;
         
-        UE_LOG(LogTemp, Log, TEXT("[ProcessNavigate] %s (UGV): Target (%.0f, %.0f, %.0f) - only Z adjusted to ground"),
-            *Agent->AgentName, TargetLocation.X, TargetLocation.Y, TargetLocation.Z);
+    //     UE_LOG(LogTemp, Log, TEXT("[ProcessNavigate] %s (UGV): Target (%.0f, %.0f, %.0f) - only Z adjusted to ground"),
+    //         *Agent->AgentLabel, TargetLocation.X, TargetLocation.Y, TargetLocation.Z);
         
-        Params.TargetLocation = TargetLocation;
-        return;
-    }
+    //     Params.TargetLocation = TargetLocation;
+    //     return;
+    // }
     
     // 安全距离常量
     const float SafetyMargin = 500.f;      // 飞行器与障碍物的安全距离
-    const float GroundOffset = 200.f;      // 地面机器人与障碍物边缘的距离
+    const float GroundOffset = 500.f;      // 地面机器人与障碍物边缘的距离
     
     //=========================================================================
     // 辅助 Lambda: 找到多边形边缘上距离点最近的位置
@@ -427,7 +623,7 @@ void FMASkillParamsProcessor::ProcessNavigate(UMASkillComponent* SkillComp, cons
         if (SceneGraphManager->IsPointInsideBuilding(TargetLocation))
         {
             UE_LOG(LogTemp, Log, TEXT("[ProcessNavigate] %s: Target point (%.0f, %.0f, %.0f) is inside a building, adjusting..."),
-                *Agent->AgentName, TargetLocation.X, TargetLocation.Y, TargetLocation.Z);
+                *Agent->AgentLabel, TargetLocation.X, TargetLocation.Y, TargetLocation.Z);
             
             TArray<FMASceneGraphNode> AllNodes = SceneGraphManager->GetAllNodes();
             TArray<FMASceneGraphNode> Buildings = FMASceneGraphQuery::GetAllBuildings(AllNodes);
@@ -472,7 +668,7 @@ void FMASkillParamsProcessor::ProcessNavigate(UMASkillComponent* SkillComp, cons
                             TargetLocation.Z = MinSafeAltitude;
                         }
                         UE_LOG(LogTemp, Log, TEXT("[ProcessNavigate] %s: Flying robot - adjusted Z to %.0f above building %s"),
-                            *Agent->AgentName, TargetLocation.Z, *Building.Label);
+                            *Agent->AgentLabel, TargetLocation.Z, *Building.Label);
                     }
                     else
                     {
@@ -485,7 +681,7 @@ void FMASkillParamsProcessor::ProcessNavigate(UMASkillComponent* SkillComp, cons
                         bAdjustedXY = true;
                         
                         UE_LOG(LogTemp, Log, TEXT("[ProcessNavigate] %s: Ground robot - adjusted XY to (%.0f, %.0f) outside building %s"),
-                            *Agent->AgentName, TargetLocation.X, TargetLocation.Y, *Building.Label);
+                            *Agent->AgentLabel, TargetLocation.X, TargetLocation.Y, *Building.Label);
                     }
                     break;
                 }
@@ -512,7 +708,7 @@ void FMASkillParamsProcessor::ProcessNavigate(UMASkillComponent* SkillComp, cons
     //             HitActor->GetActorBounds(false, Origin, BoxExtent);
                 
     //             UE_LOG(LogTemp, Verbose, TEXT("[ProcessNavigate] %s: Ray hit actor '%s', Origin=(%.1f, %.1f, %.1f), BoxExtent=(%.1f, %.1f, %.1f)"),
-    //                 *Agent->AgentName, *HitActor->GetName(), Origin.X, Origin.Y, Origin.Z, BoxExtent.X, BoxExtent.Y, BoxExtent.Z);
+    //                 *Agent->AgentLabel, *HitActor->GetName(), Origin.X, Origin.Y, Origin.Z, BoxExtent.X, BoxExtent.Y, BoxExtent.Z);
                 
     //             // 检查是否是有高度的障碍物（不是地面）
     //             // 使用更严格的判断：障碍物高度应该明显大于地面厚度
@@ -545,7 +741,7 @@ void FMASkillParamsProcessor::ProcessNavigate(UMASkillComponent* SkillComp, cons
     //                         {
     //                             TargetLocation.Z = MinSafeAltitude;
     //                             UE_LOG(LogTemp, Log, TEXT("[ProcessNavigate] %s: Flying robot - adjusted Z to %.0f above obstacle"),
-    //                                 *Agent->AgentName, TargetLocation.Z);
+    //                                 *Agent->AgentLabel, TargetLocation.Z);
     //                         }
     //                     }
     //                     else
@@ -578,7 +774,7 @@ void FMASkillParamsProcessor::ProcessNavigate(UMASkillComponent* SkillComp, cons
                             
     //                         bAdjustedXY = true;
     //                         UE_LOG(LogTemp, Log, TEXT("[ProcessNavigate] %s: Ground robot - adjusted XY to (%.0f, %.0f) outside obstacle"),
-    //                             *Agent->AgentName, TargetLocation.X, TargetLocation.Y);
+    //                             *Agent->AgentLabel, TargetLocation.X, TargetLocation.Y);
     //                     }
     //                 }
     //             }
@@ -594,7 +790,7 @@ void FMASkillParamsProcessor::ProcessNavigate(UMASkillComponent* SkillComp, cons
     //     float GroundZ = GetGroundHeightAt(TargetLocation.X, TargetLocation.Y);
     //     TargetLocation.Z = GroundZ;
     //     UE_LOG(LogTemp, Verbose, TEXT("[ProcessNavigate] %s: Ground robot - adjusted Z to ground height %.0f"),
-    //         *Agent->AgentName, TargetLocation.Z);
+    //         *Agent->AgentLabel, TargetLocation.Z);
     // }
     
     //=========================================================================
@@ -610,60 +806,54 @@ void FMASkillParamsProcessor::ProcessNavigate(UMASkillComponent* SkillComp, cons
             Context.NearbyLandmarkDistance = FVector::Dist(TargetLocation, NearestLandmark.Center);
             
             UE_LOG(LogTemp, Verbose, TEXT("[ProcessNavigate] %s: Nearest landmark to target: %s (%s) at distance %.0f"),
-                *Agent->AgentName, *NearestLandmark.Label, *NearestLandmark.Type, Context.NearbyLandmarkDistance);
+                *Agent->AgentLabel, *NearestLandmark.Label, *NearestLandmark.Type, Context.NearbyLandmarkDistance);
         }
     }
     
     UE_LOG(LogTemp, Log, TEXT("[ProcessNavigate] %s: Final target location (%.0f, %.0f, %.0f)"),
-        *Agent->AgentName, TargetLocation.X, TargetLocation.Y, TargetLocation.Z);
+        *Agent->AgentLabel, TargetLocation.X, TargetLocation.Y, TargetLocation.Z);
     
     Params.TargetLocation = TargetLocation;
 }
 
 void FMASkillParamsProcessor::ProcessSearch(AMACharacter* Agent, UMASkillComponent* SkillComp, const FMAAgentSkillCommand* Cmd)
 {
+    if (!Agent || !SkillComp || !Cmd) return;
+    
     FMASkillParams& Params = SkillComp->GetSkillParamsMutable();
     FMAFeedbackContext& Context = SkillComp->GetFeedbackContextMutable();
     
     //=========================================================================
-    // Step 1: 解析搜索区域边界坐标
+    // Step 1: 从 RawParamsJson 解析参数
     //=========================================================================
-    if (Cmd && Cmd->Params.SearchArea.Num() > 0)
+    TSharedPtr<FJsonObject> ParamsJson;
+    if (!MAParamsHelper::ParseRawParams(Cmd->Params.RawParamsJson, ParamsJson))
     {
-        Params.SearchBoundary.Empty();
-        for (const FVector2D& Point : Cmd->Params.SearchArea)
-        {
-            Params.SearchBoundary.Add(FVector(Point.X, Point.Y, 0.0f));
-        }
-        UE_LOG(LogTemp, Log, TEXT("[ProcessSearch] %s: SearchArea has %d vertices"), 
-            *Agent->AgentName, Params.SearchBoundary.Num());
+        UE_LOG(LogTemp, Warning, TEXT("[ProcessSearch] %s: Failed to parse RawParamsJson"), *Agent->AgentLabel);
+        return;
+    }
+    
+    // 解析搜索区域边界坐标
+    if (MAParamsHelper::ExtractSearchArea(ParamsJson, Params.SearchBoundary))
+    {
+        // 根据区域面积计算自适应扫描宽度
+        Params.SearchScanWidth = FMAGeometryUtils::CalculateAdaptiveScanWidth(Params.SearchBoundary, 200.f, 1600.f);
+        
+        UE_LOG(LogTemp, Log, TEXT("[ProcessSearch] %s: SearchArea has %d vertices, ScanWidth=%.0f"), 
+            *Agent->AgentLabel, Params.SearchBoundary.Num(), Params.SearchScanWidth);
     }
     else
     {
-        UE_LOG(LogTemp, Warning, TEXT("[ProcessSearch] %s: No SearchArea provided"), *Agent->AgentName);
+        UE_LOG(LogTemp, Warning, TEXT("[ProcessSearch] %s: No SearchArea provided"), *Agent->AgentLabel);
     }
     
-    //=========================================================================
-    // Step 2: 解析目标语义标签 (class, type, features) - 使用通用解析函数
-    //=========================================================================
-    if (Cmd && !Cmd->Params.TargetJson.IsEmpty())
+    // 解析目标语义标签
+    FString TargetJsonStr;
+    if (MAParamsHelper::ExtractTargetJson(ParamsJson, TEXT("target"), TargetJsonStr))
     {
-        ParseSemanticTargetFromJson(Cmd->Params.TargetJson, Params.SearchTarget);
-        
+        ParseSemanticTargetFromJson(TargetJsonStr, Params.SearchTarget);
         UE_LOG(LogTemp, Log, TEXT("[ProcessSearch] %s: Parsed target - Class=%s, Type=%s, Features=%d"),
-            *Agent->AgentName, *Params.SearchTarget.Class, *Params.SearchTarget.Type, Params.SearchTarget.Features.Num());
-    }
-    
-    // 从 TargetFeatures 补充特征
-    if (Cmd && Cmd->Params.TargetFeatures.Num() > 0)
-    {
-        for (const auto& Pair : Cmd->Params.TargetFeatures)
-        {
-            if (!Params.SearchTarget.Features.Contains(Pair.Key))
-            {
-                Params.SearchTarget.Features.Add(Pair.Key, Pair.Value);
-            }
-        }
+            *Agent->AgentLabel, *Params.SearchTarget.Class, *Params.SearchTarget.Type, Params.SearchTarget.Features.Num());
     }
     
     // 构建 FMASemanticLabel 用于场景查询
@@ -673,7 +863,7 @@ void FMASkillParamsProcessor::ProcessSearch(AMACharacter* Agent, UMASkillCompone
     SearchLabel.Features = Params.SearchTarget.Features;
     
     //=========================================================================
-    // Step 3: 使用场景图查询匹配对象
+    // Step 2: 使用场景图查询匹配对象
     //=========================================================================
     UWorld* World = Agent->GetWorld();
     if (!World) return;
@@ -691,7 +881,7 @@ void FMASkillParamsProcessor::ProcessSearch(AMACharacter* Agent, UMASkillCompone
             AllNodes, SearchLabel, Params.SearchBoundary);
         
         UE_LOG(LogTemp, Log, TEXT("[ProcessSearch] %s: Scene graph query found %d nodes"),
-            *Agent->AgentName, FoundNodes.Num());
+            *Agent->AgentLabel, FoundNodes.Num());
         
         // 填充反馈上下文
         for (const FMASceneGraphNode& Node : FoundNodes)
@@ -726,7 +916,7 @@ void FMASkillParamsProcessor::ProcessSearch(AMACharacter* Agent, UMASkillCompone
             }
             
             UE_LOG(LogTemp, Verbose, TEXT("[ProcessSearch] %s: Found object '%s' at (%.0f, %.0f, %.0f)"),
-                *Agent->AgentName, *ObjectName, Node.Center.X, Node.Center.Y, Node.Center.Z);
+                *Agent->AgentLabel, *ObjectName, Node.Center.X, Node.Center.Y, Node.Center.Z);
         }
         
         bFoundInSceneGraph = FoundNodes.Num() > 0;
@@ -738,7 +928,7 @@ void FMASkillParamsProcessor::ProcessSearch(AMACharacter* Agent, UMASkillCompone
     if (!bFoundInSceneGraph && Params.SearchBoundary.Num() >= 3)
     {
         UE_LOG(LogTemp, Log, TEXT("[ProcessSearch] %s: Falling back to UE5 scene query"),
-            *Agent->AgentName);
+            *Agent->AgentLabel);
         
         // 转换为 FMAUESceneQuery 使用的 FMASemanticLabel
         FMASemanticLabel UE5Label;
@@ -750,7 +940,7 @@ void FMASkillParamsProcessor::ProcessSearch(AMACharacter* Agent, UMASkillCompone
             World, UE5Label, Params.SearchBoundary);
         
         UE_LOG(LogTemp, Log, TEXT("[ProcessSearch] %s: UE5 scene query found %d objects"),
-            *Agent->AgentName, Results.Num());
+            *Agent->AgentLabel, Results.Num());
         
         for (const FMAUESceneQueryResult& Result : Results)
         {
@@ -773,252 +963,40 @@ void FMASkillParamsProcessor::ProcessSearch(AMACharacter* Agent, UMASkillCompone
     }
     
     UE_LOG(LogTemp, Log, TEXT("[ProcessSearch] %s: Total found %d objects"),
-        *Agent->AgentName, Context.FoundObjects.Num());
-}
-
-void FMASkillParamsProcessor::ProcessFollow(UMASkillComponent* SkillComp, const FMAAgentSkillCommand* Cmd)
-{
-    if (!SkillComp) return;
-    
-    AMACharacter* Agent = Cast<AMACharacter>(SkillComp->GetOwner());
-    if (!Agent || !Agent->GetWorld()) return;
-    
-    FMASkillParams& Params = SkillComp->GetSkillParamsMutable();
-    FMAFeedbackContext& Context = SkillComp->GetFeedbackContextMutable();
-    
-    //=========================================================================
-    // Step 1: 解析目标参数 - 使用通用解析函数
-    //=========================================================================
-    FString ObjectId;
-    FMASemanticTarget Target;
-    
-    if (Cmd)
-    {
-        // 从 TargetJson 解析语义标签
-        if (!Cmd->Params.TargetJson.IsEmpty())
-        {
-            ParseSemanticTargetFromJson(Cmd->Params.TargetJson, Target);
-        }
-        // 兼容旧格式：从 TargetEntity 或 TargetToken 获取名称
-        else if (!Cmd->Params.TargetEntity.IsEmpty())
-        {
-            // 构建简单的语义目标
-            Target.Type = Cmd->Params.TargetEntity;
-            ObjectId = Cmd->Params.TargetEntity;  // 尝试作为 ID 使用
-        }
-        else if (!Cmd->Params.TargetToken.IsEmpty())
-        {
-            Target.Type = Cmd->Params.TargetToken;
-            ObjectId = Cmd->Params.TargetToken;  // 尝试作为 ID 使用
-        }
-    }
-    
-    //=========================================================================
-    // Step 2: 匹配目标对象（使用通用匹配函数）
-    //=========================================================================
-    FString FoundId, FoundName;
-    FVector FoundLocation;
-    bool bFound = MatchTargetObject(Agent, ObjectId, Target, 1000.f, FoundId, FoundName, FoundLocation);
-    
-    //=========================================================================
-    // Step 3: 保存到参数和反馈上下文
-    //=========================================================================
-    Context.bFollowTargetFound = bFound;
-    Context.FollowTargetRobotName = FoundName;
-    Context.TargetName = FoundName;
-    Context.TargetLocation = FoundLocation;
-    
-    if (bFound)
-    {
-        Context.FollowTargetDistance = FVector::Dist(Agent->GetActorLocation(), FoundLocation);
-        
-        // 尝试获取 Actor 引用（用于跟随）
-        // 首先尝试查找机器人
-        AMACharacter* TargetRobot = FMAUESceneQuery::FindRobotByName(Agent->GetWorld(), FoundName);
-        
-        // 如果不是机器人，尝试通过名称查找其他 Actor
-        if (!TargetRobot)
-        {
-            TArray<AActor*> AllActors;
-            UGameplayStatics::GetAllActorsOfClass(Agent->GetWorld(), AActor::StaticClass(), AllActors);
-            for (AActor* Actor : AllActors)
-            {
-                if (Actor && Actor->GetName().Equals(FoundName, ESearchCase::IgnoreCase))
-                {
-                    // 尝试转换为 AMACharacter
-                    TargetRobot = Cast<AMACharacter>(Actor);
-                    if (TargetRobot)
-                    {
-                        break;
-                    }
-                }
-            }
-        }
-        
-        if (TargetRobot)
-        {
-            Params.FollowTarget = TargetRobot;
-            UE_LOG(LogTemp, Log, TEXT("[ProcessFollow] %s: Found target '%s' at distance %.0f"),
-                *Agent->AgentName, *FoundName, Context.FollowTargetDistance);
-        }
-        else
-        {
-            UE_LOG(LogTemp, Warning, TEXT("[ProcessFollow] %s: Target '%s' found in scene graph but no AMACharacter reference available"),
-                *Agent->AgentName, *FoundName);
-        }
-    }
-    else
-    {
-        Context.FollowErrorReason = FString::Printf(TEXT("Target not found"));
-        UE_LOG(LogTemp, Warning, TEXT("[ProcessFollow] %s: Target not found"),
-            *Agent->AgentName);
-    }
-}
-
-void FMASkillParamsProcessor::ProcessCharge(UMASkillComponent* SkillComp, const FMAAgentSkillCommand* Cmd)
-{
-    if (!SkillComp) return;
-    
-    AMACharacter* Agent = Cast<AMACharacter>(SkillComp->GetOwner());
-    if (!Agent || !Agent->GetWorld()) return;
-    
-    FMASkillParams& Params = SkillComp->GetSkillParamsMutable();
-    FMAFeedbackContext& Context = SkillComp->GetFeedbackContextMutable();
-    
-    // 记录充电前的能量
-    Context.EnergyBefore = SkillComp->GetEnergyPercent();
-    
-    //=========================================================================
-    // Step 1: 使用场景图查询查找最近的充电站
-    //=========================================================================
-    UWorld* World = Agent->GetWorld();
-    UGameInstance* GameInstance = World->GetGameInstance();
-    UMASceneGraphManager* SceneGraphManager = GameInstance ? GameInstance->GetSubsystem<UMASceneGraphManager>() : nullptr;
-    
-    bool bFoundInSceneGraph = false;
-    
-    if (SceneGraphManager)
-    {
-        // 构建充电站语义标签
-        FMASemanticLabel ChargingStationLabel = FMASemanticLabel::MakeChargingStation();
-        
-        // 获取所有节点并查找最近的充电站
-        TArray<FMASceneGraphNode> AllNodes = SceneGraphManager->GetAllNodes();
-        FMASceneGraphNode NearestStation = FMASceneGraphQuery::FindNearestNode(
-            AllNodes, ChargingStationLabel, Agent->GetActorLocation());
-        
-        if (NearestStation.IsValid() && NearestStation.IsChargingStation())
-        {
-            // 找到充电站，缓存位置和ID
-            Params.ChargingStationLocation = NearestStation.Center;
-            Params.ChargingStationId = NearestStation.Id;
-            Params.bChargingStationFound = true;
-            
-            // 同步到反馈上下文
-            Context.ChargingStationId = NearestStation.Label.IsEmpty() ? NearestStation.Id : NearestStation.Label;
-            Context.ChargingStationLocation = NearestStation.Center;
-            Context.bChargingStationFound = true;
-            
-            float Distance = FVector::Dist(Agent->GetActorLocation(), NearestStation.Center);
-            
-            UE_LOG(LogTemp, Log, TEXT("[ProcessCharge] %s: Found charging station '%s' in scene graph at (%.0f, %.0f, %.0f), distance %.0f"),
-                *Agent->AgentName, *Context.ChargingStationId, 
-                NearestStation.Center.X, NearestStation.Center.Y, NearestStation.Center.Z, Distance);
-            
-            bFoundInSceneGraph = true;
-        }
-        else
-        {
-            UE_LOG(LogTemp, Warning, TEXT("[ProcessCharge] %s: No charging station found in scene graph"),
-                *Agent->AgentName);
-        }
-    }
-    
-    //=========================================================================
-    // Step 2: 回退到 UE5 场景查询 (如果场景图未找到)
-    //=========================================================================
-    if (!bFoundInSceneGraph)
-    {
-        UE_LOG(LogTemp, Log, TEXT("[ProcessCharge] %s: Falling back to UE5 scene query for charging station"),
-            *Agent->AgentName);
-        
-        // 使用 UE5 场景查询查找充电站 Actor
-        // 查找所有 AMAChargingStation 类型的 Actor
-        TArray<AActor*> FoundActors;
-        UGameplayStatics::GetAllActorsOfClass(World, AMAChargingStation::StaticClass(), FoundActors);
-        
-        if (FoundActors.Num() > 0)
-        {
-            // 找到最近的充电站
-            AActor* NearestActor = nullptr;
-            float MinDistanceSq = TNumericLimits<float>::Max();
-            
-            for (AActor* Actor : FoundActors)
-            {
-                float DistanceSq = FVector::DistSquared(Agent->GetActorLocation(), Actor->GetActorLocation());
-                if (DistanceSq < MinDistanceSq)
-                {
-                    MinDistanceSq = DistanceSq;
-                    NearestActor = Actor;
-                }
-            }
-            
-            if (NearestActor)
-            {
-                Params.ChargingStationLocation = NearestActor->GetActorLocation();
-                Params.ChargingStationId = NearestActor->GetName();
-                Params.bChargingStationFound = true;
-                
-                Context.ChargingStationId = NearestActor->GetName();
-                Context.ChargingStationLocation = NearestActor->GetActorLocation();
-                Context.bChargingStationFound = true;
-                
-                UE_LOG(LogTemp, Log, TEXT("[ProcessCharge] %s: Found charging station '%s' via UE5 query at (%.0f, %.0f, %.0f)"),
-                    *Agent->AgentName, *Context.ChargingStationId,
-                    Params.ChargingStationLocation.X, Params.ChargingStationLocation.Y, Params.ChargingStationLocation.Z);
-            }
-        }
-    }
-    
-    //=========================================================================
-    // Step 3: 处理未找到充电站的情况
-    //=========================================================================
-    if (!Params.bChargingStationFound)
-    {
-        Context.bChargingStationFound = false;
-        Context.ChargeErrorReason = TEXT("no charging station available");
-        
-        UE_LOG(LogTemp, Warning, TEXT("[ProcessCharge] %s: %s"),
-            *Agent->AgentName, *Context.ChargeErrorReason);
-    }
+        *Agent->AgentLabel, Context.FoundObjects.Num());
 }
 
 void FMASkillParamsProcessor::ProcessPlace(AMACharacter* Agent, UMASkillComponent* SkillComp, const FMAAgentSkillCommand* Cmd)
 {
+    if (!Agent || !SkillComp || !Cmd) return;
+    
     FMASkillParams& Params = SkillComp->GetSkillParamsMutable();
     FMAFeedbackContext& Context = SkillComp->GetFeedbackContextMutable();
     FMASearchResults& SearchResults = SkillComp->GetSearchResultsMutable();
     SearchResults.Reset();
     
     //=========================================================================
-    // Step 1: 解析 target/surface_target 语义标签 JSON 到 FMASemanticTarget
+    // Step 1: 从 RawParamsJson 解析 target/surface_target 语义标签
     //=========================================================================
-    if (Cmd)
+    TSharedPtr<FJsonObject> ParamsJson;
+    if (MAParamsHelper::ParseRawParams(Cmd->Params.RawParamsJson, ParamsJson))
     {
         // 解析 target JSON
-        if (!Cmd->Params.Object1Json.IsEmpty())
+        FString TargetJsonStr;
+        if (MAParamsHelper::ExtractTargetJson(ParamsJson, TEXT("target"), TargetJsonStr))
         {
-            ParseSemanticTargetFromJson(Cmd->Params.Object1Json, Params.PlaceObject1);
+            ParseSemanticTargetFromJson(TargetJsonStr, Params.PlaceObject1);
             UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Parsed target - Class=%s, Type=%s"), 
-                *Agent->AgentName, *Params.PlaceObject1.Class, *Params.PlaceObject1.Type);
+                *Agent->AgentLabel, *Params.PlaceObject1.Class, *Params.PlaceObject1.Type);
         }
         
         // 解析 surface_target JSON
-        if (!Cmd->Params.Object2Json.IsEmpty())
+        FString SurfaceTargetJsonStr;
+        if (MAParamsHelper::ExtractTargetJson(ParamsJson, TEXT("surface_target"), SurfaceTargetJsonStr))
         {
-            ParseSemanticTargetFromJson(Cmd->Params.Object2Json, Params.PlaceObject2);
+            ParseSemanticTargetFromJson(SurfaceTargetJsonStr, Params.PlaceObject2);
             UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Parsed surface_target - Class=%s, Type=%s"), 
-                *Agent->AgentName, *Params.PlaceObject2.Class, *Params.PlaceObject2.Type);
+                *Agent->AgentLabel, *Params.PlaceObject2.Class, *Params.PlaceObject2.Type);
         }
     }
     
@@ -1029,7 +1007,7 @@ void FMASkillParamsProcessor::ProcessPlace(AMACharacter* Agent, UMASkillComponen
     // - StackOnObject: surface_target 是其他物体
     //=========================================================================
     EPlaceMode PlaceMode = DeterminePlaceMode(Params.PlaceObject2);
-    UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: PlaceMode=%d"), *Agent->AgentName, (int32)PlaceMode);
+    UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: PlaceMode=%d"), *Agent->AgentLabel, (int32)PlaceMode);
     
     //=========================================================================
     // Step 3: 获取场景图管理器
@@ -1054,11 +1032,11 @@ void FMASkillParamsProcessor::ProcessPlace(AMACharacter* Agent, UMASkillComponen
             if (Node.IsPickupItem()) PickupItemCount++;
         }
         UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Scene graph has %d total nodes (%d robots, %d pickup items)"),
-            *Agent->AgentName, AllNodes.Num(), RobotCount, PickupItemCount);
+            *Agent->AgentLabel, AllNodes.Num(), RobotCount, PickupItemCount);
     }
     else
     {
-        UE_LOG(LogTemp, Warning, TEXT("[ProcessPlace] %s: SceneGraphManager is null!"), *Agent->AgentName);
+        UE_LOG(LogTemp, Warning, TEXT("[ProcessPlace] %s: SceneGraphManager is null!"), *Agent->AgentLabel);
     }
     
     //=========================================================================
@@ -1072,7 +1050,7 @@ void FMASkillParamsProcessor::ProcessPlace(AMACharacter* Agent, UMASkillComponen
     
     if (Label1.IsEmpty())
     {
-        UE_LOG(LogTemp, Warning, TEXT("[ProcessPlace] %s: target semantic label is empty"), *Agent->AgentName);
+        UE_LOG(LogTemp, Warning, TEXT("[ProcessPlace] %s: target semantic label is empty"), *Agent->AgentLabel);
     }
     else
     {
@@ -1081,7 +1059,7 @@ void FMASkillParamsProcessor::ProcessPlace(AMACharacter* Agent, UMASkillComponen
         // 首先尝试使用场景图查询
         if (SceneGraphManager && AllNodes.Num() > 0)
         {
-            FMASceneGraphNode Object1Node = FMASceneGraphQuery::FindNearestNode(AllNodes, Label1, Agent->GetActorLocation());
+            FMASceneGraphNode Object1Node = FMASceneGraphQuery::FindNodeByLabel(AllNodes, Label1);
             
             if (Object1Node.IsValid() && Object1Node.IsPickupItem())
             {
@@ -1092,22 +1070,22 @@ void FMASkillParamsProcessor::ProcessPlace(AMACharacter* Agent, UMASkillComponen
                 Context.ObjectAttributes.Add(TEXT("object1_node_id"), Object1Node.Id);
                 
                 UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Found target '%s' in scene graph at (%.0f, %.0f, %.0f)"), 
-                    *Agent->AgentName, *Context.PlacedObjectName, 
+                    *Agent->AgentLabel, *Context.PlacedObjectName, 
                     Object1Node.Center.X, Object1Node.Center.Y, Object1Node.Center.Z);
                 
-                // 关键修复：使用 UE5 场景查询获取实际的 Actor 引用
+                // 使用 UE5 场景查询获取实际的 Actor 引用
                 // 场景图只提供位置信息，技能执行需要 Actor 引用
-                FMAUESceneQueryResult ActorResult = FMAUESceneQuery::FindNearestObject(World, Label1, Agent->GetActorLocation());
+                FMAUESceneQueryResult ActorResult = FMAUESceneQuery::FindObjectByLabel(World, Label1);
                 if (ActorResult.bFound && ActorResult.Actor)
                 {
                     SearchResults.Object1Actor = ActorResult.Actor;
                     UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Resolved Actor for target '%s'"), 
-                        *Agent->AgentName, *Context.PlacedObjectName);
+                        *Agent->AgentLabel, *Context.PlacedObjectName);
                 }
                 else
                 {
                     UE_LOG(LogTemp, Warning, TEXT("[ProcessPlace] %s: Scene graph found target but UE5 Actor not found!"), 
-                        *Agent->AgentName);
+                        *Agent->AgentLabel);
                 }
                 
                 bFoundInSceneGraph = true;
@@ -1117,20 +1095,20 @@ void FMASkillParamsProcessor::ProcessPlace(AMACharacter* Agent, UMASkillComponen
         // 回退到 UE5 场景查询
         if (!bFoundInSceneGraph)
         {
-            UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Falling back to UE5 scene query for target"), *Agent->AgentName);
+            UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Falling back to UE5 scene query for target"), *Agent->AgentLabel);
             
-            FMAUESceneQueryResult Result1 = FMAUESceneQuery::FindNearestObject(World, Label1, Agent->GetActorLocation());
+            FMAUESceneQueryResult Result1 = FMAUESceneQuery::FindObjectByLabel(World, Label1);
             if (Result1.bFound)
             {
                 Context.PlacedObjectName = Result1.Name;
                 SearchResults.Object1Actor = Result1.Actor;
                 SearchResults.Object1Location = Result1.Location;
                 UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Found target '%s' via UE5 query at (%.0f, %.0f, %.0f)"), 
-                    *Agent->AgentName, *Result1.Name, Result1.Location.X, Result1.Location.Y, Result1.Location.Z);
+                    *Agent->AgentLabel, *Result1.Name, Result1.Location.X, Result1.Location.Y, Result1.Location.Z);
             }
             else
             {
-                UE_LOG(LogTemp, Warning, TEXT("[ProcessPlace] %s: target not found in scene"), *Agent->AgentName);
+                UE_LOG(LogTemp, Warning, TEXT("[ProcessPlace] %s: target not found in scene"), *Agent->AgentLabel);
             }
         }
     }
@@ -1152,21 +1130,21 @@ void FMASkillParamsProcessor::ProcessPlace(AMACharacter* Agent, UMASkillComponen
             Context.PlaceTargetName = TEXT("ground");
             SearchResults.Object2Location = Agent->GetActorLocation();
             UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Target is ground at (%.0f, %.0f, %.0f)"), 
-                *Agent->AgentName, SearchResults.Object2Location.X, SearchResults.Object2Location.Y, SearchResults.Object2Location.Z);
+                *Agent->AgentLabel, SearchResults.Object2Location.X, SearchResults.Object2Location.Y, SearchResults.Object2Location.Z);
             break;
         }
         
         case EPlaceMode::LoadToUGV:
         {
             // 装货到 UGV：根据 label 特征查找 UGV
-            FString RobotName = Label2.Features.Contains(TEXT("label")) ? Label2.Features[TEXT("label")] : TEXT("");
+            FString TargetRobotLabel = Label2.Features.Contains(TEXT("label")) ? Label2.Features[TEXT("label")] : TEXT("");
             bool bFoundInSceneGraph = false;
             
-            if (SceneGraphManager && AllNodes.Num() > 0 && !RobotName.IsEmpty())
+            if (SceneGraphManager && AllNodes.Num() > 0 && !TargetRobotLabel.IsEmpty())
             {
                 // 使用场景图查询机器人
-                FMASemanticLabel RobotLabel = FMASemanticLabel::MakeRobot(RobotName);
-                FMASceneGraphNode RobotNode = FMASceneGraphQuery::FindNodeByLabel(AllNodes, RobotLabel);
+                FMASemanticLabel RobotSemanticLabel = FMASemanticLabel::MakeRobot(TargetRobotLabel);
+                FMASceneGraphNode RobotNode = FMASceneGraphQuery::FindNodeByLabel(AllNodes, RobotSemanticLabel);
                 
                 if (RobotNode.IsValid() && RobotNode.IsRobot())
                 {
@@ -1177,21 +1155,21 @@ void FMASkillParamsProcessor::ProcessPlace(AMACharacter* Agent, UMASkillComponen
                     Context.ObjectAttributes.Add(TEXT("object2_node_id"), RobotNode.Id);
                     
                     UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Found UGV '%s' in scene graph at (%.0f, %.0f, %.0f)"), 
-                        *Agent->AgentName, *Context.PlaceTargetName, 
+                        *Agent->AgentLabel, *Context.PlaceTargetName, 
                         RobotNode.Center.X, RobotNode.Center.Y, RobotNode.Center.Z);
                     
-                    // 关键修复：使用 UE5 场景查询获取实际的 Actor 引用
-                    AMACharacter* Robot = FMAUESceneQuery::FindRobotByName(World, RobotName);
+                    // 使用 UE5 场景查询获取实际的 Actor 引用
+                    AMACharacter* Robot = FMAUESceneQuery::FindRobotByLabel(World, TargetRobotLabel);
                     if (Robot)
                     {
                         SearchResults.Object2Actor = Robot;
                         UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Resolved Actor for UGV '%s'"), 
-                            *Agent->AgentName, *RobotName);
+                            *Agent->AgentLabel, *TargetRobotLabel);
                     }
                     else
                     {
                         UE_LOG(LogTemp, Warning, TEXT("[ProcessPlace] %s: Scene graph found UGV but UE5 Actor not found!"), 
-                            *Agent->AgentName);
+                            *Agent->AgentLabel);
                     }
                     
                     bFoundInSceneGraph = true;
@@ -1202,21 +1180,21 @@ void FMASkillParamsProcessor::ProcessPlace(AMACharacter* Agent, UMASkillComponen
             if (!bFoundInSceneGraph)
             {
                 UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Falling back to UE5 scene query for UGV '%s'"), 
-                    *Agent->AgentName, *RobotName);
+                    *Agent->AgentLabel, *TargetRobotLabel);
                 
-                AMACharacter* Robot = FMAUESceneQuery::FindRobotByName(World, RobotName);
+                AMACharacter* Robot = FMAUESceneQuery::FindRobotByLabel(World, TargetRobotLabel);
                 if (Robot)
                 {
-                    Context.PlaceTargetName = Robot->AgentName;
+                    Context.PlaceTargetName = Robot->AgentLabel;
                     SearchResults.Object2Actor = Robot;
                     SearchResults.Object2Location = Robot->GetActorLocation();
                     UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Found UGV '%s' via UE5 query at (%.0f, %.0f, %.0f)"), 
-                        *Agent->AgentName, *Robot->AgentName, 
+                        *Agent->AgentLabel, *Robot->AgentLabel, 
                         SearchResults.Object2Location.X, SearchResults.Object2Location.Y, SearchResults.Object2Location.Z);
                 }
                 else
                 {
-                    UE_LOG(LogTemp, Warning, TEXT("[ProcessPlace] %s: UGV '%s' not found"), *Agent->AgentName, *RobotName);
+                    UE_LOG(LogTemp, Warning, TEXT("[ProcessPlace] %s: UGV '%s' not found"), *Agent->AgentLabel, *TargetRobotLabel);
                 }
             }
             break;
@@ -1224,12 +1202,12 @@ void FMASkillParamsProcessor::ProcessPlace(AMACharacter* Agent, UMASkillComponen
         
         case EPlaceMode::StackOnObject:
         {
-            // 堆叠到另一个物体：查找最近的匹配物体
+            // 堆叠到另一个物体：查找匹配物体
             bool bFoundInSceneGraph = false;
             
             if (SceneGraphManager && AllNodes.Num() > 0)
             {
-                FMASceneGraphNode Object2Node = FMASceneGraphQuery::FindNearestNode(AllNodes, Label2, Agent->GetActorLocation());
+                FMASceneGraphNode Object2Node = FMASceneGraphQuery::FindNodeByLabel(AllNodes, Label2);
                 
                 if (Object2Node.IsValid() && Object2Node.IsPickupItem())
                 {
@@ -1240,21 +1218,21 @@ void FMASkillParamsProcessor::ProcessPlace(AMACharacter* Agent, UMASkillComponen
                     Context.ObjectAttributes.Add(TEXT("object2_node_id"), Object2Node.Id);
                     
                     UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Found surface_target '%s' in scene graph at (%.0f, %.0f, %.0f)"), 
-                        *Agent->AgentName, *Context.PlaceTargetName, 
+                        *Agent->AgentLabel, *Context.PlaceTargetName, 
                         Object2Node.Center.X, Object2Node.Center.Y, Object2Node.Center.Z);
                     
-                    // 关键修复：使用 UE5 场景查询获取实际的 Actor 引用
-                    FMAUESceneQueryResult ActorResult = FMAUESceneQuery::FindNearestObject(World, Label2, Agent->GetActorLocation());
+                    // 使用 UE5 场景查询获取实际的 Actor 引用
+                    FMAUESceneQueryResult ActorResult = FMAUESceneQuery::FindObjectByLabel(World, Label2);
                     if (ActorResult.bFound && ActorResult.Actor)
                     {
                         SearchResults.Object2Actor = ActorResult.Actor;
                         UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Resolved Actor for surface_target '%s'"), 
-                            *Agent->AgentName, *Context.PlaceTargetName);
+                            *Agent->AgentLabel, *Context.PlaceTargetName);
                     }
                     else
                     {
                         UE_LOG(LogTemp, Warning, TEXT("[ProcessPlace] %s: Scene graph found surface_target but UE5 Actor not found!"), 
-                            *Agent->AgentName);
+                            *Agent->AgentLabel);
                     }
                     
                     bFoundInSceneGraph = true;
@@ -1264,20 +1242,20 @@ void FMASkillParamsProcessor::ProcessPlace(AMACharacter* Agent, UMASkillComponen
             // 回退到 UE5 场景查询
             if (!bFoundInSceneGraph)
             {
-                UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Falling back to UE5 scene query for surface_target"), *Agent->AgentName);
+                UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Falling back to UE5 scene query for surface_target"), *Agent->AgentLabel);
                 
-                FMAUESceneQueryResult Result2 = FMAUESceneQuery::FindNearestObject(World, Label2, Agent->GetActorLocation());
+                FMAUESceneQueryResult Result2 = FMAUESceneQuery::FindObjectByLabel(World, Label2);
                 if (Result2.bFound)
                 {
                     Context.PlaceTargetName = Result2.Name;
                     SearchResults.Object2Actor = Result2.Actor;
                     SearchResults.Object2Location = Result2.Location;
                     UE_LOG(LogTemp, Log, TEXT("[ProcessPlace] %s: Found surface_target '%s' via UE5 query at (%.0f, %.0f, %.0f)"), 
-                        *Agent->AgentName, *Result2.Name, Result2.Location.X, Result2.Location.Y, Result2.Location.Z);
+                        *Agent->AgentLabel, *Result2.Name, Result2.Location.X, Result2.Location.Y, Result2.Location.Z);
                 }
                 else
                 {
-                    UE_LOG(LogTemp, Warning, TEXT("[ProcessPlace] %s: surface_target not found in scene"), *Agent->AgentName);
+                    UE_LOG(LogTemp, Warning, TEXT("[ProcessPlace] %s: surface_target not found in scene"), *Agent->AgentLabel);
                 }
             }
             break;
@@ -1298,10 +1276,25 @@ void FMASkillParamsProcessor::ProcessTakeOff(UMASkillComponent* SkillComp, const
     // 使用 SkillParams 中配置的默认起飞高度（默认 2200cm = 22m）
     float RequestedHeight = Params.TakeOffHeight;
     
-    // 如果有传入参数，覆盖默认值
-    if (Cmd && Cmd->Params.bHasDestPosition && Cmd->Params.DestPosition.Z > 0.f)
+    // 从 RawParamsJson 解析高度参数
+    if (Cmd)
     {
-        RequestedHeight = Cmd->Params.DestPosition.Z;
+        TSharedPtr<FJsonObject> ParamsJson;
+        if (MAParamsHelper::ParseRawParams(Cmd->Params.RawParamsJson, ParamsJson))
+        {
+            FVector DestPosition;
+            if (MAParamsHelper::ExtractDestPosition(ParamsJson, DestPosition) && DestPosition.Z > 0.f)
+            {
+                RequestedHeight = DestPosition.Z;
+            }
+            
+            // 也支持直接的 height 字段
+            double Height = 0.0;
+            if (ParamsJson->TryGetNumberField(TEXT("height"), Height) && Height > 0.0)
+            {
+                RequestedHeight = static_cast<float>(Height);
+            }
+        }
     }
     
     //=========================================================================
@@ -1393,7 +1386,7 @@ void FMASkillParamsProcessor::ProcessTakeOff(UMASkillComponent* SkillComp, const
             MinSafeHeight = MaxBuildingHeight + SafetyMargin;
             
             UE_LOG(LogTemp, Log, TEXT("[ProcessTakeOff] %s: Nearby building '%s' height=%.0f, min safe height=%.0f"),
-                *Agent->AgentName, *TallestBuildingLabel, MaxBuildingHeight, MinSafeHeight);
+                *Agent->AgentLabel, *TallestBuildingLabel, MaxBuildingHeight, MinSafeHeight);
         }
     }
     
@@ -1409,7 +1402,7 @@ void FMASkillParamsProcessor::ProcessTakeOff(UMASkillComponent* SkillComp, const
         bHeightAdjusted = true;
         
         UE_LOG(LogTemp, Log, TEXT("[ProcessTakeOff] %s: Adjusted height from %.0f to %.0f (above building '%s')"),
-            *Agent->AgentName, RequestedHeight, FinalHeight, *TallestBuildingLabel);
+            *Agent->AgentLabel, RequestedHeight, FinalHeight, *TallestBuildingLabel);
     }
     
     //=========================================================================
@@ -1425,7 +1418,7 @@ void FMASkillParamsProcessor::ProcessTakeOff(UMASkillComponent* SkillComp, const
     Context.bTakeOffHeightAdjusted = bHeightAdjusted;
     
     UE_LOG(LogTemp, Log, TEXT("[ProcessTakeOff] %s: Final takeoff height=%.0f, adjusted=%s"),
-        *Agent->AgentName, FinalHeight, bHeightAdjusted ? TEXT("true") : TEXT("false"));
+        *Agent->AgentLabel, FinalHeight, bHeightAdjusted ? TEXT("true") : TEXT("false"));
 }
 
 void FMASkillParamsProcessor::ProcessLand(UMASkillComponent* SkillComp, const FMAAgentSkillCommand* Cmd)
@@ -1463,7 +1456,7 @@ void FMASkillParamsProcessor::ProcessLand(UMASkillComponent* SkillComp, const FM
             GroundType = TEXT("building_interior");
             
             UE_LOG(LogTemp, Warning, TEXT("[ProcessLand] %s: Current position is inside a building, searching for safe landing zone"),
-                *Agent->AgentName);
+                *Agent->AgentLabel);
             
             // 查找最近的安全着陆区（道路或路口）
             TArray<FMASceneGraphNode> Roads = FMASceneGraphQuery::GetAllRoads(AllNodes);
@@ -1512,7 +1505,7 @@ void FMASkillParamsProcessor::ProcessLand(UMASkillComponent* SkillComp, const FM
                 NearbyLandmark = NearestSafeNode.Label;
                 
                 UE_LOG(LogTemp, Log, TEXT("[ProcessLand] %s: Found safe landing zone at %s (%s), distance=%.0f"),
-                    *Agent->AgentName, *NearestSafeNode.Label, *GroundType, MinDistance);
+                    *Agent->AgentLabel, *NearestSafeNode.Label, *GroundType, MinDistance);
             }
         }
         else
@@ -1562,12 +1555,27 @@ void FMASkillParamsProcessor::ProcessLand(UMASkillComponent* SkillComp, const FM
     }
     
     //=========================================================================
-    // Step 2: 射线检测地面高度
+    // Step 2: 从 RawParamsJson 解析着陆位置
     //=========================================================================
-    if (Cmd && Cmd->Params.bHasDestPosition)
+    bool bHasDestPosition = false;
+    FVector DestPosition;
+    
+    if (Cmd)
     {
-        LandHeight = Cmd->Params.DestPosition.Z;
-        LandLocation = FVector(Cmd->Params.DestPosition.X, Cmd->Params.DestPosition.Y, LandHeight);
+        TSharedPtr<FJsonObject> ParamsJson;
+        if (MAParamsHelper::ParseRawParams(Cmd->Params.RawParamsJson, ParamsJson))
+        {
+            if (MAParamsHelper::ExtractDestPosition(ParamsJson, DestPosition))
+            {
+                bHasDestPosition = true;
+            }
+        }
+    }
+    
+    if (bHasDestPosition)
+    {
+        LandHeight = DestPosition.Z;
+        LandLocation = FVector(DestPosition.X, DestPosition.Y, LandHeight);
     }
     else
     {
@@ -1597,7 +1605,7 @@ void FMASkillParamsProcessor::ProcessLand(UMASkillComponent* SkillComp, const FM
     Context.bLandLocationSafe = bLocationSafe;
     
     UE_LOG(LogTemp, Log, TEXT("[ProcessLand] %s: Land location=(%.0f, %.0f, %.0f), ground_type=%s, safe=%s"),
-        *Agent->AgentName, LandLocation.X, LandLocation.Y, LandHeight, *GroundType, bLocationSafe ? TEXT("true") : TEXT("false"));
+        *Agent->AgentLabel, LandLocation.X, LandLocation.Y, LandHeight, *GroundType, bLocationSafe ? TEXT("true") : TEXT("false"));
 }
 
 void FMASkillParamsProcessor::ProcessReturnHome(UMASkillComponent* SkillComp, const FMAAgentSkillCommand* Cmd)
@@ -1615,11 +1623,19 @@ void FMASkillParamsProcessor::ProcessReturnHome(UMASkillComponent* SkillComp, co
     FString HomeLandmark;
     
     //=========================================================================
-    // Step 1: 如果有传入 HomeLocation，使用传入值
+    // Step 1: 从 RawParamsJson 解析 HomeLocation
     //=========================================================================
-    if (Cmd && Cmd->Params.bHasDestPosition)
+    if (Cmd)
     {
-        HomeLocation = Cmd->Params.DestPosition;
+        TSharedPtr<FJsonObject> ParamsJson;
+        if (MAParamsHelper::ParseRawParams(Cmd->Params.RawParamsJson, ParamsJson))
+        {
+            FVector DestPosition;
+            if (MAParamsHelper::ExtractDestPosition(ParamsJson, DestPosition))
+            {
+                HomeLocation = DestPosition;
+            }
+        }
     }
     
     //=========================================================================
@@ -1636,7 +1652,7 @@ void FMASkillParamsProcessor::ProcessReturnHome(UMASkillComponent* SkillComp, co
             HomeLandmark = NearestLandmark.Label;
             
             UE_LOG(LogTemp, Verbose, TEXT("[ProcessReturnHome] %s: Home location near landmark '%s'"),
-                *Agent->AgentName, *HomeLandmark);
+                *Agent->AgentLabel, *HomeLandmark);
         }
     }
     
@@ -1670,7 +1686,7 @@ void FMASkillParamsProcessor::ProcessReturnHome(UMASkillComponent* SkillComp, co
     Context.HomeLandmarkLabel = HomeLandmark;
     
     UE_LOG(LogTemp, Log, TEXT("[ProcessReturnHome] %s: Home location=(%.0f, %.0f, %.0f), land_height=%.0f, landmark=%s"),
-        *Agent->AgentName, HomeLocation.X, HomeLocation.Y, HomeLocation.Z, LandHeight, *HomeLandmark);
+        *Agent->AgentLabel, HomeLocation.X, HomeLocation.Y, HomeLocation.Z, LandHeight, *HomeLandmark);
 }
 
 
@@ -1680,62 +1696,135 @@ void FMASkillParamsProcessor::ProcessTakePhoto(AMACharacter* Agent, UMASkillComp
     
     FMASkillParams& Params = SkillComp->GetSkillParamsMutable();
     FMAFeedbackContext& Context = SkillComp->GetFeedbackContextMutable();
+    UWorld* World = Agent->GetWorld();
     
     //=========================================================================
-    // Step 1: 解析目标参数
+    // Step 1: 从 RawParamsJson 解析目标参数
     //=========================================================================
     FString ObjectId;
     FMASemanticTarget Target;
     
-    // 解析 RawParamsJson
     TSharedPtr<FJsonObject> ParamsJson;
-    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Cmd->Params.RawParamsJson);
-    if (FJsonSerializer::Deserialize(Reader, ParamsJson) && ParamsJson.IsValid())
+    if (MAParamsHelper::ParseRawParams(Cmd->Params.RawParamsJson, ParamsJson))
     {
-        // 从 Params 中提取 object_id
-        if (ParamsJson->HasField(TEXT("object_id")))
-        {
-            ObjectId = ParamsJson->GetStringField(TEXT("object_id"));
-        }
+        ObjectId = MAParamsHelper::ExtractObjectId(ParamsJson);
         
-        // 从 Params 中提取 target JSON
-        if (ParamsJson->HasField(TEXT("target")))
+        FString TargetJsonStr;
+        if (MAParamsHelper::ExtractTargetJson(ParamsJson, TEXT("target"), TargetJsonStr))
         {
-            const TSharedPtr<FJsonObject>* TargetObj;
-            if (ParamsJson->TryGetObjectField(TEXT("target"), TargetObj))
+            ParseSemanticTargetFromJson(TargetJsonStr, Target);
+        }
+    }
+    
+    // 构建语义标签
+    FMASemanticLabel TargetLabel;
+    TargetLabel.Class = Target.Class;
+    TargetLabel.Type = Target.Type;
+    TargetLabel.Features = Target.Features;
+    
+    UE_LOG(LogTemp, Log, TEXT("[ProcessTakePhoto] %s: object_id='%s', target(Class=%s, Type=%s)"),
+        *Agent->AgentLabel, *ObjectId, *Target.Class, *Target.Type);
+    
+    //=========================================================================
+    // Step 2: 查找目标 Actor
+    // 优先级: 语义标签 -> ObjectId -> 场景图语义标签
+    //=========================================================================
+    TWeakObjectPtr<AActor> TargetActor;
+    FString FoundName;
+    FString FoundId;
+    FVector FoundLocation = FVector::ZeroVector;
+    
+    // 方式1: 通过语义标签直接查找 UE5 Actor
+    if (!TargetLabel.IsEmpty())
+    {
+        FMAUESceneQueryResult Result = FMAUESceneQuery::FindObjectByLabel(World, TargetLabel);
+        if (Result.bFound && Result.Actor)
+        {
+            TargetActor = Result.Actor;
+            FoundName = Result.Name;
+            FoundLocation = Result.Location;
+            UE_LOG(LogTemp, Log, TEXT("[ProcessTakePhoto] %s: Found target '%s' by semantic label (UE5)"),
+                *Agent->AgentLabel, *FoundName);
+        }
+    }
+    
+    // 方式2: 通过场景图查找节点，再获取 Actor
+    if (!TargetActor.IsValid())
+    {
+        UGameInstance* GameInstance = World->GetGameInstance();
+        UMASceneGraphManager* SceneGraphManager = GameInstance ? GameInstance->GetSubsystem<UMASceneGraphManager>() : nullptr;
+        
+        if (SceneGraphManager)
+        {
+            TArray<FMASceneGraphNode> AllNodes = SceneGraphManager->GetAllNodes();
+            FMASceneGraphNode TargetNode;
+            
+            // 优先用 ObjectId 查找
+            if (!ObjectId.IsEmpty())
             {
-                // 将 JSON 对象转换为字符串
-                FString TargetJsonStr;
-                TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&TargetJsonStr);
-                FJsonSerializer::Serialize((*TargetObj).ToSharedRef(), Writer);
-                ParseSemanticTargetFromJson(TargetJsonStr, Target);
+                TargetNode = FMASceneGraphQuery::FindNodeByIdOrLabel(AllNodes, ObjectId);
+            }
+            // 回退用语义标签查找
+            if (!TargetNode.IsValid() && !TargetLabel.IsEmpty())
+            {
+                TargetNode = FMASceneGraphQuery::FindNodeByLabel(AllNodes, TargetLabel);
+            }
+            
+            if (TargetNode.IsValid())
+            {
+                FoundName = TargetNode.Label.IsEmpty() ? TargetNode.Id : TargetNode.Label;
+                FoundId = TargetNode.Id;
+                FoundLocation = TargetNode.Center;
+                
+                // 通过 GUID 查找 Actor
+                if (!TargetNode.Guid.IsEmpty())
+                {
+                    TargetActor = FMAUESceneQuery::FindActorByGuid(World, TargetNode.Guid);
+                }
+                else if (TargetNode.GuidArray.Num() > 0)
+                {
+                    TargetActor = FMAUESceneQuery::FindActorByGuid(World, TargetNode.GuidArray[0]);
+                }
+                
+                if (TargetActor.IsValid())
+                {
+                    UE_LOG(LogTemp, Log, TEXT("[ProcessTakePhoto] %s: Found target '%s' by scene graph"),
+                        *Agent->AgentLabel, *FoundName);
+                }
             }
         }
     }
     
-    UE_LOG(LogTemp, Log, TEXT("[ProcessTakePhoto] %s: object_id='%s', target(Class=%s, Type=%s)"),
-        *Agent->AgentName, *ObjectId, *Target.Class, *Target.Type);
+    //=========================================================================
+    // Step 3: 计算机器人与目标的水平距离（米）
+    //=========================================================================
+    float RobotTargetDistanceM = -1.f;
+    if (TargetActor.IsValid() || !FoundLocation.IsZero())
+    {
+        FVector TargetLoc = TargetActor.IsValid() ? TargetActor->GetActorLocation() : FoundLocation;
+        FVector RobotLocation = Agent->GetActorLocation();
+        float DistanceCm = FVector::Dist2D(RobotLocation, TargetLoc);
+        RobotTargetDistanceM = DistanceCm / 100.f;
+    }
     
     //=========================================================================
-    // Step 2: 匹配目标对象
-    //=========================================================================
-    FString FoundId, FoundName;
-    FVector FoundLocation;
-    bool bFound = MatchTargetObject(Agent, ObjectId, Target, 1000.f, FoundId, FoundName, FoundLocation);
-    
-    //=========================================================================
-    // Step 3: 保存到参数和反馈上下文
+    // Step 4: 保存到参数和反馈上下文
     //=========================================================================
     Params.CommonTargetObjectId = FoundId;
     Params.CommonTarget = Target;
+    Params.PhotoTargetActor = TargetActor;
     
-    Context.bPhotoTargetFound = bFound;
+    Context.bPhotoTargetFound = TargetActor.IsValid() || !FoundLocation.IsZero();
     Context.PhotoTargetName = FoundName;
     Context.PhotoTargetId = FoundId;
-    Context.TargetLocation = FoundLocation;
+    Context.TargetLocation = FoundLocation.IsZero() && TargetActor.IsValid() ? TargetActor->GetActorLocation() : FoundLocation;
+    Context.PhotoRobotTargetDistance = RobotTargetDistanceM;
     
-    UE_LOG(LogTemp, Log, TEXT("[ProcessTakePhoto] %s: Target found=%s, name='%s', id='%s'"),
-        *Agent->AgentName, bFound ? TEXT("true") : TEXT("false"), *FoundName, *FoundId);
+    UE_LOG(LogTemp, Log, TEXT("[ProcessTakePhoto] %s: Target found=%s, name='%s', id='%s', distance=%.2fm, Actor=%s"),
+        *Agent->AgentLabel, 
+        Context.bPhotoTargetFound ? TEXT("true") : TEXT("false"), 
+        *FoundName, *FoundId, RobotTargetDistanceM,
+        TargetActor.IsValid() ? TEXT("valid") : TEXT("null"));
 }
 
 void FMASkillParamsProcessor::ProcessBroadcast(AMACharacter* Agent, UMASkillComponent* SkillComp, const FMAAgentSkillCommand* Cmd)
@@ -1744,70 +1833,139 @@ void FMASkillParamsProcessor::ProcessBroadcast(AMACharacter* Agent, UMASkillComp
     
     FMASkillParams& Params = SkillComp->GetSkillParamsMutable();
     FMAFeedbackContext& Context = SkillComp->GetFeedbackContextMutable();
+    UWorld* World = Agent->GetWorld();
     
     //=========================================================================
-    // Step 1: 解析目标参数
+    // Step 1: 从 RawParamsJson 解析目标参数
     //=========================================================================
     FString ObjectId;
     FMASemanticTarget Target;
     FString Message;
     
-    // 解析 RawParamsJson
     TSharedPtr<FJsonObject> ParamsJson;
-    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Cmd->Params.RawParamsJson);
-    if (FJsonSerializer::Deserialize(Reader, ParamsJson) && ParamsJson.IsValid())
+    if (MAParamsHelper::ParseRawParams(Cmd->Params.RawParamsJson, ParamsJson))
     {
-        // 从 Params 中提取 object_id
-        if (ParamsJson->HasField(TEXT("object_id")))
+        ObjectId = MAParamsHelper::ExtractObjectId(ParamsJson);
+        
+        FString TargetJsonStr;
+        if (MAParamsHelper::ExtractTargetJson(ParamsJson, TEXT("target"), TargetJsonStr))
         {
-            ObjectId = ParamsJson->GetStringField(TEXT("object_id"));
+            ParseSemanticTargetFromJson(TargetJsonStr, Target);
         }
         
-        // 从 Params 中提取 target JSON
-        if (ParamsJson->HasField(TEXT("target")))
+        ParamsJson->TryGetStringField(TEXT("message"), Message);
+    }
+    
+    // 构建语义标签
+    FMASemanticLabel TargetLabel;
+    TargetLabel.Class = Target.Class;
+    TargetLabel.Type = Target.Type;
+    TargetLabel.Features = Target.Features;
+    
+    UE_LOG(LogTemp, Log, TEXT("[ProcessBroadcast] %s: object_id='%s', target(Class=%s, Type=%s), message='%s'"),
+        *Agent->AgentLabel, *ObjectId, *Target.Class, *Target.Type, *Message);
+    
+    //=========================================================================
+    // Step 2: 查找目标 Actor
+    // 优先级: 语义标签 -> ObjectId -> 场景图语义标签
+    //=========================================================================
+    TWeakObjectPtr<AActor> TargetActor;
+    FString FoundName;
+    FString FoundId;
+    FVector FoundLocation = FVector::ZeroVector;
+    
+    // 方式1: 通过语义标签直接查找 UE5 Actor
+    if (!TargetLabel.IsEmpty())
+    {
+        FMAUESceneQueryResult Result = FMAUESceneQuery::FindObjectByLabel(World, TargetLabel);
+        if (Result.bFound && Result.Actor)
         {
-            const TSharedPtr<FJsonObject>* TargetObj;
-            if (ParamsJson->TryGetObjectField(TEXT("target"), TargetObj))
-            {
-                // 将 JSON 对象转换为字符串
-                FString TargetJsonStr;
-                TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&TargetJsonStr);
-                FJsonSerializer::Serialize((*TargetObj).ToSharedRef(), Writer);
-                ParseSemanticTargetFromJson(TargetJsonStr, Target);
-            }
-        }
-        
-        // 从 Params 中提取 message 字段
-        if (ParamsJson->HasField(TEXT("message")))
-        {
-            Message = ParamsJson->GetStringField(TEXT("message"));
+            TargetActor = Result.Actor;
+            FoundName = Result.Name;
+            FoundLocation = Result.Location;
+            UE_LOG(LogTemp, Log, TEXT("[ProcessBroadcast] %s: Found target '%s' by semantic label (UE5)"),
+                *Agent->AgentLabel, *FoundName);
         }
     }
     
-    UE_LOG(LogTemp, Log, TEXT("[ProcessBroadcast] %s: object_id='%s', target(Class=%s, Type=%s), message='%s'"),
-        *Agent->AgentName, *ObjectId, *Target.Class, *Target.Type, *Message);
+    // 方式2: 通过场景图查找节点，再获取 Actor
+    if (!TargetActor.IsValid())
+    {
+        UGameInstance* GameInstance = World->GetGameInstance();
+        UMASceneGraphManager* SceneGraphManager = GameInstance ? GameInstance->GetSubsystem<UMASceneGraphManager>() : nullptr;
+        
+        if (SceneGraphManager)
+        {
+            TArray<FMASceneGraphNode> AllNodes = SceneGraphManager->GetAllNodes();
+            FMASceneGraphNode TargetNode;
+            
+            // 优先用 ObjectId 查找
+            if (!ObjectId.IsEmpty())
+            {
+                TargetNode = FMASceneGraphQuery::FindNodeByIdOrLabel(AllNodes, ObjectId);
+            }
+            // 回退用语义标签查找
+            if (!TargetNode.IsValid() && !TargetLabel.IsEmpty())
+            {
+                TargetNode = FMASceneGraphQuery::FindNodeByLabel(AllNodes, TargetLabel);
+            }
+            
+            if (TargetNode.IsValid())
+            {
+                FoundName = TargetNode.Label.IsEmpty() ? TargetNode.Id : TargetNode.Label;
+                FoundId = TargetNode.Id;
+                FoundLocation = TargetNode.Center;
+                
+                // 通过 GUID 查找 Actor
+                if (!TargetNode.Guid.IsEmpty())
+                {
+                    TargetActor = FMAUESceneQuery::FindActorByGuid(World, TargetNode.Guid);
+                }
+                else if (TargetNode.GuidArray.Num() > 0)
+                {
+                    TargetActor = FMAUESceneQuery::FindActorByGuid(World, TargetNode.GuidArray[0]);
+                }
+                
+                if (TargetActor.IsValid())
+                {
+                    UE_LOG(LogTemp, Log, TEXT("[ProcessBroadcast] %s: Found target '%s' by scene graph"),
+                        *Agent->AgentLabel, *FoundName);
+                }
+            }
+        }
+    }
     
     //=========================================================================
-    // Step 2: 匹配目标对象
+    // Step 3: 计算机器人与目标的水平距离（米）
     //=========================================================================
-    FString FoundId, FoundName;
-    FVector FoundLocation;
-    bool bFound = MatchTargetObject(Agent, ObjectId, Target, 1000.f, FoundId, FoundName, FoundLocation);
+    float RobotTargetDistanceM = -1.f;
+    if (TargetActor.IsValid() || !FoundLocation.IsZero())
+    {
+        FVector TargetLoc = TargetActor.IsValid() ? TargetActor->GetActorLocation() : FoundLocation;
+        FVector RobotLocation = Agent->GetActorLocation();
+        float DistanceCm = FVector::Dist2D(RobotLocation, TargetLoc);
+        RobotTargetDistanceM = DistanceCm / 100.f;
+    }
     
     //=========================================================================
-    // Step 3: 保存到参数和反馈上下文
+    // Step 4: 保存到参数和反馈上下文
     //=========================================================================
     Params.CommonTargetObjectId = FoundId;
     Params.CommonTarget = Target;
     Params.BroadcastMessage = Message;
+    Params.BroadcastTargetActor = TargetActor;
     
-    Context.bBroadcastTargetFound = bFound;
+    Context.bBroadcastTargetFound = TargetActor.IsValid() || !FoundLocation.IsZero();
     Context.BroadcastTargetName = FoundName;
     Context.BroadcastMessage = Message;
-    Context.TargetLocation = FoundLocation;
+    Context.TargetLocation = FoundLocation.IsZero() && TargetActor.IsValid() ? TargetActor->GetActorLocation() : FoundLocation;
+    Context.BroadcastRobotTargetDistance = RobotTargetDistanceM;
     
-    UE_LOG(LogTemp, Log, TEXT("[ProcessBroadcast] %s: Target found=%s, name='%s', message='%s'"),
-        *Agent->AgentName, bFound ? TEXT("true") : TEXT("false"), *FoundName, *Message);
+    UE_LOG(LogTemp, Log, TEXT("[ProcessBroadcast] %s: Target found=%s, name='%s', message='%s', distance=%.2fm, Actor=%s"),
+        *Agent->AgentLabel, 
+        Context.bBroadcastTargetFound ? TEXT("true") : TEXT("false"), 
+        *FoundName, *Message, RobotTargetDistanceM,
+        TargetActor.IsValid() ? TEXT("valid") : TEXT("null"));
 }
 
 void FMASkillParamsProcessor::ProcessHandleHazard(AMACharacter* Agent, UMASkillComponent* SkillComp, const FMAAgentSkillCommand* Cmd)
@@ -1816,62 +1974,116 @@ void FMASkillParamsProcessor::ProcessHandleHazard(AMACharacter* Agent, UMASkillC
     
     FMASkillParams& Params = SkillComp->GetSkillParamsMutable();
     FMAFeedbackContext& Context = SkillComp->GetFeedbackContextMutable();
+    UWorld* World = Agent->GetWorld();
     
     //=========================================================================
-    // Step 1: 解析目标参数
+    // Step 1: 解析参数
     //=========================================================================
     FString ObjectId;
     FMASemanticTarget Target;
     
-    // 解析 RawParamsJson
     TSharedPtr<FJsonObject> ParamsJson;
-    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Cmd->Params.RawParamsJson);
-    if (FJsonSerializer::Deserialize(Reader, ParamsJson) && ParamsJson.IsValid())
+    if (MAParamsHelper::ParseRawParams(Cmd->Params.RawParamsJson, ParamsJson))
     {
-        // 从 Params 中提取 object_id
-        if (ParamsJson->HasField(TEXT("object_id")))
+        ObjectId = MAParamsHelper::ExtractObjectId(ParamsJson);
+        FString TargetJsonStr;
+        if (MAParamsHelper::ExtractTargetJson(ParamsJson, TEXT("target"), TargetJsonStr))
         {
-            ObjectId = ParamsJson->GetStringField(TEXT("object_id"));
+            ParseSemanticTargetFromJson(TargetJsonStr, Target);
         }
-        
-        // 从 Params 中提取 target JSON
-        if (ParamsJson->HasField(TEXT("target")))
+    }
+    
+    //=========================================================================
+    // Step 2: 查找目标 Actor
+    // 优先级: 语义标签 -> GUID -> 场景图节点
+    //=========================================================================
+    TWeakObjectPtr<AActor> TargetActor;
+    FString FoundId;
+    FString FoundName;
+    FVector FoundLocation = FVector::ZeroVector;
+    
+    // 构建语义标签
+    FMASemanticLabel TargetLabel;
+    TargetLabel.Class = Target.Class;
+    TargetLabel.Type = Target.Type;
+    TargetLabel.Features = Target.Features;
+    
+    // 方式1: 通过语义标签查找 Actor
+    if (!TargetLabel.IsEmpty())
+    {
+        FMAUESceneQueryResult Result = FMAUESceneQuery::FindObjectByLabel(World, TargetLabel);
+        if (Result.bFound && Result.Actor)
         {
-            const TSharedPtr<FJsonObject>* TargetObj;
-            if (ParamsJson->TryGetObjectField(TEXT("target"), TargetObj))
+            TargetActor = Result.Actor;
+            FoundName = Result.Name;
+            FoundLocation = Result.Location;
+            UE_LOG(LogTemp, Log, TEXT("[ProcessHandleHazard] %s: Found target '%s' by semantic label"),
+                *Agent->AgentLabel, *FoundName);
+        }
+    }
+    
+    // 方式2: 通过场景图查找节点，再获取 Actor
+    if (!TargetActor.IsValid())
+    {
+        UGameInstance* GameInstance = World->GetGameInstance();
+        UMASceneGraphManager* SceneGraphManager = GameInstance ? GameInstance->GetSubsystem<UMASceneGraphManager>() : nullptr;
+        
+        if (SceneGraphManager)
+        {
+            TArray<FMASceneGraphNode> AllNodes = SceneGraphManager->GetAllNodes();
+            FMASceneGraphNode TargetNode;
+            
+            // 优先用 ObjectId 查找
+            if (!ObjectId.IsEmpty())
             {
-                // 将 JSON 对象转换为字符串
-                FString TargetJsonStr;
-                TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&TargetJsonStr);
-                FJsonSerializer::Serialize((*TargetObj).ToSharedRef(), Writer);
-                ParseSemanticTargetFromJson(TargetJsonStr, Target);
+                TargetNode = FMASceneGraphQuery::FindNodeByIdOrLabel(AllNodes, ObjectId);
+            }
+            // 回退用语义标签查找
+            if (!TargetNode.IsValid() && !TargetLabel.IsEmpty())
+            {
+                TargetNode = FMASceneGraphQuery::FindNodeByLabel(AllNodes, TargetLabel);
+            }
+            
+            if (TargetNode.IsValid())
+            {
+                FoundId = TargetNode.Id;
+                FoundName = TargetNode.Label.IsEmpty() ? TargetNode.Id : TargetNode.Label;
+                FoundLocation = TargetNode.Center;
+                
+                // 通过 GUID 查找 Actor
+                if (!TargetNode.Guid.IsEmpty())
+                {
+                    TargetActor = FMAUESceneQuery::FindActorByGuid(World, TargetNode.Guid);
+                }
+                else if (TargetNode.GuidArray.Num() > 0)
+                {
+                    TargetActor = FMAUESceneQuery::FindActorByGuid(World, TargetNode.GuidArray[0]);
+                }
+                
+                if (TargetActor.IsValid())
+                {
+                    UE_LOG(LogTemp, Log, TEXT("[ProcessHandleHazard] %s: Found target '%s' by scene graph"),
+                        *Agent->AgentLabel, *FoundName);
+                }
             }
         }
     }
     
-    UE_LOG(LogTemp, Log, TEXT("[ProcessHandleHazard] %s: object_id='%s', target(Class=%s, Type=%s)"),
-        *Agent->AgentName, *ObjectId, *Target.Class, *Target.Type);
-    
     //=========================================================================
-    // Step 2: 匹配目标对象
-    //=========================================================================
-    FString FoundId, FoundName;
-    FVector FoundLocation;
-    bool bFound = MatchTargetObject(Agent, ObjectId, Target, 1000.f, FoundId, FoundName, FoundLocation);
-    
-    //=========================================================================
-    // Step 3: 保存到参数和反馈上下文
+    // Step 3: 保存结果
     //=========================================================================
     Params.CommonTargetObjectId = FoundId;
     Params.CommonTarget = Target;
+    Params.HazardTargetActor = TargetActor;
     
-    Context.bHazardTargetFound = bFound;
+    Context.bHazardTargetFound = TargetActor.IsValid() || !FoundLocation.IsZero();
     Context.HazardTargetName = FoundName;
     Context.HazardTargetId = FoundId;
     Context.TargetLocation = FoundLocation;
     
-    UE_LOG(LogTemp, Log, TEXT("[ProcessHandleHazard] %s: Target found=%s, name='%s', id='%s'"),
-        *Agent->AgentName, bFound ? TEXT("true") : TEXT("false"), *FoundName, *FoundId);
+    UE_LOG(LogTemp, Log, TEXT("[ProcessHandleHazard] %s: Target found=%s, name='%s', Actor=%s"),
+        *Agent->AgentLabel, Context.bHazardTargetFound ? TEXT("true") : TEXT("false"), 
+        *FoundName, TargetActor.IsValid() ? TEXT("valid") : TEXT("null"));
 }
 
 void FMASkillParamsProcessor::ProcessGuide(AMACharacter* Agent, UMASkillComponent* SkillComp, const FMAAgentSkillCommand* Cmd)
@@ -1880,108 +2092,362 @@ void FMASkillParamsProcessor::ProcessGuide(AMACharacter* Agent, UMASkillComponen
     
     FMASkillParams& Params = SkillComp->GetSkillParamsMutable();
     FMAFeedbackContext& Context = SkillComp->GetFeedbackContextMutable();
+    UWorld* World = Agent->GetWorld();
     
     //=========================================================================
-    // Step 1: 解析目标参数
+    // Step 1: 解析参数
     //=========================================================================
     FString ObjectId;
     FMASemanticTarget Target;
     FVector Destination = FVector::ZeroVector;
     
-    // 解析 RawParamsJson
     TSharedPtr<FJsonObject> ParamsJson;
-    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Cmd->Params.RawParamsJson);
-    if (FJsonSerializer::Deserialize(Reader, ParamsJson) && ParamsJson.IsValid())
+    if (MAParamsHelper::ParseRawParams(Cmd->Params.RawParamsJson, ParamsJson))
     {
-        // 从 Params 中提取 object_id
-        if (ParamsJson->HasField(TEXT("object_id")))
+        ObjectId = MAParamsHelper::ExtractObjectId(ParamsJson);
+        FString TargetJsonStr;
+        if (MAParamsHelper::ExtractTargetJson(ParamsJson, TEXT("target"), TargetJsonStr))
         {
-            ObjectId = ParamsJson->GetStringField(TEXT("object_id"));
+            ParseSemanticTargetFromJson(TargetJsonStr, Target);
         }
-        
-        // 从 Params 中提取 target JSON
-        if (ParamsJson->HasField(TEXT("target")))
-        {
-            const TSharedPtr<FJsonObject>* TargetObj;
-            if (ParamsJson->TryGetObjectField(TEXT("target"), TargetObj))
-            {
-                // 将 JSON 对象转换为字符串
-                FString TargetJsonStr;
-                TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&TargetJsonStr);
-                FJsonSerializer::Serialize((*TargetObj).ToSharedRef(), Writer);
-                ParseSemanticTargetFromJson(TargetJsonStr, Target);
-            }
-        }
+        MAParamsHelper::ExtractDestPosition(ParamsJson, Destination);
     }
     
-    // 从 Params 中提取 destination 坐标（格式与 Navigate 相同）
-    if (Cmd->Params.bHasDestPosition)
-    {
-        Destination = Cmd->Params.DestPosition;
-    }
-    
-    UE_LOG(LogTemp, Log, TEXT("[ProcessGuide] %s: object_id='%s', target(Class=%s, Type=%s), destination=(%.0f, %.0f, %.0f)"),
-        *Agent->AgentName, *ObjectId, *Target.Class, *Target.Type, Destination.X, Destination.Y, Destination.Z);
+    // 构建语义标签
+    FMASemanticLabel TargetLabel;
+    TargetLabel.Class = Target.Class;
+    TargetLabel.Type = Target.Type;
+    TargetLabel.Features = Target.Features;
     
     //=========================================================================
-    // Step 2: 匹配目标对象
-    //=========================================================================
-    FString FoundId, FoundName;
-    FVector FoundLocation;
-    bool bFound = MatchTargetObject(Agent, ObjectId, Target, 1000.f, FoundId, FoundName, FoundLocation);
-    
-    //=========================================================================
-    // Step 3: 如果找到目标，获取 Actor 引用
+    // Step 2: 查找目标 Actor
+    // 优先级: 语义标签 -> ObjectId -> 场景图语义标签
     //=========================================================================
     TWeakObjectPtr<AActor> TargetActor;
+    FString FoundName;
+    FString FoundId;
+    FVector FoundLocation = FVector::ZeroVector;
     
-    if (bFound && !FoundId.IsEmpty())
+    // 方式1: 通过语义标签直接查找 UE5 Actor
+    if (!TargetLabel.IsEmpty())
     {
-        // 尝试通过名称查找 Actor（主要用于机器人）
-        if (!FoundName.IsEmpty())
+        FMAUESceneQueryResult Result = FMAUESceneQuery::FindObjectByLabel(World, TargetLabel);
+        if (Result.bFound && Result.Actor)
         {
-            AMACharacter* TargetRobot = FMAUESceneQuery::FindRobotByName(Agent->GetWorld(), FoundName);
-            if (TargetRobot)
-            {
-                TargetActor = TargetRobot;
-                UE_LOG(LogTemp, Log, TEXT("[ProcessGuide] %s: Found target Actor '%s'"),
-                    *Agent->AgentName, *FoundName);
-            }
+            TargetActor = Result.Actor;
+            FoundName = Result.Name;
+            FoundLocation = Result.Location;
+            UE_LOG(LogTemp, Log, TEXT("[ProcessGuide] %s: Found target '%s' by semantic label (UE5)"),
+                *Agent->AgentLabel, *FoundName);
         }
+    }
+    
+    // 方式2: 通过场景图查找节点，再获取 Actor
+    if (!TargetActor.IsValid())
+    {
+        UGameInstance* GameInstance = World->GetGameInstance();
+        UMASceneGraphManager* SceneGraphManager = GameInstance ? GameInstance->GetSubsystem<UMASceneGraphManager>() : nullptr;
         
-        // 如果没有找到 Actor，尝试通过 UE5 场景查询
-        if (!TargetActor.IsValid() && !Target.IsEmpty())
+        if (SceneGraphManager)
         {
-            FMASemanticLabel UE5Label;
-            UE5Label.Class = Target.Class;
-            UE5Label.Type = Target.Type;
-            UE5Label.Features = Target.Features;
+            TArray<FMASceneGraphNode> AllNodes = SceneGraphManager->GetAllNodes();
+            FMASceneGraphNode TargetNode;
             
-            FMAUESceneQueryResult Result = FMAUESceneQuery::FindNearestObject(Agent->GetWorld(), UE5Label, Agent->GetActorLocation());
-            if (Result.bFound && Result.Actor != nullptr)
+            // 优先用 ObjectId 查找
+            if (!ObjectId.IsEmpty())
             {
-                TargetActor = Result.Actor;
-                UE_LOG(LogTemp, Log, TEXT("[ProcessGuide] %s: Found target Actor via UE5 query"),
-                    *Agent->AgentName);
+                TargetNode = FMASceneGraphQuery::FindNodeByIdOrLabel(AllNodes, ObjectId);
+            }
+            // 回退用语义标签查找
+            if (!TargetNode.IsValid() && !TargetLabel.IsEmpty())
+            {
+                TargetNode = FMASceneGraphQuery::FindNodeByLabel(AllNodes, TargetLabel);
+            }
+            
+            if (TargetNode.IsValid())
+            {
+                FoundName = TargetNode.Label.IsEmpty() ? TargetNode.Id : TargetNode.Label;
+                FoundId = TargetNode.Id;
+                FoundLocation = TargetNode.Center;
+                
+                // 通过 GUID 查找 Actor
+                if (!TargetNode.Guid.IsEmpty())
+                {
+                    TargetActor = FMAUESceneQuery::FindActorByGuid(World, TargetNode.Guid);
+                }
+                else if (TargetNode.GuidArray.Num() > 0)
+                {
+                    TargetActor = FMAUESceneQuery::FindActorByGuid(World, TargetNode.GuidArray[0]);
+                }
+                
+                if (TargetActor.IsValid())
+                {
+                    UE_LOG(LogTemp, Log, TEXT("[ProcessGuide] %s: Found target '%s' by scene graph"),
+                        *Agent->AgentLabel, *FoundName);
+                }
             }
         }
     }
     
     //=========================================================================
-    // Step 4: 保存到参数和反馈上下文
+    // Step 3: 保存结果
     //=========================================================================
-    Params.GuideTargetObjectId = FoundId;
-    Params.GuideTarget = Target;
-    Params.GuideDestination = Destination;
-    Params.GuideTargetActor = TargetActor;
-    
-    Context.bGuideTargetFound = bFound;
+    Context.bGuideTargetFound = TargetActor.IsValid();
     Context.GuideTargetName = FoundName;
     Context.GuideTargetId = FoundId;
     Context.GuideDestination = Destination;
     Context.TargetLocation = FoundLocation;
     
-    UE_LOG(LogTemp, Log, TEXT("[ProcessGuide] %s: Target found=%s, name='%s', Actor=%s, destination=(%.0f, %.0f, %.0f)"),
-        *Agent->AgentName, bFound ? TEXT("true") : TEXT("false"), *FoundName, 
-        TargetActor.IsValid() ? TEXT("valid") : TEXT("null"), Destination.X, Destination.Y, Destination.Z);
+    Params.GuideTargetObjectId = FoundId;
+    Params.GuideTarget = Target;
+    Params.GuideDestination = Destination;
+    Params.GuideTargetActor = TargetActor;
+    
+    UE_LOG(LogTemp, Log, TEXT("[ProcessGuide] %s: Target found=%s, name='%s', destination=(%.0f, %.0f, %.0f)"),
+        *Agent->AgentLabel, TargetActor.IsValid() ? TEXT("true") : TEXT("false"), *FoundName,
+        Destination.X, Destination.Y, Destination.Z);
+}
+
+void FMASkillParamsProcessor::ProcessFollow(UMASkillComponent* SkillComp, const FMAAgentSkillCommand* Cmd)
+{
+    if (!SkillComp || !Cmd) return;
+    
+    AMACharacter* Agent = Cast<AMACharacter>(SkillComp->GetOwner());
+    if (!Agent || !Agent->GetWorld()) return;
+    
+    FMASkillParams& Params = SkillComp->GetSkillParamsMutable();
+    FMAFeedbackContext& Context = SkillComp->GetFeedbackContextMutable();
+    UWorld* World = Agent->GetWorld();
+    
+    //=========================================================================
+    // Step 1: 解析参数
+    //=========================================================================
+    FString ObjectId;
+    FMASemanticTarget Target;
+    
+    TSharedPtr<FJsonObject> ParamsJson;
+    if (MAParamsHelper::ParseRawParams(Cmd->Params.RawParamsJson, ParamsJson))
+    {
+        ObjectId = MAParamsHelper::ExtractObjectId(ParamsJson);
+        FString TargetJsonStr;
+        if (MAParamsHelper::ExtractTargetJson(ParamsJson, TEXT("target"), TargetJsonStr))
+        {
+            ParseSemanticTargetFromJson(TargetJsonStr, Target);
+        }
+    }
+    
+    // 构建语义标签
+    FMASemanticLabel TargetLabel;
+    TargetLabel.Class = Target.Class;
+    TargetLabel.Type = Target.Type;
+    TargetLabel.Features = Target.Features;
+    
+    //=========================================================================
+    // Step 2: 查找目标 Actor
+    // 优先级: 语义标签 -> ObjectId -> 场景图语义标签
+    //=========================================================================
+    AActor* TargetActor = nullptr;
+    FString FoundName;
+    FVector FoundLocation = FVector::ZeroVector;
+    
+    // 方式1: 通过语义标签直接查找 UE5 Actor
+    if (!TargetLabel.IsEmpty())
+    {
+        FMAUESceneQueryResult Result = FMAUESceneQuery::FindObjectByLabel(World, TargetLabel);
+        if (Result.bFound && Result.Actor)
+        {
+            TargetActor = Result.Actor;
+            FoundName = Result.Name;
+            FoundLocation = Result.Location;
+            UE_LOG(LogTemp, Log, TEXT("[ProcessFollow] %s: Found target '%s' by semantic label (UE5)"),
+                *Agent->AgentLabel, *FoundName);
+        }
+    }
+    
+    // 方式2: 通过场景图查找节点，再获取 Actor
+    if (!TargetActor)
+    {
+        UGameInstance* GameInstance = World->GetGameInstance();
+        UMASceneGraphManager* SceneGraphManager = GameInstance ? GameInstance->GetSubsystem<UMASceneGraphManager>() : nullptr;
+        
+        if (SceneGraphManager)
+        {
+            TArray<FMASceneGraphNode> AllNodes = SceneGraphManager->GetAllNodes();
+            FMASceneGraphNode TargetNode;
+            
+            // 优先用 ObjectId 查找
+            if (!ObjectId.IsEmpty())
+            {
+                TargetNode = FMASceneGraphQuery::FindNodeByIdOrLabel(AllNodes, ObjectId);
+            }
+            // 回退用语义标签查找
+            if (!TargetNode.IsValid() && !TargetLabel.IsEmpty())
+            {
+                TargetNode = FMASceneGraphQuery::FindNodeByLabel(AllNodes, TargetLabel);
+            }
+            
+            if (TargetNode.IsValid())
+            {
+                FoundName = TargetNode.Label.IsEmpty() ? TargetNode.Id : TargetNode.Label;
+                FoundLocation = TargetNode.Center;
+                
+                // 通过 GUID 查找 Actor
+                if (!TargetNode.Guid.IsEmpty())
+                {
+                    TargetActor = FMAUESceneQuery::FindActorByGuid(World, TargetNode.Guid);
+                }
+                else if (TargetNode.GuidArray.Num() > 0)
+                {
+                    TargetActor = FMAUESceneQuery::FindActorByGuid(World, TargetNode.GuidArray[0]);
+                }
+                
+                if (TargetActor)
+                {
+                    UE_LOG(LogTemp, Log, TEXT("[ProcessFollow] %s: Found target '%s' by scene graph"),
+                        *Agent->AgentLabel, *FoundName);
+                }
+            }
+        }
+    }
+    
+    //=========================================================================
+    // Step 3: 保存结果
+    //=========================================================================
+    Context.bFollowTargetFound = (TargetActor != nullptr);
+    Context.FollowTargetName = FoundName;
+    Context.FollowTargetId = ObjectId;
+    Context.TargetName = FoundName;
+    Context.TargetLocation = FoundLocation;
+    
+    if (TargetActor)
+    {
+        Params.FollowTarget = TargetActor;
+        Context.FollowTargetDistance = FVector::Dist(Agent->GetActorLocation(), TargetActor->GetActorLocation());
+        UE_LOG(LogTemp, Log, TEXT("[ProcessFollow] %s: Target '%s' at distance %.0f"),
+            *Agent->AgentLabel, *FoundName, Context.FollowTargetDistance);
+    }
+    else
+    {
+        Context.FollowErrorReason = TEXT("Target Actor not found");
+        UE_LOG(LogTemp, Warning, TEXT("[ProcessFollow] %s: Target not found (ObjectId=%s, Class=%s)"),
+            *Agent->AgentLabel, *ObjectId, *Target.Class);
+    }
+}
+
+void FMASkillParamsProcessor::ProcessCharge(UMASkillComponent* SkillComp, const FMAAgentSkillCommand* Cmd)
+{
+    if (!SkillComp) return;
+    
+    AMACharacter* Agent = Cast<AMACharacter>(SkillComp->GetOwner());
+    if (!Agent || !Agent->GetWorld()) return;
+    
+    FMASkillParams& Params = SkillComp->GetSkillParamsMutable();
+    FMAFeedbackContext& Context = SkillComp->GetFeedbackContextMutable();
+    
+    // 记录充电前的能量
+    Context.EnergyBefore = SkillComp->GetEnergyPercent();
+    
+    //=========================================================================
+    // Step 1: 使用场景图查询查找最近的充电站
+    //=========================================================================
+    UWorld* World = Agent->GetWorld();
+    UGameInstance* GameInstance = World->GetGameInstance();
+    UMASceneGraphManager* SceneGraphManager = GameInstance ? GameInstance->GetSubsystem<UMASceneGraphManager>() : nullptr;
+    
+    bool bFoundInSceneGraph = false;
+    
+    if (SceneGraphManager)
+    {
+        // 构建充电站语义标签
+        FMASemanticLabel ChargingStationLabel = FMASemanticLabel::MakeChargingStation();
+        
+        // 获取所有节点并查找最近的充电站
+        TArray<FMASceneGraphNode> AllNodes = SceneGraphManager->GetAllNodes();
+        FMASceneGraphNode NearestStation = FMASceneGraphQuery::FindNearestNode(
+            AllNodes, ChargingStationLabel, Agent->GetActorLocation());
+        
+        if (NearestStation.IsValid() && NearestStation.IsChargingStation())
+        {
+            // 找到充电站，缓存位置和ID
+            Params.ChargingStationLocation = NearestStation.Center;
+            Params.ChargingStationId = NearestStation.Id;
+            Params.bChargingStationFound = true;
+            
+            // 同步到反馈上下文
+            Context.ChargingStationId = NearestStation.Label.IsEmpty() ? NearestStation.Id : NearestStation.Label;
+            Context.ChargingStationLocation = NearestStation.Center;
+            Context.bChargingStationFound = true;
+            
+            float Distance = FVector::Dist(Agent->GetActorLocation(), NearestStation.Center);
+            
+            UE_LOG(LogTemp, Log, TEXT("[ProcessCharge] %s: Found charging station '%s' in scene graph at (%.0f, %.0f, %.0f), distance %.0f"),
+                *Agent->AgentLabel, *Context.ChargingStationId, 
+                NearestStation.Center.X, NearestStation.Center.Y, NearestStation.Center.Z, Distance);
+            
+            bFoundInSceneGraph = true;
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[ProcessCharge] %s: No charging station found in scene graph"),
+                *Agent->AgentLabel);
+        }
+    }
+    
+    //=========================================================================
+    // Step 2: 回退到 UE5 场景查询 (如果场景图未找到)
+    //=========================================================================
+    if (!bFoundInSceneGraph)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[ProcessCharge] %s: Falling back to UE5 scene query for charging station"),
+            *Agent->AgentLabel);
+        
+        // 使用 UE5 场景查询查找充电站 Actor
+        // 查找所有 AMAChargingStation 类型的 Actor
+        TArray<AActor*> FoundActors;
+        UGameplayStatics::GetAllActorsOfClass(World, AMAChargingStation::StaticClass(), FoundActors);
+        
+        if (FoundActors.Num() > 0)
+        {
+            // 找到最近的充电站
+            AActor* NearestActor = nullptr;
+            float MinDistanceSq = TNumericLimits<float>::Max();
+            
+            for (AActor* Actor : FoundActors)
+            {
+                float DistanceSq = FVector::DistSquared(Agent->GetActorLocation(), Actor->GetActorLocation());
+                if (DistanceSq < MinDistanceSq)
+                {
+                    MinDistanceSq = DistanceSq;
+                    NearestActor = Actor;
+                }
+            }
+            
+            if (NearestActor)
+            {
+                Params.ChargingStationLocation = NearestActor->GetActorLocation();
+                Params.ChargingStationId = NearestActor->GetName();
+                Params.bChargingStationFound = true;
+                
+                Context.ChargingStationId = NearestActor->GetName();
+                Context.ChargingStationLocation = NearestActor->GetActorLocation();
+                Context.bChargingStationFound = true;
+                
+                UE_LOG(LogTemp, Log, TEXT("[ProcessCharge] %s: Found charging station '%s' via UE5 query at (%.0f, %.0f, %.0f)"),
+                    *Agent->AgentLabel, *Context.ChargingStationId,
+                    Params.ChargingStationLocation.X, Params.ChargingStationLocation.Y, Params.ChargingStationLocation.Z);
+            }
+        }
+    }
+    
+    //=========================================================================
+    // Step 3: 处理未找到充电站的情况
+    //=========================================================================
+    if (!Params.bChargingStationFound)
+    {
+        Context.bChargingStationFound = false;
+        Context.ChargeErrorReason = TEXT("no charging station available");
+        
+        UE_LOG(LogTemp, Warning, TEXT("[ProcessCharge] %s: %s"),
+            *Agent->AgentLabel, *Context.ChargeErrorReason);
+    }
 }

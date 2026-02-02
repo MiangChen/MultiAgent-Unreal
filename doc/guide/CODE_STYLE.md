@@ -151,7 +151,7 @@ AMAAgent* Dog = AgentSubsystem->SpawnAgent(
 // 查询 Agent
 TArray<AMAAgent*> AllAgents = AgentSubsystem->GetAllAgents();
 TArray<AMAAgent*> Dogs = AgentSubsystem->GetAgentsByType(EAgentType::RobotDog);
-AMAAgent* Agent = AgentSubsystem->GetAgentByID(0);
+AMAAgent* Agent = AgentSubsystem->GetAgentByIDOrLabel(0);
 
 // 批量操作
 AgentSubsystem->MoveAllAgentsTo(FVector(1000, 1000, 0), 200.f);
@@ -302,7 +302,7 @@ Agent->TryDrop();
 // 检查是否持有物品
 if (Agent->IsHoldingItem())
 {
-    AMAPickupItem* Item = Agent->GetHeldItem();
+    IMAPickupItem* Item = Agent->GetHeldItem();
 }
 ```
 

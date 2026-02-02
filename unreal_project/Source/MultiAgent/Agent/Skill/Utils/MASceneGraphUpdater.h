@@ -104,4 +104,18 @@ private:
      * @param bSuccess 是否成功
      */
     static void UpdateAfterReturnHome(AMACharacter* Agent, bool bSuccess);
+    
+    /**
+     * HandleHazard 技能完成后的场景图更新
+     * @param Agent Agent 指针
+     * @param bSuccess 是否成功
+     */
+    static void UpdateAfterHandleHazard(AMACharacter* Agent, bool bSuccess);
+    
+    /**
+     * Guide 技能完成后的场景图更新
+     * @param Agent Agent 指针
+     * @param bSuccess 是否成功
+     */
+    static void UpdateAfterGuide(AMACharacter* Agent, bool bSuccess);
 };

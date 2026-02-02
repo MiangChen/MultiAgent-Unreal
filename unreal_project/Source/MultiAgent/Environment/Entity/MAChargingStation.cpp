@@ -3,8 +3,8 @@
 #include "MAChargingStation.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
-#include "MACharacter.h"
-#include "MAQuadrupedCharacter.h"
+#include "../../Agent/Character/MACharacter.h"
+#include "../../Agent/Character/MAQuadrupedCharacter.h"
 #include "UObject/ConstructorHelpers.h"
 
 AMAChargingStation::AMAChargingStation()
@@ -18,16 +18,10 @@ AMAChargingStation::AMAChargingStation()
     MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComponent"));
     RootComponent = MeshComponent;
     
-    // 让充电站不影响 NavMesh（机器人可以走到充电站位置）
-    MeshComponent->SetCanEverAffectNavigation(false);
-    
-    // 设置碰撞：允许射线检测（Visibility 通道），但不阻挡移动（Pawn 通道）
-    // 这样 Modify 模式可以点击选中充电站，但机器人可以"穿过"充电站
-    MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-    MeshComponent->SetCollisionObjectType(ECC_WorldStatic);
-    MeshComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
-    MeshComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);  // 允许射线检测
-    MeshComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Block);      // 允许相机碰撞;
+    // 启用物理模拟，让充电站自然落地
+    MeshComponent->SetSimulatePhysics(true);
+    MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+    MeshComponent->SetCollisionProfileName(TEXT("PhysicsActor"));
     
     // Set default soft references (can be changed in editor)
     StationMeshAsset = TSoftObjectPtr<UStaticMesh>(FSoftObjectPath(TEXT("/Game/charge/SM_StationRecharge.SM_StationRecharge")));
@@ -116,7 +110,7 @@ void AMAChargingStation::OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AAc
         RobotsInRange.AddUnique(Robot);
         
         // 充电由 Charge 技能处理
-        UE_LOG(LogTemp, Log, TEXT("[ChargingStation] %s entered range"), *Robot->AgentName);
+        UE_LOG(LogTemp, Log, TEXT("[ChargingStation] %s entered range"), *Robot->AgentLabel);
     }
 }
 
@@ -129,7 +123,7 @@ void AMAChargingStation::OnOverlapEnd(UPrimitiveComponent* OverlappedComp, AActo
             return Ptr.Get() == Robot;
         });
         
-        UE_LOG(LogTemp, Log, TEXT("[ChargingStation] %s left range"), *Robot->AgentName);
+        UE_LOG(LogTemp, Log, TEXT("[ChargingStation] %s left range"), *Robot->AgentLabel);
     }
 }
 

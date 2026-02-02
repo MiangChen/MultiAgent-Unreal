@@ -1,5 +1,6 @@
 // SK_Follow.h
-// 跟随技能
+// 跟随技能 - 支持跟随任意场景对象
+// 使用 NavigationService 的跟随模式进行平滑跟随
 
 #pragma once
 
@@ -7,7 +8,7 @@
 #include "../MASkillBase.h"
 #include "SK_Follow.generated.h"
 
-class AMACharacter;
+class UMANavigationService;
 
 UCLASS()
 class MULTIAGENT_API USK_Follow : public UMASkillBase
@@ -16,23 +17,27 @@ class MULTIAGENT_API USK_Follow : public UMASkillBase
 
 public:
     USK_Follow();
-
-    UFUNCTION(BlueprintCallable, Category = "Follow")
-    void SetTargetCharacter(AMACharacter* InTargetCharacter);
     
     UFUNCTION(BlueprintCallable, Category = "Follow")
     void SetTargetActor(AActor* InTargetActor);
     
     void SetFollowDistance(float InDistance) { FollowDistance = InDistance; }
 
+    /** 跟随距离 (从 ConfigManager 加载，可覆盖) */
     UPROPERTY(EditDefaultsOnly, Category = "Follow")
-    float FollowDistance = 200.f;
+    float FollowDistance = 300.f;
     
+    /** 状态检查间隔 (秒) */
     UPROPERTY(EditDefaultsOnly, Category = "Follow")
     float UpdateInterval = 0.5f;
-    
+
+    /** 持续跟踪时间阈值 (秒) */
     UPROPERTY(EditDefaultsOnly, Category = "Follow")
-    float RepathThreshold = 100.f;
+    float ContinuousFollowTimeThreshold = 30.f;
+
+    /** 跟随位置容差 (从 ConfigManager 加载，可覆盖) */
+    UPROPERTY(EditDefaultsOnly, Category = "Follow")
+    float FollowPositionTolerance = 200.f;
 
 protected:
     virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
@@ -42,16 +47,21 @@ private:
     UPROPERTY()
     TWeakObjectPtr<AActor> TargetActor;
     
-    FVector LastTargetLocation;
     FTimerHandle UpdateTimerHandle;
     
     void UpdateFollow();
-    FVector CalculateFollowLocation() const;
+
+    UFUNCTION()
+    void OnNavigationCompleted(bool bSuccess, const FString& Message);
 
     FGameplayAbilitySpecHandle CachedHandle;
     FGameplayAbilityActivationInfo CachedActivationInfo;
     
-    // 结果缓存（用于 EndAbility 生成反馈消息）
+    UPROPERTY()
+    UMANavigationService* NavigationService = nullptr;
+
+    float ContinuousFollowTime = 0.f;
+    
     bool bFollowSucceeded = false;
     FString FollowResultMessage;
 };

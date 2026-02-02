@@ -15,7 +15,7 @@ FMARobotData::FMARobotData(const AMACharacter* Character)
     if (Character)
     {
         RobotID = Character->AgentID;
-        RobotName = Character->AgentName;
+        RobotName = Character->AgentLabel;
         RobotType = Character->AgentType;
         Location = Character->GetActorLocation();
         Rotation = Character->GetActorRotation();

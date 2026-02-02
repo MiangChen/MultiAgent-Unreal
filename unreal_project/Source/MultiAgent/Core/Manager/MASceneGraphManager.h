@@ -28,8 +28,6 @@
  * - trans_facility: 交通设施 (道路、路口)
  * - prop: 道具 (雕像、天线、水塔等)
  * - robot: 机器人 (UAV, UGV, Quadruped, Humanoid)
- * - pickup_item: 可拾取物品
- * - charging_station: 充电站
  */
 USTRUCT(BlueprintType)
 struct FMASceneGraphNode
@@ -48,7 +46,7 @@ struct FMASceneGraphNode
     UPROPERTY(BlueprintReadWrite, Category = "SceneGraph")
     FString Guid;
 
-    /** 节点类型 (intersection, building, robot, pickup_item, etc.) */
+    /** 节点类型 (intersection, building, robot, etc.) */
     UPROPERTY(BlueprintReadWrite, Category = "SceneGraph")
     FString Type;
 
@@ -137,8 +135,11 @@ struct FMASceneGraphNode
     /** 是否为机器人节点 */
     bool IsRobot() const { return Category == TEXT("robot"); }
 
-    /** 是否为可拾取物品节点 (Type == "cargo") */
-    bool IsPickupItem() const { return Type == TEXT("cargo"); }
+    /** 是否为可拾取物品节点 (Type == "cargo" 或 "assembly_component") */
+    bool IsPickupItem() const 
+    { 
+        return Type == TEXT("cargo") || Type == TEXT("assembly_component"); 
+    }
 
     /** 是否为充电站节点 */
     bool IsChargingStation() const { return Type == TEXT("charging_station"); }
@@ -307,7 +308,7 @@ public:
     bool DeleteNode(const FString& NodeId, FString& OutError);
 
     /**
-     * 编辑 Working Copy 中的节点
+     * 编辑节点 (统一入口，自动分发到静态/动态节点)
      * 
      * @param NodeId 节点 ID
      * @param NewNodeJson 新的节点 JSON
@@ -316,6 +317,16 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "SceneGraph")
     bool EditNode(const FString& NodeId, const FString& NewNodeJson, FString& OutError);
+
+    /**
+     * 编辑静态节点 (WorkingCopy 中的节点)
+     * 
+     * @param NodeId 节点 ID
+     * @param NewNodeJson 新的节点 JSON
+     * @param OutError 错误信息
+     * @return 是否成功
+     */
+    bool EditStaticNode(const FString& NodeId, const FString& NewNodeJson, FString& OutError);
 
     /**
      * 保存 Working Copy 到源文件
@@ -484,29 +495,44 @@ public:
     //=========================================================================
 
     /**
-     * 更新机器人位置
-     * @param RobotId 机器人ID
+     * 绑定动态节点的 GUID
+     * 在 Actor 生成后调用，将 Actor 的 GUID 绑定到对应的动态节点
+     * 
+     * @param NodeIdOrLabel 节点 ID 或 Label (用于匹配节点)
+     * @param ActorGuid Actor 的 GUID 字符串 (通过 Actor->GetActorGuid().ToString() 获取)
+     * @return 是否绑定成功
+     */
+    UFUNCTION(BlueprintCallable, Category = "SceneGraph|Dynamic")
+    bool BindDynamicNodeGuid(const FString& NodeIdOrLabel, const FString& ActorGuid);
+
+    /**
+     * 编辑动态节点
+     * 验证 JSON 格式并更新节点的内存数据
+     * 
+     * @param NodeId 节点 ID
+     * @param NewNodeJson 新的节点 JSON 字符串
+     * @param OutError 错误信息 (如果失败)
+     * @return 是否成功
+     */
+    UFUNCTION(BlueprintCallable, Category = "SceneGraph|Dynamic")
+    bool EditDynamicNode(const FString& NodeId, const FString& NewNodeJson, FString& OutError);
+
+    /**
+     * 更新动态节点位置 (机器人或环境对象)
+     * @param NodeId 节点ID
      * @param NewPosition 新位置
      */
     UFUNCTION(BlueprintCallable, Category = "SceneGraph|Dynamic")
-    void UpdateRobotPosition(const FString& RobotId, const FVector& NewPosition);
+    void UpdateDynamicNodePosition(const FString& NodeId, const FVector& NewPosition);
 
     /**
-     * 更新可拾取物品位置
-     * @param ItemId 物品ID
-     * @param NewPosition 新位置
+     * 更新动态节点的 Feature
+     * @param NodeId 节点ID
+     * @param Key Feature 键
+     * @param Value Feature 值
      */
     UFUNCTION(BlueprintCallable, Category = "SceneGraph|Dynamic")
-    void UpdatePickupItemPosition(const FString& ItemId, const FVector& NewPosition);
-
-    /**
-     * 更新可拾取物品携带状态
-     * @param ItemId 物品ID
-     * @param bIsCarried 是否被携带
-     * @param CarrierId 携带者ID
-     */
-    UFUNCTION(BlueprintCallable, Category = "SceneGraph|Dynamic")
-    void UpdatePickupItemCarrierStatus(const FString& ItemId, bool bIsCarried, const FString& CarrierId = TEXT(""));
+    void UpdateDynamicNodeFeature(const FString& NodeId, const FString& Key, const FString& Value);
 
     /**
      * 根据 Actor GUID 查找包含该 GUID 的所有节点
@@ -626,11 +652,11 @@ private:
     bool ValidateNodeJsonStructure(const TSharedPtr<FJsonObject>& NodeObject, FString& OutErrorMessage) const;
 
     /**
-     * 在动态节点数组中查找节点
+     * 在动态节点数组中查找节点 (返回可修改的指针)
      * @param NodeId 节点ID
      * @return 节点指针，如果未找到则返回 nullptr
      */
-    FMASceneGraphNode* FindDynamicNodeById(const FString& NodeId);
+    FMASceneGraphNode* FindDynamicNodeByIdMutable(const FString& NodeId);
 
     //=========================================================================
     // 统一图操作内部方法

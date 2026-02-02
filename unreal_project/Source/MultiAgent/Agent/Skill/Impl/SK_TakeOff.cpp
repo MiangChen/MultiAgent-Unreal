@@ -1,17 +1,15 @@
 // SK_TakeOff.cpp
+// 起飞技能 - 使用 MANavigationService 统一接口
 
 #include "SK_TakeOff.h"
 #include "../MASkillTags.h"
 #include "../MASkillComponent.h"
 #include "../../Character/MACharacter.h"
-#include "../../Character/MAUAVCharacter.h"
-#include "TimerManager.h"
+#include "../../Component/MANavigationService.h"
 
 USK_TakeOff::USK_TakeOff()
 {
     ActivationOwnedTags.AddTag(FMASkillTags::Get().Status_Moving);
-    bTakeOffSucceeded = false;
-    TakeOffResultMessage = TEXT("");
 }
 
 void USK_TakeOff::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
@@ -20,120 +18,103 @@ void USK_TakeOff::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const
     
     CachedHandle = Handle;
     CachedActivationInfo = ActivationInfo;
-    
-    // 重置结果状态
     bTakeOffSucceeded = false;
     TakeOffResultMessage = TEXT("");
     
     AMACharacter* Character = GetOwningCharacter();
     if (!Character)
     {
-        bTakeOffSucceeded = false;
-        TakeOffResultMessage = TEXT("TakeOff failed: Character not found");
-        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+        FailAndEnd(TEXT("TakeOff failed: Character not found"));
         return;
     }
     
     UMASkillComponent* SkillComp = Character->GetSkillComponent();
     if (!SkillComp)
     {
-        bTakeOffSucceeded = false;
-        TakeOffResultMessage = TEXT("TakeOff failed: SkillComponent not found");
-        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+        FailAndEnd(TEXT("TakeOff failed: SkillComponent not found"));
+        return;
+    }
+    
+    UMANavigationService* NavService = Character->GetNavigationService();
+    if (!NavService)
+    {
+        FailAndEnd(TEXT("TakeOff failed: NavigationService not found"));
         return;
     }
     
     // 获取起飞高度参数
     const FMASkillParams& Params = SkillComp->GetSkillParams();
-    float TakeOffHeight = Params.TakeOffHeight;
+    TargetAltitude = Params.TakeOffHeight;
     
-    StartLocation = Character->GetActorLocation();
-    TargetLocation = StartLocation;
-    TargetLocation.Z = TakeOffHeight;
-    
-    Character->ShowAbilityStatus(TEXT("TakeOff"), FString::Printf(TEXT("-> %.0fm"), TakeOffHeight / 100.f));
+    Character->ShowAbilityStatus(TEXT("TakeOff"), FString::Printf(TEXT("-> %.0fm"), TargetAltitude / 100.f));
     Character->bIsMoving = true;
     
-    // 立即启动螺旋桨动画
+    // 启动螺旋桨动画
     if (USkeletalMeshComponent* Mesh = Character->GetMesh())
     {
         Mesh->Play(true);
     }
     
-    // 开始起飞更新
-    if (UWorld* World = Character->GetWorld())
+    // 绑定导航完成回调
+    NavService->OnNavigationCompleted.AddDynamic(this, &USK_TakeOff::OnNavigationCompleted);
+    
+    // 调用 NavigationService 的 TakeOff
+    if (!NavService->TakeOff(TargetAltitude))
     {
-        World->GetTimerManager().SetTimer(UpdateTimerHandle, this, &USK_TakeOff::UpdateTakeOff, 0.05f, true);
+        NavService->OnNavigationCompleted.RemoveDynamic(this, &USK_TakeOff::OnNavigationCompleted);
+        FailAndEnd(TEXT("TakeOff failed: NavigationService rejected request"));
     }
 }
 
-void USK_TakeOff::UpdateTakeOff()
+void USK_TakeOff::OnNavigationCompleted(bool bSuccess, const FString& Message)
 {
-    AMACharacter* Character = GetOwningCharacter();
-    if (!Character)
+    bTakeOffSucceeded = bSuccess;
+    TakeOffResultMessage = Message;
+    
+    if (AMACharacter* Character = GetOwningCharacter())
     {
-        bTakeOffSucceeded = false;
-        TakeOffResultMessage = TEXT("TakeOff failed: Character lost during takeoff");
-        EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
-        return;
+        Character->ShowAbilityStatus(TEXT("TakeOff"), bSuccess ? TEXT("Complete!") : TEXT("Failed"));
     }
     
-    FVector CurrentLocation = Character->GetActorLocation();
-    float DistanceToTarget = FMath::Abs(TargetLocation.Z - CurrentLocation.Z);
-    
-    if (DistanceToTarget < 10.f)
-    {
-        // 到达目标高度
-        Character->SetActorLocation(TargetLocation);
-        
-        // 更新 UAV 的飞行状态为 Hovering
-        if (AMAUAVCharacter* UAV = Cast<AMAUAVCharacter>(Character))
-        {
-            UAV->SetFlightState(EMAFlightState::Hovering);
-        }
-        
-        bTakeOffSucceeded = true;
-        TakeOffResultMessage = FString::Printf(TEXT("TakeOff succeeded: Reached altitude %.0fm"), TargetLocation.Z / 100.f);
-        Character->ShowAbilityStatus(TEXT("TakeOff"), TEXT("Complete!"));
-        EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, false);
-        return;
-    }
-    
-    // 向上移动
-    FVector NewLocation = CurrentLocation;
-    float DeltaZ = TakeOffSpeed * 0.05f;
-    NewLocation.Z = FMath::Min(NewLocation.Z + DeltaZ, TargetLocation.Z);
-    Character->SetActorLocation(NewLocation);
+    EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, !bSuccess);
+}
+
+void USK_TakeOff::FailAndEnd(const FString& Message)
+{
+    bTakeOffSucceeded = false;
+    TakeOffResultMessage = Message;
+    EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
 }
 
 void USK_TakeOff::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
     AMACharacter* Character = GetOwningCharacter();
-    
-    // 保存通知所需的信息
-    bool bShouldNotify = false;
-    bool bSuccessToNotify = bTakeOffSucceeded;
-    FString MessageToNotify = TakeOffResultMessage;
     UMASkillComponent* SkillCompToNotify = nullptr;
+    bool bShouldNotify = false;
     
     if (Character)
     {
-        if (UWorld* World = Character->GetWorld())
+        // 解绑回调
+        if (UMANavigationService* NavService = Character->GetNavigationService())
         {
-            World->GetTimerManager().ClearTimer(UpdateTimerHandle);
+            NavService->OnNavigationCompleted.RemoveDynamic(this, &USK_TakeOff::OnNavigationCompleted);
+            
+            // 如果被取消，也取消导航
+            if (bWasCancelled)
+            {
+                NavService->CancelNavigation();
+            }
         }
-        UpdateTimerHandle.Invalidate();
         
         Character->bIsMoving = false;
         Character->ShowStatus(TEXT(""), 0.f);
         
-        // 如果被取消且没有设置结果消息，说明是外部取消
+        // 如果被取消且没有设置结果消息
         if (bWasCancelled && TakeOffResultMessage.IsEmpty())
         {
-            bSuccessToNotify = false;
             FVector CurrentLocation = Character->GetActorLocation();
-            MessageToNotify = FString::Printf(TEXT("TakeOff cancelled: Stopped at altitude %.0fm (target: %.0fm)"), 
-                CurrentLocation.Z / 100.f, TargetLocation.Z / 100.f);
+            TakeOffResultMessage = FString::Printf(TEXT("TakeOff cancelled: Stopped at altitude %.0fm (target: %.0fm)"), 
+                CurrentLocation.Z / 100.f, TargetAltitude / 100.f);
         }
         
         // 检查是否需要通知完成
@@ -149,12 +130,10 @@ void USK_TakeOff::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGam
         }
     }
     
-    // 先调用父类 EndAbility
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
     
-    // 在技能完全结束后再通知完成
     if (bShouldNotify && SkillCompToNotify)
     {
-        SkillCompToNotify->NotifySkillCompleted(bSuccessToNotify, MessageToNotify);
+        SkillCompToNotify->NotifySkillCompleted(bTakeOffSucceeded, TakeOffResultMessage);
     }
 }

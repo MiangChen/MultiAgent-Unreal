@@ -1,10 +1,17 @@
 // SK_Guide.cpp
+// 引导技能 - 引导目标对象到达指定位置
+// 机器人使用 NavigationService 导航到目的地
+// 被引导对象支持两种移动模式: Direct (直接移动) 或 NavMesh (导航服务)
 
 #include "SK_Guide.h"
 #include "../MASkillTags.h"
 #include "../MASkillComponent.h"
 #include "../../Character/MACharacter.h"
+#include "../../Component/MANavigationService.h"
+#include "../../../Core/Config/MAConfigManager.h"
+#include "../../../Environment/Entity/MAPerson.h"
 #include "Containers/Ticker.h"
+#include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 USK_Guide::USK_Guide()
@@ -22,13 +29,57 @@ void USK_Guide::ActivateAbility(
 
     CachedHandle = Handle;
     CachedActivationInfo = ActivationInfo;
+    bAgentArrived = false;
+    bAgentWaiting = false;
+    bGuideSucceeded = false;
+    GuideResultMessage = TEXT("");
+    LastTargetNavPos = FVector::ZeroVector;
 
     AMACharacter* Character = GetOwningCharacter();
     if (!Character)
     {
+        bGuideSucceeded = false;
+        GuideResultMessage = TEXT("Guide failed: Owner character not found");
         EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
         return;
     }
+
+    // 从 ConfigManager 加载配置
+    if (UWorld* World = Character->GetWorld())
+    {
+        if (UGameInstance* GI = World->GetGameInstance())
+        {
+            if (UMAConfigManager* ConfigMgr = GI->GetSubsystem<UMAConfigManager>())
+            {
+                MinFlightAltitude = ConfigMgr->GetFlightConfig().MinAltitude;
+                
+                const FMAFollowConfig& FollowCfg = ConfigMgr->GetFollowConfig();
+                if (FMath::IsNearlyEqual(FollowDistance, 300.f))
+                {
+                    FollowDistance = FollowCfg.Distance * 0.4f;
+                }
+                
+                const FMAGroundNavigationConfig& GroundCfg = ConfigMgr->GetGroundNavigationConfig();
+                if (FMath::IsNearlyEqual(AcceptanceRadius, 200.f))
+                {
+                    AcceptanceRadius = GroundCfg.AcceptanceRadius;
+                }
+
+                // 加载 Guide 配置
+                const FMAGuideConfig& GuideCfg = ConfigMgr->GetGuideConfig();
+                WaitDistanceThreshold = GuideCfg.WaitDistanceThreshold;
+                if (GuideCfg.TargetMoveMode.Equals(TEXT("direct"), ESearchCase::IgnoreCase))
+                {
+                    TargetMoveMode = EMAGuideTargetMoveMode::Direct;
+                }
+                else
+                {
+                    TargetMoveMode = EMAGuideTargetMoveMode::NavMesh;
+                }
+            }
+        }
+    }
+
 
     // 获取引导参数
     if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
@@ -41,34 +92,81 @@ void USK_Guide::ActivateAbility(
     // 验证参数
     if (!GuideTargetActor.IsValid())
     {
-        UE_LOG(LogTemp, Warning, TEXT("[SK_Guide] No valid target actor to guide"));
+        bGuideSucceeded = false;
+        GuideResultMessage = TEXT("Guide failed: Target not found");
         EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
         return;
     }
 
     if (GuideDestination.IsZero())
     {
-        UE_LOG(LogTemp, Warning, TEXT("[SK_Guide] No valid destination"));
+        bGuideSucceeded = false;
+        GuideResultMessage = TEXT("Guide failed: No valid destination");
         EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
         return;
     }
 
+    // 获取机器人 NavigationService
+    NavigationService = Character->GetNavigationService();
+    if (!NavigationService)
+    {
+        bGuideSucceeded = false;
+        GuideResultMessage = TEXT("Guide failed: NavigationService not found");
+        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+        return;
+    }
+
+    // NavMesh 模式：尝试获取被引导对象的导航服务
+    if (TargetMoveMode == EMAGuideTargetMoveMode::NavMesh)
+    {
+        TargetNavigationService = GetTargetNavigationService();
+        if (!TargetNavigationService)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[SK_Guide] Target has no NavigationService, falling back to Direct mode"));
+            TargetMoveMode = EMAGuideTargetMoveMode::Direct;
+        }
+    }
+
     // 初始化状态
     StartTime = Character->GetWorld()->GetTimeSeconds();
+    StartLocation = Character->GetActorLocation();
     Character->bIsMoving = true;
 
-    // 显示引导状态
-    Character->ShowAbilityStatus(
-        TEXT("Guide"),
-        FString::Printf(TEXT("Guiding to (%.0f, %.0f, %.0f)"), 
-            GuideDestination.X, GuideDestination.Y, GuideDestination.Z)
-    );
+    // 绑定导航完成回调
+    NavigationService->OnNavigationCompleted.AddDynamic(this, &USK_Guide::OnAgentNavigationCompleted);
+
+    // 获取被引导对象的移动速度，让机器人匹配
+    TargetMoveSpeed = GetTargetMoveSpeed();
+    if (TargetMoveSpeed > 0.f && !IsFlying())
+    {
+        NavigationService->SetMoveSpeed(TargetMoveSpeed * 1.05f);
+    }
+
+    // 启动机器人导航到目的地
+    NavigationService->NavigateTo(GuideDestination, AcceptanceRadius);
 
     // 启动 Ticker 更新引导逻辑
     TickDelegateHandle = FTSTicker::GetCoreTicker().AddTicker(
-        FTickerDelegate::CreateUObject(this, &USK_Guide::TickGuide),
-        0.0f
-    );
+        FTickerDelegate::CreateUObject(this, &USK_Guide::TickGuide), 0.0f);
+
+    UE_LOG(LogTemp, Log, TEXT("[SK_Guide] Started guiding %s to (%.0f,%.0f,%.0f), mode=%s, wait_threshold=%.0f"),
+        *GuideTargetActor->GetName(), GuideDestination.X, GuideDestination.Y, GuideDestination.Z,
+        TargetMoveMode == EMAGuideTargetMoveMode::NavMesh ? TEXT("NavMesh") : TEXT("Direct"),
+        WaitDistanceThreshold);
+}
+
+void USK_Guide::OnAgentNavigationCompleted(bool bSuccess, const FString& Message)
+{
+    if (bSuccess)
+    {
+        bAgentArrived = true;
+        UE_LOG(LogTemp, Log, TEXT("[SK_Guide] Agent arrived at destination"));
+    }
+    else if (!bAgentWaiting)
+    {
+        // 只有非等待状态下的导航失败才算真正失败
+        OnGuideComplete(false, FString::Printf(TEXT("Guide failed: %s"), *Message));
+    }
 }
 
 bool USK_Guide::TickGuide(float DeltaTime)
@@ -76,36 +174,100 @@ bool USK_Guide::TickGuide(float DeltaTime)
     AMACharacter* Character = GetOwningCharacter();
     if (!Character)
     {
-        OnGuideComplete();
-        return false;  // 停止 Ticker
-    }
-
-    // 检查目标是否仍然有效
-    if (!GuideTargetActor.IsValid())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[SK_Guide] Target actor lost during guide"));
-        OnGuideComplete();
+        OnGuideComplete(false, TEXT("Guide failed: Owner character lost"));
         return false;
     }
 
-    FVector CurrentLocation = Character->GetActorLocation();
-    float Distance2D = FVector::Dist2D(CurrentLocation, GuideDestination);
-
-    // 检查是否到达目的地
-    if (Distance2D < AcceptanceRadius)
+    if (!GuideTargetActor.IsValid())
     {
-        OnGuideComplete();
-        return false;  // 停止 Ticker
+        OnGuideComplete(false, TEXT("Guide failed: Target lost"));
+        return false;
     }
 
-    // Agent 向目的地移动
-    FVector DirectionToDestination = (GuideDestination - CurrentLocation).GetSafeNormal2D();
-    Character->AddMovementInput(DirectionToDestination, 1.0f);
+    // 检查是否需要等待被引导对象
+    CheckAndHandleWaiting();
 
-    // 更新被引导对象的位置（跟随 Agent）
+    // 更新被引导对象的位置
     UpdateTargetPosition(DeltaTime);
 
-    return true;  // 继续 Ticker
+    FString TargetName = GuideTargetActor->GetName();
+    
+    if (bAgentArrived)
+    {
+        // 机器人已到达，检查被引导对象是否也到达
+        FVector TargetFollowPos = CalculateTargetFollowPosition();
+        float DistanceToFollowPos = FVector::Dist2D(GuideTargetActor->GetActorLocation(), TargetFollowPos);
+
+        if (DistanceToFollowPos < TargetAcceptanceRadius)
+        {
+            OnGuideComplete(true, FString::Printf(
+                TEXT("Guide succeeded: Target guided to (%.0f, %.0f, %.0f)"),
+                GuideDestination.X, GuideDestination.Y, GuideDestination.Z));
+            return false;
+        }
+        
+        Character->ShowStatus(FString::Printf(TEXT("Waiting for %s..."), *TargetName), 0.2f);
+    }
+    else if (bAgentWaiting)
+    {
+        Character->ShowStatus(FString::Printf(TEXT("Waiting for %s to catch up..."), *TargetName), 0.2f);
+    }
+    else
+    {
+        Character->ShowStatus(FString::Printf(TEXT("Guiding %s..."), *TargetName), 0.2f);
+    }
+
+    return true;
+}
+
+void USK_Guide::CheckAndHandleWaiting()
+{
+    if (!GuideTargetActor.IsValid() || !NavigationService) return;
+    
+    AMACharacter* Character = GetOwningCharacter();
+    if (!Character || bAgentArrived) return;  // 已到达就不需要等待逻辑了
+
+    float DistanceToTarget = FVector::Dist2D(Character->GetActorLocation(), GuideTargetActor->GetActorLocation());
+    
+    if (!bAgentWaiting && DistanceToTarget > WaitDistanceThreshold)
+    {
+        // 距离过远，暂停导航（设置速度为0）
+        bAgentWaiting = true;
+        NavigationService->SetMoveSpeed(0.01f);  // 设置极低速度来"暂停"
+        UE_LOG(LogTemp, Log, TEXT("[SK_Guide] Agent waiting for target (distance=%.0f > threshold=%.0f)"),
+            DistanceToTarget, WaitDistanceThreshold);
+    }
+    else if (bAgentWaiting && DistanceToTarget < WaitDistanceThreshold * 0.6f)
+    {
+        // 被引导对象追上来了，恢复导航速度
+        bAgentWaiting = false;
+        if (TargetMoveSpeed > 0.f)
+        {
+            NavigationService->SetMoveSpeed(TargetMoveSpeed * 1.05f);
+        }
+        else
+        {
+            NavigationService->RestoreDefaultSpeed();
+        }
+        UE_LOG(LogTemp, Log, TEXT("[SK_Guide] Agent resuming navigation (distance=%.0f)"), DistanceToTarget);
+    }
+}
+
+FVector USK_Guide::CalculateTargetFollowPosition() const
+{
+    AMACharacter* Character = const_cast<USK_Guide*>(this)->GetOwningCharacter();
+    if (!Character) return FVector::ZeroVector;
+
+    FVector AgentLocation = Character->GetActorLocation();
+    FVector AgentForward = Character->GetActorForwardVector();
+    FVector TargetFollowPosition = AgentLocation - AgentForward * FollowDistance;
+
+    if (IsFlying() && GuideTargetActor.IsValid())
+    {
+        TargetFollowPosition.Z = GuideTargetActor->GetActorLocation().Z;
+    }
+
+    return TargetFollowPosition;
 }
 
 void USK_Guide::UpdateTargetPosition(float DeltaTime)
@@ -115,45 +277,131 @@ void USK_Guide::UpdateTargetPosition(float DeltaTime)
     AMACharacter* Character = GetOwningCharacter();
     if (!Character) return;
 
-    // 计算目标应该跟随的位置（在 Agent 后方一定距离）
-    FVector AgentLocation = Character->GetActorLocation();
-    FVector AgentForward = Character->GetActorForwardVector();
-    FVector TargetFollowPosition = AgentLocation - AgentForward * FollowDistance;
-
-    // 获取目标当前位置
-    FVector TargetLocation = GuideTargetActor->GetActorLocation();
-    float DistanceToFollowPos = FVector::Dist2D(TargetLocation, TargetFollowPosition);
-
-    // 如果距离超过阈值，移动目标
-    if (DistanceToFollowPos > 50.f)
+    // 计算被引导对象应该移动到的位置
+    FVector MoveToPos;
+    if (bAgentWaiting)
     {
-        FVector MoveDirection = (TargetFollowPosition - TargetLocation).GetSafeNormal2D();
-        
-        // 计算移动速度（基于距离，距离越远速度越快）
-        float MoveSpeed = FMath::Clamp(DistanceToFollowPos * 2.f, 100.f, 400.f);
-        FVector NewLocation = TargetLocation + MoveDirection * MoveSpeed * DeltaTime;
-        
-        // 保持 Z 轴不变（或者可以根据地形调整）
-        NewLocation.Z = TargetLocation.Z;
-        
-        GuideTargetActor->SetActorLocation(NewLocation);
+        // 机器人等待中：被引导对象直接向机器人位置移动
+        MoveToPos = Character->GetActorLocation();
+        MoveToPos.Z = GuideTargetActor->GetActorLocation().Z;  // 保持高度
+    }
+    else
+    {
+        // 正常引导：被引导对象向跟随位置移动
+        MoveToPos = CalculateTargetFollowPosition();
+    }
+
+    float DistanceToPos = FVector::Dist2D(GuideTargetActor->GetActorLocation(), MoveToPos);
+    if (DistanceToPos < 50.f) return;
+
+    if (TargetMoveMode == EMAGuideTargetMoveMode::NavMesh && TargetNavigationService)
+    {
+        UpdateTargetPositionNavMesh(MoveToPos);
+    }
+    else
+    {
+        UpdateTargetPositionDirect(DeltaTime, MoveToPos);
     }
 }
 
-void USK_Guide::OnGuideComplete()
+void USK_Guide::UpdateTargetPositionDirect(float DeltaTime, const FVector& TargetFollowPos)
 {
-    AMACharacter* Character = GetOwningCharacter();
+    ACharacter* TargetChar = Cast<ACharacter>(GuideTargetActor.Get());
+    if (!TargetChar) return;
+
+    FVector TargetLocation = TargetChar->GetActorLocation();
+    FVector Direction = (TargetFollowPos - TargetLocation).GetSafeNormal2D();
     
+    if (Direction.IsNearlyZero()) return;
+
+    TargetChar->AddMovementInput(Direction, 1.0f);
+    
+    FRotator CurrentRot = TargetChar->GetActorRotation();
+    FRotator TargetRot = Direction.Rotation();
+    TargetRot.Pitch = 0.f;
+    TargetRot.Roll = 0.f;
+    FRotator NewRot = FMath::RInterpTo(CurrentRot, TargetRot, DeltaTime, 5.f);
+    TargetChar->SetActorRotation(NewRot);
+}
+
+void USK_Guide::UpdateTargetPositionNavMesh(const FVector& TargetFollowPos)
+{
+    if (!TargetNavigationService) return;
+
+    float PosChange = FVector::Dist2D(TargetFollowPos, LastTargetNavPos);
+    if (LastTargetNavPos.IsZero() || PosChange > NavUpdateThreshold)
+    {
+        LastTargetNavPos = TargetFollowPos;
+        TargetNavigationService->NavigateTo(TargetFollowPos, TargetAcceptanceRadius * 0.5f);
+    }
+}
+
+float USK_Guide::GetGuideProgress() const
+{
+    AMACharacter* Character = const_cast<USK_Guide*>(this)->GetOwningCharacter();
+    if (!Character) return 0.f;
+
+    float TotalDistance = FVector::Dist2D(StartLocation, GuideDestination);
+    if (TotalDistance < KINDA_SMALL_NUMBER) return 1.f;
+
+    float RemainingDistance = FVector::Dist2D(Character->GetActorLocation(), GuideDestination);
+    return FMath::Clamp(1.f - (RemainingDistance / TotalDistance), 0.f, 1.f);
+}
+
+bool USK_Guide::IsFlying() const
+{
+    AMACharacter* Character = const_cast<USK_Guide*>(this)->GetOwningCharacter();
+    if (!Character) return false;
+    
+    return Character->AgentType == EMAAgentType::UAV || 
+           Character->AgentType == EMAAgentType::FixedWingUAV;
+}
+
+float USK_Guide::GetTargetMoveSpeed() const
+{
+    if (!GuideTargetActor.IsValid()) return 0.f;
+    
+    if (ACharacter* TargetChar = Cast<ACharacter>(GuideTargetActor.Get()))
+    {
+        if (UCharacterMovementComponent* MovementComp = TargetChar->GetCharacterMovement())
+        {
+            return MovementComp->MaxWalkSpeed;
+        }
+    }
+    
+    return 0.f;
+}
+
+UMANavigationService* USK_Guide::GetTargetNavigationService() const
+{
+    if (!GuideTargetActor.IsValid()) return nullptr;
+
+    if (AMAPerson* Person = Cast<AMAPerson>(GuideTargetActor.Get()))
+    {
+        return Person->GetNavigationService();
+    }
+
+    if (AActor* Target = GuideTargetActor.Get())
+    {
+        return Target->FindComponentByClass<UMANavigationService>();
+    }
+
+    return nullptr;
+}
+
+void USK_Guide::OnGuideComplete(bool bSuccess, const FString& Message)
+{
+    bGuideSucceeded = bSuccess;
+    GuideResultMessage = Message;
+
+    AMACharacter* Character = GetOwningCharacter();
     if (Character)
     {
         Character->bIsMoving = false;
         Character->ShowStatus(TEXT(""), 0.f);
     }
 
-    // 通知技能完成
     bool bShouldNotify = false;
-    bool bSuccessToNotify = true;
-    FString MessageToNotify;
     UMASkillComponent* SkillCompToNotify = nullptr;
 
     if (Character)
@@ -167,30 +415,18 @@ void USK_Guide::OnGuideComplete()
                 bShouldNotify = true;
                 SkillCompToNotify = SkillComp;
 
-                // 计算引导持续时间
-                float CurrentTime = Character->GetWorld()->GetTimeSeconds();
-                float Duration = CurrentTime - StartTime;
-
-                // 记录到反馈上下文
+                float Duration = Character->GetWorld()->GetTimeSeconds() - StartTime;
                 FMAFeedbackContext& FeedbackCtx = SkillComp->GetFeedbackContextMutable();
                 FeedbackCtx.GuideDurationSeconds = Duration;
-
-                // 生成消息
-                MessageToNotify = FString::Printf(
-                    TEXT("Guide succeeded, target guided to (%.0f, %.0f, %.0f)"),
-                    GuideDestination.X, GuideDestination.Y, GuideDestination.Z
-                );
             }
         }
     }
 
-    // 结束技能
-    EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, false);
+    EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, !bSuccess);
 
-    // 在技能完全结束后通知完成
     if (bShouldNotify && SkillCompToNotify)
     {
-        SkillCompToNotify->NotifySkillCompleted(bSuccessToNotify, MessageToNotify);
+        SkillCompToNotify->NotifySkillCompleted(bGuideSucceeded, GuideResultMessage);
     }
 }
 
@@ -201,19 +437,32 @@ void USK_Guide::EndAbility(
     bool bReplicateEndAbility,
     bool bWasCancelled)
 {
-    // 清理 Ticker
     if (TickDelegateHandle.IsValid())
     {
         FTSTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
         TickDelegateHandle.Reset();
     }
 
-    // 清理移动状态
     AMACharacter* Character = GetOwningCharacter();
     if (Character)
     {
         Character->bIsMoving = false;
+
+        if (NavigationService)
+        {
+            NavigationService->OnNavigationCompleted.RemoveDynamic(this, &USK_Guide::OnAgentNavigationCompleted);
+            NavigationService->CancelNavigation();
+            NavigationService->RestoreDefaultSpeed();
+        }
     }
+
+    if (TargetNavigationService)
+    {
+        TargetNavigationService->CancelNavigation();
+    }
+
+    NavigationService = nullptr;
+    TargetNavigationService = nullptr;
 
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }

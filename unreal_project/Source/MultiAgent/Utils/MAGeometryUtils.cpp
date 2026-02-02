@@ -560,3 +560,43 @@ FVector FMAGeometryUtils::GetPolygonCenter(const TArray<FVector>& Vertices)
     }
     return Sum / Vertices.Num();
 }
+
+//=============================================================================
+// 多边形面积计算
+//=============================================================================
+
+float FMAGeometryUtils::CalculatePolygonArea2D(const TArray<FVector>& Vertices)
+{
+    const int32 N = Vertices.Num();
+    if (N < 3)
+    {
+        return 0.f;
+    }
+    
+    // Shoelace 公式: Area = 0.5 * |Σ(x[i] * y[i+1] - x[i+1] * y[i])|
+    float Sum = 0.f;
+    for (int32 i = 0; i < N; ++i)
+    {
+        const FVector& Current = Vertices[i];
+        const FVector& Next = Vertices[(i + 1) % N];
+        Sum += Current.X * Next.Y - Next.X * Current.Y;
+    }
+    
+    return FMath::Abs(Sum) * 0.5f;
+}
+
+float FMAGeometryUtils::CalculateAdaptiveScanWidth(const TArray<FVector>& Vertices, float MinWidth, float MaxWidth)
+{
+    const float Area = CalculatePolygonArea2D(Vertices);
+    if (Area <= 0.f)
+    {
+        return MinWidth;
+    }
+    
+    // 使用面积平方根的 3/20 作为扫描宽度
+    // 例如: 100m x 100m = 10000m² → sqrt = 100m → 扫描宽度 = 10m = 1000cm
+    const float CharacteristicLength = FMath::Sqrt(Area);
+    const float ScanWidth = CharacteristicLength * 0.15f;
+    
+    return FMath::Clamp(ScanWidth, MinWidth, MaxWidth);
+}
