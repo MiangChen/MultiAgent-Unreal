@@ -157,6 +157,9 @@ protected:
     /** 切换指令输入面板 (8 键) */
     void OnToggleInstructionPanel(const FInputActionValue& Value);
 
+    /** 切换 Agent 圆环高亮显示 ([ 键) */
+    void OnToggleAgentHighlight(const FInputActionValue& Value);
+
     // 获取鼠标点击位置
     bool GetMouseHitLocation(FVector& OutLocation);
     

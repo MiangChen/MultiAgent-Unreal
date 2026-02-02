@@ -41,6 +41,12 @@ public:
     /** 设置框选终点 */
     void SetBoxEnd(const FVector2D& End) { BoxEnd = End; }
 
+    /** 切换 Agent 圆环高亮显示/隐藏 */
+    void ToggleAgentCircles() { bShowAgentCircles = !bShowAgentCircles; }
+
+    /** 获取 Agent 圆环是否显示 */
+    bool IsAgentCirclesVisible() const { return bShowAgentCircles; }
+
 protected:
     /** 缓存的主题引用 */
     UPROPERTY()
@@ -50,6 +56,12 @@ protected:
     
     UPROPERTY(BlueprintReadWrite, Category = "Selection")
     bool bIsBoxSelecting = false;
+
+    // ========== Agent 圆环显示控制 ==========
+    
+    /** 是否显示 Agent 圆环高亮 ([ 键切换) */
+    UPROPERTY(BlueprintReadWrite, Category = "Selection")
+    bool bShowAgentCircles = true;
 
     UPROPERTY(BlueprintReadWrite, Category = "Selection")
     FVector2D BoxStart;

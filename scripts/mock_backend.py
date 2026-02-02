@@ -283,73 +283,71 @@ SKILL_LISTS = {
             }
         }
     },
-    "single": {
-        "name": "Single Test",
-        "description": "UAV 起飞 -> 导航 -> Humanoid 导航",
-        # "data": {
-        #     "0": {'UAV-1': {'skill': 'take_off', 'params': {'task_id': 'T1'}}},
-        #     "1": {'UAV-1': {'skill': 'navigate', 'params': {'dest': {'x': -8900.0, 'y': 2801.0, 'z': 0.0}, 'task_id': 'T1'}}},
-        #     "2": {'UAV-1': {'skill': 'search', 'params': {'area': {'kind': 'area', 'coords': [[-10100.0, 2001.0000000000002, 0.0], [-7700.0, 2001.0000000000002, 0.0], [-7700.0, 3601.0, 0.0], [-10100.0, 3601.0, 0.0]]}, 'area_token': 'Intersection-1', 'target': {'class': 'event', 'event_type': 'traffic_violation', 'conf_ge': 0.85, 'persist_ge_s': 2.0}, 'target_token': 'traffic_violation', 'conf_ge': 0.85, 'persist_ge_s': 2.0, 'task_id': 'T1'}}},
-            
-        #     # "0": {'UGV-1': {'skill': 'navigate', 'params': {'area_token': 'Vehicle-27', 'object_id': '102', 'dest_id': '102', 'dest': {'x': -9086.5419921875, 'y': 3113.423583984375, 'z': 0.0}, 'task_id': 'T2'}}},
-        #     # "1": {'UGV-1': {'skill': 'broadcast', 'params': {'target': {'class': 'event', 'event_type': 'traffic_violation', 'conf_ge': 0.85, 'persist_ge_s': 2.0}, 'target_token': 'traffic_violation', 'conf_ge': 0.85, 'persist_ge_s': 2.0, 'message': 'No parking here, please leave immediately.', 'duration_ge_s': 5.0, 'object_id': '102', 'task_id': 'T3'}}},
-        #     # "2": {'UAV-1': {'skill': 'take_photo', 'params': {'target': {'class': 'event', 'event_type': 'traffic_violation', 'conf_ge': 0.85, 'persist_ge_s': 2.0}, 'target_token': 'traffic_violation', 'bind_event_type': 'traffic_violation', 'object_id': '102', 'task_id': 'T3'}},
-            
-        #     # "0": {
-        #     #     # "Humanoid-1": {"skill": "navigate", "params": {"dest": {"x": -2200, "y": 3200, "z": 0}}},
-        #     #     # "Quadruped-1": {"skill": "navigate", "params": {"dest": {"x": -2200, "y": 3200, "z": 0}}},
-        #     #     "UGV-1": {"skill": "navigate", "params": {"dest": {"x": -2200, "y": 3200, "z": 0}}}
-        #     # },
-        #     # "1": {
-        #     #     # "Humanoid-1": {"skill": "navigate", "params": {"dest": {"x": 0, "y": 8400, "z": 0}}},
-        #     #     # "Quadruped-1": {"skill": "navigate", "params": {"dest": {"x": -4000, "y": 9000, "z": 0}}},
-        #     #     "UGV-1": {"skill": "navigate", "params": {"dest": {"x": -4000, "y": 9000, "z": 0}}}
-        #     # },
-        #     # "2": {
-        #     #     # "Humanoid-1": {"skill": "navigate", "params": {"dest": {"x": -5000, "y": 12400, "z": 0}}},
-        #     #     # "Quadruped-1": {"skill": "navigate", "params": {"dest": {"x": -5000, "y": 12400, "z": 0}}},
-        #     #     "UGV-1": {"skill": "navigate", "params": {"dest": {"x": -5000, "y": 12400, "z": 0}}}
-        #     # }
-        # },
-        # "data": {
-        #     "0": {'UAV-1': {'skill': 'take_off', 'params': {'task_id': 'T1'}}},
-        #     "1": {'UAV-1': {'skill': 'follow', 'params': {'target': {'class': 'object', 'type': 'vehicle', 'features': {'color': 'red', 'subtype': 'sedan'}}, 'target_token': 'red_sedan', 'task_id': 'T2'}}}
-        # }
+    "target_following": {
+        "name": "Target Following",
+        "description": "UAV 起飞并跟踪红色轿车",
         "data": {
-            "0": {'Quadruped-1': {'skill': 'navigate', 'params': {'area_token': 'Car_5', 'object_id': '4009', 'dest_id': '4009', 'dest': {'x': 5200.0, 'y': 4400.0, 'z': 0.0}, 'task_id': 'T2'}}}, 
+            "0": {'UAV-1': {'skill': 'take_off', 'params': {'task_id': 'T1'}}},
+            "1": {'UAV-1': {'skill': 'follow', 'params': {'target': {'class': 'object', 'type': 'vehicle', 'features': {'color': 'red', 'subtype': 'sedan'}}, 'target_token': 'red_sedan', 'task_id': 'T2'}}}
+        }
+    },
+    "guidance_vehicle": {
+        "name": "Vehicle Guidance",
+        "description": "Quadruped 引导银色掀背车到指定路口",
+        "data": {
+            "0": {'Quadruped-1': {'skill': 'navigate', 'params': {'area_token': 'Car_5', 'object_id': '4009', 'dest_id': '4009', 'dest': {'x': 5200.0, 'y': 4400.0, 'z': 0.0}, 'task_id': 'T2'}}},
             "1": {'Quadruped-1': {'skill': 'guide', 'params': {'target': {'token': 'silver_hatchback', 'class': 'object', 'type': 'vehicle', 'features': {'subtype': 'hatchback', 'color': 'silver'}, 'conf_ge': 0.85, 'persist_ge_s': 1.0}, 'target_token': 'silver_hatchback', 'object_id': '4009', 'dest_token': 'Intersection-4', 'dest': {'x': -6703.0, 'y': 12800.0, 'z': 0.0}, 'task_id': 'T2'}}}
         }
-        # "data": {
-        #     "0": {'Quadruped-1': {'skill': 'navigate', 'params': {'area_token': 'Person_5', 'object_id': '3004', 'dest_id': '3004', 'dest': {'x': -7000.0, 'y': 3900.0, 'z': 0.0}, 'task_id': 'T2'}}},
-        #     "1": {'Quadruped-1': {'skill': 'guide', 'params': {'target': {'token': 'sportive_male', 'class': 'object', 'type': 'person', 'features': {'subtype': 'sportive', 'gender': 'male', 'clothing_color': 'brown'}, 'conf_ge': 0.85, 'persist_ge_s': 1.0}, 'target_token': 'sportive_male', 'object_id': '3004', 'dest_token': 'Intersection-4', 'dest': {'x': -6703.0, 'y': 12800.0, 'z': 0.0}, 'task_id': 'T2'}}}
-        # }
-        # "data": {
-        #     "0": {'UAV-1': {'skill': 'take_off', 'params': {'task_id': 'T2'}}},
-        #     "1": {'UAV-1': {'skill': 'navigate', 'params': {'area_token': 'Car_2', 'object_id': '4029', 'dest_id': '4029', 'dest': {'x': -10500.0, 'y': 2200.0, 'z': 0.0}, 'task_id': 'T2'}}},
-        #     "2": {'UAV-1': {'skill': 'handle_hazard', 'params': {'target': {'class': 'object', 'type': 'vehicle', 'features': {'color': 'blue', 'subtype': 'suv', 'is_fire': True}}, 'target_token': 'blue_suv_with_Fire', 'object_id': '4029', 'task_id': 'T2'}}}
-        # }
-        # "data": {
-        #     "0": {'UAV-1': {'skill': 'take_off', 'params': {'task_id': 'T2'}}},
-        #     "1": {'UAV-1': {'skill': 'navigate', 'params': {'area_token': 'Vehicle-27', 'object_id': '102', 'dest_id': '102', 'dest': {'x': -8586.5419921875, 'y': 3313.423583984375, 'z': 0.0}, 'task_id': 'T2'}}},
-        #     "2": {'UAV-1': {'skill': 'broadcast', 'params': {'target': {'class': 'event', 'event_type': 'traffic_violation', 'conf_ge': 0.85, 'persist_ge_s': 2.0}, 'target_token': 'traffic_violation', 'conf_ge': 0.85, 'persist_ge_s': 2.0, 'message': 'No parking here, please leave immediately.', 'duration_ge_s': 5.0, 'object_id': '102', 'task_id': 'T3'}}},
-        # }
-        # "data": {
-        #     "0": {'UAV-1': {'skill': 'take_off', 'params': {'task_id': 'T2'}}},
-        #     "1": {'UAV-1': {'skill': 'navigate', 'params': {'area_token': 'Vehicle-27', 'object_id': '102', 'dest_id': '102', 'dest': {'x': -8586.5419921875, 'y': 3313.423583984375, 'z': 0.0}, 'task_id': 'T2'}}},
-        #     "2": {'UAV-1': {'skill': 'take_photo', 'params': {'target': {'class': 'event', 'event_type': 'traffic_violation', 'conf_ge': 0.85, 'persist_ge_s': 2.0}, 'target_token': 'traffic_violation', 'bind_event_type': 'traffic_violation', 'object_id': '102', 'task_id': 'T3'}}}
-        # }
-        # "data": {
-        #     "0": {'UGV-1': {'skill': 'navigate', 'params': {'area_token': 'Streetlight-59', 'object_id': '59', 'dest': {'x': -4513.3408203125, 'y': 1819.456787109375, 'z': 0.0}, 'task_id': 'T1'}}, 'Humanoid-1': {'skill': 'navigate', 'params': {'area_token': 'Streetlight-59', 'object_id': '59', 'dest': {'x': -4513.3408203125, 'y': 1819.456787109375, 'z': 0.0}, 'task_id': 'T1'}}},
-        #     "1": {'Humanoid-1': {'skill': 'place', 'params': {'target': {'class': 'object', 'type': 'assembly_component', 'features': {'subtype': 'stand'}}, 'target_token': 'stand', 'object_id': '9003', 'surface_token': 'UGV', 'surface_target': {'class': 'robot', 'type': 'UGV', 'features': {'label': 'UGV-1'}}, 'task_id': 'T1'}}},
-        #     "2": {'UGV-1': {'skill': 'navigate', 'params': {'area_token': 'Streetlight-45', 'object_id': '45', 'dest': {'x': -5438.4375, 'y': 11152.955078125, 'z': 0.0}, 'task_id': 'T1'}}, 'Humanoid-1': {'skill': 'navigate', 'params': {'area_token': 'Streetlight-45', 'object_id': '45', 'dest': {'x': -5438.4375, 'y': 11152.955078125, 'z': 0.0}, 'task_id': 'T1'}}},
-        #     "3": {'Humanoid-1': {'skill': 'place', 'params': {'target': {'class': 'object', 'type': 'assembly_component', 'features': {'subtype': 'stand'}}, 'target_token': 'stand', 'object_id': '9003', 'surface_token': 'ground', 'surface_target': {'class': 'ground', 'type': '', 'features': {}}, 'task_id': 'T1'}}},
-        #     "4": {'UGV-1': {'skill': 'navigate', 'params': {'area_token': 'Streetlight-59', 'object_id': '59', 'dest': {'x': -4513.3408203125, 'y': 1819.456787109375, 'z': 0.0}, 'task_id': 'T2'}}, 'Humanoid-1': {'skill': 'navigate', 'params': {'area_token': 'Streetlight-59', 'object_id': '59', 'dest': {'x': -4513.3408203125, 'y': 1819.456787109375, 'z': 0.0}, 'task_id': 'T2'}}},
-        #     "5": {'Humanoid-1': {'skill': 'place', 'params': {'target': {'class': 'object', 'type': 'assembly_component', 'features': {'subtype': 'antenna_module'}}, 'target_token': 'antenna_module', 'object_id': '9001', 'surface_token': 'UGV', 'surface_target': {'class': 'robot', 'type': 'UGV', 'features': {'label': 'UGV-1'}}, 'task_id': 'T2'}}},
-        #     "6": {'UGV-1': {'skill': 'navigate', 'params': {'area_token': 'Streetlight-45', 'object_id': '45', 'dest': {'x': -5438.4375, 'y': 11152.955078125, 'z': 0.0}, 'task_id': 'T2'}}, 'Humanoid-1': {'skill': 'navigate', 'params': {'area_token': 'Streetlight-45', 'object_id': '45', 'dest': {'x': -5438.4375, 'y': 11152.955078125, 'z': 0.0}, 'task_id': 'T2'}}},
-        #     "7": {'Humanoid-1': {'skill': 'place', 'params': {'target': {'class': 'object', 'type': 'assembly_component', 'features': {'subtype': 'antenna_module'}}, 'target_token': 'antenna_module', 'object_id': '9001', 'surface_token': 'ground', 'surface_target': {'class': 'ground', 'type': '', 'features': {}}, 'task_id': 'T2'}}},
-        #     "8": {'Humanoid-1': {'skill': 'place', 'params': {'target': {'class': 'object', 'type': 'assembly_component', 'features': {'subtype': 'antenna_module'}}, 'target_token': 'antenna_module', 'object_id': '9001', 'surface_token': 'stand', 'surface_target': {'class': 'object', 'type': 'assembly_component', 'features': {'subtype': 'stand'}}, 'surface_id': '9003', 'task_id': 'T2'}}},
-        # }
-
+    },
+    "guidance_person": {
+        "name": "Person Guidance",
+        "description": "Quadruped 引导行人到指定路口",
+        "data": {
+            "0": {'Quadruped-1': {'skill': 'navigate', 'params': {'area_token': 'Person_5', 'object_id': '3004', 'dest_id': '3004', 'dest': {'x': -7000.0, 'y': 3900.0, 'z': 0.0}, 'task_id': 'T2'}}},
+            "1": {'Quadruped-1': {'skill': 'guide', 'params': {'target': {'token': 'sportive_male', 'class': 'object', 'type': 'person', 'features': {'subtype': 'sportive', 'gender': 'male', 'clothing_color': 'brown'}, 'conf_ge': 0.85, 'persist_ge_s': 1.0}, 'target_token': 'sportive_male', 'object_id': '3004', 'dest_token': 'Intersection-4', 'dest': {'x': -6703.0, 'y': 12800.0, 'z': 0.0}, 'task_id': 'T2'}}}
+        }
+    },
+    "emergency_response": {
+        "name": "Emergency Response",
+        "description": "UAV 响应车辆起火紧急事件",
+        "data": {
+            "0": {'UAV-1': {'skill': 'take_off', 'params': {'task_id': 'T2'}}},
+            "1": {'UAV-1': {'skill': 'navigate', 'params': {'area_token': 'Car_2', 'object_id': '4029', 'dest_id': '4029', 'dest': {'x': -10500.0, 'y': 2200.0, 'z': 0.0}, 'task_id': 'T2'}}},
+            "2": {'UAV-1': {'skill': 'handle_hazard', 'params': {'target': {'class': 'object', 'type': 'vehicle', 'features': {'color': 'blue', 'subtype': 'suv', 'is_fire': True}}, 'target_token': 'blue_suv_with_Fire', 'object_id': '4029', 'task_id': 'T2'}}}
+        }
+    },
+    "traffic_enforcement_broadcast": {
+        "name": "Traffic Enforcement (Broadcast)",
+        "description": "UAV 对违停车辆进行广播警告",
+        "data": {
+            "0": {'UAV-1': {'skill': 'take_off', 'params': {'task_id': 'T2'}}},
+            "1": {'UAV-1': {'skill': 'navigate', 'params': {'area_token': 'Vehicle-27', 'object_id': '102', 'dest_id': '102', 'dest': {'x': -8586.5419921875, 'y': 3313.423583984375, 'z': 0.0}, 'task_id': 'T2'}}},
+            "2": {'UAV-1': {'skill': 'broadcast', 'params': {'target': {'class': 'event', 'event_type': 'traffic_violation', 'conf_ge': 0.85, 'persist_ge_s': 2.0}, 'target_token': 'traffic_violation', 'conf_ge': 0.85, 'persist_ge_s': 2.0, 'message': 'No parking here, please leave immediately.', 'duration_ge_s': 5.0, 'object_id': '102', 'task_id': 'T3'}}}
+        }
+    },
+    "traffic_enforcement_photo": {
+        "name": "Traffic Enforcement (Photo)",
+        "description": "UAV 对违停车辆进行拍照取证",
+        "data": {
+            "0": {'UAV-1': {'skill': 'take_off', 'params': {'task_id': 'T2'}}},
+            "1": {'UAV-1': {'skill': 'navigate', 'params': {'area_token': 'Vehicle-27', 'object_id': '102', 'dest_id': '102', 'dest': {'x': -8586.5419921875, 'y': 3313.423583984375, 'z': 0.0}, 'task_id': 'T2'}}},
+            "2": {'UAV-1': {'skill': 'take_photo', 'params': {'target': {'class': 'event', 'event_type': 'traffic_violation', 'conf_ge': 0.85, 'persist_ge_s': 2.0}, 'target_token': 'traffic_violation', 'bind_event_type': 'traffic_violation', 'object_id': '102', 'task_id': 'T3'}}}
+        }
+    },
+    "assembly": {
+        "name": "Assembly Task",
+        "description": "UGV + Humanoid 协作组装天线模块",
+        "data": {
+            "0": {'UGV-1': {'skill': 'navigate', 'params': {'area_token': 'Streetlight-59', 'object_id': '59', 'dest': {'x': -4513.3408203125, 'y': 1819.456787109375, 'z': 0.0}, 'task_id': 'T1'}}, 'Humanoid-1': {'skill': 'navigate', 'params': {'area_token': 'Streetlight-59', 'object_id': '59', 'dest': {'x': -4513.3408203125, 'y': 1819.456787109375, 'z': 0.0}, 'task_id': 'T1'}}},
+            "1": {'Humanoid-1': {'skill': 'place', 'params': {'target': {'class': 'object', 'type': 'assembly_component', 'features': {'subtype': 'stand'}}, 'target_token': 'stand', 'object_id': '9003', 'surface_token': 'UGV', 'surface_target': {'class': 'robot', 'type': 'UGV', 'features': {'label': 'UGV-1'}}, 'task_id': 'T1'}}},
+            "2": {'UGV-1': {'skill': 'navigate', 'params': {'area_token': 'Streetlight-45', 'object_id': '45', 'dest': {'x': -5438.4375, 'y': 11152.955078125, 'z': 0.0}, 'task_id': 'T1'}}, 'Humanoid-1': {'skill': 'navigate', 'params': {'area_token': 'Streetlight-45', 'object_id': '45', 'dest': {'x': -5438.4375, 'y': 11152.955078125, 'z': 0.0}, 'task_id': 'T1'}}},
+            "3": {'Humanoid-1': {'skill': 'place', 'params': {'target': {'class': 'object', 'type': 'assembly_component', 'features': {'subtype': 'stand'}}, 'target_token': 'stand', 'object_id': '9003', 'surface_token': 'ground', 'surface_target': {'class': 'ground', 'type': '', 'features': {}}, 'task_id': 'T1'}}},
+            "4": {'UGV-1': {'skill': 'navigate', 'params': {'area_token': 'Streetlight-59', 'object_id': '59', 'dest': {'x': -4513.3408203125, 'y': 1819.456787109375, 'z': 0.0}, 'task_id': 'T2'}}, 'Humanoid-1': {'skill': 'navigate', 'params': {'area_token': 'Streetlight-59', 'object_id': '59', 'dest': {'x': -4513.3408203125, 'y': 1819.456787109375, 'z': 0.0}, 'task_id': 'T2'}}},
+            "5": {'Humanoid-1': {'skill': 'place', 'params': {'target': {'class': 'object', 'type': 'assembly_component', 'features': {'subtype': 'antenna_module'}}, 'target_token': 'antenna_module', 'object_id': '9001', 'surface_token': 'UGV', 'surface_target': {'class': 'robot', 'type': 'UGV', 'features': {'label': 'UGV-1'}}, 'task_id': 'T2'}}},
+            "6": {'UGV-1': {'skill': 'navigate', 'params': {'area_token': 'Streetlight-45', 'object_id': '45', 'dest': {'x': -5438.4375, 'y': 11152.955078125, 'z': 0.0}, 'task_id': 'T2'}}, 'Humanoid-1': {'skill': 'navigate', 'params': {'area_token': 'Streetlight-45', 'object_id': '45', 'dest': {'x': -5438.4375, 'y': 11152.955078125, 'z': 0.0}, 'task_id': 'T2'}}},
+            "7": {'Humanoid-1': {'skill': 'place', 'params': {'target': {'class': 'object', 'type': 'assembly_component', 'features': {'subtype': 'antenna_module'}}, 'target_token': 'antenna_module', 'object_id': '9001', 'surface_token': 'ground', 'surface_target': {'class': 'ground', 'type': '', 'features': {}}, 'task_id': 'T2'}}},
+            "8": {'Humanoid-1': {'skill': 'place', 'params': {'target': {'class': 'object', 'type': 'assembly_component', 'features': {'subtype': 'antenna_module'}}, 'target_token': 'antenna_module', 'object_id': '9001', 'surface_token': 'stand', 'surface_target': {'class': 'object', 'type': 'assembly_component', 'features': {'subtype': 'stand'}}, 'surface_id': '9003', 'task_id': 'T2'}}}
+        }
     },
     "place_coop": {
         "name": "Place Coop",

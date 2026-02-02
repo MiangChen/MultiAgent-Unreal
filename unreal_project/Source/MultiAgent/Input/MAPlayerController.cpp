@@ -200,6 +200,9 @@ void AMAPlayerController::SetupInputComponent()
         EIC->BindAction(InputActions->IA_ToggleSystemLogPanel, ETriggerEvent::Started, this, &AMAPlayerController::OnToggleSystemLogPanel);
         EIC->BindAction(InputActions->IA_TogglePreviewPanel, ETriggerEvent::Started, this, &AMAPlayerController::OnTogglePreviewPanel);
         EIC->BindAction(InputActions->IA_ToggleInstructionPanel, ETriggerEvent::Started, this, &AMAPlayerController::OnToggleInstructionPanel);
+
+        // ========== Agent 圆环高亮切换 ==========
+        EIC->BindAction(InputActions->IA_ToggleAgentHighlight, ETriggerEvent::Started, this, &AMAPlayerController::OnToggleAgentHighlight);
     }
 }
 
@@ -1412,6 +1415,22 @@ void AMAPlayerController::OnToggleInstructionPanel(const FInputActionValue& Valu
     else
     {
         UE_LOG(LogTemp, Warning, TEXT("[PlayerController] MAHUD not found!"));
+    }
+}
+
+void AMAPlayerController::OnToggleAgentHighlight(const FInputActionValue& Value)
+{
+    if (AMASelectionHUD* SelectionHUD = Cast<AMASelectionHUD>(GetHUD()))
+    {
+        SelectionHUD->ToggleAgentCircles();
+        bool bVisible = SelectionHUD->IsAgentCirclesVisible();
+        UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnToggleAgentHighlight: %s"), bVisible ? TEXT("ON") : TEXT("OFF"));
+        GEngine->AddOnScreenDebugMessage(-1, 2.f, bVisible ? FColor::Green : FColor::Yellow,
+            FString::Printf(TEXT("Agent Highlight: %s"), bVisible ? TEXT("ON") : TEXT("OFF")));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] SelectionHUD not found!"));
     }
 }
 

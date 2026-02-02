@@ -144,6 +144,9 @@ void AMASelectionHUD::DrawSelectionBox(bool bIsDeploymentMode)
 
 void AMASelectionHUD::DrawAllAgentCircles()
 {
+    // 检查是否显示 Agent 圆环
+    if (!bShowAgentCircles) return;
+
     UWorld* World = GetWorld();
     if (!World) return;
 

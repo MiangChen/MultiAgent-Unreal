@@ -216,7 +216,8 @@ void AMACharacter::DrawStatusText()
     }
     
     FVector TextLocation = GetActorLocation() + FVector(0.f, 0.f, 150.f);
-    DrawDebugString(GetWorld(), TextLocation, CurrentStatusText, nullptr, FColor::Yellow, 0.05f, false, 1.2f);
+    // Duration 设为 0 表示只绘制当前帧，避免移动时文字抖动
+    DrawDebugString(GetWorld(), TextLocation, CurrentStatusText, nullptr, FColor::Yellow, 0.f, false, 1.2f);
 }
 
 // ========== Sensor 管理 ==========
