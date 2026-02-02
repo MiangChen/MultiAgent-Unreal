@@ -33,6 +33,10 @@ class UMANotificationWidget;
 class UMACommSubsystem;
 class UMAEmergencyManager;
 struct FMAEmergencyEventData;
+// 右侧边栏拆分面板 (Requirements: 5.2, 5.3)
+class UMASystemLogPanel;
+class UMAPreviewPanel;
+class UMAInstructionPanel;
 
 //=============================================================================
 // Widget 类型枚举
@@ -55,7 +59,11 @@ enum class EMAWidgetType : uint8
     Emergency       UMETA(DisplayName = "Emergency"),
     Modify          UMETA(DisplayName = "Modify"),
     Edit            UMETA(DisplayName = "Edit"),
-    SceneList       UMETA(DisplayName = "Scene List")
+    SceneList       UMETA(DisplayName = "Scene List"),
+    // 右侧边栏拆分面板 (Requirements: 5.3)
+    SystemLogPanel   UMETA(DisplayName = "System Log Panel"),
+    PreviewPanel     UMETA(DisplayName = "Preview Panel"),
+    InstructionPanel UMETA(DisplayName = "Instruction Panel")
 };
 
 //=============================================================================
@@ -155,6 +163,22 @@ public:
     /** 获取 HUDWidget 实例 */
     UFUNCTION(BlueprintPure, Category = "UI")
     UMAHUDWidget* GetHUDWidget() const;
+
+    //=========================================================================
+    // Widget 访问 - 右侧边栏拆分面板 (Requirements: 5.2)
+    //=========================================================================
+
+    /** 获取 SystemLogPanel 实例 */
+    UFUNCTION(BlueprintPure, Category = "UI|Panel")
+    UMASystemLogPanel* GetSystemLogPanel() const;
+
+    /** 获取 PreviewPanel 实例 */
+    UFUNCTION(BlueprintPure, Category = "UI|Panel")
+    UMAPreviewPanel* GetPreviewPanel() const;
+
+    /** 获取 InstructionPanel 实例 */
+    UFUNCTION(BlueprintPure, Category = "UI|Panel")
+    UMAInstructionPanel* GetInstructionPanel() const;
 
     //=========================================================================
     // HUD 状态管理 (Requirements: 2.1)
@@ -385,6 +409,22 @@ private:
 
     UPROPERTY()
     UUserWidget* SemanticMapWidget;
+
+    //=========================================================================
+    // 右侧边栏拆分面板实例 (Requirements: 5.2)
+    //=========================================================================
+
+    /** 系统日志面板 */
+    UPROPERTY()
+    UMASystemLogPanel* SystemLogPanel;
+
+    /** 预览面板 */
+    UPROPERTY()
+    UMAPreviewPanel* PreviewPanel;
+
+    /** 指令输入面板 */
+    UPROPERTY()
+    UMAInstructionPanel* InstructionPanel;
 
     /** 当前 UI 主题 */
     UPROPERTY()

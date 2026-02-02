@@ -169,6 +169,19 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "Input")
     TObjectPtr<UInputAction> IA_Jump;
 
+    // ========== 右侧边栏面板切换 (Right Sidebar Panel Split) ==========
+    /** 切换系统日志面板 (6 键) */
+    UPROPERTY(BlueprintReadOnly, Category = "Input|Panel")
+    TObjectPtr<UInputAction> IA_ToggleSystemLogPanel;
+
+    /** 切换预览面板 (7 键) */
+    UPROPERTY(BlueprintReadOnly, Category = "Input|Panel")
+    TObjectPtr<UInputAction> IA_TogglePreviewPanel;
+
+    /** 切换指令输入面板 (8 键) */
+    UPROPERTY(BlueprintReadOnly, Category = "Input|Panel")
+    TObjectPtr<UInputAction> IA_ToggleInstructionPanel;
+
     // ========== Input Mapping Contexts ==========
     
     /** RTS 模式输入 (优先级 0, 始终激活) - 框选、编组、生成等 */

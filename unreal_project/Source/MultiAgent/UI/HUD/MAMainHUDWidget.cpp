@@ -1,11 +1,11 @@
 // MAMainHUDWidget.cpp
 // 主 HUD Widget 实现
-// 集成小地图、通知组件和右侧边栏
+// 集成小地图和通知组件
+// 注意：右侧边栏功能已迁移到独立面板 (SystemLogPanel, PreviewPanel, InstructionPanel)
 
 #include "MAMainHUDWidget.h"
 #include "../Components/MAMiniMapWidget.h"
 #include "../Components/MANotificationWidget.h"
-#include "../Components/MARightSidebarWidget.h"
 #include "../Core/MAUITheme.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
@@ -23,13 +23,10 @@ UMAMainHUDWidget::UMAMainHUDWidget(const FObjectInitializer& ObjectInitializer)
     , MiniMapLeftMargin(20.0f)
     , MiniMapTopMargin(20.0f)
     , NotificationTopMargin(10.0f)
-    , SidebarRightMargin(20.0f)
-    , SidebarTopMargin(20.0f)
     , Theme(nullptr)
     , RootCanvas(nullptr)
     , MiniMapWidget(nullptr)
     , NotificationWidget(nullptr)
-    , RightSidebarWidget(nullptr)
 {
 }
 
@@ -80,7 +77,7 @@ void UMAMainHUDWidget::ApplyTheme(UMAUITheme* InTheme)
     // 应用主题到所有子组件
     ApplyThemeToMiniMap();
     ApplyThemeToNotification();
-    ApplyThemeToSidebar();
+    // 注意：右侧边栏主题应用已移除，面板主题由 MAUIManager 直接管理
 
     UE_LOG(LogMAMainHUD, Log, TEXT("Theme applied to all components"));
 }
@@ -96,14 +93,6 @@ void UMAMainHUDWidget::ApplyThemeToNotification()
     if (NotificationWidget && Theme)
     {
         NotificationWidget->ApplyTheme(Theme);
-    }
-}
-
-void UMAMainHUDWidget::ApplyThemeToSidebar()
-{
-    if (RightSidebarWidget && Theme)
-    {
-        RightSidebarWidget->ApplyTheme(Theme);
     }
 }
 
@@ -126,67 +115,38 @@ void UMAMainHUDWidget::InitializeMiniMap(UTextureRenderTarget2D* InRenderTarget,
 }
 
 //=============================================================================
-// 右侧边栏便捷方法
+// 右侧边栏便捷方法 (已弃用 - 功能已迁移到独立面板)
+// 这些方法保留用于向后兼容，但不再执行任何操作
 //=============================================================================
 
 void UMAMainHUDWidget::UpdateTaskGraphPreview(const FMATaskGraphData& Data)
 {
-    if (RightSidebarWidget)
-    {
-        RightSidebarWidget->UpdateTaskGraphPreview(Data);
-    }
-    else
-    {
-        UE_LOG(LogMAMainHUD, Warning, TEXT("UpdateTaskGraphPreview: RightSidebarWidget is null"));
-    }
+    // 已弃用：请使用 MAUIManager::GetPreviewPanel()->UpdateTaskGraphPreview()
+    UE_LOG(LogMAMainHUD, Warning, TEXT("UpdateTaskGraphPreview: This method is deprecated. Use MAUIManager::GetPreviewPanel() instead."));
 }
 
 void UMAMainHUDWidget::UpdateSkillListPreview(const FMASkillAllocationData& Data)
 {
-    if (RightSidebarWidget)
-    {
-        RightSidebarWidget->UpdateSkillListPreview(Data);
-    }
-    else
-    {
-        UE_LOG(LogMAMainHUD, Warning, TEXT("UpdateSkillListPreview: RightSidebarWidget is null"));
-    }
+    // 已弃用：请使用 MAUIManager::GetPreviewPanel()->UpdateSkillListPreview()
+    UE_LOG(LogMAMainHUD, Warning, TEXT("UpdateSkillListPreview: This method is deprecated. Use MAUIManager::GetPreviewPanel() instead."));
 }
 
 void UMAMainHUDWidget::UpdateSkillStatus(int32 TimeStep, const FString& RobotId, ESkillExecutionStatus NewStatus)
 {
-    if (RightSidebarWidget)
-    {
-        RightSidebarWidget->UpdateSkillStatus(TimeStep, RobotId, NewStatus);
-    }
-    else
-    {
-        UE_LOG(LogMAMainHUD, Warning, TEXT("UpdateSkillStatus: RightSidebarWidget is null"));
-    }
+    // 已弃用：请使用 MAUIManager::GetPreviewPanel()->UpdateSkillStatus()
+    UE_LOG(LogMAMainHUD, Warning, TEXT("UpdateSkillStatus: This method is deprecated. Use MAUIManager::GetPreviewPanel() instead."));
 }
 
 void UMAMainHUDWidget::AppendLog(const FString& Message, bool bIsError)
 {
-    if (RightSidebarWidget)
-    {
-        RightSidebarWidget->AppendLog(Message, bIsError);
-    }
-    else
-    {
-        UE_LOG(LogMAMainHUD, Warning, TEXT("AppendLog: RightSidebarWidget is null"));
-    }
+    // 已弃用：请使用 MAUIManager::GetSystemLogPanel()->AppendLog()
+    UE_LOG(LogMAMainHUD, Warning, TEXT("AppendLog: This method is deprecated. Use MAUIManager::GetSystemLogPanel() instead."));
 }
 
 void UMAMainHUDWidget::ClearLogs()
 {
-    if (RightSidebarWidget)
-    {
-        RightSidebarWidget->ClearLogs();
-    }
-    else
-    {
-        UE_LOG(LogMAMainHUD, Warning, TEXT("ClearLogs: RightSidebarWidget is null"));
-    }
+    // 已弃用：请使用 MAUIManager::GetSystemLogPanel()->ClearLogs()
+    UE_LOG(LogMAMainHUD, Warning, TEXT("ClearLogs: This method is deprecated. Use MAUIManager::GetSystemLogPanel() instead."));
 }
 
 //=============================================================================
@@ -214,7 +174,7 @@ void UMAMainHUDWidget::BuildUI()
     // 创建子组件
     CreateMiniMapWidget();
     CreateNotificationWidget();
-    CreateRightSidebarWidget();
+    // 注意：右侧边栏已移除，面板由 MAUIManager 直接管理
 
     UE_LOG(LogMAMainHUD, Log, TEXT("BuildUI: UI layout built successfully"));
 }
@@ -287,37 +247,4 @@ void UMAMainHUDWidget::CreateNotificationWidget()
     }
 
     UE_LOG(LogMAMainHUD, Log, TEXT("NotificationWidget created below MiniMap"));
-}
-
-void UMAMainHUDWidget::CreateRightSidebarWidget()
-{
-    if (!RootCanvas || !WidgetTree)
-    {
-        return;
-    }
-
-    // 创建右侧边栏 Widget
-    RightSidebarWidget = WidgetTree->ConstructWidget<UMARightSidebarWidget>(UMARightSidebarWidget::StaticClass(), TEXT("RightSidebarWidget"));
-    if (!RightSidebarWidget)
-    {
-        UE_LOG(LogMAMainHUD, Error, TEXT("CreateRightSidebarWidget: Failed to create RightSidebarWidget"));
-        return;
-    }
-
-    // 添加到 Canvas 并设置位置 (右侧，顶着上下边缘)
-    UCanvasPanelSlot* SidebarSlot = RootCanvas->AddChildToCanvas(RightSidebarWidget);
-    if (SidebarSlot)
-    {
-        // 锚点设置为右侧全高度 (从上到下)
-        SidebarSlot->SetAnchors(FAnchors(1.0f, 0.0f, 1.0f, 1.0f));
-        SidebarSlot->SetAlignment(FVector2D(1.0f, 0.0f));
-        
-        // 设置 Offsets: 左、上、右、下
-        // 上下都设为 0，让边栏顶着上下边缘
-        // 右边距保持 SidebarRightMargin
-        SidebarSlot->SetOffsets(FMargin(0.0f, 0.0f, SidebarRightMargin, 0.0f));
-        SidebarSlot->SetAutoSize(true);
-    }
-
-    UE_LOG(LogMAMainHUD, Log, TEXT("RightSidebarWidget created on right side"));
 }

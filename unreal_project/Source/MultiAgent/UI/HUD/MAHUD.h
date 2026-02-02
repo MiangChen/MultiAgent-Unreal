@@ -331,6 +331,93 @@ public:
     UFUNCTION(BlueprintPure, Category = "UI|Edit")
     bool IsMouseOverEditWidget() const;
 
+    //=========================================================================
+    // System Log Panel 控制 (Requirements: 4.6)
+    //=========================================================================
+
+    /**
+     * 显示 SystemLogPanel
+     */
+    UFUNCTION(BlueprintCallable, Category = "UI Control|Panel")
+    void ShowSystemLogPanel();
+
+    /**
+     * 隐藏 SystemLogPanel
+     */
+    UFUNCTION(BlueprintCallable, Category = "UI Control|Panel")
+    void HideSystemLogPanel();
+
+    /**
+     * 切换 SystemLogPanel 的显示/隐藏
+     */
+    UFUNCTION(BlueprintCallable, Category = "UI Control|Panel")
+    void ToggleSystemLogPanel();
+
+    /**
+     * 检查 SystemLogPanel 是否可见
+     * @return true 如果 SystemLogPanel 当前可见
+     */
+    UFUNCTION(BlueprintPure, Category = "UI|Panel")
+    bool IsSystemLogPanelVisible() const;
+
+    //=========================================================================
+    // Preview Panel 控制 (Requirements: 4.6)
+    //=========================================================================
+
+    /**
+     * 显示 PreviewPanel
+     */
+    UFUNCTION(BlueprintCallable, Category = "UI Control|Panel")
+    void ShowPreviewPanel();
+
+    /**
+     * 隐藏 PreviewPanel
+     */
+    UFUNCTION(BlueprintCallable, Category = "UI Control|Panel")
+    void HidePreviewPanel();
+
+    /**
+     * 切换 PreviewPanel 的显示/隐藏
+     */
+    UFUNCTION(BlueprintCallable, Category = "UI Control|Panel")
+    void TogglePreviewPanel();
+
+    /**
+     * 检查 PreviewPanel 是否可见
+     * @return true 如果 PreviewPanel 当前可见
+     */
+    UFUNCTION(BlueprintPure, Category = "UI|Panel")
+    bool IsPreviewPanelVisible() const;
+
+    //=========================================================================
+    // Instruction Panel 控制 (Requirements: 4.6)
+    //=========================================================================
+
+    /**
+     * 显示 InstructionPanel
+     */
+    UFUNCTION(BlueprintCallable, Category = "UI Control|Panel")
+    void ShowInstructionPanel();
+
+    /**
+     * 隐藏 InstructionPanel
+     */
+    UFUNCTION(BlueprintCallable, Category = "UI Control|Panel")
+    void HideInstructionPanel();
+
+    /**
+     * 切换 InstructionPanel 的显示/隐藏
+     */
+    UFUNCTION(BlueprintCallable, Category = "UI Control|Panel")
+    void ToggleInstructionPanel();
+
+    /**
+     * 检查 InstructionPanel 是否可见
+     * @return true 如果 InstructionPanel 当前可见
+     */
+    UFUNCTION(BlueprintPure, Category = "UI|Panel")
+    bool IsInstructionPanelVisible() const;
+
     /**
      * 检查鼠标是否在右侧边栏上
      * 用于判断右键是否应该用于视角旋转

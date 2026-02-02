@@ -16,8 +16,9 @@
 #include "../TaskGraph/MATaskPlannerWidget.h"
 #include "../SkillAllocation/MASkillAllocationViewer.h"
 #include "../Components/MADirectControlIndicator.h"
-#include "../Components/MARightSidebarWidget.h"
 #include "../Components/MAMiniMapWidget.h"
+// 右侧边栏拆分面板 (Requirements: 5.1)
+#include "../Components/MAInstructionPanel.h"
 #include "../../Core/Types/MATaskGraphTypes.h"
 #include "../Mode/MAEmergencyWidget.h"
 #include "../Mode/MAModifyWidget.h"
@@ -586,19 +587,16 @@ void AMAHUD::BindWidgetDelegates()
         UE_LOG(LogMAHUD, Log, TEXT("BindWidgetDelegates: Bound SimpleMainWidget delegates"));
     }
 
-    // 绑定 RightSidebarWidget 委托 (Command Input in sidebar)
-    UMAMainHUDWidget* MainHUDWidget = UIManager->GetMainHUDWidget();
-    if (MainHUDWidget)
+    // 绑定 InstructionPanel 委托 (Command Input in panel)
+    // 替代原来的 RightSidebarWidget 委托绑定 (Requirements: 5.1)
+    UMAInstructionPanel* InstructionPanel = UIManager->GetInstructionPanel();
+    if (InstructionPanel)
     {
-        UMARightSidebarWidget* RightSidebar = MainHUDWidget->GetRightSidebar();
-        if (RightSidebar)
+        if (!InstructionPanel->OnCommandSubmitted.IsAlreadyBound(this, &AMAHUD::OnSimpleCommandSubmitted))
         {
-            if (!RightSidebar->OnCommandSubmitted.IsAlreadyBound(this, &AMAHUD::OnSimpleCommandSubmitted))
-            {
-                RightSidebar->OnCommandSubmitted.AddDynamic(this, &AMAHUD::OnSimpleCommandSubmitted);
-            }
-            UE_LOG(LogMAHUD, Log, TEXT("BindWidgetDelegates: Bound RightSidebarWidget delegates"));
+            InstructionPanel->OnCommandSubmitted.AddDynamic(this, &AMAHUD::OnSimpleCommandSubmitted);
         }
+        UE_LOG(LogMAHUD, Log, TEXT("BindWidgetDelegates: Bound InstructionPanel delegates"));
     }
 
     // 绑定 ModifyWidget 委托
@@ -976,6 +974,204 @@ bool AMAHUD::IsMouseOverEditWidget() const
     return false;
 }
 
+//=============================================================================
+// System Log Panel 控制 (Requirements: 4.6)
+//=============================================================================
+
+void AMAHUD::ShowSystemLogPanel()
+{
+    if (!UIManager)
+    {
+        UE_LOG(LogMAHUD, Warning, TEXT("ShowSystemLogPanel: UIManager is null"));
+        return;
+    }
+
+    if (IsSystemLogPanelVisible())
+    {
+        // 已经显示
+        return;
+    }
+
+    // 通过 UIManager 显示
+    UIManager->ShowWidget(EMAWidgetType::SystemLogPanel, false);
+
+    UE_LOG(LogMAHUD, Log, TEXT("SystemLogPanel shown via UIManager"));
+}
+
+void AMAHUD::HideSystemLogPanel()
+{
+    if (!UIManager)
+    {
+        UE_LOG(LogMAHUD, Warning, TEXT("HideSystemLogPanel: UIManager is null"));
+        return;
+    }
+
+    if (!IsSystemLogPanelVisible())
+    {
+        return;
+    }
+
+    // 通过 UIManager 隐藏
+    UIManager->HideWidget(EMAWidgetType::SystemLogPanel);
+
+    UE_LOG(LogMAHUD, Log, TEXT("SystemLogPanel hidden via UIManager"));
+}
+
+void AMAHUD::ToggleSystemLogPanel()
+{
+    if (!UIManager)
+    {
+        UE_LOG(LogMAHUD, Warning, TEXT("ToggleSystemLogPanel: UIManager is null"));
+        return;
+    }
+
+    UIManager->ToggleWidget(EMAWidgetType::SystemLogPanel);
+
+    UE_LOG(LogMAHUD, Log, TEXT("SystemLogPanel toggled via UIManager"));
+}
+
+bool AMAHUD::IsSystemLogPanelVisible() const
+{
+    if (!UIManager)
+    {
+        return false;
+    }
+
+    return UIManager->IsWidgetVisible(EMAWidgetType::SystemLogPanel);
+}
+
+//=============================================================================
+// Preview Panel 控制 (Requirements: 4.6)
+//=============================================================================
+
+void AMAHUD::ShowPreviewPanel()
+{
+    if (!UIManager)
+    {
+        UE_LOG(LogMAHUD, Warning, TEXT("ShowPreviewPanel: UIManager is null"));
+        return;
+    }
+
+    if (IsPreviewPanelVisible())
+    {
+        // 已经显示
+        return;
+    }
+
+    // 通过 UIManager 显示
+    UIManager->ShowWidget(EMAWidgetType::PreviewPanel, false);
+
+    UE_LOG(LogMAHUD, Log, TEXT("PreviewPanel shown via UIManager"));
+}
+
+void AMAHUD::HidePreviewPanel()
+{
+    if (!UIManager)
+    {
+        UE_LOG(LogMAHUD, Warning, TEXT("HidePreviewPanel: UIManager is null"));
+        return;
+    }
+
+    if (!IsPreviewPanelVisible())
+    {
+        return;
+    }
+
+    // 通过 UIManager 隐藏
+    UIManager->HideWidget(EMAWidgetType::PreviewPanel);
+
+    UE_LOG(LogMAHUD, Log, TEXT("PreviewPanel hidden via UIManager"));
+}
+
+void AMAHUD::TogglePreviewPanel()
+{
+    if (!UIManager)
+    {
+        UE_LOG(LogMAHUD, Warning, TEXT("TogglePreviewPanel: UIManager is null"));
+        return;
+    }
+
+    UIManager->ToggleWidget(EMAWidgetType::PreviewPanel);
+
+    UE_LOG(LogMAHUD, Log, TEXT("PreviewPanel toggled via UIManager"));
+}
+
+bool AMAHUD::IsPreviewPanelVisible() const
+{
+    if (!UIManager)
+    {
+        return false;
+    }
+
+    return UIManager->IsWidgetVisible(EMAWidgetType::PreviewPanel);
+}
+
+//=============================================================================
+// Instruction Panel 控制 (Requirements: 4.6)
+//=============================================================================
+
+void AMAHUD::ShowInstructionPanel()
+{
+    if (!UIManager)
+    {
+        UE_LOG(LogMAHUD, Warning, TEXT("ShowInstructionPanel: UIManager is null"));
+        return;
+    }
+
+    if (IsInstructionPanelVisible())
+    {
+        // 已经显示
+        return;
+    }
+
+    // 通过 UIManager 显示
+    UIManager->ShowWidget(EMAWidgetType::InstructionPanel, false);
+
+    UE_LOG(LogMAHUD, Log, TEXT("InstructionPanel shown via UIManager"));
+}
+
+void AMAHUD::HideInstructionPanel()
+{
+    if (!UIManager)
+    {
+        UE_LOG(LogMAHUD, Warning, TEXT("HideInstructionPanel: UIManager is null"));
+        return;
+    }
+
+    if (!IsInstructionPanelVisible())
+    {
+        return;
+    }
+
+    // 通过 UIManager 隐藏
+    UIManager->HideWidget(EMAWidgetType::InstructionPanel);
+
+    UE_LOG(LogMAHUD, Log, TEXT("InstructionPanel hidden via UIManager"));
+}
+
+void AMAHUD::ToggleInstructionPanel()
+{
+    if (!UIManager)
+    {
+        UE_LOG(LogMAHUD, Warning, TEXT("ToggleInstructionPanel: UIManager is null"));
+        return;
+    }
+
+    UIManager->ToggleWidget(EMAWidgetType::InstructionPanel);
+
+    UE_LOG(LogMAHUD, Log, TEXT("InstructionPanel toggled via UIManager"));
+}
+
+bool AMAHUD::IsInstructionPanelVisible() const
+{
+    if (!UIManager)
+    {
+        return false;
+    }
+
+    return UIManager->IsWidgetVisible(EMAWidgetType::InstructionPanel);
+}
+
 bool AMAHUD::IsMouseOverRightSidebar() const
 {
     // 获取 PlayerController
@@ -996,26 +1192,32 @@ bool AMAHUD::IsMouseOverRightSidebar() const
     int32 ViewportSizeX, ViewportSizeY;
     PC->GetViewportSize(ViewportSizeX, ViewportSizeY);
 
-    // 检查右侧边栏区域
-    // RightSidebarWidget 布局: 锚点 (1.0, 0.0, 1.0, 1.0), 右边距 20, 宽度 480
-    // 实际屏幕区域: X 从 (ViewportSizeX - 20 - 480) 到 (ViewportSizeX - 20), Y 从 0 到 ViewportSizeY
-    UMAMainHUDWidget* MainHUDWidget = UIManager ? UIManager->GetMainHUDWidget() : nullptr;
-    if (MainHUDWidget && MainHUDWidget->IsVisible())
+    // 检查右侧边栏区域 (新的三个独立面板)
+    // 面板布局: 锚点 TopRight, 宽度 480, 右边距 20
+    // 实际屏幕区域: X 从 (ViewportSizeX - 20 - 480) 到 (ViewportSizeX - 20)
+    // Requirements: 5.1 - 使用新的拆分面板替代 RightSidebarWidget
+    
+    // 检查任一面板是否可见
+    bool bAnyPanelVisible = false;
+    if (UIManager)
     {
-        UMARightSidebarWidget* RightSidebar = MainHUDWidget->GetRightSidebar();
-        if (RightSidebar && RightSidebar->IsVisible())
+        bAnyPanelVisible = UIManager->IsWidgetVisible(EMAWidgetType::SystemLogPanel) ||
+                          UIManager->IsWidgetVisible(EMAWidgetType::PreviewPanel) ||
+                          UIManager->IsWidgetVisible(EMAWidgetType::InstructionPanel);
+    }
+    
+    if (bAnyPanelVisible)
+    {
+        // 右侧边栏的布局参数
+        float SidebarRightMargin = 20.0f;
+        float SidebarWidth = 480.0f;  // 面板默认宽度
+        
+        float SidebarLeft = ViewportSizeX - SidebarRightMargin - SidebarWidth;
+        float SidebarRight = ViewportSizeX - SidebarRightMargin;
+        
+        if (MouseX >= SidebarLeft && MouseX <= SidebarRight)
         {
-            // 右侧边栏的布局参数
-            float SidebarRightMargin = 20.0f;
-            float SidebarWidth = 480.0f;  // MARightSidebarWidget 默认宽度
-            
-            float SidebarLeft = ViewportSizeX - SidebarRightMargin - SidebarWidth;
-            float SidebarRight = ViewportSizeX - SidebarRightMargin;
-            
-            if (MouseX >= SidebarLeft && MouseX <= SidebarRight)
-            {
-                return true;
-            }
+            return true;
         }
     }
 
@@ -1048,9 +1250,17 @@ bool AMAHUD::IsMouseOverPersistentUI() const
         return false;
     }
 
-    // 检查右侧边栏区域
-    UMARightSidebarWidget* RightSidebar = MainHUDWidget->GetRightSidebar();
-    if (RightSidebar && RightSidebar->IsVisible())
+    // 检查右侧边栏区域 (新的三个独立面板)
+    // Requirements: 5.1 - 使用新的拆分面板替代 RightSidebarWidget
+    bool bAnyPanelVisible = false;
+    if (UIManager)
+    {
+        bAnyPanelVisible = UIManager->IsWidgetVisible(EMAWidgetType::SystemLogPanel) ||
+                          UIManager->IsWidgetVisible(EMAWidgetType::PreviewPanel) ||
+                          UIManager->IsWidgetVisible(EMAWidgetType::InstructionPanel);
+    }
+    
+    if (bAnyPanelVisible)
     {
         float SidebarRightMargin = 20.0f;
         float SidebarWidth = 480.0f;

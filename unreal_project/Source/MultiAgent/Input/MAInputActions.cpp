@@ -75,6 +75,11 @@ void UMAInputActions::Initialize()
     IA_MoveDown = CreateInputAction(TEXT("IA_MoveDown"));
     IA_Jump = CreateInputAction(TEXT("IA_Jump"));
 
+    // 右侧边栏面板切换 (Right Sidebar Panel Split)
+    IA_ToggleSystemLogPanel = CreateInputAction(TEXT("IA_ToggleSystemLogPanel"));
+    IA_TogglePreviewPanel = CreateInputAction(TEXT("IA_TogglePreviewPanel"));
+    IA_ToggleInstructionPanel = CreateInputAction(TEXT("IA_ToggleInstructionPanel"));
+
     // 创建 Input Mapping Contexts
     IMC_RTS = NewObject<UInputMappingContext>(this, TEXT("IMC_RTS"));
     IMC_AgentControl = NewObject<UInputMappingContext>(this, TEXT("IMC_AgentControl"));
@@ -138,6 +143,12 @@ void UMAInputActions::Initialize()
 
     // 跳跃 (空格键)
     AddKeyMapping(IMC_RTS, IA_Jump, EKeys::SpaceBar);
+
+    // 右侧边栏面板切换 (Right Sidebar Panel Split)
+    // Requirements: 4.2, 4.3, 4.4
+    AddKeyMapping(IMC_RTS, IA_ToggleSystemLogPanel, EKeys::Six);    // 6 键切换系统日志面板
+    AddKeyMapping(IMC_RTS, IA_TogglePreviewPanel, EKeys::Seven);    // 7 键切换预览面板
+    AddKeyMapping(IMC_RTS, IA_ToggleInstructionPanel, EKeys::Eight); // 8 键切换指令输入面板
 
     // ========== IMC_AgentControl 按键映射 (WASD、视角) ==========
     // 仅在 Agent View Mode 时由 MAAgentInputComponent 添加

@@ -194,6 +194,12 @@ void AMAPlayerController::SetupInputComponent()
         EIC->BindAction(InputActions->IA_CheckTask, ETriggerEvent::Started, this, &AMAPlayerController::OnCheckTask);
         EIC->BindAction(InputActions->IA_CheckSkill, ETriggerEvent::Started, this, &AMAPlayerController::OnCheckSkill);
         EIC->BindAction(InputActions->IA_CheckUnexpected, ETriggerEvent::Started, this, &AMAPlayerController::OnCheckUnexpected);
+
+        // ========== 右侧边栏面板切换 (Right Sidebar Panel Split) ==========
+        // Requirements: 4.5
+        EIC->BindAction(InputActions->IA_ToggleSystemLogPanel, ETriggerEvent::Started, this, &AMAPlayerController::OnToggleSystemLogPanel);
+        EIC->BindAction(InputActions->IA_TogglePreviewPanel, ETriggerEvent::Started, this, &AMAPlayerController::OnTogglePreviewPanel);
+        EIC->BindAction(InputActions->IA_ToggleInstructionPanel, ETriggerEvent::Started, this, &AMAPlayerController::OnToggleInstructionPanel);
     }
 }
 
@@ -1365,6 +1371,48 @@ void AMAPlayerController::OnCheckUnexpected(const FInputActionValue& Value)
 
     HUDStateManager->HandleCheckEmergencyInput();
     UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnCheckUnexpected -> HUDStateManager::HandleCheckEmergencyInput"));
+}
+
+// ========== 右侧边栏面板切换 (Right Sidebar Panel Split) ==========
+// Requirements: 4.5
+
+void AMAPlayerController::OnToggleSystemLogPanel(const FInputActionValue& Value)
+{
+    if (AMAHUD* HUD = Cast<AMAHUD>(GetHUD()))
+    {
+        HUD->ToggleSystemLogPanel();
+        UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnToggleSystemLogPanel called"));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] MAHUD not found!"));
+    }
+}
+
+void AMAPlayerController::OnTogglePreviewPanel(const FInputActionValue& Value)
+{
+    if (AMAHUD* HUD = Cast<AMAHUD>(GetHUD()))
+    {
+        HUD->TogglePreviewPanel();
+        UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnTogglePreviewPanel called"));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] MAHUD not found!"));
+    }
+}
+
+void AMAPlayerController::OnToggleInstructionPanel(const FInputActionValue& Value)
+{
+    if (AMAHUD* HUD = Cast<AMAHUD>(GetHUD()))
+    {
+        HUD->ToggleInstructionPanel();
+        UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnToggleInstructionPanel called"));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] MAHUD not found!"));
+    }
 }
 
 void AMAPlayerController::OnJumpPressed(const FInputActionValue& Value)

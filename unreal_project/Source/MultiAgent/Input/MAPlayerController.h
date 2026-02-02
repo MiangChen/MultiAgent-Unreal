@@ -145,6 +145,18 @@ protected:
     /** 处理检查突发事件输入 (X 键) - 调用 HUDStateManager::HandleCheckEmergencyInput */
     void OnCheckUnexpected(const FInputActionValue& Value);
 
+    // ========== 右侧边栏面板切换 (Right Sidebar Panel Split) ==========
+    // Requirements: 4.5
+
+    /** 切换系统日志面板 (6 键) */
+    void OnToggleSystemLogPanel(const FInputActionValue& Value);
+
+    /** 切换预览面板 (7 键) */
+    void OnTogglePreviewPanel(const FInputActionValue& Value);
+
+    /** 切换指令输入面板 (8 键) */
+    void OnToggleInstructionPanel(const FInputActionValue& Value);
+
     // 获取鼠标点击位置
     bool GetMouseHitLocation(FVector& OutLocation);
     

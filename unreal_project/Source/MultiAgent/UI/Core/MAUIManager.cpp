@@ -21,6 +21,10 @@
 #include "../Mode/MAModifyWidget.h"
 #include "../Mode/MAEditWidget.h"
 #include "../Mode/MASceneListWidget.h"
+// 右侧边栏拆分面板 (Requirements: 5.1)
+#include "../Components/MASystemLogPanel.h"
+#include "../Components/MAPreviewPanel.h"
+#include "../Components/MAInstructionPanel.h"
 #include "../../Core/Manager/MATempDataManager.h"
 #include "../../Core/Manager/MAEmergencyManager.h"
 #include "../../Core/Comm/MACommSubsystem.h"
@@ -304,6 +308,76 @@ void UMAUIManager::CreateAllWidgets()
         UE_LOG(LogMAUIManager, Error, TEXT("Failed to create SceneListWidget"));
     }
 
+    //=========================================================================
+    // 右侧边栏拆分面板 (Requirements: 5.1)
+    //=========================================================================
+
+    // 创建 SystemLogPanel
+    SystemLogPanel = CreateWidget<UMASystemLogPanel>(OwningPC, UMASystemLogPanel::StaticClass());
+    if (SystemLogPanel)
+    {
+        SystemLogPanel->AddToViewport(GetWidgetZOrder(EMAWidgetType::SystemLogPanel));
+        SystemLogPanel->SetVisibility(ESlateVisibility::Collapsed);
+        Widgets.Add(EMAWidgetType::SystemLogPanel, SystemLogPanel);
+        
+        // 应用主题 (Requirements: 7.1)
+        UMAUITheme* ThemeToApply = GetTheme();
+        if (ThemeToApply)
+        {
+            SystemLogPanel->ApplyTheme(ThemeToApply);
+        }
+        
+        UE_LOG(LogMAUIManager, Log, TEXT("SystemLogPanel created"));
+    }
+    else
+    {
+        UE_LOG(LogMAUIManager, Error, TEXT("Failed to create SystemLogPanel"));
+    }
+
+    // 创建 PreviewPanel
+    PreviewPanel = CreateWidget<UMAPreviewPanel>(OwningPC, UMAPreviewPanel::StaticClass());
+    if (PreviewPanel)
+    {
+        PreviewPanel->AddToViewport(GetWidgetZOrder(EMAWidgetType::PreviewPanel));
+        PreviewPanel->SetVisibility(ESlateVisibility::Collapsed);
+        Widgets.Add(EMAWidgetType::PreviewPanel, PreviewPanel);
+        
+        // 应用主题 (Requirements: 7.2)
+        UMAUITheme* ThemeToApply = GetTheme();
+        if (ThemeToApply)
+        {
+            PreviewPanel->ApplyTheme(ThemeToApply);
+        }
+        
+        UE_LOG(LogMAUIManager, Log, TEXT("PreviewPanel created"));
+    }
+    else
+    {
+        UE_LOG(LogMAUIManager, Error, TEXT("Failed to create PreviewPanel"));
+    }
+
+    // 创建 InstructionPanel
+    InstructionPanel = CreateWidget<UMAInstructionPanel>(OwningPC, UMAInstructionPanel::StaticClass());
+    if (InstructionPanel)
+    {
+        InstructionPanel->AddToViewport(GetWidgetZOrder(EMAWidgetType::InstructionPanel));
+        InstructionPanel->SetVisibility(ESlateVisibility::Collapsed);
+        Widgets.Add(EMAWidgetType::InstructionPanel, InstructionPanel);
+        
+        // 应用主题 (Requirements: 7.3)
+        UMAUITheme* ThemeToApply = GetTheme();
+        if (ThemeToApply)
+        {
+            InstructionPanel->ApplyTheme(ThemeToApply);
+        }
+        
+        UE_LOG(LogMAUIManager, Log, TEXT("InstructionPanel created"));
+    }
+    else
+    {
+        UE_LOG(LogMAUIManager, Error, TEXT("Failed to create InstructionPanel"));
+    }
+
     UE_LOG(LogMAUIManager, Log, TEXT("All widgets created. Total: %d"), Widgets.Num());
 
     // 绑定 TempDataManager 事件，以便在数据变化时更新预览组件
@@ -385,6 +459,25 @@ UMASceneListWidget* UMAUIManager::GetSceneListWidget() const
 UMAHUDWidget* UMAUIManager::GetHUDWidget() const
 {
     return HUDWidget;
+}
+
+//=============================================================================
+// Widget 访问 - 右侧边栏拆分面板 (Requirements: 5.2)
+//=============================================================================
+
+UMASystemLogPanel* UMAUIManager::GetSystemLogPanel() const
+{
+    return SystemLogPanel;
+}
+
+UMAPreviewPanel* UMAUIManager::GetPreviewPanel() const
+{
+    return PreviewPanel;
+}
+
+UMAInstructionPanel* UMAUIManager::GetInstructionPanel() const
+{
+    return InstructionPanel;
 }
 
 UMABaseModalWidget* UMAUIManager::GetModalByType(EMAModalType ModalType) const
@@ -712,6 +805,13 @@ int32 UMAUIManager::GetWidgetZOrder(EMAWidgetType Type) const
         return 12;
     case EMAWidgetType::DirectControl:
         return 15;
+    // 右侧边栏拆分面板 - 使用较低的 Z-Order，不遮挡其他 Widget
+    case EMAWidgetType::SystemLogPanel:
+        return 5;
+    case EMAWidgetType::PreviewPanel:
+        return 5;
+    case EMAWidgetType::InstructionPanel:
+        return 5;
     default:
         return 10;
     }
@@ -960,6 +1060,28 @@ void UMAUIManager::DistributeThemeToWidgets()
     if (EmergencyModal)
     {
         EmergencyModal->ApplyTheme(ThemeToApply);
+        WidgetCount++;
+    }
+    
+    //=========================================================================
+    // 右侧边栏拆分面板 (Requirements: 7.4)
+    //=========================================================================
+    
+    if (SystemLogPanel)
+    {
+        SystemLogPanel->ApplyTheme(ThemeToApply);
+        WidgetCount++;
+    }
+    
+    if (PreviewPanel)
+    {
+        PreviewPanel->ApplyTheme(ThemeToApply);
+        WidgetCount++;
+    }
+    
+    if (InstructionPanel)
+    {
+        InstructionPanel->ApplyTheme(ThemeToApply);
         WidgetCount++;
     }
     
