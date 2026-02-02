@@ -30,7 +30,7 @@ DEFINE_LOG_CATEGORY(LogMAInstructionPanel);
 // 主题颜色辅助函数
 //=============================================================================
 
-namespace
+namespace MAInstructionPanelPrivate
 {
     /** 获取主题或创建默认主题 */
     UMAUITheme* GetOrCreateTheme(UMAInstructionPanel* Widget)
@@ -112,9 +112,9 @@ void UMAInstructionPanel::BuildUI()
     }
     
     // 获取主题 (确保有可用的主题)
-    UMAUITheme* CurrentTheme = GetOrCreateTheme(this);
+    UMAUITheme* CurrentTheme = MAInstructionPanelPrivate::GetOrCreateTheme(this);
     
-    FLinearColor SectionBgColor = GetSectionBackgroundColor(CurrentTheme);
+    FLinearColor SectionBgColor = MAInstructionPanelPrivate::GetSectionBackgroundColor(CurrentTheme);
     float CornerRadius = MARoundedBorderUtils::GetCornerRadiusForType(CurrentTheme, EMARoundedElementType::Panel);
     float ButtonCornerRadius = MARoundedBorderUtils::GetCornerRadiusForType(CurrentTheme, EMARoundedElementType::Button);
     

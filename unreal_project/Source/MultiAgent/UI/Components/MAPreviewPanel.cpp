@@ -27,7 +27,7 @@ DEFINE_LOG_CATEGORY(LogMAPreviewPanel);
 // 主题颜色辅助函数
 //=============================================================================
 
-namespace
+namespace MAPreviewPanelPrivate
 {
     /** 获取主题或创建默认主题 */
     UMAUITheme* GetOrCreateTheme(UMAPreviewPanel* Widget)
@@ -103,7 +103,7 @@ void UMAPreviewPanel::BuildUI()
     }
     
     // 获取主题 (确保有可用的主题)
-    UMAUITheme* CurrentTheme = GetOrCreateTheme(this);
+    UMAUITheme* CurrentTheme = MAPreviewPanelPrivate::GetOrCreateTheme(this);
     
     // 创建根 CanvasPanel - 用于定位面板
     UCanvasPanel* RootCanvas = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("RootCanvas"));
@@ -122,7 +122,7 @@ void UMAPreviewPanel::BuildUI()
         RootCanvas,
         CurrentTheme,
         FVector2D(-10, 170),          // 位置：右边距 10，顶部距离 170
-        FVector2D(PanelWidth, 400),   // 尺寸：宽度 480，高度 400 (预览区域需要更多空间)
+        FVector2D(PanelWidth, 440),   // 尺寸：宽度 480，高度 440
         FVector2D(1.0f, 0.0f),        // 对齐：右上角对齐
         FAnchors(1.0f, 0.0f, 1.0f, 0.0f),  // 锚点：右上角
         TEXT("PreviewPanel")
@@ -186,8 +186,8 @@ UWidget* UMAPreviewPanel::CreateTaskGraphSection()
     }
     
     // 获取主题
-    UMAUITheme* CurrentTheme = GetOrCreateTheme(this);
-    FLinearColor SectionBgColor = GetSectionBackgroundColor(CurrentTheme);
+    UMAUITheme* CurrentTheme = MAPreviewPanelPrivate::GetOrCreateTheme(this);
+    FLinearColor SectionBgColor = MAPreviewPanelPrivate::GetSectionBackgroundColor(CurrentTheme);
     float CornerRadius = MARoundedBorderUtils::GetCornerRadiusForType(CurrentTheme, EMARoundedElementType::Panel);
     
     // 创建任务图区边框
@@ -242,8 +242,8 @@ UWidget* UMAPreviewPanel::CreateSkillListSection()
     }
     
     // 获取主题
-    UMAUITheme* CurrentTheme = GetOrCreateTheme(this);
-    FLinearColor SectionBgColor = GetSectionBackgroundColor(CurrentTheme);
+    UMAUITheme* CurrentTheme = MAPreviewPanelPrivate::GetOrCreateTheme(this);
+    FLinearColor SectionBgColor = MAPreviewPanelPrivate::GetSectionBackgroundColor(CurrentTheme);
     float CornerRadius = MARoundedBorderUtils::GetCornerRadiusForType(CurrentTheme, EMARoundedElementType::Panel);
     
     // 创建技能列表区边框
@@ -298,7 +298,7 @@ UWidget* UMAPreviewPanel::CreateSeparator()
     }
     
     // 获取主题
-    UMAUITheme* CurrentTheme = GetOrCreateTheme(this);
+    UMAUITheme* CurrentTheme = MAPreviewPanelPrivate::GetOrCreateTheme(this);
     
     UBorder* Separator = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
     if (!Separator)
