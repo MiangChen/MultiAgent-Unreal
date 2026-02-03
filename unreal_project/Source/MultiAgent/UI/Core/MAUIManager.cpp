@@ -1751,10 +1751,10 @@ void UMAUIManager::OnTempTaskGraphChanged(const FMATaskGraphData& Data)
     UE_LOG(LogMAUIManager, Log, TEXT("OnTempTaskGraphChanged: Received task graph update (%d nodes, %d edges)"),
         Data.Nodes.Num(), Data.Edges.Num());
     
-    // 更新 MainHUDWidget 的预览组件
-    if (MainHUDWidget)
+    // 更新 PreviewPanel 的任务图预览组件
+    if (PreviewPanel)
     {
-        MainHUDWidget->UpdateTaskGraphPreview(Data);
+        PreviewPanel->UpdateTaskGraphPreview(Data);
     }
 }
 
@@ -1763,22 +1763,27 @@ void UMAUIManager::OnTempSkillAllocationChanged(const FMASkillAllocationData& Da
     UE_LOG(LogMAUIManager, Log, TEXT("OnTempSkillAllocationChanged: Received skill allocation update (%d time steps)"),
         Data.Data.Num());
     
-    // 更新 MainHUDWidget 的预览组件
-    if (MainHUDWidget)
+    // 更新 PreviewPanel 的技能列表预览组件
+    if (PreviewPanel)
     {
-        MainHUDWidget->UpdateSkillListPreview(Data);
+        PreviewPanel->UpdateSkillListPreview(Data);
     }
 }
 
 void UMAUIManager::OnSkillStatusUpdated(int32 TimeStep, const FString& RobotId, ESkillExecutionStatus NewStatus)
 {
-    UE_LOG(LogMAUIManager, Verbose, TEXT("OnSkillStatusUpdated: TimeStep=%d, RobotId=%s, Status=%d"),
+    UE_LOG(LogMAUIManager, Log, TEXT("OnSkillStatusUpdated: TimeStep=%d, RobotId=%s, Status=%d"),
         TimeStep, *RobotId, static_cast<int32>(NewStatus));
     
-    // 更新 MainHUDWidget 的预览组件
-    if (MainHUDWidget)
+    // 更新 PreviewPanel 的技能列表预览组件
+    if (PreviewPanel)
     {
-        MainHUDWidget->UpdateSkillStatus(TimeStep, RobotId, NewStatus);
+        UE_LOG(LogMAUIManager, Log, TEXT("OnSkillStatusUpdated: Forwarding to PreviewPanel"));
+        PreviewPanel->UpdateSkillStatus(TimeStep, RobotId, NewStatus);
+    }
+    else
+    {
+        UE_LOG(LogMAUIManager, Warning, TEXT("OnSkillStatusUpdated: PreviewPanel is null"));
     }
     
     // 更新 SkillAllocationModal 的甘特图

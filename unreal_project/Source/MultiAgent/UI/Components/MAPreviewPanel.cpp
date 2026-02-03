@@ -347,7 +347,13 @@ void UMAPreviewPanel::UpdateSkillStatus(int32 TimeStep, const FString& RobotId, 
 {
     if (SkillListPreview)
     {
+        UE_LOG(LogMAPreviewPanel, Log, TEXT("UpdateSkillStatus: Forwarding to SkillListPreview - TimeStep=%d, RobotId=%s, Status=%d"),
+            TimeStep, *RobotId, static_cast<int32>(NewStatus));
         SkillListPreview->UpdateSkillStatus(TimeStep, RobotId, NewStatus);
+    }
+    else
+    {
+        UE_LOG(LogMAPreviewPanel, Warning, TEXT("UpdateSkillStatus: SkillListPreview is null"));
     }
 }
 

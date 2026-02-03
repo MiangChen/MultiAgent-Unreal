@@ -245,11 +245,12 @@ void UMACommandManager::OnSkillCompleted(AMACharacter* Agent, bool bSuccess, con
     CurrentTimeStepFeedback.SkillFeedbacks.Add(Feedback);
     
     // 广播技能完成状态到 TempDataManager，让预览组件实时更新
+    // 注意：使用 AgentLabel 而不是 AgentID，因为技能分配数据中使用的是标签名
     UMATempDataManager* TempDataMgr = GetTempDataManager();
     if (TempDataMgr)
     {
         ESkillExecutionStatus NewStatus = bSuccess ? ESkillExecutionStatus::Completed : ESkillExecutionStatus::Failed;
-        TempDataMgr->BroadcastSkillStatusUpdate(CurrentTimeStep, Agent->AgentID, NewStatus);
+        TempDataMgr->BroadcastSkillStatusUpdate(CurrentTimeStep, Agent->AgentLabel, NewStatus);
     }
     
     if (bSuccess)

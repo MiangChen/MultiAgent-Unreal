@@ -475,7 +475,7 @@ void UMATempDataManager::ProcessFileChange()
 
 void UMATempDataManager::BroadcastSkillStatusUpdate(int32 TimeStep, const FString& RobotId, ESkillExecutionStatus NewStatus)
 {
-    UE_LOG(LogMATempData, Verbose, TEXT("BroadcastSkillStatusUpdate: TimeStep=%d, RobotId=%s, Status=%d"),
+    UE_LOG(LogMATempData, Log, TEXT("BroadcastSkillStatusUpdate: TimeStep=%d, RobotId=%s, Status=%d"),
         TimeStep, *RobotId, static_cast<int32>(NewStatus));
     
     // Update cached data if valid
@@ -485,9 +485,19 @@ void UMATempDataManager::BroadcastSkillStatusUpdate(int32 TimeStep, const FStrin
         if (Skill)
         {
             Skill->Status = NewStatus;
-            UE_LOG(LogMATempData, Verbose, TEXT("BroadcastSkillStatusUpdate: Updated cached skill status"));
+            UE_LOG(LogMATempData, Log, TEXT("BroadcastSkillStatusUpdate: Updated cached skill status"));
+        }
+        else
+        {
+            UE_LOG(LogMATempData, Warning, TEXT("BroadcastSkillStatusUpdate: Skill not found in cache for TimeStep=%d, RobotId=%s"),
+                TimeStep, *RobotId);
         }
     }
+    else
+    {
+        UE_LOG(LogMATempData, Warning, TEXT("BroadcastSkillStatusUpdate: Cache is not valid"));
+    }
     
+    UE_LOG(LogMATempData, Log, TEXT("BroadcastSkillStatusUpdate: Broadcasting OnSkillStatusUpdated event"));
     OnSkillStatusUpdated.Broadcast(TimeStep, RobotId, NewStatus);
 }

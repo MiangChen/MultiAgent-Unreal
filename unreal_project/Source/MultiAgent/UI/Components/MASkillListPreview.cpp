@@ -258,29 +258,67 @@ void UMASkillListPreview::ClearPreview()
 
 void UMASkillListPreview::UpdateSkillStatus(int32 TimeStep, const FString& RobotId, ESkillExecutionStatus NewStatus)
 {
+    UE_LOG(LogMASkillListPreview, Log, TEXT("UpdateSkillStatus called: TimeStep=%d, RobotId=%s, NewStatus=%d, bHasData=%d, BarCount=%d"),
+        TimeStep, *RobotId, static_cast<int32>(NewStatus), bHasData ? 1 : 0, SkillBarRenderData.Num());
+    
     if (!bHasData)
     {
+        UE_LOG(LogMASkillListPreview, Warning, TEXT("UpdateSkillStatus: No data available, ignoring update"));
         return;
     }
     
     // 更新 CurrentData 中的状态
+    bool bFoundInCurrentData = false;
     if (FMATimeStepData* TimeStepData = CurrentData.Data.Find(TimeStep))
     {
         if (FMASkillAssignment* Skill = TimeStepData->RobotSkills.Find(RobotId))
         {
             Skill->Status = NewStatus;
+            bFoundInCurrentData = true;
+        }
+    }
+    
+    if (!bFoundInCurrentData)
+    {
+        UE_LOG(LogMASkillListPreview, Warning, TEXT("UpdateSkillStatus: Skill not found in CurrentData for TimeStep=%d, RobotId=%s"),
+            TimeStep, *RobotId);
+        // 打印可用的时间步和机器人 ID
+        UE_LOG(LogMASkillListPreview, Warning, TEXT("  Available TimeSteps: %d"), CurrentData.Data.Num());
+        for (const auto& Pair : CurrentData.Data)
+        {
+            UE_LOG(LogMASkillListPreview, Warning, TEXT("    TimeStep %d has %d robots"), Pair.Key, Pair.Value.RobotSkills.Num());
+            for (const auto& RobotPair : Pair.Value.RobotSkills)
+            {
+                UE_LOG(LogMASkillListPreview, Warning, TEXT("      Robot: %s"), *RobotPair.Key);
+            }
         }
     }
     
     // 更新渲染数据中的状态
+    bool bFoundInRenderData = false;
     for (FMAPreviewSkillBarData& Bar : SkillBarRenderData)
     {
         if (Bar.TimeStep == TimeStep && Bar.RobotId == RobotId)
         {
+            ESkillExecutionStatus OldStatus = Bar.Status;
             Bar.Status = NewStatus;
-            UE_LOG(LogMASkillListPreview, Verbose, TEXT("UpdateSkillStatus: TimeStep=%d, RobotId=%s, NewStatus=%d"),
-                TimeStep, *RobotId, static_cast<int32>(NewStatus));
+            bFoundInRenderData = true;
+            UE_LOG(LogMASkillListPreview, Log, TEXT("UpdateSkillStatus: Updated bar status from %d to %d for TimeStep=%d, RobotId=%s"),
+                static_cast<int32>(OldStatus), static_cast<int32>(NewStatus), TimeStep, *RobotId);
             break;
+        }
+    }
+    
+    if (!bFoundInRenderData)
+    {
+        UE_LOG(LogMASkillListPreview, Warning, TEXT("UpdateSkillStatus: Bar not found in SkillBarRenderData for TimeStep=%d, RobotId=%s"),
+            TimeStep, *RobotId);
+        // 打印可用的渲染数据
+        for (int32 i = 0; i < SkillBarRenderData.Num(); ++i)
+        {
+            const FMAPreviewSkillBarData& Bar = SkillBarRenderData[i];
+            UE_LOG(LogMASkillListPreview, Warning, TEXT("  Bar[%d]: TimeStep=%d, RobotId=%s, Status=%d"),
+                i, Bar.TimeStep, *Bar.RobotId, static_cast<int32>(Bar.Status));
         }
     }
     
