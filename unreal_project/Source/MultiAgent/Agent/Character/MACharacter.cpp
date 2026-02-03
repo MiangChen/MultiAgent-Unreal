@@ -80,7 +80,7 @@ void AMACharacter::PossessedBy(AController* NewController)
 void AMACharacter::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
-    DrawStatusText();
+    UpdateStatusText();
 }
 
 // ========== 技能接口 ==========
@@ -191,33 +191,19 @@ void AMACharacter::ShowAbilityStatus(const FString& SkillName, const FString& Pa
     ShowStatus(DisplayText, 3.0f);
 }
 
-void AMACharacter::DrawStatusText()
+FString AMACharacter::GetCurrentStatusText() const
+{
+    return CurrentStatusText;
+}
+
+void AMACharacter::UpdateStatusText()
 {
     if (CurrentStatusText.IsEmpty()) return;
     if (GetWorld()->GetTimeSeconds() > StatusDisplayEndTime)
     {
         CurrentStatusText = TEXT("");
-        return;
     }
-    
-    // 检查是否有全屏 Widget 可见，如果有则不绘制头顶状态文字
-    APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
-    if (PC)
-    {
-        AMAHUD* MAHUD = Cast<AMAHUD>(PC->GetHUD());
-        if (MAHUD)
-        {
-            UMAUIManager* UIManager = MAHUD->GetUIManager();
-            if (UIManager && UIManager->IsAnyFullscreenWidgetVisible())
-            {
-                return;  // 有全屏 Widget 可见，不绘制
-            }
-        }
-    }
-    
-    FVector TextLocation = GetActorLocation() + FVector(0.f, 0.f, 150.f);
-    // Duration 设为 0 表示只绘制当前帧，避免移动时文字抖动
-    DrawDebugString(GetWorld(), TextLocation, CurrentStatusText, nullptr, FColor::Yellow, 0.f, false, 1.2f);
+    // 状态文字由 HUD 绘制，这里只负责更新过期状态
 }
 
 // ========== Sensor 管理 ==========

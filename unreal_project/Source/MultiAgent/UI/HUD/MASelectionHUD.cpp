@@ -92,6 +92,7 @@ void AMASelectionHUD::DrawHUD()
     if (bShouldDrawDebug)
     {
         DrawAllAgentCircles();
+        DrawAllAgentStatusText();
     }
 
     // 绘制编组信息
@@ -410,4 +411,61 @@ void AMASelectionHUD::DrawDeploymentInfo()
         FLinearColor::White
     );
     Canvas->DrawItem(PendingItem);
+}
+
+
+void AMASelectionHUD::DrawAllAgentStatusText()
+{
+    if (!Canvas) return;
+
+    UWorld* World = GetWorld();
+    if (!World) return;
+
+    APlayerController* PC = GetOwningPlayerController();
+    if (!PC) return;
+
+    // 获取 AgentManager 以遍历所有 Agent
+    UMAAgentManager* AgentManager = World->GetSubsystem<UMAAgentManager>();
+    if (!AgentManager) return;
+
+    // 遍历所有 Agent 并绘制状态文字
+    for (AMACharacter* Agent : AgentManager->GetAllAgents())
+    {
+        if (!Agent) continue;
+
+        // 获取 Agent 的状态文字
+        FString StatusText = Agent->GetCurrentStatusText();
+        if (StatusText.IsEmpty()) continue;
+
+        // 计算 Agent 头顶位置
+        FVector WorldLocation = Agent->GetActorLocation() + FVector(0.f, 0.f, 180.f);
+
+        // 投影到屏幕坐标
+        FVector2D ScreenPos;
+        if (!PC->ProjectWorldLocationToScreen(WorldLocation, ScreenPos, true))
+        {
+            continue;  // 不在屏幕内
+        }
+
+        // 检查是否在屏幕范围内
+        if (ScreenPos.X < 0 || ScreenPos.X > Canvas->SizeX ||
+            ScreenPos.Y < 0 || ScreenPos.Y > Canvas->SizeY)
+        {
+            continue;
+        }
+
+        // 绘制黄色大号粗体文字
+        FLinearColor TextColor(1.f, 1.f, 0.f, 1.f);  // 黄色
+        
+        FCanvasTextItem TextItem(
+            ScreenPos,
+            FText::FromString(StatusText),
+            GEngine->GetLargeFont(),
+            TextColor
+        );
+        TextItem.Scale = FVector2D(2.0f, 2.0f);  // 放大 2 倍
+        TextItem.bCentreX = true;
+        TextItem.bCentreY = true;
+        Canvas->DrawItem(TextItem);
+    }
 }

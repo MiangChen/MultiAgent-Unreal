@@ -87,6 +87,10 @@ public:
 
     void ShowAbilityStatus(const FString& SkillName, const FString& Params = TEXT(""));
 
+    /** 获取当前状态文字（供 HUD 绘制） */
+    UFUNCTION(BlueprintPure, Category = "Status")
+    FString GetCurrentStatusText() const;
+
     // ========== 能量系统 ==========
     /** 检查是否应该消耗能量（根据配置） */
     UFUNCTION(BlueprintPure, Category = "Energy")
@@ -136,5 +140,5 @@ protected:
 private:
     FString CurrentStatusText;
     float StatusDisplayEndTime = 0.f;
-    void DrawStatusText();
+    void UpdateStatusText();
 };

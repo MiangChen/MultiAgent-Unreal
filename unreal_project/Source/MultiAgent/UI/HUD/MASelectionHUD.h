@@ -131,4 +131,7 @@ private:
 
     // 获取模式颜色（带 fallback 逻辑）
     FLinearColor GetModeColor(EMAMouseMode Mode) const;
+
+    // 绘制所有 Agent 的状态文字
+    void DrawAllAgentStatusText();
 };
