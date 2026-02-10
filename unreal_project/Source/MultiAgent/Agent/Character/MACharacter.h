@@ -156,7 +156,7 @@ protected:
 private:
     FString CurrentStatusText;
     float StatusDisplayEndTime = 0.f;
-    void DrawStatusText();
+    void UpdateStatusText();
     
     /** 是否有待执行的低电量返航 */
     bool bPendingLowEnergyReturn = false;
