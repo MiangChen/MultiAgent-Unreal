@@ -31,8 +31,8 @@ AActor* FMAUESceneQuery::FindActorByGuid(UWorld* World, const FString& Guid)
         AActor* Actor = *It;
         if (Actor && Actor->GetActorGuid().ToString() == Guid)
         {
-            UE_LOG(LogFMAUESceneQuery, Log, TEXT("[FindActorByGuid] Found Actor '%s' with GUID %s"),
-                *Actor->GetName(), *Guid);
+            // UE_LOG(LogFMAUESceneQuery, Log, TEXT("[FindActorByGuid] Found Actor '%s' with GUID %s"),
+            //     *Actor->GetName(), *Guid);
             return Actor;
         }
     }

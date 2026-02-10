@@ -2340,7 +2340,7 @@
 				"is_abnormal": false,
 				"color": "black",
 				"subtype": "sedan",
-				"traffic_violation": true
+				"traffic_violation": false
 			},
 			"shape":
 			{

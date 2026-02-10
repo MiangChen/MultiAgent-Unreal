@@ -40,6 +40,7 @@ void UMAInputActions::Initialize()
     IA_StartFormation = CreateInputAction(TEXT("IA_StartFormation"));
     IA_TakePhoto = CreateInputAction(TEXT("IA_TakePhoto"));
     IA_ToggleTCPStream = CreateInputAction(TEXT("IA_ToggleTCPStream"));
+    IA_TogglePauseExecution = CreateInputAction(TEXT("IA_TogglePauseExecution"));
 
     // 编组快捷键
     IA_ControlGroup1 = CreateInputAction(TEXT("IA_ControlGroup1"));
@@ -94,7 +95,8 @@ void UMAInputActions::Initialize()
     AddKeyMapping(IMC_RTS, IA_LeftClick, EKeys::LeftMouseButton);
     AddKeyMapping(IMC_RTS, IA_RightClick, EKeys::RightMouseButton);
     AddKeyMapping(IMC_RTS, IA_MiddleClick, EKeys::MiddleMouseButton);
-    AddKeyMapping(IMC_RTS, IA_Pickup, EKeys::P);
+    AddKeyMapping(IMC_RTS, IA_Pickup, EKeys::R);  // 原 P 键让给暂停功能
+    AddKeyMapping(IMC_RTS, IA_TogglePauseExecution, EKeys::P);  // P for Pause/Resume
     AddKeyMapping(IMC_RTS, IA_Drop, EKeys::O);
     AddKeyMapping(IMC_RTS, IA_SpawnItem, EKeys::I);
     AddKeyMapping(IMC_RTS, IA_SpawnQuadruped, EKeys::T);

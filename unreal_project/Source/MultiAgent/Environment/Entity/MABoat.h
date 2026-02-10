@@ -1,6 +1,6 @@
 // MABoat.h
-// 船只环境对象 - 可导航的水面船只实体
-// 继承 ACharacter 以支持 NavMesh 导航
+// 船只环境对象 - 使用简单直线移动的水面船只
+// 通过 Tick + SetActorLocation 实现移动，保持水面高度
 
 #pragma once
 
@@ -9,7 +9,6 @@
 #include "../IMAEnvironmentObject.h"
 #include "MABoat.generated.h"
 
-class UMANavigationService;
 class UStaticMeshComponent;
 class AMAFire;
 struct FMAEnvironmentObjectConfig;
@@ -75,9 +74,6 @@ public:
     UFUNCTION(BlueprintPure, Category = "Boat")
     bool IsNavigating() const;
 
-    /** 获取导航服务组件 */
-    UMANavigationService* GetNavigationService() const { return NavigationService; }
-
     /** 获取网格组件 */
     UStaticMeshComponent* GetBoatMesh() const { return BoatMeshComponent; }
 
@@ -113,6 +109,7 @@ public:
 
 protected:
     virtual void BeginPlay() override;
+    virtual void Tick(float DeltaTime) override;
 
     //=========================================================================
     // 环境对象属性
@@ -135,13 +132,21 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
     TObjectPtr<UStaticMeshComponent> BoatMeshComponent;
 
-    /** 导航服务组件 */
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-    TObjectPtr<UMANavigationService> NavigationService;
-
     /** 水面高度 */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Navigation")
     float WaterLevel = 0.f;
+    
+    /** 船体吃水深度（船底在水面下的深度，正值表示下沉） */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Navigation")
+    float WaterlineDraft = 20.f;
+
+    /** 移动速度 cm/s */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Navigation")
+    float MoveSpeed = 300.f;
+
+    /** 转向速度 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Navigation")
+    float TurnSpeed = 2.f;
 
     /** 附着的火焰对象 */
     UPROPERTY()
@@ -170,13 +175,24 @@ protected:
     /** 巡逻等待定时器 */
     FTimerHandle PatrolWaitTimerHandle;
 
+    /** 当前移动目标 */
+    FVector TargetLocation = FVector::ZeroVector;
+
+    /** 到达判定半径 */
+    float AcceptanceRadius = 150.f;
+
+    /** 是否正在移动 */
+    bool bIsMoving = false;
+
 private:
-    /** 导航完成回调 */
-    UFUNCTION()
-    void OnNavigationCompleted(bool bSuccess, const FString& Message);
+    /** 移动完成回调 */
+    void OnMoveCompleted(bool bSuccess);
 
     /** 移动到下一个巡逻点 */
     void MoveToNextWaypoint();
+
+    /** 根据 Mesh 自动调整胶囊体尺寸和位置 */
+    void AutoFitCapsuleToMesh();
 
     /** 获取船只模型路径 */
     static FString GetBoatMeshPath(const FString& Subtype);

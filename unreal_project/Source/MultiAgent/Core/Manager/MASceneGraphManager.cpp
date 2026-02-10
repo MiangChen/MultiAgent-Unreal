@@ -5,6 +5,7 @@
 #include "scene_graph_tools/MASceneGraphIO.h"
 #include "scene_graph_tools/MASceneGraphQuery.h"
 #include "scene_graph_tools/MADynamicNodeManager.h"
+#include "ue_tools/MAUESceneApplier.h"
 #include "../../Agent/Skill/Utils/MALocationUtils.h"
 #include "../Comm/MACommSubsystem.h"
 #include "GameFramework/Actor.h"
@@ -70,7 +71,7 @@ void UMASceneGraphManager::Initialize(FSubsystemCollectionBase& Collection)
         UE_LOG(LogMASceneGraphManager, Log, TEXT("Loaded %d static nodes from scene graph"), StaticNodes.Num());
     }
 
-    // 加载动态节点 (机器人、可拾取物品、充电站)
+    // 加载动态节点
     LoadDynamicNodes();
 
     UE_LOG(LogMASceneGraphManager, Log, TEXT("MASceneGraphManager initialized with %d static nodes and %d dynamic nodes"), 
@@ -548,6 +549,13 @@ bool UMASceneGraphManager::BindDynamicNodeGuid(const FString& NodeIdOrLabel, con
 
     UE_LOG(LogMASceneGraphManager, Log, TEXT("BindDynamicNodeGuid: 成功绑定节点 %s (Label: %s) 到 GUID %s"), 
         *Node->Id, *Node->Label, *ActorGuid);
+
+    // 用 Actor 的实际位置校准节点 (Spawn 时的地面投影可能修改了 Z)
+    if (UWorld* World = GetWorld())
+    {
+        FMAUESceneApplier::CalibrateNodeFromActor(World, *Node);
+    }
+
     return true;
 }
 

@@ -272,9 +272,9 @@ AMABoat* UMAEnvironmentManager::SpawnBoat(const FMAEnvironmentObjectConfig& Conf
     FActorSpawnParameters SpawnParams;
     SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 
-    // 船只直接使用配置的位置（水面高度），加上 Capsule 半高 (40cm)
+    // 船只使用配置的位置，高度调整在 Configure 中根据 Mesh 尺寸计算
     FVector SpawnLocation = Config.Position;
-    SpawnLocation.Z += 40.f;
+    SpawnLocation.Z += 100.f;  // 临时偏移，Configure 中会重新设置正确高度
 
     AMABoat* Boat = GetWorld()->SpawnActor<AMABoat>(
         AMABoat::StaticClass(),

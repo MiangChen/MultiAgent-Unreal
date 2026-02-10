@@ -12,6 +12,7 @@
 #include "../Component/MANavigationService.h"
 #include "Kismet/GameplayStatics.h"
 #include "../../Core/Config/MAConfigManager.h"
+#include "../../Core/Manager/MACommandManager.h"
 #include "../../UI/Core/MAUIManager.h"
 #include "../../UI/HUD/MAHUD.h"
 
@@ -65,6 +66,12 @@ void AMACharacter::BeginPlay()
     
     // 记录初始位置（用于返航）
     InitialLocation = GetActorLocation();
+    
+    // 绑定低电量自动返航
+    if (SkillComponent)
+    {
+        SkillComponent->OnLowEnergy.AddDynamic(this, &AMACharacter::OnLowEnergyReturn);
+    }
 }
 
 void AMACharacter::PossessedBy(AController* NewController)
@@ -275,4 +282,92 @@ bool AMACharacter::ShouldDrainEnergy() const
         }
     }
     return false;
+}
+
+void AMACharacter::OnLowEnergyReturn()
+{
+    if (!SkillComponent) return;
+    
+    UE_LOG(LogTemp, Warning, TEXT("[%s] Low energy (%.0f%%), initiating return to base"),
+        *AgentLabel, SkillComponent->GetEnergyPercent());
+    
+    ShowStatus(TEXT("[Low Battery] Returning to base..."), 5.f);
+    
+    // 检查是否处于暂停状态
+    if (UMACommandManager* CmdMgr = GetWorld()->GetSubsystem<UMACommandManager>())
+    {
+        if (CmdMgr->IsPaused())
+        {
+            // 暂停中：先取消当前技能，标记待返航，等恢复后执行
+            SkillComponent->CancelAllSkills();
+            bPendingLowEnergyReturn = true;
+            CmdMgr->OnExecutionPauseStateChanged.AddDynamic(this, &AMACharacter::OnPauseStateChanged);
+            UE_LOG(LogTemp, Log, TEXT("[%s] Paused, deferring low-energy return until resume"), *AgentLabel);
+            return;
+        }
+    }
+    
+    ExecuteLowEnergyReturn();
+}
+
+void AMACharacter::OnPauseStateChanged(bool bPaused)
+{
+    if (!bPaused && bPendingLowEnergyReturn)
+    {
+        bPendingLowEnergyReturn = false;
+        
+        // 解绑，只需要触发一次
+        if (UMACommandManager* CmdMgr = GetWorld()->GetSubsystem<UMACommandManager>())
+        {
+            CmdMgr->OnExecutionPauseStateChanged.RemoveDynamic(this, &AMACharacter::OnPauseStateChanged);
+        }
+        
+        ExecuteLowEnergyReturn();
+    }
+}
+
+void AMACharacter::ExecuteLowEnergyReturn()
+{
+    if (!SkillComponent) return;
+    
+    // 取消当前所有技能（不算成功完成）
+    SkillComponent->CancelAllSkills();
+    
+    // 标记正在低电量返航（条件检查系统会豁免 BatteryLow 检查）
+    bIsLowEnergyReturning = true;
+    
+    // 监听返航技能完成，清除标记
+    SkillComponent->OnSkillCompleted.AddDynamic(this, &AMACharacter::OnReturnSkillCompleted);
+    
+    // 飞行机器人：ReturnHome（含降落逻辑），地面机器人：Navigate 回初始位置
+    bool bIsFlying = NavigationService && NavigationService->bIsFlying;
+    
+    if (bIsFlying)
+    {
+        SkillComponent->GetSkillParamsMutable().HomeLocation = InitialLocation;
+        SkillComponent->TryActivateReturnHome();
+    }
+    else
+    {
+        SkillComponent->TryActivateNavigate(InitialLocation);
+    }
+    
+    UE_LOG(LogTemp, Log, TEXT("[%s] Low-energy return started (%s → [%.0f, %.0f, %.0f])"),
+        *AgentLabel, bIsFlying ? TEXT("ReturnHome") : TEXT("Navigate"),
+        InitialLocation.X, InitialLocation.Y, InitialLocation.Z);
+}
+
+void AMACharacter::OnReturnSkillCompleted(AMACharacter* Agent, bool bSuccess, const FString& Message)
+{
+    if (Agent != this) return;
+    
+    bIsLowEnergyReturning = false;
+    
+    if (SkillComponent)
+    {
+        SkillComponent->OnSkillCompleted.RemoveDynamic(this, &AMACharacter::OnReturnSkillCompleted);
+    }
+    
+    UE_LOG(LogTemp, Log, TEXT("[%s] Low-energy return %s: %s"),
+        *AgentLabel, bSuccess ? TEXT("completed") : TEXT("failed"), *Message);
 }

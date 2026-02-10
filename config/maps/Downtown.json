@@ -12,29 +12,29 @@
         {
             "type": "UAV",
             "instances": [
-                { "label": "UAV-1", "position": [7700, 9000, 20], "rotation": [0, 180, 0] },
-                { "label": "UAV-2", "position": [8000, 9000, 20], "rotation": [0, 180, 0] }
+                { "label": "UAV-1", "position": [7700, 9000, 20], "rotation": [0, 180, 0], "battery_level": 100 },
+                { "label": "UAV-2", "position": [8000, 9000, 20], "rotation": [0, 180, 0], "battery_level": 100  }
             ]
         },
         {
             "type": "UGV",
             "instances": [
-                { "label": "UGV-1", "position": [7700, 9400, 20], "rotation": [0, 180, 0] },
-                { "label": "UGV-2", "position": [8000, 9400, 20], "rotation": [0, 180, 0] }
+                { "label": "UGV-1", "position": [7700, 9400, 20], "rotation": [0, 180, 0], "battery_level": 100  },
+                { "label": "UGV-2", "position": [8000, 9400, 20], "rotation": [0, 180, 0], "battery_level": 100  }
             ]
         },
         {
             "type": "Quadruped",
             "instances": [
-                { "label": "Quadruped-1", "position": [7700, 9800, 20], "rotation": [0, 180, 0] },
-                { "label": "Quadruped-2", "position": [8000, 9800, 20], "rotation": [0, 180, 0] }
+                { "label": "Quadruped-1", "position": [7700, 9800, 20], "rotation": [0, 180, 0], "battery_level": 100  },
+                { "label": "Quadruped-2", "position": [8000, 9800, 20], "rotation": [0, 180, 0], "battery_level": 100  }
             ]
         },
         {
             "type": "Humanoid",
             "instances": [
-                { "label": "Humanoid-1", "position": [7700, 10200, 20], "rotation": [0, 180, 0] },
-                { "label": "Humanoid-2", "position": [8000, 10200, 20], "rotation": [0, 180, 0] }
+                { "label": "Humanoid-1", "position": [7700, 10200, 20], "rotation": [0, 180, 0], "battery_level": 100  },
+                { "label": "Humanoid-2", "position": [8000, 10200, 20], "rotation": [0, 180, 0], "battery_level": 100  }
             ]
         }
     ],
@@ -42,32 +42,37 @@
         {
             "label": "ChargingStation_1", "type": "charging_station",
             "position": [7300, 8400, 20],
+            "enabled": true,
             "features": {}
         },
         {
             "label": "RedBox", "type": "cargo",
-            "position": [-2360, 9600, 0],
+            "position": [-2360, 9500, 0],
+            "enabled": true,
             "features": { "color": "red", "subtype": "box" }
         },
         {
             "label": "BlueBox", "type": "cargo",
             "position": [2600, 1400, 0],
+            "enabled": true,
             "features": { "color": "blue", "subtype": "box" }
         },
         {
             "label": "GreenBox", "type": "cargo",
             "position": [5500, 2000, 0],
+            "enabled": true,
             "features": { "color": "green", "subtype": "box" }
         },
         {
             "label": "Person_1", "type": "person",
-            "position": [-7400, 3800, 0], "rotation": [0, 0, 0],
-            "features": { "subtype": "business", "variant": "01", "gender": "male", "clothing_color": "blue" },
+            "position": [-6800, 3800, 0], "rotation": [0, 0, 0],
+            "enabled": true,
+            "features": { "subtype": "business", "variant": "01", "gender": "male", "clothing_color": "yellow" },
             "patrol": {
                 "enabled": true,
                 "waypoints": [
-                    [-7400, 3800, 0],
-                    [-7400, 6130, 0],
+                    [-6800, 3800, 0],
+                    [-6800, 6130, 0],
                     [-5600, 8300, 0],
                     [3586, 7419, 0],
                     [3272, 3700, 0]
@@ -79,82 +84,97 @@
         {
             "label": "Person_2", "type": "person",
             "position": [-7400, 4250, 0], "rotation": [0, 90, 0],
-            "features": { "subtype": "business", "variant": "01", "gender": "female", "animation": "talk", "clothing_color": "red" }
+            "enabled": true,
+            "features": { "subtype": "business", "variant": "01", "gender": "female", "animation": "talk", "clothing_color": "beige" }
         },
         {
             "label": "Person_3", "type": "person",
             "position": [-7400, 4400, 0], "rotation": [0, -90, 0],
-            "features": { "subtype": "casual", "variant": "02", "gender": "female", "animation": "talk", "clothing_color": "orange" }
+            "enabled": true,
+            "features": { "subtype": "casual", "variant": "02", "gender": "female", "animation": "talk", "clothing_color": "pink" }
         },
         {
             "label": "Person_4", "type": "person",
             "position": [-7200, 3600, 0], "rotation": [0, 90, 0],
+            "enabled": true,
             "features": { "subtype": "business", "variant": "02", "gender": "male" }
         },
         {
             "label": "Person_5", "type": "person",
-            "position": [-7000, 3900, 0], "rotation": [0, -135, 0],
-            "features": { "subtype": "sportive", "variant": "01", "gender": "male", "clothing_color": "brown" }
+            "position": [-7100, 4000, 0], "rotation": [0, -160, 0],
+            "enabled": true,
+            "features": { "subtype": "sportive", "variant": "01", "gender": "male", "animation": "talk", "clothing_color": "brown" }
         },
         {
             "label": "Person_6", "type": "person",
-            "position": [-6800, 4100, 0], "rotation": [0, -135, 0],
-            "features": { "subtype": "sportive", "variant": "02", "gender": "female", "clothing_color": "purple" }
+            "position": [-7000, 4100, 0], "rotation": [0, -135, 0],
+            "enabled": true,
+            "features": { "subtype": "sportive", "variant": "02", "gender": "female", "clothing_color": "white" }
         },
         {
             "label": "Person_7", "type": "person",
-            "position": [-4900, 11500, 0], "rotation": [0, -90, 0],
-            "features": { "subtype": "casual", "variant": "01", "gender": "male", "animation": "talk", "clothing_color": "cyan" }
+            "position": [-5700, 10300, 0], "rotation": [0, 90, 0],
+            "enabled": true,
+            "features": { "subtype": "casual", "variant": "01", "gender": "male", "animation": "talk", "clothing_color": "brown" }
         },
         {
             "label": "Person_8", "type": "person",
-            "position": [-4900, 11300, 0], "rotation": [0, 180, 0],
-            "features": { "subtype": "business", "variant": "02", "gender": "female", "animation": "talk", "clothing_color": "yellow" }
+            "position": [-5800, 10400, 0], "rotation": [0, 0, 0],
+            "enabled": true,
+            "features": { "subtype": "business", "variant": "02", "gender": "female", "animation": "talk", "clothing_color": "brown" }
         },
         {
             "label": "Person_9", "type": "person",
-            "position": [-5000, 11400, 0], "rotation": [0, 0, 0],
-            "features": { "subtype": "casual", "variant": "03", "gender": "female", "animation": "talk" }
+            "position": [-5700, 10500, 0], "rotation": [0, -90, 0],
+            "enabled": true,
+            "features": { "subtype": "casual", "variant": "03", "gender": "female", "animation": "talk", "clothing_color": "green"  }
         },
         {
             "label": "Person_10", "type": "person",
             "position": [-5800, 8300, 0], "rotation": [0, -90, 0],
+            "enabled": true,
             "features": { "subtype": "casual", "variant": "04", "gender": "male", "clothing_color": "orange" }
         },
         {
             "label": "Person_11", "type": "person",
             "position": [-4500, 3700, 0], "rotation": [0, 0, 0],
-            "features": { "subtype": "business", "variant": "03", "gender": "male", "animation": "walk" }
+            "enabled": true,
+            "features": { "subtype": "business", "variant": "03", "gender": "male", "animation": "walk", "clothing_color": "gray"}
         },
         {
             "label": "Person_12", "type": "person",
-            "position": [-4000, 3700, 0], "rotation": [0, 180, 0],
-            "features": { "subtype": "sportive", "variant": "03", "gender": "male", "animation": "walk", "clothing_color": "red" }
+            "position": [-3700, 3800, 0], "rotation": [0, 180, 0],
+            "enabled": true,
+            "features": { "subtype": "sportive", "variant": "03", "gender": "male", "animation": "walk", "clothing_color": "black" }
         },
         {
             "label": "Person_13", "type": "person",
             "position": [-7300, 4300, 0], "rotation": [0, -150, 0],
-            "features": { "subtype": "casual", "variant": "05", "gender": "male", "animation": "talk" }
+            "enabled": true,
+            "features": { "subtype": "casual", "variant": "05", "gender": "male", "animation": "talk", "clothing_color": "red"  }
         },
         {
             "label": "Person_14", "type": "person",
             "position": [-7200, 1800, 0], "rotation": [0, 180, 0],
+            "enabled": true,
             "features": { "subtype": "business", "variant": "04", "gender": "male", "clothing_color": "teal" }
         },
         {
             "label": "Person_15", "type": "person",
-            "position": [-6800, 3800, 0], "rotation": [0, -135, 0],
-            "features": { "subtype": "casual", "variant": "06", "gender": "male", "animation": "walk" }
+            "position": [-7200, 4100, 0], "rotation": [0, -100, 0],
+            "enabled": true,
+            "features": { "subtype": "casual", "variant": "06", "gender": "male", "animation": "talk", "crowd": true }
         },
         {
             "label": "Car_1", "type": "vehicle",
             "position": [4690, 4445, 0], "rotation": [0, 180, 0],
+            "enabled": true,
             "features": { "subtype": "sedan", "color": "red" },
             "patrol": {
                 "enabled": true,
                 "waypoints": [
                     [4690, 4445, 0],
-                    [4600, 2800, 0],
+                    [4400, 2800, 0],
                     [-8600, 2800, 0],
                     [-8800, 6500, 0],
                     [-6900, 10000, 0],
@@ -168,67 +188,109 @@
         },
         {
             "label": "Car_2", "type": "vehicle",
-            "position": [-10500, 2200, 0], "rotation": [0, 180, 0],
-            "features": { "subtype": "suv", "color": "blue", "is_fire": true, "fire_scale": "8"}
+            "position": [-9900, 3000, 0], "rotation": [0, 180, 0],
+            "enabled": true,
+            "features": { "subtype": "suv", "color": "blue", "is_fire": false, "fire_scale": "8"}
         },
         {
             "label": "Car_3", "type": "vehicle",
             "position": [5200, 4400, 0], "rotation": [0, -90, 0],
+            "enabled": true,
             "features": { "subtype": "hatchback", "color": "silver" }
         },
         {
             "label": "Car_4", "type": "vehicle",
-            "position": [5200, 1800, 0], "rotation": [0, 90, 0],
-            "features": { "subtype": "crossover", "color": "black" }
+            "position": [-8200, 8300, 0], "rotation": [0, 90, 0],
+            "enabled": true,
+            "features": { "subtype": "crossover", "color": "black", "is_fire": false, "fire_scale": "8" }
         },
         {
             "label": "Car_5", "type": "vehicle",
             "position": [-8000, 6200, 0], "rotation": [0, 45, 0],
+            "enabled": true,
             "features": { "subtype": "wagon", "color": "gray" }
         },
         {
             "label": "Car_6", "type": "vehicle",
-            "position": [-8000, 2200, 0], "rotation": [0, -45, 0],
-            "features": { "subtype": "sporty", "color": "orange" }
+            "position": [-8100, 2400, 0], "rotation": [0, -45, 0],
+            "enabled": true,
+            "features": { "subtype": "sporty", "color": "orange", "traffic_violation": true }
         },
         {
             "label": "Car_7", "type": "vehicle",
-            "position": [6300, 2500, 0], "rotation": [0, 0, 0],
+            "position": [5800, 2500, 0], "rotation": [0, 180, 0],
+            "enabled": true,
             "features": { "subtype": "van", "color": "white" }
+        },
+        {
+            "label": "Boat_1", "type": "boat",
+            "position": [1000, 6000, -200], "rotation": [0, 45, 0],
+            "enabled": true,
+            "features": { "subtype": "lifeboat" },
+            "patrol": {
+                "enabled": true,
+                "waypoints": [
+                    [1000, 6000, -200],
+                    [1000, 7000, -200],
+                    [-4000, 7000, -200],
+                    [-4000, 5500, -200]
+                ],
+                "loop": true,
+                "wait_time": 1.0
+            }
+        },
+        {
+            "label": "Boat_2", "type": "boat",
+            "position": [1600, 6200, -200], "rotation": [0, -30, 0],
+            "enabled": true,
+            "features": { "subtype": "metal_03", "is_fire": false, "is_spill": false }
         },
         {
             "label": "Fire_1", "type": "fire",
             "position": [-10500, 15900, 250],
+            "enabled": true,
             "features": { "scale": "8" }
         },
         {
-            "label": "Wind_1", "type": "wind",
-            "position": [-7000, 11500, 2000],
-            "features": { "scale": "4" }
+            "label": "Smoke_1", "type": "smoke",
+            "position": [-10000, 2500, 350],
+            "enabled": false,
+            "features": { "scale": "0.4", "radius": "1500" }
         },
         {
-            "label": "Smoke_1", "type": "smoke",
-            "position": [-10000, 1500, 400],
-            "features": { "scale": 0.2 }
+            "label": "Wind_1", "type": "wind",
+            "position": [-7000, 10000, 1500],
+            "enabled": false,
+            "features": { "scale": "8", "radius": "1000" }
+        },
+        {
+            "label": "Wind_2", "type": "wind",
+            "position": [5000, 2500, 1500],
+            "enabled": false,
+            "features": { "scale": "8", "radius": "1000" }
         },
         {
             "label": "SolarPanel_1", "type": "assembly_component",
             "position": [-4700, 1200, 0], "rotation": [0, 0, 0],
+            "enabled": true,
             "features": { "subtype": "solar_panel" }
         },
         {
             "label": "Antenna_1", "type": "assembly_component",
             "position": [-4400, 1200, 0], "rotation": [0, 90, 0],
+            "enabled": true,
             "features": { "subtype": "antenna_module" }
         },
         {
             "label": "Speaker_1", "type": "assembly_component",
             "position": [-4100, 1200, 0], "rotation": [0, 0, 0],
+            "enabled": true,
             "features": { "subtype": "address_speaker" }
         },
         {
             "label": "Stand_1", "type": "assembly_component",
             "position": [-3800, 1200, 0], "rotation": [0, 45, 0],
+            "enabled": true,
             "features": { "subtype": "stand" }
         }
     ]

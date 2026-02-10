@@ -32,6 +32,7 @@
 #include "../../Core/Manager/MAEmergencyManager.h"
 #include "../../Core/Manager/MAEditModeManager.h"
 #include "../../Core/Manager/MASceneGraphManager.h"
+#include "../../Core/Manager/ue_tools/MAUESceneApplier.h"
 #include "../../Core/Manager/MAPIPCameraManager.h"
 #include "../../Agent/Character/MACharacter.h"
 #include "../../Agent/Component/Sensor/MACameraSensorComponent.h"
@@ -1475,6 +1476,13 @@ void AMAHUD::OnMultiSelectModifyConfirmed(const TArray<AActor*>& Actors, const F
             return;
         }
         
+        // 将场景图变更同步到 UE 场景中的 Actor
+        FMASceneGraphNode UpdatedNode = SceneGraphManager->GetNodeById(EditNodeId);
+        if (UpdatedNode.IsValid())
+        {
+            FMAUESceneApplier::ApplyNodeToScene(GetWorld(), UpdatedNode);
+        }
+        
         // 保存到源文件 (仅 Modify 模式会实际保存)
         SceneGraphManager->SaveToSource();
         
@@ -1995,6 +2003,13 @@ void AMAHUD::OnEditConfirmed(AActor* Actor, const FString& JsonContent)
     {
         ShowNotification(OutError, true);
         return;
+    }
+
+    // 将场景图变更同步到 UE 场景中的 Actor
+    FMASceneGraphNode UpdatedNode = SceneGraphManager->GetNodeById(NodeId);
+    if (UpdatedNode.IsValid())
+    {
+        FMAUESceneApplier::ApplyNodeToScene(World, UpdatedNode);
     }
 
     // 保存到源文件 (仅 Modify 模式会实际保存)

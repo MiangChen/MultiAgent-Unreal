@@ -34,17 +34,29 @@ struct FMAPIPCameraConfig
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera")
     FIntPoint Resolution = FIntPoint(512, 384);
 
-    /** 可选：跟随目标 Actor */
+    /** 可选：跟随目标 Actor (相机位置跟随此 Actor) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera")
     TWeakObjectPtr<AActor> FollowTarget;
 
-    /** 跟随偏移 (相对于目标) */
+    /** 跟随偏移 (相对于 FollowTarget) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera")
     FVector FollowOffset = FVector::ZeroVector;
 
-    /** 是否朝向跟随目标 */
+    /** 是否跟随目标朝向 (相机 Rotation 跟随 FollowTarget 的朝向，加上 Rotation 作为偏移) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera")
+    bool bFollowTargetRotation = false;
+
+    /** 可选：注视目标 Actor (相机朝向此 Actor) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera")
+    TWeakObjectPtr<AActor> LookAtTarget;
+
+    /** 是否朝向 LookAtTarget (如果设置了 LookAtTarget 则自动启用) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera")
     bool bLookAtTarget = false;
+
+    /** 平滑插值速度 (越大越快，0 表示不平滑) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera")
+    float SmoothSpeed = 5.f;
 
     FMAPIPCameraConfig() = default;
 
@@ -134,6 +146,15 @@ struct FMAPIPCameraInstance
     /** Widget 索引 (在 Container 中的位置) */
     UPROPERTY()
     int32 WidgetIndex = -1;
+
+    /** 平滑后的相机位置 (用于插值) */
+    FVector SmoothedLocation = FVector::ZeroVector;
+
+    /** 平滑后的相机旋转 (用于插值) */
+    FRotator SmoothedRotation = FRotator::ZeroRotator;
+
+    /** 是否已初始化平滑位置 */
+    bool bSmoothedInitialized = false;
 
     FMAPIPCameraInstance()
     {

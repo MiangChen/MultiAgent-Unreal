@@ -69,6 +69,14 @@ void USK_TakePhoto::ActivateAbility(
     const FMASkillParams& Params = SkillComp->GetSkillParams();
     const FMAFeedbackContext& Context = SkillComp->GetFeedbackContext();
     
+    // 大范围目标 FOV 覆盖
+    if (Params.PhotoFOVOverride > 0.f)
+    {
+        CameraFOV = Params.PhotoFOVOverride;
+        UE_LOG(LogTemp, Log, TEXT("[SK_TakePhoto] %s: Using wide FOV=%.0f for area-type target"),
+            *Character->AgentLabel, CameraFOV);
+    }
+    
     // 获取目标 Actor 和位置
     TargetActor = Params.PhotoTargetActor;
     TargetLocation = Context.TargetLocation;
@@ -452,8 +460,8 @@ void USK_TakePhoto::ShowPIPCamera()
     
     // 显示配置
     FMAPIPDisplayConfig DisplayConfig;
-    DisplayConfig.ScreenPosition = FVector2D(0.55f, 0.65f);  // 右下角
-    DisplayConfig.Size = FVector2D(900.f, 506.f);
+    DisplayConfig.ScreenPosition = FVector2D(0.7f, 0.3f);  // 右下角
+    DisplayConfig.Size = FVector2D(800.f, 450.f);
     DisplayConfig.bShowBorder = true;
     DisplayConfig.bShowShadow = true;
     DisplayConfig.BorderColor = FLinearColor(0.4f, 0.4f, 0.4f, 1.f);

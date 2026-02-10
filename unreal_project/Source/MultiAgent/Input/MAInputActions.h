@@ -85,6 +85,10 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "Input")
     TObjectPtr<UInputAction> IA_ToggleTCPStream;
 
+    /** 切换技能执行暂停/恢复 (P 键) */
+    UPROPERTY(BlueprintReadOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_TogglePauseExecution;
+
     // ========== 编组快捷键 (星际争霸风格) ==========
     UPROPERTY(BlueprintReadOnly, Category = "Input")
     TObjectPtr<UInputAction> IA_ControlGroup1;

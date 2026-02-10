@@ -56,7 +56,6 @@ protected:
     UAnimSequence* PropellerAnim;
 
 private:
-    void SnapToGround();
     void UpdatePropellerAnimation();
 
     UFUNCTION()

@@ -735,6 +735,9 @@ void FMAFeedbackGenerator::GenerateBroadcastFeedback(FMASkillExecutionFeedback& 
         
         if (Context.BroadcastRobotTargetDistance >= 0.f)
             Feedback.Data.Add(TEXT("robot_target_distance"), FString::Printf(TEXT("%.2f"), Context.BroadcastRobotTargetDistance));
+        
+        if (Context.BroadcastDurationSeconds > 0.f)
+            Feedback.Data.Add(TEXT("duration_s"), FString::Printf(TEXT("%.1f"), Context.BroadcastDurationSeconds));
     }
     
     Feedback.Message = Message.IsEmpty() ? (bSuccess ? TEXT("Broadcast succeeded") : TEXT("Broadcast failed")) : Message;

@@ -763,10 +763,21 @@ TSharedPtr<FJsonObject> FMASceneGraphQuery::NodeToJsonObject(const FMASceneGraph
         PropertiesObject->SetStringField(TEXT("location_label"), Node.LocationLabel);
     }
     
-    // 添加 Features
+    // 添加 Features (数值类型自动输出为 JSON number)
     for (const auto& Feature : Node.Features)
     {
-        PropertiesObject->SetStringField(Feature.Key, Feature.Value);
+        if (Feature.Value.IsNumeric())
+        {
+            PropertiesObject->SetNumberField(Feature.Key, FCString::Atod(*Feature.Value));
+        }
+        else if (Feature.Value.Equals(TEXT("true"), ESearchCase::IgnoreCase) || Feature.Value.Equals(TEXT("false"), ESearchCase::IgnoreCase))
+        {
+            PropertiesObject->SetBoolField(Feature.Key, Feature.Value.Equals(TEXT("true"), ESearchCase::IgnoreCase));
+        }
+        else
+        {
+            PropertiesObject->SetStringField(Feature.Key, Feature.Value);
+        }
     }
     
     NodeObject->SetObjectField(TEXT("properties"), PropertiesObject);

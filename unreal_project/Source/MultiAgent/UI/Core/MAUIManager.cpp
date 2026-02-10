@@ -27,6 +27,7 @@
 #include "../Components/MAInstructionPanel.h"
 #include "../../Core/Manager/MATempDataManager.h"
 #include "../../Core/Manager/MAEmergencyManager.h"
+#include "../../Core/Manager/MACommandManager.h"
 #include "../../Core/Comm/MACommSubsystem.h"
 #include "../../Agent/Component/Sensor/MACameraSensorComponent.h"
 #include "../../Agent/Character/MACharacter.h"
@@ -387,8 +388,10 @@ void UMAUIManager::CreateAllWidgets()
     BindCommSubsystemEvents();
     
     // 绑定 EmergencyManager 事件，以便接收紧急事件通知
-    // Requirements: 4.1, 4.2, 4.3
     BindEmergencyManagerEvents();
+    
+    // 绑定 CommandManager 事件，以便接收暂停/恢复状态通知
+    BindCommandManagerEvents();
 }
 
 
@@ -1832,6 +1835,80 @@ void UMAUIManager::OnRequestUserCommandReceived()
     
     // 显示索要用户指令通知
     ShowNotification(EMANotificationType::RequestUserCommand);
+}
+
+//=============================================================================
+// CommandManager 事件绑定 (Requirements: 8.5, 8.6)
+//=============================================================================
+
+void UMAUIManager::BindCommandManagerEvents()
+{
+    UWorld* World = OwningPC ? OwningPC->GetWorld() : nullptr;
+    if (!World)
+    {
+        UE_LOG(LogMAUIManager, Warning, TEXT("BindCommandManagerEvents: World not available"));
+        return;
+    }
+    
+    UMACommandManager* CommandManager = World->GetSubsystem<UMACommandManager>();
+    if (!CommandManager)
+    {
+        UE_LOG(LogMAUIManager, Warning, TEXT("BindCommandManagerEvents: CommandManager not available"));
+        return;
+    }
+    
+    // 绑定暂停状态变化委托 - Requirements: 8.5, 8.6
+    if (!CommandManager->OnExecutionPauseStateChanged.IsAlreadyBound(this, &UMAUIManager::OnExecutionPauseStateChanged))
+    {
+        CommandManager->OnExecutionPauseStateChanged.AddDynamic(this, &UMAUIManager::OnExecutionPauseStateChanged);
+        UE_LOG(LogMAUIManager, Log, TEXT("BindCommandManagerEvents: Bound OnExecutionPauseStateChanged"));
+    }
+    
+    UE_LOG(LogMAUIManager, Log, TEXT("BindCommandManagerEvents: CommandManager events bound"));
+}
+
+void UMAUIManager::OnExecutionPauseStateChanged(bool bPaused)
+{
+    UE_LOG(LogMAUIManager, Log, TEXT("OnExecutionPauseStateChanged: bPaused=%s"), bPaused ? TEXT("true") : TEXT("false"));
+    
+    // 清除之前的恢复通知自动隐藏定时器
+    UWorld* World = OwningPC ? OwningPC->GetWorld() : nullptr;
+    if (World)
+    {
+        World->GetTimerManager().ClearTimer(ResumeNotificationTimerHandle);
+    }
+    
+    if (bPaused)
+    {
+        // 暂停时显示 SkillListPaused 通知
+        ShowNotification(EMANotificationType::SkillListPaused);
+    }
+    else
+    {
+        // 恢复时显示 SkillListResumed 通知，2 秒后自动隐藏
+        ShowNotification(EMANotificationType::SkillListResumed);
+        
+        if (World)
+        {
+            World->GetTimerManager().SetTimer(
+                ResumeNotificationTimerHandle,
+                [this]()
+                {
+                    if (MainHUDWidget)
+                    {
+                        UMANotificationWidget* NotificationWidget = MainHUDWidget->GetNotification();
+                        if (NotificationWidget && NotificationWidget->GetCurrentNotificationType() == EMANotificationType::SkillListResumed)
+                        {
+                            NotificationWidget->HideNotification();
+                            UE_LOG(LogMAUIManager, Log, TEXT("OnExecutionPauseStateChanged: Auto-hiding SkillListResumed notification"));
+                        }
+                    }
+                },
+                2.0f,
+                false
+            );
+        }
+    }
 }
 
 //=============================================================================

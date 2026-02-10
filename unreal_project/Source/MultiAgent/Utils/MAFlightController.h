@@ -53,6 +53,9 @@ public:
     /** 立即停止移动（清零速度，与 AIController::StopMovement 对应） */
     virtual void StopMovement() = 0;
 
+    /** 设置是否平滑到达（接近目标时减速） */
+    virtual void SetSmoothArrival(bool bSmooth) = 0;
+
     /** 获取当前状态 */
     virtual EMAFlightControlState GetState() const = 0;
 
@@ -84,6 +87,7 @@ public:
     virtual void UpdateFlight(float DeltaTime) override;
     virtual void CancelFlight() override;
     virtual void StopMovement() override;
+    virtual void SetSmoothArrival(bool bSmooth) override { bSmoothArrival = bSmooth; }
     virtual EMAFlightControlState GetState() const override { return State; }
     virtual bool IsFlying() const override;
     virtual bool HasArrived() const override { return State == EMAFlightControlState::Arrived; }
@@ -109,6 +113,9 @@ private:
     FVector SmoothedAvoidanceDirection = FVector::ZeroVector;
     float CurrentSpeed = 0.f;
     float AcceptanceRadius = 200.f;
+    
+    // 是否平滑到达（接近目标时减速），默认 true
+    bool bSmoothArrival = true;
 
     // 配置参数 (从 ConfigManager 加载)
     float MaxFlightSpeed = 600.f;
@@ -141,6 +148,7 @@ public:
     virtual void UpdateFlight(float DeltaTime) override;
     virtual void CancelFlight() override;
     virtual void StopMovement() override;
+    virtual void SetSmoothArrival(bool bSmooth) override { /* 固定翼不支持，忽略 */ }
     virtual EMAFlightControlState GetState() const override { return State; }
     virtual bool IsFlying() const override { return bIsFlying; }
     virtual bool HasArrived() const override { return State == EMAFlightControlState::Arrived; }

@@ -160,6 +160,9 @@ void AMAPlayerController::SetupInputComponent()
         EIC->BindAction(InputActions->IA_TakePhoto, ETriggerEvent::Started, this, &AMAPlayerController::OnTakePhoto);
         EIC->BindAction(InputActions->IA_ToggleTCPStream, ETriggerEvent::Started, this, &AMAPlayerController::OnToggleTCPStream);
 
+        // 暂停/恢复技能执行
+        EIC->BindAction(InputActions->IA_TogglePauseExecution, ETriggerEvent::Started, this, &AMAPlayerController::OnTogglePauseExecution);
+
         // 编组快捷键 (星际争霸风格: 1~5 选择, Ctrl+1~5 保存)
         EIC->BindAction(InputActions->IA_ControlGroup1, ETriggerEvent::Started, this, &AMAPlayerController::OnControlGroup1);
         EIC->BindAction(InputActions->IA_ControlGroup2, ETriggerEvent::Started, this, &AMAPlayerController::OnControlGroup2);
@@ -605,6 +608,19 @@ void AMAPlayerController::OnToggleTCPStream(const FInputActionValue& Value)
                 FString::Printf(TEXT("%s: TCP on port 9000"), *Camera->SensorName));
         }
     }
+}
+
+// ========== 暂停/恢复技能执行 ==========
+
+void AMAPlayerController::OnTogglePauseExecution(const FInputActionValue& Value)
+{
+    if (!CommandManager)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] CommandManager is null, cannot toggle pause"));
+        return;
+    }
+
+    CommandManager->TogglePauseExecution();
 }
 
 // ========== 辅助：获取当前相机 ==========

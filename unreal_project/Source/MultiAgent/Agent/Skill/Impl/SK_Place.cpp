@@ -10,7 +10,6 @@
 #include "../../Character/MAUGVCharacter.h"
 #include "../../Component/MANavigationService.h"
 #include "../../../Environment/IMAPickupItem.h"
-#include "../../../Core/Manager/MASceneGraphManager.h"
 #include "TimerManager.h"
 
 USK_Place::USK_Place()
@@ -570,47 +569,6 @@ void USK_Place::HandleComplete()
     // 更新反馈上下文
     Context.PlaceTargetName = TargetName;
     Context.PlaceFinalLocation = FinalLocation;
-    
-    //=========================================================================
-    // 更新场景图状态
-    //=========================================================================
-    if (UWorld* World = Character->GetWorld())
-    {
-        if (UGameInstance* GameInstance = World->GetGameInstance())
-        {
-            if (UMASceneGraphManager* SceneGraphManager = GameInstance->GetSubsystem<UMASceneGraphManager>())
-            {
-                FString Object1NodeId = Context.ObjectAttributes.FindRef(TEXT("object1_node_id"));
-                
-                if (Object1NodeId.IsEmpty() && !Context.PlacedObjectName.IsEmpty())
-                {
-                    Object1NodeId = Context.PlacedObjectName;
-                }
-                
-                if (!Object1NodeId.IsEmpty())
-                {
-                    SceneGraphManager->UpdateDynamicNodePosition(Object1NodeId, FinalLocation);
-                    
-                    switch (CurrentMode)
-                    {
-                        case EPlaceMode::LoadToUGV:
-                            if (TargetUGV.IsValid())
-                            {
-                                SceneGraphManager->UpdateDynamicNodeFeature(Object1NodeId, TEXT("is_carried"), TEXT("true"));
-                                SceneGraphManager->UpdateDynamicNodeFeature(Object1NodeId, TEXT("carrier_id"), TargetUGV->AgentID);
-                            }
-                            break;
-                        case EPlaceMode::UnloadToGround:
-                        case EPlaceMode::StackOnObject:
-                            SceneGraphManager->UpdateDynamicNodeFeature(Object1NodeId, TEXT("is_carried"), TEXT("false"));
-                            break;
-                    }
-                    
-                    UE_LOG(LogTemp, Log, TEXT("[SK_Place] Updated scene graph for item '%s'"), *Object1NodeId);
-                }
-            }
-        }
-    }
     
     PlaceResultMessage = FString::Printf(TEXT("Place succeeded: Moved %s to %s"), 
         *Context.PlacedObjectName, *TargetName);

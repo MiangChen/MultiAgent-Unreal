@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "AbilitySystemComponent.h"
 #include "Utils/MAFeedbackGenerator.h"
+#include "Impl/SK_Search.h"  // For ESearchMode
 #include "MASkillComponent.generated.h"
 
 class AMACharacter;
@@ -60,6 +61,15 @@ struct FMASkillParams
     
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     float SearchScanWidth = 200.f;  // 扫描宽度默认 16m，航点更稀疏
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    ESearchMode SearchMode = ESearchMode::Coverage;  // 搜索模式：Coverage 或 Patrol
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float PatrolWaitTime = 2.0f;  // 巡逻模式每个航点等待时间 (秒)
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    int32 PatrolCycleLimit = 1;  // 巡逻模式循环次数限制，默认1次
 
     // Place
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -103,6 +113,9 @@ struct FMASkillParams
     
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     TWeakObjectPtr<AActor> PhotoTargetActor;  // TakePhoto 目标 Actor
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float PhotoFOVOverride = 0.f;  // >0 时覆盖配置的 CameraFOV（用于大范围目标如 intersection/building/area）
     
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     TWeakObjectPtr<AActor> BroadcastTargetActor;  // Broadcast 目标 Actor
@@ -270,6 +283,10 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Energy")
     float GetEnergy() const { return Energy; }
     
+    /** 设置电量值（会检测低电量阈值并触发 OnLowEnergy） */
+    UFUNCTION(BlueprintCallable, Category = "Energy")
+    void SetEnergy(float NewEnergy);
+    
     UFUNCTION(BlueprintCallable, Category = "Energy")
     float GetEnergyPercent() const { return MaxEnergy > 0.f ? (Energy / MaxEnergy) * 100.f : 0.f; }
     
@@ -285,6 +302,10 @@ public:
     DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnEnergyDepleted);
     UPROPERTY(BlueprintAssignable, Category = "Energy")
     FOnEnergyDepleted OnEnergyDepleted;
+
+    DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnLowEnergy);
+    UPROPERTY(BlueprintAssignable, Category = "Energy")
+    FOnLowEnergy OnLowEnergy;
 
     // ========== 技能完成委托 ==========
     

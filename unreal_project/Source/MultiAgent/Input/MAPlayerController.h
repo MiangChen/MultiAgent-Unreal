@@ -71,6 +71,9 @@ protected:
     void OnStartFormation(const FInputActionValue& Value);
     void OnTakePhoto(const FInputActionValue& Value);
     void OnToggleTCPStream(const FInputActionValue& Value);
+
+    // 暂停/恢复技能执行 (P 键)
+    void OnTogglePauseExecution(const FInputActionValue& Value);
     
     // ========== 编组快捷键 (Ctrl+1~5 / 1~5) ==========
     void OnControlGroup1(const FInputActionValue& Value);

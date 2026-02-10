@@ -51,6 +51,128 @@ void UMANavigationService::TickComponent(float DeltaTime, ELevelTick TickType,
     FActorComponentTickFunction* ThisTickFunction)
 {
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+    if (bIsNavigationPaused) return;
+}
+
+//=========================================================================
+// 暂停/恢复实现
+//=========================================================================
+
+void UMANavigationService::PauseNavigation()
+{
+    if (bIsNavigationPaused || CurrentState == EMANavigationState::Idle)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[MANavigationService] %s: PauseNavigation SKIPPED (bIsNavigationPaused=%s, CurrentState=%d, bIsFlying=%s, FlightTimer=%s)"),
+            OwnerCharacter ? *OwnerCharacter->GetName() : TEXT("NULL"),
+            bIsNavigationPaused ? TEXT("true") : TEXT("false"),
+            (int32)CurrentState,
+            bIsFlying ? TEXT("true") : TEXT("false"),
+            FlightCheckTimerHandle.IsValid() ? TEXT("valid") : TEXT("invalid"));
+        return;
+    }
+
+    // 保存当前导航状态
+    PausedTargetLocation = TargetLocation;
+    bWasFollowing = bIsFollowingActor;
+    bWasUsingManualNav = bUsingManualNavigation;
+
+    UWorld* World = OwnerCharacter ? OwnerCharacter->GetWorld() : nullptr;
+
+    // 停止飞行控制器（悬停）
+    if (bIsFlying && FlightController.IsValid())
+    {
+        FlightController->StopMovement();
+    }
+
+    // 停止地面 NavMesh 路径跟随
+    // 注意：必须先设 bHasActiveNavMeshRequest = false，再调用 StopMovement()
+    // 因为 StopMovement() 会同步触发 OnNavMeshMoveCompleted 回调
+    // 如果不先清除标记，回调会认为是正常完成，导致 CompleteNavigation 被调用
+    // 进而触发技能完成链条，破坏暂停状态
+    if (!bIsFlying && bHasActiveNavMeshRequest && OwnerCharacter)
+    {
+        bHasActiveNavMeshRequest = false;
+        if (AAIController* AICtrl = Cast<AAIController>(OwnerCharacter->GetController()))
+        {
+            AICtrl->StopMovement();
+        }
+    }
+
+    // 暂停跟随模式定时器
+    if (bIsFollowingActor && FollowModeTimerHandle.IsValid() && World)
+    {
+        World->GetTimerManager().PauseTimer(FollowModeTimerHandle);
+    }
+
+    // 暂停手动导航定时器
+    if (bUsingManualNavigation && ManualNavTimerHandle.IsValid() && World)
+    {
+        World->GetTimerManager().PauseTimer(ManualNavTimerHandle);
+    }
+
+    // 暂停飞行检查定时器
+    if (FlightCheckTimerHandle.IsValid() && World)
+    {
+        World->GetTimerManager().PauseTimer(FlightCheckTimerHandle);
+    }
+
+    bIsNavigationPaused = true;
+
+    UE_LOG(LogTemp, Log, TEXT("[MANavigationService] %s: Navigation PAUSED (flying=%s, following=%s, manualNav=%s)"),
+        OwnerCharacter ? *OwnerCharacter->GetName() : TEXT("NULL"),
+        bIsFlying ? TEXT("true") : TEXT("false"),
+        bWasFollowing ? TEXT("true") : TEXT("false"),
+        bWasUsingManualNav ? TEXT("true") : TEXT("false"));
+}
+
+void UMANavigationService::ResumeNavigation()
+{
+    if (!bIsNavigationPaused)
+    {
+        return;
+    }
+
+    bIsNavigationPaused = false;
+
+    UWorld* World = OwnerCharacter ? OwnerCharacter->GetWorld() : nullptr;
+
+    if (bWasFollowing)
+    {
+        // 恢复跟随模式定时器
+        if (FollowModeTimerHandle.IsValid() && World)
+        {
+            World->GetTimerManager().UnPauseTimer(FollowModeTimerHandle);
+        }
+    }
+    else if (bIsFlying)
+    {
+        // 恢复飞行导航
+        if (FlightController.IsValid())
+        {
+            FlightController->FlyTo(PausedTargetLocation);
+        }
+        if (FlightCheckTimerHandle.IsValid() && World)
+        {
+            World->GetTimerManager().UnPauseTimer(FlightCheckTimerHandle);
+        }
+    }
+    else if (bWasUsingManualNav)
+    {
+        // 恢复手动导航定时器
+        if (ManualNavTimerHandle.IsValid() && World)
+        {
+            World->GetTimerManager().UnPauseTimer(ManualNavTimerHandle);
+        }
+    }
+    else
+    {
+        // 恢复地面 NavMesh 导航：重新发起导航请求
+        NavigateTo(PausedTargetLocation, AcceptanceRadius);
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("[MANavigationService] %s: Navigation RESUMED"),
+        OwnerCharacter ? *OwnerCharacter->GetName() : TEXT("NULL"));
 }
 
 //=========================================================================
@@ -98,7 +220,7 @@ void UMANavigationService::RestoreDefaultSpeed()
     bSpeedModified = false;
 }
 
-bool UMANavigationService::NavigateTo(FVector Destination, float InAcceptanceRadius)
+bool UMANavigationService::NavigateTo(FVector Destination, float InAcceptanceRadius, bool bSmoothArrival)
 {
     if (!OwnerCharacter)
     {
@@ -124,12 +246,23 @@ bool UMANavigationService::NavigateTo(FVector Destination, float InAcceptanceRad
     bHasActiveNavMeshRequest = false;
     ManualNavStuckTime = 0.f;
     
+    // 设置飞行控制器的平滑到达选项
+    if (bIsFlying)
+    {
+        EnsureFlightControllerInitialized();
+        if (FlightController.IsValid())
+        {
+            FlightController->SetSmoothArrival(bSmoothArrival);
+        }
+    }
+    
     // 设置状态为导航中
     SetNavigationState(EMANavigationState::Navigating);
     
-    UE_LOG(LogTemp, Log, TEXT("[MANavigationService] %s: NavigateTo (%.0f, %.0f, %.0f), AcceptanceRadius=%.0f, bIsFlying=%s"),
+    UE_LOG(LogTemp, Log, TEXT("[MANavigationService] %s: NavigateTo (%.0f, %.0f, %.0f), AcceptanceRadius=%.0f, bIsFlying=%s, bSmoothArrival=%s"),
         *OwnerCharacter->GetName(), Destination.X, Destination.Y, Destination.Z, AcceptanceRadius,
-        bIsFlying ? TEXT("true") : TEXT("false"));
+        bIsFlying ? TEXT("true") : TEXT("false"),
+        bSmoothArrival ? TEXT("true") : TEXT("false"));
     
     // 根据导航模式选择策略
     if (bIsFlying)
@@ -1156,7 +1289,7 @@ void UMANavigationService::CompleteNavigation(bool bSuccess, const FString& Mess
     // 广播完成事件
     OnNavigationCompleted.Broadcast(bSuccess, Message);
     
-    // 延迟重置状态为 Idle
+    // 延迟重置状态为 Idle（仅在仍处于终态时才重置，避免覆盖新导航的状态）
     if (OwnerCharacter && OwnerCharacter->GetWorld())
     {
         FTimerHandle ResetHandle;
@@ -1164,7 +1297,14 @@ void UMANavigationService::CompleteNavigation(bool bSuccess, const FString& Mess
             ResetHandle,
             [this]()
             {
-                SetNavigationState(EMANavigationState::Idle);
+                // 只有当状态仍然是终态时才重置为 Idle
+                // 如果已经开始了新的导航（Navigating/TakingOff/Landing），不要覆盖
+                if (CurrentState == EMANavigationState::Arrived ||
+                    CurrentState == EMANavigationState::Failed ||
+                    CurrentState == EMANavigationState::Cancelled)
+                {
+                    SetNavigationState(EMANavigationState::Idle);
+                }
             },
             0.1f,
             false
@@ -1223,6 +1363,7 @@ void UMANavigationService::CleanupNavigation()
     bUsingManualNavigation = false;
     bIsFollowingActor = false;
     bReturnHomeIsLanding = false;
+    bIsNavigationPaused = false;
     FollowTarget.Reset();
 }
 

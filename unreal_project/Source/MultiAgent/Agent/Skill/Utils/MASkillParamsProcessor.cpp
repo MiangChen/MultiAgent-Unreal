@@ -5,7 +5,9 @@
 #include "MAUESceneQuery.h"
 #include "../MASkillComponent.h"
 #include "../Impl/SK_Place.h"  // For EPlaceMode definition
+#include "../Impl/SK_Search.h"  // For ESearchMode definition
 #include "../../Character/MACharacter.h"
+#include "../../Component/MANavigationService.h"
 #include "../../../Core/Comm/MACommTypes.h"
 #include "../../../Core/Manager/MACommandManager.h"
 #include "../../../Core/Manager/MASceneGraphManager.h"
@@ -16,6 +18,7 @@
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
+#include "Engine/OverlapResult.h"
 
 //=============================================================================
 // JSON 解析辅助函数
@@ -503,299 +506,126 @@ void FMASkillParamsProcessor::ProcessNavigate(UMASkillComponent* SkillComp, cons
         return;
     }
     
-    bool bIsFlying = (Agent->AgentType == EMAAgentType::UAV || Agent->AgentType == EMAAgentType::FixedWingUAV);
-    bool bIsUGV = (Agent->AgentType == EMAAgentType::UGV);
+    const FVector OriginalTarget = TargetLocation;
+    const bool bIsFlying = (Agent->AgentType == EMAAgentType::UAV || Agent->AgentType == EMAAgentType::FixedWingUAV);
     
     UWorld* World = Agent->GetWorld();
     FCollisionQueryParams QueryParams;
     QueryParams.AddIgnoredActor(Agent);
     
     //=========================================================================
-    // 辅助 Lambda: 获取指定 X,Y 位置的地面高度
+    // Step 2: 将目标点从碰撞体内部推出
     //=========================================================================
-    auto GetGroundHeightAt = [&](float X, float Y) -> float
+    // 使用球体重叠检测，如果目标点在任何碰撞体内部，
+    // 利用引擎穿透检测将目标点推出碰撞体
+    // 策略：一次性收集所有重叠碰撞体，累加所有推出向量，一步到位
+    // 地面机器人：仅在 XY 平面推出（推到障碍物旁边，而非顶部）
+    // 飞行机器人：使用完整 3D 推出
+    const float ProbeRadius = 50.f;
+    const float PushMargin = 200.f;     // 碰撞体边界外的安全余量
+    
     {
-        FVector TraceStart(X, Y, 50000.f);
-        FVector TraceEnd(X, Y, -10000.f);
-        FHitResult HitResult;
-        
-        // 使用 Visibility 通道检测地面
-        if (World->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, ECC_Visibility, QueryParams))
+        TArray<FOverlapResult> Overlaps;
+        if (World->OverlapMultiByChannel(
+                Overlaps, TargetLocation, FQuat::Identity,
+                ECC_WorldStatic, FCollisionShape::MakeSphere(ProbeRadius), QueryParams))
         {
-            return HitResult.Location.Z;
-        }
-        return 0.f;
-    };
-    
-    // //=========================================================================
-    // // UGV 特殊处理：只调整 Z 分量，保持 X、Y 不变
-    // //=========================================================================
-    // if (bIsUGV)
-    // {
-    //     // 只调整 Z 到地面高度
-    //     float GroundZ = GetGroundHeightAt(TargetLocation.X, TargetLocation.Y);
-    //     TargetLocation.Z = GroundZ;
-        
-    //     UE_LOG(LogTemp, Log, TEXT("[ProcessNavigate] %s (UGV): Target (%.0f, %.0f, %.0f) - only Z adjusted to ground"),
-    //         *Agent->AgentLabel, TargetLocation.X, TargetLocation.Y, TargetLocation.Z);
-        
-    //     Params.TargetLocation = TargetLocation;
-    //     return;
-    // }
-    
-    // 安全距离常量
-    const float SafetyMargin = 500.f;      // 飞行器与障碍物的安全距离
-    const float GroundOffset = 500.f;      // 地面机器人与障碍物边缘的距离
-    
-    //=========================================================================
-    // 辅助 Lambda: 找到多边形边缘上距离点最近的位置
-    //=========================================================================
-    auto FindNearestPointOnPolygonEdge = [](const FVector2D& Point, const TArray<FVector>& Vertices) -> FVector2D
-    {
-        if (Vertices.Num() < 3) return Point;
-        
-        FVector2D NearestPoint = FVector2D(Vertices[0].X, Vertices[0].Y);
-        float MinDistSq = TNumericLimits<float>::Max();
-        
-        int32 NumVertices = Vertices.Num();
-        for (int32 i = 0; i < NumVertices; ++i)
-        {
-            int32 j = (i + 1) % NumVertices;
-            FVector2D A(Vertices[i].X, Vertices[i].Y);
-            FVector2D B(Vertices[j].X, Vertices[j].Y);
+            // 累加所有碰撞体的推出向量
+            FVector AccumulatedPush = FVector::ZeroVector;
             
-            // 计算点到线段的最近点
-            FVector2D AB = B - A;
-            float ABLenSq = AB.SizeSquared();
-            
-            FVector2D ClosestPoint;
-            if (ABLenSq < KINDA_SMALL_NUMBER)
+            for (const FOverlapResult& Overlap : Overlaps)
             {
-                ClosestPoint = A;
-            }
-            else
-            {
-                float t = FMath::Clamp(FVector2D::DotProduct(Point - A, AB) / ABLenSq, 0.f, 1.f);
-                ClosestPoint = A + t * AB;
-            }
-            
-            float DistSq = FVector2D::DistSquared(Point, ClosestPoint);
-            if (DistSq < MinDistSq)
-            {
-                MinDistSq = DistSq;
-                NearestPoint = ClosestPoint;
-            }
-        }
-        
-        return NearestPoint;
-    };
-    
-    //=========================================================================
-    // 辅助 Lambda: 计算从多边形内部点向外推出的安全位置
-    //=========================================================================
-    auto PushPointOutsidePolygon = [&](const FVector2D& InsidePoint, const TArray<FVector>& Vertices, float Offset) -> FVector2D
-    {
-        FVector2D EdgePoint = FindNearestPointOnPolygonEdge(InsidePoint, Vertices);
-        FVector2D Direction = EdgePoint - InsidePoint;
-        
-        if (Direction.IsNearlyZero())
-        {
-            // 如果点恰好在边上，使用边的法向量
-            Direction = FVector2D(1.f, 0.f);
-        }
-        Direction.Normalize();
-        
-        // 从边缘点向外推出 Offset 距离
-        return EdgePoint + Direction * Offset;
-    };
-    
-    //=========================================================================
-    // Step 1: 使用场景图查询验证目标点是否在建筑物内
-    //=========================================================================
-    UGameInstance* GameInstance = World->GetGameInstance();
-    UMASceneGraphManager* SceneGraphManager = GameInstance ? GameInstance->GetSubsystem<UMASceneGraphManager>() : nullptr;
-    
-    bool bAdjustedXY = false;
-    
-    if (SceneGraphManager)
-    {
-        // 检查目标点是否在建筑物内
-        if (SceneGraphManager->IsPointInsideBuilding(TargetLocation))
-        {
-            UE_LOG(LogTemp, Log, TEXT("[ProcessNavigate] %s: Target point (%.0f, %.0f, %.0f) is inside a building, adjusting..."),
-                *Agent->AgentLabel, TargetLocation.X, TargetLocation.Y, TargetLocation.Z);
-            
-            TArray<FMASceneGraphNode> AllNodes = SceneGraphManager->GetAllNodes();
-            TArray<FMASceneGraphNode> Buildings = FMASceneGraphQuery::GetAllBuildings(AllNodes);
-            
-            // 找到包含目标点的建筑物
-            for (const FMASceneGraphNode& Building : Buildings)
-            {
-                TArray<FVector> Vertices;
-                if (!FMASceneGraphQuery::ExtractPolygonVertices(Building, Vertices) || Vertices.Num() < 3)
+                UPrimitiveComponent* Comp = Overlap.GetComponent();
+                if (!Comp) continue;
+                
+                FMTDResult MTD;
+                if (!Comp->ComputePenetration(MTD, FCollisionShape::MakeSphere(ProbeRadius), TargetLocation, FQuat::Identity))
                 {
                     continue;
                 }
                 
-                // 检查点是否在此建筑物多边形内
-                if (FMAGeometryUtils::IsPointInPolygon2D(TargetLocation, Vertices))
+                FVector Push = MTD.Direction * (MTD.Distance + PushMargin);
+                
+                if (!bIsFlying)
                 {
-                    if (bIsFlying)
+                    Push.Z = 0.f;
+                    if (Push.IsNearlyZero())
                     {
-                        // 飞行器：调整 Z 高度到建筑物顶部以上
-                        // 从 RawJson 中提取高度，如果没有则使用默认值
-                        float BuildingHeight = 1000.f;
-                        if (!Building.RawJson.IsEmpty())
+                        // MTD 几乎纯垂直，回退到从碰撞体中心向外推
+                        FVector Away = TargetLocation - Comp->GetComponentLocation();
+                        Away.Z = 0.f;
+                        if (Away.IsNearlyZero())
                         {
-                            TSharedPtr<FJsonObject> JsonObject;
-                            TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Building.RawJson);
-                            if (FJsonSerializer::Deserialize(Reader, JsonObject) && JsonObject.IsValid())
-                            {
-                                const TSharedPtr<FJsonObject>* ShapeObject;
-                                if (JsonObject->TryGetObjectField(TEXT("shape"), ShapeObject))
-                                {
-                                    double Height = 0.0;
-                                    if ((*ShapeObject)->TryGetNumberField(TEXT("height"), Height))
-                                    {
-                                        BuildingHeight = static_cast<float>(Height);
-                                    }
-                                }
-                            }
+                            Away = FVector(1.f, 0.f, 0.f);
                         }
-                        float MinSafeAltitude = Building.Center.Z + BuildingHeight + SafetyMargin;
-                        if (TargetLocation.Z < MinSafeAltitude)
-                        {
-                            TargetLocation.Z = MinSafeAltitude;
-                        }
-                        UE_LOG(LogTemp, Log, TEXT("[ProcessNavigate] %s: Flying robot - adjusted Z to %.0f above building %s"),
-                            *Agent->AgentLabel, TargetLocation.Z, *Building.Label);
+                        Push = Away.GetSafeNormal() * (MTD.Distance + PushMargin);
                     }
-                    else
-                    {
-                        // 地面机器人：调整 X,Y 到建筑物边缘外侧
-                        FVector2D InsidePoint(TargetLocation.X, TargetLocation.Y);
-                        FVector2D SafePoint = PushPointOutsidePolygon(InsidePoint, Vertices, GroundOffset);
-                        
-                        TargetLocation.X = SafePoint.X;
-                        TargetLocation.Y = SafePoint.Y;
-                        bAdjustedXY = true;
-                        
-                        UE_LOG(LogTemp, Log, TEXT("[ProcessNavigate] %s: Ground robot - adjusted XY to (%.0f, %.0f) outside building %s"),
-                            *Agent->AgentLabel, TargetLocation.X, TargetLocation.Y, *Building.Label);
-                    }
-                    break;
                 }
+                
+                AccumulatedPush += Push;
+            }
+            
+            if (!AccumulatedPush.IsNearlyZero())
+            {
+                TargetLocation += AccumulatedPush;
+                
+                UE_LOG(LogTemp, Log, TEXT("[ProcessNavigate] %s: Pushed out of collider, offset (%.0f, %.0f, %.0f)"),
+                    *Agent->AgentLabel, AccumulatedPush.X, AccumulatedPush.Y, AccumulatedPush.Z);
             }
         }
     }
     
-    // //=========================================================================
-    // // Step 2: 回退到 UE5 射线检测（如果场景图未处理）
-    // //=========================================================================
-    // if (!bAdjustedXY)
-    // {
-    //     FVector TraceStart = FVector(TargetLocation.X, TargetLocation.Y, 50000.f);
-    //     FVector TraceEnd = FVector(TargetLocation.X, TargetLocation.Y, -10000.f);
+    //=========================================================================
+    // Step 3: 高度修正
+    //=========================================================================
+    if (bIsFlying)
+    {
+        // 飞行机器人：确保不低于最低飞行高度
+        float MinAltitude = 800.f;
+        if (UMANavigationService* NavService = Agent->GetNavigationService())
+        {
+            MinAltitude = NavService->MinFlightAltitude;
+        }
+        if (TargetLocation.Z < MinAltitude)
+        {
+            TargetLocation.Z = MinAltitude;
+        }
+    }
+    else
+    {
+        // 地面机器人：射线检测地面高度
+        // 使用 ECC_WorldStatic 通道 + 忽略所有 Pawn 类型 Actor
+        FCollisionQueryParams GroundQuery;
+        GroundQuery.AddIgnoredActor(Agent);
+        // 收集场景中所有 Pawn 并忽略（车辆、行人等都继承自 ACharacter/APawn）
+        TArray<AActor*> AllPawns;
+        UGameplayStatics::GetAllActorsOfClass(World, APawn::StaticClass(), AllPawns);
+        GroundQuery.AddIgnoredActors(AllPawns);
         
-    //     FHitResult HitResult;
-    //     if (World->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, ECC_WorldStatic, QueryParams))
-    //     {
-    //         AActor* HitActor = HitResult.GetActor();
-            
-    //         if (HitActor)
-    //         {
-    //             FVector Origin, BoxExtent;
-    //             HitActor->GetActorBounds(false, Origin, BoxExtent);
-                
-    //             UE_LOG(LogTemp, Verbose, TEXT("[ProcessNavigate] %s: Ray hit actor '%s', Origin=(%.1f, %.1f, %.1f), BoxExtent=(%.1f, %.1f, %.1f)"),
-    //                 *Agent->AgentLabel, *HitActor->GetName(), Origin.X, Origin.Y, Origin.Z, BoxExtent.X, BoxExtent.Y, BoxExtent.Z);
-                
-    //             // 检查是否是有高度的障碍物（不是地面）
-    //             // 使用更严格的判断：障碍物高度应该明显大于地面厚度
-    //             // 同时检查 Actor 是否是 Landscape 或地面类型
-    //             bool bIsObstacle = BoxExtent.Z > 100.f;  // 半高度 > 100 意味着实际高度 > 200
-                
-    //             // 额外检查：如果 Actor 名称包含 "floor"、"ground"、"landscape" 则不是障碍物
-    //             FString ActorName = HitActor->GetName().ToLower();
-    //             if (ActorName.Contains(TEXT("floor")) || 
-    //                 ActorName.Contains(TEXT("ground")) || 
-    //                 ActorName.Contains(TEXT("landscape")) ||
-    //                 ActorName.Contains(TEXT("terrain")))
-    //             {
-    //                 bIsObstacle = false;
-    //             }
-                
-    //             if (bIsObstacle)
-    //             {
-    //                 bool bInsideX = FMath::Abs(TargetLocation.X - Origin.X) < BoxExtent.X;
-    //                 bool bInsideY = FMath::Abs(TargetLocation.Y - Origin.Y) < BoxExtent.Y;
-                    
-    //                 if (bInsideX && bInsideY)
-    //                 {
-    //                     if (bIsFlying)
-    //                     {
-    //                         // 飞行器：调整 Z 高度
-    //                         float ObstacleTopZ = Origin.Z + BoxExtent.Z;
-    //                         float MinSafeAltitude = ObstacleTopZ + SafetyMargin;
-    //                         if (TargetLocation.Z < MinSafeAltitude)
-    //                         {
-    //                             TargetLocation.Z = MinSafeAltitude;
-    //                             UE_LOG(LogTemp, Log, TEXT("[ProcessNavigate] %s: Flying robot - adjusted Z to %.0f above obstacle"),
-    //                                 *Agent->AgentLabel, TargetLocation.Z);
-    //                         }
-    //                     }
-    //                     else
-    //                     {
-    //                         // 地面机器人：找到最近的边缘并推出
-    //                         // 计算到四个边的距离，选择最近的边
-    //                         float DistToMinX = FMath::Abs(TargetLocation.X - (Origin.X - BoxExtent.X));
-    //                         float DistToMaxX = FMath::Abs(TargetLocation.X - (Origin.X + BoxExtent.X));
-    //                         float DistToMinY = FMath::Abs(TargetLocation.Y - (Origin.Y - BoxExtent.Y));
-    //                         float DistToMaxY = FMath::Abs(TargetLocation.Y - (Origin.Y + BoxExtent.Y));
-                            
-    //                         float MinDist = FMath::Min(FMath::Min(DistToMinX, DistToMaxX), FMath::Min(DistToMinY, DistToMaxY));
-                            
-    //                         if (MinDist == DistToMinX)
-    //                         {
-    //                             TargetLocation.X = Origin.X - BoxExtent.X - GroundOffset;
-    //                         }
-    //                         else if (MinDist == DistToMaxX)
-    //                         {
-    //                             TargetLocation.X = Origin.X + BoxExtent.X + GroundOffset;
-    //                         }
-    //                         else if (MinDist == DistToMinY)
-    //                         {
-    //                             TargetLocation.Y = Origin.Y - BoxExtent.Y - GroundOffset;
-    //                         }
-    //                         else
-    //                         {
-    //                             TargetLocation.Y = Origin.Y + BoxExtent.Y + GroundOffset;
-    //                         }
-                            
-    //                         bAdjustedXY = true;
-    //                         UE_LOG(LogTemp, Log, TEXT("[ProcessNavigate] %s: Ground robot - adjusted XY to (%.0f, %.0f) outside obstacle"),
-    //                             *Agent->AgentLabel, TargetLocation.X, TargetLocation.Y);
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
+        FHitResult HitResult;
+        FVector TraceStart(TargetLocation.X, TargetLocation.Y, 50000.f);
+        FVector TraceEnd(TargetLocation.X, TargetLocation.Y, -10000.f);
+        
+        if (World->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, ECC_WorldStatic, GroundQuery))
+        {
+            TargetLocation.Z = HitResult.Location.Z;
+        }
+    }
     
-    //=========================================================================
-    // Step 3: 地面机器人始终调整 Z 到实际地面高度
-    //=========================================================================
-    // if (!bIsFlying)
-    // {
-    //     float GroundZ = GetGroundHeightAt(TargetLocation.X, TargetLocation.Y);
-    //     TargetLocation.Z = GroundZ;
-    //     UE_LOG(LogTemp, Verbose, TEXT("[ProcessNavigate] %s: Ground robot - adjusted Z to ground height %.0f"),
-    //         *Agent->AgentLabel, TargetLocation.Z);
-    // }
+    if (!TargetLocation.Equals(OriginalTarget, 1.f))
+    {
+        UE_LOG(LogTemp, Log, TEXT("[ProcessNavigate] %s: Adjusted (%.0f,%.0f,%.0f) -> (%.0f,%.0f,%.0f)"),
+            *Agent->AgentLabel,
+            OriginalTarget.X, OriginalTarget.Y, OriginalTarget.Z,
+            TargetLocation.X, TargetLocation.Y, TargetLocation.Z);
+    }
     
     //=========================================================================
     // Step 4: 存储附近地标信息到反馈上下文（用于反馈生成）
     //=========================================================================
+    UGameInstance* GameInstance = World->GetGameInstance();
+    UMASceneGraphManager* SceneGraphManager = GameInstance ? GameInstance->GetSubsystem<UMASceneGraphManager>() : nullptr;
+    
     if (SceneGraphManager)
     {
         FMASceneGraphNode NearestLandmark = SceneGraphManager->FindNearestLandmark(TargetLocation, 2000.f);
@@ -805,12 +635,12 @@ void FMASkillParamsProcessor::ProcessNavigate(UMASkillComponent* SkillComp, cons
             Context.NearbyLandmarkType = NearestLandmark.Type;
             Context.NearbyLandmarkDistance = FVector::Dist(TargetLocation, NearestLandmark.Center);
             
-            UE_LOG(LogTemp, Verbose, TEXT("[ProcessNavigate] %s: Nearest landmark to target: %s (%s) at distance %.0f"),
+            UE_LOG(LogTemp, Verbose, TEXT("[ProcessNavigate] %s: Nearest landmark: %s (%s) dist=%.0f"),
                 *Agent->AgentLabel, *NearestLandmark.Label, *NearestLandmark.Type, Context.NearbyLandmarkDistance);
         }
     }
     
-    UE_LOG(LogTemp, Log, TEXT("[ProcessNavigate] %s: Final target location (%.0f, %.0f, %.0f)"),
+    UE_LOG(LogTemp, Log, TEXT("[ProcessNavigate] %s: Final target (%.0f, %.0f, %.0f)"),
         *Agent->AgentLabel, TargetLocation.X, TargetLocation.Y, TargetLocation.Z);
     
     Params.TargetLocation = TargetLocation;
@@ -855,6 +685,46 @@ void FMASkillParamsProcessor::ProcessSearch(AMACharacter* Agent, UMASkillCompone
         UE_LOG(LogTemp, Log, TEXT("[ProcessSearch] %s: Parsed target - Class=%s, Type=%s, Features=%d"),
             *Agent->AgentLabel, *Params.SearchTarget.Class, *Params.SearchTarget.Type, Params.SearchTarget.Features.Num());
     }
+    
+    // 解析 goal_type 参数 (搜索模式)
+    FString GoalType;
+    if (ParamsJson->TryGetStringField(TEXT("goal_type"), GoalType))
+    {
+        if (GoalType.Equals(TEXT("patrol"), ESearchCase::IgnoreCase))
+        {
+            Params.SearchMode = ESearchMode::Patrol;
+        }
+        else
+        {
+            Params.SearchMode = ESearchMode::Coverage;
+        }
+    }
+    else
+    {
+        Params.SearchMode = ESearchMode::Coverage;  // 默认为覆盖搜索模式
+    }
+    
+    // 解析 wait_time 参数 (巡逻模式等待时间)
+    double WaitTime = 2.0;
+    if (ParamsJson->TryGetNumberField(TEXT("wait_time"), WaitTime))
+    {
+        Params.PatrolWaitTime = static_cast<float>(WaitTime);
+    }
+    
+    // 解析 patrol_cycles 参数 (巡逻模式循环次数限制)
+    int32 PatrolCycles = 1;  // 默认1次
+    if (ParamsJson->TryGetNumberField(TEXT("patrol_cycles"), WaitTime))  // 复用 WaitTime 变量
+    {
+        PatrolCycles = static_cast<int32>(WaitTime);
+        if (PatrolCycles < 1) PatrolCycles = 1;  // 至少1次
+    }
+    Params.PatrolCycleLimit = PatrolCycles;
+    
+    UE_LOG(LogTemp, Log, TEXT("[ProcessSearch] %s: SearchMode=%s, PatrolWaitTime=%.1f, PatrolCycleLimit=%d"),
+        *Agent->AgentLabel, 
+        Params.SearchMode == ESearchMode::Patrol ? TEXT("Patrol") : TEXT("Coverage"),
+        Params.PatrolWaitTime,
+        Params.PatrolCycleLimit);
     
     // 构建 FMASemanticLabel 用于场景查询
     FMASemanticLabel SearchLabel;
@@ -1813,6 +1683,13 @@ void FMASkillParamsProcessor::ProcessTakePhoto(AMACharacter* Agent, UMASkillComp
     Params.CommonTargetObjectId = FoundId;
     Params.CommonTarget = Target;
     Params.PhotoTargetActor = TargetActor;
+    
+    // 大范围目标（intersection/building/area）使用更大的 FOV
+    static const TSet<FString> WideViewTypes = { TEXT("intersection"), TEXT("building"), TEXT("area") };
+    if (WideViewTypes.Contains(Target.Type.ToLower()))
+    {
+        Params.PhotoFOVOverride = 110.f;
+    }
     
     Context.bPhotoTargetFound = TargetActor.IsValid() || !FoundLocation.IsZero();
     Context.PhotoTargetName = FoundName;

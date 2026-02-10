@@ -1,79 +1,77 @@
 // MABoat.cpp
 // 船只环境对象实现
-// 参考 MAUGVCharacter 的配置，使用飞行模式保持水面高度
+// 使用简单的 Tick 直线移动，保持水面高度
 
 #include "MABoat.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "../../Agent/Component/MANavigationService.h"
 #include "../../Core/Config/MAConfigManager.h"
 #include "../Effect/MAFire.h"
-#include "AIController.h"
 
 AMABoat::AMABoat()
 {
-    PrimaryActorTick.bCanEverTick = false;
+    PrimaryActorTick.bCanEverTick = true;
 
-    // 参考 UGV: 胶囊体设置
-    GetCapsuleComponent()->SetCapsuleSize(60.f, 40.f);  // 半径60，半高40
+    // 禁用 CharacterMovement，使用自定义移动
+    UCharacterMovementComponent* MovementComp = GetCharacterMovement();
+    MovementComp->GravityScale = 0.f;
+    MovementComp->SetMovementMode(MOVE_Flying);
+
     // 启用碰撞阻挡
     GetCapsuleComponent()->SetCollisionResponseToAllChannels(ECR_Block);
     GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
-
-    // 参考 UGV: 移动设置，但使用飞行模式保持水面高度
-    UCharacterMovementComponent* MovementComp = GetCharacterMovement();
-    MovementComp->MaxWalkSpeed = 300.f;
-    MovementComp->MaxFlySpeed = 300.f;
-    MovementComp->bOrientRotationToMovement = true;
-    MovementComp->RotationRate = FRotator(0.f, 90.f, 0.f);
-    // 使用飞行模式，禁用重力
-    MovementComp->SetMovementMode(MOVE_Flying);
-    MovementComp->GravityScale = 0.f;
 
     // 隐藏默认 SkeletalMesh
     GetMesh()->SetVisibility(false);
     GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
-    // 创建船只网格组件 (参考 UGV 的 StaticMeshComponent 设置)
+    // 创建船只网格组件
     BoatMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("BoatMesh"));
     BoatMeshComponent->SetupAttachment(RootComponent);
-    // 参考 UGV: 禁用 StaticMesh 碰撞
     BoatMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    // 调整模型位置和旋转
-    BoatMeshComponent->SetRelativeLocation(FVector(0.f, 0.f, -40.f));
-    // 船只模型前向是 Y 轴，需要旋转 -90 度使其面向 X 轴（Actor 前向）
-    BoatMeshComponent->SetRelativeRotation(FRotator(0.f, -90.f, 0.f));
-
-    // 创建导航服务组件
-    NavigationService = CreateDefaultSubobject<UMANavigationService>(TEXT("NavigationService"));
-
-    // 设置 AI 控制
-    AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
-    AIControllerClass = AAIController::StaticClass();
+    BoatMeshComponent->SetRelativeRotation(FRotator(0.f, -90.f, 0.f));  // 模型前向是 Y 轴
 }
 
 void AMABoat::BeginPlay()
 {
     Super::BeginPlay();
-
-    // 确保 AIController 已创建
-    if (!GetController())
-    {
-        SpawnDefaultController();
-    }
-
-    // 记录初始水面高度
     WaterLevel = GetActorLocation().Z;
+}
 
-    // 绑定导航完成回调
-    if (NavigationService)
+void AMABoat::Tick(float DeltaTime)
+{
+    Super::Tick(DeltaTime);
+    
+    if (!bIsMoving) return;
+    
+    FVector CurrentLocation = GetActorLocation();
+    FVector ToTarget = TargetLocation - CurrentLocation;
+    ToTarget.Z = 0.f;  // 只考虑水平距离
+    float Distance = ToTarget.Size();
+    
+    // 到达判定
+    if (Distance < AcceptanceRadius)
     {
-        NavigationService->OnNavigationCompleted.AddDynamic(this, &AMABoat::OnNavigationCompleted);
-        // 使用飞行导航模式保持水面高度
-        NavigationService->bIsFlying = true;
-        NavigationService->MinFlightAltitude = WaterLevel;
+        bIsMoving = false;
+        OnMoveCompleted(true);
+        return;
     }
+    
+    // 计算移动
+    FVector Direction = ToTarget.GetSafeNormal();
+    float MoveDistance = FMath::Min(MoveSpeed * DeltaTime, Distance);
+    FVector NewLocation = CurrentLocation + Direction * MoveDistance;
+    NewLocation.Z = CurrentLocation.Z;  // 保持水面高度
+    
+    SetActorLocation(NewLocation);
+    
+    // 平滑转向
+    FRotator TargetRotation = Direction.Rotation();
+    TargetRotation.Pitch = 0.f;
+    TargetRotation.Roll = 0.f;
+    FRotator NewRotation = FMath::RInterpTo(GetActorRotation(), TargetRotation, DeltaTime, TurnSpeed);
+    SetActorRotation(NewRotation);
 }
 
 //=============================================================================
@@ -99,6 +97,17 @@ void AMABoat::Configure(const FMAEnvironmentObjectConfig& Config)
     FString Subtype = Features.FindRef(TEXT("subtype"));
     if (Subtype.IsEmpty()) Subtype = TEXT("lifeboat");
     SetBoatMesh(Subtype);
+    
+    // Mesh 设置后，调整胶囊体和船体位置
+    AutoFitCapsuleToMesh();
+    
+    // 设置船体在水面的位置
+    // Config.Position.Z 是水面高度，船底需要略低于水面（吃水）
+    WaterLevel = Config.Position.Z;
+    float CapsuleHalfHeight = GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+    // Actor 位置 = 水面高度 - 吃水深度 + 胶囊体半高（使船底在水面下 WaterlineDraft）
+    float BoatZ = WaterLevel - WaterlineDraft + CapsuleHalfHeight;
+    SetActorLocation(FVector(Config.Position.X, Config.Position.Y, BoatZ));
 
     // 配置巡逻
     if (Config.Patrol.bEnabled && Config.Patrol.Waypoints.Num() > 0)
@@ -107,7 +116,6 @@ void AMABoat::Configure(const FMAEnvironmentObjectConfig& Config)
         bPatrolLoop = Config.Patrol.bLoop;
         PatrolWaitTime = Config.Patrol.WaitTime;
         
-        // 延迟启动巡逻
         if (UWorld* World = GetWorld())
         {
             FTimerHandle StartTimerHandle;
@@ -115,8 +123,8 @@ void AMABoat::Configure(const FMAEnvironmentObjectConfig& Config)
         }
     }
 
-    UE_LOG(LogTemp, Log, TEXT("[MABoat] Configured: %s (subtype=%s, patrol=%s)"), 
-        *ObjectLabel, *Subtype, Config.Patrol.bEnabled ? TEXT("enabled") : TEXT("disabled"));
+    UE_LOG(LogTemp, Log, TEXT("[MABoat] %s: WaterLevel=%.1f, Draft=%.1f, ActorZ=%.1f"), 
+        *ObjectLabel, WaterLevel, WaterlineDraft, BoatZ);
 }
 
 void AMABoat::SetBoatMesh(const FString& Subtype)
@@ -137,34 +145,35 @@ void AMABoat::SetBoatMesh(const FString& Subtype)
 }
 
 //=============================================================================
-// 导航接口
+// 导航接口 - 简单直线移动
 //=============================================================================
 
-bool AMABoat::NavigateTo(FVector Destination, float AcceptanceRadius)
+bool AMABoat::NavigateTo(FVector Destination, float InAcceptanceRadius)
 {
-    // 保持水面高度
-    Destination.Z = WaterLevel;
-    return NavigationService ? NavigationService->NavigateTo(Destination, AcceptanceRadius) : false;
+    TargetLocation = Destination;
+    TargetLocation.Z = GetActorLocation().Z;  // 保持水面高度
+    AcceptanceRadius = InAcceptanceRadius;
+    bIsMoving = true;
+    return true;
 }
 
 void AMABoat::CancelNavigation()
 {
-    if (NavigationService) NavigationService->CancelNavigation();
+    bIsMoving = false;
 }
 
 bool AMABoat::IsNavigating() const
 {
-    return NavigationService && NavigationService->IsNavigating();
+    return bIsMoving;
 }
 
-void AMABoat::OnNavigationCompleted(bool bSuccess, const FString& Message)
+void AMABoat::OnMoveCompleted(bool bSuccess)
 {
     // 如果正在巡逻，处理巡逻逻辑
     if (bIsPatrolling)
     {
         if (bSuccess)
         {
-            // 到达巡逻点，等待后前往下一个
             if (UWorld* World = GetWorld())
             {
                 World->GetTimerManager().SetTimer(PatrolWaitTimerHandle, this, &AMABoat::MoveToNextWaypoint, PatrolWaitTime, false);
@@ -172,27 +181,55 @@ void AMABoat::OnNavigationCompleted(bool bSuccess, const FString& Message)
         }
         else
         {
-            // 导航失败，尝试下一个点
             MoveToNextWaypoint();
         }
-        return;
     }
-    
-    UE_LOG(LogTemp, Log, TEXT("[MABoat] %s: Navigation %s - %s"), 
-        *ObjectLabel, bSuccess ? TEXT("succeeded") : TEXT("failed"), *Message);
 }
 
 //=============================================================================
 // 私有方法
 //=============================================================================
 
+void AMABoat::AutoFitCapsuleToMesh()
+{
+    if (!BoatMeshComponent || !BoatMeshComponent->GetStaticMesh()) return;
+    
+    FBoxSphereBounds Bounds = BoatMeshComponent->GetStaticMesh()->GetBounds();
+    
+    float Radius = (Bounds.BoxExtent.X + Bounds.BoxExtent.Y) * 0.5f;
+    float HalfHeight = Bounds.BoxExtent.Z * 0.85f;
+    Radius = FMath::Min(Radius, 60.f);
+    HalfHeight = FMath::Max(HalfHeight, Radius);
+    
+    GetCapsuleComponent()->SetCapsuleSize(Radius, HalfHeight);
+    
+    float MeshBottomZ = Bounds.Origin.Z - Bounds.BoxExtent.Z;
+    float MeshOffsetZ = -HalfHeight - MeshBottomZ;
+    
+    BoatMeshComponent->SetRelativeLocation(FVector(0.f, 0.f, MeshOffsetZ));
+    
+    UE_LOG(LogTemp, Log, TEXT("[MABoat] AutoFit: Capsule(R=%.1f, H=%.1f), MeshOffset=%.1f"),
+        Radius, HalfHeight, MeshOffsetZ);
+}
+
 FString AMABoat::GetBoatMeshPath(const FString& Subtype)
 {
+    // 路径基于 /Game/Boatyard/Meshes/
     static TMap<FString, FString> BoatMeshMap = {
-        {TEXT("lifeboat"), TEXT("/Game/Boats/Meshes/SM_Lifeboat.SM_Lifeboat")},
-        {TEXT("canoe"), TEXT("/Game/Boats/Meshes/SM_Canoe.SM_Canoe")},
-        {TEXT("metal"), TEXT("/Game/Boats/Meshes/SM_MetalBoat.SM_MetalBoat")},
-        {TEXT("pontoon"), TEXT("/Game/Boats/Meshes/SM_Pontoon.SM_Pontoon")},
+        {TEXT("metal_01"), TEXT("/Game/Boatyard/Meshes/SM_Boat_Metal_NN_01a.SM_Boat_Metal_NN_01a")},
+        {TEXT("metal_02"), TEXT("/Game/Boatyard/Meshes/SM_Boat_Metal_NN_02a.SM_Boat_Metal_NN_02a")},
+        {TEXT("metal_03"), TEXT("/Game/Boatyard/Meshes/SM_Boat_Metal_NN_03a.SM_Boat_Metal_NN_03a")},
+        {TEXT("metal_06"), TEXT("/Game/Boatyard/Meshes/SM_Boat_Metal_NN_06a.SM_Boat_Metal_NN_06a")},
+        {TEXT("boat_04"), TEXT("/Game/Boatyard/Meshes/SM_Boat_NN_04a.SM_Boat_NN_04a")},
+        {TEXT("boat_07"), TEXT("/Game/Boatyard/Meshes/SM_Boat_NN_07a.SM_Boat_NN_07a")},
+        {TEXT("boat_14"), TEXT("/Game/Boatyard/Meshes/SM_Boat_NN_14a.SM_Boat_NN_14a")},
+        {TEXT("boat_17"), TEXT("/Game/Boatyard/Meshes/SM_Boat_NN_17a.SM_Boat_NN_17a")},
+        {TEXT("boat_54"), TEXT("/Game/Boatyard/Meshes/SM_Boat_NN_54a.SM_Boat_NN_54a")},
+        {TEXT("pontoon"), TEXT("/Game/Boatyard/Meshes/SM_Pontoon_Boat_NN_01a.SM_Pontoon_Boat_NN_01a")},
+        // 别名
+        {TEXT("lifeboat"), TEXT("/Game/Boatyard/Meshes/SM_Boat_Metal_NN_01a.SM_Boat_Metal_NN_01a")},
+        {TEXT("fishing"), TEXT("/Game/Boatyard/Meshes/SM_Boat_NN_04a.SM_Boat_NN_04a")},
+        {TEXT("speedboat"), TEXT("/Game/Boatyard/Meshes/SM_Boat_NN_17a.SM_Boat_NN_17a")},
     };
 
     FString SubtypeLower = Subtype.ToLower();
@@ -239,7 +276,7 @@ void AMABoat::MoveToNextWaypoint()
 {
     if (!bIsPatrolling || PatrolWaypoints.Num() == 0) return;
     
-    FVector TargetLocation = PatrolWaypoints[CurrentWaypointIndex];
+    FVector NextWaypoint = PatrolWaypoints[CurrentWaypointIndex];
     
     CurrentWaypointIndex++;
     if (CurrentWaypointIndex >= PatrolWaypoints.Num())
@@ -256,7 +293,7 @@ void AMABoat::MoveToNextWaypoint()
         }
     }
     
-    NavigateTo(TargetLocation, 150.f);
+    NavigateTo(NextWaypoint, 150.f);
 }
 
 //=============================================================================

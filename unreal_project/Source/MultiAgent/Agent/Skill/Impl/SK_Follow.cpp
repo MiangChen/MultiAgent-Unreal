@@ -9,6 +9,8 @@
 #include "../../Component/MANavigationService.h"
 #include "../../../Core/Types/MATypes.h"
 #include "../../../Core/Config/MAConfigManager.h"
+#include "../../../Core/Manager/MAPIPCameraManager.h"
+#include "../../../Core/Types/MAPIPCameraTypes.h"
 #include "AIController.h"
 #include "TimerManager.h"
 
@@ -48,19 +50,9 @@ void USK_Follow::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const 
                 if (UMAConfigManager* ConfigMgr = GI->GetSubsystem<UMAConfigManager>())
                 {
                     const FMAFollowConfig& FollowCfg = ConfigMgr->GetFollowConfig();
-                    // 只有当使用默认值时才从配置加载
-                    if (FMath::IsNearlyEqual(FollowDistance, 300.f))
-                    {
-                        FollowDistance = FollowCfg.Distance;
-                    }
-                    if (FMath::IsNearlyEqual(FollowPositionTolerance, 200.f))
-                    {
-                        FollowPositionTolerance = FollowCfg.PositionTolerance;
-                    }
-                    if (FMath::IsNearlyEqual(ContinuousFollowTimeThreshold, 30.f))
-                    {
-                        ContinuousFollowTimeThreshold = FollowCfg.ContinuousTimeThreshold;
-                    }
+                    FollowDistance = FollowCfg.Distance;
+                    FollowPositionTolerance = FollowCfg.PositionTolerance;
+                    ContinuousFollowTimeThreshold = FollowCfg.ContinuousTimeThreshold;
                 }
             }
         }
@@ -96,7 +88,15 @@ void USK_Follow::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const 
     Character->ShowAbilityStatus(TEXT("Following"), FString::Printf(TEXT("-> %s"), *TargetName));
     
     // 使用跟随模式 API
-    NavigationService->FollowActor(TargetActor.Get(), FollowDistance, FollowPositionTolerance);
+    // NavigationService 的 AcceptanceRadius 比技能层的 FollowPositionTolerance 收紧，
+    // 让机器人实际停靠位置更贴近跟随点，避免"懒惰跟踪"——
+    // 即机器人刚到容差边缘就停下，目标稍一移动又超出容差的问题
+    float NavAcceptance = FMath::Max(FollowPositionTolerance - 200.f, 50.f);
+    NavigationService->FollowActor(TargetActor.Get(), FollowDistance, NavAcceptance);
+    
+    // 创建画中画相机展示目标
+    PIPCameraManager = Character->GetWorld()->GetSubsystem<UMAPIPCameraManager>();
+    CreateFollowPIPCamera();
     
     // 启动状态检查定时器
     if (UWorld* World = Character->GetWorld())
@@ -142,6 +142,19 @@ void USK_Follow::UpdateFollow()
     bool bInFollowPosition = (DistanceToFollow < FollowPositionTolerance);
     
     FString TargetName = TargetActor->GetName();
+    
+    // 调试日志：每次 tick 打印关键状态
+    float DistanceToTarget = FVector::Dist(Character->GetActorLocation(), TargetActor->GetActorLocation());
+    float Distance2DToTarget = FVector::Dist2D(Character->GetActorLocation(), TargetActor->GetActorLocation());
+    UE_LOG(LogTemp, Log, TEXT("[SK_Follow] %s: Dist2DToFollow=%.0f, Tolerance=%.0f, InPos=%s, ContTime=%.1f/%.1f, Dist3DToTarget=%.0f, Dist2DToTarget=%.0f, RobotPos=%s, FollowPos=%s, TargetPos=%s"),
+        *Character->AgentLabel,
+        DistanceToFollow, FollowPositionTolerance,
+        bInFollowPosition ? TEXT("Y") : TEXT("N"),
+        ContinuousFollowTime, ContinuousFollowTimeThreshold,
+        DistanceToTarget, Distance2DToTarget,
+        *Character->GetActorLocation().ToCompactString(),
+        *FollowLocation.ToCompactString(),
+        *TargetActor->GetActorLocation().ToCompactString());
     
     // 只要满足跟随位置条件就累计时长（不重置）
     if (bInFollowPosition)
@@ -202,6 +215,9 @@ void USK_Follow::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGame
             NavigationService->StopFollowing();
         }
         
+        // 清理画中画
+        CleanupPIPCamera();
+        
         Character->ShowStatus(TEXT(""), 0.f);
         
         if (bWasCancelled && FollowResultMessage.IsEmpty())
@@ -231,5 +247,50 @@ void USK_Follow::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGame
     if (bShouldNotify && SkillCompToNotify)
     {
         SkillCompToNotify->NotifySkillCompleted(bSuccessToNotify, MessageToNotify);
+    }
+}
+
+void USK_Follow::CreateFollowPIPCamera()
+{
+    AMACharacter* Character = GetOwningCharacter();
+    if (!Character || !PIPCameraManager || !TargetActor.IsValid()) return;
+
+    bool bIsFlying = NavigationService && NavigationService->bIsFlying;
+    
+    // 相机配置：位置跟随机器人，朝向目标对象
+    FMAPIPCameraConfig CameraConfig;
+    CameraConfig.FollowTarget = Character;  // 相机位置跟随机器人
+    CameraConfig.FollowOffset = bIsFlying ? FVector(150.f, 0.f, -80.f) : FVector(150.f, 0.f, 0.f);
+    CameraConfig.LookAtTarget = TargetActor;  // 相机朝向目标对象
+    CameraConfig.FOV = 60.f;
+    CameraConfig.Resolution = FIntPoint(640, 480);
+    CameraConfig.SmoothSpeed = 3.f;  // 平滑插值，避免画面抖动
+    
+    PIPCameraId = PIPCameraManager->CreatePIPCamera(CameraConfig);
+    if (!PIPCameraId.IsValid()) return;
+    
+    // 显示配置
+    FMAPIPDisplayConfig DisplayConfig;
+    DisplayConfig.Size = FVector2D(800.f, 450.f);
+    DisplayConfig.ScreenPosition = PIPCameraManager->AllocateScreenPosition(DisplayConfig.Size);  // 右上角
+    DisplayConfig.bShowBorder = true;
+    DisplayConfig.bShowShadow = true;
+    DisplayConfig.BorderColor = FLinearColor(0.2f, 0.6f, 0.2f, 1.f);  // 绿色边框
+    DisplayConfig.BorderThickness = 3.f;
+    DisplayConfig.Title = FString::Printf(TEXT("[Follow] %s"), *TargetActor->GetName());
+    
+    PIPCameraManager->ShowPIPCamera(PIPCameraId, DisplayConfig);
+    
+    UE_LOG(LogTemp, Log, TEXT("[SK_Follow] %s: Created PIP camera tracking %s"),
+        *Character->AgentLabel, *TargetActor->GetName());
+}
+
+void USK_Follow::CleanupPIPCamera()
+{
+    if (PIPCameraManager && PIPCameraId.IsValid())
+    {
+        PIPCameraManager->HidePIPCamera(PIPCameraId);
+        PIPCameraManager->DestroyPIPCamera(PIPCameraId);
+        PIPCameraId.Invalidate();
     }
 }

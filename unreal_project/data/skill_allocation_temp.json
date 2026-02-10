@@ -1,6 +1,6 @@
 {
-	"name": "Single Test",
-	"description": "UAV 起飞 -> 导航 -> Humanoid 导航",
+	"name": "GSI Allocation",
+	"description": "Skill allocation from GSI planner",
 	"data":
 	{
 		"0":
@@ -10,6 +10,7 @@
 				"skill": "take_off",
 				"params":
 				{
+					"task_id": "T1"
 				}
 			}
 		},
@@ -17,47 +18,21 @@
 		{
 			"UAV-1":
 			{
-				"skill": "navigate",
+				"skill": "navigate<Intersection-1>",
 				"params":
 				{
-					"dest":
-					{
-						"x": 1350,
-						"y": -450,
-						"z": 545
-					}
+					"task_id": "T1"
 				}
 			}
 		},
 		"2":
 		{
-			"Humanoid-1":
+			"UAV-1":
 			{
-				"skill": "navigate",
+				"skill": "search<Intersection-1>_for<traffic_violation>",
 				"params":
 				{
-					"dest":
-					{
-						"x": -1200,
-						"y": 1200,
-						"z": 0
-					}
-				}
-			}
-		},
-		"3":
-		{
-			"Humanoid-1":
-			{
-				"skill": "navigate",
-				"params":
-				{
-					"dest":
-					{
-						"x": 0,
-						"y": 2400,
-						"z": 0
-					}
+					"task_id": "T1"
 				}
 			}
 		}

@@ -27,6 +27,7 @@ FMASceneGraphNode FMADynamicNodeManager::CreateAgentNode(const FMAAgentConfigDat
     Node.bIsDynamic = true;
     Node.bIsCarried = false;
     Node.Features.Add(TEXT("status"), TEXT("idle"));
+    Node.Features.Add(TEXT("battery_level"), FString::Printf(TEXT("%.0f"), Config.BatteryLevel));
     
     if (!Config.Label.IsEmpty())
     {
@@ -72,15 +73,36 @@ FMASceneGraphNode FMADynamicNodeManager::CreateEnvironmentObjectNode(const FMAEn
     }
     else if (Config.Type == TEXT("person"))
     {
-        Node.Category = TEXT("dynamic_entity");
+        Node.Category = TEXT("prop");
     }
     else if (Config.Type == TEXT("vehicle") || Config.Type == TEXT("boat"))
     {
-        Node.Category = TEXT("dynamic_entity");
+        Node.Category = TEXT("prop");
     }
     else if (Config.Type == TEXT("fire") || Config.Type == TEXT("smoke") || Config.Type == TEXT("wind"))
     {
         Node.Category = TEXT("effect");
+
+        // Set effect_radius for smoke/wind nodes from config "radius" feature, or use defaults
+        if (Config.Type == TEXT("smoke") || Config.Type == TEXT("wind"))
+        {
+            if (!Node.Features.Contains(TEXT("effect_radius")))
+            {
+                float DefaultRadius = (Config.Type == TEXT("smoke")) ? 3000.f : 5000.f;
+                float Radius = DefaultRadius;
+
+                if (const FString* RadiusStr = Node.Features.Find(TEXT("radius")))
+                {
+                    float Parsed = FCString::Atof(**RadiusStr);
+                    if (Parsed > 0.f)
+                    {
+                        Radius = Parsed;
+                    }
+                }
+
+                Node.Features.Add(TEXT("effect_radius"), FString::SanitizeFloat(Radius));
+            }
+        }
     }
     else
     {
@@ -127,6 +149,7 @@ bool FMADynamicNodeManager::UpdateNodePosition(FMASceneGraphNode& Node, const FV
     }
 
     Node.Center = NewPosition;
+    Node.RawJson = GenerateRawJson(Node);
     return true;
 }
 
@@ -230,10 +253,22 @@ FString FMADynamicNodeManager::GenerateRawJson(const FMASceneGraphNode& Node)
     PropertiesObject->SetStringField(TEXT("category"), Node.Category);
     PropertiesObject->SetBoolField(TEXT("is_dynamic"), Node.bIsDynamic);
 
-    // 添加 Features 到 properties
+    // 添加 Features 到 properties (数值类型自动输出为 JSON number)
     for (const auto& Pair : Node.Features)
     {
-        PropertiesObject->SetStringField(Pair.Key, Pair.Value);
+        // 尝试解析为数字
+        if (Pair.Value.IsNumeric())
+        {
+            PropertiesObject->SetNumberField(Pair.Key, FCString::Atod(*Pair.Value));
+        }
+        else if (Pair.Value.Equals(TEXT("true"), ESearchCase::IgnoreCase) || Pair.Value.Equals(TEXT("false"), ESearchCase::IgnoreCase))
+        {
+            PropertiesObject->SetBoolField(Pair.Key, Pair.Value.Equals(TEXT("true"), ESearchCase::IgnoreCase));
+        }
+        else
+        {
+            PropertiesObject->SetStringField(Pair.Key, Pair.Value);
+        }
     }
 
     RootObject->SetObjectField(TEXT("properties"), PropertiesObject);

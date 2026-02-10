@@ -613,6 +613,24 @@ private:
     void BindCommSubsystemEvents();
 
     /**
+     * 绑定 CommandManager 委托事件
+     * 监听 OnExecutionPauseStateChanged 委托，暂停/恢复时显示通知
+     * Requirements: 8.5, 8.6
+     */
+    void BindCommandManagerEvents();
+
+    /**
+     * 执行暂停状态变化回调
+     * @param bPaused 是否暂停
+     * Requirements: 8.5, 8.6
+     */
+    UFUNCTION()
+    void OnExecutionPauseStateChanged(bool bPaused);
+
+    /** 恢复通知自动隐藏定时器 */
+    FTimerHandle ResumeNotificationTimerHandle;
+
+    /**
      * 绑定 EmergencyManager 委托事件
      * 监听 OnEmergencyEventReceived 委托，收到事件时显示通知
      * Requirements: 4.1, 4.2, 4.3

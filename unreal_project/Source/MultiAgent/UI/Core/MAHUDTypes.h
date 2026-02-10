@@ -98,7 +98,13 @@ enum class EMANotificationType : uint8
     EmergencyEvent  UMETA(DisplayName = "Emergency Event"),
     
     /** 索要用户指令通知 - 后端请求用户输入指令 */
-    RequestUserCommand  UMETA(DisplayName = "Request User Command")
+    RequestUserCommand  UMETA(DisplayName = "Request User Command"),
+    
+    /** 技能列表暂停通知 - 用户按 P 键暂停了技能执行 */
+    SkillListPaused     UMETA(DisplayName = "Skill List Paused"),
+    
+    /** 技能列表恢复通知 - 用户按 P 键恢复了技能执行 */
+    SkillListResumed    UMETA(DisplayName = "Skill List Resumed")
 };
 
 //=============================================================================

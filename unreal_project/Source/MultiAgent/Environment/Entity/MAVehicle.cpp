@@ -13,10 +13,8 @@
 
 AMAVehicle::AMAVehicle()
 {
-    PrimaryActorTick.bCanEverTick = true;  // 需要 Tick 来处理平滑转向
+    PrimaryActorTick.bCanEverTick = true;
 
-    // 参考 UGV: 胶囊体设置
-    GetCapsuleComponent()->SetCapsuleSize(80.f, 50.f);  // 半径80，半高50
     // 启用碰撞阻挡
     GetCapsuleComponent()->SetCollisionResponseToAllChannels(ECR_Block);
     GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
@@ -24,20 +22,15 @@ AMAVehicle::AMAVehicle()
     // 地面移动设置 - 禁用自动旋转，改用自定义平滑转向
     UCharacterMovementComponent* MovementComp = GetCharacterMovement();
     MovementComp->MaxWalkSpeed = 400.f;
-    MovementComp->bOrientRotationToMovement = false;  // 禁用自动旋转
-    MovementComp->RotationRate = FRotator(0.f, 0.f, 0.f);  // 不使用内置旋转
-    
-    // 禁用 Controller 旋转控制，完全由我们自己处理
+    MovementComp->bOrientRotationToMovement = false;
+    MovementComp->RotationRate = FRotator(0.f, 0.f, 0.f);
     bUseControllerRotationYaw = false;
 
-    // 创建车辆网格组件 (参考 UGV 的 StaticMeshComponent 设置)
+    // 创建车辆网格组件
     VehicleMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("VehicleMesh"));
     VehicleMeshComponent->SetupAttachment(RootComponent);
-    // 参考 UGV: 禁用 StaticMesh 碰撞，否则会干扰 NavMesh
     VehicleMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    // 调整模型位置和旋转，使其底部与胶囊体底部对齐，前向与 Actor 前向一致
-    VehicleMeshComponent->SetRelativeLocation(FVector(0.f, 0.f, -80.f));
-    // 车辆模型前向是 Y 轴，需要旋转 -90 度使其面向 X 轴（Actor 前向）
+    // 车辆模型前向是 Y 轴，需要旋转 -90 度使其面向 X 轴
     VehicleMeshComponent->SetRelativeRotation(FRotator(0.f, -90.f, 0.f));
 
     // 创建导航服务组件
@@ -52,17 +45,11 @@ void AMAVehicle::BeginPlay()
 {
     Super::BeginPlay();
 
-    // 确保 AIController 已创建
     if (!GetController())
     {
         SpawnDefaultController();
     }
-    
-    UE_LOG(LogTemp, Log, TEXT("[MAVehicle] %s BeginPlay: Controller=%s"), 
-        *GetName(), 
-        GetController() ? *GetController()->GetName() : TEXT("NULL"));
 
-    // 绑定导航完成回调
     if (NavigationService)
     {
         NavigationService->OnNavigationCompleted.AddDynamic(this, &AMAVehicle::OnNavigationCompleted);
@@ -142,6 +129,9 @@ void AMAVehicle::Configure(const FMAEnvironmentObjectConfig& Config)
     FString Subtype = Features.FindRef(TEXT("subtype"));
     if (Subtype.IsEmpty()) Subtype = TEXT("sedan");
     SetVehicleMesh(Subtype);
+    
+    // Mesh 设置后，自动调整胶囊体尺寸和位置
+    AutoFitCapsuleToMesh();
 
     // 设置车身颜色
     FString ColorStr = Features.FindRef(TEXT("color"));
@@ -253,6 +243,40 @@ void AMAVehicle::OnNavigationCompleted(bool bSuccess, const FString& Message)
 //=============================================================================
 // 私有方法
 //=============================================================================
+
+void AMAVehicle::AutoFitCapsuleToMesh()
+{
+    // 根据 StaticMesh 边界自动调整胶囊体尺寸和 Mesh 位置
+    if (!VehicleMeshComponent)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[MAVehicle] AutoFit: VehicleMeshComponent is NULL!"));
+        return;
+    }
+    
+    if (!VehicleMeshComponent->GetStaticMesh())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[MAVehicle] AutoFit: StaticMesh is NULL! (Mesh not loaded yet)"));
+        return;
+    }
+    
+    FBoxSphereBounds Bounds = VehicleMeshComponent->GetStaticMesh()->GetBounds();
+    
+    float Radius = (Bounds.BoxExtent.X + Bounds.BoxExtent.Y) * 0.5f;
+    float HalfHeight = Bounds.BoxExtent.Z * 0.85f;
+    Radius = FMath::Min(Radius, 80.f);
+    HalfHeight = FMath::Max(HalfHeight, Radius);
+    
+    GetCapsuleComponent()->SetCapsuleSize(Radius, HalfHeight);
+    
+    // Mesh 底部对齐胶囊体底部
+    float MeshBottomZ = Bounds.Origin.Z - Bounds.BoxExtent.Z;
+    float MeshOffsetZ = -HalfHeight - MeshBottomZ;
+    
+    VehicleMeshComponent->SetRelativeLocation(FVector(0.f, 0.f, MeshOffsetZ));
+    
+    UE_LOG(LogTemp, Log, TEXT("[MAVehicle] AutoFit: Capsule(R=%.1f, H=%.1f), MeshOffset=%.1f"),
+        Radius, HalfHeight, MeshOffsetZ);
+}
 
 FString AMAVehicle::GetVehicleMeshPath(const FString& Subtype)
 {

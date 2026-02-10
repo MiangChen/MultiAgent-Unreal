@@ -192,6 +192,9 @@ private:
     /** 更新车辆转向（平滑转弯） */
     void UpdateVehicleSteering(float DeltaTime);
 
+    /** 根据 Mesh 自动调整胶囊体尺寸和位置 */
+    void AutoFitCapsuleToMesh();
+
     /** 解析颜色字符串 */
     static FLinearColor ParseColorString(const FString& ColorStr);
 

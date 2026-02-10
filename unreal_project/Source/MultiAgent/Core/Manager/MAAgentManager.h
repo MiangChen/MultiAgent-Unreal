@@ -81,7 +81,7 @@ private:
     int32 NextAgentIndex = 0;
     
     UMAConfigManager* GetConfigManager() const;
-    AMACharacter* SpawnAgentInternal(const FString& TypeName, const FString& ID, const FString& Label, FVector Location, FRotator Rotation, bool bAutoPosition, int32 Index, int32 TotalCount);
+    AMACharacter* SpawnAgentInternal(const FString& TypeName, const FString& ID, const FString& Label, FVector Location, FRotator Rotation, bool bAutoPosition, int32 Index, int32 TotalCount, float BatteryLevel = 100.f);
     
     FVector CalculateAutoPosition(int32 Index, int32 TotalCount) const;
     FVector AdjustSpawnHeight(FVector Location, bool bIsFlying) const;

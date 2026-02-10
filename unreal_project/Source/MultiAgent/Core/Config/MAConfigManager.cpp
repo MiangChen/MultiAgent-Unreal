@@ -588,6 +588,13 @@ void UMAConfigManager::ParseAgentsFromJson(const TSharedPtr<FJsonObject>& RootOb
                         }
                     }
                     
+                    // 解析初始电量
+                    double BatteryVal = 100.0;
+                    if (InstanceObj->TryGetNumberField(TEXT("battery_level"), BatteryVal))
+                    {
+                        Config.BatteryLevel = static_cast<float>(FMath::Clamp(BatteryVal, 0.0, 100.0));
+                    }
+
                     AgentConfigs.Add(Config);
                 }
             }
@@ -637,6 +644,15 @@ void UMAConfigManager::ParseEnvironmentObject(const TSharedPtr<FJsonObject>& Obj
     if (EnvConfig.Type.IsEmpty())
     {
         UE_LOG(LogMAConfig, Warning, TEXT("Skipping environment object with missing type"));
+        return;
+    }
+    
+    // 跳过 enabled=false 的对象（未指定时默认启用）
+    bool bEnabled = true;
+    ObjectObj->TryGetBoolField(TEXT("enabled"), bEnabled);
+    if (!bEnabled)
+    {
+        UE_LOG(LogMAConfig, Log, TEXT("Skipping disabled environment object: %s"), *EnvConfig.Label);
         return;
     }
     

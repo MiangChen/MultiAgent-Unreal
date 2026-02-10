@@ -101,7 +101,11 @@ FString UMANotificationWidget::GetNotificationMessage(EMANotificationType Type)
         case EMANotificationType::EmergencyEvent:
             return TEXT("Unexpected Situation Detected");
         case EMANotificationType::RequestUserCommand:
-            return TEXT("Instruction Required");
+            return TEXT("Command Input Required");
+        case EMANotificationType::SkillListPaused:
+            return TEXT("Skill Execution Paused");
+        case EMANotificationType::SkillListResumed:
+            return TEXT("Skill Execution Resumed");
         default:
             return TEXT("");
     }
@@ -121,6 +125,10 @@ FString UMANotificationWidget::GetKeyHint(EMANotificationType Type)
             return TEXT("Press 'X' to check Unexpected Situation");
         case EMANotificationType::RequestUserCommand:
             return TEXT("Please enter command in the right sidebar");
+        case EMANotificationType::SkillListPaused:
+            return TEXT("Press 'P' to resume execution");
+        case EMANotificationType::SkillListResumed:
+            return TEXT("Skills are continuing to execute");
         default:
             return TEXT("");
     }
@@ -465,6 +473,26 @@ FLinearColor UMANotificationWidget::GetBackgroundColorForType(EMANotificationTyp
         case EMANotificationType::RequestUserCommand:
             // 蓝色调 - 索要用户指令
             return FLinearColor(0.1f, 0.3f, 0.6f, 0.9f);
+
+        case EMANotificationType::SkillListPaused:
+            // 橙色/琥珀色调 - 技能执行暂停
+            if (Theme)
+            {
+                FLinearColor Color = Theme->WarningColor;
+                Color.A = 0.95f;
+                return Color * 0.4f + FLinearColor(0.1f, 0.1f, 0.12f, 0.95f) * 0.6f;
+            }
+            return FLinearColor(0.25f, 0.18f, 0.08f, 0.95f);
+
+        case EMANotificationType::SkillListResumed:
+            // 绿色调 - 技能执行恢复
+            if (Theme)
+            {
+                FLinearColor Color = Theme->SuccessColor;
+                Color.A = 0.95f;
+                return Color * 0.3f + FLinearColor(0.1f, 0.1f, 0.12f, 0.95f) * 0.7f;
+            }
+            return FLinearColor(0.12f, 0.20f, 0.14f, 0.95f);
 
         default:
             // 默认深色背景

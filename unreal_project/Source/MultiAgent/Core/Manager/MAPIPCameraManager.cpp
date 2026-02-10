@@ -198,6 +198,48 @@ int32 UMAPIPCameraManager::GetVisiblePIPCameraCount() const
     return Count;
 }
 
+FVector2D UMAPIPCameraManager::AllocateScreenPosition(const FVector2D& Size) const
+{
+    // 预定义的画中画位置槽位（右侧，从上到下）
+    // 归一化坐标，表示画中画中心点
+    static const TArray<FVector2D> SlotPositions = {
+        FVector2D(0.8f, 0.3f),  // 右上
+        FVector2D(0.8f, 0.7f),  // 右下
+        FVector2D(0.5f, 0.3f),  // 中上
+        FVector2D(0.5f, 0.7f),  // 中下
+    };
+    
+    // 收集已占用的槽位
+    TSet<int32> OccupiedSlots;
+    for (const auto& Pair : CameraInstances)
+    {
+        if (Pair.Value.bIsVisible)
+        {
+            const FVector2D& Pos = Pair.Value.DisplayConfig.ScreenPosition;
+            for (int32 i = 0; i < SlotPositions.Num(); ++i)
+            {
+                if (FVector2D::Distance(Pos, SlotPositions[i]) < 0.1f)
+                {
+                    OccupiedSlots.Add(i);
+                    break;
+                }
+            }
+        }
+    }
+    
+    // 找到第一个未占用的槽位
+    for (int32 i = 0; i < SlotPositions.Num(); ++i)
+    {
+        if (!OccupiedSlots.Contains(i))
+        {
+            return SlotPositions[i];
+        }
+    }
+    
+    // 所有槽位都被占用，返回默认位置
+    return FVector2D(0.85f, 0.25f);
+}
+
 void UMAPIPCameraManager::DrawPIPCameras(UCanvas* Canvas, int32 ViewportWidth, int32 ViewportHeight)
 {
     if (!Canvas)
@@ -226,31 +268,22 @@ void UMAPIPCameraManager::DrawPIPCameras(UCanvas* Canvas, int32 ViewportWidth, i
         PIPX = FMath::Clamp(PIPX, 10.f, ViewportWidth - PIPWidth - 10.f);
         PIPY = FMath::Clamp(PIPY, 10.f, ViewportHeight - PIPHeight - 10.f);
 
-        // 绘制多层渐变阴影 - 模拟柔和的投影效果
+        // 绘制多层渐变阴影 - 四面均匀扩散效果
         if (Config.bShowShadow)
         {
-            // 阴影参数
-            const int32 ShadowLayers = 8;           // 阴影层数
-            const float MaxShadowOffset = 16.f;     // 最大偏移
-            const float MaxShadowExpand = 12.f;     // 最大扩展（让阴影比窗口大）
-            const float BaseOpacity = 0.35f;        // 基础不透明度
+            const int32 ShadowLayers = 20;
+            const float MaxShadowExpand = 30.f;
+            const float BaseOpacity = 0.3f;
             
-            // 从外到内绘制阴影层，外层更淡更大，内层更深更小
+            // 从外到内绘制阴影层
             for (int32 i = ShadowLayers - 1; i >= 0; --i)
             {
-                float LayerRatio = (float)i / (float)(ShadowLayers - 1);  // 0.0 (内层) -> 1.0 (外层)
-                
-                // 偏移量：内层偏移小，外层偏移大
-                float LayerOffset = FMath::Lerp(4.f, MaxShadowOffset, LayerRatio);
-                
-                // 扩展量：内层扩展小，外层扩展大
-                float LayerExpand = FMath::Lerp(0.f, MaxShadowExpand, LayerRatio);
-                
-                // 不透明度：内层深，外层淡（使用平方曲线让过渡更自然）
-                float LayerOpacity = BaseOpacity * FMath::Pow(1.f - LayerRatio * 0.7f, 2.f);
+                float LayerRatio = (float)i / (float)(ShadowLayers - 1);
+                float LayerExpand = FMath::Lerp(2.f, MaxShadowExpand, LayerRatio);
+                float LayerOpacity = BaseOpacity * FMath::Pow(1.f - LayerRatio * 0.8f, 2.f);
                 
                 FCanvasTileItem ShadowItem(
-                    FVector2D(PIPX + LayerOffset - LayerExpand * 0.5f, PIPY + LayerOffset - LayerExpand * 0.5f),
+                    FVector2D(PIPX - LayerExpand * 0.5f, PIPY - LayerExpand * 0.5f),
                     FVector2D(PIPWidth + LayerExpand, PIPHeight + LayerExpand),
                     FLinearColor(0.f, 0.f, 0.f, LayerOpacity)
                 );
@@ -365,32 +398,75 @@ UTextureRenderTarget2D* UMAPIPCameraManager::CreateRenderTarget(const FIntPoint&
 
 void UMAPIPCameraManager::UpdateFollowCameras()
 {
+    float DeltaTime = GetWorld() ? GetWorld()->GetDeltaSeconds() : 0.016f;
+    
     for (auto& Pair : CameraInstances)
     {
         FMAPIPCameraInstance& Instance = Pair.Value;
         
-        if (!Instance.CameraConfig.FollowTarget.IsValid())
+        // 计算目标位置
+        FVector TargetLocation = Instance.CameraConfig.Location;
+        if (Instance.CameraConfig.FollowTarget.IsValid())
+        {
+            AActor* FollowActor = Instance.CameraConfig.FollowTarget.Get();
+            // 将偏移从局部坐标转换为世界坐标（相对于跟随目标的朝向）
+            FVector WorldOffset = FollowActor->GetActorRotation().RotateVector(Instance.CameraConfig.FollowOffset);
+            TargetLocation = FollowActor->GetActorLocation() + WorldOffset;
+        }
+        
+        // 计算目标旋转
+        FRotator TargetRotation = Instance.CameraConfig.Rotation;
+        
+        // 优先级：LookAtTarget > bFollowTargetRotation > 固定 Rotation
+        AActor* LookAt = Instance.CameraConfig.LookAtTarget.IsValid() ? Instance.CameraConfig.LookAtTarget.Get() : 
+                         (Instance.CameraConfig.bLookAtTarget && Instance.CameraConfig.FollowTarget.IsValid() ? Instance.CameraConfig.FollowTarget.Get() : nullptr);
+        
+        if (LookAt)
+        {
+            FVector DirectionToTarget = LookAt->GetActorLocation() - TargetLocation;
+            if (!DirectionToTarget.IsNearlyZero())
+            {
+                TargetRotation = DirectionToTarget.Rotation();
+            }
+        }
+        else if (Instance.CameraConfig.bFollowTargetRotation && Instance.CameraConfig.FollowTarget.IsValid())
+        {
+            // 相机朝向 = 跟随目标朝向 + 配置中的 Rotation 作为偏移
+            FRotator FollowRot = Instance.CameraConfig.FollowTarget->GetActorRotation();
+            TargetRotation = FollowRot + Instance.CameraConfig.Rotation;
+        }
+        
+        // 如果没有跟随目标也没有注视目标也没有跟随朝向，跳过更新
+        if (!Instance.CameraConfig.FollowTarget.IsValid() && !LookAt && !Instance.CameraConfig.bFollowTargetRotation)
         {
             continue;
         }
         
-        AActor* Target = Instance.CameraConfig.FollowTarget.Get();
-        if (!Target || !Instance.SceneCapture)
+        if (!Instance.SceneCapture)
         {
             continue;
         }
         
-        FVector NewLocation = Target->GetActorLocation() + Instance.CameraConfig.FollowOffset;
-        FRotator NewRotation = Instance.CameraConfig.Rotation;
-        
-        if (Instance.CameraConfig.bLookAtTarget)
+        // 初始化或平滑插值
+        if (!Instance.bSmoothedInitialized)
         {
-            FVector DirectionToTarget = Target->GetActorLocation() - NewLocation;
-            NewRotation = DirectionToTarget.Rotation();
+            Instance.SmoothedLocation = TargetLocation;
+            Instance.SmoothedRotation = TargetRotation;
+            Instance.bSmoothedInitialized = true;
+        }
+        else if (Instance.CameraConfig.SmoothSpeed > 0.f)
+        {
+            Instance.SmoothedLocation = FMath::VInterpTo(Instance.SmoothedLocation, TargetLocation, DeltaTime, Instance.CameraConfig.SmoothSpeed);
+            Instance.SmoothedRotation = FMath::RInterpTo(Instance.SmoothedRotation, TargetRotation, DeltaTime, Instance.CameraConfig.SmoothSpeed);
+        }
+        else
+        {
+            Instance.SmoothedLocation = TargetLocation;
+            Instance.SmoothedRotation = TargetRotation;
         }
         
-        Instance.SceneCapture->SetActorLocation(NewLocation);
-        Instance.SceneCapture->SetActorRotation(NewRotation);
+        Instance.SceneCapture->SetActorLocation(Instance.SmoothedLocation);
+        Instance.SceneCapture->SetActorRotation(Instance.SmoothedRotation);
     }
 }
 

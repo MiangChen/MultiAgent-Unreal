@@ -57,10 +57,11 @@ public:
      * 导航到目标位置
      * @param Destination 目标位置
      * @param InAcceptanceRadius 到达判定半径
+     * @param bSmoothArrival 是否平滑到达（接近目标时减速），默认 true
      * @return 是否成功启动导航
      */
     UFUNCTION(BlueprintCallable, Category = "Navigation")
-    bool NavigateTo(FVector Destination, float InAcceptanceRadius = 200.f);
+    bool NavigateTo(FVector Destination, float InAcceptanceRadius = 200.f, bool bSmoothArrival = true);
 
     /**
      * 起飞到指定高度 (仅飞行机器人)
@@ -141,6 +142,22 @@ public:
     /** 获取当前跟随位置（供外部查询，如技能判断是否到达） */
     UFUNCTION(BlueprintPure, Category = "Navigation")
     FVector GetCurrentFollowPosition() const;
+
+    //=========================================================================
+    // 暂停/恢复 API
+    //=========================================================================
+
+    /** 暂停导航（冻结当前移动，保存状态） */
+    UFUNCTION(BlueprintCallable, Category = "Navigation")
+    void PauseNavigation();
+
+    /** 恢复导航（从暂停位置继续原来的导航任务） */
+    UFUNCTION(BlueprintCallable, Category = "Navigation")
+    void ResumeNavigation();
+
+    /** 是否处于暂停状态 */
+    UFUNCTION(BlueprintPure, Category = "Navigation")
+    bool IsNavigationPaused() const { return bIsNavigationPaused; }
 
     //=========================================================================
     // 委托
@@ -301,6 +318,18 @@ private:
 
     /** 飞行控制器 (多旋翼或固定翼) */
     TUniquePtr<IMAFlightController> FlightController;
+
+    /** 暂停前的目标位置 */
+    FVector PausedTargetLocation = FVector::ZeroVector;
+
+    /** 是否处于导航暂停状态 */
+    bool bIsNavigationPaused = false;
+
+    /** 暂停前是否在跟随模式 */
+    bool bWasFollowing = false;
+
+    /** 暂停前是否在手动导航 */
+    bool bWasUsingManualNav = false;
 
     /** 返航降落高度 */
     float ReturnHomeLandAltitude = 0.f;

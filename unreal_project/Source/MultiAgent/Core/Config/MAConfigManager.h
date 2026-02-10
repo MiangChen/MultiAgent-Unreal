@@ -220,6 +220,10 @@ struct FMAAgentConfigData
 
     UPROPERTY(BlueprintReadOnly)
     bool bAutoPosition = true;
+
+    /** 初始电量百分比 (0-100) */
+    UPROPERTY(BlueprintReadOnly)
+    float BatteryLevel = 100.f;
 };
 
 /**

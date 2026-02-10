@@ -33,6 +33,11 @@ public:
     
     UPROPERTY(BlueprintReadOnly, Category = "Cargo")
     TArray<AActor*> CarriedItems;
+    
+    // 货物放置高度（相对于 Actor 原点，即胶囊体中心）
+    // 需要根据实际 UGV 模型的甲板位置手动调整
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cargo")
+    float CargoDeckHeight = -10.f;
 
     // 载货操作
     UFUNCTION(BlueprintCallable, Category = "Cargo")
@@ -54,9 +59,9 @@ public:
 protected:
     virtual void BeginPlay() override;
     virtual void InitializeSkillSet() override;
-
-    // 地面吸附
-    void SnapToGround();
+    
+    // 根据 StaticMesh 自动调整胶囊体尺寸和 Mesh 位置
+    void AutoFitCapsuleToStaticMesh();
 
 private:
     UFUNCTION()

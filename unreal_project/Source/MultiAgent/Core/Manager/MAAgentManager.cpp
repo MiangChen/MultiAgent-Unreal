@@ -10,6 +10,7 @@
 #include "../../Agent/Character/MAQuadrupedCharacter.h"
 #include "../../Agent/Character/MAHumanoidCharacter.h"
 #include "../../Agent/Component/Sensor/MACameraSensorComponent.h"
+#include "../../Agent/Skill/MASkillComponent.h"
 #include "GameFramework/PlayerStart.h"
 #include "Kismet/GameplayStatics.h"
 
@@ -54,7 +55,7 @@ void UMAAgentManager::SpawnAgentsFromConfig()
     for (int32 i = 0; i < TotalCount; i++)
     {
         const FMAAgentConfigData& Config = Configs[i];
-        SpawnAgentInternal(Config.Type, Config.ID, Config.Label, Config.Position, Config.Rotation, Config.bAutoPosition, i, TotalCount);
+        SpawnAgentInternal(Config.Type, Config.ID, Config.Label, Config.Position, Config.Rotation, Config.bAutoPosition, i, TotalCount, Config.BatteryLevel);
     }
     
     UE_LOG(LogMAAgentManager, Log, TEXT("Spawned %d agents from config"), SpawnedAgents.Num());
@@ -67,7 +68,7 @@ AMACharacter* UMAAgentManager::SpawnAgentByType(const FString& TypeName, FVector
     return SpawnAgentInternal(TypeName, ID, Label, Location, Rotation, bAutoPosition, SpawnedAgents.Num(), SpawnedAgents.Num() + 1);
 }
 
-AMACharacter* UMAAgentManager::SpawnAgentInternal(const FString& TypeName, const FString& ID, const FString& Label, FVector Location, FRotator Rotation, bool bAutoPosition, int32 Index, int32 TotalCount)
+AMACharacter* UMAAgentManager::SpawnAgentInternal(const FString& TypeName, const FString& ID, const FString& Label, FVector Location, FRotator Rotation, bool bAutoPosition, int32 Index, int32 TotalCount, float BatteryLevel)
 {
     FString ClassPath = GetClassPathForType(TypeName);
     if (ClassPath.IsEmpty())
@@ -104,6 +105,12 @@ AMACharacter* UMAAgentManager::SpawnAgentInternal(const FString& TypeName, const
         
         // 添加默认相机
         Agent->AddCameraSensor(FVector(-150.f, 0.f, 80.f), FRotator(-15.f, 0.f, 0.f));
+        
+        // 应用初始电量（直接赋值，不触发低电量事件，这是初始化而非运行时变化）
+        if (UMASkillComponent* SkillComp = Agent->GetSkillComponent())
+        {
+            SkillComp->Energy = SkillComp->MaxEnergy * BatteryLevel / 100.f;
+        }
         
         SpawnedAgents.Add(Agent);
         NextAgentIndex++;
@@ -160,7 +167,10 @@ FVector UMAAgentManager::AdjustSpawnHeight(FVector Location, bool bIsFlying) con
     
     if (GetWorld()->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, ECC_Visibility))
     {
-        // 所有机器人都贴地生成，UAV 稍微抬高避免穿模
+        // 注意：这里使用固定偏移值，因为 Spawn 前无法获取角色的胶囊体尺寸
+        // 不同角色胶囊体半高不同，但这里统一用 100
+        // 这个"近似值"足够安全，因为 CharacterMovementComponent 会在 BeginPlay 后
+        // 自动处理：悬空会落下，穿地会被挤出（AdjustIfPossibleButAlwaysSpawn）
         float HeightOffset = bIsFlying ? 50.f : 100.f;
         Location.Z = HitResult.Location.Z + HeightOffset;
     }

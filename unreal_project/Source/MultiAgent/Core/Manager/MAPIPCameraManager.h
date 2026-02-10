@@ -159,6 +159,14 @@ public:
     int32 GetVisiblePIPCameraCount() const;
 
     /**
+     * 分配不重叠的屏幕位置
+     * @param Size 画中画尺寸
+     * @return 分配的屏幕位置 (归一化 0-1)
+     */
+    UFUNCTION(BlueprintCallable, Category = "PIPCamera")
+    FVector2D AllocateScreenPosition(const FVector2D& Size) const;
+
+    /**
      * 初始化 UI 容器 (由 UIManager 调用)
      * @param InContainerWidget 容器 Widget
      */

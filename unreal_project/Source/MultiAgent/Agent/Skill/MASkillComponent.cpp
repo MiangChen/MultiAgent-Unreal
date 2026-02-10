@@ -304,11 +304,23 @@ void UMASkillComponent::AddFoundObject(const FString& ObjectName, const FVector&
 void UMASkillComponent::DrainEnergy(float DeltaTime)
 {
     if (Energy <= 0.f) return;
+    SetEnergy(FMath::Max(0.f, Energy - EnergyDrainRate * DeltaTime));
+}
+
+void UMASkillComponent::SetEnergy(float NewEnergy)
+{
+    float OldPercent = GetEnergyPercent();
+    Energy = FMath::Clamp(NewEnergy, 0.f, MaxEnergy);
+    float NewPercent = GetEnergyPercent();
     
-    float OldEnergy = Energy;
-    Energy = FMath::Max(0.f, Energy - EnergyDrainRate * DeltaTime);
+    // 跨越低电量阈值时触发一次
+    if (OldPercent >= LowEnergyThreshold && NewPercent < LowEnergyThreshold)
+    {
+        OnLowEnergy.Broadcast();
+    }
     
-    if (OldEnergy > 0.f && Energy <= 0.f)
+    // 电量归零时触发
+    if (OldPercent > 0.f && NewPercent <= 0.f)
     {
         OnEnergyDepleted.Broadcast();
     }

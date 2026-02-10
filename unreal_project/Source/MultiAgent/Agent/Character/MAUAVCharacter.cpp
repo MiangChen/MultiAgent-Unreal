@@ -21,7 +21,7 @@ AMAUAVCharacter::AMAUAVCharacter()
     UCharacterMovementComponent* MovementComp = GetCharacterMovement();
     MovementComp->SetMovementMode(MOVE_Flying);
     MovementComp->DefaultLandMovementMode = MOVE_Flying;
-    MovementComp->MaxFlySpeed = 600.f;
+    MovementComp->MaxFlySpeed = 800.f;
     MovementComp->GravityScale = 0.f;
     
     // 加载 Inspire 2 模型
@@ -113,28 +113,6 @@ void AMAUAVCharacter::BeginPlay()
         GetMesh()->SetAnimationMode(EAnimationMode::AnimationSingleNode);
         GetMesh()->SetAnimation(PropellerAnim);
         GetMesh()->Stop();
-    }
-}
-
-void AMAUAVCharacter::SnapToGround()
-{
-    FVector CurrentLocation = GetActorLocation();
-    FVector Start = CurrentLocation + FVector(0.f, 0.f, 1000.f);
-    FVector End = Start - FVector(0.f, 0.f, 5000.f);
-    
-    FHitResult HitResult;
-    FCollisionQueryParams Params;
-    Params.AddIgnoredActor(this);
-    
-    if (GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_WorldStatic, Params))
-    {
-        FVector NewLocation = FVector(CurrentLocation.X, CurrentLocation.Y, HitResult.Location.Z + 50.f);
-        SetActorLocation(NewLocation);
-        UE_LOG(LogTemp, Log, TEXT("[UAV %s] Snapped to ground at Z=%.1f"), *AgentID, NewLocation.Z);
-    }
-    else
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[UAV %s] SnapToGround failed - no ground detected"), *AgentID);
     }
 }
 

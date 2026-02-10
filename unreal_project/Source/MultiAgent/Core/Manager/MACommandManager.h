@@ -10,11 +10,13 @@
 #include "../Types/MATypes.h"
 #include "../Comm/MACommTypes.h"
 #include "../../Agent/Skill/Utils/MAFeedbackGenerator.h"
+#include "../../Agent/Skill/Utils/MAConditionCheckTypes.h"
 #include "MACommandManager.generated.h"
 
 class AMACharacter;
 struct FMAAgentSkillCommand;
 class UMATempDataManager;
+class UMASceneGraphManager;
 
 // ========== 指令类型 ==========
 UENUM(BlueprintType)
@@ -55,6 +57,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTimeStepCompleted, const FMATimeS
 // ========== 技能列表执行完成委托 ==========
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSkillListCompleted, const TArray<FMATimeStepFeedback>&, AllFeedbacks);
 
+// ========== 执行暂停状态变化委托 ==========
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnExecutionPauseStateChanged, bool, bPaused);
+
 // ========== 指令调度层 ==========
 UCLASS()
 class MULTIAGENT_API UMACommandManager : public UWorldSubsystem
@@ -74,6 +79,22 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Command")
     void SendCommand(AMACharacter* Agent, EMACommand Command);
 
+    /** 暂停当前技能列表执行 */
+    UFUNCTION(BlueprintCallable, Category = "Command")
+    void PauseExecution();
+
+    /** 恢复当前技能列表执行 */
+    UFUNCTION(BlueprintCallable, Category = "Command")
+    void ResumeExecution();
+
+    /** 切换暂停/恢复状态 */
+    UFUNCTION(BlueprintCallable, Category = "Command")
+    void TogglePauseExecution();
+
+    /** 是否处于暂停状态 */
+    UFUNCTION(BlueprintPure, Category = "Command")
+    bool IsPaused() const { return bIsPaused; }
+
     /** 技能列表执行完成委托 */
     UPROPERTY(BlueprintAssignable, Category = "Command")
     FOnSkillListCompleted OnSkillListCompleted;
@@ -81,6 +102,10 @@ public:
     /** 时间步完成委托 */
     UPROPERTY(BlueprintAssignable, Category = "Command")
     FOnTimeStepCompleted OnTimeStepCompleted;
+
+    /** 执行暂停状态变化委托 */
+    UPROPERTY(BlueprintAssignable, Category = "Command")
+    FOnExecutionPauseStateChanged OnExecutionPauseStateChanged;
 
     /** 辅助方法 */
     UFUNCTION(BlueprintCallable, Category = "Command")
@@ -125,6 +150,24 @@ private:
     /** 发送技能列表执行完成/中断反馈到 Python 端 */
     void SendSkillListCompletedFeedbackToPython(bool bCompleted, bool bInterrupted, int32 CompletedSteps, int32 TotalSteps);
 
+    /** 获取 SceneGraphManager */
+    UMASceneGraphManager* GetSceneGraphManager() const;
+
+    /** 处理预检查失败：生成突发事件反馈，终止技能列表 */
+    void HandlePrecheckFailure(AMACharacter* Agent, EMACommand Command, const FMAAgentSkillCommand* Cmd, const FMAPrecheckResult& Result);
+
+    /** 处理运行时检查失败：取消技能、生成突发事件反馈、终止技能列表 */
+    void HandleRuntimeCheckFailure(AMACharacter* Agent, EMACommand Command, const FMAPrecheckResult& Result);
+
+    /** 启动运行时检查定时器 */
+    void StartRuntimeCheckTimer(AMACharacter* Agent, EMACommand Command);
+
+    /** 停止运行时检查定时器 */
+    void StopRuntimeCheckTimer(AMACharacter* Agent);
+
+    /** 运行时检查定时器回调 */
+    void OnRuntimeCheckTick(AMACharacter* Agent, EMACommand Command);
+
     TMap<EMACommand, FGameplayTag> CommandTagCache;
     
     // 配置
@@ -132,6 +175,7 @@ private:
     
     // 执行状态
     bool bIsExecuting = false;
+    bool bIsPaused = false;
     int32 CurrentTimeStep = 0;
     int32 PendingSkillCount = 0;
     
@@ -144,4 +188,31 @@ private:
     
     // 当前时间步的 Agent 和对应指令（用于反馈生成）
     TMap<AMACharacter*, EMACommand> CurrentTimeStepCommands;
+    
+    // 预检查产生的 info 事件（技能完成后附加到反馈）
+    TMap<AMACharacter*, TArray<FMARenderedEvent>> PendingInfoEvents;
+    
+    // 运行时检查定时器（技能执行期间周期性检查）
+    TMap<AMACharacter*, FTimerHandle> RuntimeCheckTimers;
+
+    // 运行时检查定时器间隔（秒）
+    static constexpr float RuntimeCheckIntervalSec = 1.0f;
+
+    //=========================================================================
+    // 场景图周期性同步
+    //=========================================================================
+
+    /** 启动场景图同步定时器 */
+    void StartSceneGraphSyncTimer();
+
+    /** 停止场景图同步定时器 */
+    void StopSceneGraphSyncTimer();
+
+    /** 场景图同步定时器回调 */
+    void OnSceneGraphSyncTick();
+
+    FTimerHandle SceneGraphSyncTimerHandle;
+
+    /** 场景图同步间隔（秒） */
+    static constexpr float SceneGraphSyncIntervalSec = 2.0f;
 };

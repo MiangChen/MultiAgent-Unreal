@@ -4,6 +4,7 @@
 #include "MACommandManager.h"
 #include "MAAgentManager.h"
 #include "MATempDataManager.h"
+#include "MASceneGraphManager.h"
 #include "../Config/MAConfigManager.h"
 #include "../Comm/MACommSubsystem.h"
 #include "../Comm/MACommTypes.h"
@@ -12,7 +13,11 @@
 #include "../../Agent/Skill/Utils/MASkillParamsProcessor.h"
 #include "../../Agent/Skill/Utils/MAFeedbackGenerator.h"
 #include "../../Agent/Skill/Utils/MASceneGraphUpdater.h"
+#include "../../Agent/Skill/Utils/MAConditionChecker.h"
+#include "../../Agent/Skill/Utils/MASkillTemplateRegistry.h"
+#include "../../Agent/Skill/Utils/MAEventTemplateRegistry.h"
 #include "../../Agent/StateTree/MAStateTreeComponent.h"
+#include "../../Agent/Component/MANavigationService.h"
 #include "Components/StateTreeComponent.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMACommandManager, Log, All);
@@ -77,10 +82,12 @@ void UMACommandManager::ExecuteSkillList(const FMASkillListMessage& SkillList)
     UE_LOG(LogMACommandManager, Log, TEXT("ExecuteSkillList: %d time steps"), SkillList.TotalTimeSteps);
     
     bIsExecuting = true;
+    bIsPaused = false;
     CurrentTimeStep = 0;
     CurrentSkillList = SkillList;
     AllFeedbacks.Empty();
     
+    StartSceneGraphSyncTimer();
     ExecuteCurrentTimeStep();
 }
 
@@ -95,7 +102,17 @@ void UMACommandManager::InterruptCurrentExecution()
     int32 InterruptedAtTimeStep = CurrentTimeStep;
     int32 TotalSteps = CurrentSkillList.TotalTimeSteps;
     
-    // 取消所有 Agent 的技能并解绑委托
+    // 停止所有运行时检查定时器
+    if (UWorld* World = GetWorld())
+    {
+        for (auto& Pair : RuntimeCheckTimers)
+        {
+            World->GetTimerManager().ClearTimer(Pair.Value);
+        }
+    }
+    RuntimeCheckTimers.Empty();
+    
+    // 取消所有 Agent 的技能并解绑委托（低电量返航中的 Agent 保留其返航技能）
     for (const auto& Pair : CurrentTimeStepCommands)
     {
         AMACharacter* Agent = Pair.Key;
@@ -104,7 +121,10 @@ void UMACommandManager::InterruptCurrentExecution()
             if (UMASkillComponent* SkillComp = Agent->GetSkillComponent())
             {
                 SkillComp->OnSkillCompleted.RemoveDynamic(this, &UMACommandManager::OnSkillCompleted);
-                SkillComp->CancelAllSkills();
+                if (!Agent->IsLowEnergyReturning())
+                {
+                    SkillComp->CancelAllSkills();
+                }
             }
         }
     }
@@ -115,7 +135,9 @@ void UMACommandManager::InterruptCurrentExecution()
     // 重置执行状态
     CurrentTimeStepCommands.Empty();
     PendingSkillCount = 0;
+    bIsPaused = false;
     bIsExecuting = false;
+    StopSceneGraphSyncTimer();
 }
 
 void UMACommandManager::ExecuteCurrentTimeStep()
@@ -125,6 +147,7 @@ void UMACommandManager::ExecuteCurrentTimeStep()
     {
         UE_LOG(LogMACommandManager, Log, TEXT("All time steps completed"));
         bIsExecuting = false;
+        StopSceneGraphSyncTimer();
         
         // 发送技能列表完成反馈
         SendSkillListCompletedFeedbackToPython(true, false, CurrentSkillList.TotalTimeSteps, CurrentSkillList.TotalTimeSteps);
@@ -138,6 +161,7 @@ void UMACommandManager::ExecuteCurrentTimeStep()
     CurrentTimeStepFeedback = FMATimeStepFeedback();
     CurrentTimeStepFeedback.TimeStep = CurrentTimeStep;
     CurrentTimeStepCommands.Empty();
+    PendingInfoEvents.Empty();
     PendingSkillCount = 0;
     
     UMAAgentManager* AgentManager = GetWorld()->GetSubsystem<UMAAgentManager>();
@@ -226,6 +250,9 @@ void UMACommandManager::OnSkillCompleted(AMACharacter* Agent, bool bSuccess, con
 {
     if (!Agent || !bIsExecuting) return;
     
+    // 停止运行时检查定时器
+    StopRuntimeCheckTimer(Agent);
+    
     if (UMASkillComponent* SkillComp = Agent->GetSkillComponent())
     {
         SkillComp->OnSkillCompleted.RemoveDynamic(this, &UMACommandManager::OnSkillCompleted);
@@ -242,6 +269,27 @@ void UMACommandManager::OnSkillCompleted(AMACharacter* Agent, bool bSuccess, con
     
     // 生成反馈
     FMASkillExecutionFeedback Feedback = FMAFeedbackGenerator::Generate(Agent, Command, bSuccess, Message);
+    
+    // 附加 PendingInfoEvents 到反馈 Data（预检查和运行时产生的 info 事件）
+    if (TArray<FMARenderedEvent>* InfoEvents = PendingInfoEvents.Find(Agent))
+    {
+        if (InfoEvents->Num() > 0)
+        {
+            // 将 info 事件序列化为 JSON 数组字符串附加到 Data
+            FString InfoEventsJson = TEXT("[");
+            for (int32 i = 0; i < InfoEvents->Num(); ++i)
+            {
+                const FMARenderedEvent& Evt = (*InfoEvents)[i];
+                if (i > 0) InfoEventsJson += TEXT(",");
+                InfoEventsJson += FString::Printf(TEXT("{\"category\":\"%s\",\"type\":\"%s\",\"severity\":\"%s\",\"message\":\"%s\"}"),
+                    *Evt.Category, *Evt.Type, *FMARenderedEvent::SeverityToString(Evt.Severity), *Evt.Message);
+            }
+            InfoEventsJson += TEXT("]");
+            Feedback.Data.Add(TEXT("info_events"), InfoEventsJson);
+        }
+        PendingInfoEvents.Remove(Agent);
+    }
+    
     CurrentTimeStepFeedback.SkillFeedbacks.Add(Feedback);
     
     // 广播技能完成状态到 TempDataManager，让预览组件实时更新
@@ -267,6 +315,12 @@ void UMACommandManager::OnSkillCompleted(AMACharacter* Agent, bool bSuccess, con
     PendingSkillCount--;
     if (PendingSkillCount <= 0)
     {
+        // 暂停期间不推进时间步，等 Resume 时处理
+        if (bIsPaused)
+        {
+            return;
+        }
+
         SendTimeStepFeedbackToPython(CurrentTimeStepFeedback);
         AllFeedbacks.Add(CurrentTimeStepFeedback);
         
@@ -275,6 +329,106 @@ void UMACommandManager::OnSkillCompleted(AMACharacter* Agent, bool bSuccess, con
         
         CurrentTimeStep++;
         ExecuteCurrentTimeStep();
+    }
+}
+
+// ========== 暂停/恢复 ==========
+
+void UMACommandManager::PauseExecution()
+{
+    if (!bIsExecuting || bIsPaused) return;
+
+    bIsPaused = true;
+
+    // 暂停所有运行时检查定时器
+    if (UWorld* World = GetWorld())
+    {
+        for (auto& Pair : RuntimeCheckTimers)
+        {
+            World->GetTimerManager().PauseTimer(Pair.Value);
+        }
+    }
+
+    // 暂停所有 Agent 的导航
+    for (const auto& Pair : CurrentTimeStepCommands)
+    {
+        AMACharacter* Agent = Pair.Key;
+        if (Agent)
+        {
+            if (UMANavigationService* NavService = Agent->GetNavigationService())
+            {
+                NavService->PauseNavigation();
+            }
+        }
+    }
+
+    OnExecutionPauseStateChanged.Broadcast(true);
+    UE_LOG(LogMACommandManager, Log, TEXT("Execution paused at TimeStep %d"), CurrentTimeStep);
+
+    // 暂停场景图同步定时器
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().PauseTimer(SceneGraphSyncTimerHandle);
+    }
+}
+
+void UMACommandManager::ResumeExecution()
+{
+    if (!bIsExecuting || !bIsPaused) return;
+
+    bIsPaused = false;
+
+    // 恢复所有运行时检查定时器
+    if (UWorld* World = GetWorld())
+    {
+        for (auto& Pair : RuntimeCheckTimers)
+        {
+            World->GetTimerManager().UnPauseTimer(Pair.Value);
+        }
+    }
+
+    // 恢复所有 Agent 的导航
+    for (const auto& Pair : CurrentTimeStepCommands)
+    {
+        AMACharacter* Agent = Pair.Key;
+        if (Agent)
+        {
+            if (UMANavigationService* NavService = Agent->GetNavigationService())
+            {
+                NavService->ResumeNavigation();
+            }
+        }
+    }
+
+    OnExecutionPauseStateChanged.Broadcast(false);
+    UE_LOG(LogMACommandManager, Log, TEXT("Execution resumed at TimeStep %d"), CurrentTimeStep);
+
+    // 恢复场景图同步定时器
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().UnPauseTimer(SceneGraphSyncTimerHandle);
+    }
+
+    // 暂停期间所有技能已完成，立即推进时间步
+    if (PendingSkillCount <= 0)
+    {
+        SendTimeStepFeedbackToPython(CurrentTimeStepFeedback);
+        AllFeedbacks.Add(CurrentTimeStepFeedback);
+        OnTimeStepCompleted.Broadcast(CurrentTimeStepFeedback);
+        CurrentTimeStep++;
+        ExecuteCurrentTimeStep();
+    }
+}
+
+void UMACommandManager::TogglePauseExecution()
+{
+    if (bIsPaused)
+    {
+        ResumeExecution();
+    }
+    else
+    {
+        PauseExecution();
     }
 }
 
@@ -295,10 +449,29 @@ void UMACommandManager::SendCommandToAgent(AMACharacter* Agent, EMACommand Comma
     // 1) 参数预处理
     FMASkillParamsProcessor::Process(Agent, Command, Cmd);
     
-    // 2) 清除旧命令 Tag（旧技能的 EndAbility 检测不到 Tag，不会通知完成）
+    // 2) 条件预检查
+    UMASceneGraphManager* SceneGraphMgr = GetSceneGraphManager();
+    FMAPrecheckResult PrecheckResult = FMAConditionChecker::RunPrecheck(Agent, Command, SkillComp, SceneGraphMgr);
+    
+    if (!PrecheckResult.bAllPassed)
+    {
+        UE_LOG(LogMACommandManager, Warning, TEXT("    [PRECHECK FAILED] %s [%s]: %s"),
+            *Agent->AgentID, *CommandToString(Command),
+            PrecheckResult.FailedEvents.Num() > 0 ? *PrecheckResult.FailedEvents[0].Message : TEXT("Unknown"));
+        HandlePrecheckFailure(Agent, Command, Cmd, PrecheckResult);
+        return;
+    }
+    
+    // 3) 存储 info 事件（技能完成后附加到反馈）
+    if (PrecheckResult.InfoEvents.Num() > 0)
+    {
+        PendingInfoEvents.Add(Agent, PrecheckResult.InfoEvents);
+    }
+    
+    // 4) 清除旧命令 Tag（旧技能的 EndAbility 检测不到 Tag，不会通知完成）
     SkillComp->ClearAllCommands();
     
-    // 3) 激活技能（内部会先取消旧技能，此时 Tag 已清除，不会错误通知）
+    // 5) 激活技能（内部会先取消旧技能，此时 Tag 已清除，不会错误通知）
     bool bHasStateTree = HasActiveStateTree(Agent);
     bool bActivated = false;
     
@@ -307,11 +480,17 @@ void UMACommandManager::SendCommandToAgent(AMACharacter* Agent, EMACommand Comma
         bActivated = ActivateSkillDirectly(Agent, SkillComp, Command);
     }
     
-    // 4) 激活成功后再设置命令 Tag（用于技能完成时的通知判断）
+    // 6) 激活成功后再设置命令 Tag（用于技能完成时的通知判断）
     FGameplayTag CommandTag = CommandToTag(Command);
     if (bActivated && CommandTag.IsValid())
     {
         SkillComp->AddLooseGameplayTag(CommandTag);
+    }
+    
+    // 7) 启动运行时检查定时器（技能激活成功后）
+    if (bActivated && Command != EMACommand::Idle && Command != EMACommand::None)
+    {
+        StartRuntimeCheckTimer(Agent, Command);
     }
 }
 
@@ -452,6 +631,231 @@ UMATempDataManager* UMACommandManager::GetTempDataManager() const
     return nullptr;
 }
 
+UMASceneGraphManager* UMACommandManager::GetSceneGraphManager() const
+{
+    if (UWorld* World = GetWorld())
+    {
+        if (UGameInstance* GI = World->GetGameInstance())
+        {
+            return GI->GetSubsystem<UMASceneGraphManager>();
+        }
+    }
+    return nullptr;
+}
+
+void UMACommandManager::HandlePrecheckFailure(AMACharacter* Agent, EMACommand Command, const FMAAgentSkillCommand* Cmd, const FMAPrecheckResult& Result)
+{
+    if (!Agent || Result.FailedEvents.Num() == 0) return;
+    
+    const FMARenderedEvent& FirstEvent = Result.FailedEvents[0];
+    
+    // 构建突发事件反馈
+    FMASkillExecutionFeedback Feedback;
+    Feedback.AgentId = Agent->AgentID;
+    Feedback.SkillName = CommandToString(Command);
+    Feedback.bSuccess = false;
+    Feedback.Message = FirstEvent.Message;
+    
+    // 填充 Data TMap 中的突发事件字段
+    if (UMASkillComponent* SkillComp = Agent->GetSkillComponent())
+    {
+        const FMAFeedbackContext& Context = SkillComp->GetFeedbackContext();
+        if (!Context.TaskId.IsEmpty())
+        {
+            Feedback.Data.Add(TEXT("task_id"), Context.TaskId);
+        }
+    }
+    Feedback.Data.Add(TEXT("robot_id"), Agent->AgentID);
+    Feedback.Data.Add(TEXT("robot_label"), Agent->AgentLabel);
+    Feedback.Data.Add(TEXT("is_emergency_event"), TEXT("true"));
+    Feedback.Data.Add(TEXT("event_category"), FirstEvent.Category);
+    Feedback.Data.Add(TEXT("event_type"), FirstEvent.Type);
+    Feedback.Data.Add(TEXT("event_severity"), FMARenderedEvent::SeverityToString(FirstEvent.Severity));
+    Feedback.Data.Add(TEXT("event_key"), FirstEvent.Payload.FindRef(TEXT("event_key")));
+    
+    // 添加到当前时间步反馈
+    CurrentTimeStepFeedback.SkillFeedbacks.Add(Feedback);
+    
+    // 广播失败状态
+    UMATempDataManager* TempDataMgr = GetTempDataManager();
+    if (TempDataMgr)
+    {
+        TempDataMgr->BroadcastSkillStatusUpdate(CurrentTimeStep, Agent->AgentID, ESkillExecutionStatus::Failed);
+    }
+    
+    // 发送当前时间步反馈（包含突发事件）
+    SendTimeStepFeedbackToPython(CurrentTimeStepFeedback);
+    AllFeedbacks.Add(CurrentTimeStepFeedback);
+    
+    // 终止技能列表执行（内部会取消其他 Agent 的技能、发送中断反馈、重置状态）
+    InterruptCurrentExecution();
+}
+
+// ========== 运行时检查 ==========
+
+void UMACommandManager::StartRuntimeCheckTimer(AMACharacter* Agent, EMACommand Command)
+{
+    if (!Agent) return;
+    
+    // 先清除旧定时器（如果存在）
+    StopRuntimeCheckTimer(Agent);
+    
+    UWorld* World = GetWorld();
+    if (!World) return;
+    
+    FTimerHandle TimerHandle;
+    FTimerDelegate TimerDelegate;
+    TimerDelegate.BindUObject(this, &UMACommandManager::OnRuntimeCheckTick, Agent, Command);
+    
+    World->GetTimerManager().SetTimer(
+        TimerHandle,
+        TimerDelegate,
+        RuntimeCheckIntervalSec,
+        true  // bLoop
+    );
+    
+    RuntimeCheckTimers.Add(Agent, TimerHandle);
+    
+    UE_LOG(LogMACommandManager, Log, TEXT("    [RUNTIME CHECK] Started timer for %s [%s] (%.1fs interval)"),
+        *Agent->AgentID, *CommandToString(Command), RuntimeCheckIntervalSec);
+}
+
+void UMACommandManager::StopRuntimeCheckTimer(AMACharacter* Agent)
+{
+    if (!Agent) return;
+    
+    FTimerHandle* TimerHandle = RuntimeCheckTimers.Find(Agent);
+    if (!TimerHandle) return;
+    
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().ClearTimer(*TimerHandle);
+    }
+    
+    RuntimeCheckTimers.Remove(Agent);
+    
+    UE_LOG(LogMACommandManager, Log, TEXT("    [RUNTIME CHECK] Stopped timer for %s"), *Agent->AgentID);
+}
+
+void UMACommandManager::OnRuntimeCheckTick(AMACharacter* Agent, EMACommand Command)
+{
+    if (!Agent || !bIsExecuting) return;
+    
+    UMASkillComponent* SkillComp = Agent->GetSkillComponent();
+    if (!SkillComp) return;
+    
+    UMASceneGraphManager* SceneGraphMgr = GetSceneGraphManager();
+    FMAPrecheckResult RuntimeResult = FMAConditionChecker::RunRuntimeCheck(Agent, Command, SkillComp, SceneGraphMgr);
+    
+    // 收集 info 事件（如 HighPriorityTargetDiscovery）到 PendingInfoEvents
+    // 按 event_key 去重：运行时检查是周期性的，同一事件可能被多次检测到
+    if (RuntimeResult.InfoEvents.Num() > 0)
+    {
+        TArray<FMARenderedEvent>& ExistingInfoEvents = PendingInfoEvents.FindOrAdd(Agent);
+        
+        // 构建已有事件的 event_key 集合
+        TSet<FString> ExistingKeys;
+        for (const FMARenderedEvent& Existing : ExistingInfoEvents)
+        {
+            const FString* Key = Existing.Payload.Find(TEXT("event_key"));
+            if (Key && !Key->IsEmpty())
+            {
+                ExistingKeys.Add(*Key);
+            }
+        }
+        
+        // 仅添加尚未记录的事件
+        for (const FMARenderedEvent& NewEvt : RuntimeResult.InfoEvents)
+        {
+            const FString* Key = NewEvt.Payload.Find(TEXT("event_key"));
+            if (Key && !Key->IsEmpty())
+            {
+                if (!ExistingKeys.Contains(*Key))
+                {
+                    ExistingInfoEvents.Add(NewEvt);
+                    ExistingKeys.Add(*Key);
+                }
+            }
+            else
+            {
+                // 没有 event_key 的事件直接添加（兜底）
+                ExistingInfoEvents.Add(NewEvt);
+            }
+        }
+    }
+    
+    // 如果有 abort/soft_abort 事件，处理运行时检查失败
+    if (!RuntimeResult.bAllPassed)
+    {
+        UE_LOG(LogMACommandManager, Warning, TEXT("    [RUNTIME CHECK FAILED] %s [%s]: %s"),
+            *Agent->AgentID, *CommandToString(Command),
+            RuntimeResult.FailedEvents.Num() > 0 ? *RuntimeResult.FailedEvents[0].Message : TEXT("Unknown"));
+        HandleRuntimeCheckFailure(Agent, Command, RuntimeResult);
+    }
+}
+
+void UMACommandManager::HandleRuntimeCheckFailure(AMACharacter* Agent, EMACommand Command, const FMAPrecheckResult& Result)
+{
+    if (!Agent || Result.FailedEvents.Num() == 0) return;
+    
+    // 防止重入：如果已经不在执行状态，忽略
+    if (!bIsExecuting) return;
+    
+    const FMARenderedEvent& FirstEvent = Result.FailedEvents[0];
+    
+    // 1) 停止运行时检查定时器
+    StopRuntimeCheckTimer(Agent);
+    
+    // 2) 取消技能列表中的技能（低电量返航是系统级技能，不取消）
+    if (UMASkillComponent* SkillComp = Agent->GetSkillComponent())
+    {
+        SkillComp->OnSkillCompleted.RemoveDynamic(this, &UMACommandManager::OnSkillCompleted);
+        if (!Agent->IsLowEnergyReturning())
+        {
+            SkillComp->CancelAllSkills();
+        }
+    }
+    
+    // 3) 构建突发事件反馈（与 HandlePrecheckFailure 格式一致）
+    FMASkillExecutionFeedback Feedback;
+    Feedback.AgentId = Agent->AgentID;
+    Feedback.SkillName = CommandToString(Command);
+    Feedback.bSuccess = false;
+    Feedback.Message = FirstEvent.Message;
+    
+    if (UMASkillComponent* SkillComp = Agent->GetSkillComponent())
+    {
+        const FMAFeedbackContext& Context = SkillComp->GetFeedbackContext();
+        if (!Context.TaskId.IsEmpty())
+        {
+            Feedback.Data.Add(TEXT("task_id"), Context.TaskId);
+        }
+    }
+    Feedback.Data.Add(TEXT("robot_id"), Agent->AgentID);
+    Feedback.Data.Add(TEXT("robot_label"), Agent->AgentLabel);
+    Feedback.Data.Add(TEXT("is_emergency_event"), TEXT("true"));
+    Feedback.Data.Add(TEXT("event_category"), FirstEvent.Category);
+    Feedback.Data.Add(TEXT("event_type"), FirstEvent.Type);
+    Feedback.Data.Add(TEXT("event_severity"), FMARenderedEvent::SeverityToString(FirstEvent.Severity));
+    Feedback.Data.Add(TEXT("event_key"), FirstEvent.Payload.FindRef(TEXT("event_key")));
+    
+    // 4) 添加到当前时间步反馈
+    CurrentTimeStepFeedback.SkillFeedbacks.Add(Feedback);
+    
+    // 5) 广播失败状态
+    UMATempDataManager* TempDataMgr = GetTempDataManager();
+    if (TempDataMgr)
+    {
+        TempDataMgr->BroadcastSkillStatusUpdate(CurrentTimeStep, Agent->AgentID, ESkillExecutionStatus::Failed);
+    }
+    
+    // 6) 发送当前时间步反馈并终止技能列表
+    SendTimeStepFeedbackToPython(CurrentTimeStepFeedback);
+    AllFeedbacks.Add(CurrentTimeStepFeedback);
+    
+    InterruptCurrentExecution();
+}
+
 void UMACommandManager::SendTimeStepFeedbackToPython(const FMATimeStepFeedback& Feedback)
 {
     FMATimeStepFeedbackMessage CommFeedback;
@@ -527,4 +931,34 @@ void UMACommandManager::SendSkillListCompletedFeedbackToPython(bool bCompleted, 
     }
     
     UE_LOG(LogMACommandManager, Log, TEXT("Sent skill list completed feedback: %s"), *Message.Message);
+}
+
+//=============================================================================
+// 场景图周期性同步
+//=============================================================================
+
+void UMACommandManager::StartSceneGraphSyncTimer()
+{
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().SetTimer(
+            SceneGraphSyncTimerHandle,
+            this, &UMACommandManager::OnSceneGraphSyncTick,
+            SceneGraphSyncIntervalSec,
+            true
+        );
+    }
+}
+
+void UMACommandManager::StopSceneGraphSyncTimer()
+{
+    if (UWorld* World = GetWorld())
+    {
+        World->GetTimerManager().ClearTimer(SceneGraphSyncTimerHandle);
+    }
+}
+
+void UMACommandManager::OnSceneGraphSyncTick()
+{
+    FMASceneGraphUpdater::SyncDynamicNodes(GetWorld());
 }

@@ -45,15 +45,11 @@ AMAUGVCharacter::AMAUGVCharacter()
     MovementComp->bOrientRotationToMovement = true;
     MovementComp->RotationRate = FRotator(0.f, 120.f, 0.f);
     
-    // UGV 胶囊体设置 - 适配小车尺寸
-    GetCapsuleComponent()->SetCapsuleSize(50.f, 30.f);  // 半径50，半高50
-    
     // 加载 UGV 模型
     static ConstructorHelpers::FObjectFinder<UStaticMesh> MeshAsset(
         TEXT("/Game/Robot/ugv1/D-21-dark1.D-21-dark1"));
     if (MeshAsset.Succeeded())
     {
-        // 创建静态网格组件来显示模型
         UGVMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("UGVMesh"));
         UGVMeshComponent->SetupAttachment(RootComponent);
         UGVMeshComponent->SetStaticMesh(MeshAsset.Object);
@@ -64,10 +60,6 @@ AMAUGVCharacter::AMAUGVCharacter()
         // 碰撞应该由 CapsuleComponent 统一处理，StaticMesh 仅用于视觉显示。
         // 详见文件顶部的注释说明。
         UGVMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-        
-        // 调整模型位置，使其底部与胶囊体底部对齐
-        UGVMeshComponent->SetRelativeLocation(FVector(0.f, 0.f, -50.f));
-        UGVMeshComponent->SetRelativeScale3D(FVector(1.f, 1.f, 1.f));
     }
     else
     {
@@ -78,6 +70,9 @@ AMAUGVCharacter::AMAUGVCharacter()
 void AMAUGVCharacter::BeginPlay()
 {
     Super::BeginPlay();
+    
+    // 根据 StaticMesh 自动调整胶囊体和 Mesh 位置（与 MACharacter::AutoFitCapsuleToMesh 类似）
+    AutoFitCapsuleToStaticMesh();
     
     if (SkillComponent)
     {
@@ -100,30 +95,6 @@ void AMAUGVCharacter::BeginPlay()
     else if (StateTreeComponent && !StateTreeComponent->IsStateTreeEnabled())
     {
         UE_LOG(LogTemp, Log, TEXT("[UGV %s] StateTree disabled, using direct skill activation"), *AgentID);
-    }
-}
-
-void AMAUGVCharacter::SnapToGround()
-{
-    FVector CurrentLocation = GetActorLocation();
-    FVector Start = CurrentLocation + FVector(0.f, 0.f, 1000.f);  // 从更高处开始
-    FVector End = Start - FVector(0.f, 0.f, 5000.f);  // 向下检测
-    
-    FHitResult HitResult;
-    FCollisionQueryParams Params;
-    Params.AddIgnoredActor(this);
-    
-    if (GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_WorldStatic, Params))
-    {
-        // 获取胶囊体半高，确保角色站在地面上
-        float CapsuleHalfHeight = GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
-        FVector NewLocation = FVector(CurrentLocation.X, CurrentLocation.Y, HitResult.Location.Z + CapsuleHalfHeight);
-        SetActorLocation(NewLocation);
-        UE_LOG(LogTemp, Log, TEXT("[UGV %s] Snapped to ground at Z=%.1f"), *AgentID, NewLocation.Z);
-    }
-    else
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[UGV %s] SnapToGround failed - no ground detected"), *AgentID);
     }
 }
 
@@ -158,51 +129,25 @@ bool AMAUGVCharacter::LoadCargo(AActor* Item)
     if (CarriedItems.Contains(Item)) return false;
     
     CarriedItems.Add(Item);
-    
-    // 附着到 UGV
     Item->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
     
-    // 计算 UGV 顶部甲板高度（相对于角色原点）
-    // 使用运行时世界边界，更准确
-    float DeckHeight = 0.f;
-    if (UGVMeshComponent)
-    {
-        // 获取 UGV 模型的世界边界
-        FVector MeshWorldLocation = UGVMeshComponent->GetComponentLocation();
-        FVector ActorLocation = GetActorLocation();
-        FBoxSphereBounds WorldBounds = UGVMeshComponent->Bounds;
-        
-        // 甲板高度 = 模型世界顶部 - 角色世界位置
-        float MeshTopZ = WorldBounds.Origin.Z + WorldBounds.BoxExtent.Z;
-        DeckHeight = MeshTopZ - ActorLocation.Z;
-        
-        UE_LOG(LogTemp, Log, TEXT("[UGV %s] Bounds: Origin.Z=%.1f, Extent.Z=%.1f, ActorZ=%.1f, DeckHeight=%.1f"), 
-            *AgentLabel, WorldBounds.Origin.Z, WorldBounds.BoxExtent.Z, ActorLocation.Z, DeckHeight);
-    }
-    else
-    {
-        // 回退：使用胶囊体顶部
-        DeckHeight = GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
-    }
+    // 计算货物放置高度
+    // 
+    // 坐标系说明：
+    // - GetActorLocation() 返回胶囊体中心位置（Actor 原点）
+    // - SetActorRelativeLocation() 设置相对于 Actor 原点的偏移
+    // - CargoDeckHeight 是甲板相对于 Actor 原点的高度（可为负值）
+    // - BottomOffset 是货物底部相对于货物原点的偏移（通常为负值）
+    //
+    // 最终高度 = CargoDeckHeight - BottomOffset
+    // 例如：CargoDeckHeight=-20, BottomOffset=-50 → 高度=-20-(-50)=30
     
-    float CargoHeight = DeckHeight;
-    
-    // 使用 IMAPickupItem 接口获取精确的底部偏移
+    float CargoHeight = CargoDeckHeight;
     if (IMAPickupItem* PickupItem = Cast<IMAPickupItem>(Item))
     {
-        float BottomOffset = PickupItem->GetBottomOffset();
-        CargoHeight = DeckHeight - BottomOffset;
-        
-        UE_LOG(LogTemp, Log, TEXT("[UGV %s] LoadCargo: %s, DeckHeight=%.1f, BottomOffset=%.1f, CargoHeight=%.1f"), 
-            *AgentLabel, *PickupItem->GetItemName(), DeckHeight, BottomOffset, CargoHeight);
-    }
-    else if (UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(Item->GetRootComponent()))
-    {
-        FVector BoundsExtent = PrimComp->Bounds.BoxExtent;
-        CargoHeight = DeckHeight + BoundsExtent.Z;
+        CargoHeight = CargoDeckHeight - PickupItem->GetBottomOffset();
     }
     
-    // 设置相对位置，并摆正姿态
     Item->SetActorRelativeLocation(FVector(0.f, 0.f, CargoHeight));
     Item->SetActorRelativeRotation(FRotator::ZeroRotator);
     
@@ -231,4 +176,39 @@ void AMAUGVCharacter::UnloadAllCargo()
     {
         UnloadCargo(Item);
     }
+}
+
+void AMAUGVCharacter::AutoFitCapsuleToStaticMesh()
+{
+    if (!UGVMeshComponent || !UGVMeshComponent->GetStaticMesh()) return;
+    
+    FBoxSphereBounds LocalBounds = UGVMeshComponent->GetStaticMesh()->GetBounds();
+    float ExtentX = LocalBounds.BoxExtent.X;
+    float ExtentY = LocalBounds.BoxExtent.Y;
+    float ExtentZ = LocalBounds.BoxExtent.Z;
+    
+    // 胶囊体尺寸：半径取 XY 平均值的 80%，半高取 Z 的 85%
+    // 注意：如果模型有天线等突出物，ExtentZ 会偏大，胶囊体会偏高
+    // 但这通常是可接受的，因为胶囊体主要用于碰撞检测
+    float Radius = (ExtentX + ExtentY) * 0.5f * 0.8f;
+    float HalfHeight = ExtentZ * 0.85f;
+    
+    Radius = FMath::Max(Radius, 10.f);
+    HalfHeight = FMath::Max(HalfHeight, Radius);
+    
+    GetCapsuleComponent()->SetCapsuleSize(Radius, HalfHeight);
+    
+    // Mesh 底部相对于 Mesh 原点的 Z 偏移
+    float MeshBottomZ = LocalBounds.Origin.Z - ExtentZ;
+    // Mesh 需要向下偏移，使其底部与胶囊体底部对齐
+    float MeshOffsetZ = -HalfHeight - MeshBottomZ;
+    
+    UGVMeshComponent->SetRelativeLocation(FVector(0.f, 0.f, MeshOffsetZ));
+    
+    // CargoDeckHeight 不自动计算，保持手动配置值
+    // 原因：GetBounds() 返回整个模型的包围盒（包括天线等突出物），
+    // 无法准确反映实际的货物放置面位置
+    
+    UE_LOG(LogTemp, Log, TEXT("[UGV] AutoFit: Capsule(R=%.1f, H=%.1f), MeshOffsetZ=%.1f, CargoDeckHeight=%.1f (manual)"),
+        Radius, HalfHeight, MeshOffsetZ, CargoDeckHeight);
 }

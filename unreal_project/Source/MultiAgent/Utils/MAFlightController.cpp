@@ -97,9 +97,10 @@ void FMAMultiRotorFlightController::UpdateFollowTarget(const FVector& NewTargetL
         TargetLocation.Z = MinFlightAltitude;
     }
 
-    if (State == EMAFlightControlState::Idle)
+    // 无论当前状态，直接进入 Flying（跟随模式不需要起飞流程）
+    if (State == EMAFlightControlState::Idle || State == EMAFlightControlState::Arrived)
     {
-        TakeOff(TargetLocation.Z);
+        SetState(EMAFlightControlState::Flying);
     }
     else if (State != EMAFlightControlState::TakingOff && State != EMAFlightControlState::Landing)
     {
@@ -136,9 +137,19 @@ void FMAMultiRotorFlightController::UpdateFlight(float DeltaTime)
         return;
     }
 
-    // 计算速度（距离越近速度越慢）
-    float TargetSpeed = FMath::Min(MaxFlightSpeed, Distance * 0.5f);
-    TargetSpeed = FMath::Max(100.f, TargetSpeed);
+    // 计算速度
+    float TargetSpeed;
+    if (bSmoothArrival)
+    {
+        // 平滑到达：距离越近速度越慢
+        TargetSpeed = FMath::Min(MaxFlightSpeed, Distance * 0.5f);
+        TargetSpeed = FMath::Max(100.f, TargetSpeed);
+    }
+    else
+    {
+        // 匀速飞行：保持最大速度，仅在非常接近时减速
+        TargetSpeed = (Distance < AcceptanceRadius * 2.f) ? FMath::Max(100.f, Distance * 0.5f) : MaxFlightSpeed;
+    }
     CurrentSpeed = FMath::FInterpTo(CurrentSpeed, TargetSpeed, DeltaTime, 2.f);
 
     // 计算移动方向（带避障）
@@ -237,6 +248,20 @@ FVector FMAMultiRotorFlightController::CalculateAvoidanceDirection(const FVector
         AvoidanceUrgency = 0.6f;
     else if (ForwardClearDist < FarDist)
         AvoidanceUrgency = 0.3f;
+
+    // 二次确认：用细射线区分"正面碰撞"和"擦过"
+    // 球形扫描命中但细射线未命中 → 只是擦过，降低紧急度
+    if (AvoidanceUrgency > 0.f)
+    {
+        FHitResult LineHit;
+        bool bLineHit = Owner->GetWorld()->LineTraceSingleByObjectType(
+            LineHit, CurrentLocation, CurrentLocation + DesiredDirection * FarDist,
+            ObjectParams, Params);
+        if (!bLineHit)
+        {
+            AvoidanceUrgency *= 0.2f;  // 擦过：大幅降低紧急度
+        }
+    }
 
     // 无需避障
     if (AvoidanceUrgency < 0.01f)

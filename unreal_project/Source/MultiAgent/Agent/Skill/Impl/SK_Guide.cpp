@@ -54,16 +54,10 @@ void USK_Guide::ActivateAbility(
                 MinFlightAltitude = ConfigMgr->GetFlightConfig().MinAltitude;
                 
                 const FMAFollowConfig& FollowCfg = ConfigMgr->GetFollowConfig();
-                if (FMath::IsNearlyEqual(FollowDistance, 300.f))
-                {
-                    FollowDistance = FollowCfg.Distance * 0.4f;
-                }
+                FollowDistance = FollowCfg.Distance * 0.4f;
                 
                 const FMAGroundNavigationConfig& GroundCfg = ConfigMgr->GetGroundNavigationConfig();
-                if (FMath::IsNearlyEqual(AcceptanceRadius, 200.f))
-                {
-                    AcceptanceRadius = GroundCfg.AcceptanceRadius;
-                }
+                AcceptanceRadius = GroundCfg.AcceptanceRadius;
 
                 // 加载 Guide 配置
                 const FMAGuideConfig& GuideCfg = ConfigMgr->GetGuideConfig();

@@ -21,10 +21,12 @@ config/
 ### simulation
 | 参数 | 说明 |
 |------|------|
+| `name` | 仿真名称 (仅用于标识) |
+| `version` | 配置版本号 |
 | `map_type` | 地图类型，对应 `maps/` 下的配置文件名 (如 `Downtown`, `SciFiModernCity`, `Port`) |
 | `run_mode` | 运行模式: `edit`(运行时修改，不保存) / `modify`(标注模式，保存到文件) |
-| `use_setup_ui` | 启动时显示设置界面 |
-| `use_state_tree` | 使用 StateTree 行为树 |
+| `use_setup_ui` | 启动时显示设置界面（已弃用） |
+| `use_state_tree` | 使用 StateTree 行为树（以弃用） |
 | `enable_energy_drain` | 启用能量消耗 |
 
 ### spawn_settings - 生成设置 (通用)
@@ -41,8 +43,12 @@ config/
 | `planner_url` | 规划器后端地址 |
 | `local_server_port` | 本地 HTTP 服务端口 |
 | `enable_local_server` | 启用本地服务器 |
-| `enable_polling` | 启用轮询 |
-| `poll_interval_seconds` | 轮询间隔(秒) |
+| `use_mock_data` | 使用模拟数据 (调试用) |
+| `debug_mode` | 调试模式 |
+| `enable_polling` | 启用任务轮询 |
+| `poll_interval_seconds` | 任务轮询间隔 (秒) |
+| `enable_hitl_polling` | 启用 HITL (Human-in-the-Loop) 轮询 |
+| `hitl_poll_interval_seconds` | HITL 轮询间隔 (秒) |
 
 ### navigation - 手动导航路径规划
 | 参数 | 说明 |
@@ -95,6 +101,31 @@ config/
 | `target_move_mode` | 被引导对象移动模式: `direct`(直接移动，无避障) / `navmesh`(导航服务，有避障) | navmesh |
 | `wait_distance_threshold` | 等待距离阈值 (cm) - 机器人与被引导对象距离超过此值时停下等待 | 500 |
 
+### handle_hazard - 处理危险参数 (HandleHazard 技能)
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `safe_distance` | 安全距离 (cm) - 机器人与危险源保持的距离 | 1000 |
+| `duration` | 处理持续时间 (秒) | 15 |
+| `spray_speed` | 喷射特效移动速度 (cm/s) | 800 |
+| `spray_width` | 喷射特效宽度 (倍数) | 1.0 |
+
+### take_photo - 拍照参数 (TakePhoto 技能)
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `photo_distance` | 拍照距离 (cm) - 机器人与目标的距离 | 800 |
+| `photo_duration` | 拍照持续时间 (秒) | 15 |
+| `camera_fov` | 相机视场角 (度) | 60 |
+| `camera_forward_offset` | 相机前向偏移 (cm) | 50 |
+
+### broadcast - 喊话参数 (Broadcast 技能)
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `broadcast_distance` | 喊话距离 (cm) - 机器人与目标的距离 | 800 |
+| `broadcast_duration` | 喊话持续时间 (秒) | 20 |
+| `effect_speed` | 声波特效移动速度 (cm/s) | 1000 |
+| `effect_width` | 声波特效宽度 (cm) | 1000 |
+| `shock_rate` | 声波震动频率 (Hz) | 3.0 |
+
 ---
 
 ## maps/{MapType}.json - 地图配置
@@ -121,30 +152,123 @@ config/
     {
       "type": "UAV/UGV/Quadruped/Humanoid",
       "instances": [
-        { "label": "UAV_01", "position": [x, y, z], "rotation": [p, y, r] }
+        {
+          "label": "UAV-1",
+          "position": [x, y, z],
+          "rotation": [pitch, yaw, roll],
+          "battery_level": 100
+        }
       ]
     }
   ]
 }
 ```
 
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `type` | 机器人类型: `UAV`, `UGV`, `Quadruped`, `Humanoid` | - |
+| `label` | 显示标签 | - |
+| `position` | 生成位置 [x, y, z] | - |
+| `rotation` | 生成朝向 [pitch, yaw, roll] | [0, 0, 0] |
+| `battery_level` | 初始电量 (0-100) | 100 |
+
 ### environment - 环境配置
 
-#### charging_stations - 充电站
-| 参数 | 说明 |
-|------|------|
-| `id` | 唯一标识 |
-| `label` | 显示名称 |
-| `position` | 位置 [x, y, z] |
+环境对象统一使用数组格式，每个对象包含以下通用字段：
 
-#### objects - 可拾取物品
-| 参数 | 说明 |
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `label` | 显示标签 (唯一标识) | - |
+| `type` | 对象类型 (见下表) | - |
+| `position` | 位置 [x, y, z] | - |
+| `rotation` | 朝向 [pitch, yaw, roll] | [0, 0, 0] |
+| `enabled` | 是否启用 | true |
+| `features` | 特征属性 (键值对) | {} |
+| `patrol` | 巡逻配置 (可选) | - |
+
+#### 支持的环境对象类型
+
+| type | 说明 | 特有 features |
+|------|------|---------------|
+| `charging_station` | 充电站 | - |
+| `cargo` | 可拾取货物 | `color`, `subtype` |
+| `person` | 行人 | `subtype`, `variant`, `gender`, `animation`, `clothing_color`, `crowd` |
+| `vehicle` | 车辆 | `subtype`, `color`, `is_fire`, `fire_scale`, `traffic_violation` |
+| `boat` | 船只 | `subtype`, `is_fire`, `is_spill` |
+| `fire` | 火焰特效 | `scale` |
+| `smoke` | 烟雾特效 | `scale`, `radius` |
+| `wind` | 强风特效 | `scale`, `radius` |
+| `assembly_component` | 组装组件 | `subtype` |
+
+#### features 详细说明
+
+**cargo (货物)**
+| 特征 | 说明 | 可选值 |
+|------|------|--------|
+| `color` | 颜色 | `red`, `blue`, `green`, `yellow`, 等 |
+| `subtype` | 子类型 | `box` |
+
+**person (行人)**
+| 特征 | 说明 | 可选值 |
+|------|------|--------|
+| `subtype` | 穿着风格 | `business`, `casual`, `sportive` |
+| `variant` | 变体编号 | `01`, `02`, `03`, ... |
+| `gender` | 性别 | `male`, `female` |
+| `animation` | 动画状态 | `idle`, `walk`, `talk` |
+| `clothing_color` | 服装颜色 | `yellow`, `beige`, `pink`, `brown`, 等 |
+| `crowd` | 是否为人群成员 | `true`, `false` |
+
+**vehicle (车辆)**
+| 特征 | 说明 | 可选值 |
+|------|------|--------|
+| `subtype` | 车型 | `sedan`, `suv`, `hatchback`, `crossover`, `wagon`, `sporty`, `van` |
+| `color` | 颜色 | `red`, `blue`, `silver`, `black`, `gray`, `orange`, `white` |
+| `is_fire` | 是否着火 | `true`, `false` |
+| `fire_scale` | 火焰大小 | 数字字符串，如 `"8"` |
+| `traffic_violation` | 是否违章 | `true`, `false` |
+
+**boat (船只)**
+| 特征 | 说明 | 可选值 |
+|------|------|--------|
+| `subtype` | 船型 | `lifeboat`, `metal_03`, 等 |
+| `is_fire` | 是否着火 | `true`, `false` |
+| `is_spill` | 是否泄漏 | `true`, `false` |
+
+**fire/smoke/wind (特效)**
+| 特征 | 说明 |
 |------|------|
-| `id` | 唯一标识 |
-| `label` | 显示名称 |
-| `type` | 类型 (如 `cargo`) |
-| `position` | 位置 [x, y, z] |
-| `features` | 特征属性 (color, subtype 等) |
+| `scale` | 特效缩放比例 |
+| `radius` | 影响半径 (cm) - 仅 smoke/wind |
+
+**assembly_component (组装组件)**
+| 特征 | 说明 | 可选值 |
+|------|------|--------|
+| `subtype` | 组件类型 | `solar_panel`, `antenna_module`, `address_speaker`, `stand` |
+
+#### patrol - 巡逻配置
+
+支持 `person`, `vehicle`, `boat` 类型的对象进行巡逻。
+
+```json
+{
+  "patrol": {
+    "enabled": true,
+    "waypoints": [
+      [x1, y1, z1],
+      [x2, y2, z2]
+    ],
+    "loop": true,
+    "wait_time": 2.0
+  }
+}
+```
+
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `enabled` | 是否启用巡逻 | false |
+| `waypoints` | 巡逻路径点数组 [[x,y,z], ...] | [] |
+| `loop` | 是否循环巡逻 | false |
+| `wait_time` | 每个路径点等待时间 (秒) | 0 |
 
 ---
 

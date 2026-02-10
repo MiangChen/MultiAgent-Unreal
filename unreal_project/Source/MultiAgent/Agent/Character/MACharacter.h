@@ -96,6 +96,22 @@ public:
     UFUNCTION(BlueprintPure, Category = "Energy")
     bool ShouldDrainEnergy() const;
 
+    /** 低电量自动返航（由 OnLowEnergy 触发） */
+    UFUNCTION()
+    void OnLowEnergyReturn();
+
+    /** 是否正在低电量返航中 */
+    UFUNCTION(BlueprintPure, Category = "Energy")
+    bool IsLowEnergyReturning() const { return bIsLowEnergyReturning; }
+
+    /** 暂停状态变化回调（用于延迟执行低电量返航） */
+    UFUNCTION()
+    void OnPauseStateChanged(bool bPaused);
+
+    /** 返航技能完成回调（清除低电量返航标记） */
+    UFUNCTION()
+    void OnReturnSkillCompleted(AMACharacter* Agent, bool bSuccess, const FString& Message);
+
     // ========== Sensor 管理 ==========
     UFUNCTION(BlueprintCallable, Category = "Sensor")
     UMACameraSensorComponent* AddCameraSensor(FVector RelativeLocation, FRotator RelativeRotation = FRotator::ZeroRotator);
@@ -140,5 +156,14 @@ protected:
 private:
     FString CurrentStatusText;
     float StatusDisplayEndTime = 0.f;
-    void UpdateStatusText();
+    void DrawStatusText();
+    
+    /** 是否有待执行的低电量返航 */
+    bool bPendingLowEnergyReturn = false;
+    
+    /** 是否正在执行低电量返航（用于条件检查豁免） */
+    bool bIsLowEnergyReturning = false;
+    
+    /** 执行低电量返航的实际逻辑 */
+    void ExecuteLowEnergyReturn();
 };
