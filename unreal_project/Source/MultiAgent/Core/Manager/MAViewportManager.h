@@ -41,6 +41,10 @@ struct FMAViewportCameraEntry
     // 外部摄像头
     UPROPERTY()
     ACameraActor* ExternalCamera = nullptr;
+
+    // 外部摄像头视角目标 (可能是 CameraActor 或弹簧臂 Actor)
+    UPROPERTY()
+    AActor* ViewTarget = nullptr;
     
     FString CameraName;
 };

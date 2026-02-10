@@ -7,10 +7,13 @@
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "Tickable.h"
+#include "GameFramework/Actor.h"
 #include "MAExternalCameraManager.generated.h"
 
 class AMACharacter;
 class ACameraActor;
+class USpringArmComponent;
+class UCameraComponent;
 
 // 外部摄像头类型
 UENUM(BlueprintType)
@@ -24,8 +27,10 @@ enum class EMAExternalCameraType : uint8
 UENUM(BlueprintType)
 enum class EMAFollowViewType : uint8
 {
-    Behind     UMETA(DisplayName = "Behind"),     // 身后视角
-    TopDown    UMETA(DisplayName = "TopDown")     // 头顶俯视
+    Behind          UMETA(DisplayName = "Behind"),          // 身后视角
+    TopDown         UMETA(DisplayName = "TopDown"),         // 头顶俯视
+    BehindElevated  UMETA(DisplayName = "BehindElevated"),  // 身后抬高俯视
+    BehindElevatedReverse UMETA(DisplayName = "BehindElevatedReverse") // 身后抬高俯视（反向，真正的身后）
 };
 
 // 外部摄像头配置
@@ -62,6 +67,22 @@ struct FMAExternalCameraConfig
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     float FollowDistance = 500.f;
 
+    // 跟随高度 (用于 BehindElevated 类型)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float FollowHeight = 100.f;
+
+    // 是否使用弹簧臂 (启用相机延迟)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    bool bUseSpringArm = false;
+
+    // 相机位置延迟速度 (仅弹簧臂模式)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float CameraLagSpeed = 10.f;
+
+    // 相机旋转延迟速度 (仅弹簧臂模式)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float CameraRotationLagSpeed = 10.f;
+
     // 视野角度
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     float FOV = 90.f;
@@ -78,6 +99,18 @@ struct FMAExternalCameraInstance
 
     UPROPERTY()
     ACameraActor* CameraActor = nullptr;
+
+    // 弹簧臂相机 Actor (用于带延迟的跟随相机)
+    UPROPERTY()
+    AActor* SpringArmCameraActor = nullptr;
+
+    // 弹簧臂组件引用
+    UPROPERTY()
+    USpringArmComponent* SpringArmComponent = nullptr;
+
+    // 相机组件引用
+    UPROPERTY()
+    UCameraComponent* CameraComponent = nullptr;
 
     UPROPERTY()
     TWeakObjectPtr<AMACharacter> TargetAgent;
@@ -124,6 +157,11 @@ public:
     UFUNCTION(BlueprintCallable, Category = "ExternalCamera")
     FString GetCameraName(int32 Index) const;
 
+    // 获取指定索引的视角目标 Actor (用于 SetViewTarget)
+    // 对于弹簧臂相机返回 SpringArmCameraActor，否则返回 CameraActor
+    UFUNCTION(BlueprintCallable, Category = "ExternalCamera")
+    AActor* GetViewTargetByIndex(int32 Index) const;
+
 private:
     // 外部摄像头列表
     UPROPERTY()
@@ -134,6 +172,9 @@ private:
 
     // 创建摄像头 Actor
     ACameraActor* CreateCameraActor(const FMAExternalCameraConfig& Config);
+
+    // 创建带弹簧臂的摄像头 Actor
+    AActor* CreateSpringArmCameraActor(const FMAExternalCameraConfig& Config, USpringArmComponent*& OutSpringArm, UCameraComponent*& OutCamera);
 
     // 更新跟随摄像头位置
     void UpdateFollowCameras();

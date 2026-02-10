@@ -51,12 +51,14 @@ void UMAViewportManager::CollectAllCameraEntries(TArray<FMAViewportCameraEntry>&
         int32 ExternalCount = ExternalCameraManager->GetExternalCameraCount();
         for (int32 i = 0; i < ExternalCount; ++i)
         {
-            ACameraActor* Camera = ExternalCameraManager->GetExternalCameraByIndex(i);
-            if (Camera)
+            // 获取视角目标（可能是 CameraActor 或弹簧臂 Actor）
+            AActor* ViewTarget = ExternalCameraManager->GetViewTargetByIndex(i);
+            if (ViewTarget)
             {
                 FMAViewportCameraEntry Entry;
                 Entry.Type = EMAViewportCameraType::ExternalCamera;
-                Entry.ExternalCamera = Camera;
+                Entry.ExternalCamera = ExternalCameraManager->GetExternalCameraByIndex(i);
+                Entry.ViewTarget = ViewTarget;
                 Entry.CameraName = ExternalCameraManager->GetCameraName(i);
                 OutEntries.Add(Entry);
             }
@@ -144,9 +146,11 @@ void UMAViewportManager::SwitchToNextCamera(APlayerController* PC)
         // 外部摄像头：退出 Agent View Mode，切换到摄像头视角
         ExitAgentViewMode();
         
-        if (Entry.ExternalCamera)
+        // 使用 ViewTarget（支持弹簧臂相机）
+        AActor* ViewTarget = Entry.ViewTarget ? Entry.ViewTarget : Entry.ExternalCamera;
+        if (ViewTarget)
         {
-            PC->SetViewTargetWithBlend(Entry.ExternalCamera, 0.3f);
+            PC->SetViewTargetWithBlend(ViewTarget, 0.3f);
             
             GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Yellow,
                 FString::Printf(TEXT("Camera: %s (%d/%d)"), 
