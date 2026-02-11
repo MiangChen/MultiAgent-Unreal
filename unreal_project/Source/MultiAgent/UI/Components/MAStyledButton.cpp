@@ -198,7 +198,7 @@ void UMAStyledButton::BuildUI()
     // 初始化颜色和圆角
     UpdateButtonColors();
     
-    // 应用圆角效果 (Requirements: 5.1)
+    // 应用圆角效果
     ApplyRoundedCornersToButton();
 
     UE_LOG(LogMAStyledButton, Log, TEXT("BuildUI: Button construction completed"));
@@ -260,7 +260,7 @@ void UMAStyledButton::ApplyTheme(UMAUITheme* InTheme)
         return;
     }
 
-    // 更新圆角半径 (Requirements: 5.2)
+    // 更新圆角半径
     CurrentCornerRadius = MARoundedBorderUtils::GetCornerRadiusForType(Theme, EMARoundedElementType::Button);
 
     // 应用字体
@@ -273,7 +273,7 @@ void UMAStyledButton::ApplyTheme(UMAUITheme* InTheme)
     // 更新颜色
     UpdateButtonColors();
     
-    // 应用圆角效果 (Requirements: 5.2)
+    // 应用圆角效果
     ApplyRoundedCornersToButton();
 
     UE_LOG(LogMAStyledButton, Log, TEXT("Theme applied to button with corner radius: %f"), CurrentCornerRadius);
@@ -288,7 +288,7 @@ void UMAStyledButton::UpdateButtonColors()
     BaseColor = GetBaseColorForStyle(ButtonStyle);
     HoverColor = GetHoverColorForStyle(ButtonStyle);
 
-    // 应用基础颜色到边框 - 使用圆角画刷 (Requirements: 5.1)
+    // 应用基础颜色到边框 - 使用圆角画刷
     if (ButtonBorder)
     {
         MARoundedBorderUtils::ApplyRoundedCorners(ButtonBorder, BaseColor, CurrentCornerRadius);
@@ -357,7 +357,7 @@ FLinearColor UMAStyledButton::GetHoverColorForStyle(EMAButtonStyle Style) const
 }
 
 //=============================================================================
-// 圆角应用 (Requirements: 5.1, 5.2, 5.3)
+// 圆角应用
 //=============================================================================
 
 void UMAStyledButton::ApplyRoundedCornersToButton()
@@ -432,7 +432,7 @@ void UMAStyledButton::ApplyAnimationState()
     Transform.Scale = FVector2D(1.0f, 1.0f);  // 缩放已通过 SetRenderScale 应用
     RootSizeBox->SetRenderTransform(Transform);
 
-    // 应用颜色色调到边框 - 使用圆角画刷保持圆角效果 (Requirements: 5.3)
+    // 应用颜色色调到边框 - 使用圆角画刷保持圆角效果
     if (ButtonBorder)
     {
         // 混合基础颜色和色调
@@ -449,7 +449,7 @@ void UMAStyledButton::ApplyAnimationState()
         // 应用色调
         FinalColor = FinalColor * CurrentAnimState.TintColor;
         
-        // 使用 MARoundedBorderUtils 应用圆角，确保悬停和按下状态保持圆角 (Requirements: 5.3)
+        // 使用 MARoundedBorderUtils 应用圆角，确保悬停和按下状态保持圆角
         MARoundedBorderUtils::ApplyRoundedCorners(ButtonBorder, FinalColor, CurrentCornerRadius);
     }
 
@@ -463,7 +463,7 @@ void UMAStyledButton::ApplyAnimationState()
 }
 
 //=============================================================================
-// 事件回调 - 微交互动画 (Requirements: 9.1, 9.2, 9.3, 9.4, 9.5)
+// 事件回调 - 微交互动画
 //=============================================================================
 
 void UMAStyledButton::OnButtonClicked()

@@ -123,10 +123,10 @@ void UMASkillAllocationViewer::NativeConstruct()
         }
     }
     
-    // Bind GanttCanvas drag events (Requirements 5.1)
+    // Bind GanttCanvas drag events
     if (GanttCanvas)
     {
-        // Bind drag started event (Requirements 7.1)
+        // Bind drag started event
         if (!GanttCanvas->OnDragStarted.IsAlreadyBound(this, &UMASkillAllocationViewer::OnGanttDragStarted))
         {
             GanttCanvas->OnDragStarted.AddDynamic(this, &UMASkillAllocationViewer::OnGanttDragStarted);
@@ -145,14 +145,14 @@ void UMASkillAllocationViewer::NativeConstruct()
             UE_LOG(LogMASkillAllocationViewer, Log, TEXT("GanttCanvas OnSkillDragCancelled event bound"));
         }
         
-        // Bind drag blocked event (Requirements 8.2)
+        // Bind drag blocked event
         if (!GanttCanvas->OnDragBlocked.IsAlreadyBound(this, &UMASkillAllocationViewer::OnGanttDragBlocked))
         {
             GanttCanvas->OnDragBlocked.AddDynamic(this, &UMASkillAllocationViewer::OnGanttDragBlocked);
             UE_LOG(LogMASkillAllocationViewer, Log, TEXT("GanttCanvas OnDragBlocked event bound"));
         }
         
-        // Bind drag failed event (Requirements 7.4)
+        // Bind drag failed event
         if (!GanttCanvas->OnDragFailed.IsAlreadyBound(this, &UMASkillAllocationViewer::OnGanttDragFailed))
         {
             GanttCanvas->OnDragFailed.AddDynamic(this, &UMASkillAllocationViewer::OnGanttDragFailed);
@@ -359,7 +359,7 @@ UBorder* UMASkillAllocationViewer::CreateTopPanel()
     UBorder* TopPanelBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("TopPanelBorder"));
     TopPanelBorder->SetPadding(FMargin(10.0f));
     
-    // Apply rounded corners using MARoundedBorderUtils (Requirements 4.2)
+    // Apply rounded corners using MARoundedBorderUtils
     MARoundedBorderUtils::ApplyRoundedCorners(TopPanelBorder, PanelBackgroundColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
     
     // 启用裁剪 - 确保内容不会溢出圆角边框
@@ -380,7 +380,7 @@ UBorder* UMASkillAllocationViewer::CreateBottomPanel()
     UBorder* BottomPanelBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("BottomPanelBorder"));
     BottomPanelBorder->SetPadding(FMargin(10.0f));
     
-    // Apply rounded corners using MARoundedBorderUtils (Requirements 4.2)
+    // Apply rounded corners using MARoundedBorderUtils
     MARoundedBorderUtils::ApplyRoundedCorners(BottomPanelBorder, PanelBackgroundColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
     
     // 启用裁剪 - 确保内容不会溢出圆角边框
@@ -1017,7 +1017,7 @@ void UMASkillAllocationViewer::OnTempSkillStatusUpdated(int32 TimeStep, const FS
 }
 
 //=============================================================================
-// Drag Event Handling (Requirements 5.1)
+// Drag Event Handling
 //=============================================================================
 
 void UMASkillAllocationViewer::OnGanttDragStarted(const FString& SkillName, int32 TimeStep, const FString& RobotId)
@@ -1026,7 +1026,7 @@ void UMASkillAllocationViewer::OnGanttDragStarted(const FString& SkillName, int3
         TEXT("OnGanttDragStarted: Skill=%s, TimeStep=%d, RobotId=%s"),
         *SkillName, TimeStep, *RobotId);
     
-    // 记录状态日志 (Requirements 7.1)
+    // 记录状态日志
     AppendStatusLog(FString::Printf(TEXT("[拖拽] 开始移动技能: %s (T%d, %s)"),
         *SkillName, TimeStep, *RobotId));
 }
@@ -1038,7 +1038,7 @@ void UMASkillAllocationViewer::OnGanttDragCompleted(int32 SourceTimeStep, const 
         TEXT("OnGanttDragCompleted: Skill moved from T%d/%s to T%d/%s"),
         SourceTimeStep, *SourceRobotId, TargetTimeStep, *TargetRobotId);
     
-    // 记录状态日志 (Requirements 7.2)
+    // 记录状态日志
     if (AllocationModel)
     {
         FMASkillAssignment Skill;
@@ -1057,7 +1057,7 @@ void UMASkillAllocationViewer::OnGanttDragCompleted(int32 SourceTimeStep, const 
     // 同步 JSON 编辑器
     SyncJsonEditorFromModel();
     
-    // 同步数据到临时文件 (Requirements 5.1)
+    // 同步数据到临时文件
     SyncDataToTempFile();
 }
 
@@ -1065,7 +1065,7 @@ void UMASkillAllocationViewer::OnGanttDragCancelled()
 {
     UE_LOG(LogMASkillAllocationViewer, Log, TEXT("OnGanttDragCancelled: Drag operation cancelled"));
     
-    // 记录状态日志 (Requirements 7.3)
+    // 记录状态日志
     AppendStatusLog(TEXT("[取消] 拖拽操作已取消"));
 }
 
@@ -1073,7 +1073,7 @@ void UMASkillAllocationViewer::OnGanttDragBlocked()
 {
     UE_LOG(LogMASkillAllocationViewer, Log, TEXT("OnGanttDragBlocked: Drag attempt blocked during execution"));
     
-    // 记录警告日志 (Requirements 8.2)
+    // 记录警告日志
     AppendStatusLog(TEXT("[警告] 执行期间无法修改技能分配"));
 }
 
@@ -1081,13 +1081,13 @@ void UMASkillAllocationViewer::OnGanttDragFailed()
 {
     UE_LOG(LogMASkillAllocationViewer, Log, TEXT("OnGanttDragFailed: Drag operation failed due to invalid target"));
     
-    // 记录失败日志 (Requirements 7.4)
+    // 记录失败日志
     AppendStatusLog(TEXT("[失败] 无法放置: 目标槽位已被占用"));
 }
 
 void UMASkillAllocationViewer::SyncDataToTempFile()
 {
-    // 获取 MATempDataManager (Requirements 5.1)
+    // 获取 MATempDataManager
     UGameInstance* GameInstance = UGameplayStatics::GetGameInstance(GetWorld());
     if (!GameInstance)
     {
@@ -1114,7 +1114,7 @@ void UMASkillAllocationViewer::SyncDataToTempFile()
     
     FMASkillAllocationData Data = AllocationModel->GetWorkingData();
     
-    // 验证数据完整性 (Requirements 5.2)
+    // 验证数据完整性
     if (Data.Data.Num() == 0)
     {
         AppendStatusLog(TEXT("[警告] 技能分配为空，跳过数据同步"));
@@ -1122,16 +1122,16 @@ void UMASkillAllocationViewer::SyncDataToTempFile()
         return;
     }
     
-    // 调用 SaveSkillAllocation() 保存数据 (Requirements 5.1)
+    // 调用 SaveSkillAllocation() 保存数据
     if (TempDataMgr->SaveSkillAllocation(Data))
     {
-        // 记录成功日志 (Requirements 5.4, 7.5)
+        // 记录成功日志
         AppendStatusLog(TEXT("[同步] 数据已保存到 skill_allocation_temp.json"));
         UE_LOG(LogMASkillAllocationViewer, Log, TEXT("SyncDataToTempFile: Data saved to skill_allocation_temp.json"));
     }
     else
     {
-        // 记录失败日志 (Requirements 5.3)
+        // 记录失败日志
         AppendStatusLog(TEXT("[错误] 文件写入失败，数据同步失败"));
         UE_LOG(LogMASkillAllocationViewer, Error, TEXT("SyncDataToTempFile: Failed to save data to temp file"));
     }

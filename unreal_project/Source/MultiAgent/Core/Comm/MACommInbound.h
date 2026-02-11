@@ -95,11 +95,11 @@ private:
     /** 处理索要用户指令消息 */
     void HandleRequestUserCommand(const TSharedPtr<FJsonObject>& PayloadObject);
 
-    /** 处理紧急事件消息
-     * @param PayloadObject 消息 payload
-     * Requirements: 2.1, 2.2, 2.3, 2.4, 2.5
+
+    /** 处理决策请求消息
+     * @param PayloadObject 消息 payload，包含 description, context, decision_type 字段
      */
-    void HandleEmergencyEvent(const TSharedPtr<FJsonObject>& PayloadObject);
+    void HandleDecision(const TSharedPtr<FJsonObject>& PayloadObject);
 
 private:
     /** 所属的通信子系统 */

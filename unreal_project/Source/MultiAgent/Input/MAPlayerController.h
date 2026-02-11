@@ -126,18 +126,10 @@ protected:
     // 切换技能分配查看器显示/隐藏 (N 键)
     void OnToggleSkillAllocationViewer(const FInputActionValue& Value);
 
-    // ========== 突发事件系统 ==========
-    // 触发/结束突发事件 ("-" 键)
-    void OnTriggerEmergency(const FInputActionValue& Value);
-    
-    // 切换突发事件详情界面 ("X" 键)
-    void OnToggleEmergencyUI(const FInputActionValue& Value);
-
     // 跳跃 (空格键)
     void OnJumpPressed(const FInputActionValue& Value);
 
     // ========== HUD 状态管理输入 (UI Visual Redesign) ==========
-    // Requirements: 10.4
 
     /** 处理检查任务图输入 (Z 键) - 调用 HUDStateManager::HandleCheckTaskInput */
     void OnCheckTask(const FInputActionValue& Value);
@@ -145,11 +137,11 @@ protected:
     /** 处理检查技能列表输入 (N 键) - 调用 HUDStateManager::HandleCheckSkillInput */
     void OnCheckSkill(const FInputActionValue& Value);
 
-    /** 处理检查突发事件输入 (X 键) - 调用 HUDStateManager::HandleCheckEmergencyInput */
-    void OnCheckUnexpected(const FInputActionValue& Value);
+
+    /** 处理检查决策输入 (9 键) - 调用 HUDStateManager::HandleCheckDecisionInput */
+    void OnCheckDecision(const FInputActionValue& Value);
 
     // ========== 右侧边栏面板切换 (Right Sidebar Panel Split) ==========
-    // Requirements: 4.5
 
     /** 切换系统日志面板 (6 键) */
     void OnToggleSystemLogPanel(const FInputActionValue& Value);
@@ -318,8 +310,6 @@ private:
     UPROPERTY()
     class UMAViewportManager* ViewportManager;
 
-    UPROPERTY()
-    class UMAEmergencyManager* EmergencyManager;
 
     UPROPERTY()
     class UMAEditModeManager* EditModeManager;

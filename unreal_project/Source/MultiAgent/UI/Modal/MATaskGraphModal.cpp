@@ -1,6 +1,5 @@
 // MATaskGraphModal.cpp
 // 任务图模态窗口实现
-// Requirements: 5.1, 5.3, 6.1, 6.4
 
 #include "MATaskGraphModal.h"
 #include "../Core/MAUITheme.h"

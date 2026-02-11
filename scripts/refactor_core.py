@@ -28,7 +28,6 @@ FILE_MAPPING = {
         "MASelectionManager.h", "MASelectionManager.cpp",
         "MASquadManager.h", "MASquadManager.cpp",
         "MAViewportManager.h", "MAViewportManager.cpp",
-        "MAEmergencyManager.h", "MAEmergencyManager.cpp",
     ],
     # Comm - 通信相关
     "Comm": [

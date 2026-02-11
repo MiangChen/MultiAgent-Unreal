@@ -79,6 +79,15 @@ void UMACommandManager::ExecuteSkillList(const FMASkillListMessage& SkillList)
         InterruptCurrentExecution();
     }
     
+    // 隐藏所有 Agent 的头顶气泡（新技能列表下发时清除旧消息）
+    if (UMAAgentManager* AgentMgr = GetWorld()->GetSubsystem<UMAAgentManager>())
+    {
+        for (AMACharacter* Agent : AgentMgr->GetAllAgents())
+        {
+            if (Agent) Agent->HideSpeechBubble();
+        }
+    }
+    
     UE_LOG(LogMACommandManager, Log, TEXT("ExecuteSkillList: %d time steps"), SkillList.TotalTimeSteps);
     
     bIsExecuting = true;
@@ -673,6 +682,9 @@ void UMACommandManager::HandlePrecheckFailure(AMACharacter* Agent, EMACommand Co
     Feedback.Data.Add(TEXT("event_severity"), FMARenderedEvent::SeverityToString(FirstEvent.Severity));
     Feedback.Data.Add(TEXT("event_key"), FirstEvent.Payload.FindRef(TEXT("event_key")));
     
+    // 显示头顶气泡消息
+    Agent->ShowSpeechBubble(FirstEvent.Message);
+    
     // 添加到当前时间步反馈
     CurrentTimeStepFeedback.SkillFeedbacks.Add(Feedback);
     
@@ -838,6 +850,9 @@ void UMACommandManager::HandleRuntimeCheckFailure(AMACharacter* Agent, EMAComman
     Feedback.Data.Add(TEXT("event_type"), FirstEvent.Type);
     Feedback.Data.Add(TEXT("event_severity"), FMARenderedEvent::SeverityToString(FirstEvent.Severity));
     Feedback.Data.Add(TEXT("event_key"), FirstEvent.Payload.FindRef(TEXT("event_key")));
+    
+    // 显示头顶气泡消息
+    Agent->ShowSpeechBubble(FirstEvent.Message);
     
     // 4) 添加到当前时间步反馈
     CurrentTimeStepFeedback.SkillFeedbacks.Add(Feedback);

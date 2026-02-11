@@ -1,7 +1,6 @@
 // MATaskGraphModal.h
 // 任务图模态窗口 - 用于查看和编辑任务 DAG
 // 继承自 MABaseModalWidget，提供任务图详细可视化
-// Requirements: 5.1, 5.3, 6.1, 6.4
 
 #pragma once
 
@@ -70,7 +69,6 @@ DECLARE_LOG_CATEGORY_EXTERN(LogMATaskGraphModal, Log, All);
  * │                    [Confirm] [Reject] [Edit]                        │
  * └─────────────────────────────────────────────────────────────────────┘
  * 
- * Requirements: 5.1, 5.3, 6.1, 6.4
  */
 UCLASS()
 class MULTIAGENT_API UMATaskGraphModal : public UMABaseModalWidget

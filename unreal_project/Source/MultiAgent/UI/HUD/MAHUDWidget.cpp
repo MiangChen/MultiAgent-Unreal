@@ -16,7 +16,6 @@ DEFINE_LOG_CATEGORY_STATIC(LogMAHUDWidget, Log, All);
 //=============================================================================
 namespace MAHUDColors
 {
-    static const FLinearColor Emergency = FLinearColor::Red;
     static const FLinearColor EditMode = FLinearColor(0.3f, 0.6f, 1.0f);    // 蓝色
     static const FLinearColor POI = FLinearColor(0.3f, 0.8f, 0.3f);         // 绿色
     static const FLinearColor Goal = FLinearColor(1.0f, 0.4f, 0.4f);        // 红色
@@ -35,7 +34,6 @@ UMAHUDWidget::UMAHUDWidget(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
     , Theme(nullptr)
     , RootCanvas(nullptr)
-    , EmergencyText(nullptr)
     , EditModeText(nullptr)
     , POIListText(nullptr)
     , GoalListText(nullptr)
@@ -119,35 +117,7 @@ void UMAHUDWidget::BuildUI()
     WidgetTree->RootWidget = RootCanvas;
 
     //=========================================================================
-    // Emergency 指示器 - 右上角
-    //=========================================================================
-    EmergencyText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("EmergencyText"));
-    EmergencyText->SetText(FText::FromString(TEXT("Emergency Event")));
-    // 使用 Theme 颜色（带 fallback）
-    FLinearColor EmergencyColor = Theme ? Theme->DangerColor : MAHUDColors::Emergency;
-    EmergencyText->SetColorAndOpacity(FSlateColor(EmergencyColor));
-
-    // 设置字体
-    FSlateFontInfo EmergencyFont = EmergencyText->GetFont();
-    EmergencyFont.Size = 24;
-    EmergencyText->SetFont(EmergencyFont);
-
-    // 设置描边 - 使用 Theme 阴影颜色（带 fallback）
-    EmergencyText->SetShadowOffset(FVector2D(1.0f, 1.0f));
-    FLinearColor ShadowColor = Theme ? Theme->ShadowColor : MAHUDColors::Outline;
-    EmergencyText->SetShadowColorAndOpacity(ShadowColor);
-
-    UCanvasPanelSlot* EmergencySlot = RootCanvas->AddChildToCanvas(EmergencyText);
-    EmergencySlot->SetAnchors(FAnchors(1.0f, 0.0f, 1.0f, 0.0f));  // 右上角
-    EmergencySlot->SetAlignment(FVector2D(1.0f, 0.0f));
-    EmergencySlot->SetPosition(FVector2D(-30.0f, 30.0f));
-    EmergencySlot->SetAutoSize(true);
-
-    // 默认隐藏
-    EmergencyText->SetVisibility(ESlateVisibility::Collapsed);
-
-    //=========================================================================
-    // Edit 模式指示器 - 右上角 (Emergency 下方)
+    // Edit 模式指示器 - 右上角
     //=========================================================================
     EditModeText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("EditModeText"));
     EditModeText->SetText(FText::FromString(TEXT("Mode: Edit (M)")));
@@ -286,38 +256,6 @@ void UMAHUDWidget::BuildUI()
 }
 
 
-//=============================================================================
-// Emergency 指示器
-//=============================================================================
-
-void UMAHUDWidget::ShowEmergencyIndicator()
-{
-    if (EmergencyText)
-    {
-        EmergencyText->SetVisibility(ESlateVisibility::Visible);
-        UE_LOG(LogMAHUDWidget, Log, TEXT("Emergency indicator shown"));
-    }
-}
-
-void UMAHUDWidget::HideEmergencyIndicator()
-{
-    if (EmergencyText)
-    {
-        EmergencyText->SetVisibility(ESlateVisibility::Collapsed);
-        UE_LOG(LogMAHUDWidget, Log, TEXT("Emergency indicator hidden"));
-    }
-}
-
-bool UMAHUDWidget::IsEmergencyIndicatorVisible() const
-{
-    if (EmergencyText)
-    {
-        return EmergencyText->GetVisibility() == ESlateVisibility::Visible;
-    }
-    return false;
-}
-
-//=============================================================================
 // Edit 模式指示器
 //=============================================================================
 
@@ -540,13 +478,6 @@ void UMAHUDWidget::ApplyTheme(UMAUITheme* InTheme)
 {
     Theme = InTheme;
     if (!Theme) return;
-
-    // 更新 Emergency 指示器颜色
-    if (EmergencyText)
-    {
-        EmergencyText->SetColorAndOpacity(FSlateColor(Theme->DangerColor));
-        EmergencyText->SetShadowColorAndOpacity(Theme->ShadowColor);
-    }
 
     // 更新 Edit 模式指示器颜色
     if (EditModeText)

@@ -62,16 +62,17 @@ bool UMAHUDStateManager::TransitionToState(EMAHUDState NewState, EMAModalType Mo
         : EMAModalType::None;
 
     // 如果进入模态状态，根据模态类型决定是否清除待处理通知
-    // 对于 Emergency Modal，不清除通知，因为用户可能只是查看然后关闭窗口
+    // 对于 Decision Modal，不清除通知，因为用户可能只是查看然后关闭窗口
+
     // 只有在用户点击 Confirm/Reject/Option 按钮时才清除通知
     if (NewState == EMAHUDState::ReviewModal || NewState == EMAHUDState::EditingModal)
     {
-        if (ModalType != EMAModalType::Emergency)
+        if (ModalType != EMAModalType::Decision)
         {
-            // 非 Emergency Modal，清除通知
+            // 非 Decision Modal，清除通知
             PendingNotification = EMANotificationType::None;
         }
-        // Emergency Modal 保留通知，直到用户确认/拒绝
+        // Decision Modal 保留通知，直到用户确认/拒绝
     }
 
     UE_LOG(LogMAHUDState, Log, TEXT("State transition: %s -> %s (Modal: %s, PendingNotification: %s)"),
@@ -211,7 +212,7 @@ void UMAHUDStateManager::HandleCheckTaskInput()
         *UEnum::GetValueAsString(ActiveModalType),
         IsModalActive() ? TEXT("true") : TEXT("false"));
 
-    // 如果任务图模态已打开，关闭它 (Requirements: 10.5)
+    // 如果任务图模态已打开，关闭它
     if (IsModalActive() && ActiveModalType == EMAModalType::TaskGraph)
     {
         UE_LOG(LogMAHUDState, Log, TEXT("HandleCheckTaskInput: TaskGraph modal is active, closing it"));
@@ -246,7 +247,7 @@ void UMAHUDStateManager::HandleCheckSkillInput()
         *UEnum::GetValueAsString(ActiveModalType),
         IsModalActive() ? TEXT("true") : TEXT("false"));
 
-    // 如果技能列表模态已打开，关闭它 (Requirements: 10.5)
+    // 如果技能列表模态已打开，关闭它
     if (IsModalActive() && ActiveModalType == EMAModalType::SkillAllocation)
     {
         UE_LOG(LogMAHUDState, Log, TEXT("HandleCheckSkillInput: SkillList modal is active, closing it"));
@@ -275,20 +276,18 @@ void UMAHUDStateManager::HandleCheckSkillInput()
     UE_LOG(LogMAHUDState, Log, TEXT("HandleCheckSkillInput: TransitionToState result: %s"), bSuccess ? TEXT("SUCCESS") : TEXT("FAILED"));
 }
 
-void UMAHUDStateManager::HandleCheckEmergencyInput()
+
+void UMAHUDStateManager::HandleCheckDecisionInput()
 {
-    UE_LOG(LogMAHUDState, Log, TEXT("HandleCheckEmergencyInput called, CurrentState: %s, ActiveModal: %s, PendingNotification: %s"),
+    UE_LOG(LogMAHUDState, Log, TEXT("HandleCheckDecisionInput called, CurrentState: %s, ActiveModal: %s, PendingNotification: %s"),
         *UEnum::GetValueAsString(CurrentState),
         *UEnum::GetValueAsString(ActiveModalType),
         *UEnum::GetValueAsString(PendingNotification));
 
-    // 如果突发事件模态已打开，只关闭窗口，不清除紧急状态
-    // 用户可以通过再次按 X 键重新打开窗口
-    if (IsModalActive() && ActiveModalType == EMAModalType::Emergency)
+    // 如果决策模态已打开，只关闭窗口，不清除决策状态
+    if (IsModalActive() && ActiveModalType == EMAModalType::Decision)
     {
-        UE_LOG(LogMAHUDState, Log, TEXT("HandleCheckEmergencyInput: Emergency modal is open, closing it (keeping emergency state)"));
-        // 只关闭 Modal，不调用 ReturnToNormalHUD（那会清除通知）
-        // 直接设置状态为 NotificationPending，保留通知
+        UE_LOG(LogMAHUDState, Log, TEXT("HandleCheckDecisionInput: Decision modal is open, closing it (keeping decision state)"));
         EMAHUDState OldState = CurrentState;
         SetState(EMAHUDState::NotificationPending);
         ActiveModalType = EMAModalType::None;
@@ -299,32 +298,27 @@ void UMAHUDStateManager::HandleCheckEmergencyInput()
     // 如果其他模态已打开，忽略输入
     if (IsModalActive())
     {
-        UE_LOG(LogMAHUDState, Log, TEXT("HandleCheckEmergencyInput: Input ignored - different modal is active"));
+        UE_LOG(LogMAHUDState, Log, TEXT("HandleCheckDecisionInput: Input ignored - different modal is active"));
         return;
     }
 
-    // 检查是否有待处理的紧急事件通知 - Requirements: 4.4, 4.5
-    // 只有当有紧急事件通知时才显示 Modal
-    if (PendingNotification != EMANotificationType::EmergencyEvent)
+    // 检查是否有待处理的决策通知
+    if (PendingNotification != EMANotificationType::DecisionUpdate)
     {
-        UE_LOG(LogMAHUDState, Log, TEXT("HandleCheckEmergencyInput: No pending emergency notification, ignoring input"));
+        UE_LOG(LogMAHUDState, Log, TEXT("HandleCheckDecisionInput: No pending decision notification, ignoring input"));
         return;
     }
 
-    // 注意：不清除紧急事件通知！通知应该保留直到用户点击 Confirm/Reject/Option 按钮
-    // PendingNotification = EMANotificationType::None;  // 移除这行
-
-    // 突发事件直接进入编辑模态 (Requirements: 6.2)
-    // 使用特殊的状态转换，不清除 PendingNotification
-    EMAHUDState OldState = CurrentState;
-    RecordTransition(OldState, EMAHUDState::EditingModal, EMAModalType::Emergency);
+    // 决策直接进入编辑模态（用户需要操作 Yes/No 按钮）
+    EMAHUDState OldDecisionState = CurrentState;
+    RecordTransition(OldDecisionState, EMAHUDState::EditingModal, EMAModalType::Decision);
     SetState(EMAHUDState::EditingModal);
-    ActiveModalType = EMAModalType::Emergency;
+    ActiveModalType = EMAModalType::Decision;
     
-    UE_LOG(LogMAHUDState, Log, TEXT("HandleCheckEmergencyInput: State transition: %s -> EditingModal (Modal: Emergency, keeping notification)"),
-        *UEnum::GetValueAsString(OldState));
+    UE_LOG(LogMAHUDState, Log, TEXT("HandleCheckDecisionInput: State transition: %s -> EditingModal (Modal: Decision)"),
+        *UEnum::GetValueAsString(OldDecisionState));
     
-    OnStateChanged.Broadcast(OldState, EMAHUDState::EditingModal);
+    OnStateChanged.Broadcast(OldDecisionState, EMAHUDState::EditingModal);
 }
 
 //=============================================================================
@@ -344,7 +338,7 @@ void UMAHUDStateManager::OnModalConfirm()
     UE_LOG(LogMAHUDState, Log, TEXT("Modal confirmed: %s"),
         *UEnum::GetValueAsString(ConfirmedModalType));
 
-    // 返回正常状态 (Requirements: 2.5, 7.2)
+    // 返回正常状态
     ReturnToNormalHUD();
 
     // 触发确认委托
@@ -364,7 +358,7 @@ void UMAHUDStateManager::OnModalReject()
     UE_LOG(LogMAHUDState, Log, TEXT("Modal rejected: %s"),
         *UEnum::GetValueAsString(RejectedModalType));
 
-    // 返回正常状态 (Requirements: 2.5, 6.6, 7.2)
+    // 返回正常状态
     ReturnToNormalHUD();
 
     // 触发拒绝委托
@@ -385,7 +379,7 @@ void UMAHUDStateManager::OnModalEdit()
     UE_LOG(LogMAHUDState, Log, TEXT("Modal edit requested: %s"),
         *UEnum::GetValueAsString(CurrentModalType));
 
-    // 转换到编辑模态 (Requirements: 6.1)
+    // 转换到编辑模态
     TransitionToState(EMAHUDState::EditingModal, CurrentModalType);
 
     // 触发编辑请求委托
@@ -424,8 +418,9 @@ EMAModalType UMAHUDStateManager::GetModalTypeForNotification(EMANotificationType
     case EMANotificationType::SkillListExecuting:
         return EMAModalType::SkillAllocation;
 
-    case EMANotificationType::EmergencyEvent:
-        return EMAModalType::Emergency;
+
+    case EMANotificationType::DecisionUpdate:
+        return EMAModalType::Decision;
 
     default:
         return EMAModalType::None;

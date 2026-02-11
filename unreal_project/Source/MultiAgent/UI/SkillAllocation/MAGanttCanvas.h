@@ -32,16 +32,16 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnGanttDragCompleted,
 /** 拖拽取消委托 - 当拖拽操作被取消时广播 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGanttSkillDragCancelled);
 
-/** 拖拽被阻止委托 - 当执行期间尝试拖拽时广播 (Requirements 8.2) */
+/** 拖拽被阻止委托 - 当执行期间尝试拖拽时广播 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGanttDragBlocked);
 
-/** 拖拽开始委托 - 当拖拽操作开始时广播 (Requirements 7.1) */
+/** 拖拽开始委托 - 当拖拽操作开始时广播 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnGanttDragStarted,
     const FString&, SkillName,
     int32, TimeStep,
     const FString&, RobotId);
 
-/** 拖拽失败委托 - 当拖拽操作因无效目标失败时广播 (Requirements 7.4) */
+/** 拖拽失败委托 - 当拖拽操作因无效目标失败时广播 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGanttDragFailed);
 
 //=============================================================================
@@ -123,7 +123,7 @@ public:
     void ClearSelection();
 
     //=========================================================================
-    // 拖拽控制 (Requirements 8.1, 8.3)
+    // 拖拽控制
     //=========================================================================
 
     /** 检查是否正在拖拽 */
@@ -154,15 +154,15 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "GanttCanvas|Drag")
     FOnGanttSkillDragCancelled OnSkillDragCancelled;
 
-    /** 拖拽被阻止事件 - 当执行期间尝试拖拽时广播 (Requirements 8.2) */
+    /** 拖拽被阻止事件 - 当执行期间尝试拖拽时广播 */
     UPROPERTY(BlueprintAssignable, Category = "GanttCanvas|Drag")
     FOnGanttDragBlocked OnDragBlocked;
 
-    /** 拖拽开始事件 - 当拖拽操作开始时广播 (Requirements 7.1) */
+    /** 拖拽开始事件 - 当拖拽操作开始时广播 */
     UPROPERTY(BlueprintAssignable, Category = "GanttCanvas|Drag")
     FOnGanttDragStarted OnDragStarted;
 
-    /** 拖拽失败事件 - 当拖拽操作因无效目标失败时广播 (Requirements 7.4) */
+    /** 拖拽失败事件 - 当拖拽操作因无效目标失败时广播 */
     UPROPERTY(BlueprintAssignable, Category = "GanttCanvas|Drag")
     FOnGanttDragFailed OnDragFailed;
 
@@ -212,7 +212,7 @@ protected:
     FLinearColor GetStatusColor(ESkillExecutionStatus Status) const;
 
     //=========================================================================
-    // 拖拽视觉渲染 (Requirements 1.2, 1.3, 1.5, 2.1, 2.2, 2.4)
+    // 拖拽视觉渲染
     //=========================================================================
 
     /**
@@ -260,7 +260,7 @@ protected:
     int32 ScreenToRobotIndex(float ScreenY) const;
 
     //=========================================================================
-    // 槽位查询和验证 (Requirements 2.1, 2.2, 2.3, 6.1)
+    // 槽位查询和验证
     //=========================================================================
 
     /**
@@ -290,7 +290,7 @@ protected:
     bool IsValidDropTarget(int32 TargetTimeStep, const FString& TargetRobotId) const;
 
     //=========================================================================
-    // 吸附计算 (Requirements 3.1, 3.2, 3.4, 3.5)
+    // 吸附计算
     //=========================================================================
 
     /**
@@ -442,7 +442,7 @@ protected:
     FLinearColor SelectionColor = FLinearColor(0.3f, 0.7f, 1.0f, 1.0f);
 
     //=========================================================================
-    // 拖拽状态 (Requirements 1.1, 8.1)
+    // 拖拽状态
     //=========================================================================
 
     /** 当前拖拽状态 */
@@ -464,7 +464,7 @@ protected:
     bool bDragEnabled = true;
 
     //=========================================================================
-    // 拖拽配置常量 (Requirements 1.1, 3.2)
+    // 拖拽配置常量
     //=========================================================================
 
     /** 拖拽启动阈值（像素）- 移动超过此距离才启动拖拽 */

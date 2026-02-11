@@ -17,7 +17,7 @@ class USizeBox;
 class UMAUITheme;
 
 //=============================================================================
-// 按钮样式枚举 (Requirements: 9.1, 9.2, 9.3, 9.4)
+// 按钮样式枚举
 //=============================================================================
 
 /**
@@ -92,7 +92,6 @@ struct FMAButtonAnimationState
  * - 点击时：缩放到 0.98
  * - 动画时长控制在 100ms 内
  * 
- * Requirements: 9.1, 9.2, 9.3, 9.4, 9.5
  */
 UCLASS()
 class MULTIAGENT_API UMAStyledButton : public UUserWidget
@@ -300,7 +299,7 @@ private:
     /** 获取样式对应的悬停颜色 */
     FLinearColor GetHoverColorForStyle(EMAButtonStyle Style) const;
 
-    /** 应用圆角效果到按钮边框 (Requirements: 5.1, 5.2, 5.3) */
+    /** 应用圆角效果到按钮边框 */
     void ApplyRoundedCornersToButton();
 
     //=========================================================================

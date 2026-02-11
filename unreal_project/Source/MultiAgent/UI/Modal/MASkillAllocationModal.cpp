@@ -1,6 +1,5 @@
 // MASkillAllocationModal.cpp
 // 技能列表模态窗口实现
-// Requirements: 5.2, 5.3, 5.4, 6.1, 6.4
 
 #include "MASkillAllocationModal.h"
 #include "../Core/MAUITheme.h"

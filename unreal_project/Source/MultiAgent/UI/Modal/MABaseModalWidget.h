@@ -56,7 +56,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnModalAnimationComplete);
  * - 重写 GetModalTitle 返回模态标题
  * - 在 ContentContainer 中添加自定义内容
  * 
- * Requirements: 8.1, 8.2, 8.3, 8.4, 8.5
  */
 UCLASS(Abstract)
 class MULTIAGENT_API UMABaseModalWidget : public UUserWidget
@@ -123,7 +122,7 @@ public:
     EMAModalType GetModalType() const { return ModalType; }
 
     //=========================================================================
-    // 动画控制 (Requirements: 5.6, 7.1, 7.4, 8.5)
+    // 动画控制
     //=========================================================================
 
     /**
@@ -354,7 +353,7 @@ private:
     void OnAnimationFinished();
 
     //=========================================================================
-    // 按钮回调 (Requirements: 5.4, 6.5)
+    // 按钮回调
     //=========================================================================
 
     /** 确认按钮点击回调 */

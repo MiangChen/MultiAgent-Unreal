@@ -24,7 +24,7 @@ UMANotificationWidget::UMANotificationWidget(const FObjectInitializer& ObjectIni
 }
 
 //=============================================================================
-// 通知控制 (Requirements: 4.1, 4.2, 4.3)
+// 通知控制
 //=============================================================================
 
 void UMANotificationWidget::ShowNotification(EMANotificationType Type)
@@ -85,7 +85,7 @@ void UMANotificationWidget::HideNotification()
 }
 
 //=============================================================================
-// 消息获取 (Requirements: 4.1, 4.2, 4.3)
+// 消息获取
 //=============================================================================
 
 FString UMANotificationWidget::GetNotificationMessage(EMANotificationType Type)
@@ -98,14 +98,14 @@ FString UMANotificationWidget::GetNotificationMessage(EMANotificationType Type)
             return TEXT("Skill List Updated");
         case EMANotificationType::SkillListExecuting:
             return TEXT("Skills Executing");
-        case EMANotificationType::EmergencyEvent:
-            return TEXT("Unexpected Situation Detected");
         case EMANotificationType::RequestUserCommand:
             return TEXT("Command Input Required");
         case EMANotificationType::SkillListPaused:
             return TEXT("Skill Execution Paused");
         case EMANotificationType::SkillListResumed:
             return TEXT("Skill Execution Resumed");
+        case EMANotificationType::DecisionUpdate:
+            return TEXT("Decision Required");
         default:
             return TEXT("");
     }
@@ -121,14 +121,14 @@ FString UMANotificationWidget::GetKeyHint(EMANotificationType Type)
             return TEXT("Press 'N' to review Skill List");
         case EMANotificationType::SkillListExecuting:
             return TEXT("Skills are currently being executed");
-        case EMANotificationType::EmergencyEvent:
-            return TEXT("Press 'X' to check Unexpected Situation");
         case EMANotificationType::RequestUserCommand:
             return TEXT("Please enter command in the right sidebar");
         case EMANotificationType::SkillListPaused:
             return TEXT("Press 'P' to resume execution");
         case EMANotificationType::SkillListResumed:
             return TEXT("Skills are continuing to execute");
+        case EMANotificationType::DecisionUpdate:
+            return TEXT("Press '9' to review Decision");
         default:
             return TEXT("");
     }
@@ -460,16 +460,6 @@ FLinearColor UMANotificationWidget::GetBackgroundColorForType(EMANotificationTyp
             }
             return FLinearColor(0.22f, 0.20f, 0.12f, 0.95f);
 
-        case EMANotificationType::EmergencyEvent:
-            // 红色调 - 突发事件
-            if (Theme)
-            {
-                FLinearColor Color = Theme->DangerColor;
-                Color.A = 0.95f;
-                return Color * 0.3f + FLinearColor(0.1f, 0.1f, 0.12f, 0.95f) * 0.7f;
-            }
-            return FLinearColor(0.22f, 0.12f, 0.12f, 0.95f);
-
         case EMANotificationType::RequestUserCommand:
             // 蓝色调 - 索要用户指令
             return FLinearColor(0.1f, 0.3f, 0.6f, 0.9f);
@@ -493,6 +483,16 @@ FLinearColor UMANotificationWidget::GetBackgroundColorForType(EMANotificationTyp
                 return Color * 0.3f + FLinearColor(0.1f, 0.1f, 0.12f, 0.95f) * 0.7f;
             }
             return FLinearColor(0.12f, 0.20f, 0.14f, 0.95f);
+
+        case EMANotificationType::DecisionUpdate:
+            // 橙色/琥珀色调 - 决策请求（需要用户注意）
+            if (Theme)
+            {
+                FLinearColor Color = Theme->WarningColor;
+                Color.A = 0.95f;
+                return Color * 0.35f + FLinearColor(0.1f, 0.1f, 0.12f, 0.95f) * 0.65f;
+            }
+            return FLinearColor(0.24f, 0.19f, 0.10f, 0.95f);
 
         default:
             // 默认深色背景

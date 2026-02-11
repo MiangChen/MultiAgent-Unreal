@@ -12,15 +12,12 @@
 #include "../Legacy/MASimpleMainWidget.h"
 #include "../Modal/MATaskGraphModal.h"
 #include "../Modal/MASkillAllocationModal.h"
-#include "../Modal/MAEmergencyModal.h"
 #include "../TaskGraph/MATaskPlannerWidget.h"
 #include "../SkillAllocation/MASkillAllocationViewer.h"
 #include "../Components/MADirectControlIndicator.h"
 #include "../Components/MAMiniMapWidget.h"
-// 右侧边栏拆分面板 (Requirements: 5.1)
 #include "../Components/MAInstructionPanel.h"
 #include "../../Core/Types/MATaskGraphTypes.h"
-#include "../Mode/MAEmergencyWidget.h"
 #include "../Mode/MAModifyWidget.h"
 #include "../Mode/MAEditWidget.h"
 #include "../Mode/MASceneListWidget.h"
@@ -29,7 +26,6 @@
 #include "../../Core/Comm/MACommTypes.h"
 #include "../../Core/Types/MASimTypes.h"
 #include "../../Core/MASubsystem.h"
-#include "../../Core/Manager/MAEmergencyManager.h"
 #include "../../Core/Manager/MAEditModeManager.h"
 #include "../../Core/Manager/MASceneGraphManager.h"
 #include "../../Core/Manager/ue_tools/MAUESceneApplier.h"
@@ -81,7 +77,7 @@ void AMAHUD::BeginPlay()
             
             UIManager->Initialize(PC);
             
-            // 加载并应用主题 (Requirements: 1.4)
+            // 加载并应用主题
             UIManager->LoadTheme(UIThemeAsset);
             UE_LOG(LogMAHUD, Log, TEXT("UI Theme loaded"));
             
@@ -104,8 +100,6 @@ void AMAHUD::BeginPlay()
     // 绑定 PlayerController 事件
     BindControllerEvents();
 
-    // 绑定 EmergencyManager 事件
-    BindEmergencyManagerEvents();
 
     // 绑定 EditModeManager 事件
     BindEditModeManagerEvents();
@@ -113,7 +107,7 @@ void AMAHUD::BeginPlay()
     // 绑定 EditWidget 委托
     BindEditWidgetDelegates();
     
-    // 绑定后端事件到 HUD 状态管理器 (Requirements: 4.1, 4.2, 4.3, 12.1)
+    // 绑定后端事件到 HUD 状态管理器
     BindBackendEvents();
 }
 
@@ -189,197 +183,11 @@ void AMAHUD::ToggleSemanticMap()
     UE_LOG(LogMAHUD, Log, TEXT("SemanticMap toggled via UIManager"));
 }
 
-void AMAHUD::ShowEmergencyWidget()
-{
-    UE_LOG(LogMAHUD, Warning, TEXT("========== ShowEmergencyWidget called =========="));
-    
-    if (!UIManager)
-    {
-        UE_LOG(LogMAHUD, Warning, TEXT("ShowEmergencyWidget: UIManager is null"));
-        return;
-    }
-
-    // 注意：旧的 EmergencyWidget 已被弃用，不再显示
-    // 相机视图功能已移植到 EmergencyModal 中
-    // 此方法保留仅用于兼容性，实际显示由 HUDStateManager 控制 EmergencyModal
-    
-    // 重要：不再在这里更新相机源！
-    // 相机源已经在 MAUIManager::OnEmergencyEventReceived 中设置
-    // 如果在这里再次调用 UpdateEmergencyCameraSource，可能会因为 SourceAgent 为 nullptr 而清除相机
-    
-    // 只有当相机源尚未设置时，才尝试设置
-    FMASubsystem Subs = MA_SUBS;
-    if (Subs.EmergencyManager && Subs.EmergencyManager->IsEventActive())
-    {
-        AMACharacter* SourceAgent = Subs.EmergencyManager->GetSourceAgent();
-        UE_LOG(LogMAHUD, Warning, TEXT("ShowEmergencyWidget: SourceAgent=%s"), 
-            SourceAgent ? *SourceAgent->AgentID : TEXT("nullptr"));
-        
-        if (SourceAgent)
-        {
-            UMACameraSensorComponent* Camera = SourceAgent->GetCameraSensor();
-            UE_LOG(LogMAHUD, Warning, TEXT("ShowEmergencyWidget: Camera=%s"), 
-                Camera ? TEXT("Valid") : TEXT("nullptr"));
-            if (Camera)
-            {
-                UpdateEmergencyCameraSource(Camera);
-            }
-            // 如果 Camera 为 nullptr，不清除已有的相机源
-        }
-        // 如果 SourceAgent 为 nullptr，不清除已有的相机源
-        // 相机源可能已经在 OnEmergencyEventReceived 中设置好了
-    }
-    else
-    {
-        UE_LOG(LogMAHUD, Warning, TEXT("ShowEmergencyWidget: EmergencyManager not active or null"));
-    }
-
-    UE_LOG(LogMAHUD, Log, TEXT("ShowEmergencyWidget: Done"));
-}
-
-void AMAHUD::HideEmergencyWidget()
-{
-    UE_LOG(LogMAHUD, Warning, TEXT("========== HideEmergencyWidget called =========="));
-    
-    if (!UIManager)
-    {
-        UE_LOG(LogMAHUD, Warning, TEXT("HideEmergencyWidget: UIManager is null"));
-        return;
-    }
-
-    // 注意：旧的 EmergencyWidget 已被弃用
-    // 清除相机源
-    UpdateEmergencyCameraSource(nullptr);
-
-    UE_LOG(LogMAHUD, Log, TEXT("HideEmergencyWidget: Camera source cleared (old widget deprecated)"));
-}
-
-void AMAHUD::ToggleEmergencyWidget()
-{
-    if (IsEmergencyWidgetVisible())
-    {
-        HideEmergencyWidget();
-    }
-    else
-    {
-        ShowEmergencyWidget();
-    }
-}
-
-bool AMAHUD::IsEmergencyWidgetVisible() const
-{
-    // 注意：旧的 EmergencyWidget 已被弃用
-    // 检查 EmergencyModal 是否可见
-    if (!UIManager)
-    {
-        return false;
-    }
-    
-    UMAEmergencyModal* EmergencyModal = UIManager->GetEmergencyModal();
-    if (EmergencyModal)
-    {
-        return EmergencyModal->IsVisible();
-    }
-    
-    return false;
-}
-
-void AMAHUD::UpdateEmergencyCameraSource(UMACameraSensorComponent* Camera)
-{
-    UE_LOG(LogMAHUD, Warning, TEXT("========== UpdateEmergencyCameraSource called, Camera=%s =========="),
-        Camera ? TEXT("Valid") : TEXT("nullptr"));
-    
-    if (!UIManager)
-    {
-        UE_LOG(LogMAHUD, Warning, TEXT("UpdateEmergencyCameraSource: UIManager is null"));
-        return;
-    }
-
-    // 更新旧的 EmergencyWidget（如果存在）
-    UMAEmergencyWidget* EmergencyWidget = UIManager->GetEmergencyWidget();
-    if (EmergencyWidget)
-    {
-        if (Camera)
-        {
-            EmergencyWidget->SetCameraSource(Camera);
-        }
-        else
-        {
-            EmergencyWidget->ClearCameraSource();
-        }
-    }
-
-    // 更新新的 EmergencyModal
-    UMAEmergencyModal* EmergencyModal = UIManager->GetEmergencyModal();
-    if (EmergencyModal)
-    {
-        if (Camera)
-        {
-            EmergencyModal->SetCameraSource(Camera);
-            UE_LOG(LogMAHUD, Log, TEXT("EmergencyModal camera source updated"));
-        }
-        else
-        {
-            UE_LOG(LogMAHUD, Warning, TEXT("UpdateEmergencyCameraSource: Clearing camera source (Camera is nullptr)"));
-            EmergencyModal->ClearCameraSource();
-            UE_LOG(LogMAHUD, Log, TEXT("EmergencyModal camera source cleared"));
-        }
-    }
-}
-
-//=============================================================================
-// Emergency Indicator
-//=============================================================================
-
-void AMAHUD::ShowEmergencyIndicator()
-{
-    if (bShowEmergencyIndicator)
-    {
-        return;  // Already shown
-    }
-
-    bShowEmergencyIndicator = true;
-
-    // 委托到 HUDWidget
-    if (UIManager)
-    {
-        UMAHUDWidget* HUDWidget = UIManager->GetHUDWidget();
-        if (HUDWidget)
-        {
-            HUDWidget->ShowEmergencyIndicator();
-        }
-    }
-
-    UE_LOG(LogMAHUD, Log, TEXT("Emergency indicator shown"));
-}
-
-void AMAHUD::HideEmergencyIndicator()
-{
-    if (!bShowEmergencyIndicator)
-    {
-        return;  // Already hidden
-    }
-
-    bShowEmergencyIndicator = false;
-
-    // 委托到 HUDWidget
-    if (UIManager)
-    {
-        UMAHUDWidget* HUDWidget = UIManager->GetHUDWidget();
-        if (HUDWidget)
-        {
-            HUDWidget->HideEmergencyIndicator();
-        }
-    }
-
-    UE_LOG(LogMAHUD, Log, TEXT("Emergency indicator hidden"));
-}
 
 void AMAHUD::DrawHUD()
 {
     Super::DrawHUD();
 
-    // Emergency 指示器已迁移到 HUDWidget，不再使用 Canvas 绘制
 
     // Draw scene labels (Modify mode) - 保留，使用 DrawDebugString (世界空间)
     DrawSceneLabels();
@@ -537,28 +345,6 @@ void AMAHUD::OnRefocusMainUI()
     }
 }
 
-void AMAHUD::OnEmergencyStateChanged(bool bIsActive)
-{
-    UE_LOG(LogMAHUD, Warning, TEXT("========== OnEmergencyStateChanged: %s =========="), bIsActive ? TEXT("Active") : TEXT("Inactive"));
-
-    if (bIsActive)
-    {
-        ShowEmergencyIndicator();
-    }
-    else
-    {
-        HideEmergencyIndicator();
-        
-        // 如果 Widget 可见且事件结束，清除相机源（显示黑屏）
-        if (IsEmergencyWidgetVisible())
-        {
-            UE_LOG(LogMAHUD, Warning, TEXT("OnEmergencyStateChanged: EmergencyWidget is visible, clearing camera source"));
-            UpdateEmergencyCameraSource(nullptr);
-        }
-    }
-}
-
-//=============================================================================
 // 内部方法
 //=============================================================================
 
@@ -593,7 +379,6 @@ void AMAHUD::BindWidgetDelegates()
     }
 
     // 绑定 InstructionPanel 委托 (Command Input in panel)
-    // 替代原来的 RightSidebarWidget 委托绑定 (Requirements: 5.1)
     UMAInstructionPanel* InstructionPanel = UIManager->GetInstructionPanel();
     if (InstructionPanel)
     {
@@ -665,27 +450,6 @@ void AMAHUD::BindControllerEvents()
     MAPC->OnModifyActorsSelected.AddDynamic(this, &AMAHUD::OnModifyActorsSelected);
     UE_LOG(LogMAHUD, Log, TEXT("BindControllerEvents: Bound OnModifyActorsSelected delegate"));
     UE_LOG(LogMAHUD, Log, TEXT("BindControllerEvents: Ready to bind when MAPlayerController delegates are available"));
-}
-
-void AMAHUD::BindEmergencyManagerEvents()
-{
-    FMASubsystem Subs = MA_SUBS;
-    if (!Subs.EmergencyManager)
-    {
-        UE_LOG(LogMAHUD, Warning, TEXT("BindEmergencyManagerEvents: EmergencyManager not found"));
-        return;
-    }
-
-    // 绑定事件状态变化委托
-    Subs.EmergencyManager->OnEmergencyStateChanged.AddDynamic(this, &AMAHUD::OnEmergencyStateChanged);
-    
-    UE_LOG(LogMAHUD, Log, TEXT("BindEmergencyManagerEvents: Bound to EmergencyManager"));
-
-    // 同步当前状态 (如果 HUD 创建时事件已经激活)
-    if (Subs.EmergencyManager->IsEventActive())
-    {
-        ShowEmergencyIndicator();
-    }
 }
 
 AMAPlayerController* AMAHUD::GetMAPlayerController() const
@@ -980,7 +744,7 @@ bool AMAHUD::IsMouseOverEditWidget() const
 }
 
 //=============================================================================
-// System Log Panel 控制 (Requirements: 4.6)
+// System Log Panel 控制
 //=============================================================================
 
 void AMAHUD::ShowSystemLogPanel()
@@ -1046,7 +810,7 @@ bool AMAHUD::IsSystemLogPanelVisible() const
 }
 
 //=============================================================================
-// Preview Panel 控制 (Requirements: 4.6)
+// Preview Panel 控制
 //=============================================================================
 
 void AMAHUD::ShowPreviewPanel()
@@ -1112,7 +876,7 @@ bool AMAHUD::IsPreviewPanelVisible() const
 }
 
 //=============================================================================
-// Instruction Panel 控制 (Requirements: 4.6)
+// Instruction Panel 控制
 //=============================================================================
 
 void AMAHUD::ShowInstructionPanel()
@@ -1200,7 +964,6 @@ bool AMAHUD::IsMouseOverRightSidebar() const
     // 检查右侧边栏区域 (新的三个独立面板)
     // 面板布局: 锚点 TopRight, 宽度 480, 右边距 20
     // 实际屏幕区域: X 从 (ViewportSizeX - 20 - 480) 到 (ViewportSizeX - 20)
-    // Requirements: 5.1 - 使用新的拆分面板替代 RightSidebarWidget
     
     // 检查任一面板是否可见
     bool bAnyPanelVisible = false;
@@ -1255,8 +1018,7 @@ bool AMAHUD::IsMouseOverPersistentUI() const
         return false;
     }
 
-    // 检查右侧边栏区域 (新的三个独立面板)
-    // Requirements: 5.1 - 使用新的拆分面板替代 RightSidebarWidget
+    // 检查右侧边栏区域
     bool bAnyPanelVisible = false;
     if (UIManager)
     {
@@ -2577,7 +2339,7 @@ void AMAHUD::OnSceneListZoneClicked(const FString& ZoneId)
 }
 
 //=============================================================================
-// 后端事件绑定 (Requirements: 4.1, 4.2, 4.3, 12.1)
+// 后端事件绑定
 //=============================================================================
 
 void AMAHUD::BindBackendEvents()
@@ -2619,22 +2381,8 @@ void AMAHUD::BindBackendEvents()
         UE_LOG(LogMAHUD, Warning, TEXT("BindBackendEvents: CommSubsystem not found"));
     }
 
-    // EmergencyManager 事件已在 BindEmergencyManagerEvents() 中绑定
-    // 这里额外绑定到 HUD 状态管理器的通知系统 (Requirements: 4.3, 12.1)
-    FMASubsystem Subs = MA_SUBS;
-    if (Subs.EmergencyManager && UIManager)
-    {
-        UMAHUDStateManager* StateManager = UIManager->GetHUDStateManager();
-        if (StateManager)
-        {
-            // 当紧急事件触发时，显示通知
-            // 注意：OnEmergencyStateChanged 已在 BindEmergencyManagerEvents 中绑定到 OnEmergencyStateChanged
-            // 这里我们在 OnEmergencyStateChanged 回调中处理通知显示
-            UE_LOG(LogMAHUD, Log, TEXT("BindBackendEvents: EmergencyManager events will trigger notifications via OnEmergencyStateChanged"));
-        }
-    }
 
-    // 绑定模态窗口委托 (Requirements: 7.2, 7.3, 12.6)
+    // 绑定模态窗口委托
     BindModalDelegates();
 
     UE_LOG(LogMAHUD, Log, TEXT("BindBackendEvents: Backend events bound"));
@@ -2655,14 +2403,14 @@ void AMAHUD::BindModalDelegates()
         return;
     }
 
-    // 绑定模态确认委托 (Requirements: 7.2, 7.3, 12.6)
+    // 绑定模态确认委托
     if (!StateManager->OnModalConfirmed.IsAlreadyBound(this, &AMAHUD::OnModalConfirmedHandler))
     {
         StateManager->OnModalConfirmed.AddDynamic(this, &AMAHUD::OnModalConfirmedHandler);
         UE_LOG(LogMAHUD, Log, TEXT("BindModalDelegates: Bound OnModalConfirmed"));
     }
 
-    // 绑定模态拒绝委托 (Requirements: 7.2, 7.3, 12.6)
+    // 绑定模态拒绝委托
     if (!StateManager->OnModalRejected.IsAlreadyBound(this, &AMAHUD::OnModalRejectedHandler))
     {
         StateManager->OnModalRejected.AddDynamic(this, &AMAHUD::OnModalRejectedHandler);
@@ -2673,7 +2421,7 @@ void AMAHUD::BindModalDelegates()
 }
 
 //=============================================================================
-// 后端事件回调 (Requirements: 4.1, 4.2, 4.3)
+// 后端事件回调
 //=============================================================================
 
 void AMAHUD::OnTaskGraphReceived(const FMATaskPlan& TaskPlan)
@@ -2686,7 +2434,7 @@ void AMAHUD::OnTaskGraphReceived(const FMATaskPlan& TaskPlan)
         return;
     }
 
-    // 显示任务图更新通知 (Requirements: 4.1)
+    // 显示任务图更新通知
     UMAHUDStateManager* StateManager = UIManager->GetHUDStateManager();
     if (StateManager)
     {
@@ -2735,7 +2483,7 @@ void AMAHUD::OnSkillListReceived(const FMASkillListMessage& SkillList, bool bExe
         return;
     }
 
-    // 显示通知 (Requirements: 4.2)
+    // 显示通知
     UMAHUDStateManager* StateManager = UIManager->GetHUDStateManager();
     if (StateManager)
     {
@@ -2763,7 +2511,7 @@ void AMAHUD::OnSkillListReceived(const FMASkillListMessage& SkillList, bool bExe
 }
 
 //=============================================================================
-// 模态操作回调 (Requirements: 7.2, 7.3, 12.6)
+// 模态操作回调
 //=============================================================================
 
 void AMAHUD::OnModalConfirmedHandler(EMAModalType ModalType)
@@ -2776,7 +2524,7 @@ void AMAHUD::OnModalConfirmedHandler(EMAModalType ModalType)
     {
     case EMAModalType::TaskGraph:
         {
-            // 提交任务图到后端 (Requirements: 7.3)
+            // 提交任务图到后端
             UGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
             if (GI)
             {
@@ -2800,7 +2548,7 @@ void AMAHUD::OnModalConfirmedHandler(EMAModalType ModalType)
 
     case EMAModalType::SkillAllocation:
         {
-            // 发送技能分配审阅响应到后端 (Requirements: 5.4)
+            // 发送技能分配审阅响应到后端
             UGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
             if (GI)
             {
@@ -2818,34 +2566,6 @@ void AMAHUD::OnModalConfirmedHandler(EMAModalType ModalType)
                             TEXT("")   // 无拒绝原因
                         );
                         UE_LOG(LogMAHUD, Log, TEXT("OnModalConfirmedHandler: Skill allocation approved"));
-                    }
-                }
-            }
-        }
-        break;
-
-    case EMAModalType::Emergency:
-        {
-            // 提交紧急事件响应到后端 (Requirements: 12.6)
-            UGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
-            if (GI)
-            {
-                UMACommSubsystem* CommSubsystem = GI->GetSubsystem<UMACommSubsystem>();
-                if (CommSubsystem && UIManager)
-                {
-                    UMAEmergencyModal* EmergencyModal = UIManager->GetEmergencyModal();
-                    if (EmergencyModal)
-                    {
-                        FString ResponseJson = EmergencyModal->GetResponseJson();
-                        if (!ResponseJson.IsEmpty())
-                        {
-                            // 发送紧急事件响应
-                            FMASceneChangeMessage Message;
-                            Message.ChangeType = EMASceneChangeType::EmergencyResponse;
-                            Message.Payload = ResponseJson;
-                            CommSubsystem->SendSceneChangeMessage(Message);
-                            UE_LOG(LogMAHUD, Log, TEXT("OnModalConfirmedHandler: Emergency response submitted to backend"));
-                        }
                     }
                 }
             }
@@ -2876,7 +2596,7 @@ void AMAHUD::OnModalRejectedHandler(EMAModalType ModalType)
     {
     case EMAModalType::SkillAllocation:
         {
-            // 发送技能分配审阅拒绝响应 (Requirements: 5.4)
+            // 发送技能分配审阅拒绝响应
             if (UIManager)
             {
                 UMASkillAllocationModal* SkillModal = UIManager->GetSkillAllocationModal();
@@ -2901,9 +2621,6 @@ void AMAHUD::OnModalRejectedHandler(EMAModalType ModalType)
             {
             case EMAModalType::TaskGraph:
                 WidgetName = TEXT("TaskGraphModal");
-                break;
-            case EMAModalType::Emergency:
-                WidgetName = TEXT("EmergencyModal");
                 break;
             default:
                 WidgetName = TEXT("UnknownModal");

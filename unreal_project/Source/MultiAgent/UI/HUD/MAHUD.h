@@ -15,7 +15,6 @@ class UMASimpleMainWidget;
 class UMATaskPlannerWidget;
 class UMASkillAllocationViewer;
 class UMADirectControlIndicator;
-class UMAEmergencyWidget;
 class UMAModifyWidget;
 class UMAEditWidget;
 class UMASceneListWidget;
@@ -24,7 +23,6 @@ class UMASceneListWidget;
 class UMAUIManager;
 class AMAPlayerController;
 class AMACharacter;
-class UMAEmergencyManager;
 class UMAEditModeManager;
 class UMACameraSensorComponent;
 class UMASceneGraphManager;
@@ -79,12 +77,12 @@ public:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI Classes")
     TSubclassOf<UUserWidget> SemanticMapWidgetClass;
 
-    /** UI 主题数据资产 (Requirements: 1.4) */
+    /** UI 主题数据资产 */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI Classes")
     UMAUITheme* UIThemeAsset;
 
     //=========================================================================
-    // HUD 状态管理访问 (Requirements: 2.1)
+    // HUD 状态管理访问
     //=========================================================================
 
     /**
@@ -108,10 +106,6 @@ public:
     /** MainWidget 是否可见 */
     UPROPERTY(BlueprintReadOnly, Category = "UI State")
     bool bMainUIVisible = false;
-
-    /** 突发事件指示器是否显示 */
-    UPROPERTY(BlueprintReadOnly, Category = "UI State|Emergency")
-    bool bShowEmergencyIndicator = false;
 
     /** 是否正在显示场景标签 */
     UPROPERTY(BlueprintReadOnly, Category = "UI State|SceneLabel")
@@ -225,59 +219,6 @@ public:
     //=========================================================================
     // 突发事件 UI 控制
     //=========================================================================
-
-    /**
-     * 显示突发事件指示器 (红色 "突发事件" 文字)
-     */
-    UFUNCTION(BlueprintCallable, Category = "UI Control|Emergency")
-    void ShowEmergencyIndicator();
-
-    /**
-     * 隐藏突发事件指示器
-     */
-    UFUNCTION(BlueprintCallable, Category = "UI Control|Emergency")
-    void HideEmergencyIndicator();
-
-    /**
-     * 检查突发事件指示器是否可见
-     * @return true 如果指示器当前可见
-     */
-    UFUNCTION(BlueprintPure, Category = "UI|Emergency")
-    bool IsEmergencyIndicatorVisible() const { return bShowEmergencyIndicator; }
-
-    /**
-     * 显示突发事件详情界面
-     */
-    UFUNCTION(BlueprintCallable, Category = "UI Control|Emergency")
-    void ShowEmergencyWidget();
-
-    /**
-     * 隐藏突发事件详情界面
-     */
-    UFUNCTION(BlueprintCallable, Category = "UI Control|Emergency")
-    void HideEmergencyWidget();
-
-    /**
-     * 切换突发事件详情界面的显示/隐藏
-     */
-    UFUNCTION(BlueprintCallable, Category = "UI Control|Emergency")
-    void ToggleEmergencyWidget();
-
-    /**
-     * 检查突发事件详情界面是否可见
-     * @return true 如果详情界面当前可见
-     */
-    UFUNCTION(BlueprintPure, Category = "UI|Emergency")
-    bool IsEmergencyWidgetVisible() const;
-
-    /**
-     * 更新突发事件相机源
-     * @param Camera 相机传感器组件，nullptr 表示清除相机源
-     */
-    UFUNCTION(BlueprintCallable, Category = "UI Control|Emergency")
-    void UpdateEmergencyCameraSource(UMACameraSensorComponent* Camera);
-
-    //=========================================================================
     // Modify 模式 UI 控制
     //=========================================================================
 
@@ -332,7 +273,7 @@ public:
     bool IsMouseOverEditWidget() const;
 
     //=========================================================================
-    // System Log Panel 控制 (Requirements: 4.6)
+    // System Log Panel 控制
     //=========================================================================
 
     /**
@@ -361,7 +302,7 @@ public:
     bool IsSystemLogPanelVisible() const;
 
     //=========================================================================
-    // Preview Panel 控制 (Requirements: 4.6)
+    // Preview Panel 控制
     //=========================================================================
 
     /**
@@ -390,7 +331,7 @@ public:
     bool IsPreviewPanelVisible() const;
 
     //=========================================================================
-    // Instruction Panel 控制 (Requirements: 4.6)
+    // Instruction Panel 控制
     //=========================================================================
 
     /**
@@ -497,13 +438,6 @@ protected:
     UFUNCTION()
     void OnRefocusMainUI();
 
-    /**
-     * EmergencyManager 状态变化回调
-     * @param bIsActive 新的事件状态
-     */
-    UFUNCTION()
-    void OnEmergencyStateChanged(bool bIsActive);
-
 private:
     //=========================================================================
     // 内部方法
@@ -513,11 +447,6 @@ private:
      * 绑定 PlayerController 事件
      */
     void BindControllerEvents();
-
-    /**
-     * 绑定 EmergencyManager 事件
-     */
-    void BindEmergencyManagerEvents();
 
     /**
      * 绑定 Widget 委托 (在 UIManager 创建 Widget 后调用)
@@ -618,13 +547,13 @@ private:
     void BindEditModeManagerEvents();
 
     /**
-     * 绑定后端事件 (Requirements: 4.1, 4.2, 4.3, 12.1)
-     * 绑定 CommSubsystem 和 EmergencyManager 事件到 HUD 状态管理器
+     * 绑定后端事件
+     * 绑定 CommSubsystem 事件到 HUD 状态管理器
      */
     void BindBackendEvents();
 
     /**
-     * 绑定模态窗口委托 (Requirements: 7.2, 7.3, 12.6)
+     * 绑定模态窗口委托
      * 绑定模态确认/拒绝委托到后端提交
      */
     void BindModalDelegates();
@@ -727,7 +656,7 @@ private:
     void OnSceneListZoneClicked(const FString& ZoneId);
 
     //=========================================================================
-    // 后端事件回调 (Requirements: 4.1, 4.2, 4.3, 12.1)
+    // 后端事件回调
     //=========================================================================
 
     /**
@@ -752,14 +681,14 @@ private:
     void OnSkillListReceived(const FMASkillListMessage& SkillList, bool bExecutable);
 
     /**
-     * 模态确认回调 (Requirements: 7.2, 7.3, 12.6)
+     * 模态确认回调
      * @param ModalType 模态类型
      */
     UFUNCTION()
     void OnModalConfirmedHandler(EMAModalType ModalType);
 
     /**
-     * 模态拒绝回调 (Requirements: 7.2, 7.3, 12.6)
+     * 模态拒绝回调
      * @param ModalType 模态类型
      */
     UFUNCTION()

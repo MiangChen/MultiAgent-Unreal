@@ -161,7 +161,7 @@ TSharedRef<SWidget> UMABaseModalWidget::RebuildWidget()
 }
 
 //=============================================================================
-// BuildUI - 构建 UI 布局 (Requirements: 8.1, 8.2, 8.3, 8.4)
+// BuildUI - 构建 UI 布局
 //=============================================================================
 
 void UMABaseModalWidget::BuildUI()
@@ -540,7 +540,7 @@ void UMABaseModalWidget::SetModalType(EMAModalType InModalType)
 }
 
 //=============================================================================
-// 动画控制 (Requirements: 5.6, 7.1, 7.4, 8.5)
+// 动画控制
 //=============================================================================
 
 void UMABaseModalWidget::PlayShowAnimation()
@@ -635,13 +635,13 @@ void UMABaseModalWidget::ApplyTheme(UMAUITheme* InTheme)
         return;
     }
     
-    // 应用遮罩背景颜色 (Requirements: 7.1)
+    // 应用遮罩背景颜色
     if (BackgroundOverlay)
     {
         BackgroundOverlay->SetBrushColor(Theme->OverlayColor);
     }
     
-    // 应用圆角效果到背景边框 (Requirements: 3.1, 3.3)
+    // 应用圆角效果到背景边框
     if (BackgroundBorder)
     {
         MARoundedBorderUtils::ApplyRoundedCornersFromTheme(
@@ -659,7 +659,7 @@ void UMABaseModalWidget::ApplyTheme(UMAUITheme* InTheme)
         TitleText->SetColorAndOpacity(FSlateColor(Theme->TextColor));
     }
     
-    // 应用关闭按钮样式 (Requirements: 7.1)
+    // 应用关闭按钮样式
     if (CloseButton)
     {
         FButtonStyle CloseButtonStyle;
@@ -745,8 +745,6 @@ FText UMABaseModalWidget::GetModalTitleText() const
         return FText::FromString(TEXT("Task Graph"));
     case EMAModalType::SkillAllocation:
         return FText::FromString(TEXT("Skill List"));
-    case EMAModalType::Emergency:
-        return FText::FromString(TEXT("Emergency Event"));
     default:
         return FText::FromString(TEXT("Modal"));
     }
@@ -770,19 +768,12 @@ void UMABaseModalWidget::UpdateButtonVisibility()
     // 在编辑模式下，确认按钮文本可能需要改变
     if (ConfirmButton)
     {
-        if (bIsEditMode)
-        {
-            ConfirmButton->SetButtonText(FText::FromString(TEXT("Submit")));
-        }
-        else
-        {
-            ConfirmButton->SetButtonText(ConfirmButtonText);
-        }
+        ConfirmButton->SetButtonText(ConfirmButtonText);
     }
 }
 
 //=============================================================================
-// 按钮回调 (Requirements: 5.4, 6.5)
+// 按钮回调
 //=============================================================================
 
 void UMABaseModalWidget::OnConfirmButtonClicked()

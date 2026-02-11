@@ -1,6 +1,6 @@
 // MAHUDWidget.h
 // HUD Widget - 承载原 Canvas 绘制的 HUD 元素
-// 包括 Emergency 指示器、Edit 模式指示器、通知消息
+// 包括 Edit 模式指示器、通知消息
 // 纯 C++ 实现，不需要蓝图
 
 #pragma once
@@ -19,7 +19,6 @@ class UMAUITheme;
  * 承载原 Canvas 绘制的 HUD 元素，解决 HUD 透过 Widget 显示的问题
  * 
  * 组件:
- * - EmergencyText: 右上角红色 "Emergency Event" 文字
  * - EditModeText: 右上角蓝色 "Mode: Edit (M)" 文字
  * - POIListText: 左下角绿色 POI 列表
  * - GoalListText: 左下角红色 Goal 列表
@@ -34,30 +33,6 @@ class MULTIAGENT_API UMAHUDWidget : public UUserWidget
 public:
     UMAHUDWidget(const FObjectInitializer& ObjectInitializer);
 
-    //=========================================================================
-    // Emergency 指示器
-    //=========================================================================
-
-    /**
-     * 显示 Emergency 指示器
-     */
-    UFUNCTION(BlueprintCallable, Category = "HUD|Emergency")
-    void ShowEmergencyIndicator();
-
-    /**
-     * 隐藏 Emergency 指示器
-     */
-    UFUNCTION(BlueprintCallable, Category = "HUD|Emergency")
-    void HideEmergencyIndicator();
-
-    /**
-     * 检查 Emergency 指示器是否可见
-     * @return true 如果指示器当前可见
-     */
-    UFUNCTION(BlueprintPure, Category = "HUD|Emergency")
-    bool IsEmergencyIndicatorVisible() const;
-
-    //=========================================================================
     // Edit 模式指示器
     //=========================================================================
 
@@ -134,9 +109,6 @@ private:
     UPROPERTY()
     UCanvasPanel* RootCanvas;
 
-    /** Emergency 指示器文本 (右上角，红色) */
-    UPROPERTY()
-    UTextBlock* EmergencyText;
 
     /** Edit 模式指示器文本 (右上角，蓝色) */
     UPROPERTY()

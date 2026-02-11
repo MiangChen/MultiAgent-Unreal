@@ -1249,7 +1249,6 @@ FString FMASceneChangeMessage::ChangeTypeToString(EMASceneChangeType Type)
     case EMASceneChangeType::DeleteZone:        return TEXT("delete_zone");
     case EMASceneChangeType::AddEdge:           return TEXT("add_edge");
     case EMASceneChangeType::EditEdge:          return TEXT("edit_edge");
-    case EMASceneChangeType::EmergencyResponse: return TEXT("emergency_response");
     default:                                    return TEXT("unknown");
     }
 }
@@ -1265,7 +1264,6 @@ EMASceneChangeType FMASceneChangeMessage::StringToChangeType(const FString& Type
     if (TypeStr == TEXT("delete_zone"))         return EMASceneChangeType::DeleteZone;
     if (TypeStr == TEXT("add_edge"))            return EMASceneChangeType::AddEdge;
     if (TypeStr == TEXT("edit_edge"))           return EMASceneChangeType::EditEdge;
-    if (TypeStr == TEXT("emergency_response"))  return EMASceneChangeType::EmergencyResponse;
     return EMASceneChangeType::AddNode; // 默认值
 }
 
@@ -1579,9 +1577,9 @@ FString FMADecisionResponseMessage::ToJson() const
         }
     }
     
-    if (!Comments.IsEmpty())
+    if (!UserFeedback.IsEmpty())
     {
-        JsonObject->SetStringField(TEXT("comments"), Comments);
+        JsonObject->SetStringField(TEXT("user_feedback"), UserFeedback);
     }
 
     FString OutputString;
@@ -1620,8 +1618,8 @@ bool FMADecisionResponseMessage::FromJson(const FString& Json, FMADecisionRespon
         JsonObject->TryGetStringField(TEXT("decision_data"), Out.DecisionDataJson);
     }
 
-    // 解析 comments
-    JsonObject->TryGetStringField(TEXT("comments"), Out.Comments);
+    // 解析 user_feedback
+    JsonObject->TryGetStringField(TEXT("user_feedback"), Out.UserFeedback);
 
     return true;
 }

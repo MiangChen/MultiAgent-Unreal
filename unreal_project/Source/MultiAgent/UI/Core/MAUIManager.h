@@ -16,7 +16,6 @@ class UMATaskPlannerWidget;
 class UMASkillAllocationViewer;
 class UMASimpleMainWidget;
 class UMADirectControlIndicator;
-class UMAEmergencyWidget;
 class UMAModifyWidget;
 class UMAEditWidget;
 class UMASceneListWidget;
@@ -27,13 +26,10 @@ class UMAHUDStateManager;
 class UMAMainHUDWidget;
 class UMATaskGraphModal;
 class UMASkillAllocationModal;
-class UMAEmergencyModal;
 class UMABaseModalWidget;
+class UMADecisionModal;
 class UMANotificationWidget;
 class UMACommSubsystem;
-class UMAEmergencyManager;
-struct FMAEmergencyEventData;
-// 右侧边栏拆分面板 (Requirements: 5.2, 5.3)
 class UMASystemLogPanel;
 class UMAPreviewPanel;
 class UMAInstructionPanel;
@@ -56,11 +52,9 @@ enum class EMAWidgetType : uint8
     SimpleMain      UMETA(DisplayName = "Simple Main (Legacy)"),
     SemanticMap     UMETA(DisplayName = "Semantic Map"),
     DirectControl   UMETA(DisplayName = "Direct Control"),
-    Emergency       UMETA(DisplayName = "Emergency"),
     Modify          UMETA(DisplayName = "Modify"),
     Edit            UMETA(DisplayName = "Edit"),
     SceneList       UMETA(DisplayName = "Scene List"),
-    // 右侧边栏拆分面板 (Requirements: 5.3)
     SystemLogPanel   UMETA(DisplayName = "System Log Panel"),
     PreviewPanel     UMETA(DisplayName = "Preview Panel"),
     InstructionPanel UMETA(DisplayName = "Instruction Panel")
@@ -144,9 +138,6 @@ public:
     UFUNCTION(BlueprintPure, Category = "UI")
     UMADirectControlIndicator* GetDirectControlIndicator() const;
 
-    /** 获取 EmergencyWidget 实例 */
-    UFUNCTION(BlueprintPure, Category = "UI")
-    UMAEmergencyWidget* GetEmergencyWidget() const;
 
     /** 获取 ModifyWidget 实例 */
     UFUNCTION(BlueprintPure, Category = "UI")
@@ -165,7 +156,7 @@ public:
     UMAHUDWidget* GetHUDWidget() const;
 
     //=========================================================================
-    // Widget 访问 - 右侧边栏拆分面板 (Requirements: 5.2)
+    // Widget 访问 - 右侧边栏拆分面板
     //=========================================================================
 
     /** 获取 SystemLogPanel 实例 */
@@ -181,7 +172,7 @@ public:
     UMAInstructionPanel* GetInstructionPanel() const;
 
     //=========================================================================
-    // HUD 状态管理 (Requirements: 2.1)
+    // HUD 状态管理
     //=========================================================================
 
     /** 获取 HUD 状态管理器 */
@@ -204,9 +195,10 @@ public:
     UFUNCTION(BlueprintPure, Category = "UI|Modal")
     UMASkillAllocationModal* GetSkillAllocationModal() const { return SkillAllocationModal; }
 
-    /** 获取紧急事件模态窗口 */
+
+    /** 获取决策模态窗口 */
     UFUNCTION(BlueprintPure, Category = "UI|Modal")
-    UMAEmergencyModal* GetEmergencyModal() const { return EmergencyModal; }
+    UMADecisionModal* GetDecisionModal() const { return DecisionModal; }
 
     /** 根据类型获取模态窗口 */
     UFUNCTION(BlueprintPure, Category = "UI|Modal")
@@ -314,13 +306,12 @@ public:
     /**
      * 分发主题到所有已注册的 Widget
      * 遍历所有 Widget 并调用其 ApplyTheme 方法
-     * Requirements: 8.1, 8.2
      */
     UFUNCTION(BlueprintCallable, Category = "UI|Theme")
     void DistributeThemeToWidgets();
 
     //=========================================================================
-    // 主题变更委托 (Requirements: 8.4)
+    // 主题变更委托
     //=========================================================================
 
     /** 主题变更委托 - 当主题加载或变更时广播 */
@@ -331,7 +322,7 @@ public:
     FOnThemeChanged OnThemeChanged;
 
     //=========================================================================
-    // 通知处理 (Requirements: 4.1, 4.2, 4.3, 4.5)
+    // 通知处理
     //=========================================================================
 
     /**
@@ -393,9 +384,6 @@ private:
     UMADirectControlIndicator* DirectControlIndicator;
 
     UPROPERTY()
-    UMAEmergencyWidget* EmergencyWidget;
-
-    UPROPERTY()
     UMAModifyWidget* ModifyWidget;
 
     UPROPERTY()
@@ -411,7 +399,7 @@ private:
     UUserWidget* SemanticMapWidget;
 
     //=========================================================================
-    // 右侧边栏拆分面板实例 (Requirements: 5.2)
+    // 右侧边栏拆分面板实例
     //=========================================================================
 
     /** 系统日志面板 */
@@ -435,7 +423,7 @@ private:
     UMAUITheme* DefaultTheme;
 
     //=========================================================================
-    // HUD 状态管理 (Requirements: 2.1)
+    // HUD 状态管理
     //=========================================================================
 
     /** HUD 状态管理器 */
@@ -458,9 +446,10 @@ private:
     UPROPERTY()
     UMASkillAllocationModal* SkillAllocationModal;
 
-    /** 紧急事件模态窗口 */
+
+    /** 决策模态窗口 */
     UPROPERTY()
-    UMAEmergencyModal* EmergencyModal;
+    UMADecisionModal* DecisionModal;
 
     //=========================================================================
     // 内部方法
@@ -485,7 +474,7 @@ private:
     void SetInputModeGameOnly();
 
     //=========================================================================
-    // HUD 状态变化处理 (Requirements: 2.3, 2.4, 2.5)
+    // HUD 状态变化处理
     //=========================================================================
 
     /**
@@ -615,14 +604,12 @@ private:
     /**
      * 绑定 CommandManager 委托事件
      * 监听 OnExecutionPauseStateChanged 委托，暂停/恢复时显示通知
-     * Requirements: 8.5, 8.6
      */
     void BindCommandManagerEvents();
 
     /**
      * 执行暂停状态变化回调
      * @param bPaused 是否暂停
-     * Requirements: 8.5, 8.6
      */
     UFUNCTION()
     void OnExecutionPauseStateChanged(bool bPaused);
@@ -631,44 +618,34 @@ private:
     FTimerHandle ResumeNotificationTimerHandle;
 
     /**
-     * 绑定 EmergencyManager 委托事件
-     * 监听 OnEmergencyEventReceived 委托，收到事件时显示通知
-     * Requirements: 4.1, 4.2, 4.3
-     */
-    void BindEmergencyManagerEvents();
-
-    /**
-     * 紧急事件接收回调
-     * 当 EmergencyManager 收到紧急事件时触发
-     * @param EventData 紧急事件数据
-     * Requirements: 4.1, 4.2, 4.3
-     */
-    UFUNCTION()
-    void OnEmergencyEventReceived(const FMAEmergencyEventData& EventData);
-
-    /**
-     * 紧急事件确认回调
-     * 当用户在 EmergencyModal 中点击确认按钮时触发
-     * 发送响应到后端
-     * @param Data 紧急事件响应数据
-     * Requirements: 7.1, 7.4, 7.5
-     */
-    UFUNCTION()
-    void OnEmergencyModalConfirmed(const FMAEmergencyEventData& Data);
-
-    /**
-     * 紧急事件拒绝回调
-     * 当用户在 EmergencyModal 中点击拒绝按钮时触发
-     * 发送拒绝响应到后端
-     * Requirements: 7.1, 7.4
-     */
-    UFUNCTION()
-    void OnEmergencyModalRejected();
-
-    /**
      * 收到索要用户指令请求回调
      * 当后端发送 user_instruction 消息时触发
      */
     UFUNCTION()
     void OnRequestUserCommandReceived();
+
+    /**
+     * 收到决策请求回调
+     * 当 CommSubsystem 收到 Decision 类别消息时触发
+     * @param Description 决策描述文本
+     * @param ContextJson 上下文 JSON 字符串
+     */
+    UFUNCTION()
+    void OnDecisionDataReceived(const FString& Description, const FString& ContextJson);
+
+    /**
+     * 决策模态确认回调 (Yes → end_task)
+     * @param SelectedOption 选择的选项 ("end_task")
+     * @param UserFeedback 用户反馈文本
+     */
+    UFUNCTION()
+    void OnDecisionModalConfirmed(const FString& SelectedOption, const FString& UserFeedback);
+
+    /**
+     * 决策模态拒绝回调 (No → continue_task)
+     * @param SelectedOption 选择的选项 ("continue_task")
+     * @param UserFeedback 用户反馈文本
+     */
+    UFUNCTION()
+    void OnDecisionModalRejected(const FString& SelectedOption, const FString& UserFeedback);
 };

@@ -1,5 +1,5 @@
 // MATaskPlannerWidget.cpp
-// Task Planner Workbench main container Widget - Pure C++ implementation
+// Task Planner Workbench main container Widget
 
 #include "MATaskPlannerWidget.h"
 #include "MADAGCanvasWidget.h"
@@ -359,7 +359,7 @@ UBorder* UMATaskPlannerWidget::CreateLeftPanel()
     UBorder* LeftPanelBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("LeftPanelBorder"));
     LeftPanelBorder->SetPadding(FMargin(10.0f));
     
-    // Apply rounded corners using MARoundedBorderUtils (Requirements 4.1)
+    // Apply rounded corners using MARoundedBorderUtils
     MARoundedBorderUtils::ApplyRoundedCorners(LeftPanelBorder, PanelBackgroundColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
 
     // Vertical layout
@@ -606,7 +606,7 @@ UBorder* UMATaskPlannerWidget::CreateRightPanel()
     UBorder* RightPanelBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("RightPanelBorder"));
     RightPanelBorder->SetPadding(FMargin(10.0f));
     
-    // Apply rounded corners using MARoundedBorderUtils (Requirements 4.1)
+    // Apply rounded corners using MARoundedBorderUtils
     MARoundedBorderUtils::ApplyRoundedCorners(RightPanelBorder, PanelBackgroundColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
 
     // Horizontal layout (canvas + toolbar)

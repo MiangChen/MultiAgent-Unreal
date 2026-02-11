@@ -5,9 +5,7 @@
 #include "MACommSubsystem.h"
 #include "../Manager/MACommandManager.h"
 #include "../Manager/MATempDataManager.h"
-#include "../Manager/MAEmergencyManager.h"
 #include "../Types/MATaskGraphTypes.h"
-#include "../../UI/Modal/MAEmergencyModal.h"
 #include "HttpModule.h"
 #include "Interfaces/IHttpRequest.h"
 #include "Interfaces/IHttpResponse.h"
@@ -471,11 +469,6 @@ void FMACommInbound::HandleHITLMessage(const TSharedPtr<FJsonObject>& MsgObject,
         {
             HandleRequestUserCommand(*PayloadObject);
         }
-        else if (MessageTypeStr == TEXT("emergency_event"))
-        {
-            // 紧急事件消息 - Requirements: 2.1
-            HandleEmergencyEvent(*PayloadObject);
-        }
         else
         {
             UE_LOG(LogMACommInbound, Log, TEXT("HandleHITLMessage: Unknown Instruction message type: %s"), *MessageTypeStr);
@@ -502,7 +495,7 @@ void FMACommInbound::HandleHITLMessage(const TSharedPtr<FJsonObject>& MsgObject,
     case EMAMessageCategory::Decision:
         // Decision 类别: 决策请求/响应
         UE_LOG(LogMACommInbound, Log, TEXT("HandleHITLMessage: Received Decision message: %s"), *MessageTypeStr);
-        // TODO: 实现决策消息处理
+        HandleDecision(*PayloadObject);
         break;
 
     default:
@@ -532,21 +525,10 @@ void FMACommInbound::HandlePlatformMessage(const TSharedPtr<FJsonObject>& MsgObj
     }
 
     // 根据消息类型分发处理
-    if (MessageTypeStr == TEXT("task_graph"))
-    {
-        // 任务图消息 (向后兼容 - 也可能从 Platform 端点收到)
-        HandleTaskGraph(*PayloadObject);
-    }
-    else if (MessageTypeStr == TEXT("skill_list"))
+    if (MessageTypeStr == TEXT("skill_list"))
     {
         // skill_list (PLATFORM 类别) - 直接执行，无需 UI 交互
         HandleSkillList(*PayloadObject, true);
-    }
-    else if (MessageTypeStr == TEXT("skill_allocation"))
-    {
-        // 向后兼容: 如果从 Platform 端点收到 skill_allocation，也触发 UI
-        UE_LOG(LogMACommInbound, Warning, TEXT("HandlePlatformMessage: skill_allocation received from Platform endpoint, should be REVIEW category"));
-        HandleSkillAllocation(*PayloadObject);
     }
     else
     {
@@ -771,59 +753,41 @@ void FMACommInbound::HandleRequestUserCommand(const TSharedPtr<FJsonObject>& Pay
     Owner->OnRequestUserCommandReceived.Broadcast();
 }
 
-void FMACommInbound::HandleEmergencyEvent(const TSharedPtr<FJsonObject>& PayloadObject)
+void FMACommInbound::HandleDecision(const TSharedPtr<FJsonObject>& PayloadObject)
 {
-    // Requirements: 2.1, 2.2, 2.3, 2.4, 2.5
     if (!Owner)
     {
         return;
     }
 
-    UE_LOG(LogMACommInbound, Log, TEXT("HandleEmergencyEvent: Received emergency event message"));
+    UE_LOG(LogMACommInbound, Log, TEXT("HandleDecision: Processing decision message"));
 
-    // 将 payload 对象序列化回 JSON 字符串用于解析
-    FString PayloadJson;
-    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&PayloadJson);
-    FJsonSerializer::Serialize(PayloadObject.ToSharedRef(), Writer);
-
-    UE_LOG(LogMACommInbound, Verbose, TEXT("HandleEmergencyEvent: Payload: %s"), *PayloadJson);
-
-    // 解析 payload 到 FMAEmergencyEventData - Requirements: 2.2, 2.4
-    FMAEmergencyEventData EventData;
-    if (!FMAEmergencyEventData::FromJsonObject(PayloadObject, EventData))
+    // 提取必需字段: description, decision_type
+    FString Description;
+    if (!PayloadObject->TryGetStringField(TEXT("description"), Description))
     {
-        // Requirements: 2.5 - 解析失败时记录错误并丢弃消息
-        UE_LOG(LogMACommInbound, Warning, TEXT("HandleEmergencyEvent: Failed to parse emergency event payload, discarding message"));
+        UE_LOG(LogMACommInbound, Warning, TEXT("HandleDecision: Missing required 'description' field, discarding message"));
         return;
     }
 
-    // 应用默认值确保数据完整性
-    EventData.ApplyDefaults();
-
-    // 验证数据有效性
-    if (!EventData.IsValid())
+    FString DecisionType;
+    if (!PayloadObject->TryGetStringField(TEXT("decision_type"), DecisionType))
     {
-        UE_LOG(LogMACommInbound, Warning, TEXT("HandleEmergencyEvent: Invalid emergency event data after applying defaults, discarding message"));
+        UE_LOG(LogMACommInbound, Warning, TEXT("HandleDecision: Missing required 'decision_type' field, discarding message"));
         return;
     }
 
-    UE_LOG(LogMACommInbound, Log, TEXT("HandleEmergencyEvent: Parsed emergency event - AgentId=%s, AgentLabel=%s, EventType=%s, Options=%d"),
-        *EventData.SourceAgentId, *EventData.SourceAgentLabel, *EventData.EventType, EventData.AvailableOptions.Num());
-
-    // Requirements: 2.3 - 通知 EmergencyManager
-    UWorld* World = Owner->GetWorld();
-    if (World)
+    // 提取 context 字段并序列化为 JSON 字符串
+    FString ContextJson;
+    const TSharedPtr<FJsonObject>* ContextObject;
+    if (PayloadObject->TryGetObjectField(TEXT("context"), ContextObject))
     {
-        UMAEmergencyManager* EmergencyMgr = World->GetSubsystem<UMAEmergencyManager>();
-        if (EmergencyMgr)
-        {
-            // Task 4.4 - 调用 EmergencyManager->TriggerEventWithData(EventData)
-            EmergencyMgr->TriggerEventWithData(EventData);
-            UE_LOG(LogMACommInbound, Log, TEXT("HandleEmergencyEvent: Triggered emergency event via EmergencyManager->TriggerEventWithData"));
-        }
-        else
-        {
-            UE_LOG(LogMACommInbound, Warning, TEXT("HandleEmergencyEvent: EmergencyManager not available"));
-        }
+        TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&ContextJson);
+        FJsonSerializer::Serialize((*ContextObject).ToSharedRef(), Writer);
     }
+
+    UE_LOG(LogMACommInbound, Log, TEXT("HandleDecision: DecisionType=%s, Description=%s"), *DecisionType, *Description);
+
+    // 广播 OnDecisionReceived 委托
+    Owner->OnDecisionReceived.Broadcast(Description, ContextJson);
 }

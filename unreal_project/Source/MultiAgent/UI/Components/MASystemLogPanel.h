@@ -70,7 +70,6 @@ struct FMALogEntry
  * - 自动滚动到最新日志
  * - 支持主题切换
  * 
- * Requirements: 1.1, 1.2, 1.4, 1.5, 7.1
  */
 UCLASS()
 class MULTIAGENT_API UMASystemLogPanel : public UUserWidget

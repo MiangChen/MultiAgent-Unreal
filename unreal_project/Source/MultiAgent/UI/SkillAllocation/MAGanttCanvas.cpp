@@ -247,7 +247,7 @@ void UMAGanttCanvas::ClearSelection()
 }
 
 //=============================================================================
-// 拖拽控制 (Requirements 8.1, 8.3)
+// 拖拽控制
 //=============================================================================
 
 void UMAGanttCanvas::SetDragEnabled(bool bEnabled)
@@ -378,7 +378,7 @@ int32 UMAGanttCanvas::ScreenToRobotIndex(float ScreenY) const
 }
 
 //=============================================================================
-// 槽位查询和验证 (Requirements 2.1, 2.2, 2.3, 6.1)
+// 槽位查询和验证
 //=============================================================================
 
 bool UMAGanttCanvas::GetSlotAtPosition(const FVector2D& Position, int32& OutTimeStep, FString& OutRobotId) const
@@ -496,7 +496,7 @@ bool UMAGanttCanvas::IsValidDropTarget(int32 TargetTimeStep, const FString& Targ
 }
 
 //=============================================================================
-// 吸附计算 (Requirements 3.1, 3.2, 3.4, 3.5)
+// 吸附计算
 //=============================================================================
 
 FVector2D UMAGanttCanvas::GetSlotCenterPosition(int32 TimeStep, int32 RobotIndex) const
@@ -772,19 +772,19 @@ int32 UMAGanttCanvas::NativePaint(const FPaintArgs& Args, const FGeometry& Allot
     DrawSkillBars(AllottedGeometry, OutDrawElements, LayerId + 2);
 
     //=========================================================================
-    // 拖拽视觉渲染 (Requirements 1.2, 1.3, 2.1)
+    // 拖拽视觉渲染
     // 在拖拽状态下绘制拖拽相关的视觉元素
     // 图层顺序：占位符 -> 放置指示器 -> 拖拽预览（最上层）
     //=========================================================================
     if (DragState == EGanttDragState::Dragging)
     {
-        // 绘制原始位置占位符（虚线边框）(Requirements 1.3)
+        // 绘制原始位置占位符（虚线边框）
         DrawDragSourcePlaceholder(AllottedGeometry, OutDrawElements, LayerId + 5);
 
-        // 绘制放置指示器（有效/无效状态）(Requirements 2.1, 2.2, 2.4)
+        // 绘制放置指示器（有效/无效状态）
         DrawDropIndicator(AllottedGeometry, OutDrawElements, LayerId + 6);
 
-        // 绘制拖拽预览（半透明技能块）(Requirements 1.2, 1.5)
+        // 绘制拖拽预览（半透明技能块）
         // 预览在最上层，确保始终可见
         DrawDragPreview(AllottedGeometry, OutDrawElements, LayerId + 8);
     }
@@ -1086,12 +1086,12 @@ void UMAGanttCanvas::DrawSkillBars(const FGeometry& AllottedGeometry, FSlateWind
 }
 
 //=============================================================================
-// 拖拽视觉渲染 (Requirements 1.2, 1.3, 1.5, 2.1, 2.2, 2.4)
+// 拖拽视觉渲染
 //=============================================================================
 
 void UMAGanttCanvas::DrawDragPreview(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32 LayerId) const
 {
-    // 仅在拖拽状态下绘制预览 (Requirements 1.2)
+    // 仅在拖拽状态下绘制预览
     if (DragState != EGanttDragState::Dragging)
     {
         return;
@@ -1114,7 +1114,7 @@ void UMAGanttCanvas::DrawDragPreview(const FGeometry& AllottedGeometry, FSlateWi
     // 圆角半径 - 与技能条保持一致
     const float CornerRadius = 14.0f;
 
-    // 绘制半透明技能块预览圆角矩形 (Requirements 1.2)
+    // 绘制半透明技能块预览圆角矩形
     FSlateRoundedBoxBrush RoundedBrush(DragPreview.Color, CornerRadius);
     FSlateDrawElement::MakeBox(
         OutDrawElements,
@@ -1147,7 +1147,7 @@ void UMAGanttCanvas::DrawDragPreview(const FGeometry& AllottedGeometry, FSlateWi
         2.0f
     );
 
-    // 在预览上绘制技能名称 (Requirements 1.5)
+    // 在预览上绘制技能名称
     if (!DragPreview.SkillName.IsEmpty())
     {
         // 自适应字号计算
@@ -1191,7 +1191,7 @@ void UMAGanttCanvas::DrawDragPreview(const FGeometry& AllottedGeometry, FSlateWi
 
 void UMAGanttCanvas::DrawDragSourcePlaceholder(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32 LayerId) const
 {
-    // 仅在拖拽状态下绘制占位符 (Requirements 1.3)
+    // 仅在拖拽状态下绘制占位符
     if (DragState != EGanttDragState::Dragging)
     {
         return;
@@ -1216,7 +1216,7 @@ void UMAGanttCanvas::DrawDragSourcePlaceholder(const FGeometry& AllottedGeometry
         return;
     }
 
-    // 绘制虚线边框 (Requirements 1.3)
+    // 绘制虚线边框
     // 由于 Slate 不直接支持虚线，我们使用多个短线段模拟虚线效果
     const float DashLength = 8.0f;
     const float GapLength = 4.0f;
@@ -1320,7 +1320,7 @@ void UMAGanttCanvas::DrawDragSourcePlaceholder(const FGeometry& AllottedGeometry
 
 void UMAGanttCanvas::DrawDropIndicator(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32 LayerId) const
 {
-    // 仅在拖拽状态下绘制放置指示器 (Requirements 2.1)
+    // 仅在拖拽状态下绘制放置指示器
     if (DragState != EGanttDragState::Dragging)
     {
         return;
@@ -1353,7 +1353,7 @@ void UMAGanttCanvas::DrawDropIndicator(const FGeometry& AllottedGeometry, FSlate
         return;
     }
 
-    // 根据有效性选择颜色 (Requirements 2.4)
+    // 根据有效性选择颜色
     FLinearColor IndicatorColor = CurrentDropTarget.bIsValid ? ValidDropColor : InvalidDropColor;
 
     // 绘制半透明背景填充
@@ -1369,7 +1369,7 @@ void UMAGanttCanvas::DrawDropIndicator(const FGeometry& AllottedGeometry, FSlate
         FillColor
     );
 
-    // 绘制边框 (Requirements 2.1, 2.2)
+    // 绘制边框
     TArray<FVector2D> BorderPoints;
     BorderPoints.Add(IndicatorPosition);
     BorderPoints.Add(IndicatorPosition + FVector2D(IndicatorSize.X, 0));
@@ -1443,10 +1443,10 @@ FReply UMAGanttCanvas::NativeOnMouseButtonDown(const FGeometry& InGeometry, cons
             if (LocalPosition.X >= BarMin.X && LocalPosition.X <= BarMax.X &&
                 LocalPosition.Y >= BarMin.Y && LocalPosition.Y <= BarMax.Y)
             {
-                // 检查拖拽是否启用 (Requirements 8.1, 8.2)
+                // 检查拖拽是否启用
                 if (bDragEnabled)
                 {
-                    // 设置潜在拖拽状态 (Requirements 1.1)
+                    // 设置潜在拖拽状态
                     DragState = EGanttDragState::Potential;
                     
                     // 记录鼠标按下位置
@@ -1468,14 +1468,14 @@ FReply UMAGanttCanvas::NativeOnMouseButtonDown(const FGeometry& InGeometry, cons
                 }
                 else
                 {
-                    // 拖拽被禁用（可能正在执行中）(Requirements 8.2)
+                    // 拖拽被禁用（可能正在执行中）
                     UE_LOG(LogMAGanttCanvas, Log, TEXT("[警告] 执行期间无法修改技能分配"));
                     
                     // 广播拖拽被阻止事件，通知 Viewer 显示警告日志
                     OnDragBlocked.Broadcast();
                 }
                 
-                // 选中该技能条 (Requirements 1.4 - 点击但未拖拽时执行选择)
+                // 选中该技能条 (点击但未拖拽时执行选择)
                 SelectSkillBar(RenderData.TimeStep, RenderData.RobotId);
                 return FReply::Handled();
             }
@@ -1494,7 +1494,7 @@ FReply UMAGanttCanvas::NativeOnMouseMove(const FGeometry& InGeometry, const FPoi
     FVector2D LocalPosition = InGeometry.AbsoluteToLocal(InMouseEvent.GetScreenSpacePosition());
     
     //=========================================================================
-    // 拖拽状态处理 (Requirements 1.1, 2.5, 3.1)
+    // 拖拽状态处理
     //=========================================================================
     
     // 处理潜在拖拽状态 - 检查是否超过拖拽阈值
@@ -1504,7 +1504,7 @@ FReply UMAGanttCanvas::NativeOnMouseMove(const FGeometry& InGeometry, const FPoi
         
         if (MoveDistance >= DragThreshold)
         {
-            // 超过阈值，从 Potential 转换到 Dragging 状态 (Requirements 1.1)
+            // 超过阈值，从 Potential 转换到 Dragging 状态
             DragState = EGanttDragState::Dragging;
             
             // 初始化拖拽预览（使用较大的间距）
@@ -1515,11 +1515,11 @@ FReply UMAGanttCanvas::NativeOnMouseMove(const FGeometry& InGeometry, const FPoi
             DragPreview.Color.A = DragPreviewAlpha;
             DragPreview.SkillName = DragSource.SkillName;
             
-            // 记录拖拽开始日志 (Requirements 7.1)
+            // 记录拖拽开始日志
             UE_LOG(LogMAGanttCanvas, Log, TEXT("[拖拽] 开始移动技能: %s (T%d, %s)"),
                    *DragSource.SkillName, DragSource.TimeStep, *DragSource.RobotId);
             
-            // 广播拖拽开始事件（用于状态日志记录）(Requirements 7.1)
+            // 广播拖拽开始事件（用于状态日志记录）
             OnDragStarted.Broadcast(DragSource.SkillName, DragSource.TimeStep, DragSource.RobotId);
             
             return FReply::Handled();
@@ -1536,10 +1536,10 @@ FReply UMAGanttCanvas::NativeOnMouseMove(const FGeometry& InGeometry, const FPoi
         FVector2D PreviewCenter = LocalPosition;
         FVector2D PreviewHalfSize = DragPreview.Size * 0.5f;
         
-        // 计算吸附目标 (Requirements 3.1)
+        // 计算吸附目标
         CurrentDropTarget = CalculateSnapTarget(LocalPosition);
         
-        // 根据吸附状态更新预览位置 (Requirements 2.5)
+        // 根据吸附状态更新预览位置
         if (CurrentDropTarget.bIsSnapped)
         {
             // 吸附到槽位中心
@@ -1618,12 +1618,12 @@ FReply UMAGanttCanvas::NativeOnMouseButtonUp(const FGeometry& InGeometry, const 
         FVector2D LocalPosition = InGeometry.AbsoluteToLocal(InMouseEvent.GetScreenSpacePosition());
         
         //=========================================================================
-        // 处理拖拽释放 (Requirements 4.1, 4.3, 4.4)
+        // 处理拖拽释放
         //=========================================================================
         
         if (DragState == EGanttDragState::Potential)
         {
-            // 未超过拖拽阈值，执行选择操作 (Requirements 1.4)
+            // 未超过拖拽阈值，执行选择操作
             SelectSkillBar(DragSource.TimeStep, DragSource.RobotId);
             
             // 重置拖拽状态
@@ -1643,7 +1643,7 @@ FReply UMAGanttCanvas::NativeOnMouseButtonUp(const FGeometry& InGeometry, const 
             
             bool bDropSuccess = false;
             
-            // 验证放置目标 (Requirements 4.1)
+            // 验证放置目标
             if (FinalTarget.bIsValid && FinalTarget.HasTarget())
             {
                 // 有效目标 - 尝试更新数据
@@ -1657,7 +1657,7 @@ FReply UMAGanttCanvas::NativeOnMouseButtonUp(const FGeometry& InGeometry, const 
                     
                     if (bDropSuccess)
                     {
-                        // 记录成功日志 (Requirements 7.2)
+                        // 记录成功日志
                         UE_LOG(LogMAGanttCanvas, Log, TEXT("[成功] 技能已移动: %s 从 T%d 到 T%d"),
                                *DragSource.SkillName, DragSource.TimeStep, FinalTarget.TimeStep);
                         
@@ -1669,10 +1669,10 @@ FReply UMAGanttCanvas::NativeOnMouseButtonUp(const FGeometry& InGeometry, const 
                     }
                     else
                     {
-                        // 记录失败日志 (Requirements 7.4)
+                        // 记录失败日志
                         UE_LOG(LogMAGanttCanvas, Log, TEXT("[失败] 无法放置: 目标槽位已被占用"));
                         
-                        // 广播拖拽失败事件（用于状态日志记录）(Requirements 7.4)
+                        // 广播拖拽失败事件（用于状态日志记录）
                         OnDragFailed.Broadcast();
                     }
                 }
@@ -1683,10 +1683,10 @@ FReply UMAGanttCanvas::NativeOnMouseButtonUp(const FGeometry& InGeometry, const 
             }
             else
             {
-                // 无效目标 (Requirements 4.3, 4.4)
+                // 无效目标
                 UE_LOG(LogMAGanttCanvas, Log, TEXT("[失败] 无法放置: 目标槽位已被占用或无效"));
                 
-                // 广播拖拽失败事件（用于状态日志记录）(Requirements 7.4)
+                // 广播拖拽失败事件（用于状态日志记录）
                 OnDragFailed.Broadcast();
             }
             
@@ -1707,7 +1707,7 @@ FReply UMAGanttCanvas::NativeOnMouseButtonUp(const FGeometry& InGeometry, const 
 FReply UMAGanttCanvas::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
 {
     //=========================================================================
-    // 处理 Escape 键取消拖拽 (Requirements 4.5)
+    // 处理 Escape 键取消拖拽
     //=========================================================================
     
     if (InKeyEvent.GetKey() == EKeys::Escape)

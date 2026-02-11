@@ -91,7 +91,6 @@ struct FMAPreviewEdgeRenderData
  * - 自动布局节点
  * - 支持主题化
  * 
- * Requirements: 11.4
  */
 UCLASS()
 class MULTIAGENT_API UMATaskGraphPreview : public UUserWidget

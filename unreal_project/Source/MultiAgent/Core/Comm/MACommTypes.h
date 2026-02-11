@@ -640,7 +640,6 @@ enum class EMASceneChangeType : uint8
     DeleteZone      UMETA(DisplayName = "Delete Zone"),     // 删除区域
     AddEdge         UMETA(DisplayName = "Add Edge"),        // 添加边
     EditEdge        UMETA(DisplayName = "Edit Edge"),       // 修改边
-    EmergencyResponse UMETA(DisplayName = "Emergency Response")  // 紧急事件响应
 };
 
 /**
@@ -884,7 +883,7 @@ struct MULTIAGENT_API FMAReviewResponseMessage
  * {
  *   "decision": "...",             // 用户选择的决策选项
  *   "decision_data": {...},        // 决策相关数据 (可选)
- *   "comments": "..."              // 用户备注 (可选)
+ *   "user_feedback": "..."         // 用户反馈 (可选)
  * }
  */
 USTRUCT(BlueprintType)
@@ -900,9 +899,9 @@ struct MULTIAGENT_API FMADecisionResponseMessage
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DecisionResponse")
     FString DecisionDataJson;
 
-    /** 用户备注 (可选) */
+    /** 用户反馈 (可选) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DecisionResponse")
-    FString Comments;
+    FString UserFeedback;
 
     /** 时间戳 (Unix timestamp in milliseconds) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DecisionResponse")
@@ -918,10 +917,10 @@ struct MULTIAGENT_API FMADecisionResponseMessage
         MessageId = FMAMessageEnvelope::GenerateMessageId();
     }
 
-    FMADecisionResponseMessage(const FString& InDecision, const FString& InDecisionDataJson = TEXT(""), const FString& InComments = TEXT(""))
+    FMADecisionResponseMessage(const FString& InDecision, const FString& InDecisionDataJson = TEXT(""), const FString& InUserFeedback = TEXT(""))
         : Decision(InDecision)
         , DecisionDataJson(InDecisionDataJson)
-        , Comments(InComments)
+        , UserFeedback(InUserFeedback)
     {
         Timestamp = FMAMessageEnvelope::GetCurrentTimestamp();
         MessageId = FMAMessageEnvelope::GenerateMessageId();

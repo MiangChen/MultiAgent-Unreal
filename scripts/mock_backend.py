@@ -307,16 +307,6 @@ SKILL_LISTS = {
             "1": {'Quadruped-1': {'skill': 'guide', 'params': {'target': {'token': 'sportive_male', 'class': 'object', 'type': 'person', 'features': {'subtype': 'sportive', 'gender': 'male', 'clothing_color': 'brown'}, 'conf_ge': 0.85, 'persist_ge_s': 1.0}, 'target_token': 'sportive_male', 'object_id': '3004', 'dest_token': 'Intersection-4', 'dest': {'x': -6703.0, 'y': 12800.0, 'z': 0.0}, 'task_id': 'T2'}}}
         }
     },
-    "emergency_response": {
-        "name": "Emergency Response",
-        "description": "UAV 响应车辆起火紧急事件",
-        "data": {
-            "0": {'UAV-1': {'skill': 'take_off', 'params': {'task_id': 'T2'}}},
-            "1": {'UAV-1': {'skill': 'navigate', 'params': {'area_token': 'Car_2', 'object_id': '4029', 'dest_id': '4029', 'dest': {'x': -10500.0, 'y': 2200.0, 'z': 0.0}, 'task_id': 'T2'}}},
-            "2": {'UAV-1': {'skill': 'handle_hazard', 'params': {'target': {'class': 'object', 'type': 'vehicle', 'features': {'color': 'blue', 'subtype': 'suv', 'is_fire': True}}, 'target_token': 'blue_suv_with_Fire', 'object_id': '4029', 'task_id': 'T2'}}}
-        }
-    },
-    "traffic_enforcement_broadcast": {
         "name": "Traffic Enforcement (Broadcast)",
         "description": "UAV 对违停车辆进行广播警告",
         "data": {
@@ -377,69 +367,6 @@ SKILL_LISTS = {
     }
 }
 
-# ========== 紧急事件预设数据 ==========
-EMERGENCY_EVENTS = {
-    "obstacle_detected": {
-        "name": "Obstacle Detected",
-        "description": "Obstacle blocking path",
-        "data": {
-            "agent_id": "Quadruped-1",
-            "agent_name": "Scout Dog",
-            "event_type": "obstacle_detected",
-            "description": "Obstacle detected ahead blocking the path. Please decide the next action.",
-            "location": {"x": 1000, "y": 2000, "z": 0},
-            "available_options": ["Detour", "Wait", "Return to Base", "Request Support"]
-        }
-    },
-    "low_battery": {
-        "name": "Low Battery Warning",
-        "description": "Battery level critical",
-        "data": {
-            "agent_id": "UAV-1",
-            "agent_name": "Recon Drone",
-            "event_type": "low_battery",
-            "description": "UAV battery level below 20%. Please decide whether to return.",
-            "location": {"x": 500, "y": 1500, "z": 300},
-            "available_options": ["Return Now", "Continue Mission", "Land Nearby"]
-        }
-    },
-    "target_found": {
-        "name": "Target Found",
-        "description": "Target located",
-        "data": {
-            "agent_id": "UAV-2",
-            "agent_name": "Search Drone",
-            "event_type": "target_found",
-            "description": "Potential target found in search area. Please confirm next action.",
-            "location": {"x": -800, "y": 2200, "z": 200},
-            "available_options": ["Confirm Target", "Continue Search", "Notify Ground Unit", "Take Photo"]
-        }
-    },
-    "communication_lost": {
-        "name": "Communication Lost",
-        "description": "Connection interrupted",
-        "data": {
-            "agent_id": "UGV-1",
-            "agent_name": "Transport Vehicle",
-            "event_type": "communication_lost",
-            "description": "Communication with command center lost. Please select emergency action.",
-            "location": {"x": -1200, "y": 800, "z": 0},
-            "available_options": ["Hold Position", "Return to Signal Area", "Continue Mission", "Use Backup Comm"]
-        }
-    },
-    "intruder_detected": {
-        "name": "Intruder Detected",
-        "description": "Unauthorized personnel detected",
-        "data": {
-            "agent_id": "Quadruped-2",
-            "agent_name": "Patrol Dog",
-            "event_type": "intruder_detected",
-            "description": "Unauthorized personnel detected in patrol area. Please select response.",
-            "location": {"x": 600, "y": -500, "z": 0},
-            "available_options": ["Sound Alarm", "Track and Monitor", "Request Support", "Ignore"]
-        }
-    }
-}
 
 # ========== 预设任务图定义 ==========
 TASK_GRAPHS = {
@@ -685,7 +612,6 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
         .section-title.skill { color: #e94560; }
         .section-title.allocation { color: #ffd700; }
         .section-title.request-cmd { color: #00ff88; }
-        .section-title.emergency { color: #ff6b35; }
         
         .allocation-btn {
             width: 100%; padding: 12px 16px; margin-bottom: 10px;
@@ -696,16 +622,6 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
         .allocation-btn .name { font-weight: bold; font-size: 14px; }
         .allocation-btn .desc { font-size: 12px; color: #aaa; margin-top: 4px; }
         .allocation-btn:hover .desc { color: #0f3460; }
-        
-        .emergency-btn {
-            width: 100%; padding: 12px 16px; margin-bottom: 10px;
-            background: #0f3460; border: 1px solid #ff6b35; border-radius: 8px;
-            color: #fff; cursor: pointer; text-align: left; transition: all 0.2s;
-        }
-        .emergency-btn:hover { background: #ff6b35; color: #fff; transform: translateX(5px); }
-        .emergency-btn .name { font-weight: bold; font-size: 14px; }
-        .emergency-btn .desc { font-size: 12px; color: #aaa; margin-top: 4px; }
-        .emergency-btn:hover .desc { color: #fff; }
         
         .status { 
             padding: 10px; background: #0a0a1a; border-radius: 8px; 
@@ -820,8 +736,6 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
                 </button>
             </div>
             
-            <div class="section-title emergency">🚨 紧急事件</div>
-            <div id="emergency-buttons"></div>
             
             <div class="status">
                 <span class="dot connected" id="status-dot"></span>
@@ -854,7 +768,6 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
         const skillLists = {{SKILL_LISTS}};
         const taskGraphs = {{TASK_GRAPHS}};
         const skillAllocations = {{SKILL_ALLOCATIONS}};
-        const emergencyEvents = {{EMERGENCY_EVENTS}};
         const messagesDiv = document.getElementById('messages');
         const emptyState = document.getElementById('empty-state');
         let messageCount = 0;
@@ -985,34 +898,6 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
                 addMessage('sent', `Sent Request User Command`, displayContent, 'outgoing');
             } catch (e) {
                 console.error('Failed to send request user command:', e);
-            }
-        }
-        
-        // Generate emergency event buttons
-        const emergencyButtonsDiv = document.getElementById('emergency-buttons');
-        for (const [key, event] of Object.entries(emergencyEvents)) {
-            const btn = document.createElement('button');
-            btn.className = 'emergency-btn';
-            btn.onclick = () => sendEmergencyEvent(key);
-            btn.innerHTML = `<div class="name">🚨 ${event.name}</div><div class="desc">${event.description}</div>`;
-            emergencyButtonsDiv.appendChild(btn);
-        }
-        
-        // Send emergency event (紧急事件)
-        async function sendEmergencyEvent(eventKey) {
-            try {
-                const response = await fetch('/api/send_emergency_event', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ event_key: eventKey })
-                });
-                const result = await response.json();
-                const displayContent = result.note 
-                    ? { ...result, "⚠️ Note": result.note }
-                    : result;
-                addMessage('sent', `Sent Emergency Event: ${emergencyEvents[eventKey]?.name || eventKey}`, displayContent, 'outgoing');
-            } catch (e) {
-                console.error('Failed to send emergency event:', e);
             }
         }
         
@@ -1178,16 +1063,6 @@ def create_request_user_command_message() -> dict:
     }
 
 
-def create_emergency_event_message(event_data: dict) -> dict:
-    """创建紧急事件消息"""
-    return {
-        "message_type": "emergency_event",
-        "timestamp": int(datetime.now().timestamp() * 1000),
-        "message_id": str(uuid.uuid4()),
-        "payload": event_data
-    }
-
-
 class MockBackendHandler(BaseHTTPRequestHandler):
     """Mock backend request handler with Web UI"""
     
@@ -1244,8 +1119,6 @@ class MockBackendHandler(BaseHTTPRequestHandler):
             self.handle_send_task_graph(body)
         elif parsed_path.path == '/api/send_request_user_command':
             self.handle_send_request_user_command()
-        elif parsed_path.path == '/api/send_emergency_event':
-            self.handle_send_emergency_event(body)
         else:
             self.send_response(404)
             self.end_headers()
@@ -1256,7 +1129,6 @@ class MockBackendHandler(BaseHTTPRequestHandler):
         html = HTML_TEMPLATE.replace('{{PORT}}', str(server_port))
         html = html.replace('{{SKILL_LISTS}}', json.dumps(SKILL_LISTS, ensure_ascii=False))
         html = html.replace('{{TASK_GRAPHS}}', json.dumps(TASK_GRAPHS, ensure_ascii=False))
-        html = html.replace('{{EMERGENCY_EVENTS}}', json.dumps(EMERGENCY_EVENTS, ensure_ascii=False))
         html = html.replace('{{SKILL_ALLOCATIONS}}', json.dumps(SKILL_ALLOCATIONS, ensure_ascii=False))
 
         self.send_response(200)
@@ -1510,36 +1382,6 @@ class MockBackendHandler(BaseHTTPRequestHandler):
             "message_id": msg['message_id'],
             "note": "Request user command message queued. UE5 will display a notification."
         })
-
-    def handle_send_emergency_event(self, body):
-        """Handle emergency event send request from Web UI
-
-        Note: This method queues the emergency_event message for UE5 to poll.
-        UE5 will display a notification and allow the user to respond via EmergencyModal.
-        """
-        global pending_messages
-        try:
-            data = json.loads(body)
-            event_key = data.get('event_key', '')
-
-            if event_key in EMERGENCY_EVENTS:
-                event_data = EMERGENCY_EVENTS[event_key]['data']
-                msg = create_emergency_event_message(event_data)
-
-                with message_lock:
-                    pending_messages.append(msg)
-
-                self.send_json_response(200, {
-                    "status": "queued",
-                    "emergency_event": event_key,
-                    "message_id": msg['message_id'],
-                    "note": "Emergency event queued. UE5 will display a notification."
-                })
-            else:
-                self.send_json_response(400, {"error": f"Unknown emergency event: {event_key}"})
-
-        except json.JSONDecodeError as e:
-            self.send_json_response(400, {"error": str(e)})
 
 
 server_port = 8080

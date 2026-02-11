@@ -63,7 +63,6 @@ struct FMAPreviewSkillBarData
  * - 不同状态使用不同颜色
  * - 支持主题化
  * 
- * Requirements: 11.5
  */
 UCLASS()
 class MULTIAGENT_API UMASkillListPreview : public UUserWidget

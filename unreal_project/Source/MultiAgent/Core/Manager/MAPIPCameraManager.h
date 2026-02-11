@@ -10,8 +10,6 @@
 #include "../Types/MAPIPCameraTypes.h"
 #include "MAPIPCameraManager.generated.h"
 
-class UMAPIPCameraWidget;
-class UMAPIPCameraContainerWidget;
 class UCanvas;
 
 /**
@@ -167,12 +165,6 @@ public:
     FVector2D AllocateScreenPosition(const FVector2D& Size) const;
 
     /**
-     * 初始化 UI 容器 (由 UIManager 调用)
-     * @param InContainerWidget 容器 Widget
-     */
-    void SetContainerWidget(UMAPIPCameraContainerWidget* InContainerWidget);
-
-    /**
      * 绘制所有画中画相机 (由 HUD::DrawHUD 调用)
      * @param Canvas 画布
      * @param ViewportWidth 视口宽度
@@ -188,10 +180,6 @@ private:
     /** 所有相机实例 */
     UPROPERTY()
     TMap<FGuid, FMAPIPCameraInstance> CameraInstances;
-
-    /** UI 容器 Widget */
-    UPROPERTY()
-    TObjectPtr<UMAPIPCameraContainerWidget> ContainerWidget;
 
     /** 是否已初始化 */
     bool bInitialized = false;
@@ -211,7 +199,4 @@ private:
 
     /** 应用相机配置到场景捕获 */
     void ApplyCameraConfig(ASceneCapture2D* SceneCapture, const FMAPIPCameraConfig& Config);
-
-    /** 确保容器 Widget 存在 */
-    bool EnsureContainerWidget();
 };

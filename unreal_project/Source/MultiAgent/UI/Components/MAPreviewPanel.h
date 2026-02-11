@@ -32,7 +32,6 @@ DECLARE_LOG_CATEGORY_EXTERN(LogMAPreviewPanel, Log, All);
  * - 支持预览数据更新
  * - 支持主题切换
  * 
- * Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 7.2
  */
 UCLASS()
 class MULTIAGENT_API UMAPreviewPanel : public UUserWidget

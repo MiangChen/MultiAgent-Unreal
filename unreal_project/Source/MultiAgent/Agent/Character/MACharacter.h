@@ -13,6 +13,8 @@
 class UMASkillComponent;
 class UMACameraSensorComponent;
 class UMANavigationService;
+class UWidgetComponent;
+class UMASpeechBubbleWidget;
 
 UCLASS()
 class MULTIAGENT_API AMACharacter : public ACharacter, public IAbilitySystemInterface
@@ -91,6 +93,19 @@ public:
     UFUNCTION(BlueprintPure, Category = "Status")
     FString GetCurrentStatusText() const;
 
+    // ========== 气泡文本框 ==========
+    /** 显示头顶气泡消息 */
+    UFUNCTION(BlueprintCallable, Category = "SpeechBubble")
+    void ShowSpeechBubble(const FString& Message, float Duration = 20.0f);
+
+    /** 隐藏头顶气泡消息 */
+    UFUNCTION(BlueprintCallable, Category = "SpeechBubble")
+    void HideSpeechBubble();
+
+    /** 获取气泡 Widget（可能为 nullptr） */
+    UFUNCTION(BlueprintPure, Category = "SpeechBubble")
+    UMASpeechBubbleWidget* GetSpeechBubbleWidget() const;
+
     // ========== 能量系统 ==========
     /** 检查是否应该消耗能量（根据配置） */
     UFUNCTION(BlueprintPure, Category = "Energy")
@@ -153,6 +168,9 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Navigation")
     UMANavigationService* NavigationService;
 
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI")
+    UWidgetComponent* SpeechBubbleComponent;
+
 private:
     FString CurrentStatusText;
     float StatusDisplayEndTime = 0.f;
@@ -166,4 +184,10 @@ private:
     
     /** 执行低电量返航的实际逻辑 */
     void ExecuteLowEnergyReturn();
+
+    /** 初始化气泡文本框组件 */
+    void InitializeSpeechBubble();
+
+    /** 更新气泡朝向摄像机（billboard 效果） */
+    void UpdateSpeechBubbleFacing();
 };

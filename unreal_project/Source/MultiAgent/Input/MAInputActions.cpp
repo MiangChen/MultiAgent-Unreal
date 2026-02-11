@@ -57,16 +57,13 @@ void UMAInputActions::Initialize()
     IA_ToggleMainUI = CreateInputAction(TEXT("IA_ToggleMainUI"));
     IA_ToggleSkillAllocationViewer = CreateInputAction(TEXT("IA_ToggleSkillAllocationViewer"));
 
-    // 突发事件系统
-    IA_TriggerEmergency = CreateInputAction(TEXT("IA_TriggerEmergency"));
-    IA_ToggleEmergencyUI = CreateInputAction(TEXT("IA_ToggleEmergencyUI"));
 
     // HUD 状态管理输入 (UI Visual Redesign)
-    // 注意: 这些输入与 IA_ToggleMainUI/IA_ToggleSkillAllocationViewer/IA_ToggleEmergencyUI 共享按键
+    // 注意: 这些输入与 IA_ToggleMainUI/IA_ToggleSkillAllocationViewer 共享按键
     // 但用于新的 HUD 状态管理器系统
     IA_CheckTask = CreateInputAction(TEXT("IA_CheckTask"));
     IA_CheckSkill = CreateInputAction(TEXT("IA_CheckSkill"));
-    IA_CheckUnexpected = CreateInputAction(TEXT("IA_CheckUnexpected"));
+    IA_CheckDecision = CreateInputAction(TEXT("IA_CheckDecision"));
 
     // Agent View Mode 移动和视角控制
     IA_Move = CreateInputAction(TEXT("IA_Move"), EInputActionValueType::Axis2D);
@@ -136,21 +133,16 @@ void UMAInputActions::Initialize()
     // AddKeyMapping(IMC_RTS, IA_ToggleSkillAllocationViewer, EKeys::N);  // 已移除 - 由 IA_CheckSkill 处理
 
     // 突发事件系统
-    AddKeyMapping(IMC_RTS, IA_TriggerEmergency, EKeys::Hyphen);  // "-" 键触发/结束事件
-    // 注意: IA_ToggleEmergencyUI 不再绑定到 X 键，由 IA_CheckUnexpected 处理
-    // AddKeyMapping(IMC_RTS, IA_ToggleEmergencyUI, EKeys::X);  // 已移除 - 由 IA_CheckUnexpected 处理
 
     // HUD 状态管理输入 (UI Visual Redesign)
-    // Requirements: 10.1, 10.2, 10.3
     AddKeyMapping(IMC_RTS, IA_CheckTask, EKeys::Z);       // Z 键检查任务图
     AddKeyMapping(IMC_RTS, IA_CheckSkill, EKeys::N);      // N 键检查技能列表
-    AddKeyMapping(IMC_RTS, IA_CheckUnexpected, EKeys::X); // X 键检查突发事件
+    AddKeyMapping(IMC_RTS, IA_CheckDecision, EKeys::Nine);  // 9 键检查决策
 
     // 跳跃 (空格键)
     AddKeyMapping(IMC_RTS, IA_Jump, EKeys::SpaceBar);
 
     // 右侧边栏面板切换 (Right Sidebar Panel Split)
-    // Requirements: 4.2, 4.3, 4.4
     AddKeyMapping(IMC_RTS, IA_ToggleSystemLogPanel, EKeys::Six);    // 6 键切换系统日志面板
     AddKeyMapping(IMC_RTS, IA_TogglePreviewPanel, EKeys::Seven);    // 7 键切换预览面板
     AddKeyMapping(IMC_RTS, IA_ToggleInstructionPanel, EKeys::Eight); // 8 键切换指令输入面板

@@ -8,7 +8,7 @@
 #include "MAHUDTypes.generated.h"
 
 //=============================================================================
-// HUD 状态枚举 (Requirements: 2.1)
+// HUD 状态枚举
 //=============================================================================
 
 /**
@@ -37,7 +37,7 @@ enum class EMAHUDState : uint8
 };
 
 //=============================================================================
-// 模态类型枚举 (Requirements: 2.1)
+// 模态类型枚举
 //=============================================================================
 
 /**
@@ -47,7 +47,6 @@ enum class EMAHUDState : uint8
  * - None: 无模态窗口
  * - TaskGraph: 任务图查看/编辑模态
  * - SkillAllocation: 技能列表查看/编辑模态
- * - Emergency: 突发事件处理模态
  */
 UENUM(BlueprintType)
 enum class EMAModalType : uint8
@@ -61,12 +60,13 @@ enum class EMAModalType : uint8
     /** 技能列表模态 - 用于查看和编辑技能分配 */
     SkillAllocation   UMETA(DisplayName = "Skill Allocation"),
     
-    /** 突发事件模态 - 用于处理紧急情况 */
-    Emergency   UMETA(DisplayName = "Emergency")
+    
+    /** 决策模态 - 用于 HITL 决策交互 (Yes/No) */
+    Decision    UMETA(DisplayName = "Decision")
 };
 
 //=============================================================================
-// 通知类型枚举 (Requirements: 2.1)
+// 通知类型枚举
 //=============================================================================
 
 /**
@@ -76,7 +76,6 @@ enum class EMAModalType : uint8
  * - None: 无通知
  * - TaskGraphUpdate: 任务图更新通知
  * - SkillListUpdate: 技能列表更新通知
- * - EmergencyEvent: 突发事件通知
  * - RequestUserCommand: 索要用户指令通知
  */
 UENUM(BlueprintType)
@@ -94,8 +93,6 @@ enum class EMANotificationType : uint8
     /** 技能列表执行中通知 - 后端发送了可执行的技能列表，正在自动执行 */
     SkillListExecuting UMETA(DisplayName = "Skill List Executing"),
     
-    /** 突发事件通知 - 后端报告了紧急情况 */
-    EmergencyEvent  UMETA(DisplayName = "Emergency Event"),
     
     /** 索要用户指令通知 - 后端请求用户输入指令 */
     RequestUserCommand  UMETA(DisplayName = "Request User Command"),
@@ -104,7 +101,10 @@ enum class EMANotificationType : uint8
     SkillListPaused     UMETA(DisplayName = "Skill List Paused"),
     
     /** 技能列表恢复通知 - 用户按 P 键恢复了技能执行 */
-    SkillListResumed    UMETA(DisplayName = "Skill List Resumed")
+    SkillListResumed    UMETA(DisplayName = "Skill List Resumed"),
+    
+    /** 决策更新通知 - 后端发送了 HITL 决策请求 */
+    DecisionUpdate      UMETA(DisplayName = "Decision Update")
 };
 
 //=============================================================================

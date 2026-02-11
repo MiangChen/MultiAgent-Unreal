@@ -7,7 +7,6 @@
 #include "MACommTypes.h"
 
 class UMACommSubsystem;
-struct FMAEmergencyEventData;
 
 /**
  * 出站消息发送器
@@ -100,22 +99,12 @@ public:
      * 发送决策响应消息 (便捷方法)
      * @param Decision 用户选择的决策选项
      * @param DecisionDataJson 决策相关数据 (可选)
-     * @param Comments 用户备注 (可选)
+     * @param UserFeedback 用户反馈 (可选)
      */
     void SendDecisionResponseSimple(const FString& Decision,
-        const FString& DecisionDataJson = TEXT(""), const FString& Comments = TEXT(""));
+        const FString& DecisionDataJson = TEXT(""), const FString& UserFeedback = TEXT(""));
 
     //=========================================================================
-    // 紧急事件响应发送
-    //=========================================================================
-
-    /** 发送紧急事件响应
-     * 构建 scene_change 消息，类型为 EmergencyResponse
-     * 包含 source_agent_id, event_type, selected_option, user_input_text, timestamp
-     * Requirements: 7.1, 7.2, 7.3, 7.4, 7.5
-     * @param ResponseData 紧急事件响应数据
-     */
-    void SendEmergencyResponse(const FMAEmergencyEventData& ResponseData);
 
 private:
     /** 所属的通信子系统 */

@@ -59,7 +59,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnModalEditRequested, EMAModalType,
  * - 绑定 OnStateChanged 委托响应状态变化
  * - 通过 Handle*Input() 方法处理用户输入
  * 
- * Requirements: 2.1, 2.3, 2.5
  */
 UCLASS(BlueprintType)
 class MULTIAGENT_API UMAHUDStateManager : public UObject
@@ -177,7 +176,7 @@ public:
     bool HasPendingNotification() const { return PendingNotification != EMANotificationType::None; }
 
     //=========================================================================
-    // 输入处理 (Requirements: 2.2, 10.1, 10.2, 10.3, 10.4)
+    // 输入处理
     //=========================================================================
 
     /**
@@ -197,12 +196,12 @@ public:
     void HandleCheckSkillInput();
 
     /**
-     * 处理检查突发事件输入 (X 键)
-     * - 如果有突发事件，直接打开编辑模态
-     * - 如果突发事件模态已打开，关闭它
+     * 处理检查决策输入
+     * - 如果有决策通知，直接打开决策模态 (EditingModal)
+     * - 如果决策模态已打开，关闭它
      */
     UFUNCTION(BlueprintCallable, Category = "Input")
-    void HandleCheckEmergencyInput();
+    void HandleCheckDecisionInput();
 
     //=========================================================================
     // 模态操作

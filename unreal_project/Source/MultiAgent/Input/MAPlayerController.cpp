@@ -13,7 +13,6 @@
 #include "../Core/MASquad.h"
 #include "../Core/Manager/MASelectionManager.h"
 #include "../Core/Manager/MAViewportManager.h"
-#include "../Core/Manager/MAEmergencyManager.h"
 #include "../Core/Manager/MAEditModeManager.h"
 #include "../Environment/Utils/MAPointOfInterest.h"
 #include "../UI/Core/MAHUDStateManager.h"
@@ -105,14 +104,13 @@ bool AMAPlayerController::InitializeSubsystems()
     SelectionManager = World->GetSubsystem<UMASelectionManager>();
     SquadManager = World->GetSubsystem<UMASquadManager>();
     ViewportManager = World->GetSubsystem<UMAViewportManager>();
-    EmergencyManager = World->GetSubsystem<UMAEmergencyManager>();
     EditModeManager = World->GetSubsystem<UMAEditModeManager>();
 
     // 注意: HUDStateManager 不在这里创建
     // 它由 MAHUD->UIManager 创建和管理
     // 在 BeginPlay 中 HUD 初始化后，通过 GetHUDStateManagerFromHUD() 获取引用
 
-    return AgentManager && CommandManager && SelectionManager && SquadManager && ViewportManager && EmergencyManager;
+    return AgentManager && CommandManager && SelectionManager && SquadManager && ViewportManager;
 }
 
 void AMAPlayerController::SetupInputComponent()
@@ -184,22 +182,16 @@ void AMAPlayerController::SetupInputComponent()
         // 技能分配查看器切换 (N 键)
         EIC->BindAction(InputActions->IA_ToggleSkillAllocationViewer, ETriggerEvent::Started, this, &AMAPlayerController::OnToggleSkillAllocationViewer);
 
-        // 突发事件系统
-        EIC->BindAction(InputActions->IA_TriggerEmergency, ETriggerEvent::Started, this, &AMAPlayerController::OnTriggerEmergency);
-        EIC->BindAction(InputActions->IA_ToggleEmergencyUI, ETriggerEvent::Started, this, &AMAPlayerController::OnToggleEmergencyUI);
-
         // 跳跃 (空格键)
         EIC->BindAction(InputActions->IA_Jump, ETriggerEvent::Started, this, &AMAPlayerController::OnJumpPressed);
 
         // ========== HUD 状态管理输入 (UI Visual Redesign) ==========
-        // Requirements: 10.4
         // 绑定到 HUDStateManager 的输入处理方法
         EIC->BindAction(InputActions->IA_CheckTask, ETriggerEvent::Started, this, &AMAPlayerController::OnCheckTask);
         EIC->BindAction(InputActions->IA_CheckSkill, ETriggerEvent::Started, this, &AMAPlayerController::OnCheckSkill);
-        EIC->BindAction(InputActions->IA_CheckUnexpected, ETriggerEvent::Started, this, &AMAPlayerController::OnCheckUnexpected);
+        EIC->BindAction(InputActions->IA_CheckDecision, ETriggerEvent::Started, this, &AMAPlayerController::OnCheckDecision);
 
         // ========== 右侧边栏面板切换 (Right Sidebar Panel Split) ==========
-        // Requirements: 4.5
         EIC->BindAction(InputActions->IA_ToggleSystemLogPanel, ETriggerEvent::Started, this, &AMAPlayerController::OnToggleSystemLogPanel);
         EIC->BindAction(InputActions->IA_TogglePreviewPanel, ETriggerEvent::Started, this, &AMAPlayerController::OnTogglePreviewPanel);
         EIC->BindAction(InputActions->IA_ToggleInstructionPanel, ETriggerEvent::Started, this, &AMAPlayerController::OnToggleInstructionPanel);
@@ -388,8 +380,8 @@ void AMAPlayerController::OnRightClickPressed(const FInputActionValue& Value)
             return;
         }
         
-        // 如果 TaskPlanner 或 Emergency 界面可见，也不处理
-        if (HUD->IsMainUIVisible() || HUD->IsEmergencyWidgetVisible())
+        // 如果 TaskPlanner 界面可见，也不处理
+        if (HUD->IsMainUIVisible())
         {
             return;
         }
@@ -434,7 +426,7 @@ void AMAPlayerController::OnMiddleClick(const FInputActionValue& Value)
     // 检查 UI 是否可见
     if (AMAHUD* HUD = Cast<AMAHUD>(GetHUD()))
     {
-        if (HUD->IsMainUIVisible() || HUD->IsEmergencyWidgetVisible())
+        if (HUD->IsMainUIVisible())
         {
             return;
         }
@@ -1253,51 +1245,6 @@ void AMAPlayerController::OnToggleSkillAllocationViewer(const FInputActionValue&
     }
 }
 
-// ========== 突发事件系统 ==========
-
-void AMAPlayerController::OnTriggerEmergency(const FInputActionValue& Value)
-{
-    if (!EmergencyManager)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] EmergencyManager not found!"));
-        return;
-    }
-    
-    // 切换事件状态（触发或结束）
-    EmergencyManager->ToggleEvent();
-    UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnTriggerEmergency called, event active: %s"), 
-        EmergencyManager->IsEventActive() ? TEXT("true") : TEXT("false"));
-}
-
-void AMAPlayerController::OnToggleEmergencyUI(const FInputActionValue& Value)
-{
-    if (!EmergencyManager)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] EmergencyManager not found!"));
-        return;
-    }
-    
-    // 只有在事件激活时才能切换详情界面
-    if (!EmergencyManager->IsEventActive())
-    {
-        UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnToggleEmergencyUI: No active emergency event"));
-        return;
-    }
-
-    if (AMAHUD* HUD = Cast<AMAHUD>(GetHUD()))
-    {
-        HUD->ToggleEmergencyWidget();
-        UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnToggleEmergencyUI called"));
-    }
-    else
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] MAHUD not found!"));
-    }
-}
-
-// ========== HUD 状态管理输入 (UI Visual Redesign) ==========
-// Requirements: 10.4
-
 void AMAPlayerController::OnCheckTask(const FInputActionValue& Value)
 {
     UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnCheckTask triggered (Z key pressed)"));
@@ -1380,20 +1327,19 @@ void AMAPlayerController::OnCheckSkill(const FInputActionValue& Value)
     UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnCheckSkill -> HUDStateManager::HandleCheckSkillInput completed"));
 }
 
-void AMAPlayerController::OnCheckUnexpected(const FInputActionValue& Value)
+void AMAPlayerController::OnCheckDecision(const FInputActionValue& Value)
 {
     if (!HUDStateManager)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] HUDStateManager not found!"));
+        UE_LOG(LogTemp, Warning, TEXT("[PlayerController] OnCheckDecision: HUDStateManager not found!"));
         return;
     }
 
-    HUDStateManager->HandleCheckEmergencyInput();
-    UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnCheckUnexpected -> HUDStateManager::HandleCheckEmergencyInput"));
+    HUDStateManager->HandleCheckDecisionInput();
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] OnCheckDecision -> HUDStateManager::HandleCheckDecisionInput"));
 }
 
 // ========== 右侧边栏面板切换 (Right Sidebar Panel Split) ==========
-// Requirements: 4.5
 
 void AMAPlayerController::OnToggleSystemLogPanel(const FInputActionValue& Value)
 {

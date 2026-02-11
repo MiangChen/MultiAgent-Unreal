@@ -1,7 +1,6 @@
 // MASkillAllocationModal.h
 // 技能列表模态窗口 - 用于查看和编辑技能分配
 // 继承自 MABaseModalWidget，提供技能列表详细可视化
-// Requirements: 5.2, 5.3, 5.4, 6.1, 6.4
 
 #pragma once
 
@@ -70,7 +69,6 @@ DECLARE_LOG_CATEGORY_EXTERN(LogMASkillAllocationModal, Log, All);
  * │                    [Confirm] [Reject] [Edit]                        │
  * └─────────────────────────────────────────────────────────────────────┘
  * 
- * Requirements: 5.2, 5.3, 6.1, 6.4
  */
 UCLASS()
 class MULTIAGENT_API UMASkillAllocationModal : public UMABaseModalWidget

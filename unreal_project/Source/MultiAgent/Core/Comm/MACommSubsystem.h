@@ -20,8 +20,9 @@
 #include "MACommHttpServer.h"
 #include "MACommSubsystem.generated.h"
 
-// Forward declaration for emergency event data
-struct FMAEmergencyEventData;
+
+// 委托声明 - 收到决策请求时广播
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnMADecisionReceived, const FString&, Description, const FString&, ContextJson);
 
 /**
  * 通信子系统
@@ -118,12 +119,6 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Communication|SkillAllocation")
     void SendSkillAllocationMessage(const FMASkillAllocationMessage& Message);
 
-    /** 发送紧急事件响应
-     * Requirements: 7.1, 7.2, 7.3, 7.4, 7.5
-     * @param ResponseData 紧急事件响应数据
-     */
-    UFUNCTION(BlueprintCallable, Category = "Communication|Emergency")
-    void SendEmergencyResponse(const FMAEmergencyEventData& ResponseData);
 
     //=========================================================================
     // HITL 响应发送接口 (委托给 MACommOutbound)
@@ -145,7 +140,7 @@ public:
     /** 发送决策响应消息 (便捷方法) */
     UFUNCTION(BlueprintCallable, Category = "Communication|HITL")
     void SendDecisionResponseSimple(const FString& Decision,
-        const FString& DecisionDataJson = TEXT(""), const FString& Comments = TEXT(""));
+        const FString& DecisionDataJson = TEXT(""), const FString& UserFeedback = TEXT(""));
 
     //=========================================================================
     // 轮询控制接口 (委托给 MACommInbound)
@@ -202,6 +197,10 @@ public:
     /** 收到技能列表委托 (PLATFORM 类别 - 直接执行) */
     UPROPERTY(BlueprintAssignable, Category = "Events")
     FOnMASkillListReceived OnSkillListReceived;
+
+    /** 收到决策请求委托 (HITL Decision 类别) */
+    UPROPERTY(BlueprintAssignable, Category = "Events")
+    FOnMADecisionReceived OnDecisionReceived;
 
     //=========================================================================
     // 状态查询

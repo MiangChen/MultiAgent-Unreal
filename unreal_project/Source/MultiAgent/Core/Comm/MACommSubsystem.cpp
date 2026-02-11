@@ -7,7 +7,6 @@
 #include "MACommHttpServer.h"
 #include "../Config/MAConfigManager.h"
 #include "MACommTypes.h"
-#include "../../UI/Modal/MAEmergencyModal.h"
 #include "HttpModule.h"
 #include "Interfaces/IHttpRequest.h"
 #include "Interfaces/IHttpResponse.h"
@@ -232,19 +231,11 @@ void UMACommSubsystem::SendDecisionResponse(const FMADecisionResponseMessage& Re
 }
 
 void UMACommSubsystem::SendDecisionResponseSimple(const FString& Decision,
-    const FString& DecisionDataJson, const FString& Comments)
+    const FString& DecisionDataJson, const FString& UserFeedback)
 {
     if (Outbound)
     {
-        Outbound->SendDecisionResponseSimple(Decision, DecisionDataJson, Comments);
-    }
-}
-
-void UMACommSubsystem::SendEmergencyResponse(const FMAEmergencyEventData& ResponseData)
-{
-    if (Outbound)
-    {
-        Outbound->SendEmergencyResponse(ResponseData);
+        Outbound->SendDecisionResponseSimple(Decision, DecisionDataJson, UserFeedback);
     }
 }
 

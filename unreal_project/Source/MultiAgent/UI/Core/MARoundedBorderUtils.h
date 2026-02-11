@@ -23,7 +23,6 @@ class UMAUITheme;
  * - Button: 按钮，使用 ButtonCornerRadius (默认 8.0f)
  * - Custom: 自定义，使用指定的圆角半径值
  * 
- * Requirements: 1.4
  */
 UENUM(BlueprintType)
 enum class EMARoundedElementType : uint8
@@ -63,7 +62,6 @@ enum class EMARoundedElementType : uint8
  * MARoundedBorderUtils::ApplyRoundedCornersFromTheme(MyBorder, Theme, EMARoundedElementType::Panel);
  * @endcode
  * 
- * Requirements: 1.1, 1.2, 1.3, 1.4, 1.5
  */
 class MULTIAGENT_API MARoundedBorderUtils
 {
@@ -89,7 +87,6 @@ public:
      * @param CornerRadius 圆角半径 (所有四个角相同)
      * @return 配置好的 FSlateBrush
      * 
-     * Requirements: 1.1
      */
     static FSlateBrush CreateRoundedBoxBrush(
         const FLinearColor& Color, 
@@ -105,7 +102,6 @@ public:
      * @param BottomLeft 左下角半径
      * @return 配置好的 FSlateBrush
      * 
-     * Requirements: 1.1
      */
     static FSlateBrush CreateRoundedBoxBrush(
         const FLinearColor& Color,
@@ -125,7 +121,6 @@ public:
      * @param Color 背景颜色
      * @param CornerRadius 圆角半径
      * 
-     * Requirements: 1.2
      */
     static void ApplyRoundedCorners(
         UBorder* Border,
@@ -140,7 +135,6 @@ public:
      * @param ElementType 元素类型 (决定使用哪个圆角半径)
      * @param CustomRadius 自定义圆角半径 (仅当 ElementType 为 Custom 时使用)
      * 
-     * Requirements: 1.2, 1.5
      */
     static void ApplyRoundedCornersFromTheme(
         UBorder* Border,
@@ -159,7 +153,6 @@ public:
      * @param ElementType 元素类型
      * @return 圆角半径值
      * 
-     * Requirements: 1.4, 1.5
      */
     static float GetCornerRadiusForType(
         const UMAUITheme* Theme,

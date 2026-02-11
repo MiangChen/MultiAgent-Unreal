@@ -24,11 +24,11 @@ AMAChargingStation::AMAChargingStation()
     MeshComponent->SetCollisionProfileName(TEXT("PhysicsActor"));
     
     // Set default soft references (can be changed in editor)
-    StationMeshAsset = TSoftObjectPtr<UStaticMesh>(FSoftObjectPath(TEXT("/Game/charge/SM_StationRecharge.SM_StationRecharge")));
-    StationMaterialAsset = TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(TEXT("/Game/charge/M_ChargingStation.M_ChargingStation")));
+    StationMeshAsset = TSoftObjectPtr<UStaticMesh>(FSoftObjectPath(TEXT("/Game/Props/ChargingStation/SM_StationRecharge.SM_StationRecharge")));
+    StationMaterialAsset = TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(TEXT("/Game/Props/ChargingStation/M_ChargingStation.M_ChargingStation")));
 
     // 在构造函数中加载默认 Mesh（编辑器中可见）
-    static ConstructorHelpers::FObjectFinder<UStaticMesh> DefaultMesh(TEXT("/Game/charge/SM_StationRecharge.SM_StationRecharge"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> DefaultMesh(TEXT("/Game/Props/ChargingStation/SM_StationRecharge.SM_StationRecharge"));
     if (DefaultMesh.Succeeded())
     {
         MeshComponent->SetStaticMesh(DefaultMesh.Object);

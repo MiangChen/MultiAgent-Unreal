@@ -212,10 +212,10 @@ protected:
     void OnTempSkillStatusUpdated(int32 TimeStep, const FString& RobotId, ESkillExecutionStatus NewStatus);
 
     //=========================================================================
-    // 拖拽事件处理 (Requirements 5.1)
+    // 拖拽事件处理
     //=========================================================================
 
-    /** 甘特图拖拽开始回调 - 当拖拽操作开始时调用 (Requirements 7.1) */
+    /** 甘特图拖拽开始回调 - 当拖拽操作开始时调用 */
     UFUNCTION()
     void OnGanttDragStarted(const FString& SkillName, int32 TimeStep, const FString& RobotId);
 
@@ -228,15 +228,15 @@ protected:
     UFUNCTION()
     void OnGanttDragCancelled();
 
-    /** 甘特图拖拽被阻止回调 - 当执行期间尝试拖拽时调用 (Requirements 8.2) */
+    /** 甘特图拖拽被阻止回调 - 当执行期间尝试拖拽时调用 */
     UFUNCTION()
     void OnGanttDragBlocked();
 
-    /** 甘特图拖拽失败回调 - 当拖拽操作因无效目标失败时调用 (Requirements 7.4) */
+    /** 甘特图拖拽失败回调 - 当拖拽操作因无效目标失败时调用 */
     UFUNCTION()
     void OnGanttDragFailed();
 
-    /** 同步数据到临时文件 (Requirements 5.1, 5.3, 5.4) */
+    /** 同步数据到临时文件 */
     void SyncDataToTempFile();
 
     //=========================================================================

@@ -15,6 +15,9 @@
 #include "../../Core/Manager/MACommandManager.h"
 #include "../../UI/Core/MAUIManager.h"
 #include "../../UI/HUD/MAHUD.h"
+#include "Components/WidgetComponent.h"
+#include "Camera/PlayerCameraManager.h"
+#include "../../UI/Components/MASpeechBubbleWidget.h"
 
 AMACharacter::AMACharacter()
 {
@@ -49,6 +52,20 @@ AMACharacter::AMACharacter()
     // 创建导航服务组件
     NavigationService = CreateDefaultSubobject<UMANavigationService>(TEXT("NavigationService"));
     
+    // 创建气泡文本框组件（World 空间，跟随场景缩放）
+    SpeechBubbleComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("SpeechBubbleComponent"));
+    SpeechBubbleComponent->SetupAttachment(GetRootComponent());
+    SpeechBubbleComponent->SetWidgetSpace(EWidgetSpace::World);
+    SpeechBubbleComponent->SetDrawSize(UMASpeechBubbleWidget::GetRecommendedDrawSize());
+    SpeechBubbleComponent->SetPivot(UMASpeechBubbleWidget::GetRecommendedPivot(UMASpeechBubbleWidget::GetRecommendedDrawSize().X));  // 引脚尖端自动对齐 robot 头顶
+    SpeechBubbleComponent->SetVisibility(false);
+    SpeechBubbleComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    SpeechBubbleComponent->SetRelativeLocation(FVector(0.0f, 0.0f, 100.0f));
+    SpeechBubbleComponent->SetRelativeScale3D(FVector(1.5f, 1.5f, 1.5f));  // 放缩到合适的世界尺寸
+    SpeechBubbleComponent->SetBackgroundColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.0f));  // 透明背景，让圆角和阴影正确渲染
+    SpeechBubbleComponent->SetBlendMode(EWidgetBlendMode::Transparent);  // 透明混合模式
+    SpeechBubbleComponent->SetTintColorAndOpacity(FLinearColor(0.01f, 0.01f, 0.01f, 1.0f));  // 降低整体亮度，避免场景光照导致过曝
+    
     GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
@@ -63,6 +80,7 @@ void AMACharacter::BeginPlay()
     FMASkillTags::InitializeNativeTags();
     AutoFitCapsuleToMesh();
     InitializeSkillSet();
+    InitializeSpeechBubble();
     
     // 记录初始位置（用于返航）
     InitialLocation = GetActorLocation();
@@ -88,6 +106,7 @@ void AMACharacter::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
     UpdateStatusText();
+    UpdateSpeechBubbleFacing();
 }
 
 // ========== 技能接口 ==========
@@ -370,4 +389,79 @@ void AMACharacter::OnReturnSkillCompleted(AMACharacter* Agent, bool bSuccess, co
     
     UE_LOG(LogTemp, Log, TEXT("[%s] Low-energy return %s: %s"),
         *AgentLabel, bSuccess ? TEXT("completed") : TEXT("failed"), *Message);
+}
+
+// ========== 气泡文本框 ==========
+
+void AMACharacter::UpdateSpeechBubbleFacing()
+{
+    if (!SpeechBubbleComponent || !SpeechBubbleComponent->IsVisible()) return;
+
+    APlayerController* PC = GetWorld()->GetFirstPlayerController();
+    if (!PC || !PC->PlayerCameraManager) return;
+
+    FVector CameraLoc = PC->PlayerCameraManager->GetCameraLocation();
+    FVector BubbleLoc = SpeechBubbleComponent->GetComponentLocation();
+    FVector Dir = CameraLoc - BubbleLoc;
+    Dir.Z = 0.0f;
+
+    if (!Dir.IsNearlyZero())
+    {
+        FRotator FaceRot = Dir.Rotation();
+        SpeechBubbleComponent->SetWorldRotation(FaceRot);
+    }
+}
+
+void AMACharacter::InitializeSpeechBubble()
+{
+    if (!SpeechBubbleComponent) return;
+
+    SpeechBubbleComponent->SetWidgetClass(UMASpeechBubbleWidget::StaticClass());
+    SpeechBubbleComponent->InitWidget();
+
+    // 应用主题
+    UMASpeechBubbleWidget* BubbleWidget = Cast<UMASpeechBubbleWidget>(SpeechBubbleComponent->GetWidget());
+    if (BubbleWidget)
+    {
+        // 尝试从 HUD 获取主题
+        APlayerController* PC = GetWorld()->GetFirstPlayerController();
+        if (PC)
+        {
+            if (AMAHUD* HUD = Cast<AMAHUD>(PC->GetHUD()))
+            {
+                if (UMAUIManager* UIManager = HUD->GetUIManager())
+                {
+                    BubbleWidget->ApplyTheme(UIManager->GetTheme());
+                }
+            }
+        }
+    }
+}
+
+void AMACharacter::ShowSpeechBubble(const FString& Message, float Duration)
+{
+    if (!SpeechBubbleComponent) return;
+
+    UMASpeechBubbleWidget* BubbleWidget = Cast<UMASpeechBubbleWidget>(SpeechBubbleComponent->GetWidget());
+    if (!BubbleWidget) return;
+
+    SpeechBubbleComponent->SetVisibility(true);
+    BubbleWidget->ShowMessage(Message, Duration);
+}
+
+void AMACharacter::HideSpeechBubble()
+{
+    if (!SpeechBubbleComponent) return;
+
+    UMASpeechBubbleWidget* BubbleWidget = Cast<UMASpeechBubbleWidget>(SpeechBubbleComponent->GetWidget());
+    if (BubbleWidget)
+    {
+        BubbleWidget->HideMessage();
+    }
+}
+
+UMASpeechBubbleWidget* AMACharacter::GetSpeechBubbleWidget() const
+{
+    if (!SpeechBubbleComponent) return nullptr;
+    return Cast<UMASpeechBubbleWidget>(SpeechBubbleComponent->GetWidget());
 }

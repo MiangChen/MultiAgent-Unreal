@@ -45,7 +45,6 @@ struct FMASkillAllocationData;
  * │ └──────────┘                                                    │
  * └─────────────────────────────────────────────────────────────────┘
  * 
- * Requirements: 3.1, 3.2, 3.3, 3.4
  */
 UCLASS()
 class MULTIAGENT_API UMAMainHUDWidget : public UUserWidget
@@ -56,7 +55,7 @@ public:
     UMAMainHUDWidget(const FObjectInitializer& ObjectInitializer);
 
     //=========================================================================
-    // 组件访问接口 (Requirements: 3.1, 3.2)
+    // 组件访问接口
     //=========================================================================
 
     /**

@@ -10,23 +10,20 @@
 #include "../HUD/MAMainHUDWidget.h"
 #include "../Modal/MATaskGraphModal.h"
 #include "../Modal/MASkillAllocationModal.h"
-#include "../Modal/MAEmergencyModal.h"
+#include "../Modal/MADecisionModal.h"
 #include "../Modal/MABaseModalWidget.h"
 #include "../Components/MANotificationWidget.h"
 #include "../TaskGraph/MATaskPlannerWidget.h"
 #include "../SkillAllocation/MASkillAllocationViewer.h"
 #include "../SkillAllocation/MAGanttCanvas.h"
 #include "../Components/MADirectControlIndicator.h"
-#include "../Mode/MAEmergencyWidget.h"
 #include "../Mode/MAModifyWidget.h"
 #include "../Mode/MAEditWidget.h"
 #include "../Mode/MASceneListWidget.h"
-// 右侧边栏拆分面板 (Requirements: 5.1)
 #include "../Components/MASystemLogPanel.h"
 #include "../Components/MAPreviewPanel.h"
 #include "../Components/MAInstructionPanel.h"
 #include "../../Core/Manager/MATempDataManager.h"
-#include "../../Core/Manager/MAEmergencyManager.h"
 #include "../../Core/Manager/MACommandManager.h"
 #include "../../Core/Comm/MACommSubsystem.h"
 #include "../../Agent/Component/Sensor/MACameraSensorComponent.h"
@@ -81,7 +78,7 @@ void UMAUIManager::CreateAllWidgets()
         HUDWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
         Widgets.Add(EMAWidgetType::HUD, HUDWidget);
         
-        // 应用主题 (Requirements: 8.3)
+        // 应用主题
         UMAUITheme* ThemeToApply = GetTheme();
         if (ThemeToApply)
         {
@@ -102,7 +99,7 @@ void UMAUIManager::CreateAllWidgets()
         MainHUDWidget->AddToViewport(0);  // 基础层
         MainHUDWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
         
-        // 应用主题 (Requirements: 8.3)
+        // 应用主题
         UMAUITheme* ThemeToApply = GetTheme();
         if (ThemeToApply)
         {
@@ -133,7 +130,7 @@ void UMAUIManager::CreateAllWidgets()
             TaskPlannerWidget->LoadMockData();
         }
         
-        // 应用主题 (Requirements: 8.3)
+        // 应用主题
         UMAUITheme* ThemeToApply = GetTheme();
         if (ThemeToApply)
         {
@@ -159,7 +156,7 @@ void UMAUIManager::CreateAllWidgets()
         // 尝试加载 Mock 数据
         SkillAllocationViewer->LoadMockData();
         
-        // 应用主题到内部 GanttCanvas (Requirements: 8.3)
+        // 应用主题到内部 GanttCanvas
         UMAUITheme* ThemeToApply = GetTheme();
         if (ThemeToApply)
         {
@@ -212,7 +209,7 @@ void UMAUIManager::CreateAllWidgets()
         DirectControlIndicator->SetVisibility(ESlateVisibility::Collapsed);
         Widgets.Add(EMAWidgetType::DirectControl, DirectControlIndicator);
         
-        // 应用主题 (Requirements: 8.3)
+        // 应用主题
         UMAUITheme* ThemeToApply = GetTheme();
         if (ThemeToApply)
         {
@@ -226,22 +223,6 @@ void UMAUIManager::CreateAllWidgets()
         UE_LOG(LogMAUIManager, Error, TEXT("Failed to create DirectControlIndicator"));
     }
 
-    // 注意：旧的 EmergencyWidget 已被弃用，相机视图功能已移植到 EmergencyModal
-    // 不再创建 EmergencyWidget，保留代码以便将来完全移除
-    // EmergencyWidget = CreateWidget<UMAEmergencyWidget>(OwningPC, UMAEmergencyWidget::StaticClass());
-    // if (EmergencyWidget)
-    // {
-    //     EmergencyWidget->AddToViewport(GetWidgetZOrder(EMAWidgetType::Emergency));
-    //     EmergencyWidget->SetVisibility(ESlateVisibility::Collapsed);
-    //     Widgets.Add(EMAWidgetType::Emergency, EmergencyWidget);
-    //     UE_LOG(LogMAUIManager, Log, TEXT("EmergencyWidget created"));
-    // }
-    // else
-    // {
-    //     UE_LOG(LogMAUIManager, Error, TEXT("Failed to create EmergencyWidget"));
-    // }
-    EmergencyWidget = nullptr;
-    UE_LOG(LogMAUIManager, Log, TEXT("EmergencyWidget deprecated - using EmergencyModal instead"));
 
     // 创建 ModifyWidget
     ModifyWidget = CreateWidget<UMAModifyWidget>(OwningPC, UMAModifyWidget::StaticClass());
@@ -251,7 +232,7 @@ void UMAUIManager::CreateAllWidgets()
         ModifyWidget->SetVisibility(ESlateVisibility::Collapsed);
         Widgets.Add(EMAWidgetType::Modify, ModifyWidget);
         
-        // 应用主题 (Requirements: 8.3)
+        // 应用主题
         UMAUITheme* ThemeToApply = GetTheme();
         if (ThemeToApply)
         {
@@ -273,7 +254,7 @@ void UMAUIManager::CreateAllWidgets()
         EditWidget->SetVisibility(ESlateVisibility::Collapsed);
         Widgets.Add(EMAWidgetType::Edit, EditWidget);
         
-        // 应用主题 (Requirements: 8.3)
+        // 应用主题
         UMAUITheme* ThemeToApply = GetTheme();
         if (ThemeToApply)
         {
@@ -295,7 +276,7 @@ void UMAUIManager::CreateAllWidgets()
         SceneListWidget->SetVisibility(ESlateVisibility::Collapsed);
         Widgets.Add(EMAWidgetType::SceneList, SceneListWidget);
         
-        // 应用主题 (Requirements: 8.3)
+        // 应用主题
         UMAUITheme* ThemeToApply = GetTheme();
         if (ThemeToApply)
         {
@@ -310,7 +291,7 @@ void UMAUIManager::CreateAllWidgets()
     }
 
     //=========================================================================
-    // 右侧边栏拆分面板 (Requirements: 5.1)
+    // 右侧边栏拆分面板
     //=========================================================================
 
     // 创建 SystemLogPanel
@@ -321,7 +302,7 @@ void UMAUIManager::CreateAllWidgets()
         SystemLogPanel->SetVisibility(ESlateVisibility::Collapsed);
         Widgets.Add(EMAWidgetType::SystemLogPanel, SystemLogPanel);
         
-        // 应用主题 (Requirements: 7.1)
+        // 应用主题
         UMAUITheme* ThemeToApply = GetTheme();
         if (ThemeToApply)
         {
@@ -343,7 +324,7 @@ void UMAUIManager::CreateAllWidgets()
         PreviewPanel->SetVisibility(ESlateVisibility::Collapsed);
         Widgets.Add(EMAWidgetType::PreviewPanel, PreviewPanel);
         
-        // 应用主题 (Requirements: 7.2)
+        // 应用主题
         UMAUITheme* ThemeToApply = GetTheme();
         if (ThemeToApply)
         {
@@ -365,7 +346,7 @@ void UMAUIManager::CreateAllWidgets()
         InstructionPanel->SetVisibility(ESlateVisibility::Collapsed);
         Widgets.Add(EMAWidgetType::InstructionPanel, InstructionPanel);
         
-        // 应用主题 (Requirements: 7.3)
+        // 应用主题
         UMAUITheme* ThemeToApply = GetTheme();
         if (ThemeToApply)
         {
@@ -387,8 +368,6 @@ void UMAUIManager::CreateAllWidgets()
     // 绑定 CommSubsystem 事件，以便接收后端消息
     BindCommSubsystemEvents();
     
-    // 绑定 EmergencyManager 事件，以便接收紧急事件通知
-    BindEmergencyManagerEvents();
     
     // 绑定 CommandManager 事件，以便接收暂停/恢复状态通知
     BindCommandManagerEvents();
@@ -439,11 +418,6 @@ UMADirectControlIndicator* UMAUIManager::GetDirectControlIndicator() const
     return DirectControlIndicator;
 }
 
-UMAEmergencyWidget* UMAUIManager::GetEmergencyWidget() const
-{
-    return EmergencyWidget;
-}
-
 UMAModifyWidget* UMAUIManager::GetModifyWidget() const
 {
     return ModifyWidget;
@@ -465,7 +439,7 @@ UMAHUDWidget* UMAUIManager::GetHUDWidget() const
 }
 
 //=============================================================================
-// Widget 访问 - 右侧边栏拆分面板 (Requirements: 5.2)
+// Widget 访问 - 右侧边栏拆分面板
 //=============================================================================
 
 UMASystemLogPanel* UMAUIManager::GetSystemLogPanel() const
@@ -491,8 +465,8 @@ UMABaseModalWidget* UMAUIManager::GetModalByType(EMAModalType ModalType) const
         return TaskGraphModal;
     case EMAModalType::SkillAllocation:
         return SkillAllocationModal;
-    case EMAModalType::Emergency:
-        return EmergencyModal;
+    case EMAModalType::Decision:
+        return DecisionModal;
     default:
         return nullptr;
     }
@@ -565,9 +539,6 @@ bool UMAUIManager::HideWidget(EMAWidgetType Type)
         case EMAWidgetType::SkillAllocation:
             bShouldReturnToNormal = (ActiveModal == EMAModalType::SkillAllocation);
             break;
-        case EMAWidgetType::Emergency:
-            bShouldReturnToNormal = (ActiveModal == EMAModalType::Emergency);
-            break;
         default:
             break;
         }
@@ -631,7 +602,7 @@ bool UMAUIManager::IsAnyFullscreenWidgetVisible() const
         return true;
     }
     
-    if (EmergencyModal && EmergencyModal->IsVisible())
+    if (DecisionModal && DecisionModal->IsVisible())
     {
         return true;
     }
@@ -763,12 +734,6 @@ void UMAUIManager::SetWidgetFocus(EMAWidgetType Type)
         }
         break;
 
-    case EMAWidgetType::Emergency:
-        if (EmergencyWidget)
-        {
-            EmergencyWidget->FocusInputBox();
-        }
-        break;
 
     default:
         // 其他 Widget 使用通用焦点设置
@@ -804,8 +769,6 @@ int32 UMAUIManager::GetWidgetZOrder(EMAWidgetType Type) const
         return 11;
     case EMAWidgetType::SkillAllocation:
         return 11;
-    case EMAWidgetType::Emergency:
-        return 12;
     case EMAWidgetType::DirectControl:
         return 15;
     // 右侧边栏拆分面板 - 使用较低的 Z-Order，不遮挡其他 Widget
@@ -899,7 +862,7 @@ void UMAUIManager::LoadTheme(UMAUITheme* ThemeAsset)
         CurrentTheme = DefaultTheme;
     }
     
-    // 分发主题到所有已创建的 Widget (Requirements: 8.2)
+    // 分发主题到所有已创建的 Widget
     DistributeThemeToWidgets();
 }
 
@@ -954,9 +917,7 @@ bool UMAUIManager::ValidateTheme(UMAUITheme* InTheme) const
 
 void UMAUIManager::DistributeThemeToWidgets()
 {
-    // Requirements: 8.1, 8.2
     // 分发主题到所有已注册的 Widget
-    
     UMAUITheme* ThemeToApply = GetTheme();
     if (!ThemeToApply)
     {
@@ -1060,14 +1021,14 @@ void UMAUIManager::DistributeThemeToWidgets()
         WidgetCount++;
     }
     
-    if (EmergencyModal)
+    if (DecisionModal)
     {
-        EmergencyModal->ApplyTheme(ThemeToApply);
+        DecisionModal->ApplyTheme(ThemeToApply);
         WidgetCount++;
     }
     
     //=========================================================================
-    // 右侧边栏拆分面板 (Requirements: 7.4)
+    // 右侧边栏拆分面板
     //=========================================================================
     
     if (SystemLogPanel)
@@ -1090,12 +1051,12 @@ void UMAUIManager::DistributeThemeToWidgets()
     
     UE_LOG(LogMAUIManager, Log, TEXT("DistributeThemeToWidgets: Theme applied to %d widgets"), WidgetCount);
     
-    // 广播主题变更事件 (Requirements: 8.4)
+    // 广播主题变更事件
     OnThemeChanged.Broadcast(ThemeToApply);
 }
 
 //=============================================================================
-// HUD 状态管理 (Requirements: 2.1, 2.3, 2.4, 2.5)
+// HUD 状态管理
 //=============================================================================
 
 void UMAUIManager::InitializeHUDStateManager()
@@ -1143,7 +1104,7 @@ void UMAUIManager::CreateModalWidgets()
         // 绑定隐藏动画完成回调，确保点击 ❌ 关闭按钮后状态同步
         TaskGraphModal->OnHideAnimationComplete.AddDynamic(this, &UMAUIManager::OnModalHideAnimationComplete);
         
-        // 应用主题 (Requirements: 8.3)
+        // 应用主题
         UMAUITheme* ThemeToApply = GetTheme();
         if (ThemeToApply)
         {
@@ -1176,7 +1137,7 @@ void UMAUIManager::CreateModalWidgets()
         // 绑定隐藏动画完成回调，确保点击 ❌ 关闭按钮后状态同步
         SkillAllocationModal->OnHideAnimationComplete.AddDynamic(this, &UMAUIManager::OnModalHideAnimationComplete);
         
-        // 应用主题 (Requirements: 8.3)
+        // 应用主题
         UMAUITheme* ThemeToApply = GetTheme();
         if (ThemeToApply)
         {
@@ -1190,42 +1151,41 @@ void UMAUIManager::CreateModalWidgets()
         UE_LOG(LogMAUIManager, Error, TEXT("Failed to create SkillAllocationModal"));
     }
 
-    // 创建紧急事件模态窗口
-    EmergencyModal = CreateWidget<UMAEmergencyModal>(OwningPC, UMAEmergencyModal::StaticClass());
-    if (EmergencyModal)
+    // 创建决策模态窗口
+    DecisionModal = CreateWidget<UMADecisionModal>(OwningPC, UMADecisionModal::StaticClass());
+    if (DecisionModal)
     {
-        EmergencyModal->AddToViewport(ModalZOrder);
-        EmergencyModal->SetVisibility(ESlateVisibility::Collapsed);
-        EmergencyModal->SetModalType(EMAModalType::Emergency);
+        DecisionModal->AddToViewport(ModalZOrder);
+        DecisionModal->SetVisibility(ESlateVisibility::Collapsed);
+        DecisionModal->SetModalType(EMAModalType::Decision);
         
         // 绑定模态按钮回调到 HUDStateManager
         if (HUDStateManager)
         {
-            EmergencyModal->OnConfirmClicked.AddDynamic(HUDStateManager, &UMAHUDStateManager::OnModalConfirm);
-            EmergencyModal->OnRejectClicked.AddDynamic(HUDStateManager, &UMAHUDStateManager::OnModalReject);
-            // Emergency modal 不需要 Edit 按钮，因为它直接进入编辑模式
+            DecisionModal->OnConfirmClicked.AddDynamic(HUDStateManager, &UMAHUDStateManager::OnModalConfirm);
+            DecisionModal->OnRejectClicked.AddDynamic(HUDStateManager, &UMAHUDStateManager::OnModalReject);
+            // Decision modal 不需要 Edit 按钮
         }
         
-        // 绑定紧急事件确认/拒绝回调，用于发送响应到后端
-        // Requirements: 7.1, 7.4, 7.5
-        EmergencyModal->OnEmergencyConfirmed.AddDynamic(this, &UMAUIManager::OnEmergencyModalConfirmed);
-        EmergencyModal->OnEmergencyRejected.AddDynamic(this, &UMAUIManager::OnEmergencyModalRejected);
+        // 绑定决策确认/拒绝回调，用于发送响应到 Python
+        DecisionModal->OnDecisionConfirmed.AddDynamic(this, &UMAUIManager::OnDecisionModalConfirmed);
+        DecisionModal->OnDecisionRejected.AddDynamic(this, &UMAUIManager::OnDecisionModalRejected);
         
-        // 绑定隐藏动画完成回调，确保点击 ❌ 关闭按钮后状态同步
-        EmergencyModal->OnHideAnimationComplete.AddDynamic(this, &UMAUIManager::OnModalHideAnimationComplete);
+        // 绑定隐藏动画完成回调
+        DecisionModal->OnHideAnimationComplete.AddDynamic(this, &UMAUIManager::OnModalHideAnimationComplete);
         
-        // 应用主题 (Requirements: 8.3)
+        // 应用主题
         UMAUITheme* ThemeToApply = GetTheme();
         if (ThemeToApply)
         {
-            EmergencyModal->ApplyTheme(ThemeToApply);
+            DecisionModal->ApplyTheme(ThemeToApply);
         }
         
-        UE_LOG(LogMAUIManager, Log, TEXT("EmergencyModal created"));
+        UE_LOG(LogMAUIManager, Log, TEXT("DecisionModal created"));
     }
     else
     {
-        UE_LOG(LogMAUIManager, Error, TEXT("Failed to create EmergencyModal"));
+        UE_LOG(LogMAUIManager, Error, TEXT("Failed to create DecisionModal"));
     }
 }
 
@@ -1263,10 +1223,9 @@ void UMAUIManager::OnHUDStateChanged(EMAHUDState OldState, EMAHUDState NewState)
         // 隐藏所有模态窗口
         HideCurrentModal();
         
-        // 隐藏编辑界面 (TaskPlanner, SkillAllocation, Emergency)
+        // 隐藏编辑界面 (TaskPlanner, SkillAllocation)
         HideWidget(EMAWidgetType::TaskPlanner);
         HideWidget(EMAWidgetType::SkillAllocation);
-        // 注意: EmergencyWidget 由 EmergencyManager 控制，不在这里隐藏
         
         // 隐藏通知
         if (MainHUDWidget && MainHUDWidget->GetNotification())
@@ -1284,20 +1243,15 @@ void UMAUIManager::OnHUDStateChanged(EMAHUDState OldState, EMAHUDState NewState)
         // 确保通知可见（可能是从 EditingModal 返回）
         if (MainHUDWidget && MainHUDWidget->GetNotification())
         {
-            // 如果有待处理的紧急事件通知，确保显示
-            if (HUDStateManager && HUDStateManager->GetPendingNotification() == EMANotificationType::EmergencyEvent)
-            {
-                MainHUDWidget->GetNotification()->ShowNotification(EMANotificationType::EmergencyEvent);
-            }
         }
         break;
 
     case EMAHUDState::ReviewModal:
         // 隐藏通知 (用户已响应通知，打开了 modal)
-        // 但对于 Emergency Modal，保留通知
+        // 但对于 Decision Modal，保留通知
         if (MainHUDWidget && MainHUDWidget->GetNotification())
         {
-            if (HUDStateManager && HUDStateManager->GetActiveModalType() != EMAModalType::Emergency)
+            if (HUDStateManager && HUDStateManager->GetActiveModalType() != EMAModalType::Decision)
             {
                 MainHUDWidget->GetNotification()->HideNotification();
             }
@@ -1311,11 +1265,11 @@ void UMAUIManager::OnHUDStateChanged(EMAHUDState OldState, EMAHUDState NewState)
         break;
 
     case EMAHUDState::EditingModal:
-        // 对于 Emergency Modal，不隐藏通知
+        // 对于 Decision Modal，不隐藏通知
         // 只有在用户点击 Confirm/Reject/Option 按钮时才隐藏通知
         if (MainHUDWidget && MainHUDWidget->GetNotification())
         {
-            if (HUDStateManager && HUDStateManager->GetActiveModalType() != EMAModalType::Emergency)
+            if (HUDStateManager && HUDStateManager->GetActiveModalType() != EMAModalType::Decision)
             {
                 MainHUDWidget->GetNotification()->HideNotification();
             }
@@ -1323,53 +1277,20 @@ void UMAUIManager::OnHUDStateChanged(EMAHUDState OldState, EMAHUDState NewState)
         
         // 编辑模式由 OnModalEditRequested 处理
         // 这里不需要额外操作，因为 OnModalEdit() 会触发 OnModalEditRequested
-        // 如果是直接进入编辑模式（如突发事件），则显示对应的编辑界面
+        // 如果是直接进入编辑模式（如突发事件或决策），则显示对应的编辑界面
         if (HUDStateManager)
         {
             EMAModalType ModalType = HUDStateManager->GetActiveModalType();
-            // 对于突发事件，显示 EmergencyModal（而不是 EmergencyWidget）
-            // Requirements: 4.4, 4.5
-            if (ModalType == EMAModalType::Emergency)
+            if (ModalType == EMAModalType::Decision)
             {
-                // 显示 EmergencyModal 并播放动画
-                if (EmergencyModal)
+                if (DecisionModal)
                 {
-                    EmergencyModal->SetEditMode(true);
-                    EmergencyModal->SetVisibility(ESlateVisibility::Visible);
-                    EmergencyModal->PlayShowAnimation();
-                    SetInputModeGameAndUI(EmergencyModal);
+                    DecisionModal->SetEditMode(true);
+                    DecisionModal->SetVisibility(ESlateVisibility::Visible);
+                    DecisionModal->PlayShowAnimation();
+                    SetInputModeGameAndUI(DecisionModal);
                     
-                    // 确保相机源已设置 - 从 EmergencyManager 获取 Source Agent 的相机
-                    UWorld* World = OwningPC ? OwningPC->GetWorld() : nullptr;
-                    if (World)
-                    {
-                        UMAEmergencyManager* EmergencyManager = World->GetSubsystem<UMAEmergencyManager>();
-                        if (EmergencyManager)
-                        {
-                            AMACharacter* SourceAgent = EmergencyManager->GetSourceAgent();
-                            if (SourceAgent)
-                            {
-                                UMACameraSensorComponent* Camera = SourceAgent->GetCameraSensor();
-                                if (Camera)
-                                {
-                                    EmergencyModal->SetCameraSource(Camera);
-                                    UE_LOG(LogMAUIManager, Log, TEXT("OnHUDStateChanged: Camera source set from SourceAgent %s"),
-                                        *SourceAgent->AgentID);
-                                }
-                                else
-                                {
-                                    UE_LOG(LogMAUIManager, Warning, TEXT("OnHUDStateChanged: SourceAgent %s has no camera"),
-                                        *SourceAgent->AgentID);
-                                }
-                            }
-                            else
-                            {
-                                UE_LOG(LogMAUIManager, Warning, TEXT("OnHUDStateChanged: No SourceAgent available"));
-                            }
-                        }
-                    }
-                    
-                    UE_LOG(LogMAUIManager, Log, TEXT("OnHUDStateChanged: Showing EmergencyModal for emergency event"));
+                    UE_LOG(LogMAUIManager, Log, TEXT("OnHUDStateChanged: Showing DecisionModal for decision request"));
                 }
             }
         }
@@ -1443,11 +1364,6 @@ void UMAUIManager::OnModalEditRequested(EMAModalType ModalType)
         UE_LOG(LogMAUIManager, Log, TEXT("Showing SkillAllocationViewer for editing"));
         break;
 
-    case EMAModalType::Emergency:
-        // 突发事件编辑 - 显示 EmergencyWidget
-        ShowWidget(EMAWidgetType::Emergency, true);
-        UE_LOG(LogMAUIManager, Log, TEXT("Showing EmergencyWidget for editing"));
-        break;
 
     default:
         UE_LOG(LogMAUIManager, Warning, TEXT("Unknown modal type for edit: %s"),
@@ -1461,14 +1377,9 @@ void UMAUIManager::OnModalHideAnimationComplete()
     // 当模态窗口的隐藏动画完成时，需要判断是否应该重置状态
     // 
     // 有几种情况会触发模态隐藏动画：
-    // 1. 用户点击 ❌ 关闭按钮 - 对于 Emergency Modal，只隐藏窗口，不结束事件
     // 2. 用户点击 Edit 按钮 - 此时状态已经是 EditingModal，不应该重置
     // 3. 用户点击 Confirm/Reject 按钮 - 此时事件已经在回调中处理
     //
-    // 对于 Emergency Modal，点击 ❌ 关闭按钮时：
-    // - 只隐藏窗口，不结束 emergency 状态
-    // - 用户可以通过按 X 键重新打开窗口
-    // - 只有点击 Confirm/Reject/Option 按钮才会结束 emergency 状态
     if (HUDStateManager && HUDStateManager->IsModalActive())
     {
         // 如果当前是编辑模式，说明是 Edit 流程触发的隐藏，不重置状态
@@ -1478,17 +1389,14 @@ void UMAUIManager::OnModalHideAnimationComplete()
             return;
         }
         
-        // 检查是否是 Emergency Modal
-        EMAModalType ActiveModalType = HUDStateManager->GetActiveModalType();
-        if (ActiveModalType == EMAModalType::Emergency)
+        
+        // 检查是否是 Decision Modal
+        if (HUDStateManager->GetActiveModalType() == EMAModalType::Decision)
         {
-            // 对于 Emergency Modal，点击 ❌ 只隐藏窗口，不结束事件
-            // 用户可以通过按 X 键重新打开窗口
-            // 保留 PendingNotification 为 EmergencyEvent，这样用户可以重新打开
-            UE_LOG(LogMAUIManager, Log, TEXT("OnModalHideAnimationComplete: Emergency Modal closed via X button, keeping emergency state and notification active"));
+            // 对于 Decision Modal，点击 ❌ 只隐藏窗口，不结束决策
+            // 用户可以通过按键重新打开窗口
+            UE_LOG(LogMAUIManager, Log, TEXT("OnModalHideAnimationComplete: Decision Modal closed via X button, keeping decision state and notification active"));
             
-            // 转换到 NotificationPending 状态，保留通知
-            // 不调用 ReturnToNormalHUD，因为那会清除通知
             HUDStateManager->TransitionToState(EMAHUDState::NotificationPending);
             return;
         }
@@ -1544,9 +1452,10 @@ void UMAUIManager::HideCurrentModal()
         SkillAllocationModal->PlayHideAnimation();
     }
 
-    if (EmergencyModal && EmergencyModal->IsVisible())
+
+    if (DecisionModal && DecisionModal->IsVisible())
     {
-        EmergencyModal->PlayHideAnimation();
+        DecisionModal->PlayHideAnimation();
     }
 }
 
@@ -1605,9 +1514,6 @@ void UMAUIManager::LoadDataIntoModal(EMAModalType ModalType)
         }
         break;
 
-    case EMAModalType::Emergency:
-        // 紧急事件模态暂不需要预加载数据
-        break;
 
     default:
         break;
@@ -1621,7 +1527,7 @@ int32 UMAUIManager::GetModalZOrder() const
 }
 
 //=============================================================================
-// 通知处理 (Requirements: 4.1, 4.2, 4.3, 4.5)
+// 通知处理
 //=============================================================================
 
 void UMAUIManager::ShowNotification(EMANotificationType Type)
@@ -1677,8 +1583,9 @@ EMAModalType UMAUIManager::GetModalTypeForNotification(EMANotificationType Notif
     case EMANotificationType::SkillListUpdate:
         return EMAModalType::SkillAllocation;
 
-    case EMANotificationType::EmergencyEvent:
-        return EMAModalType::Emergency;
+
+    case EMANotificationType::DecisionUpdate:
+        return EMAModalType::Decision;
 
     default:
         return EMAModalType::None;
@@ -1826,6 +1733,13 @@ void UMAUIManager::BindCommSubsystemEvents()
         UE_LOG(LogMAUIManager, Log, TEXT("BindCommSubsystemEvents: Bound OnRequestUserCommandReceived"));
     }
     
+    // 绑定决策请求委托
+    if (!CommSubsystem->OnDecisionReceived.IsAlreadyBound(this, &UMAUIManager::OnDecisionDataReceived))
+    {
+        CommSubsystem->OnDecisionReceived.AddDynamic(this, &UMAUIManager::OnDecisionDataReceived);
+        UE_LOG(LogMAUIManager, Log, TEXT("BindCommSubsystemEvents: Bound OnDecisionReceived"));
+    }
+    
     UE_LOG(LogMAUIManager, Log, TEXT("BindCommSubsystemEvents: CommSubsystem events bound"));
 }
 
@@ -1838,7 +1752,7 @@ void UMAUIManager::OnRequestUserCommandReceived()
 }
 
 //=============================================================================
-// CommandManager 事件绑定 (Requirements: 8.5, 8.6)
+// CommandManager 事件绑定
 //=============================================================================
 
 void UMAUIManager::BindCommandManagerEvents()
@@ -1857,7 +1771,7 @@ void UMAUIManager::BindCommandManagerEvents()
         return;
     }
     
-    // 绑定暂停状态变化委托 - Requirements: 8.5, 8.6
+    // 绑定暂停状态变化委托
     if (!CommandManager->OnExecutionPauseStateChanged.IsAlreadyBound(this, &UMAUIManager::OnExecutionPauseStateChanged))
     {
         CommandManager->OnExecutionPauseStateChanged.AddDynamic(this, &UMAUIManager::OnExecutionPauseStateChanged);
@@ -1911,111 +1825,36 @@ void UMAUIManager::OnExecutionPauseStateChanged(bool bPaused)
     }
 }
 
+
 //=============================================================================
-// EmergencyManager 事件绑定 (Requirements: 4.1, 4.2, 4.3)
+// Decision 事件处理
 //=============================================================================
 
-void UMAUIManager::BindEmergencyManagerEvents()
+void UMAUIManager::OnDecisionDataReceived(const FString& Description, const FString& ContextJson)
 {
-    // 获取 EmergencyManager
-    UWorld* World = OwningPC ? OwningPC->GetWorld() : nullptr;
-    if (!World)
+    UE_LOG(LogMAUIManager, Log, TEXT("OnDecisionDataReceived: Description='%s'"), *Description);
+    
+    // 将决策数据加载到 DecisionModal
+    if (DecisionModal)
     {
-        UE_LOG(LogMAUIManager, Warning, TEXT("BindEmergencyManagerEvents: World not available"));
-        return;
-    }
-    
-    UMAEmergencyManager* EmergencyManager = World->GetSubsystem<UMAEmergencyManager>();
-    if (!EmergencyManager)
-    {
-        UE_LOG(LogMAUIManager, Warning, TEXT("BindEmergencyManagerEvents: EmergencyManager not available"));
-        return;
-    }
-    
-    // 绑定紧急事件接收委托 - Requirements: 4.1
-    if (!EmergencyManager->OnEmergencyEventReceived.IsAlreadyBound(this, &UMAUIManager::OnEmergencyEventReceived))
-    {
-        EmergencyManager->OnEmergencyEventReceived.AddDynamic(this, &UMAUIManager::OnEmergencyEventReceived);
-        UE_LOG(LogMAUIManager, Log, TEXT("BindEmergencyManagerEvents: Bound OnEmergencyEventReceived"));
-    }
-    
-    UE_LOG(LogMAUIManager, Log, TEXT("BindEmergencyManagerEvents: EmergencyManager events bound"));
-}
-
-void UMAUIManager::OnEmergencyEventReceived(const FMAEmergencyEventData& EventData)
-{
-    // Requirements: 4.1, 4.2, 4.3
-    UE_LOG(LogMAUIManager, Log, TEXT("OnEmergencyEventReceived: Received emergency event - AgentId=%s, EventType=%s"),
-        *EventData.SourceAgentId, *EventData.EventType);
-    
-    // 显示紧急事件通知 - Requirements: 4.2, 4.3
-    // 通知消息: "Unexpected Situation Detected"
-    // 按键提示: "Press 'X' to check Unexpected Situation"
-    ShowNotification(EMANotificationType::EmergencyEvent);
-    
-    // 将事件数据加载到 EmergencyModal，以便用户按 X 键时可以显示
-    if (EmergencyModal)
-    {
-        EmergencyModal->LoadEmergencyEvent(EventData);
-        UE_LOG(LogMAUIManager, Log, TEXT("OnEmergencyEventReceived: Event data loaded into EmergencyModal"));
-        
-        // 更新相机源 - 从 EmergencyManager 获取 Source Agent 的相机
-        UWorld* World = OwningPC ? OwningPC->GetWorld() : nullptr;
-        if (World)
-        {
-            UMAEmergencyManager* EmergencyManager = World->GetSubsystem<UMAEmergencyManager>();
-            if (EmergencyManager)
-            {
-                AMACharacter* SourceAgent = EmergencyManager->GetSourceAgent();
-                UE_LOG(LogMAUIManager, Log, TEXT("OnEmergencyEventReceived: SourceAgent from EmergencyManager = %s"),
-                    SourceAgent ? *SourceAgent->AgentID : TEXT("nullptr"));
-                    
-                if (SourceAgent)
-                {
-                    UMACameraSensorComponent* Camera = SourceAgent->GetCameraSensor();
-                    UE_LOG(LogMAUIManager, Log, TEXT("OnEmergencyEventReceived: Camera = %s"),
-                        Camera ? TEXT("Valid") : TEXT("nullptr"));
-                        
-                    if (Camera)
-                    {
-                        EmergencyModal->SetCameraSource(Camera);
-                        UE_LOG(LogMAUIManager, Log, TEXT("OnEmergencyEventReceived: Camera source set from SourceAgent %s"),
-                            *SourceAgent->AgentID);
-                    }
-                    else
-                    {
-                        UE_LOG(LogMAUIManager, Warning, TEXT("OnEmergencyEventReceived: SourceAgent %s has no camera"),
-                            *SourceAgent->AgentID);
-                    }
-                }
-                else
-                {
-                    UE_LOG(LogMAUIManager, Warning, TEXT("OnEmergencyEventReceived: No SourceAgent available"));
-                }
-            }
-            else
-            {
-                UE_LOG(LogMAUIManager, Warning, TEXT("OnEmergencyEventReceived: EmergencyManager not found"));
-            }
-        }
-        else
-        {
-            UE_LOG(LogMAUIManager, Warning, TEXT("OnEmergencyEventReceived: World not available"));
-        }
+        DecisionModal->LoadDecisionData(Description, ContextJson);
+        UE_LOG(LogMAUIManager, Log, TEXT("OnDecisionDataReceived: Decision data loaded into DecisionModal"));
     }
     else
     {
-        UE_LOG(LogMAUIManager, Warning, TEXT("OnEmergencyEventReceived: EmergencyModal is null"));
+        UE_LOG(LogMAUIManager, Warning, TEXT("OnDecisionDataReceived: DecisionModal is null"));
     }
+    
+    // 显示决策通知
+    ShowNotification(EMANotificationType::DecisionUpdate);
 }
 
-void UMAUIManager::OnEmergencyModalConfirmed(const FMAEmergencyEventData& Data)
+void UMAUIManager::OnDecisionModalConfirmed(const FString& SelectedOption, const FString& UserFeedback)
 {
-    // Requirements: 7.1, 7.4, 7.5
-    UE_LOG(LogMAUIManager, Log, TEXT("OnEmergencyModalConfirmed: Sending response to backend - SelectedOption=%s, UserInputText=%s"),
-        *Data.SelectedOption, *Data.UserInputText);
+    UE_LOG(LogMAUIManager, Log, TEXT("OnDecisionModalConfirmed: SelectedOption=%s, UserFeedback=%s"),
+        *SelectedOption, *UserFeedback);
     
-    // 获取 CommSubsystem 并发送响应
+    // 获取 CommSubsystem 并发送决策响应
     UWorld* World = OwningPC ? OwningPC->GetWorld() : nullptr;
     UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
     
@@ -2024,28 +1863,24 @@ void UMAUIManager::OnEmergencyModalConfirmed(const FMAEmergencyEventData& Data)
         UMACommSubsystem* CommSubsystem = GameInstance->GetSubsystem<UMACommSubsystem>();
         if (CommSubsystem)
         {
-            // 发送 button_event 消息 - 与 Reject 按钮保持一致
-            // 如果有选中的选项，使用选项作为 button_id，否则使用 "confirm"
-            FString ButtonId = Data.SelectedOption.IsEmpty() ? TEXT("confirm") : Data.SelectedOption;
-            FString ButtonText = Data.SelectedOption.IsEmpty() ? TEXT("Submit") : Data.SelectedOption;
-            CommSubsystem->SendButtonEventMessage(TEXT("EmergencyModal"), ButtonId, ButtonText);
-            UE_LOG(LogMAUIManager, Log, TEXT("OnEmergencyModalConfirmed: Button event sent - ButtonId=%s, ButtonText=%s"), *ButtonId, *ButtonText);
-            
-            // 发送紧急事件响应到后端 - Requirements: 7.1, 7.3
-            CommSubsystem->GetOutbound()->SendEmergencyResponse(Data);
-            UE_LOG(LogMAUIManager, Log, TEXT("OnEmergencyModalConfirmed: Emergency response sent to backend"));
+            CommSubsystem->GetOutbound()->SendDecisionResponseSimple(
+                SelectedOption,   // "end_task"
+                TEXT(""),         // no additional data JSON
+                UserFeedback      // user feedback text
+            );
+            UE_LOG(LogMAUIManager, Log, TEXT("OnDecisionModalConfirmed: Decision response sent to backend"));
         }
         else
         {
-            UE_LOG(LogMAUIManager, Warning, TEXT("OnEmergencyModalConfirmed: CommSubsystem not available"));
+            UE_LOG(LogMAUIManager, Warning, TEXT("OnDecisionModalConfirmed: CommSubsystem not available"));
         }
     }
     else
     {
-        UE_LOG(LogMAUIManager, Warning, TEXT("OnEmergencyModalConfirmed: GameInstance not available"));
+        UE_LOG(LogMAUIManager, Warning, TEXT("OnDecisionModalConfirmed: GameInstance not available"));
     }
     
-    // 清除紧急事件通知 - 用户已确认，现在可以清除通知
+    // 清除决策通知
     if (HUDStateManager)
     {
         HUDStateManager->DismissNotification();
@@ -2054,34 +1889,14 @@ void UMAUIManager::OnEmergencyModalConfirmed(const FMAEmergencyEventData& Data)
     {
         MainHUDWidget->GetNotification()->HideNotification();
     }
-    
-    // 结束 EmergencyManager 中的事件
-    if (World)
-    {
-        UMAEmergencyManager* EmergencyManager = World->GetSubsystem<UMAEmergencyManager>();
-        if (EmergencyManager)
-        {
-            EmergencyManager->EndEvent();
-            UE_LOG(LogMAUIManager, Log, TEXT("OnEmergencyModalConfirmed: Emergency event ended"));
-        }
-    }
 }
 
-void UMAUIManager::OnEmergencyModalRejected()
+void UMAUIManager::OnDecisionModalRejected(const FString& SelectedOption, const FString& UserFeedback)
 {
-    // Requirements: 7.1, 7.4
-    UE_LOG(LogMAUIManager, Log, TEXT("OnEmergencyModalRejected: User rejected emergency event"));
+    UE_LOG(LogMAUIManager, Log, TEXT("OnDecisionModalRejected: SelectedOption=%s, UserFeedback=%s"),
+        *SelectedOption, *UserFeedback);
     
-    // 获取当前事件数据用于发送拒绝响应
-    FMAEmergencyEventData RejectData;
-    if (EmergencyModal)
-    {
-        RejectData = EmergencyModal->GetEmergencyEventData();
-        RejectData.SelectedOption = TEXT("Rejected");
-        RejectData.UserInputText = TEXT("");
-    }
-    
-    // 获取 CommSubsystem 并发送拒绝响应
+    // 获取 CommSubsystem 并发送决策响应
     UWorld* World = OwningPC ? OwningPC->GetWorld() : nullptr;
     UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
     
@@ -2090,21 +1905,24 @@ void UMAUIManager::OnEmergencyModalRejected()
         UMACommSubsystem* CommSubsystem = GameInstance->GetSubsystem<UMACommSubsystem>();
         if (CommSubsystem)
         {
-            // 发送拒绝响应到后端 - Requirements: 7.1, 7.4
-            CommSubsystem->GetOutbound()->SendEmergencyResponse(RejectData);
-            UE_LOG(LogMAUIManager, Log, TEXT("OnEmergencyModalRejected: Rejection response sent to backend"));
+            CommSubsystem->GetOutbound()->SendDecisionResponseSimple(
+                SelectedOption,   // "continue_task"
+                TEXT(""),         // no additional data JSON
+                UserFeedback      // user feedback text
+            );
+            UE_LOG(LogMAUIManager, Log, TEXT("OnDecisionModalRejected: Decision response sent to backend"));
         }
         else
         {
-            UE_LOG(LogMAUIManager, Warning, TEXT("OnEmergencyModalRejected: CommSubsystem not available"));
+            UE_LOG(LogMAUIManager, Warning, TEXT("OnDecisionModalRejected: CommSubsystem not available"));
         }
     }
     else
     {
-        UE_LOG(LogMAUIManager, Warning, TEXT("OnEmergencyModalRejected: GameInstance not available"));
+        UE_LOG(LogMAUIManager, Warning, TEXT("OnDecisionModalRejected: GameInstance not available"));
     }
     
-    // 清除紧急事件通知 - 用户已拒绝，现在可以清除通知
+    // 清除决策通知
     if (HUDStateManager)
     {
         HUDStateManager->DismissNotification();
@@ -2112,16 +1930,5 @@ void UMAUIManager::OnEmergencyModalRejected()
     if (MainHUDWidget && MainHUDWidget->GetNotification())
     {
         MainHUDWidget->GetNotification()->HideNotification();
-    }
-    
-    // 结束 EmergencyManager 中的事件
-    if (World)
-    {
-        UMAEmergencyManager* EmergencyManager = World->GetSubsystem<UMAEmergencyManager>();
-        if (EmergencyManager)
-        {
-            EmergencyManager->EndEvent();
-            UE_LOG(LogMAUIManager, Log, TEXT("OnEmergencyModalRejected: Emergency event ended"));
-        }
     }
 }

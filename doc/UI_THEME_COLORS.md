@@ -193,7 +193,6 @@ FLinearColor(R, G, B, A)
 | MAEditWidget | PrimaryColor, HintTextColor, DangerColor, LabelTextColor, InputTextColor, InputBackgroundColor |
 | MAModifyWidget | ModeModifyColor, HintTextColor, CanvasBackgroundColor, SuccessColor, InputTextColor |
 | MASceneListWidget | PrimaryColor, DangerColor, SecondaryTextColor |
-| MAEmergencyWidget | BackgroundColor, DangerColor, CanvasBackgroundColor, InputTextColor, SecondaryColor, InputBackgroundColor, TextColor |
 
 ### TaskGraph 层
 
@@ -228,7 +227,6 @@ FLinearColor(R, G, B, A)
 | 组件 | 使用的颜色变量 |
 |------|---------------|
 | MABaseModalWidget | OverlayColor, TextColor, DangerColor, SecondaryTextColor |
-| MAEmergencyModal | SecondaryColor, TextColor, InputBackgroundColor, InputTextColor, CanvasBackgroundColor |
 | MATaskGraphModal | SecondaryColor, TextColor, InputTextColor |
 | MASkillAllocationModal | SecondaryColor, TextColor, InputTextColor |
 

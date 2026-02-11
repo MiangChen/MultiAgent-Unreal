@@ -38,7 +38,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInstructionSubmitted, const FStri
  * - 支持指令提交事件
  * - 支持主题切换
  * 
- * Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 7.3
  */
 UCLASS()
 class MULTIAGENT_API UMAInstructionPanel : public UUserWidget
