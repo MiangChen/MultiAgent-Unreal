@@ -14,6 +14,8 @@
 #include "MANavigationService.generated.h"
 
 class ACharacter;
+class AAIController;
+class UWorld;
 
 /** 导航状态枚举 */
 UENUM(BlueprintType)
@@ -26,6 +28,16 @@ enum class EMANavigationState : uint8
     Arrived,        // 已到达
     Failed,         // 失败
     Cancelled       // 已取消
+};
+
+/** 暂停时的驱动模式快照 */
+enum class EMANavigationPauseMode : uint8
+{
+    None,
+    Following,
+    Flying,
+    Manual,
+    Ground
 };
 
 /** 导航完成委托 */
@@ -218,6 +230,12 @@ private:
     /** 启动飞行导航 */
     bool StartFlightNavigation();
 
+    /** 飞行命令通用前置校验（Owner/飞行模式/FlightController） */
+    bool EnsureCanRunFlightCommand(const TCHAR* CommandName);
+
+    /** 启动飞行相关轮询定时器 */
+    void StartFlightTimer(void (UMANavigationService::*UpdateFunction)(float));
+
     /** 启动手动导航 (NavMesh 失败后的备选) */
     void StartManualNavigation();
 
@@ -236,6 +254,21 @@ private:
     /** 更新飞行跟随模式 */
     void UpdateFlightFollowMode(float DeltaTime);
 
+    /** 启动跟随模式更新定时器 */
+    void StartFollowUpdateTimer();
+
+    /** 处理跟随失败并统一发事件 */
+    void HandleFollowFailure(const TCHAR* FailureReason);
+
+    /** 判断地面跟随是否需要刷新 NavMesh 目标 */
+    bool ShouldRefreshGroundFollowNav(const FVector& FollowPos, float CurrentTimeSeconds) const;
+
+    /** 地面远距离跟随：通过 NavMesh 驱动 */
+    void UpdateGroundFollowNavMesh(AAIController* AICtrl, const FVector& FollowPos, float CurrentTimeSeconds);
+
+    /** 地面近距离跟随：直接移动驱动 */
+    void UpdateGroundFollowDirect(const FVector& CurrentLocation, const FVector& FollowPos, float DeltaTime);
+
     /** 更新跟随模式 */
     void UpdateFollowMode(float DeltaTime);
 
@@ -245,8 +278,56 @@ private:
     /** NavMesh 导航完成回调 */
     void OnNavMeshMoveCompleted(FAIRequestID RequestID, const FPathFollowingResult& Result);
 
+    /** 绑定 NavMesh 完成回调 */
+    void BindNavMeshCompletionCallback(AAIController* AICtrl);
+
+    /** 尝试将目标点投影到 NavMesh */
+    void TryProjectTargetToNavMesh();
+
+    /** 处理 MoveToLocation 请求结果 */
+    void HandleGroundMoveRequestResult(EPathFollowingRequestResult::Type Result, float DistanceToTarget);
+
+    /** 启动 NavMesh 假成功检测 */
+    void ScheduleNavMeshFalseSuccessCheck(const FVector& CheckStartLocation);
+
+    /** 判断是否应从 NavMesh 回退到手动导航 */
+    bool ShouldFallbackToManualNavigation(const FPathFollowingResult& Result, float ActualDistance) const;
+
+    /** 将 NavMesh 失败码转换为可读消息 */
+    FString BuildNavFailureMessage(EPathFollowingResult::Type ResultCode) const;
+
     /** 完成导航 */
     void CompleteNavigation(bool bSuccess, const FString& Message);
+
+    /** 导航成功完成（到达 TargetLocation） */
+    void CompleteNavigateSuccess();
+
+    /** 推导当前暂停模式 */
+    EMANavigationPauseMode ResolvePauseMode() const;
+
+    /** 记录暂停前快照 */
+    void CapturePauseSnapshot();
+
+    /** 清空暂停快照 */
+    void ClearPauseSnapshot();
+
+    /** 暂停当前导航驱动 */
+    void PauseActiveDrivers();
+
+    /** 从暂停快照恢复导航驱动 */
+    void ResumeFromPauseSnapshot();
+
+    /** 恢复飞行相关导航驱动 */
+    void ResumePausedFlyingOperation(UWorld* World);
+
+    /** 清理所有导航定时器 */
+    void ClearAllNavigationTimers();
+
+    /** 停止所有导航驱动（飞行/地面） */
+    void StopAllNavigationDrivers();
+
+    /** 重置运行期导航标志 */
+    void ResetNavigationRuntimeFlags();
 
     /** 调整飞行目标高度 */
     FVector AdjustFlightAltitude(const FVector& Location) const;
@@ -319,23 +400,46 @@ private:
     /** 飞行控制器 (多旋翼或固定翼) */
     TUniquePtr<IMAFlightController> FlightController;
 
-    /** 暂停前的目标位置 */
-    FVector PausedTargetLocation = FVector::ZeroVector;
+    /** 暂停快照 */
+    struct FMANavigationPauseSnapshot
+    {
+        FVector TargetLocation = FVector::ZeroVector;
+        float AcceptanceRadius = 0.f;
+        EMANavigationPauseMode Mode = EMANavigationPauseMode::None;
+        EMANavigationState State = EMANavigationState::Idle;
+        TWeakObjectPtr<AActor> FollowTarget;
+        float FollowDistance = 0.f;
+        bool bReturnHomeIsLanding = false;
+        bool bReturnHomeActive = false;
+        float ReturnHomeLandAltitude = 0.f;
+        bool bIsValid = false;
+
+        void Reset()
+        {
+            TargetLocation = FVector::ZeroVector;
+            AcceptanceRadius = 0.f;
+            Mode = EMANavigationPauseMode::None;
+            State = EMANavigationState::Idle;
+            FollowTarget.Reset();
+            FollowDistance = 0.f;
+            bReturnHomeIsLanding = false;
+            bReturnHomeActive = false;
+            ReturnHomeLandAltitude = 0.f;
+            bIsValid = false;
+        }
+    } PauseSnapshot;
 
     /** 是否处于导航暂停状态 */
     bool bIsNavigationPaused = false;
-
-    /** 暂停前是否在跟随模式 */
-    bool bWasFollowing = false;
-
-    /** 暂停前是否在手动导航 */
-    bool bWasUsingManualNav = false;
 
     /** 返航降落高度 */
     float ReturnHomeLandAltitude = 0.f;
 
     /** 返航是否进入降落阶段 */
     bool bReturnHomeIsLanding = false;
+
+    /** 是否处于返航流程中 */
+    bool bIsReturnHomeActive = false;
 
     /** 拥有者角色缓存 */
     UPROPERTY()
