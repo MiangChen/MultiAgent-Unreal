@@ -207,6 +207,32 @@ protected:
     UFUNCTION()
     void OnUpdateButtonClicked();
 
+    /** 甘特图拖拽开始回调 */
+    UFUNCTION()
+    void OnGanttDragStarted(const FString& SkillName, int32 TimeStep, const FString& RobotId);
+
+    /** 甘特图拖拽完成回调 */
+    UFUNCTION()
+    void OnGanttDragCompleted(int32 SourceTimeStep, const FString& SourceRobotId, int32 TargetTimeStep, const FString& TargetRobotId);
+
+    /** 甘特图拖拽取消回调 */
+    UFUNCTION()
+    void OnGanttDragCancelled();
+
+    /** 甘特图拖拽被阻止回调 */
+    UFUNCTION()
+    void OnGanttDragBlocked();
+
+    /** 甘特图拖拽失败回调 */
+    UFUNCTION()
+    void OnGanttDragFailed();
+
+    /** 绑定甘特图拖拽事件 */
+    void BindGanttCanvasEvents();
+
+    /** 解绑甘特图拖拽事件 */
+    void UnbindGanttCanvasEvents();
+
     //=========================================================================
     // UI 组件
     //=========================================================================

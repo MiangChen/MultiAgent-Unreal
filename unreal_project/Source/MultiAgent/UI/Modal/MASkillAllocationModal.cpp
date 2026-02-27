@@ -80,6 +80,7 @@ void UMASkillAllocationModal::NativeConstruct()
     {
         GanttCanvas->BindToModel(AllocationModel);
     }
+    BindGanttCanvasEvents();
     
     // 绑定基类按钮事件
     OnConfirmClicked.AddDynamic(this, &UMASkillAllocationModal::HandleConfirm);
@@ -91,6 +92,7 @@ void UMASkillAllocationModal::NativeConstruct()
 void UMASkillAllocationModal::NativeDestruct()
 {
     // 解绑事件
+    UnbindGanttCanvasEvents();
     if (AllocationModel)
     {
         AllocationModel->OnDataChanged.RemoveDynamic(this, &UMASkillAllocationModal::OnModelDataChanged);
@@ -279,6 +281,8 @@ UBorder* UMASkillAllocationModal::CreateGanttCanvasArea()
         {
             GanttCanvas->BindToModel(AllocationModel);
         }
+
+        BindGanttCanvasEvents();
         
         // 初始设置为只读模式
         GanttCanvas->SetDragEnabled(false);
@@ -490,6 +494,81 @@ void UMASkillAllocationModal::OnUpdateButtonClicked()
     
     // 从 JSON 编辑器更新模型
     UpdateModelFromJson();
+}
+
+void UMASkillAllocationModal::OnGanttDragStarted(const FString& SkillName, int32 TimeStep, const FString& RobotId)
+{
+    UE_LOG(LogMASkillAllocationModal, Log, TEXT("[拖拽] 开始: %s (T%d, %s)"), *SkillName, TimeStep, *RobotId);
+}
+
+void UMASkillAllocationModal::OnGanttDragCompleted(int32 SourceTimeStep, const FString& SourceRobotId,
+                                                   int32 TargetTimeStep, const FString& TargetRobotId)
+{
+    UE_LOG(LogMASkillAllocationModal, Log, TEXT("[拖拽] 完成: T%d/%s -> T%d/%s"),
+           SourceTimeStep, *SourceRobotId, TargetTimeStep, *TargetRobotId);
+    SyncJsonPreview();
+}
+
+void UMASkillAllocationModal::OnGanttDragCancelled()
+{
+    UE_LOG(LogMASkillAllocationModal, Log, TEXT("[拖拽] 已取消"));
+}
+
+void UMASkillAllocationModal::OnGanttDragBlocked()
+{
+    UE_LOG(LogMASkillAllocationModal, Log, TEXT("[拖拽] 已阻止（当前不可编辑）"));
+}
+
+void UMASkillAllocationModal::OnGanttDragFailed()
+{
+    UE_LOG(LogMASkillAllocationModal, Log, TEXT("[拖拽] 失败（目标无效或占用）"));
+}
+
+void UMASkillAllocationModal::BindGanttCanvasEvents()
+{
+    if (!GanttCanvas)
+    {
+        return;
+    }
+
+    if (!GanttCanvas->OnDragStarted.IsAlreadyBound(this, &UMASkillAllocationModal::OnGanttDragStarted))
+    {
+        GanttCanvas->OnDragStarted.AddDynamic(this, &UMASkillAllocationModal::OnGanttDragStarted);
+    }
+
+    if (!GanttCanvas->OnDragCompleted.IsAlreadyBound(this, &UMASkillAllocationModal::OnGanttDragCompleted))
+    {
+        GanttCanvas->OnDragCompleted.AddDynamic(this, &UMASkillAllocationModal::OnGanttDragCompleted);
+    }
+
+    if (!GanttCanvas->OnSkillDragCancelled.IsAlreadyBound(this, &UMASkillAllocationModal::OnGanttDragCancelled))
+    {
+        GanttCanvas->OnSkillDragCancelled.AddDynamic(this, &UMASkillAllocationModal::OnGanttDragCancelled);
+    }
+
+    if (!GanttCanvas->OnDragBlocked.IsAlreadyBound(this, &UMASkillAllocationModal::OnGanttDragBlocked))
+    {
+        GanttCanvas->OnDragBlocked.AddDynamic(this, &UMASkillAllocationModal::OnGanttDragBlocked);
+    }
+
+    if (!GanttCanvas->OnDragFailed.IsAlreadyBound(this, &UMASkillAllocationModal::OnGanttDragFailed))
+    {
+        GanttCanvas->OnDragFailed.AddDynamic(this, &UMASkillAllocationModal::OnGanttDragFailed);
+    }
+}
+
+void UMASkillAllocationModal::UnbindGanttCanvasEvents()
+{
+    if (!GanttCanvas)
+    {
+        return;
+    }
+
+    GanttCanvas->OnDragStarted.RemoveDynamic(this, &UMASkillAllocationModal::OnGanttDragStarted);
+    GanttCanvas->OnDragCompleted.RemoveDynamic(this, &UMASkillAllocationModal::OnGanttDragCompleted);
+    GanttCanvas->OnSkillDragCancelled.RemoveDynamic(this, &UMASkillAllocationModal::OnGanttDragCancelled);
+    GanttCanvas->OnDragBlocked.RemoveDynamic(this, &UMASkillAllocationModal::OnGanttDragBlocked);
+    GanttCanvas->OnDragFailed.RemoveDynamic(this, &UMASkillAllocationModal::OnGanttDragFailed);
 }
 
 FMASkillAllocationMessage UMASkillAllocationModal::GetSkillAllocationMessage() const

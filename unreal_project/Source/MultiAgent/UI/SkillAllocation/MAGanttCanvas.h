@@ -6,6 +6,10 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "../../Core/Types/MATaskGraphTypes.h"
+#include "Gantt/MAGanttGridLayout.h"
+#include "Gantt/MAGanttDragStateMachine.h"
+#include "Gantt/MAGanttPainter.h"
+#include "Gantt/MAGanttRenderSnapshot.h"
 #include "MAGanttCanvas.generated.h"
 
 class UMASkillAllocationModel;
@@ -128,7 +132,7 @@ public:
 
     /** 检查是否正在拖拽 */
     UFUNCTION(BlueprintPure, Category = "GanttCanvas|Drag")
-    bool IsDragging() const { return DragState == EGanttDragState::Dragging; }
+    bool IsDragging() const;
 
     /** 设置拖拽启用状态 */
     UFUNCTION(BlueprintCallable, Category = "GanttCanvas|Drag")
@@ -136,7 +140,7 @@ public:
 
     /** 检查拖拽是否启用 */
     UFUNCTION(BlueprintPure, Category = "GanttCanvas|Drag")
-    bool IsDragEnabled() const { return bDragEnabled; }
+    bool IsDragEnabled() const;
 
     /** 取消当前拖拽操作 */
     UFUNCTION(BlueprintCallable, Category = "GanttCanvas|Drag")
@@ -173,6 +177,7 @@ protected:
 
     virtual void NativePreConstruct() override;
     virtual void NativeConstruct() override;
+    virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
     virtual TSharedRef<SWidget> RebuildWidget() override;
     virtual int32 NativePaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
                               const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, 
@@ -260,65 +265,6 @@ protected:
     int32 ScreenToRobotIndex(float ScreenY) const;
 
     //=========================================================================
-    // 槽位查询和验证
-    //=========================================================================
-
-    /**
-     * 获取鼠标位置对应的槽位
-     * @param Position 屏幕坐标（相对于 Widget 的本地坐标）
-     * @param OutTimeStep 输出的时间步
-     * @param OutRobotId 输出的机器人 ID
-     * @return 如果位置在有效数据区域内返回 true，否则返回 false
-     */
-    bool GetSlotAtPosition(const FVector2D& Position, int32& OutTimeStep, FString& OutRobotId) const;
-
-    /**
-     * 检查槽位是否为空（无技能分配）
-     * @param TimeStep 时间步
-     * @param RobotId 机器人 ID
-     * @return 如果槽位为空返回 true，否则返回 false
-     */
-    bool IsSlotEmpty(int32 TimeStep, const FString& RobotId) const;
-
-    /**
-     * 验证放置目标是否有效
-     * 组合槽位查询和空位检查，排除拖拽源位置
-     * @param TargetTimeStep 目标时间步
-     * @param TargetRobotId 目标机器人 ID
-     * @return 如果是有效的放置目标返回 true，否则返回 false
-     */
-    bool IsValidDropTarget(int32 TargetTimeStep, const FString& TargetRobotId) const;
-
-    //=========================================================================
-    // 吸附计算
-    //=========================================================================
-
-    /**
-     * 检查位置是否在指定槽位的吸附范围内
-     * @param Position 当前鼠标/预览位置（相对于 Widget 的本地坐标）
-     * @param TimeStep 目标槽位的时间步
-     * @param RobotIndex 目标槽位的机器人索引
-     * @return 如果位置在吸附范围内返回 true，否则返回 false
-     */
-    bool IsWithinSnapRange(const FVector2D& Position, int32 TimeStep, int32 RobotIndex) const;
-
-    /**
-     * 计算吸附目标
-     * 查找最近的空白槽位，计算吸附位置
-     * @param Position 当前鼠标/预览位置（相对于 Widget 的本地坐标）
-     * @return 包含吸附信息的 FGanttDropTarget 结构
-     */
-    FGanttDropTarget CalculateSnapTarget(const FVector2D& Position) const;
-
-    /**
-     * 获取槽位的中心位置
-     * @param TimeStep 时间步
-     * @param RobotIndex 机器人索引
-     * @return 槽位中心的屏幕坐标
-     */
-    FVector2D GetSlotCenterPosition(int32 TimeStep, int32 RobotIndex) const;
-
-    //=========================================================================
     // 模型事件处理
     //=========================================================================
 
@@ -350,14 +296,11 @@ protected:
     UPROPERTY()
     UMASkillAllocationModel* AllocationModel;
 
-    /** 技能条渲染数据 */
-    TArray<FMASkillBarRenderData> SkillBarRenderData;
+    /** 渲染快照（Bars/RobotOrder/TimeStepOrder/SlotIndexMap） */
+    FMAGanttRenderSnapshot RenderSnapshot;
 
-    /** 机器人 ID 顺序 */
-    TArray<FString> RobotIdOrder;
-
-    /** 时间步顺序 */
-    TArray<int32> TimeStepOrder;
+    /** 网格布局与时间步索引映射 */
+    FMAGanttGridLayout GridLayout;
 
     //=========================================================================
     // 视图状态
@@ -394,8 +337,20 @@ protected:
     /** 最大机器人行高 */
     float MaxRobotRowHeight = 80.0f;
 
-    /** 根据可用空间和数据量计算自适应布局 */
-    void CalculateAdaptiveLayout(const FVector2D& AvailableSize) const;
+    /** 根据可用空间和数据量更新自适应布局 */
+    void UpdateAdaptiveLayout(const FVector2D& AvailableSize);
+
+    /** 构造绘制上下文 */
+    FMAGanttPainterContext MakePainterContext(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements) const;
+
+    /** 构造拖拽视觉状态 */
+    FMAGanttPainterDragVisual MakeDragVisual() const;
+
+    /** 构造拖拽状态机输入上下文 */
+    FMAGanttDragStateContext MakeDragStateContext() const;
+
+    /** 提交拖拽放置到模型并广播结果 */
+    bool TryCommitDrop(const FGanttDragSource& DragSource, const FGanttDropTarget& FinalTarget);
 
     //=========================================================================
     // 交互状态
@@ -445,36 +400,15 @@ protected:
     // 拖拽状态
     //=========================================================================
 
-    /** 当前拖拽状态 */
-    EGanttDragState DragState = EGanttDragState::Idle;
-
-    /** 拖拽源信息 */
-    FGanttDragSource DragSource;
-
-    /** 当前放置目标 */
-    FGanttDropTarget CurrentDropTarget;
-
-    /** 拖拽预览信息 */
-    FGanttDragPreview DragPreview;
-
-    /** 鼠标按下位置（用于判断是否超过拖拽阈值） */
-    FVector2D MouseDownPosition = FVector2D::ZeroVector;
-
-    /** 拖拽是否启用 */
-    bool bDragEnabled = true;
+    /** 拖拽状态机 */
+    FMAGanttDragStateMachine DragStateMachine;
 
     //=========================================================================
     // 拖拽配置常量
     //=========================================================================
 
-    /** 拖拽启动阈值（像素）- 移动超过此距离才启动拖拽 */
-    float DragThreshold = 5.0f;
-
     /** 吸附范围（像素）- 进入此范围内自动吸附到槽位 */
     float SnapRange = 20.0f;
-
-    /** 拖拽预览透明度 */
-    float DragPreviewAlpha = 0.7f;
 
     /** 有效放置指示颜色 (fallback: Theme->ValidDropColor) */
     FLinearColor ValidDropColor = FLinearColor(0.2f, 0.8f, 0.3f, 0.5f);
@@ -484,4 +418,10 @@ protected:
 
     /** 占位符边框颜色 (fallback: Theme->SecondaryTextColor with alpha) */
     FLinearColor PlaceholderColor = FLinearColor(0.5f, 0.5f, 0.5f, 0.8f);
+
+    /** 上一次用于布局计算的 Widget 尺寸 */
+    FVector2D LastLayoutSize = FVector2D(-1.0f, -1.0f);
+
+    /** 布局是否需要重新计算 */
+    bool bLayoutDirty = true;
 };
