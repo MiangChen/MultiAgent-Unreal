@@ -18,7 +18,7 @@ AMAHumanoidCharacter::AMAHumanoidCharacter()
     
     // StateTree 组件
     StateTreeComponent = CreateDefaultSubobject<UMAStateTreeComponent>(TEXT("StateTreeComponent"));
-    StateTreeComponent->SetStartLogicAutomatically(true);
+    StateTreeComponent->SetStartLogicAutomatically(false);
     
     // 加载 Humanoid 模型
     static ConstructorHelpers::FObjectFinder<USkeletalMesh> MeshAsset(

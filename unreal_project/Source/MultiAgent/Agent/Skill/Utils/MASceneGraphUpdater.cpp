@@ -8,7 +8,8 @@
 #include "../MASkillComponent.h"
 #include "../../../Core/Manager/MACommandManager.h"
 #include "../../../Core/Manager/MASceneGraphManager.h"
-#include "../../../Core/Manager/scene_graph_tools/MASceneGraphQuery.h"
+#include "../../../Core/Manager/scene_graph_adapters/MASceneGraphRuntimeSyncAdapter.h"
+#include "../../../Core/Manager/scene_graph_services/MASceneGraphRuntimeSyncUseCases.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMASceneGraphUpdater, Log, All);
 
@@ -37,7 +38,11 @@ void FMASceneGraphUpdater::UpdateRobotPosition(AMACharacter* Agent)
     UMASceneGraphManager* SGM = GetSceneGraphManager(Agent);
     if (!SGM) return;
 
-    SGM->UpdateDynamicNodePosition(Agent->AgentID, Agent->GetActorLocation());
+    FMASceneGraphRuntimeSyncAdapter SyncAdapter(SGM);
+    FMASceneGraphRuntimeSyncUseCases::SyncRobotPosition(
+        SyncAdapter,
+        Agent->AgentID,
+        Agent->GetActorLocation());
 }
 
 void FMASceneGraphUpdater::UpdateCarriedItemPositions(AMACharacter* Agent)
@@ -50,19 +55,8 @@ void FMASceneGraphUpdater::UpdateCarriedItemPositions(AMACharacter* Agent)
     UMASceneGraphManager* SGM = GetSceneGraphManager(Agent);
     if (!SGM) return;
 
-    for (AActor* Item : UGV->CarriedItems)
-    {
-        if (!Item) continue;
-
-        // 通过 Actor GUID 找到对应的场景图节点
-        FString ItemGuid = Item->GetActorGuid().ToString();
-        TArray<FMASceneGraphNode> Nodes = SGM->FindNodesByGuid(ItemGuid);
-
-        for (const FMASceneGraphNode& Node : Nodes)
-        {
-            SGM->UpdateDynamicNodePosition(Node.Id, Item->GetActorLocation());
-        }
-    }
+    FMASceneGraphRuntimeSyncAdapter SyncAdapter(SGM);
+    FMASceneGraphRuntimeSyncUseCases::SyncCarriedItemPositions(SyncAdapter, UGV->CarriedItems);
 }
 
 void FMASceneGraphUpdater::SyncActorPositionToNode(AMACharacter* Agent, const FString& TargetNodeId)
@@ -72,19 +66,14 @@ void FMASceneGraphUpdater::SyncActorPositionToNode(AMACharacter* Agent, const FS
     UMASceneGraphManager* SGM = GetSceneGraphManager(Agent);
     if (!SGM) return;
 
-    // 获取目标节点，通过 GUID 找到 Actor，用 Actor 实际位置更新节点
-    FMASceneGraphNode Node = SGM->GetNodeById(TargetNodeId);
-    if (!Node.IsValid() || Node.Guid.IsEmpty()) return;
-
-    AActor* TargetActor = FMAUESceneQuery::FindActorByGuid(Agent->GetWorld(), Node.Guid);
-    if (!TargetActor) return;
-
-    FVector ActualPos = TargetActor->GetActorLocation();
-    if (!ActualPos.Equals(Node.Center, PositionSyncThreshold))
+    FMASceneGraphRuntimeSyncAdapter SyncAdapter(SGM);
+    if (FMASceneGraphRuntimeSyncUseCases::SyncActorPositionToNode(
+        SyncAdapter,
+        Agent->GetWorld(),
+        TargetNodeId,
+        PositionSyncThreshold))
     {
-        SGM->UpdateDynamicNodePosition(Node.Id, ActualPos);
-        UE_LOG(LogMASceneGraphUpdater, Log, TEXT("Synced target node '%s' position to (%.0f, %.0f, %.0f)"),
-            *Node.Id, ActualPos.X, ActualPos.Y, ActualPos.Z);
+        UE_LOG(LogMASceneGraphUpdater, Log, TEXT("Synced target node '%s' to actor position"), *TargetNodeId);
     }
 }
 
@@ -178,30 +167,21 @@ void FMASceneGraphUpdater::UpdateAfterPlace(AMACharacter* Agent, bool bSuccess)
 
     if (Object1NodeId.IsEmpty() || Ctx.PlaceFinalLocation.IsZero()) return;
 
-    // 更新物品位置
-    SGM->UpdateDynamicNodePosition(Object1NodeId, Ctx.PlaceFinalLocation);
+    FMASceneGraphRuntimeSyncAdapter SyncAdapter(SGM);
+    FMASceneGraphRuntimeSyncUseCases::SyncPlacedItemState(
+        SyncAdapter,
+        Object1NodeId,
+        Ctx.PlaceFinalLocation,
+        Object2NodeId);
 
-    // 判断是否放到了机器人上，更新携带状态
     bool bPlacedOnRobot = false;
-    FString CarrierId;
-
     if (!Object2NodeId.IsEmpty())
     {
-        FMASceneGraphNode Object2Node = SGM->GetNodeById(Object2NodeId);
-        if (Object2Node.IsValid() && Object2Node.IsRobot())
-        {
-            bPlacedOnRobot = true;
-            CarrierId = Object2NodeId;
-        }
+        const FMASceneGraphNode Object2Node = SyncAdapter.GetNodeById(Object2NodeId);
+        bPlacedOnRobot = Object2Node.IsValid() && Object2Node.IsRobot();
     }
 
-    SGM->UpdateDynamicNodeFeature(Object1NodeId, TEXT("is_carried"), bPlacedOnRobot ? TEXT("true") : TEXT("false"));
-    if (bPlacedOnRobot)
-    {
-        SGM->UpdateDynamicNodeFeature(Object1NodeId, TEXT("carrier_id"), CarrierId);
-    }
-
-    UE_LOG(LogMASceneGraphUpdater, Log, TEXT("Place: Item=%s → (%.0f, %.0f, %.0f), Carried=%s"),
+    UE_LOG(LogMASceneGraphUpdater, Log, TEXT("Place: Item=%s -> (%.0f, %.0f, %.0f), Carried=%s"),
         *Object1NodeId, Ctx.PlaceFinalLocation.X, Ctx.PlaceFinalLocation.Y, Ctx.PlaceFinalLocation.Z,
         bPlacedOnRobot ? TEXT("true") : TEXT("false"));
 }
@@ -239,7 +219,8 @@ void FMASceneGraphUpdater::UpdateAfterHandleHazard(AMACharacter* Agent, bool bSu
         UMASceneGraphManager* SGM = GetSceneGraphManager(Agent);
         if (SGM)
         {
-            SGM->UpdateDynamicNodeFeature(Ctx.HazardTargetId, TEXT("is_fire"), TEXT("false"));
+            FMASceneGraphRuntimeSyncAdapter SyncAdapter(SGM);
+            FMASceneGraphRuntimeSyncUseCases::MarkHazardExtinguished(SyncAdapter, Ctx.HazardTargetId);
             UE_LOG(LogMASceneGraphUpdater, Log, TEXT("HandleHazard: %s is_fire=false"), *Ctx.HazardTargetId);
         }
     }
@@ -272,44 +253,30 @@ int32 FMASceneGraphUpdater::SyncDynamicNodes(UWorld* World)
     UMASceneGraphManager* SGM = GetSceneGraphManager(World);
     if (!SGM) return 0;
 
+    FMASceneGraphRuntimeSyncAdapter SyncAdapter(SGM);
     TArray<FMASceneGraphNode> AllNodes = SGM->GetAllNodes();
-    int32 UpdatedCount = 0;
+    int32 UpdatedCount = FMASceneGraphRuntimeSyncUseCases::SyncDynamicNodePositions(
+        SyncAdapter,
+        World,
+        PositionSyncThreshold);
 
     for (const FMASceneGraphNode& Node : AllNodes)
     {
-        if (!Node.bIsDynamic || Node.Guid.IsEmpty()) continue;
-
-        AActor* Actor = FMAUESceneQuery::FindActorByGuid(World, Node.Guid);
-        if (!Actor) continue;
-
-        // 位置同步
-        FVector ActualPos = Actor->GetActorLocation();
-        if (!ActualPos.Equals(Node.Center, PositionSyncThreshold))
-        {
-            SGM->UpdateDynamicNodePosition(Node.Id, ActualPos);
-            UpdatedCount++;
-        }
-
         // 电量同步 (SkillComponent → 场景图)
         if (Node.Category == TEXT("robot"))
         {
-            if (AMACharacter* Character = Cast<AMACharacter>(Actor))
+            if (Node.Guid.IsEmpty()) continue;
+
+            AActor* Actor = FMAUESceneQuery::FindActorByGuid(World, Node.Guid);
+            if (!Actor) continue;
+
+            if (FMASceneGraphRuntimeSyncUseCases::SyncRobotBatteryFeature(
+                SyncAdapter,
+                Node,
+                Actor,
+                1.f))
             {
-                if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
-                {
-                    float CurrentPercent = SkillComp->GetEnergyPercent();
-                    float NodeBattery = 100.f;
-                    if (const FString* BatteryStr = Node.Features.Find(TEXT("battery_level")))
-                    {
-                        NodeBattery = FCString::Atof(**BatteryStr);
-                    }
-                    if (!FMath::IsNearlyEqual(CurrentPercent, NodeBattery, 1.f))
-                    {
-                        SGM->UpdateDynamicNodeFeature(Node.Id, TEXT("battery_level"),
-                            FString::Printf(TEXT("%.0f"), CurrentPercent));
-                        UpdatedCount++;
-                    }
-                }
+                UpdatedCount++;
             }
         }
     }

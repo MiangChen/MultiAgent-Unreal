@@ -11,7 +11,7 @@
 #include "../../../Core/Comm/MACommTypes.h"
 #include "../../../Core/Manager/MACommandManager.h"
 #include "../../../Core/Manager/MASceneGraphManager.h"
-#include "../../../Core/Manager/scene_graph_tools/MASceneGraphQuery.h"
+#include "../../../Core/Manager/scene_graph_services/MASceneGraphQueryUseCases.h"
 #include "../../../Utils/MAGeometryUtils.h"
 #include "../../../Environment/Entity/MAChargingStation.h"
 #include "Kismet/GameplayStatics.h"
@@ -160,7 +160,7 @@ bool FMASkillParamsProcessor::MatchTargetObject(
     if (!ObjectId.IsEmpty() && SceneGraphManager)
     {
         TArray<FMASceneGraphNode> AllNodes = SceneGraphManager->GetAllNodes();
-        FMASceneGraphNode TargetNode = FMASceneGraphQuery::FindNodeByIdOrLabel(AllNodes, ObjectId);
+        FMASceneGraphNode TargetNode = FMASceneGraphQueryUseCases::FindNodeByIdOrLabel(AllNodes, ObjectId);
         
         if (TargetNode.IsValid())
         {
@@ -195,7 +195,7 @@ bool FMASkillParamsProcessor::MatchTargetObject(
         TArray<FMASceneGraphNode> AllNodes = SceneGraphManager->GetAllNodes();
         
         // 查找所有匹配的节点
-        TArray<FMASceneGraphNode> MatchingNodes = FMASceneGraphQuery::FindAllNodesByLabel(AllNodes, TargetLabel);
+        TArray<FMASceneGraphNode> MatchingNodes = FMASceneGraphQueryUseCases::FindAllNodesByLabel(AllNodes, TargetLabel);
         
         // 在匹配的节点中找到距离 Agent 最近且在搜索半径内的节点
         FMASceneGraphNode NearestNode;
@@ -747,7 +747,7 @@ void FMASkillParamsProcessor::ProcessSearch(AMACharacter* Agent, UMASkillCompone
     {
         // 使用场景图查询
         TArray<FMASceneGraphNode> AllNodes = SceneGraphManager->GetAllNodes();
-        TArray<FMASceneGraphNode> FoundNodes = FMASceneGraphQuery::FindNodesInBoundary(
+        TArray<FMASceneGraphNode> FoundNodes = FMASceneGraphQueryUseCases::FindNodesInBoundary(
             AllNodes, SearchLabel, Params.SearchBoundary);
         
         UE_LOG(LogTemp, Log, TEXT("[ProcessSearch] %s: Scene graph query found %d nodes"),
@@ -929,7 +929,7 @@ void FMASkillParamsProcessor::ProcessPlace(AMACharacter* Agent, UMASkillComponen
         // 首先尝试使用场景图查询
         if (SceneGraphManager && AllNodes.Num() > 0)
         {
-            FMASceneGraphNode Object1Node = FMASceneGraphQuery::FindNodeByLabel(AllNodes, Label1);
+            FMASceneGraphNode Object1Node = FMASceneGraphQueryUseCases::FindNodeByLabel(AllNodes, Label1);
             
             if (Object1Node.IsValid() && Object1Node.IsPickupItem())
             {
@@ -1014,7 +1014,7 @@ void FMASkillParamsProcessor::ProcessPlace(AMACharacter* Agent, UMASkillComponen
             {
                 // 使用场景图查询机器人
                 FMASemanticLabel RobotSemanticLabel = FMASemanticLabel::MakeRobot(TargetRobotLabel);
-                FMASceneGraphNode RobotNode = FMASceneGraphQuery::FindNodeByLabel(AllNodes, RobotSemanticLabel);
+                FMASceneGraphNode RobotNode = FMASceneGraphQueryUseCases::FindNodeByLabel(AllNodes, RobotSemanticLabel);
                 
                 if (RobotNode.IsValid() && RobotNode.IsRobot())
                 {
@@ -1077,7 +1077,7 @@ void FMASkillParamsProcessor::ProcessPlace(AMACharacter* Agent, UMASkillComponen
             
             if (SceneGraphManager && AllNodes.Num() > 0)
             {
-                FMASceneGraphNode Object2Node = FMASceneGraphQuery::FindNodeByLabel(AllNodes, Label2);
+                FMASceneGraphNode Object2Node = FMASceneGraphQueryUseCases::FindNodeByLabel(AllNodes, Label2);
                 
                 if (Object2Node.IsValid() && Object2Node.IsPickupItem())
                 {
@@ -1184,7 +1184,7 @@ void FMASkillParamsProcessor::ProcessTakeOff(UMASkillComponent* SkillComp, const
     if (SceneGraphManager)
     {
         TArray<FMASceneGraphNode> AllNodes = SceneGraphManager->GetAllNodes();
-        TArray<FMASceneGraphNode> Buildings = FMASceneGraphQuery::GetAllBuildings(AllNodes);
+        TArray<FMASceneGraphNode> Buildings = FMASceneGraphQueryUseCases::GetAllBuildings(AllNodes);
         
         FVector AgentLocation = Agent->GetActorLocation();
         
@@ -1329,8 +1329,8 @@ void FMASkillParamsProcessor::ProcessLand(UMASkillComponent* SkillComp, const FM
                 *Agent->AgentLabel);
             
             // 查找最近的安全着陆区（道路或路口）
-            TArray<FMASceneGraphNode> Roads = FMASceneGraphQuery::GetAllRoads(AllNodes);
-            TArray<FMASceneGraphNode> Intersections = FMASceneGraphQuery::GetAllIntersections(AllNodes);
+            TArray<FMASceneGraphNode> Roads = FMASceneGraphQueryUseCases::GetAllRoads(AllNodes);
+            TArray<FMASceneGraphNode> Intersections = FMASceneGraphQueryUseCases::GetAllIntersections(AllNodes);
             
             float MinDistance = TNumericLimits<float>::Max();
             FMASceneGraphNode NearestSafeNode;
@@ -1382,7 +1382,7 @@ void FMASkillParamsProcessor::ProcessLand(UMASkillComponent* SkillComp, const FM
         {
             // 当前位置安全，确定地面类型
             // 检查是否在道路上
-            TArray<FMASceneGraphNode> Roads = FMASceneGraphQuery::GetAllRoads(AllNodes);
+            TArray<FMASceneGraphNode> Roads = FMASceneGraphQueryUseCases::GetAllRoads(AllNodes);
             for (const FMASceneGraphNode& Road : Roads)
             {
                 // 简单检查：如果距离道路中心较近，认为在道路上
@@ -1398,7 +1398,7 @@ void FMASkillParamsProcessor::ProcessLand(UMASkillComponent* SkillComp, const FM
             // 检查是否在路口
             if (GroundType == TEXT("unknown"))
             {
-                TArray<FMASceneGraphNode> Intersections = FMASceneGraphQuery::GetAllIntersections(AllNodes);
+                TArray<FMASceneGraphNode> Intersections = FMASceneGraphQueryUseCases::GetAllIntersections(AllNodes);
                 for (const FMASceneGraphNode& Intersection : Intersections)
                 {
                     float Distance = FVector::Dist2D(AgentLocation, Intersection.Center);
@@ -1632,12 +1632,12 @@ void FMASkillParamsProcessor::ProcessTakePhoto(AMACharacter* Agent, UMASkillComp
             // 优先用 ObjectId 查找
             if (!ObjectId.IsEmpty())
             {
-                TargetNode = FMASceneGraphQuery::FindNodeByIdOrLabel(AllNodes, ObjectId);
+                TargetNode = FMASceneGraphQueryUseCases::FindNodeByIdOrLabel(AllNodes, ObjectId);
             }
             // 回退用语义标签查找
             if (!TargetNode.IsValid() && !TargetLabel.IsEmpty())
             {
-                TargetNode = FMASceneGraphQuery::FindNodeByLabel(AllNodes, TargetLabel);
+                TargetNode = FMASceneGraphQueryUseCases::FindNodeByLabel(AllNodes, TargetLabel);
             }
             
             if (TargetNode.IsValid())
@@ -1779,12 +1779,12 @@ void FMASkillParamsProcessor::ProcessBroadcast(AMACharacter* Agent, UMASkillComp
             // 优先用 ObjectId 查找
             if (!ObjectId.IsEmpty())
             {
-                TargetNode = FMASceneGraphQuery::FindNodeByIdOrLabel(AllNodes, ObjectId);
+                TargetNode = FMASceneGraphQueryUseCases::FindNodeByIdOrLabel(AllNodes, ObjectId);
             }
             // 回退用语义标签查找
             if (!TargetNode.IsValid() && !TargetLabel.IsEmpty())
             {
-                TargetNode = FMASceneGraphQuery::FindNodeByLabel(AllNodes, TargetLabel);
+                TargetNode = FMASceneGraphQueryUseCases::FindNodeByLabel(AllNodes, TargetLabel);
             }
             
             if (TargetNode.IsValid())
@@ -1913,12 +1913,12 @@ void FMASkillParamsProcessor::ProcessHandleHazard(AMACharacter* Agent, UMASkillC
             // 优先用 ObjectId 查找
             if (!ObjectId.IsEmpty())
             {
-                TargetNode = FMASceneGraphQuery::FindNodeByIdOrLabel(AllNodes, ObjectId);
+                TargetNode = FMASceneGraphQueryUseCases::FindNodeByIdOrLabel(AllNodes, ObjectId);
             }
             // 回退用语义标签查找
             if (!TargetNode.IsValid() && !TargetLabel.IsEmpty())
             {
-                TargetNode = FMASceneGraphQuery::FindNodeByLabel(AllNodes, TargetLabel);
+                TargetNode = FMASceneGraphQueryUseCases::FindNodeByLabel(AllNodes, TargetLabel);
             }
             
             if (TargetNode.IsValid())
@@ -2033,12 +2033,12 @@ void FMASkillParamsProcessor::ProcessGuide(AMACharacter* Agent, UMASkillComponen
             // 优先用 ObjectId 查找
             if (!ObjectId.IsEmpty())
             {
-                TargetNode = FMASceneGraphQuery::FindNodeByIdOrLabel(AllNodes, ObjectId);
+                TargetNode = FMASceneGraphQueryUseCases::FindNodeByIdOrLabel(AllNodes, ObjectId);
             }
             // 回退用语义标签查找
             if (!TargetNode.IsValid() && !TargetLabel.IsEmpty())
             {
-                TargetNode = FMASceneGraphQuery::FindNodeByLabel(AllNodes, TargetLabel);
+                TargetNode = FMASceneGraphQueryUseCases::FindNodeByLabel(AllNodes, TargetLabel);
             }
             
             if (TargetNode.IsValid())
@@ -2155,12 +2155,12 @@ void FMASkillParamsProcessor::ProcessFollow(UMASkillComponent* SkillComp, const 
             // 优先用 ObjectId 查找
             if (!ObjectId.IsEmpty())
             {
-                TargetNode = FMASceneGraphQuery::FindNodeByIdOrLabel(AllNodes, ObjectId);
+                TargetNode = FMASceneGraphQueryUseCases::FindNodeByIdOrLabel(AllNodes, ObjectId);
             }
             // 回退用语义标签查找
             if (!TargetNode.IsValid() && !TargetLabel.IsEmpty())
             {
-                TargetNode = FMASceneGraphQuery::FindNodeByLabel(AllNodes, TargetLabel);
+                TargetNode = FMASceneGraphQueryUseCases::FindNodeByLabel(AllNodes, TargetLabel);
             }
             
             if (TargetNode.IsValid())
@@ -2240,7 +2240,7 @@ void FMASkillParamsProcessor::ProcessCharge(UMASkillComponent* SkillComp, const 
         
         // 获取所有节点并查找最近的充电站
         TArray<FMASceneGraphNode> AllNodes = SceneGraphManager->GetAllNodes();
-        FMASceneGraphNode NearestStation = FMASceneGraphQuery::FindNearestNode(
+        FMASceneGraphNode NearestStation = FMASceneGraphQueryUseCases::FindNearestNode(
             AllNodes, ChargingStationLabel, Agent->GetActorLocation());
         
         if (NearestStation.IsValid() && NearestStation.IsChargingStation())

@@ -37,7 +37,7 @@ AMAUGVCharacter::AMAUGVCharacter()
     AgentType = EMAAgentType::UGV;
     
     StateTreeComponent = CreateDefaultSubobject<UMAStateTreeComponent>(TEXT("StateTreeComponent"));
-    StateTreeComponent->SetStartLogicAutomatically(true);
+    StateTreeComponent->SetStartLogicAutomatically(false);
     
     // 地面移动设置
     UCharacterMovementComponent* MovementComp = GetCharacterMovement();

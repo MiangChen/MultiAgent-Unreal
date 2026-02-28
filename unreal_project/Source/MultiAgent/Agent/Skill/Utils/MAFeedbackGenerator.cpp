@@ -6,7 +6,7 @@
 #include "../../Character/MACharacter.h"
 #include "../../../Core/Manager/MACommandManager.h"
 #include "../../../Core/Manager/MASceneGraphManager.h"
-#include "../../../Core/Manager/scene_graph_tools/MASceneGraphQuery.h"
+#include "../../../Core/Manager/scene_graph_services/MASceneGraphQueryUseCases.h"
 #include "Serialization/JsonSerializer.h"
 
 // 辅助宏：cm 转 m
@@ -116,11 +116,11 @@ void FMAFeedbackGenerator::AddCommonFieldsToFeedback(FMASkillExecutionFeedback& 
     {
         TArray<FMASceneGraphNode> AllNodes = SceneGraphMgr->GetAllNodes();
         // AgentID 可能是 "UAV-1" 这样的标签，需要转换为数字 ID
-        FString RobotId = FMASceneGraphQuery::GetIdByLabel(AllNodes, Agent->AgentID);
+        FString RobotId = FMASceneGraphQueryUseCases::GetIdByLabel(AllNodes, Agent->AgentID);
         if (RobotId.IsEmpty())
             RobotId = Agent->AgentID;  // 回退
         Feedback.Data.Add(TEXT("robot_id"), RobotId);
-        Feedback.Data.Add(TEXT("robot_label"), FMASceneGraphQuery::GetLabelById(AllNodes, RobotId));
+        Feedback.Data.Add(TEXT("robot_label"), FMASceneGraphQueryUseCases::GetLabelById(AllNodes, RobotId));
     }
     else
     {
@@ -258,7 +258,7 @@ void FMAFeedbackGenerator::GenerateSearchFeedback(FMASkillExecutionFeedback& Fee
                 
                 if (AllNodes.Num() > 0)
                 {
-                    FMASceneGraphNode Node = FMASceneGraphQuery::FindNodeByIdOrLabel(AllNodes, ObjectName);
+                    FMASceneGraphNode Node = FMASceneGraphQueryUseCases::FindNodeByIdOrLabel(AllNodes, ObjectName);
                     if (Node.IsValid())
                     {
                         NodeJson = BuildNodeJsonFromSceneGraph(Node);
@@ -330,12 +330,12 @@ void FMAFeedbackGenerator::GenerateFollowFeedback(FMASkillExecutionFeedback& Fee
         if (!Context.FollowTargetId.IsEmpty())
         {
             Feedback.Data.Add(TEXT("target_id"), Context.FollowTargetId);
-            FString TargetLabel = FMASceneGraphQuery::GetLabelById(AllNodes, Context.FollowTargetId);
+            FString TargetLabel = FMASceneGraphQueryUseCases::GetLabelById(AllNodes, Context.FollowTargetId);
             Feedback.Data.Add(TEXT("target_label"), TargetLabel);
         }
         else if (!Context.FollowTargetName.IsEmpty())
         {
-            FString TargetId = FMASceneGraphQuery::GetIdByLabel(AllNodes, Context.FollowTargetName);
+            FString TargetId = FMASceneGraphQueryUseCases::GetIdByLabel(AllNodes, Context.FollowTargetName);
             if (!TargetId.IsEmpty())
             {
                 Feedback.Data.Add(TEXT("target_id"), TargetId);
@@ -414,7 +414,7 @@ void FMAFeedbackGenerator::GenerateChargeFeedback(FMASkillExecutionFeedback& Fee
             TArray<FMASceneGraphNode> AllNodes = SceneGraphMgr ? SceneGraphMgr->GetAllNodes() : TArray<FMASceneGraphNode>();
             
             Feedback.Data.Add(TEXT("station_id"), Context.ChargingStationId);
-            FString StationLabel = FMASceneGraphQuery::GetLabelById(AllNodes, Context.ChargingStationId);
+            FString StationLabel = FMASceneGraphQueryUseCases::GetLabelById(AllNodes, Context.ChargingStationId);
             Feedback.Data.Add(TEXT("station_label"), StationLabel);
         }
         
@@ -474,7 +474,7 @@ void FMAFeedbackGenerator::GeneratePlaceFeedback(FMASkillExecutionFeedback& Feed
         if (!Object1NodeId.IsEmpty())
         {
             Feedback.Data.Add(TEXT("object_id"), Object1NodeId);
-            Feedback.Data.Add(TEXT("object_label"), FMASceneGraphQuery::GetLabelById(AllNodes, Object1NodeId));
+            Feedback.Data.Add(TEXT("object_label"), FMASceneGraphQueryUseCases::GetLabelById(AllNodes, Object1NodeId));
         }
         else if (!Context.PlacedObjectName.IsEmpty())
             Feedback.Data.Add(TEXT("object_label"), Context.PlacedObjectName);
@@ -484,7 +484,7 @@ void FMAFeedbackGenerator::GeneratePlaceFeedback(FMASkillExecutionFeedback& Feed
         if (!Object2NodeId.IsEmpty())
         {
             Feedback.Data.Add(TEXT("target_id"), Object2NodeId);
-            Feedback.Data.Add(TEXT("target_label"), FMASceneGraphQuery::GetLabelById(AllNodes, Object2NodeId));
+            Feedback.Data.Add(TEXT("target_label"), FMASceneGraphQueryUseCases::GetLabelById(AllNodes, Object2NodeId));
         }
         else if (!Context.PlaceTargetName.IsEmpty())
             Feedback.Data.Add(TEXT("target_label"), Context.PlaceTargetName);
@@ -680,7 +680,7 @@ void FMAFeedbackGenerator::GenerateTakePhotoFeedback(FMASkillExecutionFeedback& 
             if (!Context.PhotoTargetId.IsEmpty())
             {
                 Feedback.Data.Add(TEXT("target_id"), Context.PhotoTargetId);
-                Feedback.Data.Add(TEXT("target_label"), FMASceneGraphQuery::GetLabelById(AllNodes, Context.PhotoTargetId));
+                Feedback.Data.Add(TEXT("target_label"), FMASceneGraphQueryUseCases::GetLabelById(AllNodes, Context.PhotoTargetId));
             }
             else if (!Context.PhotoTargetName.IsEmpty())
                 Feedback.Data.Add(TEXT("target_label"), Context.PhotoTargetName);
@@ -764,7 +764,7 @@ void FMAFeedbackGenerator::GenerateHandleHazardFeedback(FMASkillExecutionFeedbac
             if (!Context.HazardTargetId.IsEmpty())
             {
                 Feedback.Data.Add(TEXT("target_id"), Context.HazardTargetId);
-                Feedback.Data.Add(TEXT("target_label"), FMASceneGraphQuery::GetLabelById(AllNodes, Context.HazardTargetId));
+                Feedback.Data.Add(TEXT("target_label"), FMASceneGraphQueryUseCases::GetLabelById(AllNodes, Context.HazardTargetId));
             }
             else if (!Context.HazardTargetName.IsEmpty())
                 Feedback.Data.Add(TEXT("target_label"), Context.HazardTargetName);
@@ -798,7 +798,7 @@ void FMAFeedbackGenerator::GenerateGuideFeedback(FMASkillExecutionFeedback& Feed
             if (!Context.GuideTargetId.IsEmpty())
             {
                 Feedback.Data.Add(TEXT("target_id"), Context.GuideTargetId);
-                Feedback.Data.Add(TEXT("target_label"), FMASceneGraphQuery::GetLabelById(AllNodes, Context.GuideTargetId));
+                Feedback.Data.Add(TEXT("target_label"), FMASceneGraphQueryUseCases::GetLabelById(AllNodes, Context.GuideTargetId));
             }
             else if (!Context.GuideTargetName.IsEmpty())
                 Feedback.Data.Add(TEXT("target_label"), Context.GuideTargetName);

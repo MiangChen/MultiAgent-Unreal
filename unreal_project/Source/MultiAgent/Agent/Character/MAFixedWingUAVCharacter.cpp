@@ -15,7 +15,7 @@ AMAFixedWingUAVCharacter::AMAFixedWingUAVCharacter()
     AgentType = EMAAgentType::FixedWingUAV;
     
     StateTreeComponent = CreateDefaultSubobject<UMAStateTreeComponent>(TEXT("StateTreeComponent"));
-    StateTreeComponent->SetStartLogicAutomatically(true);
+    StateTreeComponent->SetStartLogicAutomatically(false);
     
     UCharacterMovementComponent* MovementComp = GetCharacterMovement();
     MovementComp->SetMovementMode(MOVE_Flying);

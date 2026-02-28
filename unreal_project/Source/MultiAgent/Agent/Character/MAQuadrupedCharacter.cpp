@@ -15,7 +15,7 @@ AMAQuadrupedCharacter::AMAQuadrupedCharacter()
     
     // StateTree 组件
     StateTreeComponent = CreateDefaultSubobject<UMAStateTreeComponent>(TEXT("StateTreeComponent"));
-    StateTreeComponent->SetStartLogicAutomatically(true);
+    StateTreeComponent->SetStartLogicAutomatically(false);
     
     // Mesh 设置
     static ConstructorHelpers::FObjectFinder<USkeletalMesh> MeshAsset(

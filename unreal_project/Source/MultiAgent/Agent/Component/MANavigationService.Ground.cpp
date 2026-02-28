@@ -81,7 +81,7 @@ void UMANavigationService::ScheduleNavMeshFalseSuccessCheck(const FVector& Check
                 return;
             }
 
-            UE_LOG(LogTemp, Error, TEXT("[MANavigationService] %s: NavMesh FALSE SUCCESS detected!"),
+            UE_LOG(LogTemp, Warning, TEXT("[MANavigationService] %s: NavMesh FALSE SUCCESS detected!"),
                 *OwnerCharacter->GetName());
 
             if (AAIController* AI = Cast<AAIController>(OwnerCharacter->GetController()))
@@ -361,7 +361,7 @@ void UMANavigationService::OnNavMeshMoveCompleted(FAIRequestID RequestID, const 
         {
             if (Result.IsSuccess())
             {
-                UE_LOG(LogTemp, Error, TEXT("[MANavigationService] %s: FALSE SUCCESS! Distance %.1f, switching to manual navigation"),
+                UE_LOG(LogTemp, Warning, TEXT("[MANavigationService] %s: FALSE SUCCESS! Distance %.1f, switching to manual navigation"),
                     *OwnerCharacter->GetName(), ActualDistance);
             }
             else

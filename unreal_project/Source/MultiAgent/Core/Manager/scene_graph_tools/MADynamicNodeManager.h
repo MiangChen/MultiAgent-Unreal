@@ -4,7 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MASceneGraphManager.h"
+#include "../MASceneGraphNodeTypes.h"
 
 struct FMAAgentConfigData;
 struct FMAEnvironmentObjectConfig;

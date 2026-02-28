@@ -4,8 +4,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MASceneGraphManager.h"
 #include "MASceneGraphTypes.h"
+#include "../MASceneGraphNodeTypes.h"
 
 /**
  * 场景图查询工具类

@@ -120,7 +120,7 @@ struct FMAPIPCameraInstance
     GENERATED_BODY()
 
     /** 唯一标识符 */
-    UPROPERTY()
+    UPROPERTY(Meta = (IgnoreForMemberInitializationTest))
     FGuid CameraId;
 
     /** 相机配置 */

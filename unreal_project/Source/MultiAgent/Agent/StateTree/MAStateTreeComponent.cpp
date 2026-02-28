@@ -38,7 +38,14 @@ void UMAStateTreeComponent::BeginPlay()
     {
         UE_LOG(LogMAStateTree, Log, TEXT("[%s] StateTree ENABLED"), 
             GetOwner() ? *GetOwner()->GetName() : TEXT("Unknown"));
-        
+
+        // 如果尚未设置 StateTree 资产，先关闭自动启动，避免父类 BeginPlay 在空资产上触发校验错误。
+        // 资产后续通过 SetStateTreeAsset 注入后会在下一帧主动 StartLogic。
+        if (!StateTreeRef.IsValid())
+        {
+            SetStartLogicAutomatically(false);
+        }
+
         Super::BeginPlay();
     }
 }

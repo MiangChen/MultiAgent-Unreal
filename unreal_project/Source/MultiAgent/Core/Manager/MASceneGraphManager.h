@@ -11,160 +11,16 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Dom/JsonObject.h"
+#include "MASceneGraphNodeTypes.h"
 #include "MASceneGraphTypes.h"
 #include "../Config/MAConfigManager.h"
 #include "MASceneGraphManager.generated.h"
 
-/**
- * 场景图节点数据结构
- * 
- * 支持三种形状类型:
- * - point: 单个 Actor，使用 Guid 字段和 shape.center
- * - polygon: 多个 Actor 组成的多边形，使用 GuidArray 和 shape.vertices
- * - linestring: 多个 Actor 组成的线串，使用 GuidArray 和 shape.points
- * 
- * 支持的节点类别:
- * - building: 建筑物
- * - trans_facility: 交通设施 (道路、路口)
- * - prop: 道具 (雕像、天线、水塔等)
- * - robot: 机器人 (UAV, UGV, Quadruped, Humanoid)
- */
-USTRUCT(BlueprintType)
-struct FMASceneGraphNode
-{
-    GENERATED_BODY()
-
-    //=========================================================================
-    // 基础字段 (现有)
-    //=========================================================================
-
-    /** 节点唯一标识 */
-    UPROPERTY(BlueprintReadWrite, Category = "SceneGraph")
-    FString Id;
-
-    /** Actor 的全局唯一标识符 (通过 Actor->GetActorGuid().ToString() 获取) */
-    UPROPERTY(BlueprintReadWrite, Category = "SceneGraph")
-    FString Guid;
-
-    /** 节点类型 (intersection, building, robot, etc.) */
-    UPROPERTY(BlueprintReadWrite, Category = "SceneGraph")
-    FString Type;
-
-    /** 自动生成的标签 (Intersection-12, UAV-1, RedBox) */
-    UPROPERTY(BlueprintReadWrite, Category = "SceneGraph")
-    FString Label;
-
-    /** 世界坐标 [x, y, z] - 对于 polygon/linestring 类型，这是计算出的几何中心 */
-    UPROPERTY(BlueprintReadWrite, Category = "SceneGraph")
-    FVector Center;
-
-    /** 形状类型: "point", "polygon", "linestring", "prism" */
-    UPROPERTY(BlueprintReadWrite, Category = "SceneGraph")
-    FString ShapeType;
-
-    /** 多个 Actor 的 GUID 数组 (用于 polygon/linestring 类型) */
-    UPROPERTY(BlueprintReadWrite, Category = "SceneGraph")
-    TArray<FString> GuidArray;
-
-    /** 原始 JSON 字符串 (用于预览显示) */
-    UPROPERTY(BlueprintReadWrite, Category = "SceneGraph")
-    FString RawJson;
-
-    //=========================================================================
-    // 新增字段 - 分类
-    //=========================================================================
-
-    /** 节点类别: building, trans_facility, prop, robot */
-    UPROPERTY(BlueprintReadWrite, Category = "SceneGraph")
-    FString Category;
-
-    //=========================================================================
-    // 新增字段 - 动态节点专用
-    //=========================================================================
-
-    /** 是否为动态节点 (机器人、可移动物体等) */
-    UPROPERTY(BlueprintReadWrite, Category = "SceneGraph")
-    bool bIsDynamic = false;
-
-    /** 旋转角度 (仅动态节点) */
-    UPROPERTY(BlueprintReadWrite, Category = "SceneGraph")
-    FRotator Rotation;
-
-    //=========================================================================
-    // 新增字段 - PickupItem 专用
-    //=========================================================================
-
-    /** 特征属性: color, name, item_type 等 */
-    UPROPERTY(BlueprintReadWrite, Category = "SceneGraph")
-    TMap<FString, FString> Features;
-
-    /** 是否被携带 */
-    UPROPERTY(BlueprintReadWrite, Category = "SceneGraph")
-    bool bIsCarried = false;
-
-    /** 携带者 ID (机器人 ID) */
-    UPROPERTY(BlueprintReadWrite, Category = "SceneGraph")
-    FString CarrierId;
-
-    //=========================================================================
-    // 新增字段 - 位置标签
-    //=========================================================================
-
-    /** 所在地点标签（如Building-3, Intersection-1）
-     *  对于非地点节点（机器人、道具、货物等），表示其当前所在的最近地点
-     */
-    UPROPERTY(BlueprintReadWrite, Category = "SceneGraph")
-    FString LocationLabel;
-
-    //=========================================================================
-    // 构造函数
-    //=========================================================================
-
-    FMASceneGraphNode()
-        : Center(FVector::ZeroVector)
-        , bIsDynamic(false)
-        , Rotation(FRotator::ZeroRotator)
-        , bIsCarried(false)
-    {
-    }
-
-    //=========================================================================
-    // 辅助方法 - 类型判断
-    //=========================================================================
-
-    /** 是否为机器人节点 */
-    bool IsRobot() const { return Category == TEXT("robot"); }
-
-    /** 是否为可拾取物品节点 (Type == "cargo" 或 "assembly_component") */
-    bool IsPickupItem() const 
-    { 
-        return Type == TEXT("cargo") || Type == TEXT("assembly_component"); 
-    }
-
-    /** 是否为充电站节点 */
-    bool IsChargingStation() const { return Type == TEXT("charging_station"); }
-
-    /** 是否为建筑物节点 */
-    bool IsBuilding() const { return Category == TEXT("building") || Type == TEXT("building"); }
-
-    /** 是否为道路节点 */
-    bool IsRoad() const { return Type == TEXT("road_segment") || Type == TEXT("street_segment"); }
-
-    /** 是否为路口节点 */
-    bool IsIntersection() const { return Type == TEXT("intersection"); }
-
-    /** 是否为道具节点 */
-    bool IsProp() const { return Category == TEXT("prop"); }
-
-    /** 是否为交通设施节点 (道路或路口) */
-    bool IsTransFacility() const { return Category == TEXT("trans_facility"); }
-
-    /** 节点是否有效 (至少有 ID) */
-    bool IsValid() const { return !Id.IsEmpty(); }
-
-    /** 获取显示名称 (优先使用 Label，否则使用 Id) */
-    FString GetDisplayName() const { return Label.IsEmpty() ? Id : Label; }
-};
+class IMASceneGraphQueryPort;
+class IMASceneGraphCommandPort;
+class IMASceneGraphRepositoryPort;
+class IMASceneGraphEventPublisherPort;
+enum class EMASceneChangeType : uint8;
 
 /**
  * 场景图管理器
@@ -670,11 +526,23 @@ private:
     bool InitializeWorkingCopy();
 
     /**
+     * 写路径内部实现 (由 CommandPort 转发调用)
+     */
+    bool AddNodeInternal(const FString& NodeJson, FString& OutError);
+    bool DeleteNodeInternal(const FString& NodeId, FString& OutError);
+    bool EditNodeInternal(const FString& NodeId, const FString& NewNodeJson, FString& OutError);
+    bool SetNodeAsGoalInternal(const FString& NodeId, FString& OutError);
+    bool UnsetNodeAsGoalInternal(const FString& NodeId, FString& OutError);
+    bool SaveToSourceInternal();
+    void UpdateDynamicNodePositionInternal(const FString& NodeId, const FVector& NewPosition);
+    void UpdateDynamicNodeFeatureInternal(const FString& NodeId, const FString& Key, const FString& Value);
+
+    /**
      * 发送场景变更消息 (仅 Edit 模式)
-     * @param ChangeType 变更类型: "add_node", "delete_node", "edit_node"
+     * @param ChangeType 变更类型
      * @param NodeJson 节点数据 JSON 字符串
      */
-    void NotifySceneChange(const FString& ChangeType, const FString& NodeJson);
+    void NotifySceneChange(EMASceneChangeType ChangeType, const FString& NodeJson);
 
     //=========================================================================
     // 内部状态
@@ -694,4 +562,16 @@ private:
 
     /** 缓存的运行模式 */
     EMARunMode CachedRunMode;
+
+    /** 查询端口实现 (P1c: manager 内部查询转发) */
+    TSharedPtr<IMASceneGraphQueryPort> QueryPort;
+
+    /** 写端口实现 (P1c-b2: Command 转发) */
+    TSharedPtr<IMASceneGraphCommandPort> CommandPort;
+
+    /** 仓储端口实现 (P1c-b: I/O 适配) */
+    TSharedPtr<IMASceneGraphRepositoryPort> RepositoryPort;
+
+    /** 事件发布端口实现 (P1c-b: 通信适配) */
+    TSharedPtr<IMASceneGraphEventPublisherPort> EventPublisherPort;
 };

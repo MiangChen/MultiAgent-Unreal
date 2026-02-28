@@ -5,7 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "Dom/JsonObject.h"
-#include "MASceneGraphManager.h"
+#include "../MASceneGraphNodeTypes.h"
 
 /**
  * 场景图文件IO工具类

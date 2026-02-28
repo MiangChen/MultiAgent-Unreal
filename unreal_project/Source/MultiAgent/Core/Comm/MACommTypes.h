@@ -673,7 +673,7 @@ struct MULTIAGENT_API FMASceneChangeMessage
     int64 Timestamp = 0;
 
     /** 消息 ID (UUID) */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SceneChange")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SceneChange", Meta = (IgnoreForMemberInitializationTest))
     FString MessageId;
 
     FMASceneChangeMessage()
@@ -742,7 +742,7 @@ struct MULTIAGENT_API FMASkillAllocationMessage
     int64 Timestamp = 0;
 
     /** 消息 ID (UUID) */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkillAllocation")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SkillAllocation", Meta = (IgnoreForMemberInitializationTest))
     FString MessageId;
 
     FMASkillAllocationMessage()
@@ -850,7 +850,7 @@ struct MULTIAGENT_API FMAReviewResponseMessage
     int64 Timestamp = 0;
 
     /** 消息 ID (UUID) */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ReviewResponse")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ReviewResponse", Meta = (IgnoreForMemberInitializationTest))
     FString MessageId;
 
     FMAReviewResponseMessage()
@@ -908,7 +908,7 @@ struct MULTIAGENT_API FMADecisionResponseMessage
     int64 Timestamp = 0;
 
     /** 消息 ID (UUID) */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DecisionResponse")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DecisionResponse", Meta = (IgnoreForMemberInitializationTest))
     FString MessageId;
 
     FMADecisionResponseMessage()
