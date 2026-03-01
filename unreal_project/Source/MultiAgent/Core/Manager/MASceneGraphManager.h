@@ -20,6 +20,7 @@ class IMASceneGraphQueryPort;
 class IMASceneGraphCommandPort;
 class IMASceneGraphRepositoryPort;
 class IMASceneGraphEventPublisherPort;
+class FMASceneGraphCommandPortComposer;
 enum class EMASceneChangeType : uint8;
 
 /**
@@ -436,6 +437,8 @@ public:
     FString BuildWorldStateJson(const FString& CategoryFilter = TEXT(""), const FString& TypeFilter = TEXT(""), const FString& LabelFilter = TEXT("")) const;
 
 private:
+    friend class FMASceneGraphCommandPortComposer;
+
     //=========================================================================
     // JSON 文件 I/O
     //=========================================================================
@@ -471,19 +474,14 @@ private:
      * 从 agents.json 和 environment.json 加载
      */
     void LoadDynamicNodes();
+    UMAConfigManager* ResolveConfigManager() const;
+    void BuildDynamicNodesFromRuntimeConfig(const UMAConfigManager& ConfigManager);
+    void RefreshDynamicNodeLocationLabels();
+    void CalibrateDynamicNodeFromWorldActor(const FString& NodeIdOrLabel);
 
     //=========================================================================
     // 内部辅助方法
     //=========================================================================
-
-    /**
-     * 将类型字符串首字母大写
-     * 
-     * @param Type 原始类型字符串
-     * @return 首字母大写的类型字符串
-     * 
-     */
-    FString CapitalizeFirstLetter(const FString& Type) const;
 
     /**
      * 从 JSON 对象中提取节点数组
@@ -491,28 +489,6 @@ private:
      * @return 节点数组指针，如果不存在则返回 nullptr
      */
     TArray<TSharedPtr<FJsonValue>>* GetNodesArray() const;
-
-    /**
-     * 验证场景图节点 JSON 结构
-     * 
-     * 根据 shape.type 验证必需字段:
-     * - prism: 需要 shape.vertices 和 shape.height
-     * - linestring: 需要 shape.points 和 shape.vertices
-     * - point: 需要 shape.center
-     * 
-     * @param NodeObject 要验证的 JSON 对象
-     * @param OutErrorMessage 验证失败时的错误信息
-     * @return 验证是否通过
-     * 
-     */
-    bool ValidateNodeJsonStructure(const TSharedPtr<FJsonObject>& NodeObject, FString& OutErrorMessage) const;
-
-    /**
-     * 在动态节点数组中查找节点 (返回可修改的指针)
-     * @param NodeId 节点ID
-     * @return 节点指针，如果未找到则返回 nullptr
-     */
-    FMASceneGraphNode* FindDynamicNodeByIdMutable(const FString& NodeId);
 
     //=========================================================================
     // 统一图操作内部方法
@@ -524,6 +500,11 @@ private:
      * @return 是否成功
      */
     bool InitializeWorkingCopy();
+    void CacheRuntimeConfig();
+    void InitializePorts();
+    void EnsureWorkingCopyForStartup();
+    void RebuildStaticNodesFromWorkingCopy();
+    void InitializeCommandPort();
 
     /**
      * 写路径内部实现 (由 CommandPort 转发调用)
@@ -531,6 +512,7 @@ private:
     bool AddNodeInternal(const FString& NodeJson, FString& OutError);
     bool DeleteNodeInternal(const FString& NodeId, FString& OutError);
     bool EditNodeInternal(const FString& NodeId, const FString& NewNodeJson, FString& OutError);
+    bool UpdateNodeGoalFlagInternal(const FString& NodeId, bool bIsGoal, FString& OutError);
     bool SetNodeAsGoalInternal(const FString& NodeId, FString& OutError);
     bool UnsetNodeAsGoalInternal(const FString& NodeId, FString& OutError);
     bool SaveToSourceInternal();

@@ -30,6 +30,17 @@ public:
     /** 从环境对象配置创建节点 */
     static FMASceneGraphNode CreateEnvironmentObjectNode(const FMAEnvironmentObjectConfig& Config);
 
+    /** 从配置批量创建动态节点（agent + environment objects） */
+    static TArray<FMASceneGraphNode> BuildDynamicNodesFromConfig(
+        const TArray<FMAAgentConfigData>& AgentConfigs,
+        const TArray<FMAEnvironmentObjectConfig>& EnvironmentObjects);
+
+    /** 为动态节点刷新 location_label（地点节点会跳过） */
+    static void RefreshLocationLabels(
+        TArray<FMASceneGraphNode>& DynamicNodes,
+        const TArray<FMASceneGraphNode>& AllNodesForLookup,
+        float MaxSearchDistanceCm = 5000.f);
+
     //=========================================================================
     // 节点更新
     //=========================================================================

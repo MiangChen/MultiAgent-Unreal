@@ -3,6 +3,7 @@
 
 #include "MADynamicNodeManager.h"
 #include "../../Config/MAConfigManager.h"
+#include "../../../Agent/Skill/Utils/MALocationUtils.h"
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonWriter.h"
 #include "Serialization/JsonSerializer.h"
@@ -122,6 +123,56 @@ FMASceneGraphNode FMADynamicNodeManager::CreateEnvironmentObjectNode(const FMAEn
         *Node.Id, *Node.Type, *Node.Category, *Node.Label);
 
     return Node;
+}
+
+TArray<FMASceneGraphNode> FMADynamicNodeManager::BuildDynamicNodesFromConfig(
+    const TArray<FMAAgentConfigData>& AgentConfigs,
+    const TArray<FMAEnvironmentObjectConfig>& EnvironmentObjects)
+{
+    TArray<FMASceneGraphNode> Nodes;
+    Nodes.Reserve(AgentConfigs.Num() + EnvironmentObjects.Num());
+
+    for (const FMAAgentConfigData& AgentConfig : AgentConfigs)
+    {
+        FMASceneGraphNode Node = CreateAgentNode(AgentConfig);
+        UE_LOG(LogMADynamicNodeManager, Log, TEXT("BuildDynamicNodesFromConfig: Created agent node - Id: %s, Type: %s, Label: %s"),
+            *Node.Id, *Node.Type, *Node.Label);
+        Nodes.Add(MoveTemp(Node));
+    }
+
+    for (const FMAEnvironmentObjectConfig& EnvConfig : EnvironmentObjects)
+    {
+        FMASceneGraphNode Node = CreateEnvironmentObjectNode(EnvConfig);
+        UE_LOG(LogMADynamicNodeManager, Log, TEXT("BuildDynamicNodesFromConfig: Created %s node - Id: %s, Label: %s"),
+            *EnvConfig.Type, *Node.Id, *Node.Label);
+        Nodes.Add(MoveTemp(Node));
+    }
+
+    UE_LOG(LogMADynamicNodeManager, Log, TEXT("BuildDynamicNodesFromConfig: Total %d dynamic nodes built"), Nodes.Num());
+    return Nodes;
+}
+
+void FMADynamicNodeManager::RefreshLocationLabels(
+    TArray<FMASceneGraphNode>& DynamicNodes,
+    const TArray<FMASceneGraphNode>& AllNodesForLookup,
+    float MaxSearchDistanceCm)
+{
+    for (FMASceneGraphNode& Node : DynamicNodes)
+    {
+        if (FMALocationUtils::IsLocationNode(Node))
+        {
+            continue;
+        }
+
+        Node.LocationLabel = FMALocationUtils::InferNearestLocationLabel(
+            AllNodesForLookup,
+            Node.Center,
+            MaxSearchDistanceCm,
+            Node.Id);
+
+        UE_LOG(LogMADynamicNodeManager, Verbose, TEXT("RefreshLocationLabels: Node %s (%s) location_label='%s'"),
+            *Node.Id, *Node.Label, *Node.LocationLabel);
+    }
 }
 
 //=============================================================================
