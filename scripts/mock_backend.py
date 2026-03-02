@@ -48,6 +48,30 @@ message_queue = queue.Queue()  # For SSE streaming
 hitl_responses = []
 hitl_responses_lock = threading.Lock()
 
+# UE5 连接状态 (基于轮询心跳)
+UE_CONNECTION_TIMEOUT_SECONDS = 5.0
+last_ue_poll_timestamp = 0.0
+ue_poll_lock = threading.Lock()
+
+
+def mark_ue_heartbeat():
+    """记录 UE5 轮询心跳时间"""
+    global last_ue_poll_timestamp
+    with ue_poll_lock:
+        last_ue_poll_timestamp = time.time()
+
+
+def get_ue_connection_state():
+    """获取 UE5 连接状态和最近轮询间隔"""
+    with ue_poll_lock:
+        last_poll = last_ue_poll_timestamp
+
+    if last_poll <= 0:
+        return False, None
+
+    age = time.time() - last_poll
+    return age <= UE_CONNECTION_TIMEOUT_SECONDS, age
+
 # ========== 技能分配定义 (Skill Allocation) ==========
 # 用于 UI 交互流程，用户确认后执行
 # 格式: { "name": "...", "description": "...", "data": { "0": {...}, "1": {...} } }
@@ -307,6 +331,7 @@ SKILL_LISTS = {
             "1": {'Quadruped-1': {'skill': 'guide', 'params': {'target': {'token': 'sportive_male', 'class': 'object', 'type': 'person', 'features': {'subtype': 'sportive', 'gender': 'male', 'clothing_color': 'brown'}, 'conf_ge': 0.85, 'persist_ge_s': 1.0}, 'target_token': 'sportive_male', 'object_id': '3004', 'dest_token': 'Intersection-4', 'dest': {'x': -6703.0, 'y': 12800.0, 'z': 0.0}, 'task_id': 'T2'}}}
         }
     },
+    "traffic_enforcement_broadcast": {
         "name": "Traffic Enforcement (Broadcast)",
         "description": "UAV 对违停车辆进行广播警告",
         "data": {
@@ -739,7 +764,7 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             
             <div class="status">
                 <span class="dot connected" id="status-dot"></span>
-                <span id="status-text">Server Running on :{{PORT}}</span>
+                <span id="status-text">Server Running on :{{PORT}} | 等待 UE5 连接...</span>
             </div>
         </div>
         
@@ -757,8 +782,8 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
                     <svg viewBox="0 0 24 24" fill="currentColor">
                         <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
                     </svg>
-                    <p>等待 UE5 仿真端连接...</p>
-                    <p style="font-size: 12px; margin-top: 10px;">消息将实时显示在这里</p>
+                    <p id="empty-state-title">等待 UE5 仿真端连接...</p>
+                    <p id="empty-state-subtitle" style="font-size: 12px; margin-top: 10px;">消息将实时显示在这里</p>
                 </div>
             </div>
         </div>
@@ -770,7 +795,38 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
         const skillAllocations = {{SKILL_ALLOCATIONS}};
         const messagesDiv = document.getElementById('messages');
         const emptyState = document.getElementById('empty-state');
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+        const emptyStateTitle = document.getElementById('empty-state-title');
+        const emptyStateSubtitle = document.getElementById('empty-state-subtitle');
         let messageCount = 0;
+        let isUEConnected = false;
+
+        function applyUEConnectionStatus(connected) {
+            isUEConnected = connected;
+            if (connected) {
+                statusDot.className = 'dot connected';
+                statusText.textContent = 'UE5 链接成功';
+                if (emptyStateTitle) emptyStateTitle.textContent = '✅ UE5 链接成功';
+                if (emptyStateSubtitle) emptyStateSubtitle.textContent = '等待你发送任务，消息将实时显示在这里';
+            } else {
+                statusDot.className = 'dot disconnected';
+                statusText.textContent = 'Server Running on :{{PORT}} | 等待 UE5 连接...';
+                if (emptyStateTitle) emptyStateTitle.textContent = '等待 UE5 仿真端连接...';
+                if (emptyStateSubtitle) emptyStateSubtitle.textContent = '消息将实时显示在这里';
+            }
+        }
+
+        async function fetchUEConnectionStatus() {
+            try {
+                const response = await fetch('/api/ue_status');
+                if (!response.ok) return;
+                const data = await response.json();
+                applyUEConnectionStatus(!!data.connected);
+            } catch (e) {
+                // Ignore transient fetch errors; SSE onerror handles connection lost display.
+            }
+        }
         
         // Generate task graph buttons
         const taskButtonsDiv = document.getElementById('task-buttons');
@@ -904,6 +960,7 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
         // Add message to display
         function addMessage(type, title, content, direction) {
             if (emptyState) emptyState.style.display = 'none';
+            applyUEConnectionStatus(true);
             messageCount++;
             
             const dirClass = direction === 'outgoing' ? 'outgoing' : 'incoming';
@@ -932,18 +989,27 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             messagesDiv.innerHTML = '';
             emptyState.style.display = 'block';
             messagesDiv.appendChild(emptyState);
+            fetchUEConnectionStatus();
         }
         
         // SSE for real-time updates
         const evtSource = new EventSource('/api/messages');
+        evtSource.onopen = () => {
+            // Web page connected to backend SSE channel; UE status is queried independently.
+            fetchUEConnectionStatus();
+        };
         evtSource.onmessage = (event) => {
             const data = JSON.parse(event.data);
             addMessage(data.type, data.title, data.content, data.direction);
         };
         evtSource.onerror = () => {
-            document.getElementById('status-dot').className = 'dot disconnected';
-            document.getElementById('status-text').textContent = 'Connection Lost';
+            statusDot.className = 'dot disconnected';
+            statusText.textContent = 'Connection Lost';
         };
+
+        // Poll UE connection status.
+        fetchUEConnectionStatus();
+        setInterval(fetchUEConnectionStatus, 1000);
     </script>
 </body>
 </html>'''
@@ -1085,7 +1151,7 @@ class MockBackendHandler(BaseHTTPRequestHandler):
     
     def do_GET(self):
         parsed_path = urlparse(self.path)
-        
+
         if parsed_path.path == '/' or parsed_path.path == '/index.html':
             self.serve_html()
         elif parsed_path.path == '/api/sim/poll':
@@ -1094,6 +1160,8 @@ class MockBackendHandler(BaseHTTPRequestHandler):
             self.handle_hitl_poll()
         elif parsed_path.path == '/api/health':
             self.handle_health()
+        elif parsed_path.path == '/api/ue_status':
+            self.handle_ue_status()
         elif parsed_path.path == '/api/messages':
             self.handle_sse()
         else:
@@ -1139,6 +1207,7 @@ class MockBackendHandler(BaseHTTPRequestHandler):
     def handle_poll(self):
         """Handle UE5 poll request for Platform messages"""
         global pending_messages
+        mark_ue_heartbeat()
         with message_lock:
             if pending_messages:
                 msg = pending_messages.pop(0)
@@ -1159,6 +1228,7 @@ class MockBackendHandler(BaseHTTPRequestHandler):
         Messages are returned by category priority: REVIEW, DECISION, INSTRUCTION.
         """
         global hitl_messages
+        mark_ue_heartbeat()
         print(f"[HITL Poll] UE5 polling HITL endpoint, queue size: {len(hitl_messages)}")
         with hitl_lock:
             if hitl_messages:
@@ -1179,6 +1249,15 @@ class MockBackendHandler(BaseHTTPRequestHandler):
     def handle_health(self):
         """Handle health check request"""
         self.send_json_response(200, {"status": "healthy"})
+
+    def handle_ue_status(self):
+        """Handle UE5 connection status request"""
+        connected, age = get_ue_connection_state()
+        self.send_json_response(200, {
+            "connected": connected,
+            "last_poll_seconds_ago": round(age, 3) if age is not None else None,
+            "timeout_seconds": UE_CONNECTION_TIMEOUT_SECONDS
+        })
 
     def handle_sse(self):
         """Handle SSE connection for real-time updates"""
