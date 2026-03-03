@@ -4,6 +4,7 @@
 
 | 我想... | 看这个文档 |
 |---------|-----------|
+| 快速联调和 UI 操作 | [../docs/USAGE_GUIDE.md](../docs/USAGE_GUIDE.md) |
 | 了解项目整体架构 | [ARCHITECTURE.md](ARCHITECTURE.md) |
 | 知道按键怎么用 | [KEYBINDINGS.md](KEYBINDINGS.md) |
 | 开发一个新功能 | [guide/NEW_FEATURE_GUIDE.md](guide/NEW_FEATURE_GUIDE.md) |
