@@ -10,6 +10,7 @@ docs_dir: site_docs
 
 nav:
   - 功能性介绍: index.md
+  - 按键说明: keybindings.md
   - 启动与 Example: startup-and-examples.md
   - API 参考: api-reference.md
 

@@ -10,8 +10,8 @@ MultiAgent-Unreal 是基于 UE5 的多机器人协同仿真平台，支持通过
 
 | 系统 | 状态 | 说明 |
 |---|---|---|
-| macOS | ✅ 推荐 | 提供 `mac_compile_and_start.sh` 一键编译启动脚本 |
-| Linux | ✅ 支持 | 提供 `example_compile.sh` / `example_start_linux.sh` 示例脚本 |
+| macOS | ✅ 支持 | 提供 `mac_compile_and_start.sh` 一键编译启动脚本 |
+| Linux | ✅ 推荐 | 提供 `example_compile.sh` / `example_start_linux.sh` 示例脚本 |
 | Windows | ⚠️ 可运行 | UE5 本身支持，仓库暂未提供同等一键脚本 |
 
 ## 3. 支持机器人类型
