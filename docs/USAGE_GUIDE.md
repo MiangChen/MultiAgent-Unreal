@@ -32,7 +32,7 @@ cd PathTo/MultiAgent-Unreal
 
 ### 1.3 联调成功判断
 
-- Web 页状态从“等待 UE5 连接”切到 `UE5 链接成功`
+- Web 页状态从“等待 UE5 连接”切到 `UE5 连接成功`
 - 控制台有 `UE5 polling` 日志
 - 在 Web 发送消息后，右侧日志能看到 `Backend -> UE5`
 

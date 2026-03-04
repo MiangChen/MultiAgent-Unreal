@@ -9,6 +9,14 @@
 #include "UObject/NoExportTypes.h"
 #include "MAHUDTypes.h"
 #include "../../Core/Types/MATaskGraphTypes.h"
+#include "Application/MAUIStateModalCoordinator.h"
+#include "Application/MAUIRuntimeEventCoordinator.h"
+#include "Application/MAUIWidgetLifecycleCoordinator.h"
+#include "Application/MAUIWidgetInteractionCoordinator.h"
+#include "Application/MAUIThemeCoordinator.h"
+#include "Application/MAUINotificationCoordinator.h"
+#include "Application/MAUIWidgetRegistryCoordinator.h"
+#include "Infrastructure/MAUIInputModeAdapter.h"
 #include "MAUIManager.generated.h"
 
 // 前向声明
@@ -28,8 +36,6 @@ class UMATaskGraphModal;
 class UMASkillAllocationModal;
 class UMABaseModalWidget;
 class UMADecisionModal;
-class UMANotificationWidget;
-class UMACommSubsystem;
 class UMASystemLogPanel;
 class UMAPreviewPanel;
 class UMAInstructionPanel;
@@ -89,6 +95,10 @@ class MULTIAGENT_API UMAUIManager : public UObject
 {
     GENERATED_BODY()
 
+    friend class FMAUIStateModalCoordinator;
+    friend class FMAUIRuntimeEventCoordinator;
+    friend class FMAUIWidgetInteractionCoordinator;
+
 public:
     //=========================================================================
     // 初始化
@@ -105,6 +115,58 @@ public:
      * 必须在 Initialize() 之后调用
      */
     void CreateAllWidgets();
+
+    //=========================================================================
+    // Coordinator 内部接口（受控写入/装配）
+    //=========================================================================
+
+    /** 获取 OwningPC（用于 Coordinator 装配） */
+    APlayerController* GetOwningPlayerController() const { return OwningPC; }
+
+    /** 获取 SemanticMap Widget 类（用于生命周期创建） */
+    TSubclassOf<UUserWidget> GetSemanticMapWidgetClass() const { return SemanticMapWidgetClass; }
+
+    /** 设置 HUDStateManager（统一写入口） */
+    void SetHUDStateManagerInternal(UMAHUDStateManager* InHUDStateManager);
+
+    /** 设置 MainHUDWidget（统一写入口） */
+    void SetMainHUDWidgetInternal(UMAMainHUDWidget* InMainHUDWidget);
+
+    /** 按 WidgetType 设置类型化 Widget 指针（统一写入口） */
+    void SetWidgetInstanceInternal(EMAWidgetType Type, UUserWidget* Widget);
+
+    /** 按 ModalType 设置类型化 Modal 指针（统一写入口） */
+    void SetModalWidgetInternal(EMAModalType ModalType, UMABaseModalWidget* ModalWidget);
+
+    /** 注册 WidgetType 到 Widgets 映射（统一写入口） */
+    void RegisterWidgetMappingInternal(EMAWidgetType Type, UUserWidget* Widget);
+
+    /** 已注册 Widget 数量（用于日志） */
+    int32 GetRegisteredWidgetCountInternal() const { return Widgets.Num(); }
+
+    /** 统一绑定 runtime 事件源（TempData/Comm/Command） */
+    void BindRuntimeEventSourcesInternal();
+
+    /** 统一创建模态窗口（供生命周期协调器调用） */
+    void CreateModalWidgetsInternal();
+
+    /** 统一注册并添加到 Viewport（通过 WidgetRegistryCoordinator） */
+    void RegisterViewportWidgetInternal(EMAWidgetType Type, UUserWidget* Widget, ESlateVisibility Visibility);
+
+    /** 统一注册但不添加到 Viewport（通过 WidgetRegistryCoordinator） */
+    void RegisterManagedWidgetInternal(EMAWidgetType Type, UUserWidget* Widget, ESlateVisibility Visibility);
+
+    /** Theme 写入口：CurrentTheme */
+    void SetCurrentThemeInternal(UMAUITheme* InTheme);
+
+    /** Theme 写入口：DefaultTheme */
+    void SetDefaultThemeInternal(UMAUITheme* InTheme);
+
+    /** Theme 读入口：DefaultTheme */
+    UMAUITheme* GetDefaultThemeInternal() const { return DefaultTheme; }
+
+    /** Resume 通知定时器访问入口 */
+    FTimerHandle& GetResumeNotificationTimerHandleInternal() { return ResumeNotificationTimerHandle; }
 
     //=========================================================================
     // Widget 访问 - 通用接口
@@ -456,13 +518,6 @@ private:
     //=========================================================================
 
     /**
-     * 获取 Widget 的 Z-Order
-     * @param Type Widget 类型
-     * @return Z-Order 值
-     */
-    int32 GetWidgetZOrder(EMAWidgetType Type) const;
-
-    /**
      * 设置输入模式为 UI 和游戏混合
      * @param Widget 要聚焦的 Widget
      */
@@ -648,4 +703,28 @@ private:
      */
     UFUNCTION()
     void OnDecisionModalRejected(const FString& SelectedOption, const FString& UserFeedback);
+
+    /** L1 Application: HUD 状态机 + Modal 流程协调器 */
+    FMAUIStateModalCoordinator StateModalCoordinator;
+
+    /** L1 Application: TempData/Comm/Command 事件桥接协调器 */
+    FMAUIRuntimeEventCoordinator RuntimeEventCoordinator;
+
+    /** L1 Application: Widget 生命周期创建协调器 */
+    FMAUIWidgetLifecycleCoordinator WidgetLifecycleCoordinator;
+
+    /** L1 Application: Widget 注册与层级策略协调器 */
+    FMAUIWidgetRegistryCoordinator WidgetRegistryCoordinator;
+
+    /** L1 Application: Widget 交互与导航协调器 */
+    FMAUIWidgetInteractionCoordinator WidgetInteractionCoordinator;
+
+    /** L1 Application: Theme 协调器 */
+    FMAUIThemeCoordinator ThemeCoordinator;
+
+    /** L1 Application: 通知协调器 */
+    FMAUINotificationCoordinator NotificationCoordinator;
+
+    /** L3 Infrastructure: 输入模式适配器 */
+    FMAUIInputModeAdapter InputModeAdapter;
 };

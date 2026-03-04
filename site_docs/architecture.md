@@ -192,6 +192,49 @@ flowchart LR
     SCEDIT --> SCENE
 ```
 
+### 4.3 UIManager 分层图（当前）
+
+```mermaid
+flowchart LR
+    HUD["AMAHUD / Controller"]
+    UIM["UMAUIManager (L0 Facade)"]
+
+    subgraph L1["L1 Application Coordinators"]
+        LIFE["FMAUIWidgetLifecycleCoordinator"]
+        REG["FMAUIWidgetRegistryCoordinator"]
+        INTERACT["FMAUIWidgetInteractionCoordinator"]
+        STATE["FMAUIStateModalCoordinator"]
+        RUNTIME["FMAUIRuntimeEventCoordinator"]
+        THEME["FMAUIThemeCoordinator"]
+        NOTI["FMAUINotificationCoordinator"]
+    end
+
+    subgraph L3["L3 Infrastructure"]
+        INPUT["FMAUIInputModeAdapter"]
+    end
+
+    HUD --> UIM
+    UIM --> LIFE
+    UIM --> REG
+    UIM --> INTERACT
+    UIM --> STATE
+    UIM --> RUNTIME
+    UIM --> THEME
+    UIM --> NOTI
+    UIM --> INPUT
+
+    LIFE --> REG
+    INTERACT --> INPUT
+    STATE --> INPUT
+    RUNTIME --> NOTI
+    STATE --> NOTI
+```
+
+说明（本轮改动）：
+- `CreateAllWidgets` 已拆成 `CreateHUD/CreatePlanner/CreateMode/CreatePanel/BindRuntimeEventSources` 五段，降低单函数复杂度。
+- `UIManager` 新增受控写接口（`SetWidgetInstanceInternal`、`SetModalWidgetInternal`、`Register*Internal`、`Set*ThemeInternal`），用于收敛 coordinator 对私有字段的直接写入。
+- `friend` 已从 8 个收敛到 3 个（保留必须访问私有 UFUNCTION/内部状态的协调器）。
+
 ## 5. 重构建议
 
 ### 5.1 总体原则
@@ -204,7 +247,7 @@ flowchart LR
 
 | 优先级 | 主题 | 涉及模块 | 重构动作 | 目标收益 |
 |---|---|---|---|---|
-| P0 | UI 入口解耦（持续） | `UI/HUD/MAHUD.cpp` + `UI/HUD/Application/*` | 已完成首轮 Coordinator 化；下一步减少 `friend` 访问并引入上下文接口 | 降低 UI 变更连锁影响 |
+| P0 | UI 入口解耦（持续） | `UI/HUD/MAHUD.cpp` + `UI/HUD/Application/*` + `UI/Core/MAUIManager.*` | MAHUD 与 UIManager 均已完成 Coordinator 化；UIManager 已完成 `friend` 收敛与受控写接口 | 降低 UI 变更连锁影响 |
 | P0 | 调度核心收口 | `Core/Manager/MASceneGraphManager.cpp` | 保持外部 API 稳定，内部继续通过 ports/adapters 隔离实现细节 | 防止回耦，稳定跨模块调用 |
 | P0 | 导航状态显式化 | `Agent/Component/MANavigationService*.cpp` | 将 Pause/Resume/Cleanup 等状态切换统一到 transition helper | 降低分支散落与遗漏风险 |
 | P0 | `Utils` 拆层 | `Utils/MAPathPlanner*` `Utils/MAFlightController*` | 领域规则下沉到 `L2 Domain`，UE `World/Trace/Overlap` 访问上提到 `L3 Adapter` | 提升可测试性与可替换性 |

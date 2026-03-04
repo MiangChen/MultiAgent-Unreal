@@ -31,7 +31,7 @@ python3 scripts/mock_backend.py --port 8081
 
 满足任一即可进一步联调：
 
-- Web 状态文本显示 `UE5 链接成功`
+- Web 状态文本显示 `UE5 连接成功`
 - 后端控制台出现 UE 轮询日志（`/api/sim/poll` 或 `/api/hitl/poll`）
 
 ## 4. 运行 Example（Web 按钮流程）
