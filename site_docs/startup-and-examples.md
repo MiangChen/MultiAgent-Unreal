@@ -19,20 +19,13 @@ python3 scripts/mock_backend.py --port 8081
 
 打开浏览器：`http://localhost:8081`
 
-## 2.2 终端 B：编译并启动 UE（mac）
+## 2.2 终端 B：编译并启动 UE（按系统）
 
-```bash
-cd PathTo/MultiAgent-Unreal
-./mac_compile_and_start.sh
-```
-
-常见选项：
-
-```bash
-./mac_compile_and_start.sh -c Debug
-./mac_compile_and_start.sh -r
-./mac_compile_and_start.sh -- -ResX=1920 -ResY=1080
-```
+| 系统 | 编译与运行指令 |
+|---|---|
+| Linux | `cd PathTo/MultiAgent-Unreal`<br>`cp example_compile.sh compile.sh && cp example_start_linux.sh start.sh && chmod +x compile.sh start.sh`<br>`./compile.sh`<br>`./start.sh` |
+| mac | `cd PathTo/MultiAgent-Unreal`<br>`./mac_compile_and_start.sh`<br>`./mac_compile_and_start.sh -c Debug`<br>`./mac_compile_and_start.sh -r`<br>`./mac_compile_and_start.sh -- -ResX=1920 -ResY=1080` |
+| Windows | `cd PathTo/MultiAgent-Unreal`<br>`\"PathToUE/Engine/Build/BatchFiles/Build.bat\" MultiAgentEditor Win64 Development -Project=\"%cd%/unreal_project/MultiAgent.uproject\" -WaitMutex`<br>`\"PathToUE/Engine/Binaries/Win64/UnrealEditor.exe\" \"%cd%/unreal_project/MultiAgent.uproject\"` |
 
 ## 3. 连接成功判定
 
