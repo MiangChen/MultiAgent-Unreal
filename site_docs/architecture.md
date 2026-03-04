@@ -71,71 +71,80 @@ unreal_project/Source/MultiAgent/
 └── Utils/
 ```
 
-## 3. 分层判断（从底到顶）
+## 3. 五层映射（按 L0~L4）
 
-按当前代码组织和依赖方向，建议这样理解：
+按你给出的 5 层模型，把当前代码先映射为：
 
-| 层级 | 主要文件夹 | 说明 |
+| 层级 | 代码映射（当前） | 说明 |
 |---|---|---|
-| L1 基础层（最底层） | `Core/Types`, `Core/Config`, `Utils` | 类型定义、配置模型、通用工具；不面向 UI 展示 |
-| L2 领域层 | `Agent`, `Environment` | 机器人与环境行为实体，承载核心仿真语义 |
-| L3 编排层 | `Core/Manager`, `Core/GameFlow` | 调度、生命周期、场景图/命令等业务编排 |
-| L4 通信层 | `Core/Comm` | UE 与外部后端的消息桥接与协议处理 |
-| L5 表现层（最上层） | `UI`, `Input` | 用户交互、面板/模态、按键与鼠标输入 |
+| L0 Presentation | `UI/`, `Input/` | 交互入口、HUD、Modal、按键鼠标事件 |
+| L1 Application | `Core/Manager/`, `Core/GameFlow/` | 用例编排、调度、Facade/协调逻辑 |
+| L2 Domain | `Agent/`, `Environment/`, `Core/Types/` | 机器人/环境核心规则、状态与领域模型 |
+| L3 Infrastructure | `Core/Comm/`, `Core/Config/`, `Core/Manager/scene_graph_adapters`, `Core/Manager/ue_tools` | HTTP/轮询、配置/文件、UE 适配器与外部依赖 |
+| L4 Bootstrap | `MultiAgent.cpp` + Subsystem 初始化装配点 | 模块启动与依赖组装，不承载业务规则 |
 
-结论：
-- **最底层**：`Core/Types + Core/Config + Utils`
-- **最上层（接近 UI）**：`UI`（`Input` 与其同层，负责入口交互）
+当前判断：
+- **最底层（业务意义）**：`L2 Domain`（`Agent/Environment/Core/Types`）
+- **最上层（接近 UI）**：`L0 Presentation`（`UI/Input`）
 
-## 4. 2D 分层架构图
+## 4. 2D 分层架构图（含跨层连接现状）
 
 ```mermaid
 flowchart TB
     EXT["External Planner / Web"]
 
-    subgraph L5["L5 Presentation"]
+    subgraph L4["L4 Bootstrap"]
+        BOOT["MultiAgent.cpp / Subsystem Wiring"]
+    end
+
+    subgraph L0["L0 Presentation"]
         UI["UI/"]
         INPUT["Input/"]
     end
 
-    subgraph L4["L4 Communication"]
-        COMM["Core/Comm/"]
-    end
-
-    subgraph L3["L3 Orchestration"]
-        MGR["Core/Manager/"]
-        FLOW["Core/GameFlow/"]
+    subgraph L1["L1 Application"]
+        APP_MGR["Core/Manager/"]
+        APP_FLOW["Core/GameFlow/"]
     end
 
     subgraph L2["L2 Domain"]
-        AGENT["Agent/"]
-        ENV["Environment/"]
+        DOM_AGENT["Agent/"]
+        DOM_ENV["Environment/"]
+        DOM_TYPES["Core/Types/"]
     end
 
-    subgraph L1["L1 Foundation"]
-        TYPES["Core/Types/"]
-        CFG["Core/Config/"]
-        UTL["Utils/"]
+    subgraph L3["L3 Infrastructure"]
+        INF_COMM["Core/Comm/"]
+        INF_CFG["Core/Config/"]
+        INF_ADAPTER["scene_graph_adapters / ue_tools"]
     end
 
-    EXT --> COMM
+    BOOT --> UI
+    BOOT --> APP_MGR
+    BOOT --> INF_COMM
+
     INPUT --> UI
-    UI --> MGR
-    UI --> COMM
-    MGR --> AGENT
-    MGR --> ENV
-    FLOW --> MGR
-    COMM --> MGR
-    AGENT --> TYPES
-    ENV --> TYPES
-    MGR --> TYPES
-    MGR --> CFG
-    AGENT --> UTL
-    ENV --> UTL
+    UI --> APP_MGR
+    APP_FLOW --> APP_MGR
+    APP_MGR --> DOM_AGENT
+    APP_MGR --> DOM_ENV
+    APP_MGR --> DOM_TYPES
+
+    APP_MGR --> INF_COMM
+    APP_MGR --> INF_CFG
+    APP_MGR --> INF_ADAPTER
+    INF_COMM --> DOM_TYPES
+    INF_ADAPTER --> DOM_TYPES
+    EXT --> INF_COMM
+
+    UI -. "cross-layer (current)" .-> INF_COMM
+    UI -. "cross-layer (current)" .-> DOM_AGENT
+    INPUT -. "cross-layer (current)" .-> DOM_AGENT
+    INF_COMM -. "event callback (current)" .-> UI
 ```
 
-## 5. 读图建议
+## 5. 现状解读
 
-- 先看 L5：明确用户入口（按键、面板、模态）
-- 再看 L3/L4：任务如何调度、消息如何流动
-- 最后看 L2/L1：具体行为实现和基础定义
+- 图中的**实线**是目标依赖方向（推荐长期保留）。
+- 图中的**虚线**是当前项目里已存在的跨层直连（本页保留展示，不做粉饰）。
+- 如果后续你要做“严格五层”，优先消除 `L0 -> L2/L3` 的直连，把入口收敛到 `L1`。
