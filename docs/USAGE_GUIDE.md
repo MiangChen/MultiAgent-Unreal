@@ -10,7 +10,7 @@
 ### 1.1 启动 backend（终端 A）
 
 ```bash
-cd /Users/miang/PycharmProjects/MultiAgent-Unreal
+cd PathTo/MultiAgent-Unreal
 python3 scripts/mock_backend.py --port 8081
 ```
 
@@ -19,7 +19,7 @@ python3 scripts/mock_backend.py --port 8081
 ### 1.2 编译并启动 UE（终端 B）
 
 ```bash
-cd /Users/miang/PycharmProjects/MultiAgent-Unreal
+cd PathTo/MultiAgent-Unreal
 ./mac_compile_and_start.sh
 ```
 
