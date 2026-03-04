@@ -143,8 +143,28 @@ flowchart TB
     INF_COMM -. "event callback (current)" .-> UI
 ```
 
-## 5. 现状解读
+## 5. 重构建议
+
+### 5.1 总体原则
 
 - 图中的**实线**是目标依赖方向（推荐长期保留）。
 - 图中的**虚线**是当前项目里已存在的跨层直连（本页保留展示，不做粉饰）。
-- 如果后续你要做“严格五层”，优先消除 `L0 -> L2/L3` 的直连，把入口收敛到 `L1`。
+- 如果后续要做“严格五层”，优先消除 `L0 -> L2/L3` 的直连，把入口收敛到 `L1`。
+
+### 5.2 优先级清单（建议）
+
+| 优先级 | 主题 | 涉及模块 | 重构动作 | 目标收益 |
+|---|---|---|---|---|
+| P0 | UI 入口解耦 | `UI/HUD/MAHUD.cpp` | 拆为 `StateManager + ActionDispatcher + ViewBinder`，HUD 仅保留编排 | 降低 UI 变更连锁影响 |
+| P0 | 调度核心收口 | `Core/Manager/MASceneGraphManager.cpp` | 保持外部 API 稳定，内部继续通过 ports/adapters 隔离实现细节 | 防止回耦，稳定跨模块调用 |
+| P0 | 导航状态显式化 | `Agent/Component/MANavigationService*.cpp` | 将 Pause/Resume/Cleanup 等状态切换统一到 transition helper | 降低分支散落与遗漏风险 |
+| P0 | `Utils` 拆层 | `Utils/MAPathPlanner*` `Utils/MAFlightController*` | 领域规则下沉到 `L2 Domain`，UE `World/Trace/Overlap` 访问上提到 `L3 Adapter` | 提升可测试性与可替换性 |
+| P1 | 画布交互解耦 | `UI/SkillAllocation/MAGanttCanvas.cpp` | 将 `NativeOnMouseDown/Move/Up` 收敛到 DragController，Canvas 仅做编排 | 降低 UI 复杂度，便于迭代 |
+| P1 | 通信类型治理 | `Core/Comm/MACommTypes.*` | 引入 DTO 校验与版本字段，隔离协议演进 | 减少前后端联调破坏 |
+| P1 | 架构守卫 | CI / 静态检查 | 增加 include 与层间依赖规则，禁止新增 `L0 -> L2/L3` 直连 | 防止重构成果回退 |
+
+### 5.3 执行顺序建议
+
+1. 先做全部 P0（控制复杂度和耦合主风险）。
+2. 再做 P1（提高演进效率和长期稳定性）。
+3. 每完成一个主题，更新本页架构图中的连线关系，保持文档与代码同步。
