@@ -8,6 +8,14 @@
 #include "CoreMinimal.h"
 #include "MASelectionHUD.h"
 #include "../Core/MAHUDTypes.h"
+#include "Application/MAHUDViewCoordinator.h"
+#include "Application/MAHUDBackendCoordinator.h"
+#include "Application/MAHUDSceneEditCoordinator.h"
+#include "Application/MAHUDOverlayCoordinator.h"
+#include "Application/MAHUDDelegateCoordinator.h"
+#include "Application/MAHUDPanelCoordinator.h"
+#include "Application/MAHUDWidgetCoordinator.h"
+#include "Application/MAHUDLifecycleCoordinator.h"
 #include "MAHUD.generated.h"
 
 // 前向声明 - Widget 类 (用于事件回调参数类型)
@@ -50,6 +58,13 @@ UCLASS()
 class MULTIAGENT_API AMAHUD : public AMASelectionHUD
 {
     GENERATED_BODY()
+
+    friend class FMAHUDBackendCoordinator;
+    friend class FMAHUDSceneEditCoordinator;
+    friend class FMAHUDOverlayCoordinator;
+    friend class FMAHUDDelegateCoordinator;
+    friend class FMAHUDPanelCoordinator;
+    friend class FMAHUDLifecycleCoordinator;
 
 public:
     AMAHUD();
@@ -553,12 +568,6 @@ private:
     void BindBackendEvents();
 
     /**
-     * 绑定模态窗口委托
-     * 绑定模态确认/拒绝委托到后端提交
-     */
-    void BindModalDelegates();
-
-    /**
      * 绑定 EditWidget 委托
      */
     void BindEditWidgetDelegates();
@@ -693,4 +702,28 @@ private:
      */
     UFUNCTION()
     void OnModalRejectedHandler(EMAModalType ModalType);
+
+    /** HUD 视图协调器（Panel 可见性、鼠标区域、通知转发） */
+    FMAHUDViewCoordinator ViewCoordinator;
+
+    /** HUD 后端协调器（事件绑定、模态提交、通知更新） */
+    FMAHUDBackendCoordinator BackendCoordinator;
+
+    /** HUD 场景编辑协调器（Modify/Edit/SceneList 工作流） */
+    FMAHUDSceneEditCoordinator SceneEditCoordinator;
+
+    /** HUD 叠加层协调器（场景标签/PIP/EditMode 指示器） */
+    FMAHUDOverlayCoordinator OverlayCoordinator;
+
+    /** HUD 委托绑定协调器（Widget/Controller 事件接线） */
+    FMAHUDDelegateCoordinator DelegateCoordinator;
+
+    /** HUD 面板协调器（MainUI/Skill/Modify/Edit 面板可见性） */
+    FMAHUDPanelCoordinator PanelCoordinator;
+
+    /** HUD Widget 协调器（TaskGraph/DirectControl 指示器） */
+    FMAHUDWidgetCoordinator WidgetCoordinator;
+
+    /** HUD 生命周期协调器（初始化与事件绑定） */
+    FMAHUDLifecycleCoordinator LifecycleCoordinator;
 };

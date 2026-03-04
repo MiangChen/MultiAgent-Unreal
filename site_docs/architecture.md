@@ -77,8 +77,8 @@ unreal_project/Source/MultiAgent/
 
 | 层级 | 代码映射（当前） | 说明 |
 |---|---|---|
-| L0 Presentation | `UI/`, `Input/` | 交互入口、HUD、Modal、按键鼠标事件 |
-| L1 Application | `Core/Manager/`, `Core/GameFlow/` | 用例编排、调度、Facade/协调逻辑 |
+| L0 Presentation | `UI/`（Widget/Modal/HUD 壳层）, `Input/` | 交互入口、HUD 壳层、按键鼠标事件 |
+| L1 Application | `Core/Manager/`, `Core/GameFlow/`, `UI/HUD/Application/` | 用例编排、调度、Facade/协调逻辑 |
 | L2 Domain | `Agent/`, `Environment/`, `Core/Types/` | 机器人/环境核心规则、状态与领域模型 |
 | L3 Infrastructure | `Core/Comm/`, `Core/Config/`, `Core/Manager/scene_graph_adapters`, `Core/Manager/ue_tools` | HTTP/轮询、配置/文件、UE 适配器与外部依赖 |
 | L4 Bootstrap | `MultiAgent.cpp` + Subsystem 初始化装配点 | 模块启动与依赖组装，不承载业务规则 |
@@ -86,8 +86,11 @@ unreal_project/Source/MultiAgent/
 当前判断：
 - **最底层（业务意义）**：`L2 Domain`（`Agent/Environment/Core/Types`）
 - **最上层（接近 UI）**：`L0 Presentation`（`UI/Input`）
+- 备注：**目录位置不等于逻辑分层**，例如 `UI/HUD/Application` 物理上在 `UI/` 下，但逻辑职责属于 `L1 Application`（编排/协调）。
 
 ## 4. 2D 分层架构图（含跨层连接现状）
+
+### 4.1 全局五层图（当前）
 
 ```mermaid
 flowchart TB
@@ -143,6 +146,52 @@ flowchart TB
     INF_COMM -. "event callback (current)" .-> UI
 ```
 
+### 4.2 MAHUD 重构后内部图（当前）
+
+```mermaid
+flowchart LR
+    PC["AMAPlayerController"]
+    HUD["AMAHUD (orchestrator)"]
+    UIM["UMAUIManager"]
+    COMM["MACommSubsystem"]
+    EDIT["UMAEditModeManager"]
+    SCENE["UMASceneGraphManager"]
+    PIP["MAPIPCameraManager"]
+
+    LIFE["FMAHUDLifecycleCoordinator"]
+    DELEGATE["FMAHUDDelegateCoordinator"]
+    PANEL["FMAHUDPanelCoordinator"]
+    VIEW["FMAHUDViewCoordinator"]
+    WIDGET["FMAHUDWidgetCoordinator"]
+    BACKEND["FMAHUDBackendCoordinator"]
+    OVERLAY["FMAHUDOverlayCoordinator"]
+    SCEDIT["FMAHUDSceneEditCoordinator"]
+
+    PC --> HUD
+    HUD --> LIFE
+    HUD --> DELEGATE
+    HUD --> PANEL
+    HUD --> VIEW
+    HUD --> WIDGET
+    HUD --> BACKEND
+    HUD --> OVERLAY
+    HUD --> SCEDIT
+
+    LIFE --> UIM
+    DELEGATE --> UIM
+    DELEGATE --> PC
+    PANEL --> UIM
+    VIEW --> UIM
+    WIDGET --> UIM
+    BACKEND --> COMM
+    BACKEND --> UIM
+    OVERLAY --> EDIT
+    OVERLAY --> SCENE
+    OVERLAY --> PIP
+    SCEDIT --> EDIT
+    SCEDIT --> SCENE
+```
+
 ## 5. 重构建议
 
 ### 5.1 总体原则
@@ -155,7 +204,7 @@ flowchart TB
 
 | 优先级 | 主题 | 涉及模块 | 重构动作 | 目标收益 |
 |---|---|---|---|---|
-| P0 | UI 入口解耦 | `UI/HUD/MAHUD.cpp` | 拆为 `StateManager + ActionDispatcher + ViewBinder`，HUD 仅保留编排 | 降低 UI 变更连锁影响 |
+| P0 | UI 入口解耦（持续） | `UI/HUD/MAHUD.cpp` + `UI/HUD/Application/*` | 已完成首轮 Coordinator 化；下一步减少 `friend` 访问并引入上下文接口 | 降低 UI 变更连锁影响 |
 | P0 | 调度核心收口 | `Core/Manager/MASceneGraphManager.cpp` | 保持外部 API 稳定，内部继续通过 ports/adapters 隔离实现细节 | 防止回耦，稳定跨模块调用 |
 | P0 | 导航状态显式化 | `Agent/Component/MANavigationService*.cpp` | 将 Pause/Resume/Cleanup 等状态切换统一到 transition helper | 降低分支散落与遗漏风险 |
 | P0 | `Utils` 拆层 | `Utils/MAPathPlanner*` `Utils/MAFlightController*` | 领域规则下沉到 `L2 Domain`，UE `World/Trace/Overlap` 访问上提到 `L3 Adapter` | 提升可测试性与可替换性 |
