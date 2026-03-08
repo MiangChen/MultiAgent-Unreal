@@ -4,6 +4,7 @@
 #include "MAUIWidgetInteractionCoordinator.h"
 #include "../MAUIManager.h"
 #include "../MAHUDStateManager.h"
+#include "../../Modal/MABaseModalWidget.h"
 #include "../../Modal/MATaskGraphModal.h"
 #include "../../Modal/MASkillAllocationModal.h"
 #include "../../Modal/MADecisionModal.h"
@@ -71,9 +72,10 @@ bool FMAUIWidgetInteractionCoordinator::HideWidget(UMAUIManager* UIManager, EMAW
     Widget->SetVisibility(ESlateVisibility::Collapsed);
     UIManager->SetInputModeGameOnly();
 
-    if (UIManager->HUDStateManager && UIManager->HUDStateManager->IsModalActive())
+    UMAHUDStateManager* HUDStateManager = UIManager->GetHUDStateManager();
+    if (HUDStateManager && HUDStateManager->IsModalActive())
     {
-        EMAModalType ActiveModal = UIManager->HUDStateManager->GetActiveModalType();
+        EMAModalType ActiveModal = HUDStateManager->GetActiveModalType();
         bool bShouldReturnToNormal = false;
 
         switch (Type)
@@ -92,7 +94,7 @@ bool FMAUIWidgetInteractionCoordinator::HideWidget(UMAUIManager* UIManager, EMAW
         {
             UE_LOG(LogMAUIManager, Log, TEXT("HideWidget: Returning HUDStateManager to NormalHUD (was editing %s)"),
                 *UEnum::GetValueAsString(ActiveModal));
-            UIManager->HUDStateManager->ReturnToNormalHUD();
+            HUDStateManager->ReturnToNormalHUD();
         }
     }
 
@@ -135,32 +137,38 @@ bool FMAUIWidgetInteractionCoordinator::IsAnyFullscreenWidgetVisible(const UMAUI
         return false;
     }
 
-    if (UIManager->TaskPlannerWidget && UIManager->TaskPlannerWidget->IsVisible())
+    if (const UMATaskPlannerWidget* TaskPlannerWidget = UIManager->GetTaskPlannerWidget();
+        TaskPlannerWidget && TaskPlannerWidget->IsVisible())
     {
         return true;
     }
 
-    if (UIManager->SkillAllocationViewer && UIManager->SkillAllocationViewer->IsVisible())
+    if (const UMASkillAllocationViewer* SkillAllocationViewer = UIManager->GetSkillAllocationViewer();
+        SkillAllocationViewer && SkillAllocationViewer->IsVisible())
     {
         return true;
     }
 
-    if (UIManager->TaskGraphModal && UIManager->TaskGraphModal->IsVisible())
+    if (const UMABaseModalWidget* TaskGraphModal = UIManager->GetModalByType(EMAModalType::TaskGraph);
+        TaskGraphModal && TaskGraphModal->IsVisible())
     {
         return true;
     }
 
-    if (UIManager->SkillAllocationModal && UIManager->SkillAllocationModal->IsVisible())
+    if (const UMABaseModalWidget* SkillAllocationModal = UIManager->GetModalByType(EMAModalType::SkillAllocation);
+        SkillAllocationModal && SkillAllocationModal->IsVisible())
     {
         return true;
     }
 
-    if (UIManager->DecisionModal && UIManager->DecisionModal->IsVisible())
+    if (const UMADecisionModal* DecisionModal = UIManager->GetDecisionModal();
+        DecisionModal && DecisionModal->IsVisible())
     {
         return true;
     }
 
-    if (UIManager->EditWidget && UIManager->EditWidget->IsVisible())
+    if (const UMAEditWidget* EditWidget = UIManager->GetEditWidget();
+        EditWidget && EditWidget->IsVisible())
     {
         return true;
     }
@@ -177,30 +185,32 @@ void FMAUIWidgetInteractionCoordinator::NavigateFromViewerToSkillAllocationModal
 
     UE_LOG(LogMAUIManager, Log, TEXT("NavigateFromViewerToSkillAllocationModal: Starting navigation"));
 
-    if (UIManager->SkillAllocationViewer)
+    if (UMASkillAllocationViewer* SkillAllocationViewer = UIManager->GetSkillAllocationViewer())
     {
-        UIManager->SkillAllocationViewer->SetVisibility(ESlateVisibility::Collapsed);
+        SkillAllocationViewer->SetVisibility(ESlateVisibility::Collapsed);
         UE_LOG(LogMAUIManager, Log, TEXT("NavigateFromViewerToSkillAllocationModal: SkillAllocationViewer hidden"));
     }
 
-    if (UIManager->SkillAllocationModal)
+    if (UMASkillAllocationModal* SkillAllocationModal = UIManager->GetSkillAllocationModal())
     {
-        if (UGameInstance* GameInstance = UIManager->OwningPC ? UIManager->OwningPC->GetGameInstance() : nullptr)
+        if (UGameInstance* GameInstance = UIManager->GetOwningPlayerController()
+            ? UIManager->GetOwningPlayerController()->GetGameInstance()
+            : nullptr)
         {
             if (UMATempDataManager* TempDataMgr = GameInstance->GetSubsystem<UMATempDataManager>())
             {
                 FMASkillAllocationData Data;
                 if (TempDataMgr->LoadSkillAllocation(Data))
                 {
-                    UIManager->SkillAllocationModal->LoadSkillAllocation(Data);
+                    SkillAllocationModal->LoadSkillAllocation(Data);
                     UE_LOG(LogMAUIManager, Log, TEXT("NavigateFromViewerToSkillAllocationModal: Data loaded into modal"));
                 }
             }
         }
 
-        UIManager->SkillAllocationModal->SetEditMode(false);
-        UIManager->SkillAllocationModal->SetVisibility(ESlateVisibility::Visible);
-        UIManager->SkillAllocationModal->PlayShowAnimation();
+        SkillAllocationModal->SetEditMode(false);
+        SkillAllocationModal->SetVisibility(ESlateVisibility::Visible);
+        SkillAllocationModal->PlayShowAnimation();
         UE_LOG(LogMAUIManager, Log, TEXT("NavigateFromViewerToSkillAllocationModal: SkillAllocationModal shown"));
     }
     else
@@ -208,9 +218,9 @@ void FMAUIWidgetInteractionCoordinator::NavigateFromViewerToSkillAllocationModal
         UE_LOG(LogMAUIManager, Error, TEXT("NavigateFromViewerToSkillAllocationModal: SkillAllocationModal is null"));
     }
 
-    if (UIManager->HUDStateManager)
+    if (UMAHUDStateManager* HUDStateManager = UIManager->GetHUDStateManager())
     {
-        UIManager->HUDStateManager->TransitionToState(EMAHUDState::ReviewModal, EMAModalType::SkillAllocation);
+        HUDStateManager->TransitionToState(EMAHUDState::ReviewModal, EMAModalType::SkillAllocation);
         UE_LOG(LogMAUIManager, Log, TEXT("NavigateFromViewerToSkillListModal: State transitioned back to ReviewModal"));
     }
 }
@@ -224,30 +234,32 @@ void FMAUIWidgetInteractionCoordinator::NavigateFromWorkbenchToTaskGraphModal(UM
 
     UE_LOG(LogMAUIManager, Log, TEXT("NavigateFromWorkbenchToTaskGraphModal: Starting navigation"));
 
-    if (UIManager->TaskPlannerWidget)
+    if (UMATaskPlannerWidget* TaskPlannerWidget = UIManager->GetTaskPlannerWidget())
     {
-        UIManager->TaskPlannerWidget->SetVisibility(ESlateVisibility::Collapsed);
+        TaskPlannerWidget->SetVisibility(ESlateVisibility::Collapsed);
         UE_LOG(LogMAUIManager, Log, TEXT("NavigateFromWorkbenchToTaskGraphModal: TaskPlannerWidget hidden"));
     }
 
-    if (UIManager->TaskGraphModal)
+    if (UMATaskGraphModal* TaskGraphModal = UIManager->GetTaskGraphModal())
     {
-        if (UGameInstance* GameInstance = UIManager->OwningPC ? UIManager->OwningPC->GetGameInstance() : nullptr)
+        if (UGameInstance* GameInstance = UIManager->GetOwningPlayerController()
+            ? UIManager->GetOwningPlayerController()->GetGameInstance()
+            : nullptr)
         {
             if (UMATempDataManager* TempDataMgr = GameInstance->GetSubsystem<UMATempDataManager>())
             {
                 FMATaskGraphData Data;
                 if (TempDataMgr->LoadTaskGraph(Data))
                 {
-                    UIManager->TaskGraphModal->LoadTaskGraph(Data);
+                    TaskGraphModal->LoadTaskGraph(Data);
                     UE_LOG(LogMAUIManager, Log, TEXT("NavigateFromWorkbenchToTaskGraphModal: Data loaded into modal"));
                 }
             }
         }
 
-        UIManager->TaskGraphModal->SetEditMode(false);
-        UIManager->TaskGraphModal->SetVisibility(ESlateVisibility::Visible);
-        UIManager->TaskGraphModal->PlayShowAnimation();
+        TaskGraphModal->SetEditMode(false);
+        TaskGraphModal->SetVisibility(ESlateVisibility::Visible);
+        TaskGraphModal->PlayShowAnimation();
         UE_LOG(LogMAUIManager, Log, TEXT("NavigateFromWorkbenchToTaskGraphModal: TaskGraphModal shown"));
     }
     else
@@ -255,9 +267,9 @@ void FMAUIWidgetInteractionCoordinator::NavigateFromWorkbenchToTaskGraphModal(UM
         UE_LOG(LogMAUIManager, Error, TEXT("NavigateFromWorkbenchToTaskGraphModal: TaskGraphModal is null"));
     }
 
-    if (UIManager->HUDStateManager)
+    if (UMAHUDStateManager* HUDStateManager = UIManager->GetHUDStateManager())
     {
-        UIManager->HUDStateManager->TransitionToState(EMAHUDState::ReviewModal, EMAModalType::TaskGraph);
+        HUDStateManager->TransitionToState(EMAHUDState::ReviewModal, EMAModalType::TaskGraph);
         UE_LOG(LogMAUIManager, Log, TEXT("NavigateFromWorkbenchToTaskGraphModal: State transitioned back to ReviewModal"));
     }
 }
@@ -279,16 +291,16 @@ void FMAUIWidgetInteractionCoordinator::SetWidgetFocus(UMAUIManager* UIManager, 
     switch (Type)
     {
     case EMAWidgetType::TaskPlanner:
-        if (UIManager->TaskPlannerWidget)
+        if (UMATaskPlannerWidget* TaskPlannerWidget = UIManager->GetTaskPlannerWidget())
         {
-            UIManager->TaskPlannerWidget->FocusJsonEditor();
+            TaskPlannerWidget->FocusJsonEditor();
         }
         break;
 
     case EMAWidgetType::SimpleMain:
-        if (UIManager->SimpleMainWidget)
+        if (UMASimpleMainWidget* SimpleMainWidget = UIManager->GetSimpleMainWidget())
         {
-            UIManager->SimpleMainWidget->FocusInputBox();
+            SimpleMainWidget->FocusInputBox();
         }
         break;
 

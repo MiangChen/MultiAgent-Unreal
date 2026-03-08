@@ -95,10 +95,6 @@ class MULTIAGENT_API UMAUIManager : public UObject
 {
     GENERATED_BODY()
 
-    friend class FMAUIStateModalCoordinator;
-    friend class FMAUIRuntimeEventCoordinator;
-    friend class FMAUIWidgetInteractionCoordinator;
-
 public:
     //=========================================================================
     // 初始化
@@ -416,6 +412,72 @@ public:
     UFUNCTION(BlueprintPure, Category = "UI|Notification")
     EMAModalType GetModalTypeForNotification(EMANotificationType NotificationType) const;
 
+    //=========================================================================
+    // Coordinator / Delegate 回调桥接（显式公开接口）
+    //=========================================================================
+
+    /** 设置输入模式为 UI 和游戏混合 */
+    void SetInputModeGameAndUI(UUserWidget* Widget);
+
+    /** 恢复输入模式为纯游戏 */
+    void SetInputModeGameOnly();
+
+    /** HUD 状态变化回调 */
+    UFUNCTION()
+    void OnHUDStateChanged(EMAHUDState OldState, EMAHUDState NewState);
+
+    /** 通知接收回调 */
+    UFUNCTION()
+    void OnNotificationReceived(EMANotificationType Type);
+
+    /** 模态确认回调 */
+    UFUNCTION()
+    void OnModalConfirmed(EMAModalType ModalType);
+
+    /** 模态拒绝回调 */
+    UFUNCTION()
+    void OnModalRejected(EMAModalType ModalType);
+
+    /** 模态编辑请求回调 */
+    UFUNCTION()
+    void OnModalEditRequested(EMAModalType ModalType);
+
+    /** 模态隐藏动画完成回调 */
+    UFUNCTION()
+    void OnModalHideAnimationComplete();
+
+    /** TempDataManager: 任务图数据变化回调 */
+    UFUNCTION()
+    void OnTempTaskGraphChanged(const FMATaskGraphData& Data);
+
+    /** TempDataManager: 技能分配数据变化回调 */
+    UFUNCTION()
+    void OnTempSkillAllocationChanged(const FMASkillAllocationData& Data);
+
+    /** TempDataManager: 技能状态实时更新回调 */
+    UFUNCTION()
+    void OnSkillStatusUpdated(int32 TimeStep, const FString& RobotId, ESkillExecutionStatus NewStatus);
+
+    /** CommandManager: 执行暂停状态变化回调 */
+    UFUNCTION()
+    void OnExecutionPauseStateChanged(bool bPaused);
+
+    /** CommSubsystem: 收到索要用户指令请求回调 */
+    UFUNCTION()
+    void OnRequestUserCommandReceived();
+
+    /** CommSubsystem: 收到决策请求回调 */
+    UFUNCTION()
+    void OnDecisionDataReceived(const FString& Description, const FString& ContextJson);
+
+    /** 决策模态确认回调 */
+    UFUNCTION()
+    void OnDecisionModalConfirmed(const FString& SelectedOption, const FString& UserFeedback);
+
+    /** 决策模态拒绝回调 */
+    UFUNCTION()
+    void OnDecisionModalRejected(const FString& SelectedOption, const FString& UserFeedback);
+
 private:
     //=========================================================================
     // 内部状态
@@ -517,17 +579,6 @@ private:
     // 内部方法
     //=========================================================================
 
-    /**
-     * 设置输入模式为 UI 和游戏混合
-     * @param Widget 要聚焦的 Widget
-     */
-    void SetInputModeGameAndUI(UUserWidget* Widget);
-
-    /**
-     * 恢复输入模式为纯游戏
-     */
-    void SetInputModeGameOnly();
-
     //=========================================================================
     // HUD 状态变化处理
     //=========================================================================
@@ -546,50 +597,6 @@ private:
      * 绑定状态管理器委托
      */
     void BindStateManagerDelegates();
-
-    /**
-     * HUD 状态变化回调
-     * @param OldState 变化前的状态
-     * @param NewState 变化后的状态
-     */
-    UFUNCTION()
-    void OnHUDStateChanged(EMAHUDState OldState, EMAHUDState NewState);
-
-    /**
-     * 通知接收回调
-     * @param Type 通知类型
-     */
-    UFUNCTION()
-    void OnNotificationReceived(EMANotificationType Type);
-
-    /**
-     * 模态确认回调
-     * @param ModalType 模态类型
-     */
-    UFUNCTION()
-    void OnModalConfirmed(EMAModalType ModalType);
-
-    /**
-     * 模态拒绝回调
-     * @param ModalType 模态类型
-     */
-    UFUNCTION()
-    void OnModalRejected(EMAModalType ModalType);
-
-    /**
-     * 模态编辑请求回调
-     * @param ModalType 模态类型
-     */
-    UFUNCTION()
-    void OnModalEditRequested(EMAModalType ModalType);
-
-    /**
-     * 模态隐藏动画完成回调
-     * 当用户点击 ❌ 关闭按钮后，动画完成时调用
-     * 用于同步 HUDStateManager 状态
-     */
-    UFUNCTION()
-    void OnModalHideAnimationComplete();
 
     /**
      * 显示指定类型的模态窗口
@@ -624,29 +631,6 @@ private:
      */
     void BindTempDataManagerEvents();
 
-    /**
-     * 任务图数据变化回调
-     * @param Data 新的任务图数据
-     */
-    UFUNCTION()
-    void OnTempTaskGraphChanged(const FMATaskGraphData& Data);
-
-    /**
-     * 技能分配数据变化回调
-     * @param Data 新的技能分配数据
-     */
-    UFUNCTION()
-    void OnTempSkillAllocationChanged(const FMASkillAllocationData& Data);
-
-    /**
-     * 技能状态实时更新回调
-     * @param TimeStep 时间步
-     * @param RobotId 机器人 ID
-     * @param NewStatus 新状态
-     */
-    UFUNCTION()
-    void OnSkillStatusUpdated(int32 TimeStep, const FString& RobotId, ESkillExecutionStatus NewStatus);
-
     //=========================================================================
     // CommSubsystem 事件绑定
     //=========================================================================
@@ -662,47 +646,8 @@ private:
      */
     void BindCommandManagerEvents();
 
-    /**
-     * 执行暂停状态变化回调
-     * @param bPaused 是否暂停
-     */
-    UFUNCTION()
-    void OnExecutionPauseStateChanged(bool bPaused);
-
     /** 恢复通知自动隐藏定时器 */
     FTimerHandle ResumeNotificationTimerHandle;
-
-    /**
-     * 收到索要用户指令请求回调
-     * 当后端发送 user_instruction 消息时触发
-     */
-    UFUNCTION()
-    void OnRequestUserCommandReceived();
-
-    /**
-     * 收到决策请求回调
-     * 当 CommSubsystem 收到 Decision 类别消息时触发
-     * @param Description 决策描述文本
-     * @param ContextJson 上下文 JSON 字符串
-     */
-    UFUNCTION()
-    void OnDecisionDataReceived(const FString& Description, const FString& ContextJson);
-
-    /**
-     * 决策模态确认回调 (Yes → end_task)
-     * @param SelectedOption 选择的选项 ("end_task")
-     * @param UserFeedback 用户反馈文本
-     */
-    UFUNCTION()
-    void OnDecisionModalConfirmed(const FString& SelectedOption, const FString& UserFeedback);
-
-    /**
-     * 决策模态拒绝回调 (No → continue_task)
-     * @param SelectedOption 选择的选项 ("continue_task")
-     * @param UserFeedback 用户反馈文本
-     */
-    UFUNCTION()
-    void OnDecisionModalRejected(const FString& SelectedOption, const FString& UserFeedback);
 
     /** L1 Application: HUD 状态机 + Modal 流程协调器 */
     FMAUIStateModalCoordinator StateModalCoordinator;
