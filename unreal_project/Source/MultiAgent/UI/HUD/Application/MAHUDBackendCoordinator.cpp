@@ -5,6 +5,7 @@
 #include "../MAHUD.h"
 #include "../../Core/MAUIManager.h"
 #include "../../Core/MAHUDStateManager.h"
+#include "../../../Core/Comm/Infrastructure/Codec/MACommJsonCodec.h"
 #include "../MAMainHUDWidget.h"
 #include "../../Legacy/MASimpleMainWidget.h"
 #include "../../TaskGraph/MATaskPlannerWidget.h"
@@ -182,7 +183,7 @@ void FMAHUDBackendCoordinator::HandleTaskGraphReceived(UMAUIManager* UIManager, 
     UMAMainHUDWidget* MainHUD = UIManager->GetMainHUDWidget();
     if (MainHUD)
     {
-        const FString TaskGraphJson = TaskPlan.ToJson();
+        const FString TaskGraphJson = MACommJsonCodec::SerializeTaskPlan(TaskPlan);
         UE_LOG(LogMAHUDBackendCoordinator, Log, TEXT("HandleTaskGraphReceived: Preview update pending, JSON length=%d"), TaskGraphJson.Len());
     }
 }
@@ -222,7 +223,7 @@ void FMAHUDBackendCoordinator::HandleSkillListReceived(UMAUIManager* UIManager, 
     UMAMainHUDWidget* MainHUD = UIManager->GetMainHUDWidget();
     if (MainHUD)
     {
-        const FString SkillListJson = SkillList.ToJson();
+        const FString SkillListJson = MACommJsonCodec::SerializeSkillList(SkillList);
         UE_LOG(LogMAHUDBackendCoordinator, Log, TEXT("HandleSkillListReceived: Preview update pending, JSON length=%d"), SkillListJson.Len());
     }
 }

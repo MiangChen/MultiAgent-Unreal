@@ -236,6 +236,62 @@ flowchart LR
 - `friend` 已清零；Coordinator 与 UIManager 的连接改为显式公开桥接接口（`SetInputMode*` + `On*` 委托回调）。
 - `WidgetInteractionCoordinator` 已移除对 `UIManager` 私有字段直连，仅通过 `Get*` 接口访问状态。
 
+### 4.4 Comm 协议层拆分图（当前）
+
+```mermaid
+flowchart LR
+    subgraph L2["L2 Domain (协议模型)"]
+        UMB["MACommTypes.h (Umbrella)"]
+        D0["Domain/MACommBaseTypes.h"]
+        D1["Domain/MACommTaskPlanTypes.h"]
+        D2["Domain/MACommSkillTypes.h"]
+        D3["Domain/MACommSceneTypes.h"]
+        D4["Domain/MACommResponseTypes.h"]
+    end
+
+    subgraph L3["L3 Infrastructure (Codec)"]
+        C0["MACommJsonCodec.h/.cpp (Facade)"]
+        C1["MACommEnvelopeCodec.cpp"]
+        C2["MACommBasicMessagesCodec.cpp"]
+        C3["MACommTaskPlanCodec.cpp"]
+        C4["MACommSkillCodec.cpp"]
+        C5["MACommSceneAndResponseCodec.cpp"]
+        C6["MACommTypeHelper.h/.cpp"]
+    end
+
+    subgraph L1["L1 Application 调用方"]
+        O1["MACommOutbound.cpp"]
+        O2["MACommInbound.cpp"]
+        O3["MACommSubsystem.cpp"]
+        O4["MAHUDBackendCoordinator.cpp"]
+        O5["MACommandManager.cpp"]
+    end
+
+    UMB --> D0
+    UMB --> D1
+    UMB --> D2
+    UMB --> D3
+    UMB --> D4
+
+    C0 --> D0
+    C0 --> D1
+    C0 --> D2
+    C0 --> D3
+    C0 --> D4
+    C0 --> C1
+    C0 --> C2
+    C0 --> C3
+    C0 --> C4
+    C0 --> C5
+    C1 --> C6
+
+    O1 --> C0
+    O2 --> C0
+    O3 --> C0
+    O4 --> C0
+    O5 --> C0
+```
+
 ## 5. 重构建议
 
 ### 5.1 总体原则
@@ -253,8 +309,15 @@ flowchart LR
 | P0 | 导航状态显式化 | `Agent/Component/MANavigationService*.cpp` | 将 Pause/Resume/Cleanup 等状态切换统一到 transition helper | 降低分支散落与遗漏风险 |
 | P0 | `Utils` 拆层 | `Utils/MAPathPlanner*` `Utils/MAFlightController*` | 领域规则下沉到 `L2 Domain`，UE `World/Trace/Overlap` 访问上提到 `L3 Adapter` | 提升可测试性与可替换性 |
 | P1 | 画布交互解耦 | `UI/SkillAllocation/MAGanttCanvas.cpp` | 将 `NativeOnMouseDown/Move/Up` 收敛到 DragController，Canvas 仅做编排 | 降低 UI 复杂度，便于迭代 |
-| P1 | 通信类型治理 | `Core/Comm/MACommTypes.*` | 引入 DTO 校验与版本字段，隔离协议演进 | 减少前后端联调破坏 |
+| P1 | 通信类型治理（已完成第一阶段） | `Core/Comm/MACommTypes.*` | 已完成 Domain 拆头 + Codec 下沉；下一步可补 DTO 校验与版本字段 | 减少前后端联调破坏 |
 | P1 | 架构守卫 | CI / 静态检查 | 增加 include 与层间依赖规则，禁止新增 `L0 -> L2/L3` 直连 | 防止重构成果回退 |
+
+通信类型治理（当前进展，2026-03-08）：
+- `MACommTypes.h` 已改为 umbrella，仅聚合 `Domain/MAComm*Types.h` 五个子头；原单体头中的模型方法声明已移除。
+- 原 `MACommTypes.cpp` 已删除；编解码能力下沉到 `Core/Comm/Infrastructure/Codec/*.cpp`（Envelope / Basic / TaskPlan / Skill / Scene+Response / TypeHelper）。
+- `LogMACommTypes` 与消息枚举映射策略集中到 `MACommTypeHelper.cpp`，避免重复定义与分散维护。
+- `MACommOutbound` / `MACommSubsystem` / `MACommInbound` / `MAHUDBackendCoordinator` 已统一通过 `MACommJsonCodec` 门面访问序列化逻辑。
+- `MACommandManager` 中 `SkillList` 时间步查询已改为 `MACommJsonCodec::FindSkillListTimeStep`，保持模型层“纯数据结构”定位。
 
 ### 5.3 执行顺序建议
 

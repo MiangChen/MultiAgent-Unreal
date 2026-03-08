@@ -3,6 +3,7 @@
 
 #include "MACommOutbound.h"
 #include "MACommSubsystem.h"
+#include "Infrastructure/Codec/MACommJsonCodec.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMACommOutbound, Log, All);
 
@@ -33,14 +34,10 @@ void FMACommOutbound::SendUIInputMessage(const FString& SourceId, const FString&
     // 创建 UI 输入消息
     FMAUIInputMessage UIInputMsg(SourceId, Content);
 
-    // 创建消息信封
-    FMAMessageEnvelope Envelope;
-    Envelope.MessageType = EMACommMessageType::UIInput;
-    Envelope.MessageCategory = EMAMessageCategory::Instruction;  // UIInput 属于 Instruction 类别
-    Envelope.Direction = EMAMessageDirection::UE5ToPython;       // 出站消息方向
-    Envelope.Timestamp = FMAMessageEnvelope::GetCurrentTimestamp();
-    Envelope.MessageId = FMAMessageEnvelope::GenerateMessageId();
-    Envelope.PayloadJson = UIInputMsg.ToJson();
+    const FMAMessageEnvelope Envelope = MACommJsonCodec::MakeOutboundEnvelope(
+        EMACommMessageType::UIInput,
+        EMAMessageCategory::Instruction,
+        MACommJsonCodec::SerializeUIInput(UIInputMsg));
 
     // 委托给 Owner 发送
     Owner->SendMessageEnvelopeInternal(Envelope);
@@ -59,14 +56,10 @@ void FMACommOutbound::SendButtonEventMessage(const FString& WidgetName, const FS
     // 创建按钮事件消息
     FMAButtonEventMessage ButtonEventMsg(WidgetName, ButtonId, ButtonText);
 
-    // 创建消息信封
-    FMAMessageEnvelope Envelope;
-    Envelope.MessageType = EMACommMessageType::ButtonEvent;
-    Envelope.MessageCategory = EMAMessageCategory::Instruction;  // ButtonEvent 属于 Instruction 类别
-    Envelope.Direction = EMAMessageDirection::UE5ToPython;       // 出站消息方向
-    Envelope.Timestamp = FMAMessageEnvelope::GetCurrentTimestamp();
-    Envelope.MessageId = FMAMessageEnvelope::GenerateMessageId();
-    Envelope.PayloadJson = ButtonEventMsg.ToJson();
+    const FMAMessageEnvelope Envelope = MACommJsonCodec::MakeOutboundEnvelope(
+        EMACommMessageType::ButtonEvent,
+        EMAMessageCategory::Instruction,
+        MACommJsonCodec::SerializeButtonEvent(ButtonEventMsg));
 
     // 委托给 Owner 发送
     Owner->SendMessageEnvelopeInternal(Envelope);
@@ -86,14 +79,10 @@ void FMACommOutbound::SendTaskFeedbackMessage(const FMATaskFeedbackMessage& Feed
     UE_LOG(LogMACommOutbound, Log, TEXT("SendTaskFeedbackMessage: TaskId=%s, Status=%s"), 
         *Feedback.TaskId, *Feedback.Status);
 
-    // 创建消息信封
-    FMAMessageEnvelope Envelope;
-    Envelope.MessageType = EMACommMessageType::TaskFeedback;
-    Envelope.MessageCategory = EMAMessageCategory::Platform;     // TaskFeedback 属于 Platform 类别
-    Envelope.Direction = EMAMessageDirection::UE5ToPython;       // 出站消息方向
-    Envelope.Timestamp = FMAMessageEnvelope::GetCurrentTimestamp();
-    Envelope.MessageId = FMAMessageEnvelope::GenerateMessageId();
-    Envelope.PayloadJson = Feedback.ToJson();
+    const FMAMessageEnvelope Envelope = MACommJsonCodec::MakeOutboundEnvelope(
+        EMACommMessageType::TaskFeedback,
+        EMAMessageCategory::Platform,
+        MACommJsonCodec::SerializeTaskFeedback(Feedback));
 
     // 委托给 Owner 发送
     Owner->SendMessageEnvelopeInternal(Envelope);
@@ -109,14 +98,10 @@ void FMACommOutbound::SendTimeStepFeedback(const FMATimeStepFeedbackMessage& Fee
     UE_LOG(LogMACommOutbound, Log, TEXT("SendTimeStepFeedback: TimeStep=%d, FeedbackCount=%d"), 
         Feedback.TimeStep, Feedback.Feedbacks.Num());
 
-    // 创建消息信封
-    FMAMessageEnvelope Envelope;
-    Envelope.MessageType = EMACommMessageType::TaskFeedback;
-    Envelope.MessageCategory = EMAMessageCategory::Platform;     // TimeStepFeedback 属于 Platform 类别
-    Envelope.Direction = EMAMessageDirection::UE5ToPython;       // 出站消息方向
-    Envelope.Timestamp = FMAMessageEnvelope::GetCurrentTimestamp();
-    Envelope.MessageId = FMAMessageEnvelope::GenerateMessageId();
-    Envelope.PayloadJson = Feedback.ToJson();
+    const FMAMessageEnvelope Envelope = MACommJsonCodec::MakeOutboundEnvelope(
+        EMACommMessageType::TaskFeedback,
+        EMAMessageCategory::Platform,
+        MACommJsonCodec::SerializeTimeStepFeedback(Feedback));
 
     // 委托给 Owner 发送
     Owner->SendMessageEnvelopeInternal(Envelope);
@@ -135,27 +120,10 @@ void FMACommOutbound::SendSkillListCompletedFeedback(const FMASkillListCompleted
         Message.TotalTimeSteps,
         Message.CompletedTimeSteps);
 
-    // 创建消息信封
-    FMAMessageEnvelope Envelope;
-    Envelope.MessageType = EMACommMessageType::TaskFeedback;
-    Envelope.MessageCategory = EMAMessageCategory::Platform;     // SkillListCompleted 属于 Platform 类别
-    Envelope.Direction = EMAMessageDirection::UE5ToPython;       // 出站消息方向
-    Envelope.Timestamp = FMAMessageEnvelope::GetCurrentTimestamp();
-    Envelope.MessageId = FMAMessageEnvelope::GenerateMessageId();
-
-    // 构建 payload
-    TSharedPtr<FJsonObject> PayloadObject = MakeShareable(new FJsonObject());
-    PayloadObject->SetStringField(TEXT("feedback_type"), TEXT("skill_list_completed"));
-    PayloadObject->SetBoolField(TEXT("completed"), Message.bCompleted);
-    PayloadObject->SetBoolField(TEXT("interrupted"), Message.bInterrupted);
-    PayloadObject->SetNumberField(TEXT("total_time_steps"), Message.TotalTimeSteps);
-    PayloadObject->SetNumberField(TEXT("completed_time_steps"), Message.CompletedTimeSteps);
-
-    FString PayloadJson;
-    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&PayloadJson);
-    FJsonSerializer::Serialize(PayloadObject.ToSharedRef(), Writer);
-
-    Envelope.PayloadJson = PayloadJson;
+    const FMAMessageEnvelope Envelope = MACommJsonCodec::MakeOutboundEnvelope(
+        EMACommMessageType::TaskFeedback,
+        EMAMessageCategory::Platform,
+        MACommJsonCodec::SerializeSkillListCompleted(Message));
 
     // 委托给 Owner 发送
     Owner->SendMessageEnvelopeInternal(Envelope);
@@ -181,14 +149,10 @@ void FMACommOutbound::SendTaskGraphSubmitMessage(const FString& TaskGraphJson)
     UE_LOG(LogMACommOutbound, Log, TEXT("SendTaskGraphSubmitMessage: Sending task graph to backend"));
     UE_LOG(LogMACommOutbound, Verbose, TEXT("TaskGraphJson: %s"), *TaskGraphJson);
 
-    // 创建消息信封
-    FMAMessageEnvelope Envelope;
-    Envelope.MessageType = EMACommMessageType::TaskGraph;
-    Envelope.MessageCategory = EMAMessageCategory::Review;       // TaskGraph 属于 Review 类别
-    Envelope.Direction = EMAMessageDirection::UE5ToPython;       // 出站消息方向
-    Envelope.Timestamp = FMAMessageEnvelope::GetCurrentTimestamp();
-    Envelope.MessageId = FMAMessageEnvelope::GenerateMessageId();
-    Envelope.PayloadJson = TaskGraphJson;
+    const FMAMessageEnvelope Envelope = MACommJsonCodec::MakeOutboundEnvelope(
+        EMACommMessageType::TaskGraph,
+        EMAMessageCategory::Review,
+        TaskGraphJson);
 
     // 委托给 Owner 发送
     Owner->SendMessageEnvelopeInternal(Envelope);
@@ -205,14 +169,14 @@ void FMACommOutbound::SendSceneChangeMessage(const FMASceneChangeMessage& Messag
         return;
     }
 
-    FString ChangeTypeStr = FMASceneChangeMessage::ChangeTypeToString(Message.ChangeType);
+    const FString ChangeTypeStr = MACommJsonCodec::SceneChangeTypeToString(Message.ChangeType);
 
     UE_LOG(LogMACommOutbound, Log, TEXT("SendSceneChangeMessage: Type=%s, MessageId=%s"),
         *ChangeTypeStr, *Message.MessageId);
     UE_LOG(LogMACommOutbound, Verbose, TEXT("Payload: %s"), *Message.Payload);
 
     // 序列化场景变化消息为 JSON
-    FString MessageJson = Message.ToJson();
+    const FString MessageJson = MACommJsonCodec::SerializeSceneChange(Message);
 
     // Mock 模式下仅记录日志
     if (Owner->bUseMockData)
@@ -224,16 +188,15 @@ void FMACommOutbound::SendSceneChangeMessage(const FMASceneChangeMessage& Messag
     }
 
     // 创建消息信封用于 HITL 格式发送
-    FMAMessageEnvelope Envelope;
-    Envelope.MessageType = EMACommMessageType::SceneChange;
-    Envelope.MessageCategory = EMAMessageCategory::Platform;     // SceneChange 属于 Platform 类别
-    Envelope.Direction = EMAMessageDirection::UE5ToPython;       // 出站消息方向
-    Envelope.Timestamp = Message.Timestamp;
-    Envelope.MessageId = Message.MessageId;
-    Envelope.PayloadJson = Message.Payload;
+    const FMAMessageEnvelope Envelope = MACommJsonCodec::MakeOutboundEnvelope(
+        EMACommMessageType::SceneChange,
+        EMAMessageCategory::Platform,
+        Message.Payload,
+        Message.Timestamp,
+        Message.MessageId);
 
     // 委托给 Owner 发送场景变化消息 (使用专用端点)
-    Owner->SendSceneChangeHttpRequest(Envelope.ToJson());
+    Owner->SendSceneChangeHttpRequest(MACommJsonCodec::SerializeEnvelope(Envelope));
 }
 
 void FMACommOutbound::SendSceneChangeMessageByType(EMASceneChangeType ChangeType, const FString& Payload)
@@ -257,14 +220,12 @@ void FMACommOutbound::SendSkillAllocationMessage(const FMASkillAllocationMessage
     UE_LOG(LogMACommOutbound, Log, TEXT("SendSkillAllocationMessage: Name=%s, Description=%s"), 
         *Message.Name, *Message.Description);
 
-    // 创建消息信封
-    FMAMessageEnvelope Envelope;
-    Envelope.MessageType = EMACommMessageType::SkillAllocation;
-    Envelope.MessageCategory = EMAMessageCategory::Review;       // SkillAllocation 属于 Review 类别
-    Envelope.Direction = EMAMessageDirection::UE5ToPython;       // 出站消息方向
-    Envelope.Timestamp = Message.Timestamp;
-    Envelope.MessageId = Message.MessageId;
-    Envelope.PayloadJson = Message.ToJson();
+    const FMAMessageEnvelope Envelope = MACommJsonCodec::MakeOutboundEnvelope(
+        EMACommMessageType::SkillAllocation,
+        EMAMessageCategory::Review,
+        MACommJsonCodec::SerializeSkillAllocation(Message),
+        Message.Timestamp,
+        Message.MessageId);
 
     // 委托给 Owner 发送
     Owner->SendMessageEnvelopeInternal(Envelope);
@@ -285,14 +246,12 @@ void FMACommOutbound::SendReviewResponse(const FMAReviewResponseMessage& Respons
     UE_LOG(LogMACommOutbound, Log, TEXT("SendReviewResponse: Approved=%s"),
         Response.bApproved ? TEXT("true") : TEXT("false"));
 
-    // 创建消息信封
-    FMAMessageEnvelope Envelope;
-    Envelope.MessageType = EMACommMessageType::SkillAllocation;  // 使用 SkillAllocation 类型表示审阅响应
-    Envelope.MessageCategory = EMAMessageCategory::Review;       // Review 类别
-    Envelope.Direction = EMAMessageDirection::UE5ToPython;       // 出站消息方向
-    Envelope.Timestamp = Response.Timestamp;
-    Envelope.MessageId = Response.MessageId;
-    Envelope.PayloadJson = Response.ToJson();
+    const FMAMessageEnvelope Envelope = MACommJsonCodec::MakeOutboundEnvelope(
+        EMACommMessageType::SkillAllocation,
+        EMAMessageCategory::Review,
+        MACommJsonCodec::SerializeReviewResponse(Response),
+        Response.Timestamp,
+        Response.MessageId);
 
     // 委托给 Owner 发送 (使用 HITL 端点)
     Owner->SendMessageEnvelopeInternal(Envelope);
@@ -315,14 +274,12 @@ void FMACommOutbound::SendDecisionResponse(const FMADecisionResponseMessage& Res
     UE_LOG(LogMACommOutbound, Log, TEXT("SendDecisionResponse: Decision=%s"),
         *Response.Decision);
 
-    // 创建消息信封
-    FMAMessageEnvelope Envelope;
-    Envelope.MessageType = EMACommMessageType::Custom;           // 使用 Custom 类型表示决策响应
-    Envelope.MessageCategory = EMAMessageCategory::Decision;     // Decision 类别
-    Envelope.Direction = EMAMessageDirection::UE5ToPython;       // 出站消息方向
-    Envelope.Timestamp = Response.Timestamp;
-    Envelope.MessageId = Response.MessageId;
-    Envelope.PayloadJson = Response.ToJson();
+    const FMAMessageEnvelope Envelope = MACommJsonCodec::MakeOutboundEnvelope(
+        EMACommMessageType::Custom,
+        EMAMessageCategory::Decision,
+        MACommJsonCodec::SerializeDecisionResponse(Response),
+        Response.Timestamp,
+        Response.MessageId);
 
     // 委托给 Owner 发送 (使用 HITL 端点)
     Owner->SendMessageEnvelopeInternal(Envelope);

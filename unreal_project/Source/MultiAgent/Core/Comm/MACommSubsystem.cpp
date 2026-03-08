@@ -5,6 +5,7 @@
 #include "MACommOutbound.h"
 #include "MACommInbound.h"
 #include "MACommHttpServer.h"
+#include "Infrastructure/Codec/MACommJsonCodec.h"
 #include "../Config/MAConfigManager.h"
 #include "MACommTypes.h"
 #include "HttpModule.h"
@@ -295,7 +296,7 @@ bool UMACommSubsystem::IsHttpServerRunning() const
 
 void UMACommSubsystem::SendMessageEnvelopeInternal(const FMAMessageEnvelope& Envelope)
 {
-    FString EnvelopeJson = Envelope.ToJson();
+    const FString EnvelopeJson = MACommJsonCodec::SerializeEnvelope(Envelope);
     
     UE_LOG(LogMACommSubsystem, Verbose, TEXT("SendMessageEnvelopeInternal: Type=%d, Category=%d, MessageId=%s"),
         static_cast<int32>(Envelope.MessageType), 
@@ -310,7 +311,7 @@ void UMACommSubsystem::SendMessageEnvelopeInternal(const FMAMessageEnvelope& Env
         if (Envelope.MessageType == EMACommMessageType::UIInput)
         {
             FMAUIInputMessage UIInputMsg;
-            if (FMAUIInputMessage::FromJson(Envelope.PayloadJson, UIInputMsg))
+            if (MACommJsonCodec::DeserializeUIInput(Envelope.PayloadJson, UIInputMsg))
             {
                 GenerateMockPlanResponse(UIInputMsg.InputContent);
             }
@@ -347,7 +348,7 @@ FString UMACommSubsystem::GetEndpointForCategory(EMAMessageCategory Category) co
 
 void UMACommSubsystem::SendHITLMessageInternal(const FMAMessageEnvelope& Envelope)
 {
-    FString EnvelopeJson = Envelope.ToJson();
+    const FString EnvelopeJson = MACommJsonCodec::SerializeEnvelope(Envelope);
     
     UE_LOG(LogMACommSubsystem, Log, TEXT("SendHITLMessageInternal: Type=%d, Category=%d, MessageId=%s"),
         static_cast<int32>(Envelope.MessageType), 
@@ -586,7 +587,7 @@ void UMACommSubsystem::ScheduleRetry(const FMAMessageEnvelope& OriginalEnvelope)
         // 根据消息类别选择正确的端点
         FString Endpoint = GetEndpointForCategory(OriginalEnvelope.MessageCategory);
         FString FullUrl = ServerURL + Endpoint;
-        FString JsonPayload = OriginalEnvelope.ToJson();
+        const FString JsonPayload = MACommJsonCodec::SerializeEnvelope(OriginalEnvelope);
         ExecuteHttpPost(FullUrl, JsonPayload, OriginalEnvelope);
     });
     

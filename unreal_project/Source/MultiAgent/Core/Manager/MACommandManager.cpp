@@ -8,6 +8,7 @@
 #include "../Config/MAConfigManager.h"
 #include "../Comm/MACommSubsystem.h"
 #include "../Comm/MACommTypes.h"
+#include "../Comm/Infrastructure/Codec/MACommJsonCodec.h"
 #include "../../Agent/Character/MACharacter.h"
 #include "../../Agent/Skill/MASkillComponent.h"
 #include "../../Agent/Skill/Utils/MASkillParamsProcessor.h"
@@ -151,7 +152,7 @@ void UMACommandManager::InterruptCurrentExecution()
 
 void UMACommandManager::ExecuteCurrentTimeStep()
 {
-    const FMATimeStepCommands* TimeStep = CurrentSkillList.GetTimeStep(CurrentTimeStep);
+    const FMATimeStepCommands* TimeStep = MACommJsonCodec::FindSkillListTimeStep(CurrentSkillList, CurrentTimeStep);
     if (!TimeStep)
     {
         UE_LOG(LogMACommandManager, Log, TEXT("All time steps completed"));

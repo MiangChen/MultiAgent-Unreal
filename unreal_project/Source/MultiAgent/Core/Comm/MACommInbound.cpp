@@ -3,6 +3,8 @@
 
 #include "MACommInbound.h"
 #include "MACommSubsystem.h"
+#include "Infrastructure/Codec/MACommJsonCodec.h"
+#include "Infrastructure/Codec/MACommTypeHelper.h"
 #include "../Manager/MACommandManager.h"
 #include "../Manager/MATempDataManager.h"
 #include "../Types/MATaskGraphTypes.h"
@@ -18,60 +20,6 @@
 #include "Serialization/JsonSerializer.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMACommInbound, Log, All);
-
-// 辅助命名空间 - 消息类别字符串转换
-namespace MACommInboundHelpers
-{
-    EMAMessageCategory StringToMessageCategory(const FString& CategoryStr)
-    {
-        if (CategoryStr == TEXT("instruction")) return EMAMessageCategory::Instruction;
-        if (CategoryStr == TEXT("review"))      return EMAMessageCategory::Review;
-        if (CategoryStr == TEXT("decision"))    return EMAMessageCategory::Decision;
-        if (CategoryStr == TEXT("platform"))    return EMAMessageCategory::Platform;
-        return EMAMessageCategory::Platform; // 默认值
-    }
-
-    EMACommMessageType StringToMessageType(const FString& TypeStr)
-    {
-        if (TypeStr == TEXT("ui_input"))           return EMACommMessageType::UIInput;
-        if (TypeStr == TEXT("user_instruction"))   return EMACommMessageType::UIInput;
-        if (TypeStr == TEXT("button_event"))       return EMACommMessageType::ButtonEvent;
-        if (TypeStr == TEXT("task_feedback"))      return EMACommMessageType::TaskFeedback;
-        if (TypeStr == TEXT("world_state"))        return EMACommMessageType::WorldState;
-        if (TypeStr == TEXT("scene_change"))       return EMACommMessageType::SceneChange;
-        if (TypeStr == TEXT("task_graph"))         return EMACommMessageType::TaskGraph;
-        if (TypeStr == TEXT("world_model_graph"))  return EMACommMessageType::WorldModelGraph;
-        if (TypeStr == TEXT("skill_list"))         return EMACommMessageType::SkillList;
-        if (TypeStr == TEXT("query_request"))      return EMACommMessageType::QueryRequest;
-        if (TypeStr == TEXT("skill_allocation"))   return EMACommMessageType::SkillAllocation;
-        if (TypeStr == TEXT("skill_status_update")) return EMACommMessageType::SkillStatusUpdate;
-        return EMACommMessageType::Custom;
-    }
-
-    // 从 message_type 推断 message_category (向后兼容)
-    EMAMessageCategory GetCategoryForMessageType(EMACommMessageType Type)
-    {
-        switch (Type)
-        {
-        case EMACommMessageType::UIInput:
-        case EMACommMessageType::ButtonEvent:
-            return EMAMessageCategory::Instruction;
-        case EMACommMessageType::TaskGraph:
-        case EMACommMessageType::SkillAllocation:
-            return EMAMessageCategory::Review;
-        case EMACommMessageType::TaskFeedback:
-        case EMACommMessageType::WorldState:
-        case EMACommMessageType::SceneChange:
-        case EMACommMessageType::WorldModelGraph:
-        case EMACommMessageType::SkillList:
-        case EMACommMessageType::QueryRequest:
-        case EMACommMessageType::SkillStatusUpdate:
-        case EMACommMessageType::Custom:
-        default:
-            return EMAMessageCategory::Platform;
-        }
-    }
-}
 
 FMACommInbound::FMACommInbound(UMACommSubsystem* InOwner)
     : Owner(InOwner)
@@ -402,15 +350,15 @@ void FMACommInbound::HandlePollResponse(const FString& ResponseJson)
         
         if (MsgObject->TryGetStringField(TEXT("message_category"), MessageCategoryStr))
         {
-            MessageCategory = MACommInboundHelpers::StringToMessageCategory(MessageCategoryStr);
+            MessageCategory = MACommTypeHelpers::StringToMessageCategory(MessageCategoryStr);
             UE_LOG(LogMACommInbound, Log, TEXT("Python -> UE5: Message type: %s, category: %s"), 
                 *MessageTypeStr, *MessageCategoryStr);
         }
         else
         {
             // 从 message_type 推断 category
-            EMACommMessageType MessageType = MACommInboundHelpers::StringToMessageType(MessageTypeStr);
-            MessageCategory = MACommInboundHelpers::GetCategoryForMessageType(MessageType);
+            const EMACommMessageType MessageType = MACommTypeHelpers::StringToMessageType(MessageTypeStr);
+            MessageCategory = MACommTypeHelpers::GetCategoryForMessageType(MessageType);
             UE_LOG(LogMACommInbound, Log, TEXT("Python -> UE5: Message type: %s, category inferred: %d"), 
                 *MessageTypeStr, static_cast<int32>(MessageCategory));
         }
@@ -657,7 +605,7 @@ void FMACommInbound::HandleSkillList(const TSharedPtr<FJsonObject>& PayloadObjec
     FJsonSerializer::Serialize(PayloadObject.ToSharedRef(), Writer);
 
     FMASkillListMessage SkillList;
-    if (FMASkillListMessage::FromJson(PayloadJson, SkillList))
+    if (MACommJsonCodec::DeserializeSkillList(PayloadJson, SkillList))
     {
         UE_LOG(LogMACommInbound, Log, TEXT("HandleSkillList: Received SkillList with %d time steps, executable=%s"),
             SkillList.TotalTimeSteps, bExecutable ? TEXT("true") : TEXT("false"));
