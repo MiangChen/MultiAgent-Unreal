@@ -36,7 +36,7 @@ FMAFeedback21Batch FMAAgentUtilityInputCoordinator::HandlePrintAgentInfo(AMAPlay
         return Feedback;
     }
 
-    const FMAAgentRuntimeStats Stats = RuntimeAdapter.GetAgentStats(PlayerController);
+    const FMAAgentRuntimeStats Stats = PlayerController->RuntimeGetAgentStats();
 
     Feedback.AddMessage(
         FString::Printf(TEXT("=== Agents: %d | UAVs: %d | Quadrupeds: %d | Humanoids: %d ==="),
@@ -56,7 +56,7 @@ FMAFeedback21Batch FMAAgentUtilityInputCoordinator::HandleDestroyLastAgent(AMAPl
 {
     FMAFeedback21Batch Feedback;
     FString AgentName;
-    if (RuntimeAdapter.DestroyLastAgent(PlayerController, AgentName))
+    if (PlayerController->RuntimeDestroyLastAgent(AgentName))
     {
         Feedback.AddMessage(
             FString::Printf(TEXT("Destroyed: %s"), *AgentName),
@@ -69,7 +69,7 @@ FMAFeedback21Batch FMAAgentUtilityInputCoordinator::HandleDestroyLastAgent(AMAPl
 
 void FMAAgentUtilityInputCoordinator::HandleJumpSelection(AMAPlayerController* PlayerController) const
 {
-    const int32 JumpCount = RuntimeAdapter.JumpSelectedAgents(PlayerController);
+    const int32 JumpCount = PlayerController->RuntimeJumpSelectedAgents();
     if (JumpCount > 0)
     {
         UE_LOG(LogTemp, Log, TEXT("[Input] Jump: %d agents jumped"), JumpCount);

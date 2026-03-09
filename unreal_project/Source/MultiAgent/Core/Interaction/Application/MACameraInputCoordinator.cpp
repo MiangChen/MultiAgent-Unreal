@@ -7,8 +7,8 @@
 void FMACameraInputCoordinator::HandleRightClickPressed(AMAPlayerController* PlayerController) const
 {
     if (!PlayerController
-        || HUDInputAdapter.IsMouseOverPersistentUI(PlayerController)
-        || HUDInputAdapter.IsMainUIVisible(PlayerController))
+        || PlayerController->RuntimeIsMouseOverPersistentUI()
+        || PlayerController->RuntimeIsMainUIVisible())
     {
         return;
     }
@@ -74,19 +74,19 @@ void FMACameraInputCoordinator::Tick(AMAPlayerController* PlayerController) cons
 
 void FMACameraInputCoordinator::SwitchToNextCamera(AMAPlayerController* PlayerController) const
 {
-    RuntimeAdapter.SwitchToNextCamera(PlayerController);
+    PlayerController->RuntimeSwitchToNextCamera();
 }
 
 void FMACameraInputCoordinator::ReturnToSpectator(AMAPlayerController* PlayerController) const
 {
-    RuntimeAdapter.ReturnToSpectator(PlayerController);
+    PlayerController->RuntimeReturnToSpectator();
 }
 
 FMAFeedback21Batch FMACameraInputCoordinator::TakePhoto(AMAPlayerController* PlayerController) const
 {
     FMAFeedback21Batch Feedback;
     FString SensorName;
-    if (RuntimeAdapter.TakePhotoForCurrentCamera(PlayerController, SensorName))
+    if (PlayerController->RuntimeTakePhotoForCurrentCamera(SensorName))
     {
         Feedback.AddMessage(
             FString::Printf(TEXT("%s: Photo saved"), *SensorName),
@@ -99,7 +99,7 @@ FMAFeedback21Batch FMACameraInputCoordinator::TakePhoto(AMAPlayerController* Pla
 FMAFeedback21Batch FMACameraInputCoordinator::ToggleTCPStream(AMAPlayerController* PlayerController) const
 {
     FMAFeedback21Batch Feedback;
-    const FMACameraStreamRuntimeResult Result = RuntimeAdapter.ToggleTCPStreamForCurrentCamera(PlayerController);
+    const FMACameraStreamRuntimeResult Result = PlayerController->RuntimeToggleTCPStreamForCurrentCamera();
     if (Result.Event == EMACameraStreamEvent::None)
     {
         return Feedback;

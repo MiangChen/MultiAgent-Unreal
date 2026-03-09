@@ -37,7 +37,7 @@ void FMAHUDBackendCoordinator::HandleSimpleCommandSubmitted(
     AMAHUD* HUD,
     const FString& Command) const
 {
-    if (RuntimeAdapter.SendNaturalLanguageCommand(World, HUD, Command))
+    if (HUD && HUD->RuntimeSendNaturalLanguageCommand(Command))
     {
         return;
     }
@@ -47,7 +47,7 @@ void FMAHUDBackendCoordinator::HandleSimpleCommandSubmitted(
     {
         FMAFeedback21Batch Feedback;
         Feedback.AddTaskPlannerLog(TEXT("[Error] Communication subsystem not found"));
-        Feedback21Applier.ApplyToHUD(HUD, Feedback);
+        HUD->ApplyInteractionFeedback(Feedback);
     }
 }
 
@@ -59,12 +59,12 @@ void FMAHUDBackendCoordinator::HandlePlannerResponse(AMAHUD* HUD, UMAUIManager* 
         return;
     }
 
-    Feedback21Applier.ApplyToHUD(HUD, BuildPlannerResponseFeedback(Response));
+    HUD->ApplyInteractionFeedback(BuildPlannerResponseFeedback(Response));
 }
 
 void FMAHUDBackendCoordinator::BindBackendEvents(UWorld* World, UMAUIManager* UIManager, AMAHUD* HUD) const
 {
-    if (RuntimeAdapter.BindBackendEvents(World, HUD))
+    if (HUD && HUD->RuntimeBindBackendEvents())
     {
         UE_LOG(LogMAHUDBackendCoordinator, Log, TEXT("BindBackendEvents: Bound backend delegates"));
     }
@@ -123,7 +123,7 @@ void FMAHUDBackendCoordinator::HandleTaskGraphReceived(AMAHUD* HUD, UMAUIManager
 
     FMAFeedback21Batch Feedback;
     Feedback.AddNotification(EMAFeedback21NotificationKind::TaskGraphUpdate);
-    Feedback21Applier.ApplyToHUD(HUD, Feedback);
+    HUD->ApplyInteractionFeedback(Feedback);
     UE_LOG(LogMAHUDBackendCoordinator, Log, TEXT("HandleTaskGraphReceived: Notification shown"));
 }
 
@@ -137,7 +137,7 @@ void FMAHUDBackendCoordinator::HandleSkillAllocationReceived(AMAHUD* HUD, UMAUIM
 
     FMAFeedback21Batch Feedback;
     Feedback.AddNotification(EMAFeedback21NotificationKind::SkillListUpdate);
-    Feedback21Applier.ApplyToHUD(HUD, Feedback);
+    HUD->ApplyInteractionFeedback(Feedback);
     UE_LOG(LogMAHUDBackendCoordinator, Log, TEXT("HandleSkillAllocationReceived: Notification shown, Name=%s"), *AllocationData.Name);
 }
 
@@ -152,11 +152,11 @@ void FMAHUDBackendCoordinator::HandleSkillListReceived(AMAHUD* HUD, UMAUIManager
     FMAFeedback21Batch Feedback;
     Feedback.AddNotification(
         bExecutable ? EMAFeedback21NotificationKind::SkillListExecuting : EMAFeedback21NotificationKind::SkillListUpdate);
-    Feedback21Applier.ApplyToHUD(HUD, Feedback);
+    HUD->ApplyInteractionFeedback(Feedback);
     UE_LOG(LogMAHUDBackendCoordinator, Log, TEXT("HandleSkillListReceived: Notification shown"));
 }
 
-void FMAHUDBackendCoordinator::HandleModalConfirmed(UWorld* World, UMAUIManager* UIManager, EMAModalType ModalType) const
+void FMAHUDBackendCoordinator::HandleModalConfirmed(AMAHUD* HUD, UMAUIManager* UIManager, EMAModalType ModalType) const
 {
     if (!UIManager)
     {
@@ -179,7 +179,7 @@ void FMAHUDBackendCoordinator::HandleModalConfirmed(UWorld* World, UMAUIManager*
                 break;
             }
 
-            RuntimeAdapter.SendTaskGraphSubmit(World, TaskGraphJson);
+            HUD->RuntimeSendTaskGraphSubmit(TaskGraphJson);
             UE_LOG(LogMAHUDBackendCoordinator, Log, TEXT("HandleModalConfirmed: Task graph submitted"));
         }
         break;
@@ -194,7 +194,7 @@ void FMAHUDBackendCoordinator::HandleModalConfirmed(UWorld* World, UMAUIManager*
 
             const FMASkillAllocationData Data = SkillModal->GetSkillAllocationData();
             const FString ModifiedDataJson = Data.ToJson();
-            RuntimeAdapter.SendReviewResponse(World, true, ModifiedDataJson, TEXT(""));
+            HUD->RuntimeSendReviewResponse(true, ModifiedDataJson, TEXT(""));
             UE_LOG(LogMAHUDBackendCoordinator, Log, TEXT("HandleModalConfirmed: Skill allocation approved"));
         }
         break;
@@ -204,9 +204,9 @@ void FMAHUDBackendCoordinator::HandleModalConfirmed(UWorld* World, UMAUIManager*
     }
 }
 
-bool FMAHUDBackendCoordinator::HandleModalRejected(UWorld* World, UMAUIManager* UIManager, EMAModalType ModalType) const
+bool FMAHUDBackendCoordinator::HandleModalRejected(AMAHUD* HUD, UMAUIManager* UIManager, EMAModalType ModalType) const
 {
-    if (!RuntimeAdapter.ResolveCommSubsystem(World))
+    if (!HUD || !HUD->RuntimeHasCommSubsystem())
     {
         return false;
     }
@@ -226,7 +226,7 @@ bool FMAHUDBackendCoordinator::HandleModalRejected(UWorld* World, UMAUIManager* 
                 break;
             }
 
-            RuntimeAdapter.SendReviewResponse(World, false, TEXT(""), TEXT("User rejected the skill allocation"));
+            HUD->RuntimeSendReviewResponse(false, TEXT(""), TEXT("User rejected the skill allocation"));
             UE_LOG(LogMAHUDBackendCoordinator, Log, TEXT("HandleModalRejected: Skill allocation rejected"));
         }
         break;
@@ -244,7 +244,7 @@ bool FMAHUDBackendCoordinator::HandleModalRejected(UWorld* World, UMAUIManager* 
                 break;
             }
 
-            RuntimeAdapter.SendButtonEvent(World, WidgetName, TEXT("reject"), TEXT("Reject"));
+            HUD->RuntimeSendButtonEvent(WidgetName, TEXT("reject"), TEXT("Reject"));
             UE_LOG(LogMAHUDBackendCoordinator, Log, TEXT("HandleModalRejected: Reject event sent for %s"), *WidgetName);
         }
         break;

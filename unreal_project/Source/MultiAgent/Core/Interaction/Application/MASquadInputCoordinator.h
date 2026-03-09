@@ -2,7 +2,6 @@
 
 #include "CoreMinimal.h"
 #include "../Feedback/MAFeedback21.h"
-#include "../Infrastructure/MAInteractionRuntimeAdapter.h"
 
 class AMAPlayerController;
 
@@ -13,7 +12,4 @@ public:
     void CycleFormation(AMAPlayerController* PlayerController) const;
     FMAFeedback21Batch CreateSquad(AMAPlayerController* PlayerController) const;
     FMAFeedback21Batch DisbandSquad(AMAPlayerController* PlayerController) const;
-
-private:
-    FMAInteractionRuntimeAdapter RuntimeAdapter;
 };

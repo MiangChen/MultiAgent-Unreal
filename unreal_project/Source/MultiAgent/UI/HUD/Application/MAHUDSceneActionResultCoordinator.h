@@ -2,7 +2,6 @@
 
 #include "CoreMinimal.h"
 #include "../../../Core/Interaction/Feedback/MAFeedback21.h"
-#include "../../../Core/Interaction/Infrastructure/MAFeedback21Applier.h"
 #include "../../Mode/Application/MAModifyWidgetStateCoordinator.h"
 #include "../../Mode/Domain/MASceneActionResult.h"
 
@@ -25,6 +24,5 @@ public:
         const FMASceneActionResult& Result) const;
 
 private:
-    FMAFeedback21Applier Feedback21Applier;
     FMAModifyWidgetStateCoordinator ModifyWidgetStateCoordinator;
 };

@@ -57,6 +57,7 @@ APPLICATION_RUNTIME_CALL_GUARDS = {
 
 APPLICATION_RUNTIME_INCLUDE_GUARDS = {
     "Core/Interaction/Application/": (
+        '#include "../Infrastructure/',
         '#include "../../Manager/',
         '#include "../Manager/',
         '#include "../../../Core/Manager/',
@@ -65,10 +66,10 @@ APPLICATION_RUNTIME_INCLUDE_GUARDS = {
         '#include "../../Comm/MACommSubsystem.h"',
     ),
     "UI/HUD/Application/": (
-        '#include "../../../Core/Manager/',
-        '#include "../../../Core/Comm/MACommSubsystem.h"',
-        '#include "../../../Agent/',
-        '#include "../../../Environment/',
+        '#include "../Infrastructure/',
+    ),
+    "UI/Mode/Application/": (
+        '#include "../Infrastructure/',
     ),
 }
 

@@ -167,9 +167,9 @@ FMAFeedback21Batch FMADeploymentInputCoordinator::ExitMode(AMAPlayerController* 
         return Feedback;
     }
 
-    if (RuntimeAdapter.IsSelectionBoxActive(PlayerController))
+    if (PlayerController->RuntimeIsSelectionBoxActive())
     {
-        RuntimeAdapter.CancelSelectionBox(PlayerController);
+        PlayerController->RuntimeCancelSelectionBox();
     }
 
     const EMAMouseMode ResumeMode = PlayerController->MouseModeState.PreviousMode == EMAMouseMode::Deployment
@@ -210,7 +210,7 @@ void FMADeploymentInputCoordinator::HandleLeftClickStarted(AMAPlayerController* 
     float MouseY = 0.f;
     if (PlayerController->GetMousePosition(MouseX, MouseY))
     {
-        RuntimeAdapter.BeginSelectionBox(PlayerController, FVector2D(MouseX, MouseY));
+        PlayerController->RuntimeBeginSelectionBox(FVector2D(MouseX, MouseY));
     }
 }
 
@@ -218,7 +218,7 @@ FMAFeedback21Batch FMADeploymentInputCoordinator::HandleLeftClickReleased(AMAPla
 {
     FMAFeedback21Batch Feedback;
     if (!PlayerController
-        || !RuntimeAdapter.IsSelectionBoxActive(PlayerController))
+        || !PlayerController->RuntimeIsSelectionBoxActive())
     {
         return Feedback;
     }
@@ -227,12 +227,12 @@ FMAFeedback21Batch FMADeploymentInputCoordinator::HandleLeftClickReleased(AMAPla
     float MouseY = 0.f;
     if (PlayerController->GetMousePosition(MouseX, MouseY))
     {
-        RuntimeAdapter.UpdateSelectionBox(PlayerController, FVector2D(MouseX, MouseY));
+        PlayerController->RuntimeUpdateSelectionBox(FVector2D(MouseX, MouseY));
     }
 
-    const FVector2D Start = RuntimeAdapter.GetSelectionBoxStart(PlayerController);
-    const FVector2D End = RuntimeAdapter.GetSelectionBoxEnd(PlayerController);
-    RuntimeAdapter.CancelSelectionBox(PlayerController);
+    const FVector2D Start = PlayerController->RuntimeGetSelectionBoxStart();
+    const FVector2D End = PlayerController->RuntimeGetSelectionBoxEnd();
+    PlayerController->RuntimeCancelSelectionBox();
 
     const float BoxWidth = FMath::Abs(End.X - Start.X);
     const float BoxHeight = FMath::Abs(End.Y - Start.Y);
@@ -249,8 +249,7 @@ FMAFeedback21Batch FMADeploymentInputCoordinator::HandleLeftClickReleased(AMAPla
     }
 
     FMAPendingDeployment& CurrentDeployment = PlayerController->DeploymentState.Items[PlayerController->DeploymentState.CurrentIndex];
-    const TArray<FVector> SpawnPoints = RuntimeAdapter.ProjectSelectionBoxToWorld(
-        PlayerController,
+    const TArray<FVector> SpawnPoints = PlayerController->RuntimeProjectSelectionBoxToWorld(
         Start,
         End,
         CurrentDeployment.Count);
@@ -258,7 +257,7 @@ FMAFeedback21Batch FMADeploymentInputCoordinator::HandleLeftClickReleased(AMAPla
     int32 SpawnedThisBatch = 0;
     for (const FVector& SpawnPoint : SpawnPoints)
     {
-        if (RuntimeAdapter.SpawnAgentByType(PlayerController, CurrentDeployment.AgentType, SpawnPoint))
+        if (PlayerController->RuntimeSpawnAgentByType(CurrentDeployment.AgentType, SpawnPoint))
         {
             SpawnedThisBatch++;
             PlayerController->DeploymentState.DeployedCount++;

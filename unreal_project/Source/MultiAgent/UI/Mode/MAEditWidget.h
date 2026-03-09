@@ -10,6 +10,7 @@
 #include "Domain/MAEditWidgetModel.h"
 #include "MAEditWidget.generated.h"
 
+class AActor;
 class UMultiLineEditableTextBox;
 class UButton;
 class UTextBlock;
@@ -101,6 +102,11 @@ public:
 
     void ApplyViewModel(const FMAEditWidgetViewModel& InViewModel);
     void SetPresetActorOptions(const TArray<FString>& Options);
+    bool ValidateJsonDocument(const FString& Json, FString& OutError) const;
+    FString BuildEditableJson(const FMASceneGraphNode& Node) const;
+    bool IsPointTypeNode(const FMASceneGraphNode& Node) const;
+    bool IsGoalOrZoneActor(const AActor* Actor) const;
+    bool IsNodeMarkedGoal(const FMASceneGraphNode& Node) const;
 
     //=========================================================================
     // 事件委托

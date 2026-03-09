@@ -3,7 +3,6 @@
 #include "CoreMinimal.h"
 #include "../Feedback/MAFeedback21.h"
 #include "../Domain/MAInputTypes.h"
-#include "../Infrastructure/MAInteractionRuntimeAdapter.h"
 
 class AMAPlayerController;
 
@@ -28,5 +27,4 @@ public:
 
 private:
     bool HasPendingDeployments(const AMAPlayerController* PlayerController) const;
-    FMAInteractionRuntimeAdapter RuntimeAdapter;
 };

@@ -3,7 +3,6 @@
 #include "CoreMinimal.h"
 #include "../Feedback/MAFeedback21.h"
 #include "../Domain/MAInputTypes.h"
-#include "../Infrastructure/MAInteractionRuntimeAdapter.h"
 
 class AMAPlayerController;
 
@@ -19,6 +18,4 @@ private:
     bool CanEnterMode(AMAPlayerController* PlayerController, EMAMouseMode NewMode) const;
     FMAFeedback21Batch HandleExit(AMAPlayerController* PlayerController, EMAMouseMode OldMode, EMAMouseMode NewMode) const;
     FMAFeedback21Batch HandleEnter(AMAPlayerController* PlayerController, EMAMouseMode OldMode, EMAMouseMode NewMode) const;
-
-    FMAInteractionRuntimeAdapter RuntimeAdapter;
 };

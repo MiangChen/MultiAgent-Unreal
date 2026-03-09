@@ -82,9 +82,9 @@ void FMAMouseModeCoordinator::CleanupDeploymentState(
 {
     if (OldMode == EMAMouseMode::Deployment && NewMode != EMAMouseMode::Deployment)
     {
-        if (RuntimeAdapter.IsSelectionBoxActive(PlayerController))
+        if (PlayerController->RuntimeIsSelectionBoxActive())
         {
-            RuntimeAdapter.CancelSelectionBox(PlayerController);
+            PlayerController->RuntimeCancelSelectionBox();
         }
 
         PlayerController->DeploymentInputCoordinator.ResetTransientState(PlayerController);
@@ -93,7 +93,7 @@ void FMAMouseModeCoordinator::CleanupDeploymentState(
 
 bool FMAMouseModeCoordinator::CanEnterMode(AMAPlayerController* PlayerController, EMAMouseMode NewMode) const
 {
-    if (NewMode == EMAMouseMode::Edit && !RuntimeAdapter.CanEnterEditMode(PlayerController))
+    if (NewMode == EMAMouseMode::Edit && !PlayerController->RuntimeCanEnterEditMode())
     {
         UE_LOG(LogMAMouseModeCoordinator, Warning, TEXT("Edit Mode unavailable: source scene graph file not found"));
         return false;

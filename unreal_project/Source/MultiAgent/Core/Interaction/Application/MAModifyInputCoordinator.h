@@ -2,8 +2,6 @@
 
 #include "CoreMinimal.h"
 #include "../Feedback/MAFeedback21.h"
-#include "../Infrastructure/MAActorHighlightAdapter.h"
-#include "../Infrastructure/MAInteractionRuntimeAdapter.h"
 
 class AMAPlayerController;
 class AActor;
@@ -22,6 +20,4 @@ private:
     void AddToSelection(AMAPlayerController* PlayerController, AActor* Actor) const;
     void RemoveFromSelection(AMAPlayerController* PlayerController, AActor* Actor) const;
     void ClearAndSelect(AMAPlayerController* PlayerController, AActor* Actor) const;
-    FMAActorHighlightAdapter HighlightAdapter;
-    FMAInteractionRuntimeAdapter RuntimeAdapter;
 };

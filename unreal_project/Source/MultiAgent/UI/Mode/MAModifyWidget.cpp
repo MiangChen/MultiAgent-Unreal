@@ -14,6 +14,9 @@
 #include "Components/ScrollBox.h"
 #include "Components/BackgroundBlur.h"
 #include "Blueprint/WidgetTree.h"
+#include "Infrastructure/MAModifyWidgetInputParser.h"
+#include "Infrastructure/MAModifyWidgetNodeBuilder.h"
+#include "Infrastructure/MAModifyWidgetSceneGraphAdapter.h"
 #include "../Core/MARoundedBorderUtils.h"
 #include "../Core/MAFrostedGlassUtils.h"
 #include "../Core/MAUITheme.h"
@@ -430,32 +433,54 @@ void UMAModifyWidget::OnConfirmButtonClicked()
     }
     
     const FString LabelContent = GetLabelText();
-    FMAModifyWidgetSubmission Submission;
-    if (!ModifyCoordinator.PrepareSubmission(
-        GetWorld(),
-        SelectedActors,
-        CurrentAnnotationMode,
-        EditingNodeId,
-        LabelContent,
-        Submission))
+    FMAAnnotationInput ParsedInput;
+    FString ParseError;
+    FMAModifyWidgetInputParser InputParser;
+    FMAModifyWidgetNodeBuilder NodeBuilder;
+    if (!InputParser.ParseAnnotationInput(GetWorld(), LabelContent, ParsedInput, ParseError))
     {
-        UE_LOG(LogMAModifyWidget, Warning, TEXT("OnConfirmButtonClicked: Failed to prepare submission"));
+        OnModifyConfirmed.Broadcast(SelectedActors[0], LabelContent);
         return;
     }
 
-    if (Submission.Kind == EMAModifySubmissionKind::Single)
+    if (CurrentAnnotationMode == EMAAnnotationMode::AddNew && ParsedInput.HasCategory())
     {
-        UE_LOG(LogMAModifyWidget, Log, TEXT("OnConfirmButtonClicked: Single submission, Actor=%s"),
-            Submission.PrimaryActor ? *Submission.PrimaryActor->GetName() : TEXT("null"));
-        OnModifyConfirmed.Broadcast(Submission.PrimaryActor, Submission.LabelText);
+        FString ValidationError;
+        if (!InputParser.ValidateSelectionForCategory(ParsedInput.Category, SelectedActors.Num(), ValidationError))
+        {
+            OnModifyConfirmed.Broadcast(SelectedActors[0], FString::Printf(TEXT("ERROR: %s"), *ValidationError));
+            return;
+        }
+    }
+
+    if (CurrentAnnotationMode == EMAAnnotationMode::EditExisting)
+    {
+        OnMultiSelectModifyConfirmed.Broadcast(
+            SelectedActors,
+            LabelContent,
+            SceneGraphAdapter.BuildEditNodeJson(GetWorld(), ParsedInput, EditingNodeId));
         return;
     }
 
-    if (Submission.Kind == EMAModifySubmissionKind::Multi)
+    if (ParsedInput.HasCategory())
     {
-        UE_LOG(LogMAModifyWidget, Log, TEXT("OnConfirmButtonClicked: Multi submission, Actors=%d"), Submission.Actors.Num());
-        OnMultiSelectModifyConfirmed.Broadcast(Submission.Actors, Submission.LabelText, Submission.GeneratedJson);
+        OnMultiSelectModifyConfirmed.Broadcast(
+            SelectedActors,
+            LabelContent,
+            NodeBuilder.GenerateSceneGraphNodeV2(GetWorld(), ParsedInput, SelectedActors));
+        return;
     }
+
+    if (ParsedInput.IsMultiSelect())
+    {
+        OnMultiSelectModifyConfirmed.Broadcast(
+            SelectedActors,
+            LabelContent,
+            NodeBuilder.GenerateSceneGraphNode(GetWorld(), ParsedInput, SelectedActors));
+        return;
+    }
+
+    OnModifyConfirmed.Broadcast(SelectedActors[0], LabelContent);
 }
 
 void UMAModifyWidget::UpdateJsonPreview(AActor* Actor)

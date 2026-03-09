@@ -5,8 +5,6 @@
 
 #include "CoreMinimal.h"
 #include "../../../Core/Interaction/Feedback/MAFeedback21.h"
-#include "../../../Core/Interaction/Infrastructure/MAFeedback21Applier.h"
-#include "../Infrastructure/MAHUDBackendRuntimeAdapter.h"
 #include "../../Core/MAHUDTypes.h"
 #include "../../../Core/Types/MATaskGraphTypes.h"
 #include "../../../Core/Comm/MACommTypes.h"
@@ -30,10 +28,8 @@ public:
     void HandleSkillAllocationReceived(AMAHUD* HUD, UMAUIManager* UIManager, const FMASkillAllocationData& AllocationData) const;
     void HandleSkillListReceived(AMAHUD* HUD, UMAUIManager* UIManager, const FMASkillListMessage& SkillList, bool bExecutable) const;
 
-    void HandleModalConfirmed(UWorld* World, UMAUIManager* UIManager, EMAModalType ModalType) const;
-    bool HandleModalRejected(UWorld* World, UMAUIManager* UIManager, EMAModalType ModalType) const;
+    void HandleModalConfirmed(AMAHUD* HUD, UMAUIManager* UIManager, EMAModalType ModalType) const;
+    bool HandleModalRejected(AMAHUD* HUD, UMAUIManager* UIManager, EMAModalType ModalType) const;
 
 private:
-    FMAFeedback21Applier Feedback21Applier;
-    FMAHUDBackendRuntimeAdapter RuntimeAdapter;
 };

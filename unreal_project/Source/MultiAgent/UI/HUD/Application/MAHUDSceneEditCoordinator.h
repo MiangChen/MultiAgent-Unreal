@@ -6,7 +6,6 @@
 #include "CoreMinimal.h"
 #include "MAHUDSceneActionResultCoordinator.h"
 #include "MAHUDSceneListSelectionCoordinator.h"
-#include "../Infrastructure/MAHUDSceneActionRuntimeAdapter.h"
 #include "../../Mode/Application/MAEditWidgetActionRequest.h"
 
 class AActor;
@@ -41,5 +40,4 @@ public:
 private:
     FMAHUDSceneActionResultCoordinator ActionResultCoordinator;
     FMAHUDSceneListSelectionCoordinator SceneListSelectionCoordinator;
-    FMAHUDSceneActionRuntimeAdapter SceneActionRuntimeAdapter;
 };

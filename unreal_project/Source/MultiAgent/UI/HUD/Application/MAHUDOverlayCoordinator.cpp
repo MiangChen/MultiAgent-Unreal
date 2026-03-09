@@ -83,7 +83,7 @@ void FMAHUDOverlayCoordinator::LoadSceneGraphForVisualization(AMAHUD* HUD) const
 
     HUD->CachedSceneNodes.Empty();
 
-    if (!RuntimeAdapter.LoadSceneGraphNodes(HUD, HUD->CachedSceneNodes))
+    if (!HUD->RuntimeLoadSceneGraphNodes(HUD->CachedSceneNodes))
     {
         UE_LOG(LogMAHUDOverlayCoordinator, Warning, TEXT("LoadSceneGraphForVisualization: Scene graph runtime unavailable"));
         return;
@@ -98,12 +98,12 @@ void FMAHUDOverlayCoordinator::DrawSceneLabels(AMAHUD* HUD) const
         return;
     }
 
-    RuntimeAdapter.DrawSceneLabels(HUD, HUD->CachedSceneNodes);
+    HUD->RuntimeDrawSceneLabels(HUD->CachedSceneNodes);
 }
 
 void FMAHUDOverlayCoordinator::DrawPIPCameras(AMAHUD* HUD) const
 {
-    RuntimeAdapter.DrawPIPCameras(HUD);
+    HUD->RuntimeDrawPIPCameras();
 }
 
 void FMAHUDOverlayCoordinator::StartSceneLabelVisualization(AMAHUD* HUD) const
@@ -143,7 +143,7 @@ void FMAHUDOverlayCoordinator::BindEditModeManagerEvents(AMAHUD* HUD) const
         return;
     }
 
-    if (!RuntimeAdapter.BindEditModeSelectionChanged(HUD))
+    if (!HUD->RuntimeBindEditModeSelectionChanged())
     {
         UE_LOG(LogMAHUDOverlayCoordinator, Warning, TEXT("BindEditModeManagerEvents: runtime binding unavailable"));
         return;

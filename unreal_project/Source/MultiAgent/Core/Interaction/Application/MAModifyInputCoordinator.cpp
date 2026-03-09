@@ -15,7 +15,7 @@ void FMAModifyInputCoordinator::HandleLeftClick(AMAPlayerController* PlayerContr
         PlayerController->IsInputKeyDown(EKeys::LeftShift) || PlayerController->IsInputKeyDown(EKeys::RightShift);
 
     FHitResult HitResult;
-    if (RuntimeAdapter.ResolveCursorHit(PlayerController, ECC_Visibility, HitResult))
+    if (PlayerController->RuntimeResolveCursorHit(ECC_Visibility, HitResult))
     {
         if (AActor* HitActor = HitResult.GetActor())
         {
@@ -93,7 +93,7 @@ void FMAModifyInputCoordinator::ClearAllHighlights(AMAPlayerController* PlayerCo
     {
         if (Actor)
         {
-            HighlightAdapter.SetActorTreeHighlight(Actor, false);
+            PlayerController->RuntimeSetActorTreeHighlight(Actor, false);
         }
     }
 
@@ -107,7 +107,7 @@ void FMAModifyInputCoordinator::AddToSelection(AMAPlayerController* PlayerContro
         return;
     }
 
-    AActor* RootActor = HighlightAdapter.FindRootActor(Actor);
+    AActor* RootActor = PlayerController->RuntimeFindHighlightRootActor(Actor);
     if (PlayerController->ModifySelectionState.Contains(RootActor))
     {
         RemoveFromSelection(PlayerController, RootActor);
@@ -115,7 +115,7 @@ void FMAModifyInputCoordinator::AddToSelection(AMAPlayerController* PlayerContro
     }
 
     PlayerController->ModifySelectionState.Add(RootActor);
-    HighlightAdapter.SetActorTreeHighlight(RootActor, true);
+    PlayerController->RuntimeSetActorTreeHighlight(RootActor, true);
     BroadcastSelection(PlayerController);
 }
 
@@ -126,11 +126,11 @@ void FMAModifyInputCoordinator::RemoveFromSelection(AMAPlayerController* PlayerC
         return;
     }
 
-    AActor* RootActor = HighlightAdapter.FindRootActor(Actor);
+    AActor* RootActor = PlayerController->RuntimeFindHighlightRootActor(Actor);
     if (PlayerController->ModifySelectionState.Contains(RootActor))
     {
         PlayerController->ModifySelectionState.Remove(RootActor);
-        HighlightAdapter.SetActorTreeHighlight(RootActor, false);
+        PlayerController->RuntimeSetActorTreeHighlight(RootActor, false);
         BroadcastSelection(PlayerController);
     }
 }
@@ -149,8 +149,8 @@ void FMAModifyInputCoordinator::ClearAndSelect(AMAPlayerController* PlayerContro
         return;
     }
 
-    AActor* RootActor = HighlightAdapter.FindRootActor(Actor);
+    AActor* RootActor = PlayerController->RuntimeFindHighlightRootActor(Actor);
     PlayerController->ModifySelectionState.Add(RootActor);
-    HighlightAdapter.SetActorTreeHighlight(RootActor, true);
+    PlayerController->RuntimeSetActorTreeHighlight(RootActor, true);
     BroadcastSelection(PlayerController);
 }

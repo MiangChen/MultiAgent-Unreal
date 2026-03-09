@@ -2,7 +2,6 @@
 
 #include "CoreMinimal.h"
 #include "../Feedback/MAFeedback21.h"
-#include "../Infrastructure/MAInteractionRuntimeAdapter.h"
 
 class AMAPlayerController;
 
@@ -16,5 +15,4 @@ public:
 
 private:
     bool IsCtrlPressed(const AMAPlayerController* PlayerController) const;
-    FMAInteractionRuntimeAdapter RuntimeAdapter;
 };

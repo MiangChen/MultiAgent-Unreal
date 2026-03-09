@@ -18,6 +18,11 @@
 #include "Components/BackgroundBlur.h"
 #include "Blueprint/WidgetTree.h"
 #include "Framework/Application/SlateApplication.h"
+#include "../../Environment/Utils/MAGoalActor.h"
+#include "../../Environment/Utils/MAZoneActor.h"
+#include "Dom/JsonObject.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
 #include "../Core/MARoundedBorderUtils.h"
 #include "../Core/MAFrostedGlassUtils.h"
 #include "../Core/MAUITheme.h"
@@ -528,6 +533,65 @@ void UMAEditWidget::SetPresetActorOptions(const TArray<FString>& Options)
         }
     }
     PresetActorComboBox->SetSelectedIndex(0);
+}
+
+bool UMAEditWidget::ValidateJsonDocument(const FString& Json, FString& OutError) const
+{
+    if (Json.IsEmpty())
+    {
+        OutError = TEXT("JSON content cannot be empty");
+        return false;
+    }
+
+    TSharedPtr<FJsonObject> JsonObject;
+    const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Json);
+    if (!FJsonSerializer::Deserialize(Reader, JsonObject) || !JsonObject.IsValid())
+    {
+        OutError = TEXT("Invalid JSON format, please check syntax");
+        return false;
+    }
+
+    if (!JsonObject->HasField(TEXT("id")))
+    {
+        OutError = TEXT("Missing required field: id");
+        return false;
+    }
+
+    OutError.Empty();
+    return true;
+}
+
+FString UMAEditWidget::BuildEditableJson(const FMASceneGraphNode& Node) const
+{
+    if (!Node.RawJson.IsEmpty())
+    {
+        return Node.RawJson;
+    }
+
+    return FString::Printf(
+        TEXT("{\n  \"id\": \"%s\",\n  \"type\": \"%s\",\n  \"label\": \"%s\",\n  \"shape\": {\n    \"type\": \"%s\",\n    \"center\": [%.0f, %.0f, %.0f]\n  }\n}"),
+        *Node.Id,
+        *Node.Type,
+        *Node.Label,
+        *Node.ShapeType,
+        Node.Center.X, Node.Center.Y, Node.Center.Z);
+}
+
+bool UMAEditWidget::IsPointTypeNode(const FMASceneGraphNode& Node) const
+{
+    return Node.ShapeType.Equals(TEXT("point"), ESearchCase::IgnoreCase);
+}
+
+bool UMAEditWidget::IsGoalOrZoneActor(const AActor* Actor) const
+{
+    return Actor && (Actor->IsA<AMAGoalActor>() || Actor->IsA<AMAZoneActor>());
+}
+
+bool UMAEditWidget::IsNodeMarkedGoal(const FMASceneGraphNode& Node) const
+{
+    return Node.RawJson.Contains(TEXT("\"is_goal\"")) &&
+        (Node.RawJson.Contains(TEXT("\"is_goal\": true")) ||
+         Node.RawJson.Contains(TEXT("\"is_goal\":true")));
 }
 
 FString UMAEditWidget::GetDescriptionText() const

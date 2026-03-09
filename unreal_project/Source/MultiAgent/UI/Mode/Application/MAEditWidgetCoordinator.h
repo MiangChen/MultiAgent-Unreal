@@ -5,8 +5,6 @@
 #include "MAEditWidgetSelectionState.h"
 #include "MAEditWidgetStateCoordinator.h"
 #include "../Domain/MAEditWidgetModel.h"
-#include "../Infrastructure/MAEditWidgetRuntimeAdapter.h"
-#include "../Infrastructure/MAEditWidgetSceneGraphAdapter.h"
 
 class AMAHUD;
 class UMAEditWidget;
@@ -34,11 +32,9 @@ private:
     void SetActorSelection(AMAHUD* HUD, AActor* Actor);
     void SetPOISelection(const TArray<AMAPointOfInterest*>& POIs);
 
-    FMAEditWidgetViewModel BuildViewModel(const FString& ErrorMessage = TEXT("")) const;
+    FMAEditWidgetViewModel BuildViewModel(const UMAEditWidget* Widget, const FString& ErrorMessage = TEXT("")) const;
 
 private:
     FMAEditWidgetSelectionState SelectionState;
     FMAEditWidgetStateCoordinator WidgetStateCoordinator;
-    FMAEditWidgetRuntimeAdapter RuntimeAdapter;
-    FMAEditWidgetSceneGraphAdapter SceneGraphAdapter;
 };

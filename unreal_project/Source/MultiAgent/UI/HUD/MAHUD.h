@@ -7,7 +7,9 @@
 
 #include "CoreMinimal.h"
 #include "MASelectionHUD.h"
+#include "../../Core/Interaction/Feedback/MAFeedback21.h"
 #include "../Core/MAHUDTypes.h"
+#include "../Mode/Domain/MASceneActionResult.h"
 #include "Application/MAHUDViewCoordinator.h"
 #include "Application/MAHUDBackendCoordinator.h"
 #include "Application/MAHUDSceneEditCoordinator.h"
@@ -37,6 +39,7 @@ class AMAPointOfInterest;
 class UMAUITheme;
 class UMAHUDStateManager;
 class UMAMainHUDWidget;
+struct FMAHUDEditModeIndicatorModel;
 struct FMAPlannerResponse;
 struct FMATaskGraphData;
 struct FMASceneGraphNode;
@@ -66,6 +69,10 @@ class MULTIAGENT_API AMAHUD : public AMASelectionHUD
     friend class FMAHUDDelegateCoordinator;
     friend class FMAHUDPanelCoordinator;
     friend class FMAHUDLifecycleCoordinator;
+    friend class FMAHUDSceneActionResultCoordinator;
+    friend class FMAHUDSceneListSelectionCoordinator;
+    friend class FMAHUDEditModeIndicatorBuilder;
+    friend class FMAEditWidgetCoordinator;
 
 public:
     AMAHUD();
@@ -467,6 +474,40 @@ private:
      * @return MAPlayerController 指针，可能为 nullptr
      */
     AMAPlayerController* GetMAPlayerController() const;
+    void ApplyInteractionFeedback(const FMAFeedback21Batch& Feedback);
+    bool RuntimeBindBackendEvents();
+    bool RuntimeSendNaturalLanguageCommand(const FString& Command);
+    bool RuntimeHasCommSubsystem() const;
+    void RuntimeSendTaskGraphSubmit(const FString& TaskGraphJson);
+    void RuntimeSendReviewResponse(bool bApproved, const FString& DataJson, const FString& RejectionReason);
+    void RuntimeSendButtonEvent(const FString& WidgetName, const FString& EventType, const FString& Label);
+    bool RuntimeLoadSceneGraphNodes(TArray<FMASceneGraphNode>& OutNodes);
+    void RuntimeDrawSceneLabels(const TArray<FMASceneGraphNode>& Nodes);
+    void RuntimeDrawPIPCameras();
+    bool RuntimeBindEditModeSelectionChanged();
+    void RuntimeAssignSceneListEditModeManager(UMASceneListWidget* SceneListWidget);
+    bool RuntimeBuildEditModeIndicatorModel(FMAHUDEditModeIndicatorModel& OutModel) const;
+    bool RuntimeSelectGoalById(const FString& GoalId);
+    bool RuntimeSelectZoneById(const FString& ZoneId);
+    bool RuntimeResolveCurrentEditSelection(
+        TWeakObjectPtr<AActor>& OutSelectedActor,
+        TArray<AMAPointOfInterest*>& OutSelectedPOIs);
+    bool RuntimeResolveEditActorNodes(
+        AActor* Actor,
+        TArray<FMASceneGraphNode>& OutNodes,
+        FString& OutError);
+    FMASceneActionResult RuntimeApplySingleModify(AActor* Actor, const FString& LabelText);
+    FMASceneActionResult RuntimeApplyMultiModify(
+        const TArray<AActor*>& Actors,
+        const FString& LabelText,
+        const FString& GeneratedJson);
+    FMASceneActionResult RuntimeApplyNodeEdit(AActor* Actor, const FString& JsonContent);
+    FMASceneActionResult RuntimeDeleteActor(AActor* Actor);
+    FMASceneActionResult RuntimeCreateGoal(AMAPointOfInterest* POI, const FString& Description);
+    FMASceneActionResult RuntimeCreateZone(const TArray<AMAPointOfInterest*>& POIs, const FString& Description);
+    FMASceneActionResult RuntimeAddPresetActor(AMAPointOfInterest* POI, const FString& ActorType);
+    FMASceneActionResult RuntimeDeletePOIs(const TArray<AMAPointOfInterest*>& POIs);
+    FMASceneActionResult RuntimeSetGoalState(AActor* Actor, bool bShouldSetGoal);
 
     /**
      * 指令提交回调

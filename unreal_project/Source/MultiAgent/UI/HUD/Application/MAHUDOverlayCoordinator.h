@@ -5,7 +5,6 @@
 
 #include "CoreMinimal.h"
 #include "MAHUDEditModeIndicatorBuilder.h"
-#include "../Infrastructure/MAHUDEditRuntimeAdapter.h"
 #include "../../Mode/Application/MAEditWidgetCoordinator.h"
 
 class AMAHUD;
@@ -41,6 +40,5 @@ private:
     void BindEditWidgetDelegates(AMAHUD* HUD, UMAEditWidget* EditWidget) const;
 
     FMAHUDEditModeIndicatorBuilder EditModeIndicatorBuilder;
-    FMAHUDEditRuntimeAdapter RuntimeAdapter;
     FMAEditWidgetCoordinator EditWidgetCoordinator;
 };

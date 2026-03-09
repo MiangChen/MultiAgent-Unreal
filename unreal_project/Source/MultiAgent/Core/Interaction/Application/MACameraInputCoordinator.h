@@ -1,12 +1,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "../Domain/MAInteractionRuntimeTypes.h"
 #include "../Feedback/MAFeedback21.h"
-#include "../Infrastructure/MAHUDInputAdapter.h"
-#include "../Infrastructure/MAInteractionRuntimeAdapter.h"
 
 class AMAPlayerController;
-class UMACameraSensorComponent;
 
 class MULTIAGENT_API FMACameraInputCoordinator
 {
@@ -19,8 +17,4 @@ public:
     void ReturnToSpectator(AMAPlayerController* PlayerController) const;
     FMAFeedback21Batch TakePhoto(AMAPlayerController* PlayerController) const;
     FMAFeedback21Batch ToggleTCPStream(AMAPlayerController* PlayerController) const;
-
-private:
-    FMAHUDInputAdapter HUDInputAdapter;
-    FMAInteractionRuntimeAdapter RuntimeAdapter;
 };

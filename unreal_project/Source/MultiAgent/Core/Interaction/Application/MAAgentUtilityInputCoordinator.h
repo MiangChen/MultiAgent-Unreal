@@ -2,7 +2,6 @@
 
 #include "CoreMinimal.h"
 #include "../Feedback/MAFeedback21.h"
-#include "../Infrastructure/MAInteractionRuntimeAdapter.h"
 
 class AMAPlayerController;
 
@@ -16,7 +15,4 @@ public:
     FMAFeedback21Batch HandlePrintAgentInfo(AMAPlayerController* PlayerController) const;
     FMAFeedback21Batch HandleDestroyLastAgent(AMAPlayerController* PlayerController) const;
     void HandleJumpSelection(AMAPlayerController* PlayerController) const;
-
-private:
-    FMAInteractionRuntimeAdapter RuntimeAdapter;
 };

@@ -7,7 +7,6 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "Application/MAModifyWidgetCoordinator.h"
 #include "Domain/MAModifyWidgetModel.h"
 #include "Infrastructure/MAModifyWidgetSceneGraphAdapter.h"
 #include "MAModifyTypes.h"
@@ -214,7 +213,6 @@ private:
     TArray<AActor*> SelectedActors;
 
     FMAModifyWidgetSceneGraphAdapter SceneGraphAdapter;
-    FMAModifyWidgetCoordinator ModifyCoordinator;
 
     //=========================================================================
     // 内部方法

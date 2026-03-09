@@ -3,8 +3,32 @@
 #include "MAPlayerController.h"
 #include "MAInputActions.h"
 #include "../Core/Manager/MACommandManager.h"
+#include "../Core/Interaction/Infrastructure/MAActorHighlightAdapter.h"
+#include "../Core/Interaction/Infrastructure/MAHUDInputAdapter.h"
+#include "../Core/Interaction/Infrastructure/MAInteractionRuntimeAdapter.h"
 #include "EnhancedInputComponent.h"
 #include "InputActionValue.h"
+
+namespace
+{
+const FMAInteractionRuntimeAdapter& RuntimeAdapter()
+{
+    static const FMAInteractionRuntimeAdapter Adapter;
+    return Adapter;
+}
+
+const FMAHUDInputAdapter& HUDInputAdapter()
+{
+    static const FMAHUDInputAdapter Adapter;
+    return Adapter;
+}
+
+const FMAActorHighlightAdapter& HighlightAdapter()
+{
+    static const FMAActorHighlightAdapter Adapter;
+    return Adapter;
+}
+}
 
 AMAPlayerController::AMAPlayerController()
 {
@@ -25,10 +49,217 @@ void AMAPlayerController::ApplyFeedback(const FMAFeedback21Batch& Feedback)
     Feedback21Applier.ApplyToPlayerController(this, Feedback);
 }
 
+bool AMAPlayerController::RuntimeIsMouseOverPersistentUI() const
+{
+    return HUDInputAdapter().IsMouseOverPersistentUI(this);
+}
+
+bool AMAPlayerController::RuntimeIsMainUIVisible() const
+{
+    return HUDInputAdapter().IsMainUIVisible(this);
+}
+
+bool AMAPlayerController::RuntimeIsSelectionBoxActive() const
+{
+    return RuntimeAdapter().IsSelectionBoxActive(this);
+}
+
+void AMAPlayerController::RuntimeBeginSelectionBox(const FVector2D& Start)
+{
+    RuntimeAdapter().BeginSelectionBox(this, Start);
+}
+
+void AMAPlayerController::RuntimeUpdateSelectionBox(const FVector2D& Current)
+{
+    RuntimeAdapter().UpdateSelectionBox(this, Current);
+}
+
+void AMAPlayerController::RuntimeEndSelectionBox(const bool bAppendSelection)
+{
+    RuntimeAdapter().EndSelectionBox(this, bAppendSelection);
+}
+
+void AMAPlayerController::RuntimeCancelSelectionBox()
+{
+    RuntimeAdapter().CancelSelectionBox(this);
+}
+
+FVector2D AMAPlayerController::RuntimeGetSelectionBoxStart() const
+{
+    return RuntimeAdapter().GetSelectionBoxStart(this);
+}
+
+FVector2D AMAPlayerController::RuntimeGetSelectionBoxEnd() const
+{
+    return RuntimeAdapter().GetSelectionBoxEnd(this);
+}
+
+bool AMAPlayerController::RuntimeResolveCursorHit(
+    const ECollisionChannel CollisionChannel,
+    FHitResult& OutHitResult)
+{
+    return RuntimeAdapter().ResolveCursorHit(this, CollisionChannel, OutHitResult);
+}
+
+bool AMAPlayerController::RuntimeResolveMouseHitLocation(FVector& OutLocation)
+{
+    return RuntimeAdapter().ResolveMouseHitLocation(this, OutLocation);
+}
+
+TArray<FVector> AMAPlayerController::RuntimeProjectSelectionBoxToWorld(
+    const FVector2D& Start,
+    const FVector2D& End,
+    const int32 Count)
+{
+    return RuntimeAdapter().ProjectSelectionBoxToWorld(this, Start, End, Count);
+}
+
+AMACharacter* AMAPlayerController::RuntimeResolveClickedAgent()
+{
+    return RuntimeAdapter().ResolveClickedAgent(this);
+}
+
+void AMAPlayerController::RuntimeToggleSelection(AMACharacter* Agent)
+{
+    RuntimeAdapter().ToggleSelection(this, Agent);
+}
+
+void AMAPlayerController::RuntimeSelectAgent(AMACharacter* Agent)
+{
+    RuntimeAdapter().SelectAgent(this, Agent);
+}
+
+TArray<AMACharacter*> AMAPlayerController::RuntimeGetSelectedAgents() const
+{
+    return RuntimeAdapter().GetSelectedAgents(this);
+}
+
+void AMAPlayerController::RuntimeSaveToControlGroup(const int32 GroupIndex)
+{
+    RuntimeAdapter().SaveToControlGroup(this, GroupIndex);
+}
+
+void AMAPlayerController::RuntimeSelectControlGroup(const int32 GroupIndex)
+{
+    RuntimeAdapter().SelectControlGroup(this, GroupIndex);
+}
+
+FMAFeedback54 AMAPlayerController::RuntimeSendCommandToSelection(const EMACommand Command)
+{
+    return RuntimeAdapter().SendCommandToSelection(this, Command);
+}
+
+FString AMAPlayerController::RuntimeGetCommandDisplayName(const EMACommand Command) const
+{
+    return RuntimeAdapter().GetCommandDisplayName(Command);
+}
+
+FMAFeedback54 AMAPlayerController::RuntimeTogglePauseExecution()
+{
+    return RuntimeAdapter().TogglePauseExecution(this);
+}
+
+bool AMAPlayerController::RuntimeSpawnAgentByType(
+    const FString& AgentType,
+    const FVector& Location,
+    const FRotator& Rotation)
+{
+    return RuntimeAdapter().SpawnAgentByType(this, AgentType, Location, Rotation);
+}
+
+FMAAgentRuntimeStats AMAPlayerController::RuntimeGetAgentStats() const
+{
+    return RuntimeAdapter().GetAgentStats(this);
+}
+
+bool AMAPlayerController::RuntimeDestroyLastAgent(FString& OutAgentName)
+{
+    return RuntimeAdapter().DestroyLastAgent(this, OutAgentName);
+}
+
+int32 AMAPlayerController::RuntimeJumpSelectedAgents()
+{
+    return RuntimeAdapter().JumpSelectedAgents(this);
+}
+
+void AMAPlayerController::RuntimeNavigateSelectedAgentsToLocation(const FVector& TargetLocation)
+{
+    RuntimeAdapter().NavigateSelectedAgentsToLocation(this, TargetLocation);
+}
+
+void AMAPlayerController::RuntimeSwitchToNextCamera()
+{
+    RuntimeAdapter().SwitchToNextCamera(this);
+}
+
+void AMAPlayerController::RuntimeReturnToSpectator()
+{
+    RuntimeAdapter().ReturnToSpectator(this);
+}
+
+bool AMAPlayerController::RuntimeTakePhotoForCurrentCamera(FString& OutSensorName)
+{
+    return RuntimeAdapter().TakePhotoForCurrentCamera(this, OutSensorName);
+}
+
+FMACameraStreamRuntimeResult AMAPlayerController::RuntimeToggleTCPStreamForCurrentCamera()
+{
+    return RuntimeAdapter().ToggleTCPStreamForCurrentCamera(this);
+}
+
+void AMAPlayerController::RuntimeCycleFormation()
+{
+    RuntimeAdapter().CycleFormation(this);
+}
+
+bool AMAPlayerController::RuntimeCreateSquadFromSelection(FString& OutSquadName, int32& OutMemberCount)
+{
+    return RuntimeAdapter().CreateSquadFromSelection(this, OutSquadName, OutMemberCount);
+}
+
+int32 AMAPlayerController::RuntimeDisbandSelectedSquads()
+{
+    return RuntimeAdapter().DisbandSelectedSquads(this);
+}
+
+bool AMAPlayerController::RuntimeCanEnterEditMode() const
+{
+    return RuntimeAdapter().CanEnterEditMode(this);
+}
+
+void AMAPlayerController::RuntimeToggleEditSelection(AActor* HitActor)
+{
+    RuntimeAdapter().ToggleEditSelection(this, HitActor);
+}
+
+void AMAPlayerController::RuntimeClearEditSelection()
+{
+    RuntimeAdapter().ClearEditSelection(this);
+}
+
+AMAPointOfInterest* AMAPlayerController::RuntimeCreatePOI(const FVector& Location)
+{
+    return RuntimeAdapter().CreatePOI(this, Location);
+}
+
+void AMAPlayerController::RuntimeDestroyAllPOIs()
+{
+    RuntimeAdapter().DestroyAllPOIs(this);
+}
+
+AActor* AMAPlayerController::RuntimeFindHighlightRootActor(AActor* Actor) const
+{
+    return HighlightAdapter().FindRootActor(Actor);
+}
+
+void AMAPlayerController::RuntimeSetActorTreeHighlight(AActor* Actor, const bool bHighlight) const
+{
+    HighlightAdapter().SetActorTreeHighlight(Actor, bHighlight);
+}
+
 UMAHUDStateManager* AMAPlayerController::GetHUDStateManager() const
 {
-    FMAHUDInputAdapter HUDInputAdapter;
-    return HUDInputAdapter.ResolveHUDStateManager(this);
+    return HUDInputAdapter().ResolveHUDStateManager(this);
 }
 
 void AMAPlayerController::SetupInputComponent()

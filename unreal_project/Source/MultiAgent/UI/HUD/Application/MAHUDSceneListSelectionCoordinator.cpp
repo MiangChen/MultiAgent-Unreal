@@ -4,7 +4,6 @@
 
 #include "../MAHUD.h"
 #include "../../../Core/Interaction/Feedback/MAFeedback21.h"
-#include "../../../Core/Interaction/Infrastructure/MAFeedback21Applier.h"
 
 void FMAHUDSceneListSelectionCoordinator::HandleGoalClicked(AMAHUD* HUD, const FString& GoalId) const
 {
@@ -13,7 +12,7 @@ void FMAHUDSceneListSelectionCoordinator::HandleGoalClicked(AMAHUD* HUD, const F
         return;
     }
 
-    if (RuntimeAdapter.SelectGoalById(HUD, GoalId))
+    if (HUD->RuntimeSelectGoalById(GoalId))
     {
         return;
     }
@@ -26,7 +25,7 @@ void FMAHUDSceneListSelectionCoordinator::HandleZoneClicked(AMAHUD* HUD, const F
         return;
     }
 
-    if (RuntimeAdapter.SelectZoneById(HUD, ZoneId))
+    if (HUD->RuntimeSelectZoneById(ZoneId))
     {
         return;
     }
@@ -36,6 +35,5 @@ void FMAHUDSceneListSelectionCoordinator::HandleZoneClicked(AMAHUD* HUD, const F
         FString::Printf(TEXT("Zone %s has no visualization Actor"), *ZoneId),
         EMAFeedback21MessageSeverity::Warning);
 
-    FMAFeedback21Applier Feedback21Applier;
-    Feedback21Applier.ApplyToHUD(HUD, Feedback);
+    HUD->ApplyInteractionFeedback(Feedback);
 }

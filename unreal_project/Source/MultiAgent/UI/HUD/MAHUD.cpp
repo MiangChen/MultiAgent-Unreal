@@ -10,8 +10,46 @@
 #include "../../Core/Comm/MACommTypes.h"
 #include "../../Core/Types/MASimTypes.h"
 #include "../../Core/Manager/MASceneGraphNodeTypes.h"
+#include "../../Core/Interaction/Infrastructure/MAFeedback21Applier.h"
+#include "../Mode/Infrastructure/MAEditWidgetRuntimeAdapter.h"
+#include "Infrastructure/MAHUDBackendRuntimeAdapter.h"
+#include "Infrastructure/MAHUDEditRuntimeAdapter.h"
+#include "Infrastructure/MAHUDSceneActionRuntimeAdapter.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMAHUD, Log, All);
+
+namespace
+{
+const FMAFeedback21Applier& HUDFeedbackApplier()
+{
+    static const FMAFeedback21Applier Applier;
+    return Applier;
+}
+
+const FMAHUDBackendRuntimeAdapter& HUDBackendRuntimeAdapter()
+{
+    static const FMAHUDBackendRuntimeAdapter Adapter;
+    return Adapter;
+}
+
+const FMAHUDEditRuntimeAdapter& HUDEditRuntimeAdapter()
+{
+    static const FMAHUDEditRuntimeAdapter Adapter;
+    return Adapter;
+}
+
+const FMAHUDSceneActionRuntimeAdapter& HUDSceneActionRuntimeAdapter()
+{
+    static const FMAHUDSceneActionRuntimeAdapter Adapter;
+    return Adapter;
+}
+
+const FMAEditWidgetRuntimeAdapter& EditWidgetRuntimeAdapter()
+{
+    static const FMAEditWidgetRuntimeAdapter Adapter;
+    return Adapter;
+}
+}
 
 //=============================================================================
 // 构造函数
@@ -151,6 +189,152 @@ void AMAHUD::BindControllerEvents()
 AMAPlayerController* AMAHUD::GetMAPlayerController() const
 {
     return Cast<AMAPlayerController>(GetOwningPlayerController());
+}
+
+void AMAHUD::ApplyInteractionFeedback(const FMAFeedback21Batch& Feedback)
+{
+    HUDFeedbackApplier().ApplyToHUD(this, Feedback);
+}
+
+bool AMAHUD::RuntimeBindBackendEvents()
+{
+    return HUDBackendRuntimeAdapter().BindBackendEvents(GetWorld(), this);
+}
+
+bool AMAHUD::RuntimeSendNaturalLanguageCommand(const FString& Command)
+{
+    return HUDBackendRuntimeAdapter().SendNaturalLanguageCommand(GetWorld(), this, Command);
+}
+
+bool AMAHUD::RuntimeHasCommSubsystem() const
+{
+    return HUDBackendRuntimeAdapter().ResolveCommSubsystem(GetWorld()) != nullptr;
+}
+
+void AMAHUD::RuntimeSendTaskGraphSubmit(const FString& TaskGraphJson)
+{
+    HUDBackendRuntimeAdapter().SendTaskGraphSubmit(GetWorld(), TaskGraphJson);
+}
+
+void AMAHUD::RuntimeSendReviewResponse(
+    const bool bApproved,
+    const FString& DataJson,
+    const FString& RejectionReason)
+{
+    HUDBackendRuntimeAdapter().SendReviewResponse(GetWorld(), bApproved, DataJson, RejectionReason);
+}
+
+void AMAHUD::RuntimeSendButtonEvent(
+    const FString& WidgetName,
+    const FString& EventType,
+    const FString& Label)
+{
+    HUDBackendRuntimeAdapter().SendButtonEvent(GetWorld(), WidgetName, EventType, Label);
+}
+
+bool AMAHUD::RuntimeLoadSceneGraphNodes(TArray<FMASceneGraphNode>& OutNodes)
+{
+    return HUDEditRuntimeAdapter().LoadSceneGraphNodes(this, OutNodes);
+}
+
+void AMAHUD::RuntimeDrawSceneLabels(const TArray<FMASceneGraphNode>& Nodes)
+{
+    HUDEditRuntimeAdapter().DrawSceneLabels(this, Nodes);
+}
+
+void AMAHUD::RuntimeDrawPIPCameras()
+{
+    HUDEditRuntimeAdapter().DrawPIPCameras(this);
+}
+
+bool AMAHUD::RuntimeBindEditModeSelectionChanged()
+{
+    return HUDEditRuntimeAdapter().BindEditModeSelectionChanged(this);
+}
+
+void AMAHUD::RuntimeAssignSceneListEditModeManager(UMASceneListWidget* SceneListWidget)
+{
+    HUDEditRuntimeAdapter().AssignSceneListEditModeManager(this, SceneListWidget);
+}
+
+bool AMAHUD::RuntimeBuildEditModeIndicatorModel(FMAHUDEditModeIndicatorModel& OutModel) const
+{
+    return HUDEditRuntimeAdapter().BuildEditModeIndicatorModel(const_cast<AMAHUD*>(this), OutModel);
+}
+
+bool AMAHUD::RuntimeSelectGoalById(const FString& GoalId)
+{
+    return HUDEditRuntimeAdapter().SelectGoalById(this, GoalId);
+}
+
+bool AMAHUD::RuntimeSelectZoneById(const FString& ZoneId)
+{
+    return HUDEditRuntimeAdapter().SelectZoneById(this, ZoneId);
+}
+
+bool AMAHUD::RuntimeResolveCurrentEditSelection(
+    TWeakObjectPtr<AActor>& OutSelectedActor,
+    TArray<AMAPointOfInterest*>& OutSelectedPOIs)
+{
+    return EditWidgetRuntimeAdapter().ResolveCurrentSelection(this, OutSelectedActor, OutSelectedPOIs);
+}
+
+bool AMAHUD::RuntimeResolveEditActorNodes(
+    AActor* Actor,
+    TArray<FMASceneGraphNode>& OutNodes,
+    FString& OutError)
+{
+    return EditWidgetRuntimeAdapter().ResolveActorNodes(this, Actor, OutNodes, OutError);
+}
+
+FMASceneActionResult AMAHUD::RuntimeApplySingleModify(AActor* Actor, const FString& LabelText)
+{
+    return HUDSceneActionRuntimeAdapter().ApplySingleModify(this, Actor, LabelText);
+}
+
+FMASceneActionResult AMAHUD::RuntimeApplyMultiModify(
+    const TArray<AActor*>& Actors,
+    const FString& LabelText,
+    const FString& GeneratedJson)
+{
+    return HUDSceneActionRuntimeAdapter().ApplyMultiModify(this, Actors, LabelText, GeneratedJson);
+}
+
+FMASceneActionResult AMAHUD::RuntimeApplyNodeEdit(AActor* Actor, const FString& JsonContent)
+{
+    return HUDSceneActionRuntimeAdapter().ApplyNodeEdit(this, Actor, JsonContent);
+}
+
+FMASceneActionResult AMAHUD::RuntimeDeleteActor(AActor* Actor)
+{
+    return HUDSceneActionRuntimeAdapter().DeleteActor(this, Actor);
+}
+
+FMASceneActionResult AMAHUD::RuntimeCreateGoal(AMAPointOfInterest* POI, const FString& Description)
+{
+    return HUDSceneActionRuntimeAdapter().CreateGoal(this, POI, Description);
+}
+
+FMASceneActionResult AMAHUD::RuntimeCreateZone(
+    const TArray<AMAPointOfInterest*>& POIs,
+    const FString& Description)
+{
+    return HUDSceneActionRuntimeAdapter().CreateZone(this, POIs, Description);
+}
+
+FMASceneActionResult AMAHUD::RuntimeAddPresetActor(AMAPointOfInterest* POI, const FString& ActorType)
+{
+    return HUDSceneActionRuntimeAdapter().AddPresetActor(this, POI, ActorType);
+}
+
+FMASceneActionResult AMAHUD::RuntimeDeletePOIs(const TArray<AMAPointOfInterest*>& POIs)
+{
+    return HUDSceneActionRuntimeAdapter().DeletePOIs(this, POIs);
+}
+
+FMASceneActionResult AMAHUD::RuntimeSetGoalState(AActor* Actor, const bool bShouldSetGoal)
+{
+    return HUDSceneActionRuntimeAdapter().SetGoalState(this, Actor, bShouldSetGoal);
 }
 
 void AMAHUD::OnSimpleCommandSubmitted(const FString& Command)
@@ -538,7 +722,7 @@ void AMAHUD::OnModalConfirmedHandler(EMAModalType ModalType)
 {
     UE_LOG(LogMAHUD, Log, TEXT("OnModalConfirmedHandler: Modal confirmed, type=%s"),
         *UEnum::GetValueAsString(ModalType));
-    BackendCoordinator.HandleModalConfirmed(GetWorld(), UIManager, ModalType);
+    BackendCoordinator.HandleModalConfirmed(this, UIManager, ModalType);
 
     // 显示确认通知
     ShowNotification(TEXT("Changes confirmed"), false);
@@ -548,7 +732,7 @@ void AMAHUD::OnModalRejectedHandler(EMAModalType ModalType)
 {
     UE_LOG(LogMAHUD, Log, TEXT("OnModalRejectedHandler: Modal rejected, type=%s"),
         *UEnum::GetValueAsString(ModalType));
-    const bool bRejectedHandled = BackendCoordinator.HandleModalRejected(GetWorld(), UIManager, ModalType);
+    const bool bRejectedHandled = BackendCoordinator.HandleModalRejected(this, UIManager, ModalType);
 
     if (bRejectedHandled)
     {

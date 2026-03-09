@@ -61,6 +61,7 @@ flowchart LR
 补充：
 - `Core/Interaction/Feedback/` 现在同时承载 feedback 合同类型和纯 feedback 翻译逻辑，例如 `MAFeedbackPipeline`。
 - `Core/Interaction/Infrastructure/` 应只保留真正触达 Unreal runtime / HUD / Manager 的 adapter 与 applier。
+- `Core/Interaction/Application/` 不再直接 include `Infrastructure`；运行时访问统一经由 `PlayerController / Bootstrap` 的桥接入口转发。
 
 ## 2. Folder 图（当前实现）
 
@@ -124,15 +125,11 @@ flowchart TB
 
     INTAPP --> INTDOMAIN
     INTAPP --> FEEDBACK
-    INTAPP --> INTINFRA
-
     HUDAPP --> HUDDOMAIN
-    HUDAPP --> HUDINFRA
     HUDAPP --> MODEAPP
     HUDAPP --> FEEDBACK
 
     MODEAPP --> MODEDOMAIN
-    MODEAPP --> MODEINFRA
 
     INTINFRA --> MANAGER
     INTINFRA --> AGENT
@@ -152,7 +149,7 @@ flowchart TB
 ## 3. 必要说明
 
 - 当前仓库已经把 `Input` 主线收敛到 `Core/Interaction/*`，`PlayerController` 主要保留入口职责。
-- `UI/HUD/Application` 与 `UI/Mode/Application` 已经去掉直接 `GetWorld/GetSubsystem`，运行时访问统一下沉到各自的 `Infrastructure` adapter。
+- `UI/HUD/Application` 与 `UI/Mode/Application` 已经去掉直接 `GetWorld/GetSubsystem` 和 `Infrastructure` include，运行时访问统一经由 `AMAHUD / Widget / PlayerController` 的桥接入口转发。
 - `FB21` 已是统一 UI 反馈通道；命令派发链路已走通完整 `FB54 -> FB43 -> FB32 -> FB21`。
 - `scripts/check_interaction_architecture.py` 是架构守卫，用来阻止层级回退。
 - 如果后续继续重构，新代码默认应复用本页这套 `L1-L5 + Feedback + Bootstrap` 骨架，而不是再新开平行通道。

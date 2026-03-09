@@ -5,8 +5,10 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
 #include "../Core/Interaction/Domain/MAInputTypes.h"
+#include "../Core/Interaction/Domain/MAInteractionRuntimeTypes.h"
 #include "../Core/Interaction/Domain/MAMouseModeState.h"
 #include "../Core/Interaction/Domain/MADeploymentQueue.h"
+#include "../Core/Interaction/Feedback/MAFeedback54.h"
 #include "../Core/Interaction/Bootstrap/MAInteractionBootstrap.h"
 #include "../Core/Interaction/Infrastructure/MAFeedback21Applier.h"
 #include "../Core/Interaction/Application/MAModifySelectionState.h"
@@ -23,8 +25,12 @@
 #include "MAPlayerController.generated.h"
 
 class UMAHUDStateManager;
+class AActor;
+class AMACharacter;
+class AMAPointOfInterest;
 
 struct FInputActionValue;
+struct FHitResult;
 
 UCLASS()
 class MULTIAGENT_API AMAPlayerController : public APlayerController
@@ -34,6 +40,7 @@ class MULTIAGENT_API AMAPlayerController : public APlayerController
     friend class FMAEditInputCoordinator;
     friend class FMACameraInputCoordinator;
     friend class FMAAgentUtilityInputCoordinator;
+    friend class FMACommandInputCoordinator;
     friend class FMADeploymentInputCoordinator;
     friend class FMARTSSelectionInputCoordinator;
     friend class FMAModifyInputCoordinator;
@@ -253,6 +260,46 @@ public:
 
 private:
     void ApplyFeedback(const FMAFeedback21Batch& Feedback);
+    bool RuntimeIsMouseOverPersistentUI() const;
+    bool RuntimeIsMainUIVisible() const;
+    bool RuntimeIsSelectionBoxActive() const;
+    void RuntimeBeginSelectionBox(const FVector2D& Start);
+    void RuntimeUpdateSelectionBox(const FVector2D& Current);
+    void RuntimeEndSelectionBox(bool bAppendSelection);
+    void RuntimeCancelSelectionBox();
+    FVector2D RuntimeGetSelectionBoxStart() const;
+    FVector2D RuntimeGetSelectionBoxEnd() const;
+    bool RuntimeResolveCursorHit(ECollisionChannel CollisionChannel, FHitResult& OutHitResult);
+    bool RuntimeResolveMouseHitLocation(FVector& OutLocation);
+    TArray<FVector> RuntimeProjectSelectionBoxToWorld(const FVector2D& Start, const FVector2D& End, int32 Count);
+    AMACharacter* RuntimeResolveClickedAgent();
+    void RuntimeToggleSelection(AMACharacter* Agent);
+    void RuntimeSelectAgent(AMACharacter* Agent);
+    TArray<AMACharacter*> RuntimeGetSelectedAgents() const;
+    void RuntimeSaveToControlGroup(int32 GroupIndex);
+    void RuntimeSelectControlGroup(int32 GroupIndex);
+    FMAFeedback54 RuntimeSendCommandToSelection(EMACommand Command);
+    FString RuntimeGetCommandDisplayName(EMACommand Command) const;
+    FMAFeedback54 RuntimeTogglePauseExecution();
+    bool RuntimeSpawnAgentByType(const FString& AgentType, const FVector& Location, const FRotator& Rotation = FRotator::ZeroRotator);
+    FMAAgentRuntimeStats RuntimeGetAgentStats() const;
+    bool RuntimeDestroyLastAgent(FString& OutAgentName);
+    int32 RuntimeJumpSelectedAgents();
+    void RuntimeNavigateSelectedAgentsToLocation(const FVector& TargetLocation);
+    void RuntimeSwitchToNextCamera();
+    void RuntimeReturnToSpectator();
+    bool RuntimeTakePhotoForCurrentCamera(FString& OutSensorName);
+    FMACameraStreamRuntimeResult RuntimeToggleTCPStreamForCurrentCamera();
+    void RuntimeCycleFormation();
+    bool RuntimeCreateSquadFromSelection(FString& OutSquadName, int32& OutMemberCount);
+    int32 RuntimeDisbandSelectedSquads();
+    bool RuntimeCanEnterEditMode() const;
+    void RuntimeToggleEditSelection(AActor* HitActor);
+    void RuntimeClearEditSelection();
+    AMAPointOfInterest* RuntimeCreatePOI(const FVector& Location);
+    void RuntimeDestroyAllPOIs();
+    AActor* RuntimeFindHighlightRootActor(AActor* Actor) const;
+    void RuntimeSetActorTreeHighlight(AActor* Actor, bool bHighlight) const;
     // ========== 部署模式数据 ==========
 
     FMAMouseModeState MouseModeState;

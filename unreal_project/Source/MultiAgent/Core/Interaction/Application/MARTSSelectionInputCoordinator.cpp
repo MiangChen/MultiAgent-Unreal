@@ -15,13 +15,13 @@ void FMARTSSelectionInputCoordinator::HandleLeftClickStarted(AMAPlayerController
     float MouseY = 0.f;
     if (PlayerController->GetMousePosition(MouseX, MouseY))
     {
-        RuntimeAdapter.BeginSelectionBox(PlayerController, FVector2D(MouseX, MouseY));
+        PlayerController->RuntimeBeginSelectionBox(FVector2D(MouseX, MouseY));
     }
 }
 
 void FMARTSSelectionInputCoordinator::HandleLeftClickReleased(AMAPlayerController* PlayerController) const
 {
-    if (!PlayerController || !RuntimeAdapter.IsSelectionBoxActive(PlayerController))
+    if (!PlayerController || !PlayerController->RuntimeIsSelectionBoxActive())
     {
         return;
     }
@@ -30,33 +30,33 @@ void FMARTSSelectionInputCoordinator::HandleLeftClickReleased(AMAPlayerControlle
     float MouseY = 0.f;
     if (PlayerController->GetMousePosition(MouseX, MouseY))
     {
-        RuntimeAdapter.UpdateSelectionBox(PlayerController, FVector2D(MouseX, MouseY));
+        PlayerController->RuntimeUpdateSelectionBox(FVector2D(MouseX, MouseY));
     }
 
-    const FVector2D Start = RuntimeAdapter.GetSelectionBoxStart(PlayerController);
-    const FVector2D End = RuntimeAdapter.GetSelectionBoxEnd(PlayerController);
+    const FVector2D Start = PlayerController->RuntimeGetSelectionBoxStart();
+    const FVector2D End = PlayerController->RuntimeGetSelectionBoxEnd();
     const float BoxWidth = FMath::Abs(End.X - Start.X);
     const float BoxHeight = FMath::Abs(End.Y - Start.Y);
 
     if (BoxWidth < 10.f && BoxHeight < 10.f)
     {
-        RuntimeAdapter.CancelSelectionBox(PlayerController);
+        PlayerController->RuntimeCancelSelectionBox();
 
-        if (AMACharacter* Agent = RuntimeAdapter.ResolveClickedAgent(PlayerController))
+        if (AMACharacter* Agent = PlayerController->RuntimeResolveClickedAgent())
         {
             if (IsCtrlPressed(PlayerController))
             {
-                RuntimeAdapter.ToggleSelection(PlayerController, Agent);
+                PlayerController->RuntimeToggleSelection(Agent);
             }
             else
             {
-                RuntimeAdapter.SelectAgent(PlayerController, Agent);
+                PlayerController->RuntimeSelectAgent(Agent);
             }
         }
         return;
     }
 
-    RuntimeAdapter.EndSelectionBox(PlayerController, IsCtrlPressed(PlayerController));
+    PlayerController->RuntimeEndSelectionBox(IsCtrlPressed(PlayerController));
 }
 
 FMAFeedback21Batch FMARTSSelectionInputCoordinator::HandleMiddleClickNavigate(AMAPlayerController* PlayerController) const
@@ -67,7 +67,7 @@ FMAFeedback21Batch FMARTSSelectionInputCoordinator::HandleMiddleClickNavigate(AM
         return Feedback;
     }
 
-    const TArray<AMACharacter*> SelectedAgents = RuntimeAdapter.GetSelectedAgents(PlayerController);
+    const TArray<AMACharacter*> SelectedAgents = PlayerController->RuntimeGetSelectedAgents();
     if (SelectedAgents.IsEmpty())
     {
         Feedback.AddMessage(TEXT("No agents selected"), EMAFeedback21MessageSeverity::Warning);
@@ -80,7 +80,7 @@ FMAFeedback21Batch FMARTSSelectionInputCoordinator::HandleMiddleClickNavigate(AM
         return Feedback;
     }
 
-    RuntimeAdapter.NavigateSelectedAgentsToLocation(PlayerController, HitLocation);
+    PlayerController->RuntimeNavigateSelectedAgentsToLocation(HitLocation);
 
     return Feedback;
 }
@@ -93,20 +93,20 @@ FMAFeedback21Batch FMARTSSelectionInputCoordinator::Tick(AMAPlayerController* Pl
         return Feedback;
     }
 
-    if (RuntimeAdapter.IsSelectionBoxActive(PlayerController))
+    if (PlayerController->RuntimeIsSelectionBoxActive())
     {
         float MouseX = 0.f;
         float MouseY = 0.f;
         if (PlayerController->GetMousePosition(MouseX, MouseY))
         {
-            RuntimeAdapter.UpdateSelectionBox(PlayerController, FVector2D(MouseX, MouseY));
+            PlayerController->RuntimeUpdateSelectionBox(FVector2D(MouseX, MouseY));
         }
     }
 
     Feedback.SetSelectionBox(
-        RuntimeAdapter.IsSelectionBoxActive(PlayerController),
-        RuntimeAdapter.GetSelectionBoxStart(PlayerController),
-        RuntimeAdapter.GetSelectionBoxEnd(PlayerController));
+        PlayerController->RuntimeIsSelectionBoxActive(),
+        PlayerController->RuntimeGetSelectionBoxStart(),
+        PlayerController->RuntimeGetSelectionBoxEnd());
 
     return Feedback;
 }

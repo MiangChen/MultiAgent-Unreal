@@ -3,10 +3,7 @@
 #include "../../../Core/Manager/MASceneGraphManager.h"
 #include "../../../Environment/Utils/MAGoalActor.h"
 #include "../../../Environment/Utils/MAZoneActor.h"
-#include "Dom/JsonObject.h"
 #include "Kismet/GameplayStatics.h"
-#include "Serialization/JsonReader.h"
-#include "Serialization/JsonSerializer.h"
 
 namespace
 {
@@ -87,63 +84,4 @@ bool FMAEditWidgetSceneGraphAdapter::ResolveActorNodes(
     }
 
     return true;
-}
-
-bool FMAEditWidgetSceneGraphAdapter::ValidateJsonDocument(const FString& Json, FString& OutError) const
-{
-    if (Json.IsEmpty())
-    {
-        OutError = TEXT("JSON content cannot be empty");
-        return false;
-    }
-
-    TSharedPtr<FJsonObject> JsonObject;
-    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Json);
-    if (!FJsonSerializer::Deserialize(Reader, JsonObject) || !JsonObject.IsValid())
-    {
-        OutError = TEXT("Invalid JSON format, please check syntax");
-        return false;
-    }
-
-    if (!JsonObject->HasField(TEXT("id")))
-    {
-        OutError = TEXT("Missing required field: id");
-        return false;
-    }
-
-    OutError.Empty();
-    return true;
-}
-
-FString FMAEditWidgetSceneGraphAdapter::BuildEditableJson(const FMASceneGraphNode& Node) const
-{
-    if (!Node.RawJson.IsEmpty())
-    {
-        return Node.RawJson;
-    }
-
-    return FString::Printf(
-        TEXT("{\n  \"id\": \"%s\",\n  \"type\": \"%s\",\n  \"label\": \"%s\",\n  \"shape\": {\n    \"type\": \"%s\",\n    \"center\": [%.0f, %.0f, %.0f]\n  }\n}"),
-        *Node.Id,
-        *Node.Type,
-        *Node.Label,
-        *Node.ShapeType,
-        Node.Center.X, Node.Center.Y, Node.Center.Z);
-}
-
-bool FMAEditWidgetSceneGraphAdapter::IsPointTypeNode(const FMASceneGraphNode& Node) const
-{
-    return Node.ShapeType.Equals(TEXT("point"), ESearchCase::IgnoreCase);
-}
-
-bool FMAEditWidgetSceneGraphAdapter::IsGoalOrZoneActor(const AActor* Actor) const
-{
-    return Actor && (Actor->IsA<AMAGoalActor>() || Actor->IsA<AMAZoneActor>());
-}
-
-bool FMAEditWidgetSceneGraphAdapter::IsNodeMarkedGoal(const FMASceneGraphNode& Node) const
-{
-    return Node.RawJson.Contains(TEXT("\"is_goal\"")) &&
-        (Node.RawJson.Contains(TEXT("\"is_goal\": true")) ||
-         Node.RawJson.Contains(TEXT("\"is_goal\":true")));
 }

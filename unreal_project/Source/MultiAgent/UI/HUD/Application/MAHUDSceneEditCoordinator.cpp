@@ -31,7 +31,7 @@ void FMAHUDSceneEditCoordinator::HandleModifyConfirmed(AMAHUD* HUD, AActor* Acto
     {
         Actors.Add(Actor);
     }
-    FMASceneActionResult Result = SceneActionRuntimeAdapter.ApplySingleModify(HUD, Actor, LabelText);
+    FMASceneActionResult Result = HUD->RuntimeApplySingleModify(Actor, LabelText);
     ActionResultCoordinator.ApplyModifyResult(HUD, ModifyWidget, Actors, LabelText, Result);
 }
 
@@ -82,7 +82,7 @@ void FMAHUDSceneEditCoordinator::HandleMultiSelectModifyConfirmed(
     }
 
     UMAModifyWidget* ModifyWidget = HUD->UIManager ? HUD->UIManager->GetModifyWidget() : nullptr;
-    FMASceneActionResult Result = SceneActionRuntimeAdapter.ApplyMultiModify(HUD, Actors, LabelText, GeneratedJson);
+    FMASceneActionResult Result = HUD->RuntimeApplyMultiModify(Actors, LabelText, GeneratedJson);
     ActionResultCoordinator.ApplyModifyResult(HUD, ModifyWidget, Actors, LabelText, Result);
 }
 
@@ -95,7 +95,7 @@ void FMAHUDSceneEditCoordinator::HandleEditConfirmed(AMAHUD* HUD, AActor* Actor,
 
     UE_LOG(LogMAHUDSceneEditCoordinator, Log, TEXT("OnEditConfirmed: Actor=%s"), Actor ? *Actor->GetName() : TEXT("null"));
 
-    ActionResultCoordinator.ApplyResult(HUD, SceneActionRuntimeAdapter.ApplyNodeEdit(HUD, Actor, JsonContent));
+    ActionResultCoordinator.ApplyResult(HUD, HUD->RuntimeApplyNodeEdit(Actor, JsonContent));
 }
 
 void FMAHUDSceneEditCoordinator::HandleEditDeleteActor(AMAHUD* HUD, AActor* Actor) const
@@ -107,7 +107,7 @@ void FMAHUDSceneEditCoordinator::HandleEditDeleteActor(AMAHUD* HUD, AActor* Acto
 
     UE_LOG(LogMAHUDSceneEditCoordinator, Log, TEXT("OnEditDeleteActor: Actor=%s"), Actor ? *Actor->GetName() : TEXT("null"));
 
-    ActionResultCoordinator.ApplyResult(HUD, SceneActionRuntimeAdapter.DeleteActor(HUD, Actor));
+    ActionResultCoordinator.ApplyResult(HUD, HUD->RuntimeDeleteActor(Actor));
 }
 
 void FMAHUDSceneEditCoordinator::HandleEditCreateGoal(AMAHUD* HUD, AMAPointOfInterest* POI, const FString& Description) const
@@ -120,7 +120,7 @@ void FMAHUDSceneEditCoordinator::HandleEditCreateGoal(AMAHUD* HUD, AMAPointOfInt
     UE_LOG(LogMAHUDSceneEditCoordinator, Log, TEXT("OnEditCreateGoal: POI=%s, Description=%s"),
         POI ? TEXT("set") : TEXT("null"), *Description);
 
-    ActionResultCoordinator.ApplyResult(HUD, SceneActionRuntimeAdapter.CreateGoal(HUD, POI, Description));
+    ActionResultCoordinator.ApplyResult(HUD, HUD->RuntimeCreateGoal(POI, Description));
 }
 
 void FMAHUDSceneEditCoordinator::HandleEditCreateZone(AMAHUD* HUD, const TArray<AMAPointOfInterest*>& POIs, const FString& Description) const
@@ -132,7 +132,7 @@ void FMAHUDSceneEditCoordinator::HandleEditCreateZone(AMAHUD* HUD, const TArray<
 
     UE_LOG(LogMAHUDSceneEditCoordinator, Log, TEXT("OnEditCreateZone: %d POIs, Description=%s"), POIs.Num(), *Description);
 
-    ActionResultCoordinator.ApplyResult(HUD, SceneActionRuntimeAdapter.CreateZone(HUD, POIs, Description));
+    ActionResultCoordinator.ApplyResult(HUD, HUD->RuntimeCreateZone(POIs, Description));
 }
 
 void FMAHUDSceneEditCoordinator::HandleEditAddPresetActor(AMAHUD* HUD, AMAPointOfInterest* POI, const FString& ActorType) const
@@ -145,7 +145,7 @@ void FMAHUDSceneEditCoordinator::HandleEditAddPresetActor(AMAHUD* HUD, AMAPointO
     UE_LOG(LogMAHUDSceneEditCoordinator, Log, TEXT("OnEditAddPresetActor: POI=%s, ActorType=%s"),
         POI ? TEXT("set") : TEXT("null"), *ActorType);
 
-    ActionResultCoordinator.ApplyResult(HUD, SceneActionRuntimeAdapter.AddPresetActor(HUD, POI, ActorType));
+    ActionResultCoordinator.ApplyResult(HUD, HUD->RuntimeAddPresetActor(POI, ActorType));
 }
 
 void FMAHUDSceneEditCoordinator::HandleEditDeletePOIs(AMAHUD* HUD, const TArray<AMAPointOfInterest*>& POIs) const
@@ -157,7 +157,7 @@ void FMAHUDSceneEditCoordinator::HandleEditDeletePOIs(AMAHUD* HUD, const TArray<
 
     UE_LOG(LogMAHUDSceneEditCoordinator, Log, TEXT("OnEditDeletePOIs: %d POIs to delete"), POIs.Num());
 
-    ActionResultCoordinator.ApplyResult(HUD, SceneActionRuntimeAdapter.DeletePOIs(HUD, POIs));
+    ActionResultCoordinator.ApplyResult(HUD, HUD->RuntimeDeletePOIs(POIs));
 }
 
 void FMAHUDSceneEditCoordinator::HandleEditSetAsGoal(AMAHUD* HUD, AActor* Actor) const
@@ -169,7 +169,7 @@ void FMAHUDSceneEditCoordinator::HandleEditSetAsGoal(AMAHUD* HUD, AActor* Actor)
 
     UE_LOG(LogMAHUDSceneEditCoordinator, Log, TEXT("OnEditSetAsGoal: Actor=%s"), Actor ? *Actor->GetName() : TEXT("null"));
 
-    ActionResultCoordinator.ApplyResult(HUD, SceneActionRuntimeAdapter.SetGoalState(HUD, Actor, true));
+    ActionResultCoordinator.ApplyResult(HUD, HUD->RuntimeSetGoalState(Actor, true));
 }
 
 void FMAHUDSceneEditCoordinator::HandleEditUnsetAsGoal(AMAHUD* HUD, AActor* Actor) const
@@ -181,7 +181,7 @@ void FMAHUDSceneEditCoordinator::HandleEditUnsetAsGoal(AMAHUD* HUD, AActor* Acto
 
     UE_LOG(LogMAHUDSceneEditCoordinator, Log, TEXT("OnEditUnsetAsGoal: Actor=%s"), Actor ? *Actor->GetName() : TEXT("null"));
 
-    ActionResultCoordinator.ApplyResult(HUD, SceneActionRuntimeAdapter.SetGoalState(HUD, Actor, false));
+    ActionResultCoordinator.ApplyResult(HUD, HUD->RuntimeSetGoalState(Actor, false));
 }
 
 void FMAHUDSceneEditCoordinator::HandleEditActionRequest(AMAHUD* HUD, const FMAEditWidgetActionRequest& Request) const
@@ -218,7 +218,7 @@ void FMAHUDSceneEditCoordinator::HandleEditActionRequest(AMAHUD* HUD, const FMAE
         HandleEditDeletePOIs(HUD, Request.POIs);
         break;
     case EMAEditWidgetActionKind::SetGoalState:
-        ActionResultCoordinator.ApplyResult(HUD, SceneActionRuntimeAdapter.SetGoalState(HUD, Request.Actor, Request.bGoalState));
+        ActionResultCoordinator.ApplyResult(HUD, HUD->RuntimeSetGoalState(Request.Actor, Request.bGoalState));
         break;
     default:
         break;

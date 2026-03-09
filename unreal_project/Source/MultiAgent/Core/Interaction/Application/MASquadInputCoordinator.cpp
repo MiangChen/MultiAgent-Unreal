@@ -16,16 +16,16 @@ void FMASquadInputCoordinator::HandleControlGroup(AMAPlayerController* PlayerCon
 
     if (bCtrlPressed)
     {
-        RuntimeAdapter.SaveToControlGroup(PlayerController, GroupIndex);
+        PlayerController->RuntimeSaveToControlGroup(GroupIndex);
         return;
     }
 
-    RuntimeAdapter.SelectControlGroup(PlayerController, GroupIndex);
+    PlayerController->RuntimeSelectControlGroup(GroupIndex);
 }
 
 void FMASquadInputCoordinator::CycleFormation(AMAPlayerController* PlayerController) const
 {
-    RuntimeAdapter.CycleFormation(PlayerController);
+    PlayerController->RuntimeCycleFormation();
 }
 
 FMAFeedback21Batch FMASquadInputCoordinator::CreateSquad(AMAPlayerController* PlayerController) const
@@ -43,7 +43,7 @@ FMAFeedback21Batch FMASquadInputCoordinator::CreateSquad(AMAPlayerController* Pl
 
     FString SquadName;
     int32 MemberCount = 0;
-    if (!RuntimeAdapter.CreateSquadFromSelection(PlayerController, SquadName, MemberCount))
+    if (!PlayerController->RuntimeCreateSquadFromSelection(SquadName, MemberCount))
     {
         Feedback.AddMessage(TEXT("Select at least 2 agents to create squad (Q)"), EMAFeedback21MessageSeverity::Warning, 3.f);
         return Feedback;
@@ -70,7 +70,7 @@ FMAFeedback21Batch FMASquadInputCoordinator::DisbandSquad(AMAPlayerController* P
         return Feedback;
     }
 
-    const int32 DisbandedCount = RuntimeAdapter.DisbandSelectedSquads(PlayerController);
+    const int32 DisbandedCount = PlayerController->RuntimeDisbandSelectedSquads();
     if (DisbandedCount <= 0)
     {
         Feedback.AddMessage(TEXT("No squad to disband (Shift+Q)"), EMAFeedback21MessageSeverity::Warning, 3.f);

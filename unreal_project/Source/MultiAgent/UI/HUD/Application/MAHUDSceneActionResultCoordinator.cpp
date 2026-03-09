@@ -42,7 +42,10 @@ FMAFeedback21Batch BuildSceneActionFeedback(const FMASceneActionResult& Result)
 
 void FMAHUDSceneActionResultCoordinator::ApplyFeedback(AMAHUD* HUD, const FMAFeedback21Batch& Feedback) const
 {
-    Feedback21Applier.ApplyToHUD(HUD, Feedback);
+    if (HUD)
+    {
+        HUD->ApplyInteractionFeedback(Feedback);
+    }
 }
 
 void FMAHUDSceneActionResultCoordinator::ApplyResult(AMAHUD* HUD, const FMASceneActionResult& Result) const

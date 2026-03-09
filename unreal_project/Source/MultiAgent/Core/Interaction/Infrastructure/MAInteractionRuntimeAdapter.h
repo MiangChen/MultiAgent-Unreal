@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "../Domain/MAInteractionRuntimeTypes.h"
 #include "../Feedback/MAFeedback54.h"
 
 class AActor;
@@ -14,28 +15,6 @@ class UMASquad;
 
 enum class EMAAgentType : uint8;
 enum class EMACommand : uint8;
-
-struct FMAAgentRuntimeStats
-{
-    int32 Total = 0;
-    int32 UAVs = 0;
-    int32 Quadrupeds = 0;
-    int32 Humanoids = 0;
-    TArray<FString> AgentLines;
-};
-
-enum class EMACameraStreamEvent : uint8
-{
-    None,
-    Started,
-    Stopped
-};
-
-struct FMACameraStreamRuntimeResult
-{
-    EMACameraStreamEvent Event = EMACameraStreamEvent::None;
-    FString SensorName;
-};
 
 class MULTIAGENT_API FMAInteractionRuntimeAdapter
 {

@@ -24,7 +24,7 @@ void FMAEditWidgetCoordinator::RefreshFromEditModeSelection(AMAHUD* HUD, UMAEdit
 
     TWeakObjectPtr<AActor> SelectedActor;
     TArray<AMAPointOfInterest*> SelectedPOIs;
-    if (!RuntimeAdapter.ResolveCurrentSelection(HUD, SelectedActor, SelectedPOIs))
+    if (!HUD->RuntimeResolveCurrentEditSelection(SelectedActor, SelectedPOIs))
     {
         ClearSelection();
         ApplyCurrentViewModel(Widget);
@@ -80,7 +80,7 @@ bool FMAEditWidgetCoordinator::HandleConfirmRequested(
     }
 
     FString ValidationError;
-    if (!SceneGraphAdapter.ValidateJsonDocument(JsonContent, ValidationError))
+    if (!Widget->ValidateJsonDocument(JsonContent, ValidationError))
     {
         ApplyCurrentViewModel(Widget, ValidationError);
         return false;
@@ -108,8 +108,8 @@ bool FMAEditWidgetCoordinator::HandleDeleteActorRequested(UMAEditWidget* Widget,
     }
 
     const FMASceneGraphNode* CurrentNode = SelectionState.GetCurrentNode();
-    if (!SceneGraphAdapter.IsGoalOrZoneActor(SelectionState.SelectedActor.Get()) &&
-        (!CurrentNode || !SceneGraphAdapter.IsPointTypeNode(*CurrentNode)))
+    if (!Widget->IsGoalOrZoneActor(SelectionState.SelectedActor.Get()) &&
+        (!CurrentNode || !Widget->IsPointTypeNode(*CurrentNode)))
     {
         ApplyCurrentViewModel(Widget, TEXT("Only point type nodes can be deleted"));
         return false;
@@ -289,7 +289,7 @@ void FMAEditWidgetCoordinator::ApplyCurrentViewModel(UMAEditWidget* Widget, cons
         return;
     }
 
-    WidgetStateCoordinator.ApplyViewModel(Widget, BuildViewModel(ErrorMessage));
+    WidgetStateCoordinator.ApplyViewModel(Widget, BuildViewModel(Widget, ErrorMessage));
 }
 
 void FMAEditWidgetCoordinator::ClearSelection()
@@ -306,7 +306,7 @@ void FMAEditWidgetCoordinator::SetActorSelection(AMAHUD* HUD, AActor* Actor)
     if (HUD && Actor)
     {
         TArray<FMASceneGraphNode> ResolvedNodes;
-        if (RuntimeAdapter.ResolveActorNodes(HUD, Actor, ResolvedNodes, OutError))
+        if (HUD->RuntimeResolveEditActorNodes(Actor, ResolvedNodes, OutError))
         {
             SelectionState.ActorNodes = MoveTemp(ResolvedNodes);
         }
@@ -325,7 +325,7 @@ void FMAEditWidgetCoordinator::SetPOISelection(const TArray<AMAPointOfInterest*>
     }
 }
 
-FMAEditWidgetViewModel FMAEditWidgetCoordinator::BuildViewModel(const FString& ErrorMessage) const
+FMAEditWidgetViewModel FMAEditWidgetCoordinator::BuildViewModel(const UMAEditWidget* Widget, const FString& ErrorMessage) const
 {
     FMAEditWidgetViewModel ViewModel;
     ViewModel.ErrorText = ErrorMessage;
@@ -339,18 +339,18 @@ FMAEditWidgetViewModel FMAEditWidgetCoordinator::BuildViewModel(const FString& E
         const FMASceneGraphNode* CurrentNode = SelectionState.GetCurrentNode();
         if (CurrentNode)
         {
-            ViewModel.JsonContent = SceneGraphAdapter.BuildEditableJson(*CurrentNode);
+            ViewModel.JsonContent = Widget ? Widget->BuildEditableJson(*CurrentNode) : CurrentNode->RawJson;
             ViewModel.bShowDeleteActor =
-                SceneGraphAdapter.IsGoalOrZoneActor(SelectionState.SelectedActor.Get()) ||
-                SceneGraphAdapter.IsPointTypeNode(*CurrentNode);
+                (Widget && Widget->IsGoalOrZoneActor(SelectionState.SelectedActor.Get())) ||
+                (Widget && Widget->IsPointTypeNode(*CurrentNode));
 
-            const bool bIsGoalOrZoneActor = SceneGraphAdapter.IsGoalOrZoneActor(SelectionState.SelectedActor.Get());
-            const bool bIsCurrentNodeGoal = SceneGraphAdapter.IsNodeMarkedGoal(*CurrentNode);
+            const bool bIsGoalOrZoneActor = Widget && Widget->IsGoalOrZoneActor(SelectionState.SelectedActor.Get());
+            const bool bIsCurrentNodeGoal = Widget && Widget->IsNodeMarkedGoal(*CurrentNode);
 
             ViewModel.bShowSetAsGoal = !bIsGoalOrZoneActor && !bIsCurrentNodeGoal;
             ViewModel.bShowUnsetAsGoal = !bIsGoalOrZoneActor && bIsCurrentNodeGoal;
 
-            if (!SceneGraphAdapter.IsPointTypeNode(*CurrentNode))
+            if (!Widget || !Widget->IsPointTypeNode(*CurrentNode))
             {
                 ViewModel.HintText = TEXT("polygon/linestring type: only properties field modifications will be saved");
                 ViewModel.HintTone = EMAEditWidgetHintTone::Warning;

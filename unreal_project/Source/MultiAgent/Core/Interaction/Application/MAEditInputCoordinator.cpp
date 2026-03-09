@@ -18,23 +18,23 @@ FMAFeedback21Batch FMAEditInputCoordinator::HandleLeftClick(AMAPlayerController*
     if (bShiftPressed)
     {
         FHitResult HitResult;
-        if (RuntimeAdapter.ResolveCursorHit(PlayerController, ECC_Visibility, HitResult))
+        if (PlayerController->RuntimeResolveCursorHit(ECC_Visibility, HitResult))
         {
             if (AActor* HitActor = HitResult.GetActor())
             {
-                RuntimeAdapter.ToggleEditSelection(PlayerController, HitActor);
+                PlayerController->RuntimeToggleEditSelection(HitActor);
                 return Feedback;
             }
         }
 
-        RuntimeAdapter.ClearEditSelection(PlayerController);
+        PlayerController->RuntimeClearEditSelection();
         return Feedback;
     }
 
     FVector HitLocation;
-    if (RuntimeAdapter.ResolveMouseHitLocation(PlayerController, HitLocation))
+    if (PlayerController->RuntimeResolveMouseHitLocation(HitLocation))
     {
-        if (RuntimeAdapter.CreatePOI(PlayerController, HitLocation))
+        if (PlayerController->RuntimeCreatePOI(HitLocation))
         {
             UE_LOG(LogTemp, Log, TEXT("[EditInput] Created POI at %s"), *HitLocation.ToString());
             Feedback.AddMessage(
@@ -67,8 +67,8 @@ FMAFeedback21Batch FMAEditInputCoordinator::ExitMode(AMAPlayerController* Player
         return Feedback;
     }
 
-    RuntimeAdapter.ClearEditSelection(PlayerController);
-    RuntimeAdapter.DestroyAllPOIs(PlayerController);
+    PlayerController->RuntimeClearEditSelection();
+    PlayerController->RuntimeDestroyAllPOIs();
 
     Feedback.AddHUDAction(EMAFeedback21HUDAction::HideEditWidget);
     return Feedback;

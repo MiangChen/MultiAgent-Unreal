@@ -3,7 +3,6 @@
 #include "CoreMinimal.h"
 #include "../Feedback/MAFeedback21.h"
 #include "../Feedback/MAFeedbackPipeline.h"
-#include "../Infrastructure/MAInteractionRuntimeAdapter.h"
 
 enum class EMACommand : uint8;
 class AMAPlayerController;
@@ -16,5 +15,4 @@ public:
 
 private:
     FMAFeedbackPipeline FeedbackPipeline;
-    FMAInteractionRuntimeAdapter RuntimeAdapter;
 };
