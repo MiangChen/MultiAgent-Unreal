@@ -350,11 +350,6 @@ FReply UMAMiniMapWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, co
     return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
 }
 
-void UMAMiniMapWidget::DrawAgentIcon(AMACharacter* Agent)
-{
-    // 由 UpdateAgentPositions 统一处理
-}
-
 void UMAMiniMapWidget::ApplyTheme(UMAUITheme* InTheme)
 {
     Theme = InTheme;

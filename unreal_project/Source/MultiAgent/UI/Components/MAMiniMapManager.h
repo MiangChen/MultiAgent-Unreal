@@ -21,7 +21,6 @@ public:
 
 protected:
     virtual void BeginPlay() override;
-    virtual void Tick(float DeltaTime) override;
 
 public:
     /** 获取 Render Target */
@@ -57,10 +56,6 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MiniMap")
     int32 RenderTargetSize = 512;
 
-    /** Widget 类 */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MiniMap")
-    TSubclassOf<UMAMiniMapWidget> MiniMapWidgetClass;
-
 protected:
     /** Scene Capture 组件 */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "MiniMap")
@@ -78,6 +73,9 @@ private:
     /** 初始化 Scene Capture */
     void SetupSceneCapture();
 
-    /** 创建 Widget */
-    void CreateMiniMapWidget();
+    /** 解析并缓存当前主 HUD 上的小地图组件 */
+    UMAMiniMapWidget* ResolveMiniMapWidget();
+
+    /** 初始化主 HUD 上的小地图组件 */
+    void InitializeMainHUDMiniMap();
 };

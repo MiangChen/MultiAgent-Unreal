@@ -1,6 +1,5 @@
 // MAHUDBackendCoordinator.h
-// HUD 后端交互协调器
-// 封装后端事件绑定、通知更新和模态确认/拒绝提交流程
+// HUD backend interaction coordination.
 
 #pragma once
 

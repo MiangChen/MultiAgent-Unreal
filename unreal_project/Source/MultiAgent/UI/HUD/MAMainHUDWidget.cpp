@@ -74,18 +74,14 @@ void UMAMainHUDWidget::ApplyTheme(UMAUITheme* InTheme)
 
     Theme = InTheme;
 
-    // 应用主题到所有子组件
-    ApplyThemeToMiniMap();
+    if (MiniMapWidget)
+    {
+        MiniMapWidget->ApplyTheme(Theme);
+    }
+
     ApplyThemeToNotification();
-    // 注意：右侧边栏主题应用已移除，面板主题由 MAUIManager 直接管理
 
     UE_LOG(LogMAMainHUD, Log, TEXT("Theme applied to all components"));
-}
-
-void UMAMainHUDWidget::ApplyThemeToMiniMap()
-{
-    // 小地图目前没有主题支持，预留接口
-    // 未来可以添加边框颜色、背景色等主题属性
 }
 
 void UMAMainHUDWidget::ApplyThemeToNotification()
@@ -112,41 +108,6 @@ void UMAMainHUDWidget::InitializeMiniMap(UTextureRenderTarget2D* InRenderTarget,
     {
         UE_LOG(LogMAMainHUD, Warning, TEXT("InitializeMiniMap: MiniMapWidget is null"));
     }
-}
-
-//=============================================================================
-// 右侧边栏便捷方法 (已弃用 - 功能已迁移到独立面板)
-// 这些方法保留用于向后兼容，但不再执行任何操作
-//=============================================================================
-
-void UMAMainHUDWidget::UpdateTaskGraphPreview(const FMATaskGraphData& Data)
-{
-    // 已弃用：请使用 MAUIManager::GetPreviewPanel()->UpdateTaskGraphPreview()
-    UE_LOG(LogMAMainHUD, Warning, TEXT("UpdateTaskGraphPreview: This method is deprecated. Use MAUIManager::GetPreviewPanel() instead."));
-}
-
-void UMAMainHUDWidget::UpdateSkillListPreview(const FMASkillAllocationData& Data)
-{
-    // 已弃用：请使用 MAUIManager::GetPreviewPanel()->UpdateSkillListPreview()
-    UE_LOG(LogMAMainHUD, Warning, TEXT("UpdateSkillListPreview: This method is deprecated. Use MAUIManager::GetPreviewPanel() instead."));
-}
-
-void UMAMainHUDWidget::UpdateSkillStatus(int32 TimeStep, const FString& RobotId, ESkillExecutionStatus NewStatus)
-{
-    // 已弃用：请使用 MAUIManager::GetPreviewPanel()->UpdateSkillStatus()
-    UE_LOG(LogMAMainHUD, Warning, TEXT("UpdateSkillStatus: This method is deprecated. Use MAUIManager::GetPreviewPanel() instead."));
-}
-
-void UMAMainHUDWidget::AppendLog(const FString& Message, bool bIsError)
-{
-    // 已弃用：请使用 MAUIManager::GetSystemLogPanel()->AppendLog()
-    UE_LOG(LogMAMainHUD, Warning, TEXT("AppendLog: This method is deprecated. Use MAUIManager::GetSystemLogPanel() instead."));
-}
-
-void UMAMainHUDWidget::ClearLogs()
-{
-    // 已弃用：请使用 MAUIManager::GetSystemLogPanel()->ClearLogs()
-    UE_LOG(LogMAMainHUD, Warning, TEXT("ClearLogs: This method is deprecated. Use MAUIManager::GetSystemLogPanel() instead."));
 }
 
 //=============================================================================

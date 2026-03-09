@@ -528,6 +528,7 @@ private:
     // 场景标签可视化内部方法
     //=========================================================================
 
+public:
     /**
      * 加载场景图数据用于可视化
      * 从 SceneGraphManager 获取所有节点并缓存
@@ -578,6 +579,7 @@ private:
      */
     void DrawEditModeIndicator();
 
+public:
     /**
      * EditModeManager 选择变化回调
      */
@@ -589,6 +591,33 @@ private:
      */
     UFUNCTION()
     void OnTempSceneGraphChanged();
+
+    UFUNCTION()
+    void OnEditConfirmRequested(const FString& JsonContent);
+
+    UFUNCTION()
+    void OnEditDeleteRequested();
+
+    UFUNCTION()
+    void OnEditCreateGoalRequested(const FString& Description);
+
+    UFUNCTION()
+    void OnEditCreateZoneRequested(const FString& Description);
+
+    UFUNCTION()
+    void OnEditAddPresetActorRequested(const FString& ActorType);
+
+    UFUNCTION()
+    void OnEditDeletePOIsRequested();
+
+    UFUNCTION()
+    void OnEditSetAsGoalRequested();
+
+    UFUNCTION()
+    void OnEditUnsetAsGoalRequested();
+
+    UFUNCTION()
+    void OnEditNodeSwitchRequested(int32 NodeIndex);
 
     /**
      * EditWidget 确认修改回调

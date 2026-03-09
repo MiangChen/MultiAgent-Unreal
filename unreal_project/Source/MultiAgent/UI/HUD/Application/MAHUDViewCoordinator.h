@@ -1,6 +1,5 @@
 // MAHUDViewCoordinator.h
-// HUD 视图协调器
-// 封装常见的面板可见性操作、鼠标区域判断和通知转发
+// HUD view coordination.
 
 #pragma once
 

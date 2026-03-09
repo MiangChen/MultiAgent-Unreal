@@ -1,5 +1,4 @@
-// MAHUDOverlayCoordinator.cpp
-// HUD 叠加层与 EditMode 协调器实现
+// HUD overlay and edit-mode coordination.
 
 #include "MAHUDOverlayCoordinator.h"
 #include "../MAHUD.h"
@@ -8,14 +7,77 @@
 #include "../../../Core/Manager/MAEditModeManager.h"
 #include "../../../Core/Manager/MAPIPCameraManager.h"
 #include "../../../Core/Manager/MASceneGraphManager.h"
-#include "../../../Environment/Utils/MAGoalActor.h"
-#include "../../../Environment/Utils/MAPointOfInterest.h"
 #include "../../../Input/MAPlayerController.h"
 #include "../MAHUDWidget.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/Canvas.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMAHUDOverlayCoordinator, Log, All);
+
+namespace
+{
+    void ClearEditModeIndicatorLists(UMAHUDWidget* HUDWidget)
+    {
+        if (!HUDWidget)
+        {
+            return;
+        }
+
+        HUDWidget->UpdatePOIList({});
+        HUDWidget->UpdateGoalList({});
+        HUDWidget->UpdateZoneList({});
+    }
+}
+
+UMAEditWidget* FMAHUDOverlayCoordinator::ResolveEditWidget(AMAHUD* HUD) const
+{
+    return HUD && HUD->UIManager ? HUD->UIManager->GetEditWidget() : nullptr;
+}
+
+void FMAHUDOverlayCoordinator::BindEditWidgetDelegates(AMAHUD* HUD, UMAEditWidget* EditWidget) const
+{
+    if (!HUD || !EditWidget)
+    {
+        return;
+    }
+
+    if (!EditWidget->OnEditConfirmRequested.IsAlreadyBound(HUD, &AMAHUD::OnEditConfirmRequested))
+    {
+        EditWidget->OnEditConfirmRequested.AddDynamic(HUD, &AMAHUD::OnEditConfirmRequested);
+    }
+    if (!EditWidget->OnDeleteActorRequested.IsAlreadyBound(HUD, &AMAHUD::OnEditDeleteRequested))
+    {
+        EditWidget->OnDeleteActorRequested.AddDynamic(HUD, &AMAHUD::OnEditDeleteRequested);
+    }
+    if (!EditWidget->OnCreateGoalRequested.IsAlreadyBound(HUD, &AMAHUD::OnEditCreateGoalRequested))
+    {
+        EditWidget->OnCreateGoalRequested.AddDynamic(HUD, &AMAHUD::OnEditCreateGoalRequested);
+    }
+    if (!EditWidget->OnCreateZoneRequested.IsAlreadyBound(HUD, &AMAHUD::OnEditCreateZoneRequested))
+    {
+        EditWidget->OnCreateZoneRequested.AddDynamic(HUD, &AMAHUD::OnEditCreateZoneRequested);
+    }
+    if (!EditWidget->OnAddPresetActorRequested.IsAlreadyBound(HUD, &AMAHUD::OnEditAddPresetActorRequested))
+    {
+        EditWidget->OnAddPresetActorRequested.AddDynamic(HUD, &AMAHUD::OnEditAddPresetActorRequested);
+    }
+    if (!EditWidget->OnDeletePOIsRequested.IsAlreadyBound(HUD, &AMAHUD::OnEditDeletePOIsRequested))
+    {
+        EditWidget->OnDeletePOIsRequested.AddDynamic(HUD, &AMAHUD::OnEditDeletePOIsRequested);
+    }
+    if (!EditWidget->OnSetAsGoalRequested.IsAlreadyBound(HUD, &AMAHUD::OnEditSetAsGoalRequested))
+    {
+        EditWidget->OnSetAsGoalRequested.AddDynamic(HUD, &AMAHUD::OnEditSetAsGoalRequested);
+    }
+    if (!EditWidget->OnUnsetAsGoalRequested.IsAlreadyBound(HUD, &AMAHUD::OnEditUnsetAsGoalRequested))
+    {
+        EditWidget->OnUnsetAsGoalRequested.AddDynamic(HUD, &AMAHUD::OnEditUnsetAsGoalRequested);
+    }
+    if (!EditWidget->OnNodeSwitchRequested.IsAlreadyBound(HUD, &AMAHUD::OnEditNodeSwitchRequested))
+    {
+        EditWidget->OnNodeSwitchRequested.AddDynamic(HUD, &AMAHUD::OnEditNodeSwitchRequested);
+    }
+}
 
 void FMAHUDOverlayCoordinator::LoadSceneGraphForVisualization(AMAHUD* HUD) const
 {
@@ -150,53 +212,23 @@ void FMAHUDOverlayCoordinator::BindEditModeManagerEvents(AMAHUD* HUD) const
     UE_LOG(LogMAHUDOverlayCoordinator, Log, TEXT("BindEditModeManagerEvents: Bound to EditModeManager"));
 }
 
-void FMAHUDOverlayCoordinator::BindEditWidgetDelegates(AMAHUD* HUD) const
+void FMAHUDOverlayCoordinator::BindEditWidgetDelegates(AMAHUD* HUD)
 {
     if (!HUD)
     {
         return;
     }
 
-    UMAEditWidget* EditWidget = HUD->UIManager ? HUD->UIManager->GetEditWidget() : nullptr;
+    UMAEditWidget* EditWidget = ResolveEditWidget(HUD);
     if (!EditWidget)
     {
         UE_LOG(LogMAHUDOverlayCoordinator, Warning, TEXT("BindEditWidgetDelegates: EditWidget is null"));
         return;
     }
 
-    if (!EditWidget->OnEditConfirmed.IsAlreadyBound(HUD, &AMAHUD::OnEditConfirmed))
-    {
-        EditWidget->OnEditConfirmed.AddDynamic(HUD, &AMAHUD::OnEditConfirmed);
-    }
-    if (!EditWidget->OnDeleteActor.IsAlreadyBound(HUD, &AMAHUD::OnEditDeleteActor))
-    {
-        EditWidget->OnDeleteActor.AddDynamic(HUD, &AMAHUD::OnEditDeleteActor);
-    }
-    if (!EditWidget->OnCreateGoal.IsAlreadyBound(HUD, &AMAHUD::OnEditCreateGoal))
-    {
-        EditWidget->OnCreateGoal.AddDynamic(HUD, &AMAHUD::OnEditCreateGoal);
-    }
-    if (!EditWidget->OnCreateZone.IsAlreadyBound(HUD, &AMAHUD::OnEditCreateZone))
-    {
-        EditWidget->OnCreateZone.AddDynamic(HUD, &AMAHUD::OnEditCreateZone);
-    }
-    if (!EditWidget->OnAddPresetActor.IsAlreadyBound(HUD, &AMAHUD::OnEditAddPresetActor))
-    {
-        EditWidget->OnAddPresetActor.AddDynamic(HUD, &AMAHUD::OnEditAddPresetActor);
-    }
-    if (!EditWidget->OnDeletePOIs.IsAlreadyBound(HUD, &AMAHUD::OnEditDeletePOIs))
-    {
-        EditWidget->OnDeletePOIs.AddDynamic(HUD, &AMAHUD::OnEditDeletePOIs);
-    }
-    if (!EditWidget->OnSetAsGoal.IsAlreadyBound(HUD, &AMAHUD::OnEditSetAsGoal))
-    {
-        EditWidget->OnSetAsGoal.AddDynamic(HUD, &AMAHUD::OnEditSetAsGoal);
-    }
-    if (!EditWidget->OnUnsetAsGoal.IsAlreadyBound(HUD, &AMAHUD::OnEditUnsetAsGoal))
-    {
-        EditWidget->OnUnsetAsGoal.AddDynamic(HUD, &AMAHUD::OnEditUnsetAsGoal);
-    }
+    BindEditWidgetDelegates(HUD, EditWidget);
 
+    EditWidgetCoordinator.RefreshFromEditModeSelection(HUD, EditWidget);
     UE_LOG(LogMAHUDOverlayCoordinator, Log, TEXT("BindEditWidgetDelegates: Bound all EditWidget delegates"));
 }
 
@@ -218,82 +250,33 @@ void FMAHUDOverlayCoordinator::DrawEditModeIndicator(AMAHUD* HUD) const
 
     if (!bInEditMode)
     {
+        ClearEditModeIndicatorLists(HUDWidget);
         return;
     }
 
     UWorld* World = HUD->GetWorld();
     if (!World)
     {
+        ClearEditModeIndicatorLists(HUDWidget);
         return;
     }
 
-    UMAEditModeManager* EditModeManager = World->GetSubsystem<UMAEditModeManager>();
-    if (!EditModeManager)
+    FMAHUDEditModeIndicatorModel IndicatorModel;
+    if (!EditModeIndicatorBuilder.Build(World, IndicatorModel))
     {
+        ClearEditModeIndicatorLists(HUDWidget);
         return;
-    }
-
-    TArray<FString> POIInfos;
-    const TArray<AMAPointOfInterest*> POIs = EditModeManager->GetAllPOIs();
-    for (int32 i = 0; i < POIs.Num(); ++i)
-    {
-        if (POIs[i])
-        {
-            const FVector Loc = POIs[i]->GetActorLocation();
-            POIInfos.Add(FString::Printf(TEXT("[%d](%.0f, %.0f, %.0f)"), i + 1, Loc.X, Loc.Y, Loc.Z));
-        }
-    }
-
-    TArray<FString> GoalInfos;
-    UGameInstance* GI = World->GetGameInstance();
-    UMASceneGraphManager* SceneGraphManager = GI ? GI->GetSubsystem<UMASceneGraphManager>() : nullptr;
-    if (!SceneGraphManager)
-    {
-        return;
-    }
-
-    const TArray<FMASceneGraphNode> AllGoals = SceneGraphManager->GetAllGoals();
-    for (const FMASceneGraphNode& GoalNode : AllGoals)
-    {
-        FString Label = GoalNode.Label;
-        if (Label.IsEmpty())
-        {
-            Label = GoalNode.Id;
-        }
-
-        AMAGoalActor* GoalActor = EditModeManager->GetGoalActorByNodeId(GoalNode.Id);
-        if (GoalActor)
-        {
-            const FVector Loc = GoalActor->GetActorLocation();
-            GoalInfos.Add(FString::Printf(TEXT("[%s](%.0f, %.0f, %.0f)"), *Label, Loc.X, Loc.Y, Loc.Z));
-        }
-        else
-        {
-            GoalInfos.Add(FString::Printf(TEXT("[%s]"), *Label));
-        }
-    }
-
-    TArray<FString> ZoneInfos;
-    const TArray<FMASceneGraphNode> AllZones = SceneGraphManager->GetAllZones();
-    for (const FMASceneGraphNode& ZoneNode : AllZones)
-    {
-        FString Label = ZoneNode.Label;
-        if (Label.IsEmpty())
-        {
-            Label = ZoneNode.Id;
-        }
-        ZoneInfos.Add(FString::Printf(TEXT("[%s]"), *Label));
     }
 
     if (HUDWidget)
     {
-        HUDWidget->UpdatePOIList(POIInfos);
-        HUDWidget->UpdateGoalList(GoalInfos);
-        HUDWidget->UpdateZoneList(ZoneInfos);
+        HUDWidget->UpdatePOIList(IndicatorModel.POIInfos);
+        HUDWidget->UpdateGoalList(IndicatorModel.GoalInfos);
+        HUDWidget->UpdateZoneList(IndicatorModel.ZoneInfos);
     }
 }
 
-void FMAHUDOverlayCoordinator::HandleEditModeSelectionChanged(AMAHUD* HUD) const
+void FMAHUDOverlayCoordinator::HandleEditModeSelectionChanged(AMAHUD* HUD)
 {
     if (!HUD)
     {
@@ -302,39 +285,16 @@ void FMAHUDOverlayCoordinator::HandleEditModeSelectionChanged(AMAHUD* HUD) const
 
     UE_LOG(LogMAHUDOverlayCoordinator, Log, TEXT("OnEditModeSelectionChanged"));
 
-    UMAEditWidget* EditWidget = HUD->UIManager ? HUD->UIManager->GetEditWidget() : nullptr;
+    UMAEditWidget* EditWidget = ResolveEditWidget(HUD);
     if (!EditWidget)
     {
         return;
     }
 
-    UWorld* World = HUD->GetWorld();
-    if (!World)
-    {
-        return;
-    }
-
-    UMAEditModeManager* EditModeManager = World->GetSubsystem<UMAEditModeManager>();
-    if (!EditModeManager)
-    {
-        return;
-    }
-
-    if (EditModeManager->HasSelectedActor())
-    {
-        EditWidget->SetSelectedActor(EditModeManager->GetSelectedActor());
-    }
-    else if (EditModeManager->HasSelectedPOIs())
-    {
-        EditWidget->SetSelectedPOIs(EditModeManager->GetSelectedPOIs());
-    }
-    else
-    {
-        EditWidget->ClearSelection();
-    }
+    EditWidgetCoordinator.RefreshFromEditModeSelection(HUD, EditWidget);
 }
 
-void FMAHUDOverlayCoordinator::HandleTempSceneGraphChanged(AMAHUD* HUD) const
+void FMAHUDOverlayCoordinator::HandleTempSceneGraphChanged(AMAHUD* HUD)
 {
     if (!HUD)
     {
@@ -343,9 +303,63 @@ void FMAHUDOverlayCoordinator::HandleTempSceneGraphChanged(AMAHUD* HUD) const
 
     UE_LOG(LogMAHUDOverlayCoordinator, Log, TEXT("OnTempSceneGraphChanged"));
 
-    UMAEditWidget* EditWidget = HUD->UIManager ? HUD->UIManager->GetEditWidget() : nullptr;
+    UMAEditWidget* EditWidget = ResolveEditWidget(HUD);
     if (EditWidget)
     {
-        EditWidget->RefreshSceneGraphPreview();
+        EditWidgetCoordinator.RefreshCurrentSelection(HUD, EditWidget);
     }
+}
+
+void FMAHUDOverlayCoordinator::HandleEditConfirmRequested(AMAHUD* HUD, const FString& JsonContent)
+{
+    UMAEditWidget* EditWidget = ResolveEditWidget(HUD);
+    EditWidgetCoordinator.HandleConfirmRequested(HUD, EditWidget, JsonContent);
+}
+
+void FMAHUDOverlayCoordinator::HandleEditDeleteRequested(AMAHUD* HUD)
+{
+    UMAEditWidget* EditWidget = ResolveEditWidget(HUD);
+    EditWidgetCoordinator.HandleDeleteActorRequested(HUD, EditWidget);
+}
+
+void FMAHUDOverlayCoordinator::HandleEditCreateGoalRequested(AMAHUD* HUD, const FString& Description)
+{
+    UMAEditWidget* EditWidget = ResolveEditWidget(HUD);
+    EditWidgetCoordinator.HandleCreateGoalRequested(HUD, EditWidget, Description);
+}
+
+void FMAHUDOverlayCoordinator::HandleEditCreateZoneRequested(AMAHUD* HUD, const FString& Description)
+{
+    UMAEditWidget* EditWidget = ResolveEditWidget(HUD);
+    EditWidgetCoordinator.HandleCreateZoneRequested(HUD, EditWidget, Description);
+}
+
+void FMAHUDOverlayCoordinator::HandleEditAddPresetActorRequested(AMAHUD* HUD, const FString& ActorType)
+{
+    UMAEditWidget* EditWidget = ResolveEditWidget(HUD);
+    EditWidgetCoordinator.HandleAddPresetActorRequested(HUD, EditWidget, ActorType);
+}
+
+void FMAHUDOverlayCoordinator::HandleEditDeletePOIsRequested(AMAHUD* HUD)
+{
+    UMAEditWidget* EditWidget = ResolveEditWidget(HUD);
+    EditWidgetCoordinator.HandleDeletePOIsRequested(HUD, EditWidget);
+}
+
+void FMAHUDOverlayCoordinator::HandleEditSetAsGoalRequested(AMAHUD* HUD)
+{
+    UMAEditWidget* EditWidget = ResolveEditWidget(HUD);
+    EditWidgetCoordinator.HandleSetAsGoalRequested(HUD, EditWidget);
+}
+
+void FMAHUDOverlayCoordinator::HandleEditUnsetAsGoalRequested(AMAHUD* HUD)
+{
+    UMAEditWidget* EditWidget = ResolveEditWidget(HUD);
+    EditWidgetCoordinator.HandleUnsetAsGoalRequested(HUD, EditWidget);
+}
+
+void FMAHUDOverlayCoordinator::HandleEditNodeSwitchRequested(AMAHUD* HUD, int32 NodeIndex)
+{
+    UMAEditWidget* EditWidget = ResolveEditWidget(HUD);
+    EditWidgetCoordinator.HandleNodeSwitchRequested(HUD, EditWidget, NodeIndex);
 }

@@ -7,7 +7,6 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "../../Core/Types/MATaskGraphTypes.h"
 #include "MAMainHUDWidget.generated.h"
 
 class UCanvasPanel;
@@ -15,8 +14,6 @@ class UMAMiniMapWidget;
 class UMANotificationWidget;
 class UMAUITheme;
 class UTextureRenderTarget2D;
-struct FMATaskGraphData;
-struct FMASkillAllocationData;
 
 //=============================================================================
 // MAMainHUDWidget 类
@@ -102,54 +99,6 @@ public:
     UFUNCTION(BlueprintCallable, Category = "MainHUD|MiniMap")
     void InitializeMiniMap(UTextureRenderTarget2D* InRenderTarget, FVector2D InWorldBounds);
 
-    //=========================================================================
-    // 右侧边栏便捷方法 (已弃用 - 功能已迁移到独立面板)
-    // 这些方法保留用于向后兼容，但不再执行任何操作
-    // 请使用 MAUIManager 获取 SystemLogPanel/PreviewPanel/InstructionPanel
-    //=========================================================================
-
-    /**
-     * 更新任务图预览 (已弃用)
-     * @param Data 任务图数据
-     * @deprecated 请使用 MAUIManager::GetPreviewPanel()->UpdateTaskGraphPreview()
-     */
-    UFUNCTION(BlueprintCallable, Category = "MainHUD|Sidebar", meta = (DeprecatedFunction, DeprecationMessage = "Use MAUIManager::GetPreviewPanel() instead"))
-    void UpdateTaskGraphPreview(const FMATaskGraphData& Data);
-
-    /**
-     * 更新技能列表预览 (已弃用)
-     * @param Data 技能分配数据
-     * @deprecated 请使用 MAUIManager::GetPreviewPanel()->UpdateSkillListPreview()
-     */
-    UFUNCTION(BlueprintCallable, Category = "MainHUD|Sidebar", meta = (DeprecatedFunction, DeprecationMessage = "Use MAUIManager::GetPreviewPanel() instead"))
-    void UpdateSkillListPreview(const FMASkillAllocationData& Data);
-
-    /**
-     * 更新单个技能的执行状态 (已弃用)
-     * @param TimeStep 时间步
-     * @param RobotId 机器人 ID
-     * @param NewStatus 新状态
-     * @deprecated 请使用 MAUIManager::GetPreviewPanel()->UpdateSkillStatus()
-     */
-    UFUNCTION(BlueprintCallable, Category = "MainHUD|Sidebar", meta = (DeprecatedFunction, DeprecationMessage = "Use MAUIManager::GetPreviewPanel() instead"))
-    void UpdateSkillStatus(int32 TimeStep, const FString& RobotId, ESkillExecutionStatus NewStatus);
-
-    /**
-     * 追加系统日志 (已弃用)
-     * @param Message 日志消息
-     * @param bIsError 是否为错误消息
-     * @deprecated 请使用 MAUIManager::GetSystemLogPanel()->AppendLog()
-     */
-    UFUNCTION(BlueprintCallable, Category = "MainHUD|Sidebar", meta = (DeprecatedFunction, DeprecationMessage = "Use MAUIManager::GetSystemLogPanel() instead"))
-    void AppendLog(const FString& Message, bool bIsError = false);
-
-    /**
-     * 清空系统日志 (已弃用)
-     * @deprecated 请使用 MAUIManager::GetSystemLogPanel()->ClearLogs()
-     */
-    UFUNCTION(BlueprintCallable, Category = "MainHUD|Sidebar", meta = (DeprecatedFunction, DeprecationMessage = "Use MAUIManager::GetSystemLogPanel() instead"))
-    void ClearLogs();
-
 protected:
     //=========================================================================
     // UUserWidget 重写
@@ -208,9 +157,6 @@ private:
 
     /** 创建并配置通知组件 */
     void CreateNotificationWidget();
-
-    /** 应用主题到小地图 */
-    void ApplyThemeToMiniMap();
 
     /** 应用主题到通知组件 */
     void ApplyThemeToNotification();

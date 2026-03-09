@@ -1,5 +1,4 @@
-// MAHUDPanelCoordinator.cpp
-// HUD 面板控制协调器实现
+// HUD panel visibility coordination.
 
 #include "MAHUDPanelCoordinator.h"
 #include "../MAHUD.h"
@@ -172,8 +171,7 @@ void FMAHUDPanelCoordinator::ShowModifyWidget(AMAHUD* HUD) const
         return;
     }
 
-    HUD->UIManager->ShowWidget(EMAWidgetType::Modify, true);
-    HUD->StartSceneLabelVisualization();
+    ModeWidgetLifecycleCoordinator.ShowModifyWidget(HUD);
 }
 
 void FMAHUDPanelCoordinator::HideModifyWidget(AMAHUD* HUD) const
@@ -189,13 +187,7 @@ void FMAHUDPanelCoordinator::HideModifyWidget(AMAHUD* HUD) const
         return;
     }
 
-    HUD->StopSceneLabelVisualization();
-    HUD->UIManager->HideWidget(EMAWidgetType::Modify);
-
-    if (UMAModifyWidget* ModifyWidget = HUD->UIManager->GetModifyWidget())
-    {
-        ModifyWidget->ClearSelection();
-    }
+    ModeWidgetLifecycleCoordinator.HideModifyWidget(HUD);
 }
 
 bool FMAHUDPanelCoordinator::IsModifyWidgetVisible(const AMAHUD* HUD) const
@@ -216,7 +208,7 @@ void FMAHUDPanelCoordinator::ShowEditWidget(AMAHUD* HUD) const
         return;
     }
 
-    HUD->UIManager->ShowWidget(EMAWidgetType::Edit, true);
+    ModeWidgetLifecycleCoordinator.ShowEditWidget(HUD);
 }
 
 void FMAHUDPanelCoordinator::HideEditWidget(AMAHUD* HUD) const
@@ -232,12 +224,7 @@ void FMAHUDPanelCoordinator::HideEditWidget(AMAHUD* HUD) const
         return;
     }
 
-    HUD->UIManager->HideWidget(EMAWidgetType::Edit);
-
-    if (UMAEditWidget* EditWidget = HUD->UIManager->GetEditWidget())
-    {
-        EditWidget->ClearSelection();
-    }
+    ModeWidgetLifecycleCoordinator.HideEditWidget(HUD);
 }
 
 bool FMAHUDPanelCoordinator::IsEditWidgetVisible(const AMAHUD* HUD) const

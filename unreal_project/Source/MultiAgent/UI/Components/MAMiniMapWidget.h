@@ -51,9 +51,6 @@ protected:
     /** 小地图坐标转世界坐标 */
     FVector MiniMapToWorld(FVector2D MiniMapLocation) const;
 
-    /** 绘制 Agent 图标 */
-    void DrawAgentIcon(AMACharacter* Agent);
-
     /** 根据 Agent 类型获取颜色 */
     FLinearColor GetAgentColor(AMACharacter* Agent, bool bIsSelected) const;
 

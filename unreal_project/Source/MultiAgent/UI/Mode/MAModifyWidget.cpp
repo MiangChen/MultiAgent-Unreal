@@ -1,6 +1,5 @@
-// MAModifyWidget.cpp
-// Modify Mode Panel Widget - Pure C++ Implementation
-// Supports single and multi-select modes
+
+// Modify mode panel widget.
 
 #include "MAModifyWidget.h"
 #include "Components/MultiLineEditableTextBox.h"
@@ -18,20 +17,8 @@
 #include "../Core/MARoundedBorderUtils.h"
 #include "../Core/MAFrostedGlassUtils.h"
 #include "../Core/MAUITheme.h"
-#include "../../Core/Config/MAConfigManager.h"
-#include "../../Core/Manager/MASceneGraphManager.h"
-#include "../../Utils/MAGeometryUtils.h"
-#include "Kismet/GameplayStatics.h"
-#include "Dom/JsonObject.h"
-#include "Serialization/JsonWriter.h"
-#include "Serialization/JsonSerializer.h"
-#include "Misc/FileHelper.h"
-#include "Misc/Paths.h"
-#include "Engine/GameInstance.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMAModifyWidget, Log, All);
-
-// Hint text constants - use anonymous namespace to avoid Unity Build conflicts
 namespace
 {
     const FString ModifyDefaultHintText = TEXT("Input format: cate:building/trans_facility/prop,type:xxx\n• building: Buildings (prism modeling, single-select only)\n• trans_facility: Transport facilities (OBB rectangle)\n• prop: Props (point modeling)");
@@ -39,12 +26,29 @@ namespace
     const FString ModifyBuildingHintText = TEXT("Building type (prism modeling)\nInput format: cate:building,type:xxx\n• Single-select only\n• Auto-calculates base polygon and height");
     const FString ModifyTransFacilityHintText = TEXT("TransFacility type (OBB rectangle modeling)\nInput format: cate:trans_facility,type:xxx\n• Supports single or multi-select\n• Auto-calculates minimum bounding rectangle");
     const FString ModifyPropHintText = TEXT("Prop type (point modeling)\nInput format: cate:prop,type:xxx\n• Supports single or multi-select\n• Auto-calculates geometric center");
+
+    FLinearColor ResolvePreviewToneColor(UMAUITheme* Theme, EMAModifyPreviewTone Tone)
+    {
+        switch (Tone)
+        {
+        case EMAModifyPreviewTone::Info:
+            return Theme ? Theme->PrimaryColor : FLinearColor(0.5f, 0.7f, 0.9f);
+        case EMAModifyPreviewTone::Success:
+            return Theme ? Theme->SuccessColor : FLinearColor(0.7f, 0.9f, 0.7f);
+        case EMAModifyPreviewTone::Warning:
+            return Theme ? Theme->WarningColor : FLinearColor(0.9f, 0.7f, 0.5f);
+        case EMAModifyPreviewTone::Error:
+            return Theme ? Theme->WarningColor : FLinearColor(0.9f, 0.4f, 0.4f);
+        case EMAModifyPreviewTone::Default:
+        default:
+            return Theme ? Theme->HintTextColor : FLinearColor(0.6f, 0.6f, 0.6f);
+        }
+    }
 }
 
 UMAModifyWidget::UMAModifyWidget(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
 {
-    // 确保 WidgetTree 存在
     if (!WidgetTree)
     {
         WidgetTree = NewObject<UWidgetTree>(this, TEXT("WidgetTree"));
@@ -54,17 +58,11 @@ UMAModifyWidget::UMAModifyWidget(const FObjectInitializer& ObjectInitializer)
 void UMAModifyWidget::NativePreConstruct()
 {
     Super::NativePreConstruct();
-    
-    // 在这里构建 UI，确保 WidgetTree 已经初始化
     if (WidgetTree && !WidgetTree->RootWidget)
     {
         BuildUI();
     }
 }
-
-//=========================================================================
-// ApplyTheme - 应用主题样式
-//=========================================================================
 
 void UMAModifyWidget::ApplyTheme(UMAUITheme* InTheme)
 {
@@ -74,20 +72,14 @@ void UMAModifyWidget::ApplyTheme(UMAUITheme* InTheme)
         UE_LOG(LogMAModifyWidget, Warning, TEXT("ApplyTheme: Theme is null, using default colors"));
         return;
     }
-
-    // 更新标题颜色
     if (TitleText)
     {
         TitleText->SetColorAndOpacity(FSlateColor(Theme->ModeModifyColor));
     }
-
-    // 更新提示文字颜色
     if (HintText)
     {
         HintText->SetColorAndOpacity(FSlateColor(Theme->HintTextColor));
     }
-
-    // 更新 JSON 预览文字颜色
     if (JsonPreviewText)
     {
         JsonPreviewText->SetColorAndOpacity(FSlateColor(Theme->SuccessColor));
@@ -99,15 +91,11 @@ void UMAModifyWidget::ApplyTheme(UMAUITheme* InTheme)
 void UMAModifyWidget::NativeConstruct()
 {
     Super::NativeConstruct();
-    
-    // 绑定确认按钮事件
     if (ConfirmButton && !ConfirmButton->OnClicked.IsAlreadyBound(this, &UMAModifyWidget::OnConfirmButtonClicked))
     {
         ConfirmButton->OnClicked.AddDynamic(this, &UMAModifyWidget::OnConfirmButtonClicked);
         UE_LOG(LogMAModifyWidget, Log, TEXT("ConfirmButton event bound"));
     }
-    
-    // 初始化为未选中状态
     ClearSelection();
     
     UE_LOG(LogMAModifyWidget, Log, TEXT("MAModifyWidget NativeConstruct completed"));
@@ -115,13 +103,10 @@ void UMAModifyWidget::NativeConstruct()
 
 TSharedRef<SWidget> UMAModifyWidget::RebuildWidget()
 {
-    // 确保 WidgetTree 存在
     if (!WidgetTree)
     {
         WidgetTree = NewObject<UWidgetTree>(this, TEXT("WidgetTree"));
     }
-    
-    // 构建 UI
     if (!WidgetTree->RootWidget)
     {
         BuildUI();
@@ -139,8 +124,6 @@ void UMAModifyWidget::BuildUI()
     }
     
     UE_LOG(LogMAModifyWidget, Log, TEXT("BuildUI: Starting UI construction..."));
-
-    // 创建根 CanvasPanel
     UCanvasPanel* RootCanvas = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("RootCanvas"));
     if (!RootCanvas)
     {
@@ -148,22 +131,18 @@ void UMAModifyWidget::BuildUI()
         return;
     }
     WidgetTree->RootWidget = RootCanvas;
-
-    // 获取主题
     if (!Theme)
     {
         Theme = NewObject<UMAUITheme>();
     }
-
-    // === 使用 MAFrostedGlassUtils 创建毛玻璃效果侧边栏 ===
     FMAFrostedGlassResult FrostedGlass = MAFrostedGlassUtils::CreateFixedSizePanelFromTheme(
         WidgetTree,
         RootCanvas,
         Theme,
-        FVector2D(20, -20),      // 位置：左边距 20，底部距离 20
-        FVector2D(350, 520),     // 尺寸：宽度 350，高度 520
-        FVector2D(0.0f, 1.0f),   // 对齐：底部对齐
-        FAnchors(0.0f, 1.0f, 0.0f, 1.0f),  // 锚点：左下角
+        FVector2D(20, -20),
+        FVector2D(350, 520),
+        FVector2D(0.0f, 1.0f),
+        FAnchors(0.0f, 1.0f, 0.0f, 1.0f),
         TEXT("ModifyPanel")
     );
     
@@ -172,25 +151,18 @@ void UMAModifyWidget::BuildUI()
         UE_LOG(LogMAModifyWidget, Error, TEXT("BuildUI: Failed to create frosted glass panel!"));
         return;
     }
-
-    // 创建垂直布局容器
     UVerticalBox* MainVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("MainVBox"));
     FrostedGlass.ContentContainer->AddChild(MainVBox);
-
-    // Title
     TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("TitleText"));
     TitleText->SetText(FText::FromString(TEXT("Modify Panel")));
     FSlateFontInfo TitleFont = TitleText->GetFont();
     TitleFont.Size = 16;
     TitleText->SetFont(TitleFont);
-    // 使用 Theme 颜色，fallback 到默认橙色 (Modify mode color)
     FLinearColor TitleColor = Theme ? Theme->ModeModifyColor : FLinearColor(1.0f, 0.6f, 0.0f);
     TitleText->SetColorAndOpacity(FSlateColor(TitleColor));
     
     UVerticalBoxSlot* TitleSlot = MainVBox->AddChildToVerticalBox(TitleText);
     TitleSlot->SetPadding(FMargin(0, 0, 0, 8));
-
-    // Mode Indicator - 显示当前操作模式 (Add New / Edit Existing)
     ModeIndicatorText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ModeIndicatorText"));
     ModeIndicatorText->SetText(FText::FromString(TEXT("➕ Add New Node")));
     FSlateFontInfo ModeFont = ModeIndicatorText->GetFont();
@@ -201,27 +173,19 @@ void UMAModifyWidget::BuildUI()
     
     UVerticalBoxSlot* ModeSlot = MainVBox->AddChildToVerticalBox(ModeIndicatorText);
     ModeSlot->SetPadding(FMargin(0, 0, 0, 10));
-
-    // Hint text
     HintText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("HintText"));
     HintText->SetText(FText::FromString(ModifyDefaultHintText));
     FSlateFontInfo HintFont = HintText->GetFont();
     HintFont.Size = 11;
     HintText->SetFont(HintFont);
-    // 使用 Theme 颜色，fallback 到默认灰色
     FLinearColor HintColor = Theme ? Theme->HintTextColor : FLinearColor(0.6f, 0.6f, 0.6f);
     HintText->SetColorAndOpacity(FSlateColor(HintColor));
-    HintText->SetAutoWrapText(true);  // 启用自动换行
+    HintText->SetAutoWrapText(true);
     
     UVerticalBoxSlot* HintSlot = MainVBox->AddChildToVerticalBox(HintText);
     HintSlot->SetPadding(FMargin(0, 0, 0, 10));
-
-    // JSON preview text box - read-only, displays JSON fragment for selected Actor
     UBorder* JsonPreviewBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("JsonPreviewBorder"));
     JsonPreviewBorder->SetPadding(FMargin(8.0f));
-    
-    // 应用圆角效果 - 深灰色背景
-    // 使用 Theme 颜色，fallback 到默认深灰色
     FLinearColor JsonPreviewBgColor = Theme ? Theme->CanvasBackgroundColor : FLinearColor(0.15f, 0.15f, 0.15f, 1.0f);
     MARoundedBorderUtils::ApplyRoundedCorners(JsonPreviewBorder, JsonPreviewBgColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
     
@@ -233,7 +197,6 @@ void UMAModifyWidget::BuildUI()
     FSlateFontInfo JsonFont = JsonPreviewText->GetFont();
     JsonFont.Size = 11;
     JsonPreviewText->SetFont(JsonFont);
-    // 使用 Theme 颜色，fallback 到默认浅绿色
     FLinearColor JsonPreviewTextColor = Theme ? Theme->SuccessColor : FLinearColor(0.7f, 0.9f, 0.7f);
     JsonPreviewText->SetColorAndOpacity(FSlateColor(JsonPreviewTextColor));
     JsonPreviewText->SetAutoWrapText(true);
@@ -246,22 +209,15 @@ void UMAModifyWidget::BuildUI()
     
     UVerticalBoxSlot* JsonPreviewSlot = MainVBox->AddChildToVerticalBox(JsonPreviewSizeBox);
     JsonPreviewSlot->SetPadding(FMargin(0, 0, 0, 10));
-
-    // Multi-line text box - wrapped in rounded border
     LabelTextBox = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(UMultiLineEditableTextBox::StaticClass(), TEXT("LabelTextBox"));
     LabelTextBox->SetHintText(FText::FromString(ModifyDefaultHintText));
-    
-    // Set text color to strict black - via WidgetStyle property, with transparent background
     FEditableTextBoxStyle TextBoxStyle;
-    // 使用 Theme 颜色，fallback 到默认黑色
     FLinearColor InputTextColor = Theme ? Theme->InputTextColor : FLinearColor(0.0f, 0.0f, 0.0f, 1.0f);
     FSlateColor BlackColor = FSlateColor(InputTextColor);
     TextBoxStyle.SetForegroundColor(BlackColor);
     TextBoxStyle.SetFocusedForegroundColor(BlackColor);
     FSlateFontInfo TextBoxFont = FCoreStyle::GetDefaultFontStyle("Regular", 11);
     TextBoxStyle.SetFont(TextBoxFont);
-    
-    // 设置透明背景，让外层圆角 Border 的背景显示出来
     FSlateBrush TransparentBrush;
     TransparentBrush.TintColor = FSlateColor(FLinearColor::Transparent);
     TextBoxStyle.SetBackgroundImageNormal(TransparentBrush);
@@ -270,19 +226,12 @@ void UMAModifyWidget::BuildUI()
     TextBoxStyle.SetBackgroundImageReadOnly(TransparentBrush);
     
     LabelTextBox->WidgetStyle = TextBoxStyle;
-    
-    // 创建圆角 Border 包装文本框
     UBorder* LabelTextBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("LabelTextBorder"));
     LabelTextBorder->SetPadding(FMargin(8.0f, 4.0f));
-    
-    // 应用圆角效果 - 可编辑文本框使用白色背景
-    // 使用 Theme 颜色，fallback 到默认白色
     FLinearColor LabelTextBgColor = Theme ? Theme->InputBackgroundColor : FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
     MARoundedBorderUtils::ApplyRoundedCorners(LabelTextBorder, LabelTextBgColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
     
     LabelTextBorder->AddChild(LabelTextBox);
-    
-    // Use SizeBox to set minimum height
     USizeBox* TextBoxSizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("TextBoxSizeBox"));
     TextBoxSizeBox->SetMinDesiredHeight(150.0f);
     TextBoxSizeBox->AddChild(LabelTextBorder);
@@ -290,8 +239,6 @@ void UMAModifyWidget::BuildUI()
     UVerticalBoxSlot* TextBoxSlot = MainVBox->AddChildToVerticalBox(TextBoxSizeBox);
     TextBoxSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
     TextBoxSlot->SetPadding(FMargin(0, 0, 0, 15));
-
-    // Confirm button
     ConfirmButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("ConfirmButton"));
     
     UTextBlock* ButtonText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("ButtonText"));
@@ -308,93 +255,88 @@ void UMAModifyWidget::BuildUI()
     UE_LOG(LogMAModifyWidget, Log, TEXT("BuildUI: UI construction completed successfully"));
 }
 
-
-//=========================================================================
-// GenerateActorLabel - 占位符实现
-//=========================================================================
-
-FString UMAModifyWidget::GenerateActorLabel(AActor* Actor) const
+void UMAModifyWidget::ApplySelectionViewModel(const FMAModifySelectionViewModel& ViewModel)
 {
-    if (!Actor)
+    SetAnnotationMode(ViewModel.AnnotationMode, ViewModel.EditingNodeId);
+
+    if (LabelTextBox)
     {
-        return FString();
+        LabelTextBox->SetText(FText::FromString(ViewModel.LabelInputText));
+        if (!ViewModel.LabelInputHintText.IsEmpty())
+        {
+            LabelTextBox->SetHintText(FText::FromString(ViewModel.LabelInputHintText));
+        }
     }
-    
-    // 获取 Actor 名称
-    FString ActorName = Actor->GetName();
-    
-    // 占位符标签 - 未来从 IMALabelProvider 获取
-    FString Label = TEXT("[placeholder]");
-    
-    // 格式: "Actor: [ActorName]\nLabel: [placeholder]"
-    return FString::Printf(TEXT("Actor: %s\nLabel: %s"), *ActorName, *Label);
+
+    if (HintText)
+    {
+        HintText->SetText(FText::FromString(ViewModel.HintText));
+        const bool bHasSelection = !ViewModel.HintText.Equals(ModifyDefaultHintText);
+        const FLinearColor HintColor = bHasSelection
+            ? (Theme ? Theme->SuccessColor : FLinearColor(0.3f, 0.8f, 0.3f))
+            : (Theme ? Theme->HintTextColor : FLinearColor(0.6f, 0.6f, 0.6f));
+        HintText->SetColorAndOpacity(FSlateColor(HintColor));
+    }
 }
 
+void UMAModifyWidget::ApplyPreviewModel(const FMAModifyPreviewModel& PreviewModel)
+{
+    if (!JsonPreviewText)
+    {
+        return;
+    }
 
-//=========================================================================
-// SetSelectedActor - 设置选中的 Actor (单选模式)
-//=========================================================================
+    JsonPreviewText->SetText(FText::FromString(PreviewModel.Text));
+    JsonPreviewText->SetColorAndOpacity(FSlateColor(ResolvePreviewToneColor(Theme, PreviewModel.Tone)));
+}
+
 
 void UMAModifyWidget::SetSelectedActor(AActor* Actor)
 {
     if (!Actor)
     {
-        // 如果传入 nullptr，清除选择
         ClearSelection();
         return;
     }
-    
-    // Single-select mode: clear array and add single Actor
+
     SelectedActors.Empty();
     SelectedActors.Add(Actor);
-    
-    // 检测是否已标记
-    FString ActorGuid = Actor->GetActorGuid().ToString();
+
     TArray<FMASceneGraphNode> MatchingNodes;
-    
-    if (FindMatchingNodes(ActorGuid, MatchingNodes) && MatchingNodes.Num() > 0)
+    FString MatchError;
+    const bool bHasMatchingNode = SceneGraphAdapter.FindMatchingNodes(
+        GetWorld(),
+        Actor->GetActorGuid().ToString(),
+        MatchingNodes,
+        MatchError) && MatchingNodes.Num() > 0;
+    const FMASceneGraphNode* MatchedNode = bHasMatchingNode ? &MatchingNodes[0] : nullptr;
+    if (!bHasMatchingNode && !MatchError.IsEmpty())
     {
-        // 已标记 - 进入编辑模式
-        const FMASceneGraphNode& Node = MatchingNodes[0];
-        SetAnnotationMode(EMAAnnotationMode::EditExisting, Node.Id);
-        PopulateInputFromNode(Node);
-        
+        UE_LOG(LogMAModifyWidget, Verbose, TEXT("SetSelectedActor: Match lookup failed for %s: %s"),
+            *Actor->GetName(), *MatchError);
+    }
+    ApplySelectionViewModel(FMAModifyWidgetModel::BuildSelectionViewModel(
+        SelectedActors,
+        MatchedNode,
+        ModifyDefaultHintText,
+        ModifyMultiSelectHintText));
+
+    if (MatchedNode)
+    {
         UE_LOG(LogMAModifyWidget, Log, TEXT("SetSelectedActor: Actor %s is marked, entering EditExisting mode for node %s"),
-            *Actor->GetName(), *Node.Id);
+            *Actor->GetName(), *MatchedNode->Id);
     }
     else
     {
-        // 未标记 - 进入新增模式
-        SetAnnotationMode(EMAAnnotationMode::AddNew, TEXT(""));
-        if (LabelTextBox)
-        {
-            LabelTextBox->SetText(FText::GetEmpty());
-            LabelTextBox->SetHintText(FText::FromString(ModifyDefaultHintText));
-        }
-        
         UE_LOG(LogMAModifyWidget, Log, TEXT("SetSelectedActor: Actor %s is not marked, entering AddNew mode"),
             *Actor->GetName());
     }
-    
-    // Update hint text
-    if (HintText)
-    {
-        HintText->SetText(FText::FromString(FString::Printf(TEXT("Selected: %s"), *Actor->GetName())));
-        FLinearColor SelectedHintColor = Theme ? Theme->SuccessColor : FLinearColor(0.3f, 0.8f, 0.3f);
-        HintText->SetColorAndOpacity(FSlateColor(SelectedHintColor));
-    }
-    
-    // Update JSON preview
+
     UpdateJsonPreview(Actor);
 }
 
-//=========================================================================
-// SetSelectedActors - Set multiple selected Actors (multi-select mode)
-//=========================================================================
-
 void UMAModifyWidget::SetSelectedActors(const TArray<AActor*>& Actors)
 {
-    // 过滤掉 nullptr
     SelectedActors.Empty();
     for (AActor* Actor : Actors)
     {
@@ -409,95 +351,27 @@ void UMAModifyWidget::SetSelectedActors(const TArray<AActor*>& Actors)
         ClearSelection();
         return;
     }
-    
-    // 检测是否所有选中的 Actor 都属于同一个已标记节点
-    // 收集所有 Actor 的 GUID
-    TSet<FString> AllActorGuids;
-    for (AActor* Actor : SelectedActors)
-    {
-        AllActorGuids.Add(Actor->GetActorGuid().ToString());
-    }
-    
-    // 查找第一个 Actor 对应的节点
-    FString FirstActorGuid = SelectedActors[0]->GetActorGuid().ToString();
-    TArray<FMASceneGraphNode> MatchingNodes;
-    bool bFoundMatchingNode = false;
+
     FMASceneGraphNode MatchedNode;
-    
-    if (FindMatchingNodes(FirstActorGuid, MatchingNodes))
-    {
-        // 检查是否有节点包含所有选中的 Actor
-        for (const FMASceneGraphNode& Node : MatchingNodes)
-        {
-            if (Node.GuidArray.Num() > 0)
-            {
-                // 检查节点的 GuidArray 是否包含所有选中的 Actor
-                TSet<FString> NodeGuids(Node.GuidArray);
-                bool bAllMatch = true;
-                for (const FString& ActorGuid : AllActorGuids)
-                {
-                    if (!NodeGuids.Contains(ActorGuid))
-                    {
-                        bAllMatch = false;
-                        break;
-                    }
-                }
-                if (bAllMatch)
-                {
-                    bFoundMatchingNode = true;
-                    MatchedNode = Node;
-                    break;
-                }
-            }
-        }
-    }
-    
+    FString MatchError;
+    const bool bFoundMatchingNode = SceneGraphAdapter.FindSharedNodeForActors(GetWorld(), SelectedActors, MatchedNode, MatchError);
+    ApplySelectionViewModel(FMAModifyWidgetModel::BuildSelectionViewModel(
+        SelectedActors,
+        bFoundMatchingNode ? &MatchedNode : nullptr,
+        ModifyDefaultHintText,
+        ModifyMultiSelectHintText));
+
     if (bFoundMatchingNode)
     {
-        // 所有选中的 Actor 都属于同一个节点 - 进入编辑模式
-        SetAnnotationMode(EMAAnnotationMode::EditExisting, MatchedNode.Id);
-        PopulateInputFromNode(MatchedNode);
-        
         UE_LOG(LogMAModifyWidget, Log, TEXT("SetSelectedActors: All %d actors belong to node %s, entering EditExisting mode"),
             SelectedActors.Num(), *MatchedNode.Id);
     }
     else
     {
-        // 未找到匹配节点或选中的 Actor 不属于同一个节点 - 进入新增模式
-        SetAnnotationMode(EMAAnnotationMode::AddNew, TEXT(""));
-        if (LabelTextBox)
-        {
-            LabelTextBox->SetText(FText::GetEmpty());
-            if (SelectedActors.Num() > 1)
-            {
-                LabelTextBox->SetHintText(FText::FromString(ModifyMultiSelectHintText));
-            }
-            else
-            {
-                LabelTextBox->SetHintText(FText::FromString(ModifyDefaultHintText));
-            }
-        }
-        
         UE_LOG(LogMAModifyWidget, Log, TEXT("SetSelectedActors: %d actors selected, entering AddNew mode"),
             SelectedActors.Num());
     }
-    
-    // Update hint text to display selection count
-    if (HintText)
-    {
-        if (SelectedActors.Num() == 1)
-        {
-            HintText->SetText(FText::FromString(FString::Printf(TEXT("Selected: %s"), *SelectedActors[0]->GetName())));
-        }
-        else
-        {
-            HintText->SetText(FText::FromString(FString::Printf(TEXT("Selected: %d Actors"), SelectedActors.Num())));
-        }
-        FLinearColor SelectedHintColor = Theme ? Theme->SuccessColor : FLinearColor(0.3f, 0.8f, 0.3f);
-        HintText->SetColorAndOpacity(FSlateColor(SelectedHintColor));
-    }
-    
-    // Update JSON preview
+
     if (SelectedActors.Num() > 1)
     {
         UpdateJsonPreviewMultiSelect(SelectedActors);
@@ -510,44 +384,14 @@ void UMAModifyWidget::SetSelectedActors(const TArray<AActor*>& Actors)
     UE_LOG(LogMAModifyWidget, Log, TEXT("SetSelectedActors: %d actors selected"), SelectedActors.Num());
 }
 
-//=========================================================================
-// ClearSelection - Clear selection state
-//=========================================================================
-
 void UMAModifyWidget::ClearSelection()
 {
     SelectedActors.Empty();
-    
-    // 重置为新增模式
-    SetAnnotationMode(EMAAnnotationMode::AddNew, TEXT(""));
-    
-    // Clear text box
-    if (LabelTextBox)
-    {
-        LabelTextBox->SetText(FText::GetEmpty());
-    }
-    
-    // Display hint text
-    if (HintText)
-    {
-        HintText->SetText(FText::FromString(ModifyDefaultHintText));
-        // 使用 Theme 颜色，fallback 到默认灰色
-        FLinearColor DefaultHintColor = Theme ? Theme->HintTextColor : FLinearColor(0.6f, 0.6f, 0.6f);
-        HintText->SetColorAndOpacity(FSlateColor(DefaultHintColor));
-    }
-    
-    // Clear JSON preview
-    if (JsonPreviewText)
-    {
-        JsonPreviewText->SetText(FText::FromString(TEXT("Select an Actor to display JSON preview")));
-    }
-    
+    ApplySelectionViewModel(FMAModifyWidgetModel::BuildSelectionViewModel({}, nullptr, ModifyDefaultHintText, ModifyMultiSelectHintText));
+    ApplyPreviewModel(FMAModifyPreviewModel());
+
     UE_LOG(LogMAModifyWidget, Log, TEXT("ClearSelection: Selection cleared"));
 }
-
-//=========================================================================
-// GetLabelText / SetLabelText - Text box content access
-//=========================================================================
 
 FString UMAModifyWidget::GetLabelText() const
 {
@@ -567,1493 +411,55 @@ void UMAModifyWidget::SetLabelText(const FString& Text)
 }
 
 
-//=========================================================================
-// OnConfirmButtonClicked - 确认按钮点击处理
-//=========================================================================
-
 void UMAModifyWidget::OnConfirmButtonClicked()
 {
     UE_LOG(LogMAModifyWidget, Log, TEXT("ConfirmButton clicked, Mode=%s"),
         CurrentAnnotationMode == EMAAnnotationMode::AddNew ? TEXT("AddNew") : TEXT("EditExisting"));
     
-    // 检查是否有选中的 Actor
     if (SelectedActors.Num() == 0)
     {
         UE_LOG(LogMAModifyWidget, Warning, TEXT("OnConfirmButtonClicked: No Actor selected, ignoring"));
         return;
     }
     
-    // 获取文本框内容
-    FString LabelContent = GetLabelText();
-    
-    // 解析输入 (支持新旧格式)
-    FMAAnnotationInput ParsedInput;
-    FString ParseError;
-    if (!ParseAnnotationInput(LabelContent, ParsedInput, ParseError))
+    const FString LabelContent = GetLabelText();
+    FMAModifyWidgetSubmission Submission;
+    if (!ModifyCoordinator.PrepareSubmission(
+        GetWorld(),
+        SelectedActors,
+        CurrentAnnotationMode,
+        EditingNodeId,
+        LabelContent,
+        Submission))
     {
-        UE_LOG(LogMAModifyWidget, Warning, TEXT("OnConfirmButtonClicked: Parse failed - %s"), *ParseError);
-        // 解析失败，广播单选委托让 MAHUD 处理错误显示
-        OnModifyConfirmed.Broadcast(SelectedActors[0], LabelContent);
+        UE_LOG(LogMAModifyWidget, Warning, TEXT("OnConfirmButtonClicked: Failed to prepare submission"));
         return;
     }
-    
-    // 编辑模式下跳过 Category 验证（因为我们只是更新属性）
-    if (CurrentAnnotationMode == EMAAnnotationMode::AddNew && ParsedInput.HasCategory())
-    {
-        FString ValidationError;
-        if (!ValidateSelectionForCategory(ParsedInput.Category, SelectedActors.Num(), ValidationError))
-        {
-            UE_LOG(LogMAModifyWidget, Warning, TEXT("OnConfirmButtonClicked: Validation failed - %s"), *ValidationError);
-            OnModifyConfirmed.Broadcast(SelectedActors[0], FString::Printf(TEXT("ERROR: %s"), *ValidationError));
-            return;
-        }
-    }
-    
-    // 根据模式生成 JSON
-    FString GeneratedJson;
-    
-    if (CurrentAnnotationMode == EMAAnnotationMode::EditExisting)
-    {
-        // 编辑模式 - 使用 GenerateEditNodeJson
-        GeneratedJson = GenerateEditNodeJson(ParsedInput, EditingNodeId);
-        UE_LOG(LogMAModifyWidget, Log, TEXT("OnConfirmButtonClicked: EditExisting mode, NodeId=%s"), *EditingNodeId);
-    }
-    else if (ParsedInput.HasCategory())
-    {
-        // 新增模式 + 新格式 (cate:xxx,type:xxx) - 使用 GenerateSceneGraphNodeV2
-        GeneratedJson = GenerateSceneGraphNodeV2(ParsedInput, SelectedActors);
-        UE_LOG(LogMAModifyWidget, Log, TEXT("OnConfirmButtonClicked: AddNew mode with Category=%s"), 
-            *ParsedInput.GetCategoryString());
-    }
-    else if (ParsedInput.IsMultiSelect())
-    {
-        // 新增模式 + 旧格式多选 (id:xxx,type:xxx,shape:polygon) - 使用 GenerateSceneGraphNode
-        GeneratedJson = GenerateSceneGraphNode(ParsedInput, SelectedActors);
-        UE_LOG(LogMAModifyWidget, Log, TEXT("OnConfirmButtonClicked: AddNew mode with legacy multi-select"));
-    }
-    else
-    {
-        // 新增模式 + 旧格式单选 - 不生成 JSON，由 MAHUD 处理
-        UE_LOG(LogMAModifyWidget, Log, TEXT("OnConfirmButtonClicked: Legacy single-select mode, Actor=%s, LabelText=%s"), 
-            *SelectedActors[0]->GetName(), *LabelContent);
-        OnModifyConfirmed.Broadcast(SelectedActors[0], LabelContent);
-        UE_LOG(LogMAModifyWidget, Log, TEXT("OnConfirmButtonClicked: Modification confirmed, waiting for MAHUD to handle state"));
-        return;
-    }
-    
-    // 广播多选确认委托 (包含生成的 JSON)
-    OnMultiSelectModifyConfirmed.Broadcast(SelectedActors, LabelContent, GeneratedJson);
-    
-    UE_LOG(LogMAModifyWidget, Log, TEXT("OnConfirmButtonClicked: Modification confirmed with JSON, waiting for MAHUD to handle state"));
-}
 
-//=========================================================================
-// UpdateJsonPreview - 更新 JSON 预览文本
-// 显示选中 Actor 对应的 JSON 片段
-//
-// 改进逻辑:
-// 1. 获取选中 Actor 的 GUID
-// 2. 同时查找 GuidArray 匹配 (polygon/linestring) 和 guid 字段匹配 (point)
-// 3. 如果找到多个匹配节点，显示所有节点的 JSON
-// 4. If not found, maintain existing single Actor preview behavior
-//=========================================================================
+    if (Submission.Kind == EMAModifySubmissionKind::Single)
+    {
+        UE_LOG(LogMAModifyWidget, Log, TEXT("OnConfirmButtonClicked: Single submission, Actor=%s"),
+            Submission.PrimaryActor ? *Submission.PrimaryActor->GetName() : TEXT("null"));
+        OnModifyConfirmed.Broadcast(Submission.PrimaryActor, Submission.LabelText);
+        return;
+    }
+
+    if (Submission.Kind == EMAModifySubmissionKind::Multi)
+    {
+        UE_LOG(LogMAModifyWidget, Log, TEXT("OnConfirmButtonClicked: Multi submission, Actors=%d"), Submission.Actors.Num());
+        OnMultiSelectModifyConfirmed.Broadcast(Submission.Actors, Submission.LabelText, Submission.GeneratedJson);
+    }
+}
 
 void UMAModifyWidget::UpdateJsonPreview(AActor* Actor)
 {
-    if (!JsonPreviewText)
-    {
-        return;
-    }
-    
-    if (!Actor)
-    {
-        JsonPreviewText->SetText(FText::FromString(TEXT("Select an Actor to display JSON preview")));
-        return;
-    }
-    
-    // Get SceneGraphManager
-    UWorld* World = GetWorld();
-    if (!World)
-    {
-        JsonPreviewText->SetText(FText::FromString(TEXT("Unable to get World")));
-        return;
-    }
-    
-    UGameInstance* GI = World->GetGameInstance();
-    if (!GI)
-    {
-        JsonPreviewText->SetText(FText::FromString(TEXT("Unable to get GameInstance")));
-        return;
-    }
-    
-    UMASceneGraphManager* SceneGraphManager = GI->GetSubsystem<UMASceneGraphManager>();
-    if (!SceneGraphManager)
-    {
-        JsonPreviewText->SetText(FText::FromString(TEXT("SceneGraphManager not found")));
-        return;
-    }
-    
-    // Get Actor's GUID
-    FString ActorGuid = Actor->GetActorGuid().ToString();
-    
-    // Collect all matching nodes (including GuidArray matches and guid field matches)
-    TArray<FMASceneGraphNode> AllMatchingNodes;
-    
-    // 1. Find via GuidArray (polygon/linestring types)
-    TArray<FMASceneGraphNode> GuidArrayMatches = SceneGraphManager->FindNodesByGuid(ActorGuid);
-    AllMatchingNodes.Append(GuidArrayMatches);
-    
-    // 2. Find via single guid field (point type)
-    TArray<FMASceneGraphNode> AllNodes = SceneGraphManager->GetAllNodes();
-    for (const FMASceneGraphNode& Node : AllNodes)
-    {
-        if (Node.Guid == ActorGuid)
-        {
-            // Check if already in AllMatchingNodes (avoid duplicates)
-            bool bAlreadyAdded = false;
-            for (const FMASceneGraphNode& ExistingNode : AllMatchingNodes)
-            {
-                if (ExistingNode.Id == Node.Id)
-                {
-                    bAlreadyAdded = true;
-                    break;
-                }
-            }
-            if (!bAlreadyAdded)
-            {
-                AllMatchingNodes.Add(Node);
-            }
-        }
-    }
-    
-    if (AllMatchingNodes.Num() > 0)
-    {
-        // Found matching nodes, display JSON for all nodes
-        FString CombinedPreview;
-        
-        // If multiple nodes, add count hint
-        if (AllMatchingNodes.Num() > 1)
-        {
-            CombinedPreview = FString::Printf(TEXT("This Actor belongs to %d nodes:\n"), AllMatchingNodes.Num());
-            CombinedPreview += TEXT("━━━━━━━━━━━━━━━━━━━━\n\n");
-        }
-        
-        // Display info for each node
-        for (int32 i = 0; i < AllMatchingNodes.Num(); ++i)
-        {
-            const FMASceneGraphNode& Node = AllMatchingNodes[i];
-            
-            // Add node separator (if not first)
-            if (i > 0)
-            {
-                CombinedPreview += TEXT("\n────────────────────\n\n");
-            }
-            
-            // Format and add node info
-            CombinedPreview += FormatJsonPreviewWithHighlight(Node, ActorGuid);
-        }
-        
-        JsonPreviewText->SetText(FText::FromString(CombinedPreview));
-        // 使用 Theme 颜色，fallback 到默认浅绿色
-        FLinearColor JsonPreviewColor = Theme ? Theme->SuccessColor : FLinearColor(0.7f, 0.9f, 0.7f);
-        JsonPreviewText->SetColorAndOpacity(FSlateColor(JsonPreviewColor));
-        
-        UE_LOG(LogMAModifyWidget, Log, TEXT("UpdateJsonPreview: Found %d nodes for Actor GUID %s"), 
-            AllMatchingNodes.Num(), *ActorGuid);
-        return;
-    }
-    
-    // No matching nodes found, display default single Actor preview
-    FVector Location = Actor->GetActorLocation();
-    FString PreviewText = FString::Printf(
-        TEXT("Actor: %s\nGUID: %s\nLocation: [%.0f, %.0f, %.0f]\n\n(Not annotated - does not belong to any node)"),
-        *Actor->GetName(),
-        *ActorGuid,
-        Location.X,
-        Location.Y,
-        Location.Z
-    );
-    JsonPreviewText->SetText(FText::FromString(PreviewText));
-    // 使用 Theme 颜色，fallback 到默认橙色
-    FLinearColor NotAnnotatedColor = Theme ? Theme->WarningColor : FLinearColor(0.9f, 0.7f, 0.5f);
-    JsonPreviewText->SetColorAndOpacity(FSlateColor(NotAnnotatedColor));
-    
-    UE_LOG(LogMAModifyWidget, Log, TEXT("UpdateJsonPreview: No node found for Actor GUID %s"), *ActorGuid);
+    ApplyPreviewModel(SceneGraphAdapter.BuildSingleActorPreview(GetWorld(), Actor));
 }
-
-//=========================================================================
-// UpdateJsonPreviewMultiSelect - Update JSON preview text (multi-select mode)
-//=========================================================================
 
 void UMAModifyWidget::UpdateJsonPreviewMultiSelect(const TArray<AActor*>& Actors)
 {
-    if (!JsonPreviewText)
-    {
-        return;
-    }
-    
-    if (Actors.Num() == 0)
-    {
-        JsonPreviewText->SetText(FText::FromString(TEXT("Select an Actor to display JSON preview")));
-        return;
-    }
-    
-    // Build multi-select preview info
-    FString PreviewText = FString::Printf(TEXT("Multi-select mode: %d Actors\n\n"), Actors.Num());
-    
-    // List all selected Actors
-    PreviewText += TEXT("Selected Actors:\n");
-    for (int32 i = 0; i < FMath::Min(Actors.Num(), 5); ++i)
-    {
-        if (Actors[i])
-        {
-            FString Guid = Actors[i]->GetActorGuid().ToString();
-            PreviewText += FString::Printf(TEXT("  %d. %s\n     GUID: %s\n"), 
-                i + 1, *Actors[i]->GetName(), *Guid.Left(20));
-        }
-    }
-    
-    if (Actors.Num() > 5)
-    {
-        PreviewText += FString::Printf(TEXT("  ... and %d more\n"), Actors.Num() - 5);
-    }
-    
-    PreviewText += TEXT("\nEnter shape:polygon or shape:linestring");
-    
-    JsonPreviewText->SetText(FText::FromString(PreviewText));
-    // 使用 Theme 颜色，fallback 到默认浅蓝色
-    FLinearColor MultiSelectColor = Theme ? Theme->PrimaryColor : FLinearColor(0.5f, 0.7f, 0.9f);
-    JsonPreviewText->SetColorAndOpacity(FSlateColor(MultiSelectColor));
+    ApplyPreviewModel(SceneGraphAdapter.BuildMultiActorPreview(Actors));
 }
-
-//=========================================================================
-// FormatJsonPreviewWithHighlight - Format JSON preview and highlight selected Actor's GUID
-//
-// Features:
-// - Add node type title (Polygon/LineString/Point)
-// - Highlight selected Actor's GUID (using >>> <<< markers)
-// - Use indentation to format JSON
-//=========================================================================
-
-FString UMAModifyWidget::FormatJsonPreviewWithHighlight(const FMASceneGraphNode& Node, const FString& ActorGuid) const
-{
-    FString Result;
-    FString TypeTitle;
-    if (Node.ShapeType == TEXT("polygon"))
-    {
-        TypeTitle = TEXT("=== Polygon Node ===");
-    }
-    else if (Node.ShapeType == TEXT("linestring"))
-    {
-        TypeTitle = TEXT("=== LineString Node ===");
-    }
-    else
-    {
-        TypeTitle = TEXT("=== Point Node ===");
-    }
-    Result += TypeTitle + TEXT("\n\n");
-    // Use RawJson field, but simplify display to fit preview box
-    
-    // Basic info
-    Result += FString::Printf(TEXT("id: %s\n"), *Node.Id);
-    Result += FString::Printf(TEXT("type: %s\n"), *Node.Type);
-    Result += FString::Printf(TEXT("label: %s\n"), *Node.Label);
-    
-    // Display center point
-    Result += FString::Printf(TEXT("center: [%.0f, %.0f, %.0f]\n"), 
-        Node.Center.X, Node.Center.Y, Node.Center.Z);
-    if (Node.GuidArray.Num() > 0)
-    {
-        Result += TEXT("\nGuid Array:\n");
-        for (int32 i = 0; i < Node.GuidArray.Num(); ++i)
-        {
-            const FString& Guid = Node.GuidArray[i];
-            if (Guid == ActorGuid)
-            {
-                // Highlight selected GUID
-                Result += FString::Printf(TEXT("  [%d] >>> %s <<< (selected)\n"), i, *Guid);
-            }
-            else
-            {
-                Result += FString::Printf(TEXT("  [%d] %s\n"), i, *Guid);
-            }
-        }
-    }
-    else if (!Node.Guid.IsEmpty())
-    {
-        // Point type node, display single guid
-        if (Node.Guid == ActorGuid)
-        {
-            Result += FString::Printf(TEXT("\nguid: >>> %s <<< (selected)\n"), *Node.Guid);
-        }
-        else
-        {
-            Result += FString::Printf(TEXT("\nguid: %s\n"), *Node.Guid);
-        }
-    }
-    
-    return Result;
-}
-
-//=========================================================================
-// ParseAnnotationInput - Parse annotation input string
-// Supports backward compatibility: detect input format, new format calls ParseAnnotationInputV2
-//=========================================================================
-
-bool UMAModifyWidget::ParseAnnotationInput(const FString& Input, FMAAnnotationInput& OutResult, FString& OutError)
-{
-    OutResult.Reset();
-    OutError.Empty();
-    
-    // Check for empty input
-    if (Input.IsEmpty())
-    {
-        OutError = TEXT("Input cannot be empty");
-        return false;
-    }
-    
-    // Detect input format: new format contains "cate:" or "category:"
-    FString InputLower = Input.ToLower();
-    if (InputLower.Contains(TEXT("cate:")) || InputLower.Contains(TEXT("category:")))
-    {
-        // New format: call ParseAnnotationInputV2
-        UE_LOG(LogMAModifyWidget, Log, TEXT("ParseAnnotationInput: Detected new format (cate:xxx), delegating to ParseAnnotationInputV2"));
-        return ParseAnnotationInputV2(Input, OutResult, OutError);
-    }
-    
-    // Legacy format: maintain original logic
-    UE_LOG(LogMAModifyWidget, Log, TEXT("ParseAnnotationInput: Using legacy format (id:xxx,type:xxx)"));
-    
-    // Parse "key:value, key:value" format
-    TArray<FString> Pairs;
-    Input.ParseIntoArray(Pairs, TEXT(","), true);
-    
-    for (const FString& Pair : Pairs)
-    {
-        FString TrimmedPair = Pair.TrimStartAndEnd();
-        if (TrimmedPair.IsEmpty())
-        {
-            continue;
-        }
-        
-        // Split key:value
-        FString Key, Value;
-        if (!TrimmedPair.Split(TEXT(":"), &Key, &Value))
-        {
-            OutError = FString::Printf(TEXT("Invalid key-value format: %s (expected key:value)"), *TrimmedPair);
-            return false;
-        }
-        
-        Key = Key.TrimStartAndEnd().ToLower();
-        Value = Value.TrimStartAndEnd();
-        
-        if (Key.IsEmpty())
-        {
-            OutError = TEXT("Key name cannot be empty");
-            return false;
-        }
-        
-        if (Value.IsEmpty())
-        {
-            OutError = FString::Printf(TEXT("Value for key '%s' cannot be empty"), *Key);
-            return false;
-        }
-        
-        // Parse known fields
-        if (Key == TEXT("id"))
-        {
-            OutResult.Id = Value;
-        }
-        else if (Key == TEXT("type"))
-        {
-            OutResult.Type = Value;
-        }
-        else if (Key == TEXT("shape"))
-        {
-            // Validate shape value
-            FString ShapeLower = Value.ToLower();
-            if (ShapeLower != TEXT("polygon") && ShapeLower != TEXT("linestring") && 
-                ShapeLower != TEXT("point") && ShapeLower != TEXT("rectangle"))
-            {
-                OutError = FString::Printf(TEXT("Invalid shape value: %s (expected polygon, linestring, point or rectangle)"), *Value);
-                return false;
-            }
-            OutResult.Shape = ShapeLower;
-        }
-        else
-        {
-            // Store as extra property
-            OutResult.Properties.Add(Key, Value);
-        }
-    }
-    
-    // Validate required fields (legacy format requires id)
-    if (OutResult.Id.IsEmpty())
-    {
-        OutError = TEXT("Missing required field: id");
-        return false;
-    }
-    
-    if (OutResult.Type.IsEmpty())
-    {
-        OutError = TEXT("Missing required field: type");
-        return false;
-    }
-    
-    UE_LOG(LogMAModifyWidget, Log, TEXT("ParseAnnotationInput: %s"), *OutResult.ToString());
-    return true;
-}
-
-//=========================================================================
-// GenerateSceneGraphNode - Generate scene graph node JSON
-//=========================================================================
-
-FString UMAModifyWidget::GenerateSceneGraphNode(const FMAAnnotationInput& Input, const TArray<AActor*>& Actors)
-{
-    if (Actors.Num() == 0)
-    {
-        return TEXT("{}");
-    }
-    
-    // Create JSON object
-    TSharedPtr<FJsonObject> RootObject = MakeShareable(new FJsonObject());
-    
-    // Basic fields
-    RootObject->SetStringField(TEXT("id"), Input.Id);
-    RootObject->SetNumberField(TEXT("count"), Actors.Num());
-    
-    // GUID 数组
-    TArray<TSharedPtr<FJsonValue>> GuidArray;
-    TArray<FString> Guids = CollectActorGuids(Actors);
-    for (const FString& Guid : Guids)
-    {
-        GuidArray.Add(MakeShareable(new FJsonValueString(Guid)));
-    }
-    RootObject->SetArrayField(TEXT("Guid"), GuidArray);
-    
-    // properties 对象
-    TSharedPtr<FJsonObject> PropertiesObject = MakeShareable(new FJsonObject());
-    PropertiesObject->SetStringField(TEXT("type"), Input.Type);
-    
-    // 生成标签 - 使用 MASceneGraphManager::GenerateLabel() 生成 Type-N 格式
-    FString Label;
-    UWorld* World = GetWorld();
-    UGameInstance* GI = World ? World->GetGameInstance() : nullptr;
-    UMASceneGraphManager* SceneGraphManager = GI ? GI->GetSubsystem<UMASceneGraphManager>() : nullptr;
-    
-    if (SceneGraphManager)
-    {
-        Label = SceneGraphManager->GenerateLabel(Input.Type);
-    }
-    else
-    {
-        // 回退：MASceneGraphManager 不可用时使用 Type-1 格式
-        FString CapitalizedType = Input.Type;
-        if (CapitalizedType.Len() > 0)
-        {
-            CapitalizedType[0] = FChar::ToUpper(CapitalizedType[0]);
-        }
-        Label = FString::Printf(TEXT("%s-1"), *CapitalizedType);
-        UE_LOG(LogMAModifyWidget, Warning, TEXT("GenerateSceneGraphNode: MASceneGraphManager not available, using fallback label: %s"), *Label);
-    }
-    PropertiesObject->SetStringField(TEXT("label"), Label);
-    // 如果有 Category，先添加默认字段
-    if (Input.HasCategory())
-    {
-        TMap<FString, FString> DefaultProps = GetDefaultPropertiesForCategory(Input.Category);
-        for (const auto& DefaultProp : DefaultProps)
-        {
-            // 检查用户是否已经在 Input.Properties 中指定了该字段
-            // 如果没有，则使用默认值
-            if (!Input.Properties.Contains(DefaultProp.Key))
-            {
-                // 处理布尔值字段
-                if (DefaultProp.Value == TEXT("true") || DefaultProp.Value == TEXT("false"))
-                {
-                    PropertiesObject->SetBoolField(DefaultProp.Key, DefaultProp.Value == TEXT("true"));
-                }
-                else
-                {
-                    PropertiesObject->SetStringField(DefaultProp.Key, DefaultProp.Value);
-                }
-            }
-        }
-        UE_LOG(LogMAModifyWidget, Log, TEXT("GenerateSceneGraphNode: Added %d default properties for category %s"), 
-            DefaultProps.Num(), *Input.GetCategoryString());
-    }
-    
-    // 添加用户指定的额外属性（用户输入优先，会覆盖默认值）
-    for (const auto& Prop : Input.Properties)
-    {
-        // 处理布尔值字段
-        if (Prop.Value.Equals(TEXT("true"), ESearchCase::IgnoreCase) || 
-            Prop.Value.Equals(TEXT("false"), ESearchCase::IgnoreCase))
-        {
-            PropertiesObject->SetBoolField(Prop.Key, Prop.Value.Equals(TEXT("true"), ESearchCase::IgnoreCase));
-        }
-        else
-        {
-            PropertiesObject->SetStringField(Prop.Key, Prop.Value);
-        }
-    }
-    RootObject->SetObjectField(TEXT("properties"), PropertiesObject);
-    
-    // shape 对象
-    TSharedPtr<FJsonObject> ShapeObject = MakeShareable(new FJsonObject());
-    
-    if (Input.IsPolygon())
-    {
-        // Polygon 类型 - 计算凸包
-        ShapeObject->SetStringField(TEXT("type"), TEXT("polygon"));
-        
-        TArray<FVector2D> Vertices = ComputeConvexHull(Actors);
-        TArray<TSharedPtr<FJsonValue>> VerticesArray;
-        for (const FVector2D& Vertex : Vertices)
-        {
-            // 三维坐标 [x, y, z]，z 用 0 填充
-            TArray<TSharedPtr<FJsonValue>> PointArray;
-            PointArray.Add(MakeShareable(new FJsonValueNumber(Vertex.X)));
-            PointArray.Add(MakeShareable(new FJsonValueNumber(Vertex.Y)));
-            PointArray.Add(MakeShareable(new FJsonValueNumber(0.0)));
-            VerticesArray.Add(MakeShareable(new FJsonValueArray(PointArray)));
-        }
-        ShapeObject->SetArrayField(TEXT("vertices"), VerticesArray);
-    }
-    else if (Input.IsLineString())
-    {
-        // LineString 类型 - 计算点序列
-        ShapeObject->SetStringField(TEXT("type"), TEXT("linestring"));
-        
-        TArray<FVector2D> Points = ComputeLineString(Actors);
-        TArray<TSharedPtr<FJsonValue>> PointsArray;
-        for (const FVector2D& Point : Points)
-        {
-            // 三维坐标 [x, y, z]，z 用 0 填充
-            TArray<TSharedPtr<FJsonValue>> PointArray;
-            PointArray.Add(MakeShareable(new FJsonValueNumber(Point.X)));
-            PointArray.Add(MakeShareable(new FJsonValueNumber(Point.Y)));
-            PointArray.Add(MakeShareable(new FJsonValueNumber(0.0)));
-            PointsArray.Add(MakeShareable(new FJsonValueArray(PointArray)));
-        }
-        ShapeObject->SetArrayField(TEXT("points"), PointsArray);
-    }
-    else
-    {
-        // 默认为 Point 类型 - 使用第一个 Actor 的中心
-        ShapeObject->SetStringField(TEXT("type"), TEXT("point"));
-        
-        FVector Center = Actors[0]->GetActorLocation();
-        // 三维坐标 [x, y, z]
-        TArray<TSharedPtr<FJsonValue>> CenterArray;
-        CenterArray.Add(MakeShareable(new FJsonValueNumber(Center.X)));
-        CenterArray.Add(MakeShareable(new FJsonValueNumber(Center.Y)));
-        CenterArray.Add(MakeShareable(new FJsonValueNumber(Center.Z)));
-        ShapeObject->SetArrayField(TEXT("center"), CenterArray);
-    }
-    
-    RootObject->SetObjectField(TEXT("shape"), ShapeObject);
-    
-    // 序列化为 JSON 字符串
-    FString OutputString;
-    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
-    FJsonSerializer::Serialize(RootObject.ToSharedRef(), Writer);
-    
-    UE_LOG(LogMAModifyWidget, Log, TEXT("GenerateSceneGraphNode: Generated JSON for %d actors"), Actors.Num());
-    return OutputString;
-}
-
-//=========================================================================
-// GenerateSceneGraphNodeV2 - 生成场景图节点 JSON V2 (支持新的形状类型)
-// 根据 Category 调用不同的几何计算方法:
-// - Building: ComputePrismFromActors → Prism JSON
-// - TransFacility: ComputeOBBFromActors → LineString + Vertices JSON
-// - Prop: ComputeCenterFromActors → Point JSON
-//=========================================================================
-
-FString UMAModifyWidget::GenerateSceneGraphNodeV2(const FMAAnnotationInput& Input, const TArray<AActor*>& Actors)
-{
-    if (Actors.Num() == 0)
-    {
-        UE_LOG(LogMAModifyWidget, Warning, TEXT("GenerateSceneGraphNodeV2: No actors provided"));
-        return TEXT("{}");
-    }
-    
-    // 创建 JSON 对象
-    TSharedPtr<FJsonObject> RootObject = MakeShareable(new FJsonObject());
-    
-    // 基本字段
-    RootObject->SetStringField(TEXT("id"), Input.Id);
-    RootObject->SetNumberField(TEXT("count"), Actors.Num());
-    
-    // GUID 数组
-    TArray<TSharedPtr<FJsonValue>> GuidArray;
-    TArray<FString> Guids = CollectActorGuids(Actors);
-    for (const FString& Guid : Guids)
-    {
-        GuidArray.Add(MakeShareable(new FJsonValueString(Guid)));
-    }
-    RootObject->SetArrayField(TEXT("Guid"), GuidArray);
-    
-    // properties 对象
-    TSharedPtr<FJsonObject> PropertiesObject = MakeShareable(new FJsonObject());
-    PropertiesObject->SetStringField(TEXT("type"), Input.Type);
-    
-    // 生成标签 - 使用 MASceneGraphManager::GenerateLabel() 生成 Type-N 格式
-    FString Label;
-    UWorld* World = GetWorld();
-    UGameInstance* GI = World ? World->GetGameInstance() : nullptr;
-    UMASceneGraphManager* SceneGraphManager = GI ? GI->GetSubsystem<UMASceneGraphManager>() : nullptr;
-    
-    if (SceneGraphManager)
-    {
-        Label = SceneGraphManager->GenerateLabel(Input.Type);
-    }
-    else
-    {
-        // 回退：MASceneGraphManager 不可用时使用 Type-1 格式
-        FString CapitalizedType = Input.Type;
-        if (CapitalizedType.Len() > 0)
-        {
-            CapitalizedType[0] = FChar::ToUpper(CapitalizedType[0]);
-        }
-        Label = FString::Printf(TEXT("%s-1"), *CapitalizedType);
-        UE_LOG(LogMAModifyWidget, Warning, TEXT("GenerateSceneGraphNodeV2: MASceneGraphManager not available, using fallback label: %s"), *Label);
-    }
-    PropertiesObject->SetStringField(TEXT("label"), Label);
-    
-    // 添加 category 字段
-    if (Input.HasCategory())
-    {
-        PropertiesObject->SetStringField(TEXT("category"), Input.GetCategoryString());
-    }
-    
-    // 添加默认属性
-    if (Input.HasCategory())
-    {
-        TMap<FString, FString> DefaultProps = GetDefaultPropertiesForCategory(Input.Category);
-        for (const auto& DefaultProp : DefaultProps)
-        {
-            // 跳过 category，已经添加过了
-            if (DefaultProp.Key == TEXT("category"))
-            {
-                continue;
-            }
-            // 检查用户是否已经在 Input.Properties 中指定了该字段
-            if (!Input.Properties.Contains(DefaultProp.Key))
-            {
-                // 处理布尔值字段
-                if (DefaultProp.Value == TEXT("true") || DefaultProp.Value == TEXT("false"))
-                {
-                    PropertiesObject->SetBoolField(DefaultProp.Key, DefaultProp.Value == TEXT("true"));
-                }
-                else
-                {
-                    PropertiesObject->SetStringField(DefaultProp.Key, DefaultProp.Value);
-                }
-            }
-        }
-    }
-    
-    // 添加用户指定的额外属性（用户输入优先，会覆盖默认值）
-    for (const auto& Prop : Input.Properties)
-    {
-        // 处理布尔值字段
-        if (Prop.Value.Equals(TEXT("true"), ESearchCase::IgnoreCase) || 
-            Prop.Value.Equals(TEXT("false"), ESearchCase::IgnoreCase))
-        {
-            PropertiesObject->SetBoolField(Prop.Key, Prop.Value.Equals(TEXT("true"), ESearchCase::IgnoreCase));
-        }
-        else
-        {
-            PropertiesObject->SetStringField(Prop.Key, Prop.Value);
-        }
-    }
-    RootObject->SetObjectField(TEXT("properties"), PropertiesObject);
-    
-    // shape 对象 - 根据 Category 生成不同的形状
-    TSharedPtr<FJsonObject> ShapeObject = MakeShareable(new FJsonObject());
-    
-    switch (Input.Category)
-    {
-    case EMANodeCategory::Building:
-        {
-            // Building 类型 - Prism (棱柱)
-            ShapeObject->SetStringField(TEXT("type"), TEXT("prism"));
-            
-            // 调用 ComputePrismFromActors 获取几何数据
-            FMAPrismGeometry PrismGeometry = FMAGeometryUtils::ComputePrismFromActors(Actors);
-            
-            if (PrismGeometry.bIsValid)
-            {
-                // 添加 vertices 字段 (底面顶点)
-                TArray<TSharedPtr<FJsonValue>> VerticesArray;
-                for (const FVector& Vertex : PrismGeometry.BottomVertices)
-                {
-                    TArray<TSharedPtr<FJsonValue>> PointArray;
-                    PointArray.Add(MakeShareable(new FJsonValueNumber(Vertex.X)));
-                    PointArray.Add(MakeShareable(new FJsonValueNumber(Vertex.Y)));
-                    PointArray.Add(MakeShareable(new FJsonValueNumber(Vertex.Z)));
-                    VerticesArray.Add(MakeShareable(new FJsonValueArray(PointArray)));
-                }
-                ShapeObject->SetArrayField(TEXT("vertices"), VerticesArray);
-                
-                // 添加 height 字段
-                ShapeObject->SetNumberField(TEXT("height"), PrismGeometry.Height);
-                
-                UE_LOG(LogMAModifyWidget, Log, TEXT("GenerateSceneGraphNodeV2: Building - Prism with %d vertices, height=%.2f"), 
-                    PrismGeometry.BottomVertices.Num(), PrismGeometry.Height);
-            }
-            else
-            {
-                // 回退到边界框近似
-                UE_LOG(LogMAModifyWidget, Warning, TEXT("GenerateSceneGraphNodeV2: Prism computation failed, using fallback"));
-                
-                // 使用第一个 Actor 的边界框
-                if (Actors[0])
-                {
-                    FVector Origin, BoxExtent;
-                    Actors[0]->GetActorBounds(false, Origin, BoxExtent);
-                    
-                    // 生成矩形底面顶点
-                    TArray<TSharedPtr<FJsonValue>> VerticesArray;
-                    float MinZ = Origin.Z - BoxExtent.Z;
-                    
-                    TArray<FVector2D> Corners = {
-                        FVector2D(Origin.X - BoxExtent.X, Origin.Y - BoxExtent.Y),
-                        FVector2D(Origin.X + BoxExtent.X, Origin.Y - BoxExtent.Y),
-                        FVector2D(Origin.X + BoxExtent.X, Origin.Y + BoxExtent.Y),
-                        FVector2D(Origin.X - BoxExtent.X, Origin.Y + BoxExtent.Y)
-                    };
-                    
-                    for (const FVector2D& Corner : Corners)
-                    {
-                        TArray<TSharedPtr<FJsonValue>> PointArray;
-                        PointArray.Add(MakeShareable(new FJsonValueNumber(Corner.X)));
-                        PointArray.Add(MakeShareable(new FJsonValueNumber(Corner.Y)));
-                        PointArray.Add(MakeShareable(new FJsonValueNumber(MinZ)));
-                        VerticesArray.Add(MakeShareable(new FJsonValueArray(PointArray)));
-                    }
-                    ShapeObject->SetArrayField(TEXT("vertices"), VerticesArray);
-                    ShapeObject->SetNumberField(TEXT("height"), BoxExtent.Z * 2.0f);
-                }
-            }
-        }
-        break;
-        
-    case EMANodeCategory::TransFacility:
-        {
-            // TransFacility 类型处理逻辑:
-            // - 如果 type 为 "intersection"，shape.type = "point"，center 是矩形 vertices 的几何中心
-            // - 如果 type 为其他值，shape.type = "linestring"，points 是矩形短边的两个中点
-            // - 两种情况都包含 vertices 字段 (OBB 矩形的四个角点)
-            
-            // 调用 ComputeOBBFromActors 获取 OBB 几何数据
-            FMAOBBGeometry OBBGeometry = FMAGeometryUtils::ComputeOBBFromActors(Actors);
-            
-            // 判断是否为 intersection 类型
-            bool bIsIntersection = Input.Type.Equals(TEXT("intersection"), ESearchCase::IgnoreCase);
-            
-            if (bIsIntersection)
-            {
-                // intersection 类型 - Point (矩形几何中心)
-                ShapeObject->SetStringField(TEXT("type"), TEXT("point"));
-                
-                if (OBBGeometry.bIsValid && OBBGeometry.CornerPoints.Num() == 4)
-                {
-                    // 计算矩形 vertices 的几何中心
-                    FVector Center = FVector::ZeroVector;
-                    for (const FVector& Corner : OBBGeometry.CornerPoints)
-                    {
-                        Center += Corner;
-                    }
-                    Center /= 4.0f;
-                    
-                    // 添加 center 字段
-                    TArray<TSharedPtr<FJsonValue>> CenterArray;
-                    CenterArray.Add(MakeShareable(new FJsonValueNumber(Center.X)));
-                    CenterArray.Add(MakeShareable(new FJsonValueNumber(Center.Y)));
-                    CenterArray.Add(MakeShareable(new FJsonValueNumber(Center.Z)));
-                    ShapeObject->SetArrayField(TEXT("center"), CenterArray);
-                    
-                    // 添加 vertices 字段 (OBB 四个角点)
-                    TArray<TSharedPtr<FJsonValue>> VerticesArray;
-                    for (const FVector& Corner : OBBGeometry.CornerPoints)
-                    {
-                        TArray<TSharedPtr<FJsonValue>> PointArray;
-                        PointArray.Add(MakeShareable(new FJsonValueNumber(Corner.X)));
-                        PointArray.Add(MakeShareable(new FJsonValueNumber(Corner.Y)));
-                        PointArray.Add(MakeShareable(new FJsonValueNumber(Corner.Z)));
-                        VerticesArray.Add(MakeShareable(new FJsonValueArray(PointArray)));
-                    }
-                    ShapeObject->SetArrayField(TEXT("vertices"), VerticesArray);
-                    
-                    UE_LOG(LogMAModifyWidget, Log, TEXT("GenerateSceneGraphNodeV2: TransFacility (intersection) - Point at [%.2f, %.2f, %.2f], OBB with %d corners"), 
-                        Center.X, Center.Y, Center.Z, OBBGeometry.CornerPoints.Num());
-                }
-                else
-                {
-                    // OBB 计算失败，使用 Actor 几何中心作为回退
-                    UE_LOG(LogMAModifyWidget, Warning, TEXT("GenerateSceneGraphNodeV2: OBB computation failed for intersection, using actor center fallback"));
-                    
-                    FVector Center = FMAGeometryUtils::ComputeCenterFromActors(Actors);
-                    TArray<TSharedPtr<FJsonValue>> CenterArray;
-                    CenterArray.Add(MakeShareable(new FJsonValueNumber(Center.X)));
-                    CenterArray.Add(MakeShareable(new FJsonValueNumber(Center.Y)));
-                    CenterArray.Add(MakeShareable(new FJsonValueNumber(Center.Z)));
-                    ShapeObject->SetArrayField(TEXT("center"), CenterArray);
-                }
-            }
-            else
-            {
-                // 非 intersection 类型 - LineString (矩形短边中点)
-                ShapeObject->SetStringField(TEXT("type"), TEXT("linestring"));
-                
-                if (OBBGeometry.bIsValid && OBBGeometry.CornerPoints.Num() == 4)
-                {
-                    // 计算矩形短边的两个中点作为 points
-                    TArray<FVector> ShortEdgeMidpoints = FMAGeometryUtils::ComputeShortEdgeMidpoints(OBBGeometry.CornerPoints);
-                    
-                    TArray<TSharedPtr<FJsonValue>> PointsArray;
-                    for (const FVector& Midpoint : ShortEdgeMidpoints)
-                    {
-                        TArray<TSharedPtr<FJsonValue>> PointArray;
-                        PointArray.Add(MakeShareable(new FJsonValueNumber(Midpoint.X)));
-                        PointArray.Add(MakeShareable(new FJsonValueNumber(Midpoint.Y)));
-                        PointArray.Add(MakeShareable(new FJsonValueNumber(Midpoint.Z)));
-                        PointsArray.Add(MakeShareable(new FJsonValueArray(PointArray)));
-                    }
-                    ShapeObject->SetArrayField(TEXT("points"), PointsArray);
-                    
-                    // 添加 vertices 字段 (OBB 四个角点)
-                    TArray<TSharedPtr<FJsonValue>> VerticesArray;
-                    for (const FVector& Corner : OBBGeometry.CornerPoints)
-                    {
-                        TArray<TSharedPtr<FJsonValue>> PointArray;
-                        PointArray.Add(MakeShareable(new FJsonValueNumber(Corner.X)));
-                        PointArray.Add(MakeShareable(new FJsonValueNumber(Corner.Y)));
-                        PointArray.Add(MakeShareable(new FJsonValueNumber(Corner.Z)));
-                        VerticesArray.Add(MakeShareable(new FJsonValueArray(PointArray)));
-                    }
-                    ShapeObject->SetArrayField(TEXT("vertices"), VerticesArray);
-                    
-                    UE_LOG(LogMAModifyWidget, Log, TEXT("GenerateSceneGraphNodeV2: TransFacility - LineString with %d short edge midpoints, OBB with %d corners"), 
-                        ShortEdgeMidpoints.Num(), OBBGeometry.CornerPoints.Num());
-                }
-                else
-                {
-                    // OBB 计算失败，使用旧的 LineString 计算逻辑作为回退
-                    UE_LOG(LogMAModifyWidget, Warning, TEXT("GenerateSceneGraphNodeV2: OBB computation failed, using legacy linestring fallback"));
-                    
-                    TArray<FVector2D> LinePoints = ComputeLineString(Actors);
-                    TArray<TSharedPtr<FJsonValue>> PointsArray;
-                    for (const FVector2D& Point : LinePoints)
-                    {
-                        TArray<TSharedPtr<FJsonValue>> PointArray;
-                        PointArray.Add(MakeShareable(new FJsonValueNumber(Point.X)));
-                        PointArray.Add(MakeShareable(new FJsonValueNumber(Point.Y)));
-                        PointArray.Add(MakeShareable(new FJsonValueNumber(0.0)));
-                        PointsArray.Add(MakeShareable(new FJsonValueArray(PointArray)));
-                    }
-                    ShapeObject->SetArrayField(TEXT("points"), PointsArray);
-                    
-                    // 使用凸包作为 vertices 回退
-                    TArray<FVector2D> ConvexHull = ComputeConvexHull(Actors);
-                    TArray<TSharedPtr<FJsonValue>> VerticesArray;
-                    for (const FVector2D& Vertex : ConvexHull)
-                    {
-                        TArray<TSharedPtr<FJsonValue>> PointArray;
-                        PointArray.Add(MakeShareable(new FJsonValueNumber(Vertex.X)));
-                        PointArray.Add(MakeShareable(new FJsonValueNumber(Vertex.Y)));
-                        PointArray.Add(MakeShareable(new FJsonValueNumber(0.0)));
-                        VerticesArray.Add(MakeShareable(new FJsonValueArray(PointArray)));
-                    }
-                    ShapeObject->SetArrayField(TEXT("vertices"), VerticesArray);
-                }
-            }
-        }
-        break;
-        
-    case EMANodeCategory::Prop:
-        {
-            // Prop 类型 - Point (几何中心)
-            ShapeObject->SetStringField(TEXT("type"), TEXT("point"));
-            
-            // 调用 ComputeCenterFromActors 获取几何中心
-            FVector Center = FMAGeometryUtils::ComputeCenterFromActors(Actors);
-            
-            // 添加 center 字段
-            TArray<TSharedPtr<FJsonValue>> CenterArray;
-            CenterArray.Add(MakeShareable(new FJsonValueNumber(Center.X)));
-            CenterArray.Add(MakeShareable(new FJsonValueNumber(Center.Y)));
-            CenterArray.Add(MakeShareable(new FJsonValueNumber(Center.Z)));
-            ShapeObject->SetArrayField(TEXT("center"), CenterArray);
-            
-            UE_LOG(LogMAModifyWidget, Log, TEXT("GenerateSceneGraphNodeV2: Prop - Point at [%.2f, %.2f, %.2f]"), 
-                Center.X, Center.Y, Center.Z);
-        }
-        break;
-        
-    case EMANodeCategory::None:
-    default:
-        {
-            // 未指定分类，回退到旧的逻辑
-            UE_LOG(LogMAModifyWidget, Warning, TEXT("GenerateSceneGraphNodeV2: No category specified, falling back to legacy logic"));
-            
-            // 根据 Shape 字段判断
-            if (Input.IsPolygon())
-            {
-                ShapeObject->SetStringField(TEXT("type"), TEXT("polygon"));
-                TArray<FVector2D> Vertices = ComputeConvexHull(Actors);
-                TArray<TSharedPtr<FJsonValue>> VerticesArray;
-                for (const FVector2D& Vertex : Vertices)
-                {
-                    TArray<TSharedPtr<FJsonValue>> PointArray;
-                    PointArray.Add(MakeShareable(new FJsonValueNumber(Vertex.X)));
-                    PointArray.Add(MakeShareable(new FJsonValueNumber(Vertex.Y)));
-                    PointArray.Add(MakeShareable(new FJsonValueNumber(0.0)));
-                    VerticesArray.Add(MakeShareable(new FJsonValueArray(PointArray)));
-                }
-                ShapeObject->SetArrayField(TEXT("vertices"), VerticesArray);
-            }
-            else if (Input.IsLineString())
-            {
-                ShapeObject->SetStringField(TEXT("type"), TEXT("linestring"));
-                TArray<FVector2D> Points = ComputeLineString(Actors);
-                TArray<TSharedPtr<FJsonValue>> PointsArray;
-                for (const FVector2D& Point : Points)
-                {
-                    TArray<TSharedPtr<FJsonValue>> PointArray;
-                    PointArray.Add(MakeShareable(new FJsonValueNumber(Point.X)));
-                    PointArray.Add(MakeShareable(new FJsonValueNumber(Point.Y)));
-                    PointArray.Add(MakeShareable(new FJsonValueNumber(0.0)));
-                    PointsArray.Add(MakeShareable(new FJsonValueArray(PointArray)));
-                }
-                ShapeObject->SetArrayField(TEXT("points"), PointsArray);
-            }
-            else
-            {
-                // 默认为 Point 类型
-                ShapeObject->SetStringField(TEXT("type"), TEXT("point"));
-                FVector Center = Actors[0]->GetActorLocation();
-                TArray<TSharedPtr<FJsonValue>> CenterArray;
-                CenterArray.Add(MakeShareable(new FJsonValueNumber(Center.X)));
-                CenterArray.Add(MakeShareable(new FJsonValueNumber(Center.Y)));
-                CenterArray.Add(MakeShareable(new FJsonValueNumber(Center.Z)));
-                ShapeObject->SetArrayField(TEXT("center"), CenterArray);
-            }
-        }
-        break;
-    }
-    
-    RootObject->SetObjectField(TEXT("shape"), ShapeObject);
-    
-    // 序列化为 JSON 字符串
-    FString OutputString;
-    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
-    FJsonSerializer::Serialize(RootObject.ToSharedRef(), Writer);
-    
-    UE_LOG(LogMAModifyWidget, Log, TEXT("GenerateSceneGraphNodeV2: Generated JSON for %d actors, Category=%s"), 
-        Actors.Num(), *Input.GetCategoryString());
-    return OutputString;
-}
-
-//=========================================================================
-// ComputeConvexHull - 计算凸包顶点
-//=========================================================================
-
-TArray<FVector2D> UMAModifyWidget::ComputeConvexHull(const TArray<AActor*>& Actors)
-{
-    // 收集所有边界框角点
-    TArray<FVector2D> AllCorners = FMAGeometryUtils::CollectBoundingBoxCorners(Actors);
-    
-    // 计算凸包
-    return FMAGeometryUtils::ComputeConvexHull2D(AllCorners);
-}
-
-//=========================================================================
-// ComputeLineString - 计算线串端点
-// 
-// 算法：找到点集的主方向（线段走向），返回首尾两个端点
-// 1. 收集所有 Actor 的中心点
-// 2. 计算点集的主方向（使用 PCA 或最远点对）
-// 3. 将所有点投影到主方向上
-// 4. 返回投影值最小和最大的两个点
-//=========================================================================
-
-TArray<FVector2D> UMAModifyWidget::ComputeLineString(const TArray<AActor*>& Actors)
-{
-    TArray<FVector2D> Result;
-    
-    // 收集所有 Actor 的中心点
-    TArray<FVector2D> CenterPoints;
-    for (AActor* Actor : Actors)
-    {
-        if (Actor)
-        {
-            FVector Location = Actor->GetActorLocation();
-            CenterPoints.Add(FVector2D(Location.X, Location.Y));
-        }
-    }
-    
-    // 处理退化情况
-    if (CenterPoints.Num() == 0)
-    {
-        return Result;
-    }
-    
-    if (CenterPoints.Num() == 1)
-    {
-        // 只有一个点，返回两个相同的点
-        Result.Add(CenterPoints[0]);
-        Result.Add(CenterPoints[0]);
-        return Result;
-    }
-    
-    if (CenterPoints.Num() == 2)
-    {
-        // 两个点，直接返回
-        Result.Add(CenterPoints[0]);
-        Result.Add(CenterPoints[1]);
-        return Result;
-    }
-    
-    // 计算点集的质心
-    FVector2D Centroid(0.0f, 0.0f);
-    for (const FVector2D& Point : CenterPoints)
-    {
-        Centroid += Point;
-    }
-    Centroid /= CenterPoints.Num();
-    
-    // 使用简化的 PCA：找到主方向
-    // 计算协方差矩阵的元素
-    float Cxx = 0.0f, Cyy = 0.0f, Cxy = 0.0f;
-    for (const FVector2D& Point : CenterPoints)
-    {
-        float Dx = Point.X - Centroid.X;
-        float Dy = Point.Y - Centroid.Y;
-        Cxx += Dx * Dx;
-        Cyy += Dy * Dy;
-        Cxy += Dx * Dy;
-    }
-    
-    // 计算主方向（协方差矩阵的主特征向量）
-    // 对于 2x2 矩阵 [[Cxx, Cxy], [Cxy, Cyy]]，主特征向量方向为：
-    // theta = 0.5 * atan2(2 * Cxy, Cxx - Cyy)
-    float Theta = 0.5f * FMath::Atan2(2.0f * Cxy, Cxx - Cyy);
-    FVector2D PrincipalDirection(FMath::Cos(Theta), FMath::Sin(Theta));
-    
-    // 将所有点投影到主方向上，找到最小和最大投影值的点
-    float MinProjection = TNumericLimits<float>::Max();
-    float MaxProjection = TNumericLimits<float>::Lowest();
-    int32 MinIndex = 0;
-    int32 MaxIndex = 0;
-    
-    for (int32 i = 0; i < CenterPoints.Num(); ++i)
-    {
-        // 计算点到质心的向量在主方向上的投影
-        FVector2D ToPoint = CenterPoints[i] - Centroid;
-        float Projection = FVector2D::DotProduct(ToPoint, PrincipalDirection);
-        
-        if (Projection < MinProjection)
-        {
-            MinProjection = Projection;
-            MinIndex = i;
-        }
-        if (Projection > MaxProjection)
-        {
-            MaxProjection = Projection;
-            MaxIndex = i;
-        }
-    }
-    
-    // 返回首尾两个端点
-    Result.Add(CenterPoints[MinIndex]);
-    Result.Add(CenterPoints[MaxIndex]);
-    
-    return Result;
-}
-
-//=========================================================================
-// CollectActorGuids - 收集所有选中 Actor 的 GUID
-//=========================================================================
-
-TArray<FString> UMAModifyWidget::CollectActorGuids(const TArray<AActor*>& Actors)
-{
-    TArray<FString> Guids;
-    for (AActor* Actor : Actors)
-    {
-        if (Actor)
-        {
-            Guids.Add(Actor->GetActorGuid().ToString());
-        }
-    }
-    return Guids;
-}
-
-//=========================================================================
-// GetNextAvailableId - 获取下一个可用的节点 ID
-// 从配置管理器获取场景图路径，找到最大 ID 并返回 +1
-//=========================================================================
-
-FString UMAModifyWidget::GetNextAvailableId()
-{
-    // 从配置管理器获取场景图路径
-    FString JsonFilePath;
-    if (UGameInstance* GameInstance = UGameplayStatics::GetGameInstance(this))
-    {
-        if (UMAConfigManager* ConfigManager = GameInstance->GetSubsystem<UMAConfigManager>())
-        {
-            JsonFilePath = ConfigManager->GetSceneGraphFilePath();
-        }
-    }
-    
-    // Fallback: 使用默认路径
-    if (JsonFilePath.IsEmpty())
-    {
-        UE_LOG(LogMAModifyWidget, Warning, TEXT("GetNextAvailableId: ConfigManager not available, using default path"));
-        JsonFilePath = FPaths::Combine(FPaths::ProjectDir(), TEXT("datasets/scene_graph_cyberworld.json"));
-    }
-    
-    // 检查文件是否存在
-    if (!FPaths::FileExists(JsonFilePath))
-    {
-        UE_LOG(LogMAModifyWidget, Warning, TEXT("GetNextAvailableId: JSON file not found at %s, returning '1'"), *JsonFilePath);
-        return TEXT("1");
-    }
-    
-    // 读取文件内容
-    FString JsonContent;
-    if (!FFileHelper::LoadFileToString(JsonContent, *JsonFilePath))
-    {
-        UE_LOG(LogMAModifyWidget, Warning, TEXT("GetNextAvailableId: Failed to read JSON file, returning '1'"));
-        return TEXT("1");
-    }
-    
-    // 解析 JSON
-    TSharedPtr<FJsonObject> RootObject;
-    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonContent);
-    if (!FJsonSerializer::Deserialize(Reader, RootObject) || !RootObject.IsValid())
-    {
-        UE_LOG(LogMAModifyWidget, Warning, TEXT("GetNextAvailableId: Failed to parse JSON, returning '1'"));
-        return TEXT("1");
-    }
-    
-    // 获取 nodes 数组
-    const TArray<TSharedPtr<FJsonValue>>* NodesArray;
-    if (!RootObject->TryGetArrayField(TEXT("nodes"), NodesArray))
-    {
-        UE_LOG(LogMAModifyWidget, Warning, TEXT("GetNextAvailableId: No 'nodes' array found, returning '1'"));
-        return TEXT("1");
-    }
-    
-    // 遍历节点找到最大数字 ID
-    int32 MaxId = 0;
-    for (const TSharedPtr<FJsonValue>& NodeValue : *NodesArray)
-    {
-        const TSharedPtr<FJsonObject>* NodeObject;
-        if (NodeValue->TryGetObject(NodeObject))
-        {
-            FString IdStr;
-            if ((*NodeObject)->TryGetStringField(TEXT("id"), IdStr))
-            {
-                // 尝试将 ID 转换为数字
-                if (IdStr.IsNumeric())
-                {
-                    int32 IdNum = FCString::Atoi(*IdStr);
-                    if (IdNum > MaxId)
-                    {
-                        MaxId = IdNum;
-                    }
-                }
-            }
-        }
-    }
-    
-    // 返回 (最大 ID + 1) 的字符串
-    int32 NextId = MaxId + 1;
-    UE_LOG(LogMAModifyWidget, Log, TEXT("GetNextAvailableId: Max ID = %d, Next ID = %d"), MaxId, NextId);
-    return FString::FromInt(NextId);
-}
-
-//=========================================================================
-// GetDefaultPropertiesForCategory - 根据分类获取默认属性字段
-//=========================================================================
-
-TMap<FString, FString> UMAModifyWidget::GetDefaultPropertiesForCategory(EMANodeCategory Category)
-{
-    TMap<FString, FString> DefaultProperties;
-    
-    switch (Category)
-    {
-    case EMANodeCategory::Building:
-        // Building 类型默认字段
-        DefaultProperties.Add(TEXT("category"), TEXT("building"));
-        DefaultProperties.Add(TEXT("status"), TEXT("undiscovered"));
-        DefaultProperties.Add(TEXT("visibility"), TEXT("high"));
-        DefaultProperties.Add(TEXT("wind_condition"), TEXT("weak"));
-        DefaultProperties.Add(TEXT("congestion"), TEXT("none"));
-        DefaultProperties.Add(TEXT("is_fire"), TEXT("false"));
-        DefaultProperties.Add(TEXT("is_spill"), TEXT("false"));
-        break;
-        
-    case EMANodeCategory::TransFacility:
-        // TransFacility 类型默认字段 (同 Building)
-        DefaultProperties.Add(TEXT("category"), TEXT("trans_facility"));
-        DefaultProperties.Add(TEXT("status"), TEXT("undiscovered"));
-        DefaultProperties.Add(TEXT("visibility"), TEXT("high"));
-        DefaultProperties.Add(TEXT("wind_condition"), TEXT("weak"));
-        DefaultProperties.Add(TEXT("congestion"), TEXT("none"));
-        DefaultProperties.Add(TEXT("is_fire"), TEXT("false"));
-        DefaultProperties.Add(TEXT("is_spill"), TEXT("false"));
-        break;
-        
-    case EMANodeCategory::Prop:
-        // Prop 类型默认字段
-        DefaultProperties.Add(TEXT("category"), TEXT("prop"));
-        DefaultProperties.Add(TEXT("is_abnormal"), TEXT("false"));
-        break;
-        
-    case EMANodeCategory::None:
-    default:
-        // 无分类时不添加默认字段
-        break;
-    }
-    
-    UE_LOG(LogMAModifyWidget, Log, TEXT("GetDefaultPropertiesForCategory: Category=%d, Properties count=%d"), 
-        static_cast<int32>(Category), DefaultProperties.Num());
-    
-    return DefaultProperties;
-}
-
-//=========================================================================
-// ValidateSelectionForCategory - 验证选择是否符合分类约束
-//=========================================================================
-
-bool UMAModifyWidget::ValidateSelectionForCategory(EMANodeCategory Category, int32 SelectionCount, FString& OutError)
-{
-    OutError.Empty();
-    
-    // Check if selection count is valid
-    if (SelectionCount <= 0)
-    {
-        OutError = TEXT("Please select at least one Actor");
-        UE_LOG(LogMAModifyWidget, Warning, TEXT("ValidateSelectionForCategory: No Actor selected"));
-        return false;
-    }
-    
-    switch (Category)
-    {
-    case EMANodeCategory::Building:
-        if (SelectionCount != 1)
-        {
-            OutError = TEXT("Building type only supports single-select, please select only one Actor");
-            UE_LOG(LogMAModifyWidget, Warning, TEXT("ValidateSelectionForCategory: Building requires single selection, got %d"), SelectionCount);
-            return false;
-        }
-        break;
-        
-    case EMANodeCategory::TransFacility:
-        // Any count is valid
-        break;
-        
-    case EMANodeCategory::Prop:
-        // Any count is valid
-        break;
-        
-    case EMANodeCategory::None:
-    default:
-        // When no category specified, allow any count
-        break;
-    }
-    
-    UE_LOG(LogMAModifyWidget, Log, TEXT("ValidateSelectionForCategory: Category=%d, SelectionCount=%d, Valid=true"), 
-        static_cast<int32>(Category), SelectionCount);
-    return true;
-}
-
-//=========================================================================
-// ParseAnnotationInputV2 - Parse new format annotation input (cate:xxx,type:xxx)
-//
-// Auto-set default shape based on cate value:
-// - building → prism
-// - trans_facility → linestring
-// - prop → point
-//=========================================================================
-
-bool UMAModifyWidget::ParseAnnotationInputV2(const FString& Input, FMAAnnotationInput& OutResult, FString& OutError)
-{
-    OutResult.Reset();
-    OutError.Empty();
-    
-    // Check for empty input
-    if (Input.IsEmpty())
-    {
-        OutError = TEXT("Input cannot be empty");
-        return false;
-    }
-    
-    // Parse "key:value, key:value" format
-    TArray<FString> Pairs;
-    Input.ParseIntoArray(Pairs, TEXT(","), true);
-    
-    bool bHasCate = false;
-    bool bHasType = false;
-    bool bHasExplicitShape = false;  // Whether user explicitly specified shape
-    
-    for (const FString& Pair : Pairs)
-    {
-        FString TrimmedPair = Pair.TrimStartAndEnd();
-        if (TrimmedPair.IsEmpty())
-        {
-            continue;
-        }
-        
-        // Split key:value
-        FString Key, Value;
-        if (!TrimmedPair.Split(TEXT(":"), &Key, &Value))
-        {
-            OutError = FString::Printf(TEXT("Invalid key-value format: %s (expected key:value)"), *TrimmedPair);
-            return false;
-        }
-        
-        Key = Key.TrimStartAndEnd().ToLower();
-        Value = Value.TrimStartAndEnd();
-        
-        if (Key.IsEmpty())
-        {
-            OutError = TEXT("Key name cannot be empty");
-            return false;
-        }
-        
-        if (Value.IsEmpty())
-        {
-            OutError = FString::Printf(TEXT("Value for key '%s' cannot be empty"), *Key);
-            return false;
-        }
-        
-        // Parse known fields
-        if (Key == TEXT("cate") || Key == TEXT("category"))
-        {
-            EMANodeCategory ParsedCategory = FMAAnnotationInput::ParseCategoryFromString(Value);
-            if (ParsedCategory == EMANodeCategory::None)
-            {
-                OutError = FString::Printf(TEXT("Invalid cate value: %s (expected building, trans_facility or prop)"), *Value);
-                return false;
-            }
-            OutResult.Category = ParsedCategory;
-            bHasCate = true;
-        }
-        else if (Key == TEXT("id"))
-        {
-            OutResult.Id = Value;
-        }
-        else if (Key == TEXT("type"))
-        {
-            OutResult.Type = Value;
-            bHasType = true;
-        }
-        else if (Key == TEXT("shape"))
-        {
-            // Validate shape value (including new prism type)
-            FString ShapeLower = Value.ToLower();
-            if (ShapeLower != TEXT("polygon") && ShapeLower != TEXT("linestring") && 
-                ShapeLower != TEXT("point") && ShapeLower != TEXT("rectangle") &&
-                ShapeLower != TEXT("prism"))
-            {
-                OutError = FString::Printf(TEXT("Invalid shape value: %s (expected polygon, linestring, point, rectangle or prism)"), *Value);
-                return false;
-            }
-            OutResult.Shape = ShapeLower;
-            bHasExplicitShape = true;
-        }
-        else
-        {
-            // Store as extra property
-            OutResult.Properties.Add(Key, Value);
-        }
-    }
-    
-    // Validate required fields
-    if (!bHasCate)
-    {
-        OutError = TEXT("Missing required field: cate (expected building, trans_facility or prop)");
-        return false;
-    }
-    
-    if (!bHasType)
-    {
-        OutError = TEXT("Missing required field: type");
-        return false;
-    }
-    
-    // If no ID specified, auto-assign
-    if (OutResult.Id.IsEmpty())
-    {
-        OutResult.Id = GetNextAvailableId();
-        UE_LOG(LogMAModifyWidget, Log, TEXT("ParseAnnotationInputV2: Auto-assigned ID = %s"), *OutResult.Id);
-    }
-    // If user didn't explicitly specify shape, auto-set based on category
-    // - building → prism
-    // - trans_facility → linestring
-    // - prop → point
-    if (!bHasExplicitShape)
-    {
-        switch (OutResult.Category)
-        {
-        case EMANodeCategory::Building:
-            OutResult.Shape = TEXT("prism");
-            UE_LOG(LogMAModifyWidget, Log, TEXT("ParseAnnotationInputV2: Auto-set shape to 'prism' for building category"));
-            break;
-            
-        case EMANodeCategory::TransFacility:
-            OutResult.Shape = TEXT("linestring");
-            UE_LOG(LogMAModifyWidget, Log, TEXT("ParseAnnotationInputV2: Auto-set shape to 'linestring' for trans_facility category"));
-            break;
-            
-        case EMANodeCategory::Prop:
-            OutResult.Shape = TEXT("point");
-            UE_LOG(LogMAModifyWidget, Log, TEXT("ParseAnnotationInputV2: Auto-set shape to 'point' for prop category"));
-            break;
-            
-        case EMANodeCategory::None:
-        default:
-            // When no category specified, don't auto-set shape
-            break;
-        }
-    }
-    
-    UE_LOG(LogMAModifyWidget, Log, TEXT("ParseAnnotationInputV2: %s"), *OutResult.ToString());
-    return true;
-}
-
-
-//=========================================================================
-// GetHintTextForCategory - Get corresponding hint text based on category
-//=========================================================================
-
-FString UMAModifyWidget::GetHintTextForCategory(EMANodeCategory Category) const
-{
-    switch (Category)
-    {
-    case EMANodeCategory::Building:
-        return ModifyBuildingHintText;
-        
-    case EMANodeCategory::TransFacility:
-        return ModifyTransFacilityHintText;
-        
-    case EMANodeCategory::Prop:
-        return ModifyPropHintText;
-        
-    case EMANodeCategory::None:
-    default:
-        return ModifyDefaultHintText;
-    }
-}
-
-//=========================================================================
-// SetAnnotationMode - 设置标注模式
-//=========================================================================
 
 void UMAModifyWidget::SetAnnotationMode(EMAAnnotationMode Mode, const FString& NodeId)
 {
@@ -2065,10 +471,6 @@ void UMAModifyWidget::SetAnnotationMode(EMAAnnotationMode Mode, const FString& N
         Mode == EMAAnnotationMode::AddNew ? TEXT("AddNew") : TEXT("EditExisting"),
         *NodeId);
 }
-
-//=========================================================================
-// UpdateModeIndicator - 更新模式指示器 UI
-//=========================================================================
 
 void UMAModifyWidget::UpdateModeIndicator()
 {
@@ -2090,181 +492,4 @@ void UMAModifyWidget::UpdateModeIndicator()
         FLinearColor AddColor = Theme ? Theme->SuccessColor : FLinearColor(0.3f, 0.8f, 0.3f);
         ModeIndicatorText->SetColorAndOpacity(FSlateColor(AddColor));
     }
-}
-
-//=========================================================================
-// FindMatchingNodes - 查找选中 Actor 对应的已标记节点
-//=========================================================================
-
-bool UMAModifyWidget::FindMatchingNodes(const FString& ActorGuid, TArray<FMASceneGraphNode>& OutNodes)
-{
-    OutNodes.Empty();
-    
-    UWorld* World = GetWorld();
-    if (!World)
-    {
-        return false;
-    }
-    
-    UGameInstance* GI = World->GetGameInstance();
-    if (!GI)
-    {
-        return false;
-    }
-    
-    UMASceneGraphManager* SceneGraphManager = GI->GetSubsystem<UMASceneGraphManager>();
-    if (!SceneGraphManager)
-    {
-        return false;
-    }
-    
-    // 1. 通过 GuidArray 查找 (polygon/linestring 类型)
-    TArray<FMASceneGraphNode> GuidArrayMatches = SceneGraphManager->FindNodesByGuid(ActorGuid);
-    OutNodes.Append(GuidArrayMatches);
-    
-    // 2. 通过单个 guid 字段查找 (point 类型)
-    TArray<FMASceneGraphNode> AllNodes = SceneGraphManager->GetAllNodes();
-    for (const FMASceneGraphNode& Node : AllNodes)
-    {
-        if (Node.Guid == ActorGuid)
-        {
-            // 检查是否已添加 (避免重复)
-            bool bAlreadyAdded = false;
-            for (const FMASceneGraphNode& ExistingNode : OutNodes)
-            {
-                if (ExistingNode.Id == Node.Id)
-                {
-                    bAlreadyAdded = true;
-                    break;
-                }
-            }
-            if (!bAlreadyAdded)
-            {
-                OutNodes.Add(Node);
-            }
-        }
-    }
-    
-    return OutNodes.Num() > 0;
-}
-
-//=========================================================================
-// PopulateInputFromNode - 从节点属性填充输入框
-//=========================================================================
-
-void UMAModifyWidget::PopulateInputFromNode(const FMASceneGraphNode& Node)
-{
-    TArray<FString> Parts;
-    
-    // 1. Category
-    if (!Node.Category.IsEmpty())
-    {
-        Parts.Add(FString::Printf(TEXT("cate:%s"), *Node.Category));
-    }
-    
-    // 2. Type
-    if (!Node.Type.IsEmpty())
-    {
-        Parts.Add(FString::Printf(TEXT("type:%s"), *Node.Type));
-    }
-    
-    // 3. Features (跳过 label，因为它是自动生成的)
-    for (const auto& Feature : Node.Features)
-    {
-        if (Feature.Key != TEXT("label"))
-        {
-            Parts.Add(FString::Printf(TEXT("%s:%s"), *Feature.Key, *Feature.Value));
-        }
-    }
-    
-    // 组合成输入字符串
-    FString InputText = FString::Join(Parts, TEXT(","));
-    
-    if (LabelTextBox)
-    {
-        LabelTextBox->SetText(FText::FromString(InputText));
-    }
-    
-    UE_LOG(LogMAModifyWidget, Log, TEXT("PopulateInputFromNode: %s -> %s"), 
-        *Node.Id, *InputText);
-}
-
-//=========================================================================
-// GenerateEditNodeJson - 生成编辑节点的 JSON
-//=========================================================================
-
-FString UMAModifyWidget::GenerateEditNodeJson(const FMAAnnotationInput& Input, const FString& NodeId)
-{
-    UWorld* World = GetWorld();
-    UGameInstance* GI = World ? World->GetGameInstance() : nullptr;
-    UMASceneGraphManager* SceneGraphManager = GI ? GI->GetSubsystem<UMASceneGraphManager>() : nullptr;
-    
-    if (!SceneGraphManager)
-    {
-        UE_LOG(LogMAModifyWidget, Warning, TEXT("GenerateEditNodeJson: SceneGraphManager not found"));
-        return TEXT("{}");
-    }
-    
-    // 获取原节点
-    FMASceneGraphNode OriginalNode = SceneGraphManager->GetNodeById(NodeId);
-    if (!OriginalNode.IsValid())
-    {
-        UE_LOG(LogMAModifyWidget, Warning, 
-            TEXT("GenerateEditNodeJson: Node %s not found"), *NodeId);
-        return TEXT("{}");
-    }
-    
-    // 从原始 JSON 解析
-    TSharedPtr<FJsonObject> RootObject;
-    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(OriginalNode.RawJson);
-    if (!FJsonSerializer::Deserialize(Reader, RootObject) || !RootObject.IsValid())
-    {
-        UE_LOG(LogMAModifyWidget, Warning, 
-            TEXT("GenerateEditNodeJson: Failed to parse original JSON"));
-        return TEXT("{}");
-    }
-    
-    // 获取或创建 properties 对象
-    TSharedPtr<FJsonObject> PropertiesObject = RootObject->GetObjectField(TEXT("properties"));
-    if (!PropertiesObject.IsValid())
-    {
-        PropertiesObject = MakeShareable(new FJsonObject());
-        RootObject->SetObjectField(TEXT("properties"), PropertiesObject);
-    }
-    
-    // 更新 type
-    PropertiesObject->SetStringField(TEXT("type"), Input.Type);
-    
-    // 更新 category
-    if (Input.HasCategory())
-    {
-        PropertiesObject->SetStringField(TEXT("category"), Input.GetCategoryString());
-    }
-    
-    // 更新用户指定的属性
-    for (const auto& Prop : Input.Properties)
-    {
-        if (Prop.Value.Equals(TEXT("true"), ESearchCase::IgnoreCase) || 
-            Prop.Value.Equals(TEXT("false"), ESearchCase::IgnoreCase))
-        {
-            PropertiesObject->SetBoolField(Prop.Key, 
-                Prop.Value.Equals(TEXT("true"), ESearchCase::IgnoreCase));
-        }
-        else
-        {
-            PropertiesObject->SetStringField(Prop.Key, Prop.Value);
-        }
-    }
-    
-    // 添加编辑模式标记 (供 MAHUD 识别)
-    RootObject->SetBoolField(TEXT("_edit_mode"), true);
-    RootObject->SetStringField(TEXT("_edit_node_id"), NodeId);
-    
-    // 序列化
-    FString OutputString;
-    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
-    FJsonSerializer::Serialize(RootObject.ToSharedRef(), Writer);
-    
-    UE_LOG(LogMAModifyWidget, Log, TEXT("GenerateEditNodeJson: Generated edit JSON for node %s"), *NodeId);
-    return OutputString;
 }

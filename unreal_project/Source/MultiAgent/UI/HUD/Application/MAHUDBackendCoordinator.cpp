@@ -1,12 +1,10 @@
 // MAHUDBackendCoordinator.cpp
-// HUD 后端交互协调器实现
+// HUD backend interaction coordination.
 
 #include "MAHUDBackendCoordinator.h"
 #include "../MAHUD.h"
 #include "../../Core/MAUIManager.h"
 #include "../../Core/MAHUDStateManager.h"
-#include "../../../Core/Comm/Infrastructure/Codec/MACommJsonCodec.h"
-#include "../MAMainHUDWidget.h"
 #include "../../Legacy/MASimpleMainWidget.h"
 #include "../../TaskGraph/MATaskPlannerWidget.h"
 #include "../../Modal/MATaskGraphModal.h"
@@ -179,13 +177,6 @@ void FMAHUDBackendCoordinator::HandleTaskGraphReceived(UMAUIManager* UIManager, 
         StateManager->ShowNotification(EMANotificationType::TaskGraphUpdate);
         UE_LOG(LogMAHUDBackendCoordinator, Log, TEXT("HandleTaskGraphReceived: Notification shown"));
     }
-
-    UMAMainHUDWidget* MainHUD = UIManager->GetMainHUDWidget();
-    if (MainHUD)
-    {
-        const FString TaskGraphJson = MACommJsonCodec::SerializeTaskPlan(TaskPlan);
-        UE_LOG(LogMAHUDBackendCoordinator, Log, TEXT("HandleTaskGraphReceived: Preview update pending, JSON length=%d"), TaskGraphJson.Len());
-    }
 }
 
 void FMAHUDBackendCoordinator::HandleSkillAllocationReceived(UMAUIManager* UIManager, const FMASkillAllocationData& AllocationData) const
@@ -218,13 +209,6 @@ void FMAHUDBackendCoordinator::HandleSkillListReceived(UMAUIManager* UIManager, 
         StateManager->ShowNotification(
             bExecutable ? EMANotificationType::SkillListExecuting : EMANotificationType::SkillListUpdate);
         UE_LOG(LogMAHUDBackendCoordinator, Log, TEXT("HandleSkillListReceived: Notification shown"));
-    }
-
-    UMAMainHUDWidget* MainHUD = UIManager->GetMainHUDWidget();
-    if (MainHUD)
-    {
-        const FString SkillListJson = MACommJsonCodec::SerializeSkillList(SkillList);
-        UE_LOG(LogMAHUDBackendCoordinator, Log, TEXT("HandleSkillListReceived: Preview update pending, JSON length=%d"), SkillListJson.Len());
     }
 }
 

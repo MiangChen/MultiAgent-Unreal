@@ -4,7 +4,7 @@
 
 namespace
 {
-    int64 CurrentTimestampMs()
+    int64 MakeEnvelopeTimestampMs()
     {
         return FDateTime::UtcNow().ToUnixTimestamp() * 1000 + FDateTime::UtcNow().GetMillisecond();
     }
@@ -26,7 +26,7 @@ FMAMessageEnvelope MACommJsonCodec::MakeOutboundEnvelope(
     Envelope.MessageType = MessageType;
     Envelope.MessageCategory = MessageCategory;
     Envelope.Direction = EMAMessageDirection::UE5ToPython;
-    Envelope.Timestamp = Timestamp > 0 ? Timestamp : CurrentTimestampMs();
+    Envelope.Timestamp = Timestamp > 0 ? Timestamp : MakeEnvelopeTimestampMs();
     Envelope.MessageId = MessageId.IsEmpty() ? NewMessageId() : MessageId;
     Envelope.PayloadJson = PayloadJson;
     return Envelope;

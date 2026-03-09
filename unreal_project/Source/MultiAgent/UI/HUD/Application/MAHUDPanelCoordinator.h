@@ -1,10 +1,10 @@
 // MAHUDPanelCoordinator.h
-// HUD 面板控制协调器
-// 封装 MainUI/SkillAllocation/Modify/Edit 面板控制逻辑
+// HUD panel visibility coordination.
 
 #pragma once
 
 #include "CoreMinimal.h"
+#include "MAHUDModeWidgetLifecycleCoordinator.h"
 
 class AMAHUD;
 
@@ -32,4 +32,7 @@ public:
     void HideEditWidget(AMAHUD* HUD) const;
     bool IsEditWidgetVisible(const AMAHUD* HUD) const;
     bool IsMouseOverEditWidget(const AMAHUD* HUD) const;
+
+private:
+    FMAHUDModeWidgetLifecycleCoordinator ModeWidgetLifecycleCoordinator;
 };

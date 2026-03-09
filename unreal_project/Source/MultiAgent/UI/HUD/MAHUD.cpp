@@ -446,6 +446,51 @@ void AMAHUD::OnTempSceneGraphChanged()
     OverlayCoordinator.HandleTempSceneGraphChanged(this);
 }
 
+void AMAHUD::OnEditConfirmRequested(const FString& JsonContent)
+{
+    OverlayCoordinator.HandleEditConfirmRequested(this, JsonContent);
+}
+
+void AMAHUD::OnEditDeleteRequested()
+{
+    OverlayCoordinator.HandleEditDeleteRequested(this);
+}
+
+void AMAHUD::OnEditCreateGoalRequested(const FString& Description)
+{
+    OverlayCoordinator.HandleEditCreateGoalRequested(this, Description);
+}
+
+void AMAHUD::OnEditCreateZoneRequested(const FString& Description)
+{
+    OverlayCoordinator.HandleEditCreateZoneRequested(this, Description);
+}
+
+void AMAHUD::OnEditAddPresetActorRequested(const FString& ActorType)
+{
+    OverlayCoordinator.HandleEditAddPresetActorRequested(this, ActorType);
+}
+
+void AMAHUD::OnEditDeletePOIsRequested()
+{
+    OverlayCoordinator.HandleEditDeletePOIsRequested(this);
+}
+
+void AMAHUD::OnEditSetAsGoalRequested()
+{
+    OverlayCoordinator.HandleEditSetAsGoalRequested(this);
+}
+
+void AMAHUD::OnEditUnsetAsGoalRequested()
+{
+    OverlayCoordinator.HandleEditUnsetAsGoalRequested(this);
+}
+
+void AMAHUD::OnEditNodeSwitchRequested(int32 NodeIndex)
+{
+    OverlayCoordinator.HandleEditNodeSwitchRequested(this, NodeIndex);
+}
+
 void AMAHUD::OnEditConfirmed(AActor* Actor, const FString& JsonContent)
 {
     SceneEditCoordinator.HandleEditConfirmed(this, Actor, JsonContent);

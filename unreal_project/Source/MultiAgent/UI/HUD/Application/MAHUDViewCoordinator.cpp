@@ -1,5 +1,5 @@
 // MAHUDViewCoordinator.cpp
-// HUD 视图协调器实现
+// HUD view coordination.
 
 #include "MAHUDViewCoordinator.h"
 #include "../../Core/MAUIManager.h"

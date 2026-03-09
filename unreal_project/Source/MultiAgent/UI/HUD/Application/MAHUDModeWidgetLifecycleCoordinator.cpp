@@ -1,0 +1,52 @@
+// Mode-widget show/hide/reset lifecycle coordination.
+
+#include "MAHUDModeWidgetLifecycleCoordinator.h"
+
+#include "../MAHUD.h"
+#include "../../Core/MAUIManager.h"
+#include "../../Mode/MAEditWidget.h"
+#include "../../Mode/MAModifyWidget.h"
+
+void FMAHUDModeWidgetLifecycleCoordinator::ShowModifyWidget(AMAHUD* HUD) const
+{
+    if (!HUD || !HUD->UIManager)
+    {
+        return;
+    }
+
+    HUD->UIManager->ShowWidget(EMAWidgetType::Modify, true);
+    HUD->StartSceneLabelVisualization();
+}
+
+void FMAHUDModeWidgetLifecycleCoordinator::HideModifyWidget(AMAHUD* HUD) const
+{
+    if (!HUD || !HUD->UIManager)
+    {
+        return;
+    }
+
+    HUD->StopSceneLabelVisualization();
+    HUD->UIManager->HideWidget(EMAWidgetType::Modify);
+    ModifyWidgetStateCoordinator.ResetWidget(HUD->UIManager->GetModifyWidget());
+}
+
+void FMAHUDModeWidgetLifecycleCoordinator::ShowEditWidget(AMAHUD* HUD) const
+{
+    if (!HUD || !HUD->UIManager)
+    {
+        return;
+    }
+
+    HUD->UIManager->ShowWidget(EMAWidgetType::Edit, true);
+}
+
+void FMAHUDModeWidgetLifecycleCoordinator::HideEditWidget(AMAHUD* HUD) const
+{
+    if (!HUD || !HUD->UIManager)
+    {
+        return;
+    }
+
+    HUD->UIManager->HideWidget(EMAWidgetType::Edit);
+    EditWidgetStateCoordinator.ResetWidget(HUD->UIManager->GetEditWidget());
+}

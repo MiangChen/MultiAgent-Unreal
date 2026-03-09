@@ -1,5 +1,4 @@
-// MAHUDLifecycleCoordinator.cpp
-// HUD 生命周期协调器实现
+// HUD lifecycle coordination.
 
 #include "MAHUDLifecycleCoordinator.h"
 #include "../MAHUD.h"

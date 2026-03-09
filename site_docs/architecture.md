@@ -62,6 +62,9 @@ unreal_project/Source/MultiAgent/
 │   ├── HUD/
 │   ├── Modal/
 │   ├── Mode/
+│   │   ├── Application/
+│   │   ├── Domain/
+│   │   └── Infrastructure/
 │   ├── TaskGraph/
 │   ├── SkillAllocation/
 │   │   └── Gantt/
@@ -291,6 +294,151 @@ flowchart LR
     O4 --> C0
     O5 --> C0
 ```
+
+### 4.5 MAEditWidget 分层图（当前）
+
+```mermaid
+flowchart LR
+    HUD["AMAHUD / FMAHUDOverlayCoordinator"]
+    STATECOORD["FMAEditWidgetStateCoordinator"]
+    INDICATOR["FMAHUDEditModeIndicatorBuilder"]
+
+    subgraph L0["L0 Presentation"]
+        WIDGET["UMAEditWidget"]
+    end
+
+    subgraph L1["L1 Application"]
+        COORD["FMAEditWidgetCoordinator"]
+    end
+
+    subgraph L2["L2 Domain"]
+        MODEL["FMAEditWidgetViewModel"]
+        STATE["FMAEditWidgetSelectionState"]
+    end
+
+    subgraph L3["L3 Infrastructure"]
+        ADAPTER["FMAEditWidgetSceneGraphAdapter"]
+        ACTION["FMAEditSceneActionAdapter"]
+    end
+
+    subgraph CORE["Existing Core Services"]
+        EDITMODE["UMAEditModeManager"]
+        SCENE["UMASceneGraphManager"]
+        SCENEACT["FMAHUDSceneEditCoordinator"]
+    end
+
+    HUD --> COORD
+    HUD --> INDICATOR
+    COORD --> WIDGET
+    COORD --> STATECOORD
+    STATECOORD --> WIDGET
+    WIDGET -->|confirm/delete/create/node-switch intents| HUD
+
+    COORD --> MODEL
+    COORD --> STATE
+    COORD --> ADAPTER
+    SCENEACT --> ACTION
+    ADAPTER --> EDITMODE
+    ADAPTER --> SCENE
+    ACTION --> EDITMODE
+    ACTION --> SCENE
+    HUD --> SCENEACT
+```
+
+说明（本轮改动）：
+- `UMAEditWidget` 已收缩为 `L0 Presentation`：只负责 `BuildUI`、渲染 `ViewModel`、发送用户 intent。
+- 选择态、按钮显示规则、当前 node 标签与 JSON 展示内容已上提到 `FMAEditWidgetCoordinator + Domain Model`。
+- `SceneGraphManager` 查询、Actor/Node 解析、JSON 文档校验已下沉到 `FMAEditWidgetSceneGraphAdapter`。
+- `FMAEditWidgetStateCoordinator` 已补齐，使 edit 这条线也具备明确的 widget state apply/reset 角色，而不是由 coordinator 直接写 widget。
+- `FMASceneSelectionDisplay` 已开始承接 `Edit/Modify` 共用的 selection 文案生成，避免在两个 flow 中继续复制“空选中/单选/多选”提示逻辑。
+- `FMAHUDOverlayCoordinator` 现在持有 `FMAEditWidgetCoordinator`，统一处理“选择变化 / 场景图变化 / Widget intent”。
+- `FMAHUDOverlayCoordinator` 内部也已补上统一的 `ResolveEditWidget + BindEditWidgetDelegates` helper，避免重复的 widget 获取和 delegate 绑定散落在多个入口函数里。
+- `DrawEditModeIndicator` 中原本混在 `OverlayCoordinator` 里的 POI/Goal/Zone 列表拼装，已下沉到 `FMAHUDEditModeIndicatorBuilder`，让 `OverlayCoordinator` 更接近纯展示编排层。
+- `FMAHUDSceneEditCoordinator` 的主要 edit 动作已下沉到 `FMAEditSceneActionAdapter`，HUD 侧只保留编排、通知和少量 UI 刷新。
+
+### 4.6 MAModifyWidget 分层图（当前）
+
+```mermaid
+flowchart LR
+    HUD["AMAHUD / FMAHUDSceneEditCoordinator"]
+    PANEL["FMAHUDPanelCoordinator"]
+    LIFE["FMAHUDModeWidgetLifecycleCoordinator"]
+    RES["FMAHUDSceneActionResultCoordinator"]
+    LISTSEL["FMAHUDSceneListSelectionCoordinator"]
+    RESULT["FMASceneActionResult"]
+
+    subgraph L0["L0 Presentation"]
+        WIDGET["UMAModifyWidget"]
+    end
+
+    subgraph L1["L1 Application"]
+        COORD["FMAModifyWidgetCoordinator"]
+        STATECOORD["FMAModifyWidgetStateCoordinator"]
+    end
+
+    subgraph L2["L2 Domain"]
+        SELVM["FMAModifySelectionViewModel"]
+        PREVM["FMAModifyPreviewModel"]
+        MODEL["FMAModifyWidgetModel"]
+    end
+
+    subgraph L3["L3 Infrastructure"]
+        SGADAPTER["FMAModifyWidgetSceneGraphAdapter"]
+        PARSER["FMAModifyWidgetInputParser"]
+        NODEBUILDER["FMAModifyWidgetNodeBuilder"]
+        ACTION["FMAModifySceneActionAdapter"]
+    end
+
+    subgraph CORE["Existing Core Services"]
+        SCENE["UMASceneGraphManager"]
+        GEO["FMAGeometryUtils"]
+    end
+
+    PANEL --> LIFE
+    LIFE --> WIDGET
+    HUD --> WIDGET
+    HUD --> RES
+    HUD --> LISTSEL
+    WIDGET -->|single/multi modify confirm| HUD
+
+    WIDGET --> COORD
+    RES --> STATECOORD
+    ACTION --> RESULT
+    RES --> RESULT
+    WIDGET --> MODEL
+    WIDGET --> SGADAPTER
+    COORD --> PARSER
+    COORD --> NODEBUILDER
+    COORD --> SGADAPTER
+    STATECOORD --> WIDGET
+    MODEL --> SELVM
+    SGADAPTER --> PREVM
+    HUD --> ACTION
+    ACTION --> RES
+    LISTSEL --> WIDGET
+
+    PARSER --> SCENE
+    SGADAPTER --> SCENE
+    NODEBUILDER --> SCENE
+    NODEBUILDER --> GEO
+    ACTION --> SCENE
+```
+
+说明（本轮改动）：
+- `UMAModifyWidget` 已不再自己做节点匹配、多选共享节点判断、JSON 预览拼装和编辑态 JSON 合成；这些已下沉到 `FMAModifyWidgetSceneGraphAdapter`。
+- `FMAModifyWidgetModel` 负责把“当前选中 Actor 集合 + 是否命中现有节点”收敛成 `SelectionViewModel`，Widget 只做 UI 应用。
+- `ParseAnnotationInput/ParseAnnotationInputV2` 和分类选择校验已下沉到 `FMAModifyWidgetInputParser`。
+- `GetNextAvailableId`、默认属性组装、`GenerateSceneGraphNode*` 和几何/标签拼装已进一步下沉到 `FMAModifyWidgetNodeBuilder`。
+- `GetNextAvailableId` 不再由 Widget 自己读 JSON 文件，而是统一复用 `UMASceneGraphManager::GetNextAvailableId()`。
+- `OnConfirmButtonClicked` 的提交分流（解析输入、选择校验、决定 single/multi/edit 路径）已上提到 `FMAModifyWidgetCoordinator`，并由它直接组合 `InputParser + NodeBuilder + SceneGraphAdapter`。
+- `MAModifyWidget` 本身已删除这些业务 wrapper，不再充当 application/infrastructure 的转发层。
+- `FMAModifyWidgetStateCoordinator` 负责“把 selection / action result 应回 widget”，HUD 不再直接拼 `ClearSelection/SetSelectedActors/SetLabelText` 这类恢复细节。
+- `FMAHUDModeWidgetLifecycleCoordinator` 已接管 edit/modify 面板 show/hide/reset 生命周期，`FMAHUDPanelCoordinator` 不再直接操作 widget 内部状态。
+- `FMAHUDSceneListSelectionCoordinator` 已接管 scene-list 点击后的 Goal/Zone 选中解析，`FMAHUDSceneEditCoordinator` 不再直接查询 `EditModeManager/SceneGraphManager` 做二次解析。
+- `FMASceneSelectionDisplay` 现在同时服务于 `Edit` 和 `Modify` 的 selection hint 生成，作为后续进一步统一 selection domain model 的落脚点。
+- HUD 侧的 modify 保存/更新逻辑已下沉到 `FMAModifySceneActionAdapter`；edit/modify 两条线现在共享 `FMASceneActionResult`，并统一通过 `FMAHUDSceneActionResultCoordinator` 落到 HUD/UI。
+- `FMAHUDSceneEditCoordinator` 现在更接近纯入口编排层。
+- 因此 `MAModifyWidget + Modify flow` 已形成较完整的 `L0/L1/L2/L3` 分层；`Edit/Modify` 的结果模型、widget lifecycle、selection apply 模式都已完成第一阶段横向统一。
 
 ## 5. 重构建议
 

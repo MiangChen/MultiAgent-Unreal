@@ -1,12 +1,14 @@
 // MAHUDOverlayCoordinator.h
-// HUD 叠加层与 EditMode 协调器
-// 封装场景标签、PIP 绘制和 EditMode 绑定/面板更新逻辑
+// HUD overlay and edit-mode coordination.
 
 #pragma once
 
 #include "CoreMinimal.h"
+#include "MAHUDEditModeIndicatorBuilder.h"
+#include "../../Mode/Application/MAEditWidgetCoordinator.h"
 
 class AMAHUD;
+class UMAEditWidget;
 
 class MULTIAGENT_API FMAHUDOverlayCoordinator
 {
@@ -18,8 +20,25 @@ public:
     void StopSceneLabelVisualization(AMAHUD* HUD) const;
 
     void BindEditModeManagerEvents(AMAHUD* HUD) const;
-    void BindEditWidgetDelegates(AMAHUD* HUD) const;
+    void BindEditWidgetDelegates(AMAHUD* HUD);
     void DrawEditModeIndicator(AMAHUD* HUD) const;
-    void HandleEditModeSelectionChanged(AMAHUD* HUD) const;
-    void HandleTempSceneGraphChanged(AMAHUD* HUD) const;
+    void HandleEditModeSelectionChanged(AMAHUD* HUD);
+    void HandleTempSceneGraphChanged(AMAHUD* HUD);
+
+    void HandleEditConfirmRequested(AMAHUD* HUD, const FString& JsonContent);
+    void HandleEditDeleteRequested(AMAHUD* HUD);
+    void HandleEditCreateGoalRequested(AMAHUD* HUD, const FString& Description);
+    void HandleEditCreateZoneRequested(AMAHUD* HUD, const FString& Description);
+    void HandleEditAddPresetActorRequested(AMAHUD* HUD, const FString& ActorType);
+    void HandleEditDeletePOIsRequested(AMAHUD* HUD);
+    void HandleEditSetAsGoalRequested(AMAHUD* HUD);
+    void HandleEditUnsetAsGoalRequested(AMAHUD* HUD);
+    void HandleEditNodeSwitchRequested(AMAHUD* HUD, int32 NodeIndex);
+
+private:
+    UMAEditWidget* ResolveEditWidget(AMAHUD* HUD) const;
+    void BindEditWidgetDelegates(AMAHUD* HUD, UMAEditWidget* EditWidget) const;
+
+    FMAHUDEditModeIndicatorBuilder EditModeIndicatorBuilder;
+    FMAEditWidgetCoordinator EditWidgetCoordinator;
 };

@@ -7,7 +7,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "../Core/Manager/MASceneGraphManager.h"  // For FMASceneGraphNode
+#include "Domain/MAEditWidgetModel.h"
 #include "MAEditWidget.generated.h"
 
 class UMultiLineEditableTextBox;
@@ -29,52 +29,54 @@ class AMAPointOfInterest;
  * @param Actor 当前选中的 Actor
  * @param JsonContent JSON 编辑内容
  */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnEditConfirmed, AActor*, Actor, const FString&, JsonContent);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEditConfirmRequested, const FString&, JsonContent);
 
 /**
  * 删除 Actor 委托
  * @param Actor 要删除的 Actor
  */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDeleteActor, AActor*, Actor);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnDeleteActorRequested);
 
 /**
  * 创建 Goal 委托
  * @param POI 用于创建 Goal 的 POI
  * @param Description Goal 描述
  */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnCreateGoal, AMAPointOfInterest*, POI, const FString&, Description);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCreateGoalRequested, const FString&, Description);
 
 /**
  * 创建 Zone 委托
  * @param POIs 用于创建 Zone 的 POI 数组
  * @param Description Zone 描述
  */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnCreateZone, const TArray<AMAPointOfInterest*>&, POIs, const FString&, Description);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCreateZoneRequested, const FString&, Description);
 
 /**
  * 添加预设 Actor 委托
  * @param POI 目标 POI
  * @param ActorType 预设 Actor 类型
  */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAddPresetActor, AMAPointOfInterest*, POI, const FString&, ActorType);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAddPresetActorRequested, const FString&, ActorType);
 
 /**
  * 删除 POI 委托
  * @param POIs 要删除的 POI 数组
  */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDeletePOIs, const TArray<AMAPointOfInterest*>&, POIs);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnDeletePOIsRequested);
 
 /**
  * 设为 Goal 委托
  * @param Actor 目标 Actor
  */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSetAsGoal, AActor*, Actor);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSetAsGoalRequested);
 
 /**
  * 取消 Goal 委托
  * @param Actor 目标 Actor
  */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnUnsetAsGoal, AActor*, Actor);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnUnsetAsGoalRequested);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEditNodeSwitchRequested, int32, NodeIndex);
 
 /**
  * Edit Mode 编辑面板 Widget - 纯 C++ 实现
@@ -97,107 +99,48 @@ class MULTIAGENT_API UMAEditWidget : public UUserWidget
 public:
     UMAEditWidget(const FObjectInitializer& ObjectInitializer);
 
-    //=========================================================================
-    // 公共接口 - Actor 选择
-    //=========================================================================
-
-    /**
-     * 设置选中的 Actor
-     * @param Actor 选中的 Actor，nullptr 表示清除选择
-     */
-    UFUNCTION(BlueprintCallable, Category = "UI")
-    void SetSelectedActor(AActor* Actor);
-
-    /**
-     * 获取当前选中的 Actor
-     * @return 当前选中的 Actor，可能为 nullptr
-     */
-    UFUNCTION(BlueprintPure, Category = "UI")
-    AActor* GetSelectedActor() const { return CurrentActor; }
-
-    //=========================================================================
-    // 公共接口 - POI 选择
-    //=========================================================================
-
-    /**
-     * 设置选中的 POI 列表
-     * @param POIs 选中的 POI 数组
-     */
-    UFUNCTION(BlueprintCallable, Category = "UI")
-    void SetSelectedPOIs(const TArray<AMAPointOfInterest*>& POIs);
-
-    /**
-     * 获取选中的 POI 列表
-     * @return 选中的 POI 数组
-     */
-    UFUNCTION(BlueprintPure, Category = "UI")
-    TArray<AMAPointOfInterest*> GetSelectedPOIs() const { return CurrentPOIs; }
-
-    //=========================================================================
-    // 公共接口 - 通用
-    //=========================================================================
-
-    /**
-     * 清除选择
-     */
-    UFUNCTION(BlueprintCallable, Category = "UI")
-    void ClearSelection();
-
-    /**
-     * 刷新临时场景图预览
-     */
-    UFUNCTION(BlueprintCallable, Category = "UI")
-    void RefreshSceneGraphPreview();
-
-    /**
-     * 获取描述文本
-     * @return 描述输入框内容
-     */
-    UFUNCTION(BlueprintPure, Category = "UI")
-    FString GetDescriptionText() const;
-
-    /**
-     * 获取 JSON 编辑内容
-     * @return JSON 编辑框内容
-     */
-    UFUNCTION(BlueprintPure, Category = "UI")
-    FString GetJsonEditContent() const;
+    void ApplyViewModel(const FMAEditWidgetViewModel& InViewModel);
+    void SetPresetActorOptions(const TArray<FString>& Options);
 
     //=========================================================================
     // 事件委托
     //=========================================================================
 
-    /** 确认修改委托 */
+    /** 确认修改请求 */
     UPROPERTY(BlueprintAssignable, Category = "Events")
-    FOnEditConfirmed OnEditConfirmed;
+    FOnEditConfirmRequested OnEditConfirmRequested;
 
-    /** 删除 Actor 委托 */
+    /** 删除 Actor 请求 */
     UPROPERTY(BlueprintAssignable, Category = "Events")
-    FOnDeleteActor OnDeleteActor;
+    FOnDeleteActorRequested OnDeleteActorRequested;
 
-    /** 创建 Goal 委托 */
+    /** 创建 Goal 请求 */
     UPROPERTY(BlueprintAssignable, Category = "Events")
-    FOnCreateGoal OnCreateGoal;
+    FOnCreateGoalRequested OnCreateGoalRequested;
 
-    /** 创建 Zone 委托 */
+    /** 创建 Zone 请求 */
     UPROPERTY(BlueprintAssignable, Category = "Events")
-    FOnCreateZone OnCreateZone;
+    FOnCreateZoneRequested OnCreateZoneRequested;
 
-    /** 添加预设 Actor 委托 */
+    /** 添加预设 Actor 请求 */
     UPROPERTY(BlueprintAssignable, Category = "Events")
-    FOnAddPresetActor OnAddPresetActor;
+    FOnAddPresetActorRequested OnAddPresetActorRequested;
 
-    /** 删除 POI 委托 */
+    /** 删除 POI 请求 */
     UPROPERTY(BlueprintAssignable, Category = "Events")
-    FOnDeletePOIs OnDeletePOIs;
+    FOnDeletePOIsRequested OnDeletePOIsRequested;
 
-    /** 设为 Goal 委托 */
+    /** 设为 Goal 请求 */
     UPROPERTY(BlueprintAssignable, Category = "Events")
-    FOnSetAsGoal OnSetAsGoal;
+    FOnSetAsGoalRequested OnSetAsGoalRequested;
 
-    /** 取消 Goal 委托 */
+    /** 取消 Goal 请求 */
     UPROPERTY(BlueprintAssignable, Category = "Events")
-    FOnUnsetAsGoal OnUnsetAsGoal;
+    FOnUnsetAsGoalRequested OnUnsetAsGoalRequested;
+
+    /** Node 切换请求 */
+    UPROPERTY(BlueprintAssignable, Category = "Events")
+    FOnEditNodeSwitchRequested OnNodeSwitchRequested;
 
     //=========================================================================
     // 主题支持
@@ -306,24 +249,6 @@ protected:
 
 private:
     //=========================================================================
-    // 内部状态
-    //=========================================================================
-
-    /** 当前选中的 Actor */
-    UPROPERTY()
-    AActor* CurrentActor = nullptr;
-
-    /** 当前选中的 POI 列表 */
-    UPROPERTY()
-    TArray<AMAPointOfInterest*> CurrentPOIs;
-
-    /** 当前显示的 Node 索引 (用于多 Node 切换) */
-    int32 CurrentNodeIndex = 0;
-
-    /** Actor 对应的所有 Node */
-    TArray<FMASceneGraphNode> ActorNodes;
-
-    //=========================================================================
     // 内部方法
     //=========================================================================
 
@@ -349,21 +274,6 @@ private:
     void UpdateNodeSwitchButtons();
 
     /**
-     * 验证 JSON 格式
-     * @param Json JSON 字符串
-     * @param OutError 错误信息
-     * @return 是否有效
-     */
-    bool ValidateJson(const FString& Json, FString& OutError);
-
-    /**
-     * 检查是否为 point 类型 Node
-     * @param Node 场景图节点
-     * @return 是否为 point 类型
-     */
-    bool IsPointTypeNode(const FMASceneGraphNode& Node) const;
-
-    /**
      * 显示错误信息
      * @param ErrorMessage 错误信息
      */
@@ -374,11 +284,9 @@ private:
      */
     void ClearError();
 
-    /**
-     * 高亮显示选中 Node 的 JSON
-     * @param NodeId 要高亮的 Node ID
-     */
-    void HighlightNodeInPreview(const FString& NodeId);
+    FString GetDescriptionText() const;
+    FString GetJsonEditContent() const;
+    FLinearColor ResolveHintColor(EMAEditWidgetHintTone Tone) const;
 
     //=========================================================================
     // 按钮点击处理
@@ -426,4 +334,6 @@ private:
     /** Node 切换按钮数组 (用于查找点击的按钮索引) */
     UPROPERTY()
     TArray<UButton*> NodeSwitchButtons;
+
+    FMAEditWidgetViewModel ViewModel;
 };

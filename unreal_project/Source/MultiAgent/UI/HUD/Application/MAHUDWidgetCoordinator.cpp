@@ -1,5 +1,5 @@
 // MAHUDWidgetCoordinator.cpp
-// HUD Widget 协调器实现
+// HUD widget coordination.
 
 #include "MAHUDWidgetCoordinator.h"
 #include "../../Core/MAUIManager.h"

@@ -1,6 +1,5 @@
 // MAHUDLifecycleCoordinator.h
-// HUD 生命周期协调器
-// 封装 BeginPlay 中的 UI 初始化与事件绑定流程
+// HUD lifecycle coordination.
 
 #pragma once
 

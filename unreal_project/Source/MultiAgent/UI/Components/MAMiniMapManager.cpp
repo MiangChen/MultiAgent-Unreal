@@ -12,8 +12,6 @@
 
 AMAMiniMapManager::AMAMiniMapManager()
 {
-    PrimaryActorTick.bCanEverTick = true;
-
     // 创建 Scene Capture 组件
     SceneCaptureComponent = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("SceneCaptureComponent"));
     RootComponent = SceneCaptureComponent;
@@ -24,14 +22,7 @@ void AMAMiniMapManager::BeginPlay()
     Super::BeginPlay();
 
     SetupSceneCapture();
-    CreateMiniMapWidget();
-}
-
-void AMAMiniMapManager::Tick(float DeltaTime)
-{
-    Super::Tick(DeltaTime);
-
-    // Scene Capture 会自动更新，不需要手动处理
+    InitializeMainHUDMiniMap();
 }
 
 void AMAMiniMapManager::SetupSceneCapture()
@@ -70,44 +61,60 @@ void AMAMiniMapManager::SetupSceneCapture()
         CaptureHeight, SceneCaptureComponent->OrthoWidth);
 }
 
-void AMAMiniMapManager::CreateMiniMapWidget()
+UMAMiniMapWidget* AMAMiniMapManager::ResolveMiniMapWidget()
 {
-    // NOTE: MiniMap Widget 现在由 MAMainHUDWidget 创建和管理
-    // MAMiniMapManager 只负责 Scene Capture 和 RenderTarget
-    // 如果需要初始化 MAMainHUDWidget 的 MiniMap，应该通过 MAHUD 获取 MainHUDWidget 并调用 InitializeMiniMap
-    
-    UE_LOG(LogTemp, Log, TEXT("[MiniMap] Scene Capture ready. Widget creation delegated to MAMainHUDWidget."));
-    
-    // 尝试初始化 MAMainHUDWidget 的 MiniMap
     APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
-    if (PC)
+    if (!PC)
     {
-        if (AHUD* HUD = PC->GetHUD())
-        {
-            // 尝试获取 MAHUD 并初始化其 MainHUDWidget 的 MiniMap
-            if (AMAHUD* MAHUD = Cast<AMAHUD>(HUD))
-            {
-                UMAMainHUDWidget* MainHUDWidget = MAHUD->GetMainHUDWidget();
-                if (MainHUDWidget)
-                {
-                    MainHUDWidget->InitializeMiniMap(RenderTarget, WorldBounds);
-                    UE_LOG(LogTemp, Log, TEXT("[MiniMap] Initialized MAMainHUDWidget's MiniMap with RenderTarget"));
-                }
-            }
-        }
+        return nullptr;
     }
+
+    AHUD* HUD = PC->GetHUD();
+    AMAHUD* MAHUD = Cast<AMAHUD>(HUD);
+    UMAMainHUDWidget* MainHUDWidget = MAHUD ? MAHUD->GetMainHUDWidget() : nullptr;
+    MiniMapWidget = MainHUDWidget ? MainHUDWidget->GetMiniMap() : nullptr;
+    return MiniMapWidget;
+}
+
+void AMAMiniMapManager::InitializeMainHUDMiniMap()
+{
+    UMAMiniMapWidget* ResolvedMiniMapWidget = ResolveMiniMapWidget();
+    if (!ResolvedMiniMapWidget)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[MiniMap] MainHUDWidget or MiniMapWidget not ready"));
+        return;
+    }
+
+    if (!RenderTarget)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[MiniMap] RenderTarget is null during initialization"));
+        return;
+    }
+
+    ResolvedMiniMapWidget->InitializeMiniMap(RenderTarget, WorldBounds);
+    UE_LOG(LogTemp, Log, TEXT("[MiniMap] Initialized MainHUDWidget MiniMap with RenderTarget"));
 }
 
 void AMAMiniMapManager::SetMiniMapVisible(bool bVisible)
 {
-    // MiniMap Widget 现在由 MAMainHUDWidget 管理
-    // 这个方法保留用于向后兼容，但实际上不再需要
-    UE_LOG(LogTemp, Log, TEXT("[MiniMap] SetMiniMapVisible called (no-op, widget managed by MAMainHUDWidget)"));
+    if (UMAMiniMapWidget* ResolvedMiniMapWidget = ResolveMiniMapWidget())
+    {
+        ResolvedMiniMapWidget->SetVisibility(bVisible ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+        UE_LOG(LogTemp, Log, TEXT("[MiniMap] Visibility set to %s"), bVisible ? TEXT("Visible") : TEXT("Collapsed"));
+        return;
+    }
+
+    UE_LOG(LogTemp, Warning, TEXT("[MiniMap] SetMiniMapVisible failed: MiniMapWidget not found"));
 }
 
 void AMAMiniMapManager::ToggleMiniMap()
 {
-    // MiniMap Widget 现在由 MAMainHUDWidget 管理
-    // 这个方法保留用于向后兼容，但实际上不再需要
-    UE_LOG(LogTemp, Log, TEXT("[MiniMap] ToggleMiniMap called (no-op, widget managed by MAMainHUDWidget)"));
+    if (UMAMiniMapWidget* ResolvedMiniMapWidget = ResolveMiniMapWidget())
+    {
+        const bool bVisible = ResolvedMiniMapWidget->IsVisible();
+        SetMiniMapVisible(!bVisible);
+        return;
+    }
+
+    UE_LOG(LogTemp, Warning, TEXT("[MiniMap] ToggleMiniMap failed: MiniMapWidget not found"));
 }

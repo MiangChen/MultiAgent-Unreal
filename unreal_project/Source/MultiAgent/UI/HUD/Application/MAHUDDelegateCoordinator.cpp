@@ -1,5 +1,5 @@
 // MAHUDDelegateCoordinator.cpp
-// HUD 委托绑定协调器实现
+// HUD delegate binding coordination.
 
 #include "MAHUDDelegateCoordinator.h"
 #include "../MAHUD.h"

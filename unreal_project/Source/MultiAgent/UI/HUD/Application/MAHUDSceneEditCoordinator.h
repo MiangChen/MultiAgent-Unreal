@@ -1,10 +1,13 @@
 // MAHUDSceneEditCoordinator.h
-// HUD 场景编辑协调器
-// 封装 Modify/Edit/SceneList 相关流程，降低 MAHUD 体积与耦合
+// HUD scene-edit flow coordination.
 
 #pragma once
 
 #include "CoreMinimal.h"
+#include "MAHUDSceneActionResultCoordinator.h"
+#include "MAHUDSceneListSelectionCoordinator.h"
+#include "../../Mode/Infrastructure/MAEditSceneActionAdapter.h"
+#include "../../Mode/Infrastructure/MAModifySceneActionAdapter.h"
 
 class AActor;
 class AMAHUD;
@@ -33,4 +36,10 @@ public:
 
     void HandleSceneListGoalClicked(AMAHUD* HUD, const FString& GoalId) const;
     void HandleSceneListZoneClicked(AMAHUD* HUD, const FString& ZoneId) const;
+
+private:
+    FMAHUDSceneActionResultCoordinator ActionResultCoordinator;
+    FMAHUDSceneListSelectionCoordinator SceneListSelectionCoordinator;
+    FMAEditSceneActionAdapter EditSceneActionAdapter;
+    FMAModifySceneActionAdapter ModifySceneActionAdapter;
 };

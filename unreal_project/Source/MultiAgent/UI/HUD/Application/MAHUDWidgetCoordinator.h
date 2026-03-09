@@ -1,6 +1,5 @@
 // MAHUDWidgetCoordinator.h
-// HUD Widget 协调器
-// 封装 TaskGraph 与 DirectControl 指示器相关逻辑
+// HUD widget coordination.
 
 #pragma once
 
