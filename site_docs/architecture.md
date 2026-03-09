@@ -536,15 +536,100 @@ flowchart LR
 - 旧的无效输入概念已清理：`IA_ToggleMainUI`、`IA_ToggleSkillAllocationViewer`、`IA_StartPatrol`、`IA_StartCoverage`、`IA_StartAvoid` 已从 `InputActions` 和 `PlayerController` 里移除。
 - 当前还保留在 `PlayerController` 的主要职责是输入绑定入口、Subsystem 初始化，以及少量 `CommandManager` façade 调用；主交互流已经进入 `Application` 层。
 
-## 5. 重构建议
+## 5. 控制论目标架构（长期）
 
-### 5.1 总体原则
+这部分不是“当前实现”，而是后续重构的长期 target。
+
+核心思想：
+- 前向通道严格逐层：`L1 -> L2 -> L3 -> L4 -> L5`
+- 反馈通道也严格逐层：`L5 -> FB54 -> L4 -> FB43 -> L3 -> FB32 -> L2 -> FB21 -> L1`
+- 不允许跳层前向依赖，也不允许跳层 feedback
+- `feedback` 只传标准化 `DTO / Snapshot / Result / ViewModel`
+- `Composition Root / Bootstrap` 负责装配，但不承载业务规则
+
+### 5.1 控制论五层图（目标）
+
+```mermaid
+flowchart LR
+    CR["Composition Root / Bootstrap"]
+
+    L1["L1 Interface / Input / UI"]
+    L2["L2 Controller / Orchestration"]
+    L3["L3 Domain / Policy / State"]
+    L4["L4 Adapter / Actuator / Sensor"]
+    L5["L5 Plant / UE Runtime / Managers / Agents"]
+
+    FB21["Feedback21\nViewModel / Notice / UIState"]
+    FB32["Feedback32\nStateChange / DecisionResult"]
+    FB43["Feedback43\nExecutionResult / Observation"]
+    FB54["Feedback54\nPlantState / SensorSnapshot"]
+
+    CR --> L1
+    CR --> L2
+    CR --> L4
+
+    L1 --> L2
+    L2 --> L3
+    L3 --> L4
+    L4 --> L5
+
+    L5 --> FB54 --> L4
+    L4 --> FB43 --> L3
+    L3 --> FB32 --> L2
+    L2 --> FB21 --> L1
+```
+
+### 5.2 文件夹映射（目标）
+
+| 控制层 | 目标 folder | 说明 |
+|---|---|---|
+| `L1` | `Input/`、`UI/` | 输入入口、HUD、Widget、Web/UI 交互入口 |
+| `L2` | `Core/Interaction/Application/` | 编排、router、workflow、mode controller |
+| `L3` | `Core/Interaction/Domain/` | 规则、状态、policy、snapshot、intent |
+| `L4` | `Core/Interaction/Infrastructure/` | Unreal adapter、sensor、actuator、query bridge |
+| `L5` | `Core/Manager/`、`Agent/`、`Environment/` | 真实运行系统、Subsystem、Agent、场景与 UE runtime |
+| `FB` | `Core/Interaction/Feedback/` | 标准化反馈 DTO：`FB21/FB32/FB43/FB54` |
+
+### 5.3 规则清单（目标）
+
+| 规则 | 内容 |
+|---|---|
+| 前向规则 | 只允许 `L1 -> L2 -> L3 -> L4 -> L5` |
+| 反馈规则 | 只允许逐层 feedback，不允许 `L5 -> L2`、`L4 -> L1` 这类回跳 |
+| 依赖规则 | `L1` 不得直接依赖 `L3/L4/L5`；`L3` 不得直接依赖 `L5` |
+| 载荷规则 | feedback 中禁止传 `UObject* / AActor* / Manager*`，只传 DTO/snapshot/result |
+| 装配规则 | `Bootstrap` 可见全局，但只做构造、注入、绑定，不写业务判断 |
+| 命名规则 | 文件名应体现职责：`*UseCase`、`*State`、`*Policy`、`*Adapter`、`*Feedback` |
+
+### 5.4 后续重构任务表（Target Backlog）
+
+| 阶段 | 任务 | 目标 folder / 模块 | 完成标准 |
+|---|---|---|---|
+| `T1` | 建立控制论目录骨架 | `Core/Interaction/{Application,Domain,Infrastructure,Feedback}` | 目录存在，职责说明写入 docs |
+| `T2` | 将 `Input/Application` 上移到 `Core/Interaction/Application` | `Input/`、`Core/Interaction/Application/` | `Input/` 只剩 `PlayerController`、`InputActions` 等入口壳层 |
+| `T3` | 将 `Input/Domain` 收敛为交互域模型 | `Core/Interaction/Domain/` | `MouseModeState`、`DeploymentQueue`、`SelectionSnapshot`、`CommandIntent` 等进入统一 domain |
+| `T4` | 将 `Input/Infrastructure` 扩展为统一 Unreal bridge | `Core/Interaction/Infrastructure/` | `HUD / Agent / Selection / Squad / Camera / Edit / HitTest` 全部通过 adapter 访问 |
+| `T5` | 建立 `FB21 / FB32 / FB43 / FB54` 反馈 DTO | `Core/Interaction/Feedback/` | UI/ViewModel、StateChange、ExecutionResult、PlantSnapshot 反馈类型稳定 |
+| `T6` | HUD/UI 改为只消费 `FB21` 结果 | `UI/`、`UI/HUD/Application/` | UI 不再直接查询深层 manager，统一消费上游反馈结果 |
+| `T7` | SceneEdit / Modify / Input 三条线统一进入同一交互通道 | `UI/Mode/`、`Input/`、`Core/Interaction/` | 不再各自维护一套独立交互编排模型 |
+| `T8` | 建立架构守卫 | CI / 静态检查 / include 规则 | 禁止新增跳层 include 和跳层 feedback |
+
+### 5.5 当前建议执行顺序
+
+1. 先做 `T1-T4`，把 `Input` 这条线从“已拆散”推进到“真正迁移完成”。
+2. 再做 `T5-T6`，把 UI 反馈链标准化。
+3. 最后做 `T7-T8`，让 `Input / UI / SceneEdit` 共用同一套控制论交互骨架。
+
+## 6. 重构建议
+
+### 6.1 总体原则
 
 - 图中的**实线**是目标依赖方向（推荐长期保留）。
 - 图中的**虚线**是当前项目里已存在的跨层直连（本页保留展示，不做粉饰）。
 - 如果后续要做“严格五层”，优先消除 `L0 -> L2/L3` 的直连，把入口收敛到 `L1`。
+- 如果后续进入“控制论重构阶段”，则以本页 `5.x` 的 `L1-L5 + Feedback` 为目标，而不是继续停留在当前 `L0-L4` 的过渡架构。
 
-### 5.2 优先级清单（建议）
+### 6.2 优先级清单（建议）
 
 | 优先级 | 主题 | 涉及模块 | 重构动作 | 目标收益 |
 |---|---|---|---|---|
@@ -563,7 +648,7 @@ flowchart LR
 - `MACommOutbound` / `MACommSubsystem` / `MACommInbound` / `MAHUDBackendCoordinator` 已统一通过 `MACommJsonCodec` 门面访问序列化逻辑。
 - `MACommandManager` 中 `SkillList` 时间步查询已改为 `MACommJsonCodec::FindSkillListTimeStep`，保持模型层“纯数据结构”定位。
 
-### 5.3 执行顺序建议
+### 6.3 执行顺序建议
 
 1. 先做全部 P0（控制复杂度和耦合主风险）。
 2. 再做 P1（提高演进效率和长期稳定性）。
