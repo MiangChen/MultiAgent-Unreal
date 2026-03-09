@@ -5,8 +5,6 @@
 #include "../../Core/MAUIManager.h"
 #include "../../Mode/MAEditWidget.h"
 #include "../../Mode/MAModifyWidget.h"
-#include "../../../Core/Manager/MAEditModeManager.h"
-#include "../../../Environment/Utils/MAPointOfInterest.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMAHUDSceneEditCoordinator, Log, All);
 
@@ -21,7 +19,9 @@ void FMAHUDSceneEditCoordinator::HandleModifyConfirmed(AMAHUD* HUD, AActor* Acto
         Actor ? *Actor->GetName() : TEXT("null"), *LabelText);
     if (!Actor)
     {
-        HUD->ShowNotification(TEXT("Please select an Actor first"), true);
+        FMAFeedback21Batch Feedback;
+        Feedback.AddMessage(TEXT("Please select an Actor first"), EMAFeedback21MessageSeverity::Error);
+        ActionResultCoordinator.ApplyFeedback(HUD, Feedback);
         return;
     }
 
@@ -31,7 +31,7 @@ void FMAHUDSceneEditCoordinator::HandleModifyConfirmed(AMAHUD* HUD, AActor* Acto
     {
         Actors.Add(Actor);
     }
-    FMASceneActionResult Result = ModifySceneActionAdapter.ApplySingleModify(HUD->GetWorld(), Actor, LabelText);
+    FMASceneActionResult Result = SceneActionRuntimeAdapter.ApplySingleModify(HUD, Actor, LabelText);
     ActionResultCoordinator.ApplyModifyResult(HUD, ModifyWidget, Actors, LabelText, Result);
 }
 
@@ -75,12 +75,14 @@ void FMAHUDSceneEditCoordinator::HandleMultiSelectModifyConfirmed(
         Actors.Num(), *LabelText);
     if (Actors.Num() == 0)
     {
-        HUD->ShowNotification(TEXT("Please select at least one Actor first"), true);
+        FMAFeedback21Batch Feedback;
+        Feedback.AddMessage(TEXT("Please select at least one Actor first"), EMAFeedback21MessageSeverity::Error);
+        ActionResultCoordinator.ApplyFeedback(HUD, Feedback);
         return;
     }
 
     UMAModifyWidget* ModifyWidget = HUD->UIManager ? HUD->UIManager->GetModifyWidget() : nullptr;
-    FMASceneActionResult Result = ModifySceneActionAdapter.ApplyMultiModify(HUD->GetWorld(), Actors, LabelText, GeneratedJson);
+    FMASceneActionResult Result = SceneActionRuntimeAdapter.ApplyMultiModify(HUD, Actors, LabelText, GeneratedJson);
     ActionResultCoordinator.ApplyModifyResult(HUD, ModifyWidget, Actors, LabelText, Result);
 }
 
@@ -93,7 +95,7 @@ void FMAHUDSceneEditCoordinator::HandleEditConfirmed(AMAHUD* HUD, AActor* Actor,
 
     UE_LOG(LogMAHUDSceneEditCoordinator, Log, TEXT("OnEditConfirmed: Actor=%s"), Actor ? *Actor->GetName() : TEXT("null"));
 
-    ActionResultCoordinator.ApplyResult(HUD, EditSceneActionAdapter.ApplyNodeEdit(HUD->GetWorld(), Actor, JsonContent));
+    ActionResultCoordinator.ApplyResult(HUD, SceneActionRuntimeAdapter.ApplyNodeEdit(HUD, Actor, JsonContent));
 }
 
 void FMAHUDSceneEditCoordinator::HandleEditDeleteActor(AMAHUD* HUD, AActor* Actor) const
@@ -105,7 +107,7 @@ void FMAHUDSceneEditCoordinator::HandleEditDeleteActor(AMAHUD* HUD, AActor* Acto
 
     UE_LOG(LogMAHUDSceneEditCoordinator, Log, TEXT("OnEditDeleteActor: Actor=%s"), Actor ? *Actor->GetName() : TEXT("null"));
 
-    ActionResultCoordinator.ApplyResult(HUD, EditSceneActionAdapter.DeleteActor(HUD->GetWorld(), Actor));
+    ActionResultCoordinator.ApplyResult(HUD, SceneActionRuntimeAdapter.DeleteActor(HUD, Actor));
 }
 
 void FMAHUDSceneEditCoordinator::HandleEditCreateGoal(AMAHUD* HUD, AMAPointOfInterest* POI, const FString& Description) const
@@ -116,9 +118,9 @@ void FMAHUDSceneEditCoordinator::HandleEditCreateGoal(AMAHUD* HUD, AMAPointOfInt
     }
 
     UE_LOG(LogMAHUDSceneEditCoordinator, Log, TEXT("OnEditCreateGoal: POI=%s, Description=%s"),
-        POI ? *POI->GetName() : TEXT("null"), *Description);
+        POI ? TEXT("set") : TEXT("null"), *Description);
 
-    ActionResultCoordinator.ApplyResult(HUD, EditSceneActionAdapter.CreateGoal(HUD->GetWorld(), POI, Description));
+    ActionResultCoordinator.ApplyResult(HUD, SceneActionRuntimeAdapter.CreateGoal(HUD, POI, Description));
 }
 
 void FMAHUDSceneEditCoordinator::HandleEditCreateZone(AMAHUD* HUD, const TArray<AMAPointOfInterest*>& POIs, const FString& Description) const
@@ -130,7 +132,7 @@ void FMAHUDSceneEditCoordinator::HandleEditCreateZone(AMAHUD* HUD, const TArray<
 
     UE_LOG(LogMAHUDSceneEditCoordinator, Log, TEXT("OnEditCreateZone: %d POIs, Description=%s"), POIs.Num(), *Description);
 
-    ActionResultCoordinator.ApplyResult(HUD, EditSceneActionAdapter.CreateZone(HUD->GetWorld(), POIs, Description));
+    ActionResultCoordinator.ApplyResult(HUD, SceneActionRuntimeAdapter.CreateZone(HUD, POIs, Description));
 }
 
 void FMAHUDSceneEditCoordinator::HandleEditAddPresetActor(AMAHUD* HUD, AMAPointOfInterest* POI, const FString& ActorType) const
@@ -141,9 +143,9 @@ void FMAHUDSceneEditCoordinator::HandleEditAddPresetActor(AMAHUD* HUD, AMAPointO
     }
 
     UE_LOG(LogMAHUDSceneEditCoordinator, Log, TEXT("OnEditAddPresetActor: POI=%s, ActorType=%s"),
-        POI ? *POI->GetName() : TEXT("null"), *ActorType);
+        POI ? TEXT("set") : TEXT("null"), *ActorType);
 
-    ActionResultCoordinator.ApplyResult(HUD, EditSceneActionAdapter.AddPresetActor(HUD->GetWorld(), POI, ActorType));
+    ActionResultCoordinator.ApplyResult(HUD, SceneActionRuntimeAdapter.AddPresetActor(HUD, POI, ActorType));
 }
 
 void FMAHUDSceneEditCoordinator::HandleEditDeletePOIs(AMAHUD* HUD, const TArray<AMAPointOfInterest*>& POIs) const
@@ -155,7 +157,7 @@ void FMAHUDSceneEditCoordinator::HandleEditDeletePOIs(AMAHUD* HUD, const TArray<
 
     UE_LOG(LogMAHUDSceneEditCoordinator, Log, TEXT("OnEditDeletePOIs: %d POIs to delete"), POIs.Num());
 
-    ActionResultCoordinator.ApplyResult(HUD, EditSceneActionAdapter.DeletePOIs(HUD->GetWorld(), POIs));
+    ActionResultCoordinator.ApplyResult(HUD, SceneActionRuntimeAdapter.DeletePOIs(HUD, POIs));
 }
 
 void FMAHUDSceneEditCoordinator::HandleEditSetAsGoal(AMAHUD* HUD, AActor* Actor) const
@@ -167,7 +169,7 @@ void FMAHUDSceneEditCoordinator::HandleEditSetAsGoal(AMAHUD* HUD, AActor* Actor)
 
     UE_LOG(LogMAHUDSceneEditCoordinator, Log, TEXT("OnEditSetAsGoal: Actor=%s"), Actor ? *Actor->GetName() : TEXT("null"));
 
-    ActionResultCoordinator.ApplyResult(HUD, EditSceneActionAdapter.SetGoalState(HUD->GetWorld(), Actor, true));
+    ActionResultCoordinator.ApplyResult(HUD, SceneActionRuntimeAdapter.SetGoalState(HUD, Actor, true));
 }
 
 void FMAHUDSceneEditCoordinator::HandleEditUnsetAsGoal(AMAHUD* HUD, AActor* Actor) const
@@ -179,7 +181,48 @@ void FMAHUDSceneEditCoordinator::HandleEditUnsetAsGoal(AMAHUD* HUD, AActor* Acto
 
     UE_LOG(LogMAHUDSceneEditCoordinator, Log, TEXT("OnEditUnsetAsGoal: Actor=%s"), Actor ? *Actor->GetName() : TEXT("null"));
 
-    ActionResultCoordinator.ApplyResult(HUD, EditSceneActionAdapter.SetGoalState(HUD->GetWorld(), Actor, false));
+    ActionResultCoordinator.ApplyResult(HUD, SceneActionRuntimeAdapter.SetGoalState(HUD, Actor, false));
+}
+
+void FMAHUDSceneEditCoordinator::HandleEditActionRequest(AMAHUD* HUD, const FMAEditWidgetActionRequest& Request) const
+{
+    if (!HUD)
+    {
+        return;
+    }
+
+    switch (Request.Kind)
+    {
+    case EMAEditWidgetActionKind::ApplyNodeEdit:
+        HandleEditConfirmed(HUD, Request.Actor, Request.JsonContent);
+        break;
+    case EMAEditWidgetActionKind::DeleteActor:
+        HandleEditDeleteActor(HUD, Request.Actor);
+        break;
+    case EMAEditWidgetActionKind::CreateGoal:
+        if (Request.POIs.Num() > 0)
+        {
+            HandleEditCreateGoal(HUD, Request.POIs[0], Request.Description);
+        }
+        break;
+    case EMAEditWidgetActionKind::CreateZone:
+        HandleEditCreateZone(HUD, Request.POIs, Request.Description);
+        break;
+    case EMAEditWidgetActionKind::AddPresetActor:
+        if (Request.POIs.Num() > 0)
+        {
+            HandleEditAddPresetActor(HUD, Request.POIs[0], Request.ActorType);
+        }
+        break;
+    case EMAEditWidgetActionKind::DeletePOIs:
+        HandleEditDeletePOIs(HUD, Request.POIs);
+        break;
+    case EMAEditWidgetActionKind::SetGoalState:
+        ActionResultCoordinator.ApplyResult(HUD, SceneActionRuntimeAdapter.SetGoalState(HUD, Request.Actor, Request.bGoalState));
+        break;
+    default:
+        break;
+    }
 }
 
 void FMAHUDSceneEditCoordinator::HandleSceneListGoalClicked(AMAHUD* HUD, const FString& GoalId) const

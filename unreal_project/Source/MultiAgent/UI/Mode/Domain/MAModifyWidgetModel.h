@@ -5,8 +5,6 @@
 #include "../MAModifyTypes.h"
 #include "../../../Core/Manager/MASceneGraphNodeTypes.h"
 
-class AActor;
-
 enum class EMAModifyPreviewTone : uint8
 {
     Default,
@@ -59,7 +57,8 @@ struct FMAModifyWidgetModel
     }
 
     static FMAModifySelectionViewModel BuildSelectionViewModel(
-        const TArray<AActor*>& Actors,
+        int32 ActorCount,
+        const FString& SingleActorName,
         const FMASceneGraphNode* MatchedNode,
         const FString& DefaultHintText,
         const FString& MultiSelectHintText)
@@ -75,11 +74,14 @@ struct FMAModifyWidgetModel
         else
         {
             ViewModel.AnnotationMode = EMAAnnotationMode::AddNew;
-            ViewModel.LabelInputHintText = Actors.Num() > 1 ? MultiSelectHintText : DefaultHintText;
+            ViewModel.LabelInputHintText = ActorCount > 1 ? MultiSelectHintText : DefaultHintText;
         }
 
-        ViewModel.HintText = FMASceneSelectionDisplay::BuildActorSelectionHint(Actors, DefaultHintText);
-        if (Actors.Num() == 0)
+        ViewModel.HintText = FMASceneSelectionDisplay::BuildActorSelectionHint(
+            ActorCount,
+            SingleActorName,
+            DefaultHintText);
+        if (ActorCount == 0)
         {
             ViewModel.LabelInputHintText = DefaultHintText;
         }

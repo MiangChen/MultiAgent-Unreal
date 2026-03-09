@@ -1,8 +1,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "MAEditWidgetActionRequest.h"
+#include "MAEditWidgetSelectionState.h"
 #include "MAEditWidgetStateCoordinator.h"
 #include "../Domain/MAEditWidgetModel.h"
+#include "../Infrastructure/MAEditWidgetRuntimeAdapter.h"
 #include "../Infrastructure/MAEditWidgetSceneGraphAdapter.h"
 
 class AMAHUD;
@@ -15,14 +18,14 @@ public:
     void RefreshFromEditModeSelection(AMAHUD* HUD, UMAEditWidget* Widget);
     void RefreshCurrentSelection(AMAHUD* HUD, UMAEditWidget* Widget);
 
-    void HandleConfirmRequested(AMAHUD* HUD, UMAEditWidget* Widget, const FString& JsonContent);
-    void HandleDeleteActorRequested(AMAHUD* HUD, UMAEditWidget* Widget);
-    void HandleCreateGoalRequested(AMAHUD* HUD, UMAEditWidget* Widget, const FString& Description);
-    void HandleCreateZoneRequested(AMAHUD* HUD, UMAEditWidget* Widget, const FString& Description);
-    void HandleAddPresetActorRequested(AMAHUD* HUD, UMAEditWidget* Widget, const FString& ActorType);
-    void HandleDeletePOIsRequested(AMAHUD* HUD, UMAEditWidget* Widget);
-    void HandleSetAsGoalRequested(AMAHUD* HUD, UMAEditWidget* Widget);
-    void HandleUnsetAsGoalRequested(AMAHUD* HUD, UMAEditWidget* Widget);
+    bool HandleConfirmRequested(UMAEditWidget* Widget, const FString& JsonContent, FMAEditWidgetActionRequest& OutRequest);
+    bool HandleDeleteActorRequested(UMAEditWidget* Widget, FMAEditWidgetActionRequest& OutRequest);
+    bool HandleCreateGoalRequested(UMAEditWidget* Widget, const FString& Description, FMAEditWidgetActionRequest& OutRequest);
+    bool HandleCreateZoneRequested(UMAEditWidget* Widget, const FString& Description, FMAEditWidgetActionRequest& OutRequest);
+    bool HandleAddPresetActorRequested(UMAEditWidget* Widget, const FString& ActorType, FMAEditWidgetActionRequest& OutRequest);
+    bool HandleDeletePOIsRequested(UMAEditWidget* Widget, FMAEditWidgetActionRequest& OutRequest);
+    bool HandleSetAsGoalRequested(UMAEditWidget* Widget, FMAEditWidgetActionRequest& OutRequest);
+    bool HandleUnsetAsGoalRequested(UMAEditWidget* Widget, FMAEditWidgetActionRequest& OutRequest);
     void HandleNodeSwitchRequested(AMAHUD* HUD, UMAEditWidget* Widget, int32 NodeIndex);
 
 private:
@@ -36,5 +39,6 @@ private:
 private:
     FMAEditWidgetSelectionState SelectionState;
     FMAEditWidgetStateCoordinator WidgetStateCoordinator;
+    FMAEditWidgetRuntimeAdapter RuntimeAdapter;
     FMAEditWidgetSceneGraphAdapter SceneGraphAdapter;
 };

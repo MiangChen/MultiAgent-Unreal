@@ -2,21 +2,22 @@
 
 #include "CoreMinimal.h"
 
-class AActor;
-
 // Shared selection display text helpers used by edit/modify flows.
 struct FMASceneSelectionDisplay
 {
-    static FString BuildActorSelectionHint(const TArray<AActor*>& Actors, const FString& DefaultHintText)
+    static FString BuildActorSelectionHint(
+        int32 ActorCount,
+        const FString& SingleActorName,
+        const FString& DefaultHintText)
     {
-        if (Actors.Num() == 1 && Actors[0])
+        if (ActorCount == 1 && !SingleActorName.IsEmpty())
         {
-            return FString::Printf(TEXT("Selected: %s"), *Actors[0]->GetName());
+            return FString::Printf(TEXT("Selected: %s"), *SingleActorName);
         }
 
-        if (Actors.Num() > 1)
+        if (ActorCount > 1)
         {
-            return FString::Printf(TEXT("Selected: %d Actors"), Actors.Num());
+            return FString::Printf(TEXT("Selected: %d Actors"), ActorCount);
         }
 
         return DefaultHintText;

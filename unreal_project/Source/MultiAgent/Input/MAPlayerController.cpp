@@ -1,23 +1,9 @@
-// MAPlayerController.cpp (重构版)
-// 使用 Enhanced Input System + MACommandManager
-// 支持星际争霸风格的框选和编组
-// 支持 Modify 模式的场景标注
+// MAPlayerController.cpp
 
 #include "MAPlayerController.h"
 #include "MAInputActions.h"
-#include "../Core/Manager/MAAgentManager.h"
 #include "../Core/Manager/MACommandManager.h"
-#include "../Core/Manager/MASquadManager.h"
-#include "../Core/MASquad.h"
-#include "../Core/Manager/MASelectionManager.h"
-#include "../Core/Manager/MAViewportManager.h"
-#include "../Core/Manager/MAEditModeManager.h"
-#include "../Agent/Character/MACharacter.h"
-#include "../Agent/Character/MAQuadrupedCharacter.h"
-#include "../Agent/Character/MAUAVCharacter.h"
-#include "../Agent/Component/Sensor/MACameraSensorComponent.h"
 #include "EnhancedInputComponent.h"
-#include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
 
 AMAPlayerController::AMAPlayerController()
@@ -31,47 +17,18 @@ AMAPlayerController::AMAPlayerController()
 void AMAPlayerController::BeginPlay()
 {
     Super::BeginPlay();
-
-    // 缓存 Subsystem 引用
-    if (!InitializeSubsystems())
-    {
-        UE_LOG(LogTemp, Error, TEXT("[PlayerController] Failed to initialize subsystems!"));
-    }
-
-    // 初始为 Select 模式，禁用视角控制
-    FInputModeGameAndUI InputMode;
-    InputMode.SetHideCursorDuringCapture(false);
-    SetInputMode(InputMode);
-    SetIgnoreLookInput(true);  // Select 模式禁用视角旋转
-
-    if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
-    {
-        UMAInputActions* InputActions = UMAInputActions::Get();
-        if (InputActions && InputActions->DefaultMappingContext)
-        {
-            Subsystem->AddMappingContext(InputActions->DefaultMappingContext, 0);
-        }
-    }
+    InteractionBootstrap.InitializePlayerController(this);
 }
 
-bool AMAPlayerController::InitializeSubsystems()
+void AMAPlayerController::ApplyFeedback(const FMAFeedback21Batch& Feedback)
 {
-    UWorld* World = GetWorld();
-    if (!World) return false;
-    
-    AgentManager = World->GetSubsystem<UMAAgentManager>();
-    CommandManager = World->GetSubsystem<UMACommandManager>();
-    SelectionManager = World->GetSubsystem<UMASelectionManager>();
-    SquadManager = World->GetSubsystem<UMASquadManager>();
-    ViewportManager = World->GetSubsystem<UMAViewportManager>();
-    EditModeManager = World->GetSubsystem<UMAEditModeManager>();
-
-    return AgentManager && CommandManager && SelectionManager && SquadManager && ViewportManager;
+    Feedback21Applier.ApplyToPlayerController(this, Feedback);
 }
 
 UMAHUDStateManager* AMAPlayerController::GetHUDStateManager() const
 {
-    return HUDShortcutCoordinator.ResolveHUDStateManager(this);
+    FMAHUDInputAdapter HUDInputAdapter;
+    return HUDInputAdapter.ResolveHUDStateManager(this);
 }
 
 void AMAPlayerController::SetupInputComponent()
@@ -157,19 +114,19 @@ void AMAPlayerController::OnLeftClick(const FInputActionValue& Value)
 {
     // UMG 点击和 Enhanced Input 独立分发，这里只路由场景侧输入。
 
-    if (CurrentMouseMode == EMAMouseMode::Deployment)
+    if (MouseModeState.Is(EMAMouseMode::Deployment))
     {
         DeploymentInputCoordinator.HandleLeftClickStarted(this);
         return;
     }
     
-    if (CurrentMouseMode == EMAMouseMode::Modify)
+    if (MouseModeState.Is(EMAMouseMode::Modify))
     {
         ModifyInputCoordinator.HandleLeftClick(this);
         return;
     }
 
-    if (CurrentMouseMode == EMAMouseMode::Edit)
+    if (MouseModeState.Is(EMAMouseMode::Edit))
     {
         EditInputCoordinator.HandleLeftClick(this);
         return;
@@ -180,9 +137,9 @@ void AMAPlayerController::OnLeftClick(const FInputActionValue& Value)
 
 void AMAPlayerController::OnLeftClickReleased(const FInputActionValue& Value)
 {
-    if (CurrentMouseMode == EMAMouseMode::Deployment)
+    if (MouseModeState.Is(EMAMouseMode::Deployment))
     {
-        DeploymentInputCoordinator.HandleLeftClickReleased(this);
+        ApplyFeedback(DeploymentInputCoordinator.HandleLeftClickReleased(this));
         return;
     }
     
@@ -193,7 +150,7 @@ void AMAPlayerController::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
 
-    RTSSelectionInputCoordinator.Tick(this);
+    ApplyFeedback(RTSSelectionInputCoordinator.Tick(this));
     CameraInputCoordinator.Tick(this);
 }
 
@@ -209,7 +166,7 @@ void AMAPlayerController::OnRightClickReleased(const FInputActionValue& Value)
 
 void AMAPlayerController::OnMiddleClick(const FInputActionValue& Value)
 {
-    RTSSelectionInputCoordinator.HandleMiddleClickNavigate(this);
+    ApplyFeedback(RTSSelectionInputCoordinator.HandleMiddleClickNavigate(this));
 }
 
 // ========== 拾取/放下 ==========
@@ -228,24 +185,24 @@ void AMAPlayerController::OnDrop(const FInputActionValue& Value)
 
 void AMAPlayerController::OnSpawnPickupItem(const FInputActionValue& Value)
 {
-    AgentUtilityInputCoordinator.HandleSpawnPickupItem();
+    ApplyFeedback(AgentUtilityInputCoordinator.HandleSpawnPickupItem());
 }
 
 void AMAPlayerController::OnSpawnQuadruped(const FInputActionValue& Value)
 {
-    AgentUtilityInputCoordinator.HandleSpawnQuadruped();
+    ApplyFeedback(AgentUtilityInputCoordinator.HandleSpawnQuadruped());
 }
 
 // ========== 调试 ==========
 
 void AMAPlayerController::OnPrintAgentInfo(const FInputActionValue& Value)
 {
-    AgentUtilityInputCoordinator.HandlePrintAgentInfo(this);
+    ApplyFeedback(AgentUtilityInputCoordinator.HandlePrintAgentInfo(this));
 }
 
 void AMAPlayerController::OnDestroyLastAgent(const FInputActionValue& Value)
 {
-    AgentUtilityInputCoordinator.HandleDestroyLastAgent(this);
+    ApplyFeedback(AgentUtilityInputCoordinator.HandleDestroyLastAgent(this));
 }
 
 // ========== 视角切换 ==========
@@ -262,17 +219,17 @@ void AMAPlayerController::OnReturnToSpectator(const FInputActionValue& Value)
 
 void AMAPlayerController::OnStartCharge(const FInputActionValue& Value)
 {
-    CommandInputCoordinator.SendCommandToSelection(SelectionManager, CommandManager, EMACommand::Charge);
+    ApplyFeedback(CommandInputCoordinator.SendCommandToSelection(this, EMACommand::Charge));
 }
 
 void AMAPlayerController::OnStopIdle(const FInputActionValue& Value)
 {
-    CommandInputCoordinator.SendCommandToSelection(SelectionManager, CommandManager, EMACommand::Idle);
+    ApplyFeedback(CommandInputCoordinator.SendCommandToSelection(this, EMACommand::Idle));
 }
 
 void AMAPlayerController::OnStartFollow(const FInputActionValue& Value)
 {
-    CommandInputCoordinator.SendCommandToSelection(SelectionManager, CommandManager, EMACommand::Follow);
+    ApplyFeedback(CommandInputCoordinator.SendCommandToSelection(this, EMACommand::Follow));
 }
 
 void AMAPlayerController::OnStartFormation(const FInputActionValue& Value)
@@ -284,19 +241,19 @@ void AMAPlayerController::OnStartFormation(const FInputActionValue& Value)
 
 void AMAPlayerController::OnTakePhoto(const FInputActionValue& Value)
 {
-    CameraInputCoordinator.TakePhoto(this);
+    ApplyFeedback(CameraInputCoordinator.TakePhoto(this));
 }
 
 void AMAPlayerController::OnToggleTCPStream(const FInputActionValue& Value)
 {
-    CameraInputCoordinator.ToggleTCPStream(this);
+    ApplyFeedback(CameraInputCoordinator.ToggleTCPStream(this));
 }
 
 // ========== 暂停/恢复技能执行 ==========
 
 void AMAPlayerController::OnTogglePauseExecution(const FInputActionValue& Value)
 {
-    CommandInputCoordinator.TogglePauseExecution(CommandManager);
+    ApplyFeedback(CommandInputCoordinator.TogglePauseExecution(this));
 }
 
 void AMAPlayerController::OnControlGroup1(const FInputActionValue& Value) { SquadInputCoordinator.HandleControlGroup(this, 1); }
@@ -307,50 +264,52 @@ void AMAPlayerController::OnControlGroup5(const FInputActionValue& Value) { Squa
 
 void AMAPlayerController::OnCreateSquad(const FInputActionValue& Value)
 {
-    SquadInputCoordinator.CreateSquad(this);
+    ApplyFeedback(SquadInputCoordinator.CreateSquad(this));
 }
 
 void AMAPlayerController::OnDisbandSquad(const FInputActionValue& Value)
 {
-    SquadInputCoordinator.DisbandSquad(this);
+    ApplyFeedback(SquadInputCoordinator.DisbandSquad(this));
 }
 
 // ========== 鼠标模式切换 ==========
 
 void AMAPlayerController::OnToggleMouseMode(const FInputActionValue& Value)
 {
-    const EMAMouseMode NewMode = CurrentMouseMode == EMAMouseMode::Edit
+    const EMAMouseMode OldMode = MouseModeState.CurrentMode;
+    const EMAMouseMode NewMode = MouseModeState.Is(EMAMouseMode::Edit)
         ? EMAMouseMode::Select
         : EMAMouseMode::Edit;
 
-    if (!MouseModeCoordinator.TransitionToMode(this, NewMode))
+    ApplyFeedback(MouseModeCoordinator.TransitionToMode(this, NewMode));
+    if (MouseModeState.CurrentMode != OldMode)
     {
-        return;
+        FMAFeedback21Batch Feedback;
+        Feedback.AddMessage(MouseModeCoordinator.BuildModeStatusText(MouseModeState.CurrentMode), EMAFeedback21MessageSeverity::Info, 2.f);
+        ApplyFeedback(Feedback);
     }
 
-    GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan,
-        MouseModeCoordinator.BuildModeStatusText(CurrentMouseMode));
-
-    UE_LOG(LogTemp, Log, TEXT("[PlayerController] Mouse mode: %s"), *MouseModeToString(CurrentMouseMode));
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] Mouse mode: %s"), *MouseModeToString(MouseModeState.CurrentMode));
 }
 
 // ========== Modify 模式切换 (逗号键) ==========
 
 void AMAPlayerController::OnToggleModifyMode(const FInputActionValue& Value)
 {
-    const EMAMouseMode NewMode = CurrentMouseMode == EMAMouseMode::Modify
+    const EMAMouseMode OldMode = MouseModeState.CurrentMode;
+    const EMAMouseMode NewMode = MouseModeState.Is(EMAMouseMode::Modify)
         ? EMAMouseMode::Select
         : EMAMouseMode::Modify;
 
-    if (!MouseModeCoordinator.TransitionToMode(this, NewMode))
+    ApplyFeedback(MouseModeCoordinator.TransitionToMode(this, NewMode));
+    if (MouseModeState.CurrentMode != OldMode)
     {
-        return;
+        FMAFeedback21Batch Feedback;
+        Feedback.AddMessage(MouseModeCoordinator.BuildModeStatusText(MouseModeState.CurrentMode), EMAFeedback21MessageSeverity::Info, 2.f);
+        ApplyFeedback(Feedback);
     }
 
-    GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan,
-        MouseModeCoordinator.BuildModeStatusText(CurrentMouseMode));
-
-    UE_LOG(LogTemp, Log, TEXT("[PlayerController] Mouse mode: %s"), *MouseModeToString(CurrentMouseMode));
+    UE_LOG(LogTemp, Log, TEXT("[PlayerController] Mouse mode: %s"), *MouseModeToString(MouseModeState.CurrentMode));
 }
 
 FString AMAPlayerController::MouseModeToString(EMAMouseMode Mode)
@@ -401,7 +360,7 @@ int32 AMAPlayerController::GetCurrentDeployingCount() const
 
 void AMAPlayerController::EnterDeploymentMode()
 {
-    DeploymentInputCoordinator.EnterMode(this);
+    ApplyFeedback(DeploymentInputCoordinator.EnterMode(this));
 }
 
 void AMAPlayerController::EnterDeploymentModeWithUnits(const TArray<FMAPendingDeployment>& Deployments)
@@ -411,46 +370,44 @@ void AMAPlayerController::EnterDeploymentModeWithUnits(const TArray<FMAPendingDe
 
 void AMAPlayerController::ExitDeploymentMode()
 {
-    DeploymentInputCoordinator.ExitMode(this);
+    ApplyFeedback(DeploymentInputCoordinator.ExitMode(this));
 }
 
 void AMAPlayerController::OnCheckTask(const FInputActionValue& Value)
 {
-    HUDShortcutCoordinator.HandleCheckTask(this);
+    ApplyFeedback(HUDShortcutCoordinator.HandleCheckTask());
 }
 
 void AMAPlayerController::OnCheckSkill(const FInputActionValue& Value)
 {
-    HUDShortcutCoordinator.HandleCheckSkill(this);
+    ApplyFeedback(HUDShortcutCoordinator.HandleCheckSkill());
 }
 
 void AMAPlayerController::OnCheckDecision(const FInputActionValue& Value)
 {
-    HUDShortcutCoordinator.HandleCheckDecision(this);
+    ApplyFeedback(HUDShortcutCoordinator.HandleCheckDecision());
 }
 
 // ========== 右侧边栏面板切换 (Right Sidebar Panel Split) ==========
 
 void AMAPlayerController::OnToggleSystemLogPanel(const FInputActionValue& Value)
 {
-    HUDShortcutCoordinator.ToggleSystemLogPanel(this);
+    ApplyFeedback(HUDShortcutCoordinator.ToggleSystemLogPanel());
 }
 
 void AMAPlayerController::OnTogglePreviewPanel(const FInputActionValue& Value)
 {
-    HUDShortcutCoordinator.TogglePreviewPanel(this);
+    ApplyFeedback(HUDShortcutCoordinator.TogglePreviewPanel());
 }
 
 void AMAPlayerController::OnToggleInstructionPanel(const FInputActionValue& Value)
 {
-    HUDShortcutCoordinator.ToggleInstructionPanel(this);
+    ApplyFeedback(HUDShortcutCoordinator.ToggleInstructionPanel());
 }
 
 void AMAPlayerController::OnToggleAgentHighlight(const FInputActionValue& Value)
 {
-    const bool bVisible = HUDShortcutCoordinator.ToggleAgentHighlight(this);
-    GEngine->AddOnScreenDebugMessage(-1, 2.f, bVisible ? FColor::Green : FColor::Yellow,
-        FString::Printf(TEXT("Agent Highlight: %s"), bVisible ? TEXT("ON") : TEXT("OFF")));
+    ApplyFeedback(HUDShortcutCoordinator.ToggleAgentHighlight());
 }
 
 void AMAPlayerController::OnJumpPressed(const FInputActionValue& Value)

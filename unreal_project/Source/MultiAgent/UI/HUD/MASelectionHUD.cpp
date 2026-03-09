@@ -288,7 +288,7 @@ void AMASelectionHUD::DrawMouseMode()
     }
 
     // 在屏幕右上角显示当前模式
-    FString ModeName = AMAPlayerController::MouseModeToString(PC->CurrentMouseMode);
+    FString ModeName = AMAPlayerController::MouseModeToString(PC->GetCurrentMouseMode());
     FString ModeText = FString::Printf(TEXT("Mode: %s (M)"), *ModeName);
 
     // 计算位置（右上角）
@@ -297,7 +297,7 @@ void AMASelectionHUD::DrawMouseMode()
     float Y = 20.f;
 
     // 使用 GetModeColor 获取颜色（带 fallback 逻辑）
-    FLinearColor ModeColor = GetModeColor(PC->CurrentMouseMode);
+    FLinearColor ModeColor = GetModeColor(PC->GetCurrentMouseMode());
 
     FCanvasTextItem TextItem(
         FVector2D(X, Y),

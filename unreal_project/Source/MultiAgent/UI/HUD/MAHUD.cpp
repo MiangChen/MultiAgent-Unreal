@@ -4,6 +4,7 @@
 // Widget 管理职责已委托给 UMAUIManager
 
 #include "MAHUD.h"
+#include "../../Agent/Character/MACharacter.h"
 #include "../Core/MAUIManager.h"
 #include "../../Input/MAPlayerController.h"
 #include "../../Core/Comm/MACommTypes.h"
@@ -81,7 +82,7 @@ void AMAHUD::DrawHUD()
 
 void AMAHUD::ShowDirectControlIndicator(AMACharacter* Agent)
 {
-    WidgetCoordinator.ShowDirectControlIndicator(UIManager, Agent);
+    WidgetCoordinator.ShowDirectControlIndicator(UIManager, Agent ? Agent->AgentLabel : TEXT(""));
 }
 
 void AMAHUD::HideDirectControlIndicator()
@@ -161,7 +162,7 @@ void AMAHUD::OnSimpleCommandSubmitted(const FString& Command)
 void AMAHUD::OnPlannerResponse(const FMAPlannerResponse& Response)
 {
     UE_LOG(LogMAHUD, Log, TEXT("Planner response received: %s"), *Response.Message);
-    BackendCoordinator.HandlePlannerResponse(UIManager, Response);
+    BackendCoordinator.HandlePlannerResponse(this, UIManager, Response);
 }
 
 void AMAHUD::LoadTaskGraph(const FMATaskGraphData& Data)
@@ -486,46 +487,6 @@ void AMAHUD::OnEditNodeSwitchRequested(int32 NodeIndex)
     OverlayCoordinator.HandleEditNodeSwitchRequested(this, NodeIndex);
 }
 
-void AMAHUD::OnEditConfirmed(AActor* Actor, const FString& JsonContent)
-{
-    SceneEditCoordinator.HandleEditConfirmed(this, Actor, JsonContent);
-}
-
-void AMAHUD::OnEditDeleteActor(AActor* Actor)
-{
-    SceneEditCoordinator.HandleEditDeleteActor(this, Actor);
-}
-
-void AMAHUD::OnEditCreateGoal(AMAPointOfInterest* POI, const FString& Description)
-{
-    SceneEditCoordinator.HandleEditCreateGoal(this, POI, Description);
-}
-
-void AMAHUD::OnEditCreateZone(const TArray<AMAPointOfInterest*>& POIs, const FString& Description)
-{
-    SceneEditCoordinator.HandleEditCreateZone(this, POIs, Description);
-}
-
-void AMAHUD::OnEditAddPresetActor(AMAPointOfInterest* POI, const FString& ActorType)
-{
-    SceneEditCoordinator.HandleEditAddPresetActor(this, POI, ActorType);
-}
-
-void AMAHUD::OnEditDeletePOIs(const TArray<AMAPointOfInterest*>& POIs)
-{
-    SceneEditCoordinator.HandleEditDeletePOIs(this, POIs);
-}
-
-void AMAHUD::OnEditSetAsGoal(AActor* Actor)
-{
-    SceneEditCoordinator.HandleEditSetAsGoal(this, Actor);
-}
-
-void AMAHUD::OnEditUnsetAsGoal(AActor* Actor)
-{
-    SceneEditCoordinator.HandleEditUnsetAsGoal(this, Actor);
-}
-
 void AMAHUD::OnSceneListGoalClicked(const FString& GoalId)
 {
     SceneEditCoordinator.HandleSceneListGoalClicked(this, GoalId);
@@ -552,13 +513,13 @@ void AMAHUD::BindBackendEvents()
 void AMAHUD::OnTaskGraphReceived(const FMATaskPlan& TaskPlan)
 {
     UE_LOG(LogMAHUD, Log, TEXT("OnTaskGraphReceived: Received task graph update with %d nodes"), TaskPlan.Nodes.Num());
-    BackendCoordinator.HandleTaskGraphReceived(UIManager, TaskPlan);
+    BackendCoordinator.HandleTaskGraphReceived(this, UIManager, TaskPlan);
 }
 
 void AMAHUD::OnSkillAllocationReceived(const FMASkillAllocationData& AllocationData)
 {
     UE_LOG(LogMAHUD, Log, TEXT("OnSkillAllocationReceived: Received skill allocation data, Name=%s"), *AllocationData.Name);
-    BackendCoordinator.HandleSkillAllocationReceived(UIManager, AllocationData);
+    BackendCoordinator.HandleSkillAllocationReceived(this, UIManager, AllocationData);
 }
 
 
@@ -566,7 +527,7 @@ void AMAHUD::OnSkillListReceived(const FMASkillListMessage& SkillList, bool bExe
 {
     UE_LOG(LogMAHUD, Log, TEXT("OnSkillListReceived: Received skill list update with %d time steps, executable=%s"), 
         SkillList.TotalTimeSteps, bExecutable ? TEXT("true") : TEXT("false"));
-    BackendCoordinator.HandleSkillListReceived(UIManager, SkillList, bExecutable);
+    BackendCoordinator.HandleSkillListReceived(this, UIManager, SkillList, bExecutable);
 }
 
 //=============================================================================

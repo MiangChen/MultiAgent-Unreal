@@ -546,6 +546,7 @@ flowchart LR
 - 不允许跳层前向依赖，也不允许跳层 feedback
 - `feedback` 只传标准化 `DTO / Snapshot / Result / ViewModel`
 - `Composition Root / Bootstrap` 负责装配，但不承载业务规则
+- 只有真正触达 `L5` 的运行时动作，才要求走完整 `FB54 -> FB43 -> FB32 -> FB21` 链；纯 `L2/L3` 编排或 UI 状态变更，可从最近层级直接产出 `FB21`
 
 ### 5.1 控制论五层图（目标）
 
@@ -589,6 +590,7 @@ flowchart LR
 | `L4` | `Core/Interaction/Infrastructure/` | Unreal adapter、sensor、actuator、query bridge |
 | `L5` | `Core/Manager/`、`Agent/`、`Environment/` | 真实运行系统、Subsystem、Agent、场景与 UE runtime |
 | `FB` | `Core/Interaction/Feedback/` | 标准化反馈 DTO：`FB21/FB32/FB43/FB54` |
+| `CR` | `Core/Interaction/Bootstrap/` | 显式组装入口，如 `MAInteractionBootstrap` |
 
 ### 5.3 规则清单（目标）
 
@@ -603,22 +605,237 @@ flowchart LR
 
 ### 5.4 后续重构任务表（Target Backlog）
 
-| 阶段 | 任务 | 目标 folder / 模块 | 完成标准 |
-|---|---|---|---|
-| `T1` | 建立控制论目录骨架 | `Core/Interaction/{Application,Domain,Infrastructure,Feedback}` | 目录存在，职责说明写入 docs |
-| `T2` | 将 `Input/Application` 上移到 `Core/Interaction/Application` | `Input/`、`Core/Interaction/Application/` | `Input/` 只剩 `PlayerController`、`InputActions` 等入口壳层 |
-| `T3` | 将 `Input/Domain` 收敛为交互域模型 | `Core/Interaction/Domain/` | `MouseModeState`、`DeploymentQueue`、`SelectionSnapshot`、`CommandIntent` 等进入统一 domain |
-| `T4` | 将 `Input/Infrastructure` 扩展为统一 Unreal bridge | `Core/Interaction/Infrastructure/` | `HUD / Agent / Selection / Squad / Camera / Edit / HitTest` 全部通过 adapter 访问 |
-| `T5` | 建立 `FB21 / FB32 / FB43 / FB54` 反馈 DTO | `Core/Interaction/Feedback/` | UI/ViewModel、StateChange、ExecutionResult、PlantSnapshot 反馈类型稳定 |
-| `T6` | HUD/UI 改为只消费 `FB21` 结果 | `UI/`、`UI/HUD/Application/` | UI 不再直接查询深层 manager，统一消费上游反馈结果 |
-| `T7` | SceneEdit / Modify / Input 三条线统一进入同一交互通道 | `UI/Mode/`、`Input/`、`Core/Interaction/` | 不再各自维护一套独立交互编排模型 |
-| `T8` | 建立架构守卫 | CI / 静态检查 / include 规则 | 禁止新增跳层 include 和跳层 feedback |
+| 阶段 | 任务 | 目标 folder / 模块 | 完成标准 | 当前状态 |
+|---|---|---|---|---|
+| `T1` | 建立控制论目录骨架 | `Core/Interaction/{Application,Domain,Infrastructure,Feedback}` | 目录存在，职责说明写入 docs | 已完成 |
+| `T2` | 将 `Input/Application` 上移到 `Core/Interaction/Application` | `Input/`、`Core/Interaction/Application/` | `Input/` 只剩 `PlayerController`、`InputActions` 等入口壳层 | 已完成 |
+| `T3` | 将 `Input/Domain` 收敛为交互域模型 | `Core/Interaction/Domain/` | `MouseModeState`、`DeploymentQueue`、`SelectionSnapshot`、`CommandIntent` 等进入统一 domain | 已完成 |
+| `T4` | 将 `Input/Infrastructure` 扩展为统一 Unreal bridge | `Core/Interaction/Infrastructure/` | `HUD / Agent / Selection / Squad / Camera / Edit / HitTest` 全部通过 adapter 访问 | 已完成 |
+| `T5` | 建立 `FB21 / FB32 / FB43 / FB54` 反馈 DTO | `Core/Interaction/Feedback/` | UI/ViewModel、StateChange、ExecutionResult、PlantSnapshot 反馈类型稳定 | 已完成 |
+| `T6` | HUD/UI 改为只消费 `FB21` 结果 | `UI/`、`UI/HUD/Application/` | UI 不再直接查询深层 manager，统一消费上游反馈结果 | 已完成 |
+| `T7` | SceneEdit / Modify / Input 三条线统一进入同一交互通道 | `UI/Mode/`、`Input/`、`Core/Interaction/` | 不再各自维护一套独立交互编排模型 | 已完成 |
+| `T8` | 建立架构守卫 | CI / 静态检查 / include 规则 | 禁止新增跳层 include 和跳层 feedback | 已完成 |
 
-### 5.5 当前建议执行顺序
+### 5.5 当前实现状态（2026-03-09）
 
-1. 先做 `T1-T4`，把 `Input` 这条线从“已拆散”推进到“真正迁移完成”。
-2. 再做 `T5-T6`，把 UI 反馈链标准化。
-3. 最后做 `T7-T8`，让 `Input / UI / SceneEdit` 共用同一套控制论交互骨架。
+本页 `T1-T8` 对应的控制论 backlog 已完成到当前仓库的目标形态，当前实现具备以下特征：
+
+1. `Input` 主线已经收敛成：
+   - `L1`: `Input/MAPlayerController.*`
+   - `L2`: `Core/Interaction/Application/*`
+   - `L3`: `Core/Interaction/Domain/*`
+   - `L4`: `Core/Interaction/Infrastructure/*`
+   - `CR`: `Core/Interaction/Bootstrap/MAInteractionBootstrap.*`
+2. `PlayerController` 已不再持有裸的 `CurrentMouseMode / PreviousMouseMode / DeploymentQueue / HighlightedActors`，统一收敛到：
+   - `FMAMouseModeState`
+   - `FMADeploymentQueueState`
+   - `FMAModifySelectionState`
+3. `UI/HUD/Application` 与 `UI/Mode/Application` 已去掉直接 `GetWorld/GetSubsystem` 查询，改为通过：
+   - `UI/HUD/Infrastructure/MAHUDEditRuntimeAdapter.*`
+   - `UI/HUD/Infrastructure/MAHUDBackendRuntimeAdapter.*`
+   - `UI/HUD/Infrastructure/MAHUDSceneActionRuntimeAdapter.*`
+   - `UI/Mode/Infrastructure/MAEditWidgetRuntimeAdapter.*`
+4. `EditWidget` 的业务动作已统一改为 `ActionRequest -> SceneEditCoordinator` 通道，不再保留旧的 HUD 直执行业务回调链。
+5. `FB21` 已是统一的 UI 反馈通道；命令派发链路已落地 `FB54 -> FB43 -> FB32 -> FB21`。其余纯编排动作按本节规则允许在最近层级直接产出 `FB21`，不再为了“凑层级”伪造 `L5` 观测。
+6. `scripts/check_interaction_architecture.py` 已升级为架构守卫，当前会阻止：
+   - `Application` 层重新出现 `GetWorld/GetSubsystem` 等运行时查询
+   - `Application` 层重新 include `Manager / Agent / Environment`
+   - `Domain` 层重新引入 `UWorld / AActor / Manager` 等运行时类型
+   - `PlayerController` 重新出现旧的裸状态字段
+
+### 5.6 当前实现类图（2026-03-09）
+
+```mermaid
+classDiagram
+    class MAInteractionBootstrap {
+      +InitializePlayerController()
+    }
+
+    class AMAPlayerController {
+      +ApplyFeedback()
+      +GetCurrentMouseMode()
+    }
+
+    class FMAMouseModeState
+    class FMADeploymentQueueState
+    class FMAModifySelectionState
+
+    class FMACommandInputCoordinator
+    class FMAMouseModeCoordinator
+    class FMADeploymentInputCoordinator
+    class FMARTSSelectionInputCoordinator
+    class FMACameraInputCoordinator
+    class FMASquadInputCoordinator
+    class FMAHUDShortcutCoordinator
+    class FMAEditInputCoordinator
+    class FMAModifyInputCoordinator
+
+    class FMAInteractionRuntimeAdapter
+    class FMAHUDInputAdapter
+    class FMAActorHighlightAdapter
+
+    class FMAFeedback54
+    class FMAFeedback43
+    class FMAFeedback32
+    class FMAFeedback21Batch
+    class FMAFeedbackPipeline
+    class FMAFeedback21Applier
+
+    class AMAHUD
+    class FMAHUDOverlayCoordinator
+    class FMAHUDSceneEditCoordinator
+    class FMAHUDSceneActionResultCoordinator
+    class FMAHUDBackendCoordinator
+    class FMAHUDEditRuntimeAdapter
+    class FMAHUDBackendRuntimeAdapter
+    class FMAHUDSceneActionRuntimeAdapter
+
+    class UMAEditWidget
+    class FMAEditWidgetCoordinator
+    class FMAEditWidgetRuntimeAdapter
+    class FMAEditWidgetActionRequest
+    class UMAUIManager
+
+    MAInteractionBootstrap --> AMAPlayerController : initialize
+
+    AMAPlayerController *-- FMAMouseModeState
+    AMAPlayerController *-- FMADeploymentQueueState
+    AMAPlayerController *-- FMAModifySelectionState
+
+    AMAPlayerController *-- FMACommandInputCoordinator
+    AMAPlayerController *-- FMAMouseModeCoordinator
+    AMAPlayerController *-- FMADeploymentInputCoordinator
+    AMAPlayerController *-- FMARTSSelectionInputCoordinator
+    AMAPlayerController *-- FMACameraInputCoordinator
+    AMAPlayerController *-- FMASquadInputCoordinator
+    AMAPlayerController *-- FMAHUDShortcutCoordinator
+    AMAPlayerController *-- FMAEditInputCoordinator
+    AMAPlayerController *-- FMAModifyInputCoordinator
+
+    AMAPlayerController --> FMAFeedback21Applier : ApplyFeedback
+
+    FMACommandInputCoordinator --> FMAInteractionRuntimeAdapter
+    FMACommandInputCoordinator --> FMAFeedbackPipeline
+
+    FMAMouseModeCoordinator --> FMAInteractionRuntimeAdapter
+    FMADeploymentInputCoordinator --> FMAInteractionRuntimeAdapter
+    FMARTSSelectionInputCoordinator --> FMAInteractionRuntimeAdapter
+    FMACameraInputCoordinator --> FMAInteractionRuntimeAdapter
+    FMASquadInputCoordinator --> FMAInteractionRuntimeAdapter
+    FMAEditInputCoordinator --> FMAInteractionRuntimeAdapter
+    FMAModifyInputCoordinator --> FMAInteractionRuntimeAdapter
+    FMAModifyInputCoordinator --> FMAActorHighlightAdapter
+
+    FMAInteractionRuntimeAdapter --> FMAFeedback54 : emits
+    FMAFeedbackPipeline --> FMAFeedback43 : build
+    FMAFeedbackPipeline --> FMAFeedback32 : build
+    FMAFeedbackPipeline --> FMAFeedback21Batch : build
+
+    AMAHUD *-- FMAHUDOverlayCoordinator
+    AMAHUD *-- FMAHUDSceneEditCoordinator
+    AMAHUD *-- FMAHUDSceneActionResultCoordinator
+    AMAHUD *-- FMAHUDBackendCoordinator
+    AMAHUD --> UMAUIManager
+
+    FMAHUDOverlayCoordinator --> FMAHUDEditRuntimeAdapter
+    FMAHUDOverlayCoordinator --> FMAEditWidgetCoordinator
+    FMAHUDOverlayCoordinator --> UMAEditWidget : resolve/bind
+
+    FMAEditWidgetCoordinator --> FMAEditWidgetRuntimeAdapter
+    FMAEditWidgetCoordinator --> FMAEditWidgetActionRequest
+
+    FMAHUDSceneEditCoordinator --> FMAHUDSceneActionRuntimeAdapter
+    FMAHUDSceneEditCoordinator --> FMAHUDSceneActionResultCoordinator
+    FMAHUDBackendCoordinator --> FMAHUDBackendRuntimeAdapter
+    FMAHUDSceneActionResultCoordinator --> FMAFeedback21Applier : ApplyToHUD
+```
+
+### 5.7 当前实现 folder 图（2026-03-09）
+
+```mermaid
+flowchart TB
+    subgraph CR["Composition Root"]
+        BOOT["Core/Interaction/Bootstrap/"]
+    end
+
+    subgraph L1["L1 Entry / Presentation"]
+        INPUT["Input/"]
+        UIHUD["UI/HUD/"]
+        UIMODE["UI/Mode/"]
+        UICORE["UI/Core/"]
+    end
+
+    subgraph L2["L2 Application"]
+        INTAPP["Core/Interaction/Application/"]
+        HUDAPP["UI/HUD/Application/"]
+        MODEAPP["UI/Mode/Application/"]
+    end
+
+    subgraph L3["L3 Domain / Feedback"]
+        INTDOMAIN["Core/Interaction/Domain/"]
+        FEEDBACK["Core/Interaction/Feedback/"]
+        HUDDOMAIN["UI/HUD/Domain/"]
+        MODEDOMAIN["UI/Mode/Domain/"]
+    end
+
+    subgraph L4["L4 Infrastructure"]
+        INTINFRA["Core/Interaction/Infrastructure/"]
+        HUDINFRA["UI/HUD/Infrastructure/"]
+        MODEINFRA["UI/Mode/Infrastructure/"]
+    end
+
+    subgraph L5["L5 Plant / Runtime"]
+        MANAGER["Core/Manager/"]
+        AGENT["Agent/"]
+        ENV["Environment/"]
+        COMM["Core/Comm/"]
+    end
+
+    BOOT --> INPUT
+    BOOT --> INTAPP
+    BOOT --> INTINFRA
+
+    INPUT --> INTAPP
+
+    UICORE --> UIHUD
+    UICORE --> UIMODE
+    UIHUD --> HUDAPP
+    UIMODE --> MODEAPP
+
+    INTAPP --> INTDOMAIN
+    INTAPP --> FEEDBACK
+    INTAPP --> INTINFRA
+
+    HUDAPP --> HUDDOMAIN
+    HUDAPP --> HUDINFRA
+    HUDAPP --> MODEAPP
+    HUDAPP --> FEEDBACK
+
+    MODEAPP --> MODEDOMAIN
+    MODEAPP --> MODEINFRA
+
+    INTINFRA --> INTDOMAIN
+    INTINFRA --> FEEDBACK
+    INTINFRA --> MANAGER
+    INTINFRA --> AGENT
+    INTINFRA --> ENV
+    INTINFRA --> COMM
+
+    HUDINFRA --> MANAGER
+    HUDINFRA --> AGENT
+    HUDINFRA --> ENV
+    HUDINFRA --> COMM
+
+    MODEINFRA --> MANAGER
+    MODEINFRA --> AGENT
+    MODEINFRA --> ENV
+```
+
+### 5.8 当前结论
+
+1. 以本页定义的控制论五层规则为准，当前仓库已经达到本轮目标形态，可作为后续重构的稳定基线。
+2. 后续工作不再是“补齐骨架”，而是针对具体业务继续复用这套骨架，例如把更多 runtime 动作接入完整 feedback 链，或进一步纯化 `UI/Mode/Domain`。
+3. 如果未来继续演进，默认要求是：先复用本页已有 `L1-L5 + Feedback + Bootstrap + Guard` 结构，而不是再引入新的平行交互通道。
 
 ## 6. 重构建议
 

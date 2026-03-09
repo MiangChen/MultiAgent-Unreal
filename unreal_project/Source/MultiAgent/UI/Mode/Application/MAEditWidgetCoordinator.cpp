@@ -5,7 +5,6 @@
 #include "../../HUD/MAHUD.h"
 #include "../MAEditWidget.h"
 #include "../Domain/MASceneSelectionDisplay.h"
-#include "../../../Core/Manager/MAEditModeManager.h"
 #include "../../../Environment/Utils/MAPointOfInterest.h"
 
 namespace
@@ -23,22 +22,22 @@ void FMAEditWidgetCoordinator::RefreshFromEditModeSelection(AMAHUD* HUD, UMAEdit
         return;
     }
 
-    UWorld* World = HUD->GetWorld();
-    UMAEditModeManager* EditModeManager = World ? World->GetSubsystem<UMAEditModeManager>() : nullptr;
-    if (!EditModeManager)
+    TWeakObjectPtr<AActor> SelectedActor;
+    TArray<AMAPointOfInterest*> SelectedPOIs;
+    if (!RuntimeAdapter.ResolveCurrentSelection(HUD, SelectedActor, SelectedPOIs))
     {
         ClearSelection();
-        ApplyCurrentViewModel(Widget, TEXT("EditModeManager not found"));
+        ApplyCurrentViewModel(Widget);
         return;
     }
 
-    if (EditModeManager->HasSelectedActor())
+    if (SelectedActor.IsValid())
     {
-        SetActorSelection(HUD, EditModeManager->GetSelectedActor());
+        SetActorSelection(HUD, SelectedActor.Get());
     }
-    else if (EditModeManager->HasSelectedPOIs())
+    else if (!SelectedPOIs.IsEmpty())
     {
-        SetPOISelection(EditModeManager->GetSelectedPOIs());
+        SetPOISelection(SelectedPOIs);
     }
     else
     {
@@ -63,41 +62,49 @@ void FMAEditWidgetCoordinator::RefreshCurrentSelection(AMAHUD* HUD, UMAEditWidge
     ApplyCurrentViewModel(Widget);
 }
 
-void FMAEditWidgetCoordinator::HandleConfirmRequested(AMAHUD* HUD, UMAEditWidget* Widget, const FString& JsonContent)
+bool FMAEditWidgetCoordinator::HandleConfirmRequested(
+    UMAEditWidget* Widget,
+    const FString& JsonContent,
+    FMAEditWidgetActionRequest& OutRequest)
 {
-    if (!HUD || !Widget)
+    OutRequest = FMAEditWidgetActionRequest();
+    if (!Widget)
     {
-        return;
+        return false;
     }
 
     if (!SelectionState.HasActor())
     {
         ApplyCurrentViewModel(Widget, TEXT("No Actor selected"));
-        return;
+        return false;
     }
 
     FString ValidationError;
     if (!SceneGraphAdapter.ValidateJsonDocument(JsonContent, ValidationError))
     {
         ApplyCurrentViewModel(Widget, ValidationError);
-        return;
+        return false;
     }
 
     ApplyCurrentViewModel(Widget);
-    HUD->OnEditConfirmed(SelectionState.SelectedActor.Get(), JsonContent);
+    OutRequest.Kind = EMAEditWidgetActionKind::ApplyNodeEdit;
+    OutRequest.Actor = SelectionState.SelectedActor.Get();
+    OutRequest.JsonContent = JsonContent;
+    return true;
 }
 
-void FMAEditWidgetCoordinator::HandleDeleteActorRequested(AMAHUD* HUD, UMAEditWidget* Widget)
+bool FMAEditWidgetCoordinator::HandleDeleteActorRequested(UMAEditWidget* Widget, FMAEditWidgetActionRequest& OutRequest)
 {
-    if (!HUD || !Widget)
+    OutRequest = FMAEditWidgetActionRequest();
+    if (!Widget)
     {
-        return;
+        return false;
     }
 
     if (!SelectionState.HasActor())
     {
         ApplyCurrentViewModel(Widget, TEXT("No Actor selected"));
-        return;
+        return false;
     }
 
     const FMASceneGraphNode* CurrentNode = SelectionState.GetCurrentNode();
@@ -105,123 +112,157 @@ void FMAEditWidgetCoordinator::HandleDeleteActorRequested(AMAHUD* HUD, UMAEditWi
         (!CurrentNode || !SceneGraphAdapter.IsPointTypeNode(*CurrentNode)))
     {
         ApplyCurrentViewModel(Widget, TEXT("Only point type nodes can be deleted"));
-        return;
+        return false;
     }
 
     ApplyCurrentViewModel(Widget);
-    HUD->OnEditDeleteActor(SelectionState.SelectedActor.Get());
+    OutRequest.Kind = EMAEditWidgetActionKind::DeleteActor;
+    OutRequest.Actor = SelectionState.SelectedActor.Get();
+    return true;
 }
 
-void FMAEditWidgetCoordinator::HandleCreateGoalRequested(AMAHUD* HUD, UMAEditWidget* Widget, const FString& Description)
+bool FMAEditWidgetCoordinator::HandleCreateGoalRequested(
+    UMAEditWidget* Widget,
+    const FString& Description,
+    FMAEditWidgetActionRequest& OutRequest)
 {
-    if (!HUD || !Widget)
+    OutRequest = FMAEditWidgetActionRequest();
+    if (!Widget)
     {
-        return;
+        return false;
     }
 
     TArray<AMAPointOfInterest*> POIs = SelectionState.GetSelectedPOIRaw();
     if (POIs.Num() == 0)
     {
         ApplyCurrentViewModel(Widget, TEXT("No POI selected"));
-        return;
+        return false;
     }
 
     ApplyCurrentViewModel(Widget);
-    HUD->OnEditCreateGoal(POIs[0], Description.IsEmpty() ? TEXT("New Goal") : Description);
+    OutRequest.Kind = EMAEditWidgetActionKind::CreateGoal;
+    OutRequest.POIs = MoveTemp(POIs);
+    OutRequest.Description = Description.IsEmpty() ? TEXT("New Goal") : Description;
+    return true;
 }
 
-void FMAEditWidgetCoordinator::HandleCreateZoneRequested(AMAHUD* HUD, UMAEditWidget* Widget, const FString& Description)
+bool FMAEditWidgetCoordinator::HandleCreateZoneRequested(
+    UMAEditWidget* Widget,
+    const FString& Description,
+    FMAEditWidgetActionRequest& OutRequest)
 {
-    if (!HUD || !Widget)
+    OutRequest = FMAEditWidgetActionRequest();
+    if (!Widget)
     {
-        return;
+        return false;
     }
 
     TArray<AMAPointOfInterest*> POIs = SelectionState.GetSelectedPOIRaw();
     if (POIs.Num() < 3)
     {
         ApplyCurrentViewModel(Widget, TEXT("Creating a zone requires at least 3 POIs"));
-        return;
+        return false;
     }
 
     ApplyCurrentViewModel(Widget);
-    HUD->OnEditCreateZone(POIs, Description.IsEmpty() ? TEXT("New Zone") : Description);
+    OutRequest.Kind = EMAEditWidgetActionKind::CreateZone;
+    OutRequest.POIs = MoveTemp(POIs);
+    OutRequest.Description = Description.IsEmpty() ? TEXT("New Zone") : Description;
+    return true;
 }
 
-void FMAEditWidgetCoordinator::HandleAddPresetActorRequested(AMAHUD* HUD, UMAEditWidget* Widget, const FString& ActorType)
+bool FMAEditWidgetCoordinator::HandleAddPresetActorRequested(
+    UMAEditWidget* Widget,
+    const FString& ActorType,
+    FMAEditWidgetActionRequest& OutRequest)
 {
-    if (!HUD || !Widget)
+    OutRequest = FMAEditWidgetActionRequest();
+    if (!Widget)
     {
-        return;
+        return false;
     }
 
     TArray<AMAPointOfInterest*> POIs = SelectionState.GetSelectedPOIRaw();
     if (POIs.Num() != 1)
     {
         ApplyCurrentViewModel(Widget, TEXT("Please select a single POI"));
-        return;
+        return false;
     }
 
     if (ActorType.IsEmpty() || ActorType == TEXT("(No preset Actors)"))
     {
         ApplyCurrentViewModel(Widget, TEXT("Please select a preset Actor type"));
-        return;
+        return false;
     }
 
     ApplyCurrentViewModel(Widget);
-    HUD->OnEditAddPresetActor(POIs[0], ActorType);
+    OutRequest.Kind = EMAEditWidgetActionKind::AddPresetActor;
+    OutRequest.POIs = MoveTemp(POIs);
+    OutRequest.ActorType = ActorType;
+    return true;
 }
 
-void FMAEditWidgetCoordinator::HandleDeletePOIsRequested(AMAHUD* HUD, UMAEditWidget* Widget)
+bool FMAEditWidgetCoordinator::HandleDeletePOIsRequested(UMAEditWidget* Widget, FMAEditWidgetActionRequest& OutRequest)
 {
-    if (!HUD || !Widget)
+    OutRequest = FMAEditWidgetActionRequest();
+    if (!Widget)
     {
-        return;
+        return false;
     }
 
     TArray<AMAPointOfInterest*> POIs = SelectionState.GetSelectedPOIRaw();
     if (POIs.Num() == 0)
     {
         ApplyCurrentViewModel(Widget, TEXT("No POI selected"));
-        return;
+        return false;
     }
 
     ApplyCurrentViewModel(Widget);
-    HUD->OnEditDeletePOIs(POIs);
+    OutRequest.Kind = EMAEditWidgetActionKind::DeletePOIs;
+    OutRequest.POIs = MoveTemp(POIs);
+    return true;
 }
 
-void FMAEditWidgetCoordinator::HandleSetAsGoalRequested(AMAHUD* HUD, UMAEditWidget* Widget)
+bool FMAEditWidgetCoordinator::HandleSetAsGoalRequested(UMAEditWidget* Widget, FMAEditWidgetActionRequest& OutRequest)
 {
-    if (!HUD || !Widget)
+    OutRequest = FMAEditWidgetActionRequest();
+    if (!Widget)
     {
-        return;
+        return false;
     }
 
     if (!SelectionState.HasActor())
     {
         ApplyCurrentViewModel(Widget, TEXT("No Actor selected"));
-        return;
+        return false;
     }
 
     ApplyCurrentViewModel(Widget);
-    HUD->OnEditSetAsGoal(SelectionState.SelectedActor.Get());
+    OutRequest.Kind = EMAEditWidgetActionKind::SetGoalState;
+    OutRequest.Actor = SelectionState.SelectedActor.Get();
+    OutRequest.bGoalState = true;
+    return true;
 }
 
-void FMAEditWidgetCoordinator::HandleUnsetAsGoalRequested(AMAHUD* HUD, UMAEditWidget* Widget)
+bool FMAEditWidgetCoordinator::HandleUnsetAsGoalRequested(UMAEditWidget* Widget, FMAEditWidgetActionRequest& OutRequest)
 {
-    if (!HUD || !Widget)
+    OutRequest = FMAEditWidgetActionRequest();
+    if (!Widget)
     {
-        return;
+        return false;
     }
 
     if (!SelectionState.HasActor())
     {
         ApplyCurrentViewModel(Widget, TEXT("No Actor selected"));
-        return;
+        return false;
     }
 
     ApplyCurrentViewModel(Widget);
-    HUD->OnEditUnsetAsGoal(SelectionState.SelectedActor.Get());
+    OutRequest.Kind = EMAEditWidgetActionKind::SetGoalState;
+    OutRequest.Actor = SelectionState.SelectedActor.Get();
+    OutRequest.bGoalState = false;
+    return true;
 }
 
 void FMAEditWidgetCoordinator::HandleNodeSwitchRequested(AMAHUD* HUD, UMAEditWidget* Widget, int32 NodeIndex)
@@ -265,7 +306,7 @@ void FMAEditWidgetCoordinator::SetActorSelection(AMAHUD* HUD, AActor* Actor)
     if (HUD && Actor)
     {
         TArray<FMASceneGraphNode> ResolvedNodes;
-        if (SceneGraphAdapter.ResolveActorNodes(HUD->GetWorld(), Actor, ResolvedNodes, OutError))
+        if (RuntimeAdapter.ResolveActorNodes(HUD, Actor, ResolvedNodes, OutError))
         {
             SelectionState.ActorNodes = MoveTemp(ResolvedNodes);
         }

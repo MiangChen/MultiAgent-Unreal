@@ -4,13 +4,8 @@
 #include "../MAHUD.h"
 #include "../../Core/MAUIManager.h"
 #include "../../Mode/MAEditWidget.h"
-#include "../../../Core/Manager/MAEditModeManager.h"
-#include "../../../Core/Manager/MAPIPCameraManager.h"
-#include "../../../Core/Manager/MASceneGraphManager.h"
 #include "../../../Input/MAPlayerController.h"
 #include "../MAHUDWidget.h"
-#include "DrawDebugHelpers.h"
-#include "Engine/Canvas.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMAHUDOverlayCoordinator, Log, All);
 
@@ -88,21 +83,11 @@ void FMAHUDOverlayCoordinator::LoadSceneGraphForVisualization(AMAHUD* HUD) const
 
     HUD->CachedSceneNodes.Empty();
 
-    UGameInstance* GI = HUD->GetWorld() ? HUD->GetWorld()->GetGameInstance() : nullptr;
-    if (!GI)
+    if (!RuntimeAdapter.LoadSceneGraphNodes(HUD, HUD->CachedSceneNodes))
     {
-        UE_LOG(LogMAHUDOverlayCoordinator, Warning, TEXT("LoadSceneGraphForVisualization: GameInstance not found"));
+        UE_LOG(LogMAHUDOverlayCoordinator, Warning, TEXT("LoadSceneGraphForVisualization: Scene graph runtime unavailable"));
         return;
     }
-
-    UMASceneGraphManager* SceneGraphManager = GI->GetSubsystem<UMASceneGraphManager>();
-    if (!SceneGraphManager)
-    {
-        UE_LOG(LogMAHUDOverlayCoordinator, Warning, TEXT("LoadSceneGraphForVisualization: SceneGraphManager not found"));
-        return;
-    }
-
-    HUD->CachedSceneNodes = SceneGraphManager->GetAllNodes();
     UE_LOG(LogMAHUDOverlayCoordinator, Log, TEXT("LoadSceneGraphForVisualization: Loaded %d nodes"), HUD->CachedSceneNodes.Num());
 }
 
@@ -113,44 +98,12 @@ void FMAHUDOverlayCoordinator::DrawSceneLabels(AMAHUD* HUD) const
         return;
     }
 
-    UWorld* World = HUD->GetWorld();
-    if (!World)
-    {
-        return;
-    }
-
-    for (const FMASceneGraphNode& Node : HUD->CachedSceneNodes)
-    {
-        const FString IdDisplay = Node.Id.IsEmpty() ? TEXT("N/A") : Node.Id;
-        const FString LabelDisplay = Node.Label.IsEmpty() ? TEXT("N/A") : Node.Label;
-        const FString DisplayText = FString::Printf(TEXT("id: %s\nLabel: %s"), *IdDisplay, *LabelDisplay);
-        const FVector TextPosition = Node.Center + FVector(0.0f, 0.0f, 100.0f);
-        DrawDebugString(World, TextPosition, DisplayText, nullptr, FColor::Green, 0.0f, false);
-    }
+    RuntimeAdapter.DrawSceneLabels(HUD, HUD->CachedSceneNodes);
 }
 
 void FMAHUDOverlayCoordinator::DrawPIPCameras(AMAHUD* HUD) const
 {
-    if (!HUD || !HUD->Canvas)
-    {
-        return;
-    }
-
-    UWorld* World = HUD->GetWorld();
-    if (!World)
-    {
-        return;
-    }
-
-    UMAPIPCameraManager* PIPManager = World->GetSubsystem<UMAPIPCameraManager>();
-    if (!PIPManager || PIPManager->GetVisiblePIPCameraCount() == 0)
-    {
-        return;
-    }
-
-    const int32 ViewportWidth = HUD->Canvas->SizeX;
-    const int32 ViewportHeight = HUD->Canvas->SizeY;
-    PIPManager->DrawPIPCameras(HUD->Canvas, ViewportWidth, ViewportHeight);
+    RuntimeAdapter.DrawPIPCameras(HUD);
 }
 
 void FMAHUDOverlayCoordinator::StartSceneLabelVisualization(AMAHUD* HUD) const
@@ -190,23 +143,10 @@ void FMAHUDOverlayCoordinator::BindEditModeManagerEvents(AMAHUD* HUD) const
         return;
     }
 
-    UWorld* World = HUD->GetWorld();
-    if (!World)
+    if (!RuntimeAdapter.BindEditModeSelectionChanged(HUD))
     {
-        UE_LOG(LogMAHUDOverlayCoordinator, Warning, TEXT("BindEditModeManagerEvents: World not found"));
+        UE_LOG(LogMAHUDOverlayCoordinator, Warning, TEXT("BindEditModeManagerEvents: runtime binding unavailable"));
         return;
-    }
-
-    UMAEditModeManager* EditModeManager = World->GetSubsystem<UMAEditModeManager>();
-    if (!EditModeManager)
-    {
-        UE_LOG(LogMAHUDOverlayCoordinator, Warning, TEXT("BindEditModeManagerEvents: EditModeManager not found"));
-        return;
-    }
-
-    if (!EditModeManager->OnSelectionChanged.IsAlreadyBound(HUD, &AMAHUD::OnEditModeSelectionChanged))
-    {
-        EditModeManager->OnSelectionChanged.AddDynamic(HUD, &AMAHUD::OnEditModeSelectionChanged);
     }
 
     UE_LOG(LogMAHUDOverlayCoordinator, Log, TEXT("BindEditModeManagerEvents: Bound to EditModeManager"));
@@ -240,7 +180,7 @@ void FMAHUDOverlayCoordinator::DrawEditModeIndicator(AMAHUD* HUD) const
     }
 
     AMAPlayerController* MAPC = HUD->GetMAPlayerController();
-    const bool bInEditMode = MAPC && MAPC->CurrentMouseMode == EMAMouseMode::Edit;
+    const bool bInEditMode = MAPC && MAPC->GetCurrentMouseMode() == EMAMouseMode::Edit;
 
     UMAHUDWidget* HUDWidget = HUD->UIManager ? HUD->UIManager->GetHUDWidget() : nullptr;
     if (HUDWidget)
@@ -254,15 +194,8 @@ void FMAHUDOverlayCoordinator::DrawEditModeIndicator(AMAHUD* HUD) const
         return;
     }
 
-    UWorld* World = HUD->GetWorld();
-    if (!World)
-    {
-        ClearEditModeIndicatorLists(HUDWidget);
-        return;
-    }
-
     FMAHUDEditModeIndicatorModel IndicatorModel;
-    if (!EditModeIndicatorBuilder.Build(World, IndicatorModel))
+    if (!EditModeIndicatorBuilder.Build(HUD, IndicatorModel))
     {
         ClearEditModeIndicatorLists(HUDWidget);
         return;
@@ -313,49 +246,81 @@ void FMAHUDOverlayCoordinator::HandleTempSceneGraphChanged(AMAHUD* HUD)
 void FMAHUDOverlayCoordinator::HandleEditConfirmRequested(AMAHUD* HUD, const FString& JsonContent)
 {
     UMAEditWidget* EditWidget = ResolveEditWidget(HUD);
-    EditWidgetCoordinator.HandleConfirmRequested(HUD, EditWidget, JsonContent);
+    FMAEditWidgetActionRequest Request;
+    if (EditWidgetCoordinator.HandleConfirmRequested(EditWidget, JsonContent, Request))
+    {
+        HUD->SceneEditCoordinator.HandleEditActionRequest(HUD, Request);
+    }
 }
 
 void FMAHUDOverlayCoordinator::HandleEditDeleteRequested(AMAHUD* HUD)
 {
     UMAEditWidget* EditWidget = ResolveEditWidget(HUD);
-    EditWidgetCoordinator.HandleDeleteActorRequested(HUD, EditWidget);
+    FMAEditWidgetActionRequest Request;
+    if (EditWidgetCoordinator.HandleDeleteActorRequested(EditWidget, Request))
+    {
+        HUD->SceneEditCoordinator.HandleEditActionRequest(HUD, Request);
+    }
 }
 
 void FMAHUDOverlayCoordinator::HandleEditCreateGoalRequested(AMAHUD* HUD, const FString& Description)
 {
     UMAEditWidget* EditWidget = ResolveEditWidget(HUD);
-    EditWidgetCoordinator.HandleCreateGoalRequested(HUD, EditWidget, Description);
+    FMAEditWidgetActionRequest Request;
+    if (EditWidgetCoordinator.HandleCreateGoalRequested(EditWidget, Description, Request))
+    {
+        HUD->SceneEditCoordinator.HandleEditActionRequest(HUD, Request);
+    }
 }
 
 void FMAHUDOverlayCoordinator::HandleEditCreateZoneRequested(AMAHUD* HUD, const FString& Description)
 {
     UMAEditWidget* EditWidget = ResolveEditWidget(HUD);
-    EditWidgetCoordinator.HandleCreateZoneRequested(HUD, EditWidget, Description);
+    FMAEditWidgetActionRequest Request;
+    if (EditWidgetCoordinator.HandleCreateZoneRequested(EditWidget, Description, Request))
+    {
+        HUD->SceneEditCoordinator.HandleEditActionRequest(HUD, Request);
+    }
 }
 
 void FMAHUDOverlayCoordinator::HandleEditAddPresetActorRequested(AMAHUD* HUD, const FString& ActorType)
 {
     UMAEditWidget* EditWidget = ResolveEditWidget(HUD);
-    EditWidgetCoordinator.HandleAddPresetActorRequested(HUD, EditWidget, ActorType);
+    FMAEditWidgetActionRequest Request;
+    if (EditWidgetCoordinator.HandleAddPresetActorRequested(EditWidget, ActorType, Request))
+    {
+        HUD->SceneEditCoordinator.HandleEditActionRequest(HUD, Request);
+    }
 }
 
 void FMAHUDOverlayCoordinator::HandleEditDeletePOIsRequested(AMAHUD* HUD)
 {
     UMAEditWidget* EditWidget = ResolveEditWidget(HUD);
-    EditWidgetCoordinator.HandleDeletePOIsRequested(HUD, EditWidget);
+    FMAEditWidgetActionRequest Request;
+    if (EditWidgetCoordinator.HandleDeletePOIsRequested(EditWidget, Request))
+    {
+        HUD->SceneEditCoordinator.HandleEditActionRequest(HUD, Request);
+    }
 }
 
 void FMAHUDOverlayCoordinator::HandleEditSetAsGoalRequested(AMAHUD* HUD)
 {
     UMAEditWidget* EditWidget = ResolveEditWidget(HUD);
-    EditWidgetCoordinator.HandleSetAsGoalRequested(HUD, EditWidget);
+    FMAEditWidgetActionRequest Request;
+    if (EditWidgetCoordinator.HandleSetAsGoalRequested(EditWidget, Request))
+    {
+        HUD->SceneEditCoordinator.HandleEditActionRequest(HUD, Request);
+    }
 }
 
 void FMAHUDOverlayCoordinator::HandleEditUnsetAsGoalRequested(AMAHUD* HUD)
 {
     UMAEditWidget* EditWidget = ResolveEditWidget(HUD);
-    EditWidgetCoordinator.HandleUnsetAsGoalRequested(HUD, EditWidget);
+    FMAEditWidgetActionRequest Request;
+    if (EditWidgetCoordinator.HandleUnsetAsGoalRequested(EditWidget, Request))
+    {
+        HUD->SceneEditCoordinator.HandleEditActionRequest(HUD, Request);
+    }
 }
 
 void FMAHUDOverlayCoordinator::HandleEditNodeSwitchRequested(AMAHUD* HUD, int32 NodeIndex)

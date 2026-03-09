@@ -6,8 +6,8 @@
 #include "CoreMinimal.h"
 #include "MAHUDSceneActionResultCoordinator.h"
 #include "MAHUDSceneListSelectionCoordinator.h"
-#include "../../Mode/Infrastructure/MAEditSceneActionAdapter.h"
-#include "../../Mode/Infrastructure/MAModifySceneActionAdapter.h"
+#include "../Infrastructure/MAHUDSceneActionRuntimeAdapter.h"
+#include "../../Mode/Application/MAEditWidgetActionRequest.h"
 
 class AActor;
 class AMAHUD;
@@ -33,6 +33,7 @@ public:
     void HandleEditDeletePOIs(AMAHUD* HUD, const TArray<AMAPointOfInterest*>& POIs) const;
     void HandleEditSetAsGoal(AMAHUD* HUD, AActor* Actor) const;
     void HandleEditUnsetAsGoal(AMAHUD* HUD, AActor* Actor) const;
+    void HandleEditActionRequest(AMAHUD* HUD, const FMAEditWidgetActionRequest& Request) const;
 
     void HandleSceneListGoalClicked(AMAHUD* HUD, const FString& GoalId) const;
     void HandleSceneListZoneClicked(AMAHUD* HUD, const FString& ZoneId) const;
@@ -40,6 +41,5 @@ public:
 private:
     FMAHUDSceneActionResultCoordinator ActionResultCoordinator;
     FMAHUDSceneListSelectionCoordinator SceneListSelectionCoordinator;
-    FMAEditSceneActionAdapter EditSceneActionAdapter;
-    FMAModifySceneActionAdapter ModifySceneActionAdapter;
+    FMAHUDSceneActionRuntimeAdapter SceneActionRuntimeAdapter;
 };

@@ -316,7 +316,8 @@ void UMAModifyWidget::SetSelectedActor(AActor* Actor)
             *Actor->GetName(), *MatchError);
     }
     ApplySelectionViewModel(FMAModifyWidgetModel::BuildSelectionViewModel(
-        SelectedActors,
+        1,
+        Actor->GetName(),
         MatchedNode,
         ModifyDefaultHintText,
         ModifyMultiSelectHintText));
@@ -356,7 +357,8 @@ void UMAModifyWidget::SetSelectedActors(const TArray<AActor*>& Actors)
     FString MatchError;
     const bool bFoundMatchingNode = SceneGraphAdapter.FindSharedNodeForActors(GetWorld(), SelectedActors, MatchedNode, MatchError);
     ApplySelectionViewModel(FMAModifyWidgetModel::BuildSelectionViewModel(
-        SelectedActors,
+        SelectedActors.Num(),
+        SelectedActors.Num() == 1 && SelectedActors[0] ? SelectedActors[0]->GetName() : TEXT(""),
         bFoundMatchingNode ? &MatchedNode : nullptr,
         ModifyDefaultHintText,
         ModifyMultiSelectHintText));
@@ -387,7 +389,12 @@ void UMAModifyWidget::SetSelectedActors(const TArray<AActor*>& Actors)
 void UMAModifyWidget::ClearSelection()
 {
     SelectedActors.Empty();
-    ApplySelectionViewModel(FMAModifyWidgetModel::BuildSelectionViewModel({}, nullptr, ModifyDefaultHintText, ModifyMultiSelectHintText));
+    ApplySelectionViewModel(FMAModifyWidgetModel::BuildSelectionViewModel(
+        0,
+        TEXT(""),
+        nullptr,
+        ModifyDefaultHintText,
+        ModifyMultiSelectHintText));
     ApplyPreviewModel(FMAModifyPreviewModel());
 
     UE_LOG(LogMAModifyWidget, Log, TEXT("ClearSelection: Selection cleared"));

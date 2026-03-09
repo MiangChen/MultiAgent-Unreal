@@ -5,32 +5,49 @@
 #include "../../Mode/MAModifyWidget.h"
 #include "../../Mode/MASceneListWidget.h"
 
-void FMAHUDSceneActionResultCoordinator::ApplyResult(AMAHUD* HUD, const FMASceneActionResult& Result) const
+namespace
 {
-    if (!HUD)
-    {
-        return;
-    }
-
-    HUD->ShowNotification(Result.Message, !Result.bSuccess && !Result.bIsWarning, Result.bIsWarning);
+FMAFeedback21Batch BuildSceneActionFeedback(const FMASceneActionResult& Result)
+{
+    FMAFeedback21Batch Feedback;
+    Feedback.AddMessage(
+        Result.Message,
+        !Result.bSuccess && !Result.bIsWarning
+            ? EMAFeedback21MessageSeverity::Error
+            : (Result.bIsWarning ? EMAFeedback21MessageSeverity::Warning : EMAFeedback21MessageSeverity::Success));
 
     if (Result.bRefreshSceneList)
     {
-        if (UMASceneListWidget* SceneListWidget = HUD->UIManager ? HUD->UIManager->GetSceneListWidget() : nullptr)
-        {
-            SceneListWidget->RefreshLists();
-        }
+        Feedback.AddHUDAction(EMAFeedback21HUDAction::RefreshSceneList);
     }
 
     if (Result.bReloadSceneVisualization)
     {
-        HUD->LoadSceneGraphForVisualization();
+        Feedback.AddHUDAction(EMAFeedback21HUDAction::ReloadSceneVisualization);
     }
 
     if (Result.bRefreshSelection)
     {
-        HUD->OnTempSceneGraphChanged();
+        Feedback.AddHUDAction(EMAFeedback21HUDAction::RefreshSelection);
     }
+
+    if (Result.bClearHighlightedActor)
+    {
+        Feedback.AddHUDAction(EMAFeedback21HUDAction::ClearHighlightedActor);
+    }
+
+    return Feedback;
+}
+}
+
+void FMAHUDSceneActionResultCoordinator::ApplyFeedback(AMAHUD* HUD, const FMAFeedback21Batch& Feedback) const
+{
+    Feedback21Applier.ApplyToHUD(HUD, Feedback);
+}
+
+void FMAHUDSceneActionResultCoordinator::ApplyResult(AMAHUD* HUD, const FMASceneActionResult& Result) const
+{
+    ApplyFeedback(HUD, BuildSceneActionFeedback(Result));
 }
 
 void FMAHUDSceneActionResultCoordinator::ApplyModifySelection(UMAModifyWidget* ModifyWidget, AActor* SelectedActor) const
@@ -57,7 +74,7 @@ void FMAHUDSceneActionResultCoordinator::ApplyModifyResult(
         return;
     }
 
-    ApplyResult(HUD, Result);
+    ApplyFeedback(HUD, BuildSceneActionFeedback(Result));
 
     if (!Result.bSuccess)
     {
@@ -66,9 +83,4 @@ void FMAHUDSceneActionResultCoordinator::ApplyModifyResult(
     }
 
     ModifyWidgetStateCoordinator.ApplyActionResult(ModifyWidget, Actors, LabelText, Result);
-
-    if (Result.bClearHighlightedActor)
-    {
-        HUD->ClearHighlightedActor();
-    }
 }

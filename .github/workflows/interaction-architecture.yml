@@ -1,0 +1,30 @@
+name: interaction-architecture
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "unreal_project/Source/MultiAgent/**"
+      - "scripts/check_interaction_architecture.py"
+      - ".github/workflows/interaction-architecture.yml"
+  pull_request:
+    paths:
+      - "unreal_project/Source/MultiAgent/**"
+      - "scripts/check_interaction_architecture.py"
+      - ".github/workflows/interaction-architecture.yml"
+  workflow_dispatch:
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run interaction architecture guard
+        run: python scripts/check_interaction_architecture.py

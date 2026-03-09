@@ -5,7 +5,6 @@
 #include "../../Core/MAUIManager.h"
 #include "../../TaskGraph/MATaskPlannerWidget.h"
 #include "../../Components/MADirectControlIndicator.h"
-#include "../../../Agent/Character/MACharacter.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMAHUDWidgetCoordinator, Log, All);
 
@@ -27,7 +26,7 @@ void FMAHUDWidgetCoordinator::LoadTaskGraph(UMAUIManager* UIManager, const FMATa
     TaskPlannerWidget->LoadTaskGraph(Data);
 }
 
-void FMAHUDWidgetCoordinator::ShowDirectControlIndicator(UMAUIManager* UIManager, AMACharacter* Agent) const
+void FMAHUDWidgetCoordinator::ShowDirectControlIndicator(UMAUIManager* UIManager, const FString& AgentLabel) const
 {
     if (!UIManager)
     {
@@ -35,9 +34,9 @@ void FMAHUDWidgetCoordinator::ShowDirectControlIndicator(UMAUIManager* UIManager
         return;
     }
 
-    if (!Agent)
+    if (AgentLabel.IsEmpty())
     {
-        UE_LOG(LogMAHUDWidgetCoordinator, Warning, TEXT("ShowDirectControlIndicator: Agent is null"));
+        UE_LOG(LogMAHUDWidgetCoordinator, Warning, TEXT("ShowDirectControlIndicator: Agent label is empty"));
         return;
     }
 
@@ -48,7 +47,7 @@ void FMAHUDWidgetCoordinator::ShowDirectControlIndicator(UMAUIManager* UIManager
         return;
     }
 
-    DirectControlIndicator->SetAgentLabel(Agent->AgentLabel);
+    DirectControlIndicator->SetAgentLabel(AgentLabel);
     UIManager->ShowWidget(EMAWidgetType::DirectControl, false);
 }
 

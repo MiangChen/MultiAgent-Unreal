@@ -1,18 +1,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "../Domain/MAHUDEditModeIndicatorModel.h"
+#include "../Infrastructure/MAHUDEditRuntimeAdapter.h"
 
-class UWorld;
-
-struct FMAHUDEditModeIndicatorModel
-{
-    TArray<FString> POIInfos;
-    TArray<FString> GoalInfos;
-    TArray<FString> ZoneInfos;
-};
+class AMAHUD;
 
 class MULTIAGENT_API FMAHUDEditModeIndicatorBuilder
 {
 public:
-    bool Build(UWorld* World, FMAHUDEditModeIndicatorModel& OutModel) const;
+    bool Build(AMAHUD* HUD, FMAHUDEditModeIndicatorModel& OutModel) const;
+
+private:
+    FMAHUDEditRuntimeAdapter RuntimeAdapter;
 };

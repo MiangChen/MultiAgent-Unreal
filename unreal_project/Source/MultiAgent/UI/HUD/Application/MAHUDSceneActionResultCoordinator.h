@@ -1,6 +1,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "../../../Core/Interaction/Feedback/MAFeedback21.h"
+#include "../../../Core/Interaction/Infrastructure/MAFeedback21Applier.h"
 #include "../../Mode/Application/MAModifyWidgetStateCoordinator.h"
 #include "../../Mode/Domain/MASceneActionResult.h"
 
@@ -11,6 +13,7 @@ class UMAModifyWidget;
 class MULTIAGENT_API FMAHUDSceneActionResultCoordinator
 {
 public:
+    void ApplyFeedback(AMAHUD* HUD, const FMAFeedback21Batch& Feedback) const;
     void ApplyResult(AMAHUD* HUD, const FMASceneActionResult& Result) const;
     void ApplyModifySelection(UMAModifyWidget* ModifyWidget, AActor* SelectedActor) const;
     void ApplyModifySelection(UMAModifyWidget* ModifyWidget, const TArray<AActor*>& SelectedActors) const;
@@ -22,5 +25,6 @@ public:
         const FMASceneActionResult& Result) const;
 
 private:
+    FMAFeedback21Applier Feedback21Applier;
     FMAModifyWidgetStateCoordinator ModifyWidgetStateCoordinator;
 };

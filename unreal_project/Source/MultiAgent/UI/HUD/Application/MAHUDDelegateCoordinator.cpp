@@ -8,7 +8,6 @@
 #include "../../Mode/MAModifyWidget.h"
 #include "../../Mode/MASceneListWidget.h"
 #include "../../TaskGraph/MATaskPlannerWidget.h"
-#include "../../../Core/Manager/MAEditModeManager.h"
 #include "../../../Input/MAPlayerController.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMAHUDDelegateCoordinator, Log, All);
@@ -58,15 +57,7 @@ void FMAHUDDelegateCoordinator::BindWidgetDelegates(AMAHUD* HUD) const
     UMASceneListWidget* SceneListWidget = HUD->UIManager->GetSceneListWidget();
     if (SceneListWidget)
     {
-        UWorld* World = HUD->GetWorld();
-        if (World)
-        {
-            UMAEditModeManager* EditModeManager = World->GetSubsystem<UMAEditModeManager>();
-            if (EditModeManager)
-            {
-                SceneListWidget->SetEditModeManager(EditModeManager);
-            }
-        }
+        RuntimeAdapter.AssignSceneListEditModeManager(HUD, SceneListWidget);
 
         if (!SceneListWidget->OnGoalItemClicked.IsAlreadyBound(HUD, &AMAHUD::OnSceneListGoalClicked))
         {

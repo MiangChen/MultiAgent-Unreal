@@ -1,28 +1,27 @@
 // MAPlayerController.h
-// 玩家控制器 - 使用 Enhanced Input System
-// 支持星际争霸风格的框选和编组
-// 支持 Modify 模式的场景标注
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
-#include "../Core/Manager/MACommandManager.h"
-#include "Domain/MAInputTypes.h"
-#include "Application/MACommandInputCoordinator.h"
-#include "Application/MACameraInputCoordinator.h"
-#include "Application/MAAgentUtilityInputCoordinator.h"
-#include "Application/MADeploymentInputCoordinator.h"
-#include "Application/MAEditInputCoordinator.h"
-#include "Application/MAHUDShortcutCoordinator.h"
-#include "Application/MARTSSelectionInputCoordinator.h"
-#include "Application/MAModifyInputCoordinator.h"
-#include "Application/MAMouseModeCoordinator.h"
-#include "Application/MASquadInputCoordinator.h"
+#include "../Core/Interaction/Domain/MAInputTypes.h"
+#include "../Core/Interaction/Domain/MAMouseModeState.h"
+#include "../Core/Interaction/Domain/MADeploymentQueue.h"
+#include "../Core/Interaction/Bootstrap/MAInteractionBootstrap.h"
+#include "../Core/Interaction/Infrastructure/MAFeedback21Applier.h"
+#include "../Core/Interaction/Application/MAModifySelectionState.h"
+#include "../Core/Interaction/Application/MACommandInputCoordinator.h"
+#include "../Core/Interaction/Application/MACameraInputCoordinator.h"
+#include "../Core/Interaction/Application/MAAgentUtilityInputCoordinator.h"
+#include "../Core/Interaction/Application/MADeploymentInputCoordinator.h"
+#include "../Core/Interaction/Application/MAEditInputCoordinator.h"
+#include "../Core/Interaction/Application/MAHUDShortcutCoordinator.h"
+#include "../Core/Interaction/Application/MARTSSelectionInputCoordinator.h"
+#include "../Core/Interaction/Application/MAModifyInputCoordinator.h"
+#include "../Core/Interaction/Application/MAMouseModeCoordinator.h"
+#include "../Core/Interaction/Application/MASquadInputCoordinator.h"
 #include "MAPlayerController.generated.h"
 
-class UMAEditModeManager;
-class AMAPointOfInterest;
 class UMAHUDStateManager;
 
 struct FInputActionValue;
@@ -134,13 +133,12 @@ protected:
     bool GetMouseHitLocation(FVector& OutLocation);
     
 public:
-    // ========== 鼠标模式 ==========
-    UPROPERTY(BlueprintReadOnly, Category = "Input")
-    EMAMouseMode CurrentMouseMode = EMAMouseMode::Select;
-    
     // 获取模式名称
     UFUNCTION(BlueprintCallable, Category = "Input")
     static FString MouseModeToString(EMAMouseMode Mode);
+
+    UFUNCTION(BlueprintPure, Category = "Input")
+    EMAMouseMode GetCurrentMouseMode() const { return MouseModeState.CurrentMode; }
 
     // ========== 部署背包系统 ==========
     
@@ -158,7 +156,7 @@ public:
     
     /** 获取部署背包内容 */
     UFUNCTION(BlueprintPure, Category = "Deployment")
-    TArray<FMAPendingDeployment> GetDeploymentQueue() const { return DeploymentQueue; }
+    TArray<FMAPendingDeployment> GetDeploymentQueue() const { return DeploymentState.Items; }
     
     /** 获取部署背包总数 */
     UFUNCTION(BlueprintPure, Category = "Deployment")
@@ -166,7 +164,7 @@ public:
     
     /** 背包是否有待部署单位 */
     UFUNCTION(BlueprintPure, Category = "Deployment")
-    bool HasPendingDeployments() const { return DeploymentQueue.Num() > 0 && GetDeploymentQueueCount() > 0; }
+    bool HasPendingDeployments() const { return DeploymentState.HasPendingDeployments(); }
 
     // ========== HUD 状态管理 (UI Visual Redesign) ==========
 
@@ -190,7 +188,7 @@ public:
     
     /** 是否在部署模式 */
     UFUNCTION(BlueprintPure, Category = "Deployment")
-    bool IsInDeploymentMode() const { return CurrentMouseMode == EMAMouseMode::Deployment; }
+    bool IsInDeploymentMode() const { return MouseModeState.Is(EMAMouseMode::Deployment); }
     
     /** 获取当前正在部署的类型 */
     UFUNCTION(BlueprintPure, Category = "Deployment")
@@ -202,7 +200,7 @@ public:
     
     /** 获取已部署数量（本次部署会话） */
     UFUNCTION(BlueprintPure, Category = "Deployment")
-    int32 GetDeployedCount() const { return DeployedCount; }
+    int32 GetDeployedCount() const { return DeploymentState.DeployedCount; }
 
     /** 部署完成委托 */
     DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnDeploymentCompleted);
@@ -239,59 +237,30 @@ public:
 
     /** 获取当前选择数量 */
     UFUNCTION(BlueprintPure, Category = "Modify")
-    int32 GetSelectionCount() const { return HighlightedActors.Num(); }
+    int32 GetSelectionCount() const { return ModifySelectionState.Num(); }
 
     /** 是否处于多选状态 */
     UFUNCTION(BlueprintPure, Category = "Modify")
-    bool IsMultiSelectActive() const { return HighlightedActors.Num() > 1; }
+    bool IsMultiSelectActive() const { return ModifySelectionState.Num() > 1; }
 
     /** 获取所有选中的 Actor */
     UFUNCTION(BlueprintPure, Category = "Modify")
-    TArray<AActor*> GetHighlightedActors() const { return HighlightedActors; }
+    TArray<AActor*> GetHighlightedActors() const { return ModifySelectionState.ToRawArray(); }
 
     /** 是否在 Modify 模式 */
     UFUNCTION(BlueprintPure, Category = "Modify")
-    bool IsInModifyMode() const { return CurrentMouseMode == EMAMouseMode::Modify; }
+    bool IsInModifyMode() const { return MouseModeState.Is(EMAMouseMode::Modify); }
 
 private:
-    // 初始化 Subsystem 缓存
-    bool InitializeSubsystems();
-
-    // ========== 缓存的 Subsystem 引用 ==========
-    UPROPERTY()
-    class UMAAgentManager* AgentManager;
-
-    UPROPERTY()
-    class UMACommandManager* CommandManager;
-
-    UPROPERTY()
-    class UMASelectionManager* SelectionManager;
-
-    UPROPERTY()
-    class UMASquadManager* SquadManager;
-
-    UPROPERTY()
-    class UMAViewportManager* ViewportManager;
-
-
-    UPROPERTY()
-    class UMAEditModeManager* EditModeManager;
+    void ApplyFeedback(const FMAFeedback21Batch& Feedback);
     // ========== 部署模式数据 ==========
-    
-    /** 部署背包：待部署的 Agent 列表（持久存储） */
-    UPROPERTY()
-    TArray<FMAPendingDeployment> DeploymentQueue;
-    
-    /** 当前正在部署的类型索引 */
-    int32 CurrentDeploymentIndex = 0;
-    
-    /** 已部署数量（本次部署会话） */
-    int32 DeployedCount = 0;
-    
-    /** 部署前的鼠标模式（用于退出时恢复） */
-    EMAMouseMode PreviousMouseMode = EMAMouseMode::Select;
+
+    FMAMouseModeState MouseModeState;
+    FMADeploymentQueueState DeploymentState;
 
     FMAAgentUtilityInputCoordinator AgentUtilityInputCoordinator;
+    FMAInteractionBootstrap InteractionBootstrap;
+    FMAFeedback21Applier Feedback21Applier;
     FMACameraInputCoordinator CameraInputCoordinator;
     FMACommandInputCoordinator CommandInputCoordinator;
     FMADeploymentInputCoordinator DeploymentInputCoordinator;
@@ -304,9 +273,7 @@ private:
     
     // ========== Modify 模式数据 ==========
 
-    /** 多选集合 - 当前高亮的 Actor 列表 */
-    UPROPERTY()
-    TArray<AActor*> HighlightedActors;
+    FMAModifySelectionState ModifySelectionState;
 
     // ========== 右键视角旋转 ==========
     

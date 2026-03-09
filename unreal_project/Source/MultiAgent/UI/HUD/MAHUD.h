@@ -59,8 +59,10 @@ class MULTIAGENT_API AMAHUD : public AMASelectionHUD
     GENERATED_BODY()
 
     friend class FMAHUDBackendCoordinator;
+    friend class FMAHUDBackendRuntimeAdapter;
     friend class FMAHUDSceneEditCoordinator;
     friend class FMAHUDOverlayCoordinator;
+    friend class FMAHUDEditRuntimeAdapter;
     friend class FMAHUDDelegateCoordinator;
     friend class FMAHUDPanelCoordinator;
     friend class FMAHUDLifecycleCoordinator;
@@ -610,66 +612,6 @@ public:
 
     UFUNCTION()
     void OnEditNodeSwitchRequested(int32 NodeIndex);
-
-    /**
-     * EditWidget 确认修改回调
-     * @param Actor 选中的 Actor
-     * @param JsonContent JSON 编辑内容
-     */
-    UFUNCTION()
-    void OnEditConfirmed(AActor* Actor, const FString& JsonContent);
-
-    /**
-     * EditWidget 删除 Actor 回调
-     * @param Actor 要删除的 Actor
-     */
-    UFUNCTION()
-    void OnEditDeleteActor(AActor* Actor);
-
-    /**
-     * EditWidget 创建 Goal 回调
-     * @param POI 用于创建 Goal 的 POI
-     * @param Description Goal 描述
-     */
-    UFUNCTION()
-    void OnEditCreateGoal(AMAPointOfInterest* POI, const FString& Description);
-
-    /**
-     * EditWidget 创建 Zone 回调
-     * @param POIs 用于创建 Zone 的 POI 数组
-     * @param Description Zone 描述
-     */
-    UFUNCTION()
-    void OnEditCreateZone(const TArray<AMAPointOfInterest*>& POIs, const FString& Description);
-
-    /**
-     * EditWidget 添加预设 Actor 回调
-     * @param POI 目标 POI
-     * @param ActorType 预设 Actor 类型
-     */
-    UFUNCTION()
-    void OnEditAddPresetActor(AMAPointOfInterest* POI, const FString& ActorType);
-
-    /**
-     * EditWidget 删除 POI 回调
-     * @param POIs 要删除的 POI 数组
-     */
-    UFUNCTION()
-    void OnEditDeletePOIs(const TArray<AMAPointOfInterest*>& POIs);
-
-    /**
-     * EditWidget 设为 Goal 回调
-     * @param Actor 目标 Actor
-     */
-    UFUNCTION()
-    void OnEditSetAsGoal(AActor* Actor);
-
-    /**
-     * EditWidget 取消 Goal 回调
-     * @param Actor 目标 Actor
-     */
-    UFUNCTION()
-    void OnEditUnsetAsGoal(AActor* Actor);
 
     /**
      * SceneListWidget Goal 项点击回调
