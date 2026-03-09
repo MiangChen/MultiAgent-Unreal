@@ -14,6 +14,9 @@ nav:
   - ⌨️ 按键说明: keybindings.md
   - 启动与 Example: startup-and-examples.md
   - API 参考: api-reference.md
+  - Bug 记录:
+      - UMG 点击穿透: bugs/umg-click-through.md
+      - Bug Archive: bugs/bug-archive.md
 
 theme:
   name: material

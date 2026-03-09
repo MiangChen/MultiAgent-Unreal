@@ -2,7 +2,7 @@
 
 基于 Unreal Engine 5 的多智能体仿真框架，支持 UAV、UGV、Quadruped、Humanoid 等异构机器人协同仿真，并通过 HTTP 与外部规划端交互。
 
-详细操作手册见：[`docs/USAGE_GUIDE.md`](docs/USAGE_GUIDE.md)。
+详细操作手册见：[文档站点](https://miangchen.github.io/MultiAgent-Unreal/)。
 
 ## 文档站点（GitHub Pages）
 
@@ -196,7 +196,7 @@ python3 scripts/mock_backend.py --port 8081
 
 ### 5.2 层 2：接入真实 AI Planner
 
-如果你有自己的 AI 后端，把 `config/simulation.json` 的 `planner_url` 改为你的服务地址即可（协议参考 `doc/COMMUNICATION_PROTOCOL.md`）。
+如果你有自己的 AI 后端，把 `config/simulation.json` 的 `planner_url` 改为你的服务地址即可（协议参考 [API 参考](https://miangchen.github.io/MultiAgent-Unreal/api-reference/)）。
 
 ## 6. 常见问题
 
@@ -220,11 +220,12 @@ r.Substrate=False
 
 ## 7. 参考文档
 
-- [docs/USAGE_GUIDE.md](docs/USAGE_GUIDE.md)：联调与 UI 使用手册
+- [文档站点首页](https://miangchen.github.io/MultiAgent-Unreal/)：功能介绍与接入概览
+- [启动与 Example](https://miangchen.github.io/MultiAgent-Unreal/startup-and-examples/)：联调与运行流程
+- [按键说明](https://miangchen.github.io/MultiAgent-Unreal/keybindings/)：键盘与鼠标交互
+- [架构](https://miangchen.github.io/MultiAgent-Unreal/architecture/)：当前控制论架构基线
+- [API 参考](https://miangchen.github.io/MultiAgent-Unreal/api-reference/)：后端接口与消息格式
 - [config/README.md](config/README.md)：配置项详解
-- [doc/KEYBINDINGS.md](doc/KEYBINDINGS.md)：完整按键说明（历史文档，可能与最新代码存在差异）
-- [doc/COMMUNICATION_PROTOCOL.md](doc/COMMUNICATION_PROTOCOL.md)：通信协议
-- [doc/README.md](doc/README.md)：文档总入口
 
 ## License
 

@@ -159,7 +159,7 @@ TSoftObjectPtr<UStaticMesh> StationMeshAsset;
 
 ---
 
-> **注意**: StateTree 配置指南已移至 [README.md](../README.md)
+> **注意**: 对外使用说明请查看 [功能性介绍](../index.md)
 
 
 ---
