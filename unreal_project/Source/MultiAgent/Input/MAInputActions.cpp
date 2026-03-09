@@ -31,12 +31,9 @@ void UMAInputActions::Initialize()
     IA_DestroyLast = CreateInputAction(TEXT("IA_DestroyLast"));
     IA_SwitchCamera = CreateInputAction(TEXT("IA_SwitchCamera"));
     IA_ReturnSpectator = CreateInputAction(TEXT("IA_ReturnSpectator"));
-    IA_StartPatrol = CreateInputAction(TEXT("IA_StartPatrol"));
     IA_StartCharge = CreateInputAction(TEXT("IA_StartCharge"));
     IA_StopIdle = CreateInputAction(TEXT("IA_StopIdle"));
-    IA_StartCoverage = CreateInputAction(TEXT("IA_StartCoverage"));
     IA_StartFollow = CreateInputAction(TEXT("IA_StartFollow"));
-    IA_StartAvoid = CreateInputAction(TEXT("IA_StartAvoid"));
     IA_StartFormation = CreateInputAction(TEXT("IA_StartFormation"));
     IA_TakePhoto = CreateInputAction(TEXT("IA_TakePhoto"));
     IA_ToggleTCPStream = CreateInputAction(TEXT("IA_ToggleTCPStream"));
@@ -53,14 +50,7 @@ void UMAInputActions::Initialize()
     IA_ToggleMouseMode = CreateInputAction(TEXT("IA_ToggleMouseMode"));
     IA_ToggleModifyMode = CreateInputAction(TEXT("IA_ToggleModifyMode"));
 
-    // UI 切换
-    IA_ToggleMainUI = CreateInputAction(TEXT("IA_ToggleMainUI"));
-    IA_ToggleSkillAllocationViewer = CreateInputAction(TEXT("IA_ToggleSkillAllocationViewer"));
-
-
     // HUD 状态管理输入 (UI Visual Redesign)
-    // 注意: 这些输入与 IA_ToggleMainUI/IA_ToggleSkillAllocationViewer 共享按键
-    // 但用于新的 HUD 状态管理器系统
     IA_CheckTask = CreateInputAction(TEXT("IA_CheckTask"));
     IA_CheckSkill = CreateInputAction(TEXT("IA_CheckSkill"));
     IA_CheckDecision = CreateInputAction(TEXT("IA_CheckDecision"));
@@ -101,12 +91,9 @@ void UMAInputActions::Initialize()
     AddKeyMapping(IMC_RTS, IA_DestroyLast, EKeys::U);
     AddKeyMapping(IMC_RTS, IA_SwitchCamera, EKeys::Tab);
     AddKeyMapping(IMC_RTS, IA_ReturnSpectator, EKeys::Zero);
-    AddKeyMapping(IMC_RTS, IA_StartPatrol, EKeys::G);
     AddKeyMapping(IMC_RTS, IA_StartCharge, EKeys::H);
     AddKeyMapping(IMC_RTS, IA_StopIdle, EKeys::J);
-    AddKeyMapping(IMC_RTS, IA_StartCoverage, EKeys::K);
     AddKeyMapping(IMC_RTS, IA_StartFollow, EKeys::F);
-    // AddKeyMapping(IMC_RTS, IA_StartAvoid, EKeys::A);  // 暂时禁用
     AddKeyMapping(IMC_RTS, IA_StartFormation, EKeys::B);
     AddKeyMapping(IMC_RTS, IA_TakePhoto, EKeys::L);  // L for Lens/Light
     // TCP 视频流暂时禁用
@@ -126,14 +113,6 @@ void UMAInputActions::Initialize()
     AddKeyMapping(IMC_RTS, IA_DisbandSquad, EKeys::Q);  // Shift+Q 解散 (Shift 在代码中检测)
     AddKeyMapping(IMC_RTS, IA_ToggleMouseMode, EKeys::M);  // M for Edit Mode
     AddKeyMapping(IMC_RTS, IA_ToggleModifyMode, EKeys::Comma);  // , for Modify Mode
-    // 注意: Z 和 N 键现在由 HUD 状态管理器处理
-    // IA_ToggleMainUI 和 IA_ToggleSkillAllocationViewer 不再直接绑定到 Z/N 键
-    // 它们通过 IA_CheckTask 和 IA_CheckSkill 间接触发（点击 Edit 按钮后）
-    // AddKeyMapping(IMC_RTS, IA_ToggleMainUI, EKeys::Z);  // 已移除 - 由 IA_CheckTask 处理
-    // AddKeyMapping(IMC_RTS, IA_ToggleSkillAllocationViewer, EKeys::N);  // 已移除 - 由 IA_CheckSkill 处理
-
-    // 突发事件系统
-
     // HUD 状态管理输入 (UI Visual Redesign)
     AddKeyMapping(IMC_RTS, IA_CheckTask, EKeys::Z);       // Z 键检查任务图
     AddKeyMapping(IMC_RTS, IA_CheckSkill, EKeys::N);      // N 键检查技能列表

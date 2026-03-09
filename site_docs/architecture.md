@@ -57,6 +57,9 @@ unreal_project/Source/MultiAgent/
 │   ├── Effect/
 │   └── Utils/
 ├── Input/
+│   ├── Application/
+│   ├── Domain/
+│   └── Infrastructure/
 ├── UI/
 │   ├── Core/
 │   ├── HUD/
@@ -438,6 +441,100 @@ flowchart LR
 - HUD 侧的 modify 保存/更新逻辑已下沉到 `FMAModifySceneActionAdapter`；edit/modify 两条线现在共享 `FMASceneActionResult`，并统一通过 `FMAHUDSceneActionResultCoordinator` 落到 HUD/UI。
 - `FMAHUDSceneEditCoordinator` 现在更接近纯入口编排层。
 - 因此 `MAModifyWidget + Modify flow` 已形成较完整的 `L0/L1/L2/L3` 分层；`Edit/Modify` 的结果模型、widget lifecycle、selection apply 模式都已完成第一阶段横向统一。
+
+### 4.7 Input 分层图（当前）
+
+```mermaid
+flowchart LR
+    subgraph L0["L0 Presentation"]
+        PC["AMAPlayerController"]
+        ACT["UMAInputActions"]
+    end
+
+    subgraph L1["L1 Application"]
+        MODE["FMAMouseModeCoordinator"]
+        HUDSHORT["FMAHUDShortcutCoordinator"]
+        CMD["FMACommandInputCoordinator"]
+        UTIL["FMAAgentUtilityInputCoordinator"]
+        DEPLOY["FMADeploymentInputCoordinator"]
+        RTS["FMARTSSelectionInputCoordinator"]
+        CAMERA["FMACameraInputCoordinator"]
+        SQUAD["FMASquadInputCoordinator"]
+        MODIFY["FMAModifyInputCoordinator"]
+        EDIT["FMAEditInputCoordinator"]
+    end
+
+    subgraph L2["L2 Domain"]
+        MT["EMAMouseMode"]
+        DEPLOYT["FMAPendingDeployment"]
+    end
+
+    subgraph L3["L3 Infrastructure"]
+        HUDADAPTER["FMAHUDInputAdapter"]
+        HL["FMAActorHighlightAdapter"]
+    end
+
+    subgraph CORE["Existing Core Services"]
+        HUD["AMAHUD / UMAHUDStateManager"]
+        SEL["UMASelectionManager"]
+        CMDMGR["UMACommandManager"]
+        SQMGR["UMASquadManager"]
+        EDITMGR["UMAEditModeManager"]
+        AGENTMGR["UMAAgentManager"]
+        VIEW["UMAViewportManager"]
+    end
+
+    ACT --> PC
+    PC --> MODE
+    PC --> HUDSHORT
+    PC --> CMD
+    PC --> UTIL
+    PC --> DEPLOY
+    PC --> RTS
+    PC --> CAMERA
+    PC --> SQUAD
+    PC --> MODIFY
+    PC --> EDIT
+
+    MODE --> MT
+    DEPLOY --> DEPLOYT
+
+    HUDSHORT --> HUDADAPTER
+    MODIFY --> HL
+    MODIFY --> HUDADAPTER
+    EDIT --> HUDADAPTER
+
+    HUDADAPTER --> HUD
+    CMD --> CMDMGR
+    UTIL --> AGENTMGR
+    UTIL --> SEL
+    DEPLOY --> AGENTMGR
+    DEPLOY --> SEL
+    RTS --> SEL
+    CAMERA --> VIEW
+    CAMERA --> AGENTMGR
+    SQUAD --> SEL
+    SQUAD --> SQMGR
+    MODIFY --> SEL
+    EDIT --> EDITMGR
+
+    PC -. "remaining coupling" .-> CMDMGR
+```
+
+说明（本轮改动）：
+- `AMAPlayerController` 已从输入 God Object 收缩为壳层 + 路由层：当前约 `1905 -> 464 LOC`。
+- `EMAMouseMode` 与 `FMAPendingDeployment` 已下沉到 `Input/Domain/MAInputTypes.h`，不再内嵌在 `PlayerController` 头文件中。
+- `SetupInputComponent` 已拆成 `BindPointerActions / BindGameplayActions / BindHUDActions` 三段，明确属于 `L4 bootstrap` 的输入绑定装配职责。
+- `FMAHUDShortcutCoordinator` 已接管 `CheckTask/CheckSkill/CheckDecision` 与右侧面板快捷键，不再让 `PlayerController` 直穿 `HUD -> UIManager -> HUDStateManager`。
+- `FMAMouseModeCoordinator` 已统一 `Select / Deployment / Modify / Edit` 模式切换，去掉重复的 enter/exit 副作用。
+- `FMAAgentUtilityInputCoordinator` 已接管调试/生成占位输入和选中单位跳跃，`PlayerController` 不再承载这些杂项快捷键的具体行为。
+- `FMARTSSelectionInputCoordinator` 已接管 RTS 选择框生命周期、单击/框选判定、HUD 框选同步，以及中键导航逻辑。
+- `FMACameraInputCoordinator` 已接管右键旋转、相机切换、返回观察者、拍照和 TCP 推流切换。
+- `FMASquadInputCoordinator` 已接管控制组、编队切换、创建/解散 Squad 的快捷键流程。
+- `FMAModifyInputCoordinator` 与 `FMAEditInputCoordinator` 已接管 Modify/Edit 场景点击行为；Actor 高亮递归逻辑已下沉到 `FMAActorHighlightAdapter`。
+- `FMADeploymentInputCoordinator` 已接管部署队列、进入/退出部署模式、框选投放、地面投影与 spawn 流程；`PlayerController` 不再直接持有这段大逻辑。
+- 旧的无效输入概念已清理：`IA_ToggleMainUI`、`IA_ToggleSkillAllocationViewer`、`IA_StartPatrol`、`IA_StartCoverage`、`IA_StartAvoid` 已从 `InputActions` 和 `PlayerController` 里移除。
+- 当前还保留在 `PlayerController` 的主要职责是输入绑定入口、Subsystem 初始化，以及少量 `CommandManager` façade 调用；主交互流已经进入 `Application` 层。
 
 ## 5. 重构建议
 

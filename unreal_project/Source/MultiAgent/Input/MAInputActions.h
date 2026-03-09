@@ -59,22 +59,13 @@ public:
     TObjectPtr<UInputAction> IA_ReturnSpectator;
 
     UPROPERTY(BlueprintReadOnly, Category = "Input")
-    TObjectPtr<UInputAction> IA_StartPatrol;
-
-    UPROPERTY(BlueprintReadOnly, Category = "Input")
     TObjectPtr<UInputAction> IA_StartCharge;
 
     UPROPERTY(BlueprintReadOnly, Category = "Input")
     TObjectPtr<UInputAction> IA_StopIdle;
 
     UPROPERTY(BlueprintReadOnly, Category = "Input")
-    TObjectPtr<UInputAction> IA_StartCoverage;
-
-    UPROPERTY(BlueprintReadOnly, Category = "Input")
     TObjectPtr<UInputAction> IA_StartFollow;
-
-    UPROPERTY(BlueprintReadOnly, Category = "Input")
-    TObjectPtr<UInputAction> IA_StartAvoid;
 
     UPROPERTY(BlueprintReadOnly, Category = "Input")
     TObjectPtr<UInputAction> IA_StartFormation;
@@ -117,14 +108,6 @@ public:
     /** 切换 Modify 模式 (逗号键) */
     UPROPERTY(BlueprintReadOnly, Category = "Input")
     TObjectPtr<UInputAction> IA_ToggleModifyMode;
-
-    /** 切换主 UI 显示/隐藏 (Z 键) */
-    UPROPERTY(BlueprintReadOnly, Category = "Input")
-    TObjectPtr<UInputAction> IA_ToggleMainUI;
-
-    /** 切换技能分配查看器显示/隐藏 (N 键) */
-    UPROPERTY(BlueprintReadOnly, Category = "Input")
-    TObjectPtr<UInputAction> IA_ToggleSkillAllocationViewer;
 
     // ========== HUD 状态管理输入 (UI Visual Redesign) ==========
     /** 检查任务图 (Z 键) - 用于 HUD 状态管理器 */
