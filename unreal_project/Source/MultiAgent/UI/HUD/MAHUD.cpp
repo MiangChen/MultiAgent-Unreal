@@ -173,11 +173,6 @@ void AMAHUD::LoadTaskGraph(const FMATaskGraphData& Data)
 // Widget Getter 方法 (委托到 UIManager)
 //=============================================================================
 
-UMASimpleMainWidget* AMAHUD::GetSimpleMainWidget() const
-{
-    return UIManager ? UIManager->GetSimpleMainWidget() : nullptr;
-}
-
 UMATaskPlannerWidget* AMAHUD::GetTaskPlannerWidget() const
 {
     return UIManager ? UIManager->GetTaskPlannerWidget() : nullptr;

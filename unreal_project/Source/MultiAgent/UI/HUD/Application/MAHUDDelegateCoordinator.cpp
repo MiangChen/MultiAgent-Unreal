@@ -5,7 +5,6 @@
 #include "../MAHUD.h"
 #include "../../Core/MAUIManager.h"
 #include "../../Components/MAInstructionPanel.h"
-#include "../../Legacy/MASimpleMainWidget.h"
 #include "../../Mode/MAModifyWidget.h"
 #include "../../Mode/MASceneListWidget.h"
 #include "../../TaskGraph/MATaskPlannerWidget.h"
@@ -30,16 +29,6 @@ void FMAHUDDelegateCoordinator::BindWidgetDelegates(AMAHUD* HUD) const
             TaskPlannerWidget->OnCommandSubmitted.AddDynamic(HUD, &AMAHUD::OnSimpleCommandSubmitted);
         }
         UE_LOG(LogMAHUDDelegateCoordinator, Log, TEXT("BindWidgetDelegates: Bound TaskPlannerWidget delegates"));
-    }
-
-    UMASimpleMainWidget* SimpleMainWidget = HUD->UIManager->GetSimpleMainWidget();
-    if (SimpleMainWidget)
-    {
-        if (!SimpleMainWidget->OnCommandSubmitted.IsAlreadyBound(HUD, &AMAHUD::OnSimpleCommandSubmitted))
-        {
-            SimpleMainWidget->OnCommandSubmitted.AddDynamic(HUD, &AMAHUD::OnSimpleCommandSubmitted);
-        }
-        UE_LOG(LogMAHUDDelegateCoordinator, Log, TEXT("BindWidgetDelegates: Bound SimpleMainWidget delegates"));
     }
 
     UMAInstructionPanel* InstructionPanel = HUD->UIManager->GetInstructionPanel();

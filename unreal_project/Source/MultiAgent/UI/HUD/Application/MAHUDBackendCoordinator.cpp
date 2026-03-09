@@ -5,7 +5,6 @@
 #include "../MAHUD.h"
 #include "../../Core/MAUIManager.h"
 #include "../../Core/MAHUDStateManager.h"
-#include "../../Legacy/MASimpleMainWidget.h"
 #include "../../TaskGraph/MATaskPlannerWidget.h"
 #include "../../Modal/MATaskGraphModal.h"
 #include "../../Modal/MASkillAllocationModal.h"
@@ -40,10 +39,9 @@ void FMAHUDBackendCoordinator::HandleSimpleCommandSubmitted(
     }
 
     UE_LOG(LogMAHUDBackendCoordinator, Warning, TEXT("HandleSimpleCommandSubmitted: CommSubsystem not found"));
-    UMASimpleMainWidget* SimpleMainWidget = UIManager ? UIManager->GetSimpleMainWidget() : nullptr;
-    if (SimpleMainWidget)
+    if (UMATaskPlannerWidget* TaskPlannerWidget = UIManager ? UIManager->GetTaskPlannerWidget() : nullptr)
     {
-        SimpleMainWidget->SetResultText(TEXT("Error: Communication subsystem not found"));
+        TaskPlannerWidget->AppendStatusLog(TEXT("[Error] Communication subsystem not found"));
     }
 }
 
@@ -56,7 +54,6 @@ void FMAHUDBackendCoordinator::HandlePlannerResponse(UMAUIManager* UIManager, co
     }
 
     UMATaskPlannerWidget* TaskPlannerWidget = UIManager->GetTaskPlannerWidget();
-    UMASimpleMainWidget* SimpleMainWidget = UIManager->GetSimpleMainWidget();
 
     if (TaskPlannerWidget)
     {
@@ -70,21 +67,6 @@ void FMAHUDBackendCoordinator::HandlePlannerResponse(UMAUIManager* UIManager, co
             TaskPlannerWidget->LoadTaskGraphFromJson(Response.PlanText);
         }
         return;
-    }
-
-    if (SimpleMainWidget)
-    {
-        FString DisplayText = FString::Printf(
-            TEXT("[%s]\n%s"),
-            Response.bSuccess ? TEXT("Success") : TEXT("Failed"),
-            *Response.Message);
-
-        if (!Response.PlanText.IsEmpty())
-        {
-            DisplayText += FString::Printf(TEXT("\n\nPlan:\n%s"), *Response.PlanText);
-        }
-
-        SimpleMainWidget->SetResultText(DisplayText);
     }
 }
 

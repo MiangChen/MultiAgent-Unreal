@@ -10,7 +10,7 @@
 
 namespace
 {
-    UMASceneGraphManager* ResolveSceneGraphManager(UWorld* World)
+    UMASceneGraphManager* ResolveNodeBuilderSceneGraphManager(UWorld* World)
     {
         UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
         return GameInstance ? GameInstance->GetSubsystem<UMASceneGraphManager>() : nullptr;
@@ -19,7 +19,7 @@ namespace
 
 FString FMAModifyWidgetNodeBuilder::GetNextAvailableId(UWorld* World) const
 {
-    if (UMASceneGraphManager* SceneGraphManager = ResolveSceneGraphManager(World))
+    if (UMASceneGraphManager* SceneGraphManager = ResolveNodeBuilderSceneGraphManager(World))
     {
         return SceneGraphManager->GetNextAvailableId();
     }
@@ -65,7 +65,7 @@ TMap<FString, FString> FMAModifyWidgetNodeBuilder::GetDefaultPropertiesForCatego
 
 FString FMAModifyWidgetNodeBuilder::ResolveGeneratedLabel(UWorld* World, const FString& Type) const
 {
-    if (UMASceneGraphManager* SceneGraphManager = ResolveSceneGraphManager(World))
+    if (UMASceneGraphManager* SceneGraphManager = ResolveNodeBuilderSceneGraphManager(World))
     {
         return SceneGraphManager->GenerateLabel(Type);
     }

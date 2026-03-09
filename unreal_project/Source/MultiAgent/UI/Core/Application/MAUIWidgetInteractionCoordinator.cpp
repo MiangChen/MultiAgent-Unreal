@@ -10,7 +10,6 @@
 #include "../../Modal/MADecisionModal.h"
 #include "../../SkillAllocation/MASkillAllocationViewer.h"
 #include "../../TaskGraph/MATaskPlannerWidget.h"
-#include "../../Legacy/MASimpleMainWidget.h"
 #include "../../Mode/MAEditWidget.h"
 #include "../../../Core/Manager/MATempDataManager.h"
 #include "Engine/GameInstance.h"
@@ -294,13 +293,6 @@ void FMAUIWidgetInteractionCoordinator::SetWidgetFocus(UMAUIManager* UIManager, 
         if (UMATaskPlannerWidget* TaskPlannerWidget = UIManager->GetTaskPlannerWidget())
         {
             TaskPlannerWidget->FocusJsonEditor();
-        }
-        break;
-
-    case EMAWidgetType::SimpleMain:
-        if (UMASimpleMainWidget* SimpleMainWidget = UIManager->GetSimpleMainWidget())
-        {
-            SimpleMainWidget->FocusInputBox();
         }
         break;
 

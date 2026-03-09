@@ -66,9 +66,6 @@ UI/
 │   ├── MASetupHUD            # 设置 HUD
 │   └── MASetupWidget         # 设置 Widget
 │
-├── Legacy/                   # 遗留代码 (待清理)
-│   └── MASimpleMainWidget    # 简单主界面
-│
 └── README.md                 # 本文档
 ```
 

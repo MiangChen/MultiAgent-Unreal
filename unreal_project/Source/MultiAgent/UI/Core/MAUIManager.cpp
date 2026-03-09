@@ -4,7 +4,6 @@
 
 #include "MAUIManager.h"
 #include "MAUITheme.h"
-#include "../Legacy/MASimpleMainWidget.h"
 #include "../HUD/MAHUDWidget.h"
 #include "../HUD/MAMainHUDWidget.h"
 #include "../Modal/MATaskGraphModal.h"
@@ -71,9 +70,6 @@ void UMAUIManager::SetWidgetInstanceInternal(EMAWidgetType Type, UUserWidget* Wi
         break;
     case EMAWidgetType::SkillAllocation:
         SkillAllocationViewer = Cast<UMASkillAllocationViewer>(Widget);
-        break;
-    case EMAWidgetType::SimpleMain:
-        SimpleMainWidget = Cast<UMASimpleMainWidget>(Widget);
         break;
     case EMAWidgetType::SemanticMap:
         SemanticMapWidget = Widget;
@@ -197,11 +193,6 @@ UMATaskPlannerWidget* UMAUIManager::GetTaskPlannerWidget() const
 UMASkillAllocationViewer* UMAUIManager::GetSkillAllocationViewer() const
 {
     return SkillAllocationViewer;
-}
-
-UMASimpleMainWidget* UMAUIManager::GetSimpleMainWidget() const
-{
-    return SimpleMainWidget;
 }
 
 UMADirectControlIndicator* UMAUIManager::GetDirectControlIndicator() const

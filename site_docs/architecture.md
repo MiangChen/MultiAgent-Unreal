@@ -69,8 +69,7 @@ unreal_project/Source/MultiAgent/
 │   ├── SkillAllocation/
 │   │   └── Gantt/
 │   ├── Components/
-│   ├── Setup/
-│   └── Legacy/
+│   └── Setup/
 └── Utils/
 ```
 

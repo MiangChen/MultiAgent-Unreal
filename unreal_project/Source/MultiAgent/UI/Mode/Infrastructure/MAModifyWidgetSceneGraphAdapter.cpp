@@ -64,7 +64,7 @@ namespace
         return Result;
     }
 
-    UMASceneGraphManager* ResolveSceneGraphManager(UWorld* World)
+    UMASceneGraphManager* ResolveModifySceneGraphAdapterManager(UWorld* World)
     {
         UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
         return GameInstance ? GameInstance->GetSubsystem<UMASceneGraphManager>() : nullptr;
@@ -86,7 +86,7 @@ bool FMAModifyWidgetSceneGraphAdapter::FindMatchingNodes(
         return false;
     }
 
-    UMASceneGraphManager* SceneGraphManager = ResolveSceneGraphManager(World);
+    UMASceneGraphManager* SceneGraphManager = ResolveModifySceneGraphAdapterManager(World);
     if (!SceneGraphManager)
     {
         OutError = TEXT("SceneGraphManager not found");
@@ -275,7 +275,7 @@ FMAModifyPreviewModel FMAModifyWidgetSceneGraphAdapter::BuildMultiActorPreview(c
 
 FString FMAModifyWidgetSceneGraphAdapter::BuildEditNodeJson(UWorld* World, const FMAAnnotationInput& Input, const FString& NodeId) const
 {
-    UMASceneGraphManager* SceneGraphManager = ResolveSceneGraphManager(World);
+    UMASceneGraphManager* SceneGraphManager = ResolveModifySceneGraphAdapterManager(World);
     if (!SceneGraphManager)
     {
         return TEXT("{}");

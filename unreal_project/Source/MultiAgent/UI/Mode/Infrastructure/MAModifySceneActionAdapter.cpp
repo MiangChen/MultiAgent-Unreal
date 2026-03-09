@@ -11,7 +11,7 @@
 
 namespace
 {
-    UMASceneGraphManager* ResolveSceneGraphManager(UWorld* World)
+    UMASceneGraphManager* ResolveModifyActionSceneGraphManager(UWorld* World)
     {
         UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
         return GameInstance ? GameInstance->GetSubsystem<UMASceneGraphManager>() : nullptr;
@@ -36,7 +36,7 @@ FMASceneActionResult FMAModifySceneActionAdapter::ApplySingleModify(
         return Result;
     }
 
-    UMASceneGraphManager* SceneGraphManager = ResolveSceneGraphManager(World);
+    UMASceneGraphManager* SceneGraphManager = ResolveModifyActionSceneGraphManager(World);
     if (!SceneGraphManager)
     {
         Result.Message = TEXT("Save failed: SceneGraphManager not found");
@@ -89,7 +89,7 @@ FMASceneActionResult FMAModifySceneActionAdapter::ApplyMultiModify(
         return Result;
     }
 
-    UMASceneGraphManager* SceneGraphManager = ResolveSceneGraphManager(World);
+    UMASceneGraphManager* SceneGraphManager = ResolveModifyActionSceneGraphManager(World);
     if (!SceneGraphManager)
     {
         Result.Message = TEXT("Save failed: SceneGraphManager not found");

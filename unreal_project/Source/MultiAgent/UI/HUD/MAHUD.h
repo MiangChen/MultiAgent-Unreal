@@ -19,7 +19,6 @@
 #include "MAHUD.generated.h"
 
 // 前向声明 - Widget 类 (用于事件回调参数类型)
-class UMASimpleMainWidget;
 class UMATaskPlannerWidget;
 class UMASkillAllocationViewer;
 class UMADirectControlIndicator;
@@ -177,13 +176,6 @@ public:
      */
     UFUNCTION(BlueprintPure, Category = "UI")
     bool IsDirectControlIndicatorVisible() const;
-
-    /**
-     * 获取 SimpleMainWidget 实例 (已弃用，通过 UIManager 访问)
-     * @return SimpleMainWidget 指针，可能为 nullptr
-     */
-    UFUNCTION(BlueprintPure, Category = "UI")
-    UMASimpleMainWidget* GetSimpleMainWidget() const;
 
     /**
      * 获取 TaskPlannerWidget 实例 (通过 UIManager 访问)
@@ -475,7 +467,7 @@ private:
     AMAPlayerController* GetMAPlayerController() const;
 
     /**
-     * SimpleMainWidget 指令提交回调
+     * 指令提交回调
      * @param Command 用户输入的指令
      */
     UFUNCTION()

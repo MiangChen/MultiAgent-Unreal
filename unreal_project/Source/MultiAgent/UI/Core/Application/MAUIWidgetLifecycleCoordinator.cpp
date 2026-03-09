@@ -4,7 +4,6 @@
 #include "MAUIWidgetLifecycleCoordinator.h"
 #include "../MAUIManager.h"
 #include "../MAUITheme.h"
-#include "../../Legacy/MASimpleMainWidget.h"
 #include "../../HUD/MAHUDWidget.h"
 #include "../../HUD/MAMainHUDWidget.h"
 #include "../../TaskGraph/MATaskPlannerWidget.h"
@@ -120,18 +119,6 @@ void FMAUIWidgetLifecycleCoordinator::CreatePlannerWidgets(UMAUIManager* UIManag
     else
     {
         UE_LOG(LogMAUIManager, Error, TEXT("Failed to create SkillAllocationViewer"));
-    }
-
-    UMASimpleMainWidget* SimpleMainWidget = CreateWidget<UMASimpleMainWidget>(OwningPC, UMASimpleMainWidget::StaticClass());
-    UIManager->SetWidgetInstanceInternal(EMAWidgetType::SimpleMain, SimpleMainWidget);
-    if (SimpleMainWidget)
-    {
-        UIManager->RegisterManagedWidgetInternal(EMAWidgetType::SimpleMain, SimpleMainWidget, ESlateVisibility::Collapsed);
-        UE_LOG(LogMAUIManager, Log, TEXT("SimpleMainWidget created (legacy, not added to viewport)"));
-    }
-    else
-    {
-        UE_LOG(LogMAUIManager, Error, TEXT("Failed to create SimpleMainWidget"));
     }
 
     const TSubclassOf<UUserWidget> SemanticMapWidgetClass = UIManager->GetSemanticMapWidgetClass();

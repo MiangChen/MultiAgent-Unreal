@@ -22,7 +22,6 @@
 // 前向声明
 class UMATaskPlannerWidget;
 class UMASkillAllocationViewer;
-class UMASimpleMainWidget;
 class UMADirectControlIndicator;
 class UMAModifyWidget;
 class UMAEditWidget;
@@ -55,7 +54,7 @@ enum class EMAWidgetType : uint8
     HUD             UMETA(DisplayName = "HUD Overlay"),
     TaskPlanner     UMETA(DisplayName = "Task Planner"),
     SkillAllocation UMETA(DisplayName = "Skill Allocation"),
-    SimpleMain      UMETA(DisplayName = "Simple Main (Legacy)"),
+    SimpleMain      UMETA(Hidden),
     SemanticMap     UMETA(DisplayName = "Semantic Map"),
     DirectControl   UMETA(DisplayName = "Direct Control"),
     Modify          UMETA(DisplayName = "Modify"),
@@ -187,10 +186,6 @@ public:
     /** 获取 SkillAllocationViewer 实例 */
     UFUNCTION(BlueprintPure, Category = "UI")
     UMASkillAllocationViewer* GetSkillAllocationViewer() const;
-
-    /** 获取 SimpleMainWidget 实例 (Legacy) */
-    UFUNCTION(BlueprintPure, Category = "UI")
-    UMASimpleMainWidget* GetSimpleMainWidget() const;
 
     /** 获取 DirectControlIndicator 实例 */
     UFUNCTION(BlueprintPure, Category = "UI")
@@ -500,9 +495,6 @@ private:
 
     UPROPERTY()
     UMASkillAllocationViewer* SkillAllocationViewer;
-
-    UPROPERTY()
-    UMASimpleMainWidget* SimpleMainWidget;
 
     UPROPERTY()
     UMADirectControlIndicator* DirectControlIndicator;
