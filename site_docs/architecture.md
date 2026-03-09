@@ -48,19 +48,29 @@ flowchart LR
 ```
 
 当前仓库的主映射：
-- `L1`: `Input/`、`UI/`
-- `L2`: `Core/Interaction/Application/`、`UI/HUD/Application/`、`UI/Mode/Application/`
-- `L3`: `Core/Interaction/Domain/`、`Core/Interaction/Feedback/`、`UI/HUD/Domain/`、`UI/Mode/Domain/`
-- `L4`: `Core/Interaction/Infrastructure/`、`UI/HUD/Infrastructure/`、`UI/Mode/Infrastructure/`
-- `L5`: `Core/Manager/`、`Agent/`、`Environment/`、`Core/Comm/`
-- `CR`: `Core/Interaction/Bootstrap/`
+
+| 层级 | 当前 folder 映射 |
+|---|---|
+| `L1` | `Input/`、`UI/` |
+| `L2` | `Core/Interaction/Application/`、`UI/HUD/Application/`、`UI/Mode/Application/` |
+| `L3` | `Core/Interaction/Domain/`、`Core/Interaction/Feedback/`、`UI/HUD/Domain/`、`UI/Mode/Domain/` |
+| `L4` | `Core/Interaction/Infrastructure/`、`UI/HUD/Infrastructure/`、`UI/Mode/Infrastructure/` |
+| `L5` | `Core/Manager/`、`Agent/`、`Environment/`、`Core/Comm/` |
+| `CR` | `Core/Interaction/Bootstrap/` |
+
+补充：
+- `Core/Interaction/Feedback/` 现在同时承载 feedback 合同类型和纯 feedback 翻译逻辑，例如 `MAFeedbackPipeline`。
+- `Core/Interaction/Infrastructure/` 应只保留真正触达 Unreal runtime / HUD / Manager 的 adapter 与 applier。
 
 ## 2. Folder 图（当前实现）
 
 说明：
-- 这张图中的箭头表示**编译期依赖方向 / include 方向**，不是运行时控制流。
-- 因此 `L4 -> L3` 是允许的，表示 Infrastructure 依赖 Domain/Feedback 的类型定义。
-- 真正禁止的是 `L3 -> L4`，也就是 Domain 反向依赖 runtime adapter。
+- 这张图现在改成**层级归属图**，重点表达 folder 落位，不再试图完整表达所有编译期依赖。
+- 为避免和控制流方向混淆，图中**不显式绘制** `L4 -> L3` 这类“Infrastructure 依赖 Domain/Feedback 合同类型”的边。
+- 需要记住的规则仍然是：
+  - `L3 -> L4` 禁止
+  - `L4` 可以消费 `L3` 的状态 / DTO / feedback 类型
+  - 这类合同依赖保留在说明里，不放进图里制造反向视觉噪音
 
 ```mermaid
 flowchart TB
@@ -124,8 +134,6 @@ flowchart TB
     MODEAPP --> MODEDOMAIN
     MODEAPP --> MODEINFRA
 
-    INTINFRA --> INTDOMAIN
-    INTINFRA --> FEEDBACK
     INTINFRA --> MANAGER
     INTINFRA --> AGENT
     INTINFRA --> ENV

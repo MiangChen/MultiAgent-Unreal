@@ -2,8 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "../Feedback/MAFeedback21.h"
+#include "../Feedback/MAFeedbackPipeline.h"
 #include "../Infrastructure/MAInteractionRuntimeAdapter.h"
-#include "../Infrastructure/MAFeedbackPipeline.h"
 
 enum class EMACommand : uint8;
 class AMAPlayerController;

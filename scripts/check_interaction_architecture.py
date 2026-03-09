@@ -15,6 +15,11 @@ OLD_INCLUDE_PATTERNS = (
     "Input/Infrastructure/",
 )
 
+FORBIDDEN_INFRA_FILES = (
+    "Core/Interaction/Infrastructure/MAFeedbackPipeline.h",
+    "Core/Interaction/Infrastructure/MAFeedbackPipeline.cpp",
+)
+
 FORBIDDEN_DEBUG_PATTERN = "AddOnScreenDebugMessage"
 ALLOWED_DEBUG_FILES = {
     "Core/Interaction/Infrastructure/MAFeedback21Applier.cpp",
@@ -204,6 +209,10 @@ def main() -> int:
     for directory in old_dirs:
         if directory.exists() and any(directory.iterdir()):
             errors.append(f"{directory.relative_to(REPO_ROOT)} should be empty after Interaction migration")
+
+    for relative_path in FORBIDDEN_INFRA_FILES:
+        if (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"{relative_path} should not live in Infrastructure; move pure feedback translation into Feedback/")
 
     if errors:
         print("Interaction architecture guard failed:")

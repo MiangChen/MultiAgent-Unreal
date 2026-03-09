@@ -1,10 +1,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "../Feedback/MAFeedback21.h"
-#include "../Feedback/MAFeedback32.h"
-#include "../Feedback/MAFeedback43.h"
-#include "../Feedback/MAFeedback54.h"
+#include "MAFeedback21.h"
+#include "MAFeedback32.h"
+#include "MAFeedback43.h"
+#include "MAFeedback54.h"
 
 class MULTIAGENT_API FMAFeedbackPipeline
 {

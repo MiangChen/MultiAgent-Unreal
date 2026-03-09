@@ -1,4 +1,4 @@
-// Translate staged control feedback from L5 observations to L1 UI feedback.
+// Translate staged control feedback between the standardized FB54/43/32/21 contracts.
 
 #include "MAFeedbackPipeline.h"
 
