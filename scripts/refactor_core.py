@@ -49,7 +49,6 @@ FILE_MAPPING = {
     ],
     # 保留在根目录
     "": [
-        "MASubsystem.h", "MASubsystem.cpp",
         "MARTSCompatibilityTest.cpp",
     ],
 }

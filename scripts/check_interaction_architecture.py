@@ -107,6 +107,14 @@ REQUIRED_COMM_DIRS = (
     "Core/Comm/Runtime",
 )
 
+REQUIRED_CONFIG_DIRS = (
+    "Core/Config/Application",
+    "Core/Config/Bootstrap",
+    "Core/Config/Domain",
+    "Core/Config/Infrastructure",
+    "Core/Config/Runtime",
+)
+
 REQUIRED_GAMEFLOW_DIRS = (
     "Core/GameFlow/Bootstrap",
 )
@@ -200,6 +208,10 @@ FORBIDDEN_LEGACY_GAMEFLOW_PATHS = (
     "Core/GameFlow/MAGameInstance.cpp",
     "Core/GameFlow/MASetupGameMode.h",
     "Core/GameFlow/MASetupGameMode.cpp",
+)
+
+FORBIDDEN_LEGACY_CONFIG_PATHS = (
+    "Core/Config/MAConfigManager.cpp",
 )
 
 FORBIDDEN_DEBUG_PATTERN = "AddOnScreenDebugMessage"
@@ -383,6 +395,10 @@ def main() -> int:
         if not (SOURCE_ROOT / relative_path).exists():
             errors.append(f"Missing required Comm context directory: {relative_path}")
 
+    for relative_path in REQUIRED_CONFIG_DIRS:
+        if not (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"Missing required Config context directory: {relative_path}")
+
     for relative_path in REQUIRED_GAMEFLOW_DIRS:
         if not (SOURCE_ROOT / relative_path).exists():
             errors.append(f"Missing required GameFlow bootstrap directory: {relative_path}")
@@ -500,6 +516,10 @@ def main() -> int:
     for relative_path in FORBIDDEN_LEGACY_GAMEFLOW_PATHS:
         if (SOURCE_ROOT / relative_path).exists():
             errors.append(f"{relative_path} should not exist after GameFlow bootstrap consolidation")
+
+    for relative_path in FORBIDDEN_LEGACY_CONFIG_PATHS:
+        if (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"{relative_path} should not exist after Config context layering")
 
     if errors:
         print("Interaction architecture guard failed:")

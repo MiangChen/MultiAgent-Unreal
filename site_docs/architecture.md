@@ -52,11 +52,11 @@ flowchart LR
 | 层级 | 当前 folder 映射 |
 |---|---|
 | `L1` | `Input/`、`UI/` |
-| `L2` | `Core/Interaction/Application/`、`Core/SceneGraph/Application/`、`Core/Command/Application/`、`Core/Selection/Application/`、`Core/Editing/Application/`、`Core/AgentRuntime/Application/`、`Core/EnvironmentCore/Application/`、`Core/TempData/Application/`、`Core/Camera/Application/`、`Core/Comm/Application/`、`UI/HUD/Application/`、`UI/Mode/Application/` |
-| `L3` | `Core/Interaction/Domain/`、`Core/Interaction/Feedback/`、`Core/SceneGraph/Domain/`、`Core/Command/Domain/`、`Core/Command/Feedback/`、`Core/Selection/Domain/`、`Core/Selection/Feedback/`、`Core/Editing/Domain/`、`Core/Editing/Feedback/`、`Core/AgentRuntime/Domain/`、`Core/AgentRuntime/Feedback/`、`Core/EnvironmentCore/Domain/`、`Core/EnvironmentCore/Feedback/`、`Core/TempData/Domain/`、`Core/TempData/Feedback/`、`Core/Camera/Domain/`、`Core/Camera/Feedback/`、`Core/Comm/Domain/`、`Core/Comm/Feedback/`、`Core/Squad/Domain/`、`Core/Shared/Types/`、`UI/HUD/Domain/`、`UI/Mode/Domain/` |
-| `L4` | `Core/Interaction/Infrastructure/`、`Core/SceneGraph/Infrastructure/`、`Core/Command/Infrastructure/`、`Core/Selection/Infrastructure/`、`Core/Editing/Infrastructure/`、`Core/AgentRuntime/Infrastructure/`、`Core/EnvironmentCore/Infrastructure/`、`Core/TempData/Infrastructure/`、`Core/Camera/Infrastructure/`、`Core/Comm/Infrastructure/`、`UI/HUD/Infrastructure/`、`UI/Mode/Infrastructure/` |
-| `L5` | `Core/SceneGraph/Runtime/`、`Core/Camera/Runtime/`、`Core/Editing/Runtime/`、`Core/Selection/Runtime/`、`Core/Command/Runtime/`、`Core/AgentRuntime/Runtime/`、`Core/Squad/Runtime/`、`Core/TempData/Runtime/`、`Core/EnvironmentCore/Runtime/`、`Core/Comm/Runtime/`、`Agent/`、`Environment/` |
-| `CR` | `Core/Interaction/Bootstrap/`、`Core/Command/Bootstrap/`、`Core/Selection/Bootstrap/`、`Core/Editing/Bootstrap/`、`Core/AgentRuntime/Bootstrap/`、`Core/EnvironmentCore/Bootstrap/`、`Core/TempData/Bootstrap/`、`Core/Camera/Bootstrap/`、`Core/Comm/Bootstrap/`、`Core/GameFlow/Bootstrap/` |
+| `L2` | `Core/Interaction/Application/`、`Core/SceneGraph/Application/`、`Core/Command/Application/`、`Core/Selection/Application/`、`Core/Editing/Application/`、`Core/AgentRuntime/Application/`、`Core/EnvironmentCore/Application/`、`Core/TempData/Application/`、`Core/Camera/Application/`、`Core/Comm/Application/`、`Core/Config/Application/`、`UI/HUD/Application/`、`UI/Mode/Application/` |
+| `L3` | `Core/Interaction/Domain/`、`Core/Interaction/Feedback/`、`Core/SceneGraph/Domain/`、`Core/Command/Domain/`、`Core/Command/Feedback/`、`Core/Selection/Domain/`、`Core/Selection/Feedback/`、`Core/Editing/Domain/`、`Core/Editing/Feedback/`、`Core/AgentRuntime/Domain/`、`Core/AgentRuntime/Feedback/`、`Core/EnvironmentCore/Domain/`、`Core/EnvironmentCore/Feedback/`、`Core/TempData/Domain/`、`Core/TempData/Feedback/`、`Core/Camera/Domain/`、`Core/Camera/Feedback/`、`Core/Comm/Domain/`、`Core/Comm/Feedback/`、`Core/Config/Domain/`、`Core/Squad/Domain/`、`Core/Shared/Types/`、`UI/HUD/Domain/`、`UI/Mode/Domain/` |
+| `L4` | `Core/Interaction/Infrastructure/`、`Core/SceneGraph/Infrastructure/`、`Core/Command/Infrastructure/`、`Core/Selection/Infrastructure/`、`Core/Editing/Infrastructure/`、`Core/AgentRuntime/Infrastructure/`、`Core/EnvironmentCore/Infrastructure/`、`Core/TempData/Infrastructure/`、`Core/Camera/Infrastructure/`、`Core/Comm/Infrastructure/`、`Core/Config/Infrastructure/`、`UI/HUD/Infrastructure/`、`UI/Mode/Infrastructure/` |
+| `L5` | `Core/SceneGraph/Runtime/`、`Core/Camera/Runtime/`、`Core/Editing/Runtime/`、`Core/Selection/Runtime/`、`Core/Command/Runtime/`、`Core/AgentRuntime/Runtime/`、`Core/Squad/Runtime/`、`Core/TempData/Runtime/`、`Core/EnvironmentCore/Runtime/`、`Core/Comm/Runtime/`、`Core/Config/Runtime/`、`Agent/`、`Environment/` |
+| `CR` | `Core/Interaction/Bootstrap/`、`Core/Command/Bootstrap/`、`Core/Selection/Bootstrap/`、`Core/Editing/Bootstrap/`、`Core/AgentRuntime/Bootstrap/`、`Core/EnvironmentCore/Bootstrap/`、`Core/TempData/Bootstrap/`、`Core/Camera/Bootstrap/`、`Core/Comm/Bootstrap/`、`Core/Config/Bootstrap/`、`Core/GameFlow/Bootstrap/` |
 
 补充：
 - `Core/Interaction/Feedback/` 现在同时承载 feedback 合同类型和纯 feedback 翻译逻辑，例如 `MAFeedbackPipeline`。
@@ -70,6 +70,7 @@ flowchart LR
 - `Core/AgentRuntime/`、`Core/Squad/`、`Core/TempData/`、`Core/EnvironmentCore/` 已从 `Core/Manager/` 中拆出，当前 `Core/Manager/` 不再承载正式运行时代码。
 - `Core/Shared/Types/` 现在承载跨上下文共享的纯合同类型；原 `Core/Types/` 已退休。
 - `Core/Comm/` 现在已经补齐 `Application / Feedback / Runtime / Bootstrap`，不再把通信入口文件平铺在 context 根目录。
+- `Core/Config/` 现在保留 `MAConfigManager.h` 作为统一外部入口；内部的配置类型、加载用例、路径解析和 JSON 读取已下沉到 `Domain / Application / Infrastructure / Runtime / Bootstrap`。
 - `Core/GameFlow/` 现在明确定位为 **Bootstrap shell**，只承载地图启动、Setup 流程和引擎级装配，不作为完整业务 context 继续扩张。
 - `Core/Camera/` 当前主要落在 `Domain / Infrastructure / Runtime`；后续如果出现更明确的相机 workflow，再补 `Application / Feedback / Bootstrap`。
 
@@ -100,7 +101,7 @@ flowchart TB
     subgraph L2["L2 Application"]
         INTAPP["Core/Interaction/Application/"]
         SGAPP["Core/SceneGraph/Application/"]
-        CTXAPP["Core/{Command,Selection,Editing,AgentRuntime,EnvironmentCore,TempData,Camera,Comm}/Application/"]
+        CTXAPP["Core/{Command,Selection,Editing,AgentRuntime,EnvironmentCore,TempData,Camera,Comm,Config}/Application/"]
         HUDAPP["UI/HUD/Application/"]
         MODEAPP["UI/Mode/Application/"]
     end
@@ -109,7 +110,7 @@ flowchart TB
         INTDOMAIN["Core/Interaction/Domain/"]
         FEEDBACK["Core/Interaction/Feedback/"]
         SGDOMAIN["Core/SceneGraph/Domain/"]
-        CTXDOMAIN["Core/{Command,Selection,Editing,AgentRuntime,EnvironmentCore,TempData,Camera,Comm}/Domain/"]
+        CTXDOMAIN["Core/{Command,Selection,Editing,AgentRuntime,EnvironmentCore,TempData,Camera,Comm,Config}/Domain/"]
         CTXFB["Core/{Command,Selection,Editing,AgentRuntime,EnvironmentCore,TempData,Camera,Comm}/Feedback/"]
         SQUADDOMAIN["Core/Squad/Domain/"]
         SHAREDTYPES["Core/Shared/Types/"]
@@ -120,14 +121,14 @@ flowchart TB
     subgraph L4["L4 Infrastructure"]
         INTINFRA["Core/Interaction/Infrastructure/"]
         SGINFRA["Core/SceneGraph/Infrastructure/"]
-        CTXINFRA["Core/{Command,Selection,Editing,AgentRuntime,EnvironmentCore,TempData,Camera,Comm}/Infrastructure/"]
+        CTXINFRA["Core/{Command,Selection,Editing,AgentRuntime,EnvironmentCore,TempData,Camera,Comm,Config}/Infrastructure/"]
         HUDINFRA["UI/HUD/Infrastructure/"]
         MODEINFRA["UI/Mode/Infrastructure/"]
     end
 
     subgraph L5["L5 Plant / Runtime"]
         SGRUNTIME["Core/SceneGraph/Runtime/"]
-        CTXRUNTIME["Core/{Camera,Editing,Selection,Command,AgentRuntime,Squad,TempData,EnvironmentCore,Comm}/Runtime/"]
+        CTXRUNTIME["Core/{Camera,Editing,Selection,Command,AgentRuntime,Squad,TempData,EnvironmentCore,Comm,Config}/Runtime/"]
         AGENT["Agent/"]
         ENV["Environment/"]
     end
