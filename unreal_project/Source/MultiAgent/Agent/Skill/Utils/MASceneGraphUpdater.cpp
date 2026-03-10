@@ -6,7 +6,7 @@
 #include "../../Character/MACharacter.h"
 #include "../../Character/MAUGVCharacter.h"
 #include "../MASkillComponent.h"
-#include "../../../Core/Manager/MACommandManager.h"
+#include "../../../Core/Command/Runtime/MACommandManager.h"
 #include "../../../Core/SceneGraph/Runtime/MASceneGraphManager.h"
 #include "../../../Core/SceneGraph/Infrastructure/Adapters/MASceneGraphRuntimeSyncAdapter.h"
 #include "../../../Core/SceneGraph/Application/MASceneGraphRuntimeSyncUseCases.h"

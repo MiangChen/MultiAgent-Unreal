@@ -2,7 +2,7 @@
 
 #include "MAPlayerController.h"
 #include "MAInputActions.h"
-#include "../Core/Manager/MACommandManager.h"
+#include "../Core/Command/Runtime/MACommandManager.h"
 #include "../Core/Interaction/Infrastructure/MAActorHighlightAdapter.h"
 #include "../Core/Interaction/Infrastructure/MAHUDInputAdapter.h"
 #include "../Core/Interaction/Infrastructure/MAInteractionRuntimeAdapter.h"

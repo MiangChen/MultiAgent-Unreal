@@ -5,7 +5,7 @@
 #include "MACommSubsystem.h"
 #include "Infrastructure/Codec/MACommJsonCodec.h"
 #include "Infrastructure/Codec/MACommTypeHelper.h"
-#include "../Manager/MACommandManager.h"
+#include "../Command/Runtime/MACommandManager.h"
 #include "../Manager/MATempDataManager.h"
 #include "../Types/MATaskGraphTypes.h"
 #include "HttpModule.h"

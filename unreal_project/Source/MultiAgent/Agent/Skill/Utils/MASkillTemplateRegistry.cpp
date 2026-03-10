@@ -1,7 +1,7 @@
 // MASkillTemplateRegistry.cpp
 
 #include "MASkillTemplateRegistry.h"
-#include "../../../Core/Manager/MACommandManager.h"
+#include "../../../Core/Command/Runtime/MACommandManager.h"
 #include "../../../Core/Types/MATypes.h"
 
 // Static member initialization

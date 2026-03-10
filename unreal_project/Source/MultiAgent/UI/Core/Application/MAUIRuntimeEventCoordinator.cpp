@@ -10,7 +10,7 @@
 #include "../../Modal/MADecisionModal.h"
 #include "../../Modal/MASkillAllocationModal.h"
 #include "../../../Core/Manager/MATempDataManager.h"
-#include "../../../Core/Manager/MACommandManager.h"
+#include "../../../Core/Command/Runtime/MACommandManager.h"
 #include "../../../Core/Comm/MACommSubsystem.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"

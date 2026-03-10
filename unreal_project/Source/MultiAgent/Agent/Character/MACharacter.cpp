@@ -12,7 +12,7 @@
 #include "../Component/MANavigationService.h"
 #include "Kismet/GameplayStatics.h"
 #include "../../Core/Config/MAConfigManager.h"
-#include "../../Core/Manager/MACommandManager.h"
+#include "../../Core/Command/Runtime/MACommandManager.h"
 #include "../../UI/Core/MAUIManager.h"
 #include "../../UI/HUD/MAHUD.h"
 #include "Components/WidgetComponent.h"

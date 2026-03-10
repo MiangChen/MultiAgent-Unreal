@@ -4,7 +4,7 @@
 
 #include "../../../Input/MAPlayerController.h"
 #include "../../Manager/MAAgentManager.h"
-#include "../../Manager/MACommandManager.h"
+#include "../../Command/Runtime/MACommandManager.h"
 #include "../../Editing/Runtime/MAEditModeManager.h"
 #include "../../Selection/Runtime/MASelectionManager.h"
 #include "../../Manager/MASquadManager.h"

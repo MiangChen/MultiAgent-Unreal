@@ -9,7 +9,7 @@
 #include "../../Character/MACharacter.h"
 #include "../../Component/MANavigationService.h"
 #include "../../../Core/Comm/MACommTypes.h"
-#include "../../../Core/Manager/MACommandManager.h"
+#include "../../../Core/Command/Runtime/MACommandManager.h"
 #include "../../../Core/SceneGraph/Runtime/MASceneGraphManager.h"
 #include "../../../Core/SceneGraph/Application/MASceneGraphQueryUseCases.h"
 #include "../../../Utils/MAGeometryUtils.h"

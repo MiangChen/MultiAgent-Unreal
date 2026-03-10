@@ -7,10 +7,10 @@
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "GameplayTagContainer.h"
-#include "../Types/MATypes.h"
-#include "../Comm/MACommTypes.h"
-#include "../../Agent/Skill/Utils/MAFeedbackGenerator.h"
-#include "../../Agent/Skill/Utils/MAConditionCheckTypes.h"
+#include "Core/Types/MATypes.h"
+#include "Core/Comm/MACommTypes.h"
+#include "Agent/Skill/Utils/MAFeedbackGenerator.h"
+#include "Agent/Skill/Utils/MAConditionCheckTypes.h"
 #include "MACommandManager.generated.h"
 
 class AMACharacter;

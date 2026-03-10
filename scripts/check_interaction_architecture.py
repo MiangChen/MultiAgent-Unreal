@@ -28,6 +28,7 @@ OLD_INCLUDE_PATTERNS = (
     "Core/Types/MAPIPCameraTypes.h",
     "Core/Manager/MAEditModeManager.h",
     "Core/Manager/MASelectionManager.h",
+    "Core/Manager/MACommandManager.h",
 )
 
 FORBIDDEN_INFRA_FILES = (
@@ -54,6 +55,10 @@ REQUIRED_EDITING_DIRS = (
 
 REQUIRED_SELECTION_DIRS = (
     "Core/Selection/Runtime",
+)
+
+REQUIRED_COMMAND_DIRS = (
+    "Core/Command/Runtime",
 )
 
 FORBIDDEN_LEGACY_SCENEGRAPH_PATHS = (
@@ -89,6 +94,11 @@ FORBIDDEN_LEGACY_EDITING_PATHS = (
 FORBIDDEN_LEGACY_SELECTION_PATHS = (
     "Core/Manager/MASelectionManager.h",
     "Core/Manager/MASelectionManager.cpp",
+)
+
+FORBIDDEN_LEGACY_COMMAND_PATHS = (
+    "Core/Manager/MACommandManager.h",
+    "Core/Manager/MACommandManager.cpp",
 )
 
 FORBIDDEN_DEBUG_PATTERN = "AddOnScreenDebugMessage"
@@ -244,6 +254,10 @@ def main() -> int:
         if not (SOURCE_ROOT / relative_path).exists():
             errors.append(f"Missing required Selection context directory: {relative_path}")
 
+    for relative_path in REQUIRED_COMMAND_DIRS:
+        if not (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"Missing required Command context directory: {relative_path}")
+
     for path in source_files:
         text = path.read_text(encoding="utf-8", errors="ignore")
         relative = rel(path)
@@ -317,6 +331,10 @@ def main() -> int:
     for relative_path in FORBIDDEN_LEGACY_SELECTION_PATHS:
         if (SOURCE_ROOT / relative_path).exists():
             errors.append(f"{relative_path} should not exist after Selection extraction")
+
+    for relative_path in FORBIDDEN_LEGACY_COMMAND_PATHS:
+        if (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"{relative_path} should not exist after Command extraction")
 
     if errors:
         print("Interaction architecture guard failed:")

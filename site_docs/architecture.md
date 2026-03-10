@@ -55,7 +55,7 @@ flowchart LR
 | `L2` | `Core/Interaction/Application/`、`Core/SceneGraph/Application/`、`UI/HUD/Application/`、`UI/Mode/Application/` |
 | `L3` | `Core/Interaction/Domain/`、`Core/Interaction/Feedback/`、`Core/SceneGraph/Domain/`、`Core/Camera/Domain/`、`UI/HUD/Domain/`、`UI/Mode/Domain/` |
 | `L4` | `Core/Interaction/Infrastructure/`、`Core/SceneGraph/Infrastructure/`、`Core/Camera/Infrastructure/`、`UI/HUD/Infrastructure/`、`UI/Mode/Infrastructure/` |
-| `L5` | `Core/SceneGraph/Runtime/`、`Core/Camera/Runtime/`、`Core/Editing/Runtime/`、`Core/Selection/Runtime/`、`Core/Manager/`、`Agent/`、`Environment/`、`Core/Comm/` |
+| `L5` | `Core/SceneGraph/Runtime/`、`Core/Camera/Runtime/`、`Core/Editing/Runtime/`、`Core/Selection/Runtime/`、`Core/Command/Runtime/`、`Core/Manager/`、`Agent/`、`Environment/`、`Core/Comm/` |
 | `CR` | `Core/Interaction/Bootstrap/` |
 
 补充：
@@ -66,6 +66,7 @@ flowchart LR
 - `Core/Camera/` 现在承载 `PIP / ExternalCamera / Viewport` 这一组相机能力；`MAPIPCameraTypes` 也已从 `Core/Types/` 迁入 `Core/Camera/Domain/`。
 - `Core/Editing/` 目前已先把 `MAEditModeManager` 抽到 `Runtime/`，用于承接 UI 编辑流程与 SceneGraph 之间的运行时桥接。
 - `Core/Selection/` 目前已先把 `MASelectionManager` 抽到 `Runtime/`，用于承接框选、编组和选中态运行时同步。
+- `Core/Command/` 目前已先把 `MACommandManager` 抽到 `Runtime/`，用于承接技能列表执行、暂停恢复、运行时检查和 Python 反馈发送。
 - `Core/Camera/` 当前主要落在 `Domain / Infrastructure / Runtime`；后续如果出现更明确的相机 workflow，再补 `Application / Feedback / Bootstrap`。
 
 ## 2. Folder 图（当前实现）
@@ -120,6 +121,7 @@ flowchart TB
         CAMRUNTIME["Core/Camera/Runtime/"]
         EDITRUNTIME["Core/Editing/Runtime/"]
         SELECTIONRUNTIME["Core/Selection/Runtime/"]
+        COMMANDRUNTIME["Core/Command/Runtime/"]
         MANAGER["Core/Manager/"]
         AGENT["Agent/"]
         ENV["Environment/"]
@@ -157,6 +159,7 @@ flowchart TB
 
     EDITRUNTIME --> MANAGER
     SELECTIONRUNTIME --> MANAGER
+    COMMANDRUNTIME --> MANAGER
 
     INTINFRA --> MANAGER
     INTINFRA --> AGENT

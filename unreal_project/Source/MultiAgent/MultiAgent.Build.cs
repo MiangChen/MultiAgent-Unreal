@@ -51,6 +51,7 @@ public class MultiAgent : ModuleRules
         PublicIncludePaths.AddRange(new string[] {
             ModuleDirectory,
             Path.Combine(ModuleDirectory, "Core"),
+            Path.Combine(ModuleDirectory, "Core/Command"),
             Path.Combine(ModuleDirectory, "Core/Manager"),
             Path.Combine(ModuleDirectory, "Core/Types"),
             Path.Combine(ModuleDirectory, "Core/Config"),

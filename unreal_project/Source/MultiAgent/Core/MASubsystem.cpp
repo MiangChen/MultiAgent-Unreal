@@ -2,7 +2,7 @@
 
 #include "MASubsystem.h"
 #include "Manager/MAAgentManager.h"
-#include "Manager/MACommandManager.h"
+#include "Command/Runtime/MACommandManager.h"
 #include "Selection/Runtime/MASelectionManager.h"
 #include "Manager/MASquadManager.h"
 #include "Camera/Runtime/MAViewportManager.h"

@@ -24,7 +24,6 @@ FILE_MAPPING = {
     # Manager - 管理器子系统
     "Manager": [
         "MAAgentManager.h", "MAAgentManager.cpp",
-        "MACommandManager.h", "MACommandManager.cpp",
         "MASquadManager.h", "MASquadManager.cpp",
         "MAViewportManager.h", "MAViewportManager.cpp",
     ],

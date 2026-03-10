@@ -3,7 +3,7 @@
 #include "MAConditionChecker.h"
 #include "MASkillTemplateRegistry.h"
 #include "MAEventTemplateRegistry.h"
-#include "../../../Core/Manager/MACommandManager.h"
+#include "../../../Core/Command/Runtime/MACommandManager.h"
 #include "../../../Core/SceneGraph/Runtime/MASceneGraphManager.h"
 #include "../../../Core/Types/MATypes.h"
 #include "../../Character/MACharacter.h"

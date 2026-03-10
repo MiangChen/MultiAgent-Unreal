@@ -4,7 +4,7 @@
 #include "MAFeedbackGenerator.h"
 #include "../MASkillComponent.h"
 #include "../../Character/MACharacter.h"
-#include "../../../Core/Manager/MACommandManager.h"
+#include "../../../Core/Command/Runtime/MACommandManager.h"
 #include "../../../Core/SceneGraph/Runtime/MASceneGraphManager.h"
 #include "../../../Core/SceneGraph/Application/MASceneGraphQueryUseCases.h"
 #include "Serialization/JsonSerializer.h"
