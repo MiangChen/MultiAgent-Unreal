@@ -142,7 +142,7 @@ void FMAHUDViewCoordinator::ShowNotification(const FString& Message, bool bIsErr
     UMAHUDWidget* HUDWidget = UIManager->GetHUDWidget();
     if (HUDWidget)
     {
-        HUDWidget->ShowNotification(Message, bIsError, bIsWarning);
+        HUDWidget->ApplyNotificationModel(WidgetCoordinator.BuildNotificationModel(Message, bIsError, bIsWarning));
     }
 }
 

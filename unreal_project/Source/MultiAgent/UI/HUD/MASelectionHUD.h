@@ -10,11 +10,17 @@
 
 class AMACharacter;
 class UMAUITheme;
+class FMASelectionHUDCoordinator;
+struct FMASelectionHUDCircleEntry;
+struct FMASelectionHUDControlGroupEntry;
+struct FMASelectionHUDStatusTextEntry;
 
 UCLASS()
 class MULTIAGENT_API AMASelectionHUD : public AHUD
 {
     GENERATED_BODY()
+
+    friend class FMASelectionHUDCoordinator;
 
 public:
     AMASelectionHUD();
@@ -112,13 +118,13 @@ private:
     void DrawSelectionBox(bool bIsDeploymentMode = false);
 
     // 绘制所有 Agent 的圆圈（选中/未选中使用不同颜色）
-    void DrawAllAgentCircles();
+    void DrawAllAgentCircles(const TArray<FMASelectionHUDCircleEntry>& CircleEntries);
 
     // 绘制编组信息
-    void DrawControlGroupInfo();
+    void DrawControlGroupInfo(const TArray<FMASelectionHUDControlGroupEntry>& ControlGroupEntries);
 
     // 在 Agent 脚下绘制圆圈
-    void DrawCircleAtAgent(AMACharacter* Agent, FLinearColor Color, float Radius);
+    void DrawCircleAtLocation(const FVector& WorldLocation, FLinearColor Color, float Radius);
 
     // 绘制当前鼠标模式
     void DrawMouseMode();
@@ -129,9 +135,17 @@ private:
     // 检查是否有全屏 Widget 可见（通过 MAUIManager）
     bool IsAnyFullscreenWidgetVisible() const;
 
+    bool ShouldDrawMouseMode() const;
+
+    bool RuntimeIsAnyFullscreenWidgetVisible() const;
+    bool RuntimeHasBlockingVisibleWidget() const;
+    void RuntimeBuildCircleEntries(TArray<FMASelectionHUDCircleEntry>& OutEntries) const;
+    void RuntimeBuildControlGroupEntries(TArray<FMASelectionHUDControlGroupEntry>& OutEntries) const;
+    void RuntimeBuildStatusTextEntries(TArray<FMASelectionHUDStatusTextEntry>& OutEntries) const;
+
     // 获取模式颜色（带 fallback 逻辑）
     FLinearColor GetModeColor(EMAMouseMode Mode) const;
 
     // 绘制所有 Agent 的状态文字
-    void DrawAllAgentStatusText();
+    void DrawAllAgentStatusText(const TArray<FMASelectionHUDStatusTextEntry>& StatusEntries);
 };

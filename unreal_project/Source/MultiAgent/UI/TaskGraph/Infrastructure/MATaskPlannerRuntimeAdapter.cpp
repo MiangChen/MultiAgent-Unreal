@@ -9,7 +9,7 @@
 
 namespace
 {
-UGameInstance* ResolveGameInstance(const UObject* WorldContextObject)
+UGameInstance* ResolveTaskPlannerGameInstance(const UObject* WorldContextObject)
 {
     if (!WorldContextObject)
     {
@@ -20,9 +20,9 @@ UGameInstance* ResolveGameInstance(const UObject* WorldContextObject)
     return World ? World->GetGameInstance() : nullptr;
 }
 
-UMATempDataManager* ResolveTempDataManager(const UObject* WorldContextObject)
+UMATempDataManager* ResolveTaskPlannerTempDataManager(const UObject* WorldContextObject)
 {
-    if (UGameInstance* GameInstance = ResolveGameInstance(WorldContextObject))
+    if (UGameInstance* GameInstance = ResolveTaskPlannerGameInstance(WorldContextObject))
     {
         return GameInstance->GetSubsystem<UMATempDataManager>();
     }
@@ -31,14 +31,14 @@ UMATempDataManager* ResolveTempDataManager(const UObject* WorldContextObject)
 
 UMACommSubsystem* ResolveCommSubsystem(const UObject* WorldContextObject)
 {
-    if (UGameInstance* GameInstance = ResolveGameInstance(WorldContextObject))
+    if (UGameInstance* GameInstance = ResolveTaskPlannerGameInstance(WorldContextObject))
     {
         return GameInstance->GetSubsystem<UMACommSubsystem>();
     }
     return nullptr;
 }
 
-UMAUIManager* ResolveUIManager(const UObject* WorldContextObject)
+UMAUIManager* ResolveTaskPlannerUIManager(const UObject* WorldContextObject)
 {
     if (!WorldContextObject)
     {
@@ -58,7 +58,7 @@ UMAUIManager* ResolveUIManager(const UObject* WorldContextObject)
 
 bool FMATaskPlannerRuntimeAdapter::TryLoadTaskGraph(const UObject* WorldContextObject, FMATaskGraphData& OutData, FString& OutError)
 {
-    UMATempDataManager* TempDataManager = ResolveTempDataManager(WorldContextObject);
+    UMATempDataManager* TempDataManager = ResolveTaskPlannerTempDataManager(WorldContextObject);
     if (!TempDataManager)
     {
         OutError = TEXT("Unable to get TempDataManager");
@@ -82,7 +82,7 @@ bool FMATaskPlannerRuntimeAdapter::TryLoadTaskGraph(const UObject* WorldContextO
 
 bool FMATaskPlannerRuntimeAdapter::TrySaveTaskGraph(const UObject* WorldContextObject, const FMATaskGraphData& Data, FString& OutError)
 {
-    UMATempDataManager* TempDataManager = ResolveTempDataManager(WorldContextObject);
+    UMATempDataManager* TempDataManager = ResolveTaskPlannerTempDataManager(WorldContextObject);
     if (!TempDataManager)
     {
         OutError = TEXT("Unable to get TempDataManager");
@@ -113,7 +113,7 @@ bool FMATaskPlannerRuntimeAdapter::TrySubmitTaskGraph(const UObject* WorldContex
 
 bool FMATaskPlannerRuntimeAdapter::TryNavigateToTaskGraphModal(const UObject* WorldContextObject, FString& OutError)
 {
-    UMAUIManager* UIManager = ResolveUIManager(WorldContextObject);
+    UMAUIManager* UIManager = ResolveTaskPlannerUIManager(WorldContextObject);
     if (!UIManager)
     {
         OutError = TEXT("Unable to get UIManager");
@@ -126,7 +126,7 @@ bool FMATaskPlannerRuntimeAdapter::TryNavigateToTaskGraphModal(const UObject* Wo
 
 bool FMATaskPlannerRuntimeAdapter::TryHideTaskPlanner(const UObject* WorldContextObject, FString& OutError)
 {
-    UMAUIManager* UIManager = ResolveUIManager(WorldContextObject);
+    UMAUIManager* UIManager = ResolveTaskPlannerUIManager(WorldContextObject);
     if (!UIManager)
     {
         OutError = TEXT("Unable to get UIManager");
@@ -145,7 +145,7 @@ bool FMATaskPlannerRuntimeAdapter::BindTaskGraphChanged(const UObject* WorldCont
         return false;
     }
 
-    UMATempDataManager* TempDataManager = ResolveTempDataManager(WorldContextObject);
+    UMATempDataManager* TempDataManager = ResolveTaskPlannerTempDataManager(WorldContextObject);
     if (!TempDataManager)
     {
         OutError = TEXT("Unable to get TempDataManager");

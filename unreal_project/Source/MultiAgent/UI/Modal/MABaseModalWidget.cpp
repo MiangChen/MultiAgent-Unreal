@@ -569,32 +569,11 @@ void UMABaseModalWidget::PlayHideAnimation()
 
 void UMABaseModalWidget::UpdateAnimation(float DeltaTime)
 {
-    CurrentAnimTime += DeltaTime;
-    
-    // 计算动画进度 (0.0 到 1.0)
-    float Progress = FMath::Clamp(CurrentAnimTime / AnimationDuration, 0.0f, 1.0f);
-    
-    // 使用平滑插值
-    float EasedProgress = FMath::InterpEaseInOut(0.0f, 1.0f, Progress, 2.0f);
-    
-    // 计算当前透明度
-    float CurrentOpacity;
-    if (bIsShowing)
-    {
-        // 淡入：从 0 到 1
-        CurrentOpacity = EasedProgress;
-    }
-    else
-    {
-        // 淡出：从 1 到 0
-        CurrentOpacity = 1.0f - EasedProgress;
-    }
-    
-    // 应用透明度
-    SetRenderOpacity(CurrentOpacity);
-    
-    // 检查动画是否完成
-    if (Progress >= 1.0f)
+    const FMAModalAnimationStep Step = Coordinator.StepAnimation(CurrentAnimTime, DeltaTime, bIsShowing, AnimationDuration);
+    CurrentAnimTime = Step.NextTime;
+    SetRenderOpacity(Step.Opacity);
+
+    if (Step.bFinished)
     {
         OnAnimationFinished();
     }
@@ -756,13 +735,10 @@ FText UMABaseModalWidget::GetModalTitleText() const
 
 void UMABaseModalWidget::UpdateButtonVisibility()
 {
-    // 编辑按钮：只在非编辑模式下显示
     if (EditButton)
     {
-        ESlateVisibility EditVisibility = (bShowEditButton && !bIsEditMode) 
-            ? ESlateVisibility::Visible 
-            : ESlateVisibility::Collapsed;
-        EditButton->SetVisibility(EditVisibility);
+        const FMAModalButtonModel Model = Coordinator.BuildButtonModel(bShowEditButton, bIsEditMode);
+        EditButton->SetVisibility(Model.EditVisibility);
     }
     
     // 在编辑模式下，确认按钮文本可能需要改变

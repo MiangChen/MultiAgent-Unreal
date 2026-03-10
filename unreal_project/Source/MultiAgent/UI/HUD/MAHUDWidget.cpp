@@ -3,11 +3,11 @@
 
 #include "MAHUDWidget.h"
 #include "../Core/MAUITheme.h"
+#include "Infrastructure/MAHUDWidgetRuntimeAdapter.h"
 #include "Components/TextBlock.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Blueprint/WidgetTree.h"
-#include "TimerManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMAHUDWidget, Log, All);
 
@@ -24,6 +24,29 @@ namespace MAHUDColors
     static const FLinearColor Warning = FLinearColor::Yellow;
     static const FLinearColor Error = FLinearColor::Red;
     static const FLinearColor Outline = FLinearColor::Black;
+}
+
+namespace
+{
+const FMAHUDWidgetRuntimeAdapter& HUDWidgetRuntimeAdapter()
+{
+    static const FMAHUDWidgetRuntimeAdapter Adapter;
+    return Adapter;
+}
+
+FLinearColor ResolveNotificationColor(const UMAUITheme* Theme, const EMAHUDWidgetNotificationSeverity Severity)
+{
+    switch (Severity)
+    {
+    case EMAHUDWidgetNotificationSeverity::Error:
+        return Theme ? Theme->DangerColor : MAHUDColors::Error;
+    case EMAHUDWidgetNotificationSeverity::Warning:
+        return Theme ? Theme->WarningColor : MAHUDColors::Warning;
+    case EMAHUDWidgetNotificationSeverity::Info:
+    default:
+        return Theme ? Theme->SuccessColor : MAHUDColors::Success;
+    }
+}
 }
 
 //=============================================================================
@@ -65,12 +88,7 @@ void UMAHUDWidget::NativePreConstruct()
 
 void UMAHUDWidget::NativeDestruct()
 {
-    // 清理 Timer
-    if (UWorld* World = GetWorld())
-    {
-        World->GetTimerManager().ClearTimer(NotificationTimerHandle);
-        World->GetTimerManager().ClearTimer(FadeTimerHandle);
-    }
+    HUDWidgetRuntimeAdapter().ClearNotificationTimers(this);
 
     Super::NativeDestruct();
 }
@@ -259,135 +277,35 @@ void UMAHUDWidget::BuildUI()
 // Edit 模式指示器
 //=============================================================================
 
-void UMAHUDWidget::SetEditModeVisible(bool bVisible)
+void UMAHUDWidget::ApplyEditModeViewModel(const FMAHUDWidgetEditModeViewModel& ViewModel)
 {
-    ESlateVisibility Visibility = bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed;
-
     if (EditModeText)
     {
-        EditModeText->SetVisibility(Visibility);
-    }
-    if (POIListText)
-    {
-        POIListText->SetVisibility(Visibility);
-    }
-    if (GoalListText)
-    {
-        GoalListText->SetVisibility(Visibility);
-    }
-    if (ZoneListText)
-    {
-        ZoneListText->SetVisibility(Visibility);
-    }
-}
-
-void UMAHUDWidget::UpdatePOIList(const TArray<FString>& POIInfos)
-{
-    if (!POIListText)
-    {
-        return;
+        EditModeText->SetVisibility(ViewModel.bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
     }
 
-    if (POIInfos.Num() == 0)
-    {
-        POIListText->SetText(FText::FromString(TEXT("")));
-        return;
-    }
-
-    // 格式化 POI 列表: "POI: [1](x,y,z) [2](x,y,z) ..."
-    FString POIText = TEXT("POI: ");
-    for (const FString& Info : POIInfos)
-    {
-        POIText += Info + TEXT(" ");
-    }
-
-    POIListText->SetText(FText::FromString(POIText));
-    UE_LOG(LogMAHUDWidget, Verbose, TEXT("POI list updated: %d items"), POIInfos.Num());
-}
-
-void UMAHUDWidget::UpdateGoalList(const TArray<FString>& GoalInfos)
-{
-    if (!GoalListText)
-    {
-        return;
-    }
-
-    if (GoalInfos.Num() == 0)
-    {
-        GoalListText->SetText(FText::FromString(TEXT("")));
-        return;
-    }
-
-    // 格式化 Goal 列表: "Goal: [label](x,y,z) ..."
-    FString GoalText = TEXT("Goal: ");
-    for (const FString& Info : GoalInfos)
-    {
-        GoalText += Info + TEXT(" ");
-    }
-
-    GoalListText->SetText(FText::FromString(GoalText));
-    UE_LOG(LogMAHUDWidget, Verbose, TEXT("Goal list updated: %d items"), GoalInfos.Num());
-}
-
-void UMAHUDWidget::UpdateZoneList(const TArray<FString>& ZoneInfos)
-{
-    if (!ZoneListText)
-    {
-        return;
-    }
-
-    if (ZoneInfos.Num() == 0)
-    {
-        ZoneListText->SetText(FText::FromString(TEXT("")));
-        return;
-    }
-
-    // 格式化 Zone 列表: "Zone: [label] ..."
-    FString ZoneText = TEXT("Zone: ");
-    for (const FString& Info : ZoneInfos)
-    {
-        ZoneText += Info + TEXT(" ");
-    }
-
-    ZoneListText->SetText(FText::FromString(ZoneText));
-    UE_LOG(LogMAHUDWidget, Verbose, TEXT("Zone list updated: %d items"), ZoneInfos.Num());
+    ApplyTextBlockState(POIListText, ViewModel.POIText, ViewModel.bVisible && !ViewModel.POIText.IsEmpty());
+    ApplyTextBlockState(GoalListText, ViewModel.GoalText, ViewModel.bVisible && !ViewModel.GoalText.IsEmpty());
+    ApplyTextBlockState(ZoneListText, ViewModel.ZoneText, ViewModel.bVisible && !ViewModel.ZoneText.IsEmpty());
 }
 
 //=============================================================================
 // 通知消息
 //=============================================================================
 
-void UMAHUDWidget::ShowNotification(const FString& Message, bool bIsError, bool bIsWarning)
+void UMAHUDWidget::ApplyNotificationModel(const FMAHUDWidgetNotificationModel& NotificationModel)
 {
     if (!NotificationText)
     {
         return;
     }
 
-    // 清除之前的 Timer
-    if (UWorld* World = GetWorld())
-    {
-        World->GetTimerManager().ClearTimer(NotificationTimerHandle);
-        World->GetTimerManager().ClearTimer(FadeTimerHandle);
-    }
+    HUDWidgetRuntimeAdapter().ClearNotificationTimers(this);
 
     // 设置消息文本
-    NotificationText->SetText(FText::FromString(Message));
+    NotificationText->SetText(FText::FromString(NotificationModel.Message));
 
-    // 设置颜色 - 使用 Theme 颜色（带 fallback）
-    FLinearColor NotificationColor;
-    if (bIsError)
-    {
-        NotificationColor = Theme ? Theme->DangerColor : MAHUDColors::Error;
-    }
-    else if (bIsWarning)
-    {
-        NotificationColor = Theme ? Theme->WarningColor : MAHUDColors::Warning;
-    }
-    else
-    {
-        NotificationColor = Theme ? Theme->SuccessColor : MAHUDColors::Success;
-    }
+    const FLinearColor NotificationColor = ResolveNotificationColor(Theme, NotificationModel.Severity);
     NotificationText->SetColorAndOpacity(FSlateColor(NotificationColor));
 
     // 重置透明度
@@ -397,37 +315,16 @@ void UMAHUDWidget::ShowNotification(const FString& Message, bool bIsError, bool 
     // 显示通知
     NotificationText->SetVisibility(ESlateVisibility::Visible);
 
-    // 启动淡出 Timer
-    if (UWorld* World = GetWorld())
-    {
-        World->GetTimerManager().SetTimer(
-            NotificationTimerHandle,
-            this,
-            &UMAHUDWidget::StartNotificationFadeOut,
-            NotificationDisplayDuration,
-            false
-        );
-    }
+    HUDWidgetRuntimeAdapter().ScheduleNotificationFadeOut(this, NotificationDisplayDuration);
 
-    UE_LOG(LogMAHUDWidget, Log, TEXT("ShowNotification: %s (Error=%d, Warning=%d)"),
-        *Message, bIsError, bIsWarning);
+    UE_LOG(LogMAHUDWidget, Log, TEXT("ApplyNotificationModel: %s"), *NotificationModel.Message);
 }
 
 void UMAHUDWidget::StartNotificationFadeOut()
 {
     UE_LOG(LogMAHUDWidget, Verbose, TEXT("Starting notification fade out"));
 
-    // 启动淡出动画 Timer (每帧更新)
-    if (UWorld* World = GetWorld())
-    {
-        World->GetTimerManager().SetTimer(
-            FadeTimerHandle,
-            this,
-            &UMAHUDWidget::OnFadeTick,
-            0.016f,  // ~60 FPS
-            true     // 循环
-        );
-    }
+    HUDWidgetRuntimeAdapter().ScheduleFadeTick(this, 0.016f);
 }
 
 void UMAHUDWidget::OnFadeTick()
@@ -454,11 +351,7 @@ void UMAHUDWidget::OnNotificationFadeComplete()
 {
     UE_LOG(LogMAHUDWidget, Verbose, TEXT("Notification fade complete"));
 
-    // 清除 Timer
-    if (UWorld* World = GetWorld())
-    {
-        World->GetTimerManager().ClearTimer(FadeTimerHandle);
-    }
+    HUDWidgetRuntimeAdapter().ClearNotificationTimers(this);
 
     // 隐藏通知
     if (NotificationText)
@@ -515,4 +408,15 @@ void UMAHUDWidget::ApplyTheme(UMAUITheme* InTheme)
     }
 
     UE_LOG(LogMAHUDWidget, Log, TEXT("Theme applied to HUD Widget"));
+}
+
+void UMAHUDWidget::ApplyTextBlockState(UTextBlock* TextBlock, const FString& Text, bool bVisible)
+{
+    if (!TextBlock)
+    {
+        return;
+    }
+
+    TextBlock->SetText(FText::FromString(Text));
+    TextBlock->SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 }

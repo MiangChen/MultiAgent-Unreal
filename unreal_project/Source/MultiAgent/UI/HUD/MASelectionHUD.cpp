@@ -2,19 +2,29 @@
 // 选择框 HUD 实现
 
 #include "MASelectionHUD.h"
-#include "../../Core/Selection/Runtime/MASelectionManager.h"
-#include "../../Core/AgentRuntime/Runtime/MAAgentManager.h"
+#include "Application/MASelectionHUDCoordinator.h"
+#include "Domain/MASelectionHUDModel.h"
+#include "Infrastructure/MASelectionHUDRuntimeAdapter.h"
 #include "../../Input/MAPlayerController.h"
-#include "../../Agent/Character/MACharacter.h"
-#include "../Core/MAUIManager.h"
 #include "../Core/MAUITheme.h"
-#include "MAHUD.h"
 #include "Engine/Canvas.h"
 #include "GameFramework/PlayerController.h"
 #include "DrawDebugHelpers.h"
-#include "Blueprint/UserWidget.h"
-#include "Blueprint/WidgetBlueprintLibrary.h"
-#include "Kismet/GameplayStatics.h"
+
+namespace
+{
+const FMASelectionHUDCoordinator& SelectionHUDCoordinator()
+{
+    static const FMASelectionHUDCoordinator Coordinator;
+    return Coordinator;
+}
+
+const FMASelectionHUDRuntimeAdapter& SelectionHUDRuntimeAdapter()
+{
+    static const FMASelectionHUDRuntimeAdapter Adapter;
+    return Adapter;
+}
+}
 
 AMASelectionHUD::AMASelectionHUD()
 {
@@ -23,22 +33,37 @@ AMASelectionHUD::AMASelectionHUD()
 
 bool AMASelectionHUD::IsAnyFullscreenWidgetVisible() const
 {
-    // 获取 PlayerController
-    APlayerController* PC = GetOwningPlayerController();
-    if (!PC) return false;
-    
-    // 获取 MAHUD
-    AMAHUD* MAHUD = Cast<AMAHUD>(PC->GetHUD());
-    if (!MAHUD) return false;
-    
-    // 获取 UIManager 并检查全屏 Widget
-    UMAUIManager* UIManager = MAHUD->GetUIManager();
-    if (UIManager)
-    {
-        return UIManager->IsAnyFullscreenWidgetVisible();
-    }
-    
-    return false;
+    return SelectionHUDCoordinator().BuildFrameModel(this, false).bHasFullscreenWidget;
+}
+
+bool AMASelectionHUD::ShouldDrawMouseMode() const
+{
+    return !SelectionHUDCoordinator().BuildFrameModel(this, false).bHasBlockingVisibleWidget;
+}
+
+bool AMASelectionHUD::RuntimeIsAnyFullscreenWidgetVisible() const
+{
+    return SelectionHUDRuntimeAdapter().IsAnyFullscreenWidgetVisible(this);
+}
+
+bool AMASelectionHUD::RuntimeHasBlockingVisibleWidget() const
+{
+    return SelectionHUDRuntimeAdapter().HasBlockingVisibleWidget(this);
+}
+
+void AMASelectionHUD::RuntimeBuildCircleEntries(TArray<FMASelectionHUDCircleEntry>& OutEntries) const
+{
+    SelectionHUDRuntimeAdapter().BuildCircleEntries(this, OutEntries);
+}
+
+void AMASelectionHUD::RuntimeBuildControlGroupEntries(TArray<FMASelectionHUDControlGroupEntry>& OutEntries) const
+{
+    SelectionHUDRuntimeAdapter().BuildControlGroupEntries(this, OutEntries);
+}
+
+void AMASelectionHUD::RuntimeBuildStatusTextEntries(TArray<FMASelectionHUDStatusTextEntry>& OutEntries) const
+{
+    SelectionHUDRuntimeAdapter().BuildStatusTextEntries(this, OutEntries);
 }
 
 void AMASelectionHUD::ApplyTheme(UMAUITheme* InTheme)
@@ -76,9 +101,8 @@ void AMASelectionHUD::DrawHUD()
     Super::DrawHUD();
 
     AMAPlayerController* PC = Cast<AMAPlayerController>(GetOwningPlayerController());
-
-    // 检查是否有全屏 Widget 可见，如果有则不绘制 3D 调试信息
-    bool bShouldDrawDebug = !IsAnyFullscreenWidgetVisible();
+    const FMASelectionHUDFrameModel FrameModel = SelectionHUDCoordinator().BuildFrameModel(this, bShowAgentCircles);
+    const bool bShouldDrawDebug = !FrameModel.bHasFullscreenWidget;
 
     // 绘制框选矩形
     if (bIsBoxSelecting)
@@ -91,12 +115,12 @@ void AMASelectionHUD::DrawHUD()
     // 绘制所有 Agent 的圆圈（仅在没有全屏 Widget 时）
     if (bShouldDrawDebug)
     {
-        DrawAllAgentCircles();
-        DrawAllAgentStatusText();
+        DrawAllAgentCircles(FrameModel.CircleEntries);
+        DrawAllAgentStatusText(FrameModel.StatusEntries);
     }
 
     // 绘制编组信息
-    DrawControlGroupInfo();
+    DrawControlGroupInfo(FrameModel.ControlGroupEntries);
 
     // 绘制当前鼠标模式
     DrawMouseMode();
@@ -143,118 +167,78 @@ void AMASelectionHUD::DrawSelectionBox(bool bIsDeploymentMode)
     DrawLine(MaxX, MinY, MaxX, MaxY, BorderColor, BorderThickness);
 }
 
-void AMASelectionHUD::DrawAllAgentCircles()
+void AMASelectionHUD::DrawAllAgentCircles(const TArray<FMASelectionHUDCircleEntry>& CircleEntries)
 {
     // 检查是否显示 Agent 圆环
     if (!bShowAgentCircles) return;
 
-    UWorld* World = GetWorld();
-    if (!World) return;
-
-    // 获取 AgentManager 以遍历所有 Agent
-    UMAAgentManager* AgentManager = World->GetSubsystem<UMAAgentManager>();
-    if (!AgentManager) return;
-
-    // 获取 SelectionManager 以判断选中状态
-    UMASelectionManager* SelectionManager = World->GetSubsystem<UMASelectionManager>();
-
-    // 遍历所有 Agent 并绘制圆圈
-    for (AMACharacter* Agent : AgentManager->GetAllAgents())
+    for (const FMASelectionHUDCircleEntry& Entry : CircleEntries)
     {
-        if (Agent)
-        {
-            // 根据选中状态选择颜色
-            FLinearColor CircleColor;
-            if (SelectionManager && SelectionManager->IsSelected(Agent))
-            {
-                CircleColor = SelectionCircleColor;  // 绿色
-            }
-            else
-            {
-                CircleColor = UnselectedCircleColor;  // 橙色
-            }
-            
-            DrawCircleAtAgent(Agent, CircleColor, SelectionCircleRadius);
-        }
+        const FLinearColor CircleColor = Entry.bSelected ? SelectionCircleColor : UnselectedCircleColor;
+        DrawCircleAtLocation(Entry.WorldLocation, CircleColor, SelectionCircleRadius);
     }
 }
 
-void AMASelectionHUD::DrawControlGroupInfo()
+void AMASelectionHUD::DrawControlGroupInfo(const TArray<FMASelectionHUDControlGroupEntry>& ControlGroupEntries)
 {
     if (!Canvas) return;
-
-    UWorld* World = GetWorld();
-    if (!World) return;
-
-    UMASelectionManager* SelectionManager = World->GetSubsystem<UMASelectionManager>();
-    if (!SelectionManager) return;
 
     // 在屏幕左上角显示编组信息
     float StartX = 20.f;
     float StartY = 100.f;
     float LineHeight = 20.f;
 
-    for (int32 i = 1; i <= 5; i++)
+    for (const FMASelectionHUDControlGroupEntry& Entry : ControlGroupEntries)
     {
-        TArray<AMACharacter*> Group = SelectionManager->GetControlGroup(i);
-        if (Group.Num() > 0)
-        {
-            FString Text = FString::Printf(TEXT("[%d] %d units"), i, Group.Num());
-            
-            // 使用默认字体绘制
-            FCanvasTextItem TextItem(
-                FVector2D(StartX, StartY + (i - 1) * LineHeight),
-                FText::FromString(Text),
-                GEngine->GetSmallFont(),
-                ControlGroupTextColor
-            );
-            Canvas->DrawItem(TextItem);
-        }
+        const FString Text = FString::Printf(TEXT("[%d] %d units"), Entry.GroupIndex, Entry.UnitCount);
+
+        FCanvasTextItem TextItem(
+            FVector2D(StartX, StartY + (Entry.GroupIndex - 1) * LineHeight),
+            FText::FromString(Text),
+            GEngine->GetSmallFont(),
+            ControlGroupTextColor
+        );
+        Canvas->DrawItem(TextItem);
     }
 }
 
-void AMASelectionHUD::DrawCircleAtAgent(AMACharacter* Agent, FLinearColor Color, float Radius)
+void AMASelectionHUD::DrawCircleAtLocation(const FVector& WorldLocation, FLinearColor Color, float Radius)
 {
-    if (!Agent) return;
-
     UWorld* World = GetWorld();
     if (!World) return;
 
-    // 获取 Agent 中心位置
-    FVector AgentLocation = Agent->GetActorLocation();
-    float CircleRadius = 60.f;
     FColor DrawColor = Color.ToFColor(true);
     
     // 绘制多个圆环形成球体网格效果 - 使用可配置的线条粗细
     float Thickness = CircleThickness;
     
     // XY 平面 (水平圆 - 赤道)
-    DrawDebugCircle(World, AgentLocation, CircleRadius, 24, DrawColor, false, -1.f, 0, Thickness,
+    DrawDebugCircle(World, WorldLocation, Radius, 24, DrawColor, false, -1.f, 0, Thickness,
         FVector(1, 0, 0), FVector(0, 1, 0), false);
     
     // XZ 平面 (垂直圆 - 前后经线)
-    DrawDebugCircle(World, AgentLocation, CircleRadius, 24, DrawColor, false, -1.f, 0, Thickness,
+    DrawDebugCircle(World, WorldLocation, Radius, 24, DrawColor, false, -1.f, 0, Thickness,
         FVector(1, 0, 0), FVector(0, 0, 1), false);
     
     // YZ 平面 (垂直圆 - 左右经线)
-    DrawDebugCircle(World, AgentLocation, CircleRadius, 24, DrawColor, false, -1.f, 0, Thickness,
+    DrawDebugCircle(World, WorldLocation, Radius, 24, DrawColor, false, -1.f, 0, Thickness,
         FVector(0, 1, 0), FVector(0, 0, 1), false);
     
     // 45度倾斜的经线圆环
-    DrawDebugCircle(World, AgentLocation, CircleRadius, 24, DrawColor, false, -1.f, 0, Thickness,
+    DrawDebugCircle(World, WorldLocation, Radius, 24, DrawColor, false, -1.f, 0, Thickness,
         FVector(0.707f, 0.707f, 0), FVector(0, 0, 1), false);
     
-    DrawDebugCircle(World, AgentLocation, CircleRadius, 24, DrawColor, false, -1.f, 0, Thickness,
+    DrawDebugCircle(World, WorldLocation, Radius, 24, DrawColor, false, -1.f, 0, Thickness,
         FVector(0.707f, -0.707f, 0), FVector(0, 0, 1), false);
     
     // 上下纬线圆环 (北纬/南纬 45度)
-    float LatRadius = CircleRadius * 0.707f;  // cos(45°)
-    float LatOffset = CircleRadius * 0.707f;  // sin(45°)
+    const float LatRadius = Radius * 0.707f;  // cos(45°)
+    const float LatOffset = Radius * 0.707f;  // sin(45°)
     
-    DrawDebugCircle(World, AgentLocation + FVector(0, 0, LatOffset), LatRadius, 24, DrawColor, false, -1.f, 0, Thickness,
+    DrawDebugCircle(World, WorldLocation + FVector(0, 0, LatOffset), LatRadius, 24, DrawColor, false, -1.f, 0, Thickness,
         FVector(1, 0, 0), FVector(0, 1, 0), false);
     
-    DrawDebugCircle(World, AgentLocation - FVector(0, 0, LatOffset), LatRadius, 24, DrawColor, false, -1.f, 0, Thickness,
+    DrawDebugCircle(World, WorldLocation - FVector(0, 0, LatOffset), LatRadius, 24, DrawColor, false, -1.f, 0, Thickness,
         FVector(1, 0, 0), FVector(0, 1, 0), false);
 }
 
@@ -265,27 +249,7 @@ void AMASelectionHUD::DrawMouseMode()
     AMAPlayerController* PC = Cast<AMAPlayerController>(GetOwningPlayerController());
     if (!PC) return;
 
-    // 检查是否有遮挡性 Widget 可见，如果有则不绘制（避免透出）
-    // 因为 HUDWidget 已经负责显示 Edit 模式指示器
-    UWorld* World = GetWorld();
-    if (World)
-    {
-        TArray<UUserWidget*> FoundWidgets;
-        UWidgetBlueprintLibrary::GetAllWidgetsOfClass(World, FoundWidgets, UUserWidget::StaticClass(), false);
-        for (UUserWidget* Widget : FoundWidgets)
-        {
-            if (Widget && Widget->IsVisible() && Widget->GetVisibility() == ESlateVisibility::Visible)
-            {
-                // 排除 HUDWidget（它使用 SelfHitTestInvisible，不会遮挡）
-                FString WidgetName = Widget->GetClass()->GetName();
-                if (!WidgetName.Contains(TEXT("HUDWidget")))
-                {
-                    // 有可见的遮挡性 Widget，不绘制模式指示器
-                    return;
-                }
-            }
-        }
-    }
+    if (!ShouldDrawMouseMode()) return;
 
     // 在屏幕右上角显示当前模式
     FString ModeName = AMAPlayerController::MouseModeToString(PC->GetCurrentMouseMode());
@@ -414,52 +378,17 @@ void AMASelectionHUD::DrawDeploymentInfo()
 }
 
 
-void AMASelectionHUD::DrawAllAgentStatusText()
+void AMASelectionHUD::DrawAllAgentStatusText(const TArray<FMASelectionHUDStatusTextEntry>& StatusEntries)
 {
     if (!Canvas) return;
 
-    UWorld* World = GetWorld();
-    if (!World) return;
-
-    APlayerController* PC = GetOwningPlayerController();
-    if (!PC) return;
-
-    // 获取 AgentManager 以遍历所有 Agent
-    UMAAgentManager* AgentManager = World->GetSubsystem<UMAAgentManager>();
-    if (!AgentManager) return;
-
-    // 遍历所有 Agent 并绘制状态文字
-    for (AMACharacter* Agent : AgentManager->GetAllAgents())
+    for (const FMASelectionHUDStatusTextEntry& Entry : StatusEntries)
     {
-        if (!Agent) continue;
-
-        // 获取 Agent 的状态文字
-        FString StatusText = Agent->GetCurrentStatusText();
-        if (StatusText.IsEmpty()) continue;
-
-        // 计算 Agent 头顶位置
-        FVector WorldLocation = Agent->GetActorLocation() + FVector(0.f, 0.f, 180.f);
-
-        // 投影到屏幕坐标
-        FVector2D ScreenPos;
-        if (!PC->ProjectWorldLocationToScreen(WorldLocation, ScreenPos, true))
-        {
-            continue;  // 不在屏幕内
-        }
-
-        // 检查是否在屏幕范围内
-        if (ScreenPos.X < 0 || ScreenPos.X > Canvas->SizeX ||
-            ScreenPos.Y < 0 || ScreenPos.Y > Canvas->SizeY)
-        {
-            continue;
-        }
-
-        // 绘制黄色大号粗体文字
         FLinearColor TextColor(1.f, 1.f, 0.f, 1.f);  // 黄色
         
         FCanvasTextItem TextItem(
-            ScreenPos,
-            FText::FromString(StatusText),
+            Entry.ScreenPosition,
+            FText::FromString(Entry.Text),
             GEngine->GetLargeFont(),
             TextColor
         );

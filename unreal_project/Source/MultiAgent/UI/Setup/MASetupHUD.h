@@ -5,6 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/HUD.h"
+#include "Application/MASetupHUDCoordinator.h"
 #include "MASetupHUD.generated.h"
 
 class UMASetupWidget;
@@ -38,4 +39,7 @@ private:
     /** 开始仿真回调 */
     UFUNCTION()
     void OnStartSimulation();
+
+    /** Setup HUD 协调器 */
+    FMASetupHUDCoordinator Coordinator;
 };

@@ -6,6 +6,8 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Application/MASetupWidgetCoordinator.h"
+#include "Domain/MASetupModels.h"
 #include "MASetupWidget.generated.h"
 
 class UVerticalBox;
@@ -15,31 +17,6 @@ class UTextBlock;
 class UComboBoxString;
 class UScrollBox;
 class UEditableTextBox;
-
-/**
- * 待部署的智能体配置
- */
-USTRUCT(BlueprintType)
-struct FMAAgentSetupConfig
-{
-    GENERATED_BODY()
-
-    /** 智能体类型: UAV, FixedWingUAV, UGV, Quadruped, Humanoid */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    FString AgentType;
-
-    /** 显示名称 */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    FString DisplayName;
-
-    /** 数量 */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    int32 Count = 1;
-
-    FMAAgentSetupConfig() : AgentType(TEXT("UAV")), DisplayName(TEXT("UAV")), Count(1) {}
-    FMAAgentSetupConfig(const FString& InType, const FString& InName, int32 InCount = 1)
-        : AgentType(InType), DisplayName(InName), Count(InCount) {}
-};
 
 /**
  * 开始仿真委托
@@ -77,15 +54,18 @@ public:
 
     /** 获取当前配置的智能体列表 */
     UFUNCTION(BlueprintPure, Category = "Setup")
-    TArray<FMAAgentSetupConfig> GetAgentConfigs() const { return AgentConfigs; }
+    TArray<FMAAgentSetupConfig> GetAgentConfigs() const { return State.AgentConfigs; }
 
     /** 获取选择的场景名称 */
     UFUNCTION(BlueprintPure, Category = "Setup")
-    FString GetSelectedScene() const { return SelectedScene; }
+    FString GetSelectedScene() const { return State.SelectedScene; }
 
     /** 获取配置的智能体总数 */
     UFUNCTION(BlueprintPure, Category = "Setup")
     int32 GetTotalAgentCount() const;
+
+    /** 构建启动请求 */
+    FMASetupLaunchRequest BuildLaunchRequest() const;
 
 protected:
     virtual void NativeConstruct() override;
@@ -131,19 +111,8 @@ protected:
     // 数据
     //=========================================================================
 
-    /** 当前配置的智能体列表 */
-    UPROPERTY()
-    TArray<FMAAgentSetupConfig> AgentConfigs;
-
-    /** 选择的场景 */
-    UPROPERTY()
-    FString SelectedScene;
-
-    /** 可用的智能体类型 */
-    TMap<FString, FString> AvailableAgentTypes;
-
-    /** 可用的场景列表 */
-    TArray<FString> AvailableScenes;
+    /** Setup 状态 */
+    FMASetupWidgetState State;
 
     /** 删除按钮到索引的映射 */
     UPROPERTY()
@@ -156,6 +125,9 @@ protected:
     /** 加号按钮到索引的映射 */
     UPROPERTY()
     TMap<UButton*, int32> IncreaseButtonIndexMap;
+
+    /** Setup 协调器 */
+    FMASetupWidgetCoordinator Coordinator;
 
 private:
     //=========================================================================

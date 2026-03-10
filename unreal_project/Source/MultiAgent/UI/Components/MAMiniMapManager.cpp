@@ -3,12 +3,8 @@
 
 #include "MAMiniMapManager.h"
 #include "MAMiniMapWidget.h"
-#include "../HUD/MAHUD.h"
-#include "../HUD/MAMainHUDWidget.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "Engine/TextureRenderTarget2D.h"
-#include "Kismet/GameplayStatics.h"
-#include "Blueprint/UserWidget.h"
 
 AMAMiniMapManager::AMAMiniMapManager()
 {
@@ -63,16 +59,7 @@ void AMAMiniMapManager::SetupSceneCapture()
 
 UMAMiniMapWidget* AMAMiniMapManager::ResolveMiniMapWidget()
 {
-    APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
-    if (!PC)
-    {
-        return nullptr;
-    }
-
-    AHUD* HUD = PC->GetHUD();
-    AMAHUD* MAHUD = Cast<AMAHUD>(HUD);
-    UMAMainHUDWidget* MainHUDWidget = MAHUD ? MAHUD->GetMainHUDWidget() : nullptr;
-    MiniMapWidget = MainHUDWidget ? MainHUDWidget->GetMiniMap() : nullptr;
+    MiniMapWidget = HUDBridge.ResolveMiniMapWidget(this);
     return MiniMapWidget;
 }
 

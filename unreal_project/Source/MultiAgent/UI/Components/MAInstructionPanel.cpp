@@ -3,11 +3,9 @@
 
 #include "MAInstructionPanel.h"
 #include "../Core/MAUITheme.h"
-#include "../Core/MAUIManager.h"
 #include "../Core/MARoundedBorderUtils.h"
 #include "../Core/MAFrostedGlassUtils.h"
 #include "MAStyledButton.h"
-#include "../../UI/HUD/MAHUD.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
@@ -18,7 +16,6 @@
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/BackgroundBlur.h"
-#include "GameFramework/PlayerController.h"
 #include "Styling/SlateTypes.h"
 
 //=============================================================================
@@ -352,28 +349,16 @@ void UMAInstructionPanel::ApplyTheme(UMAUITheme* InTheme)
 
 void UMAInstructionPanel::OnSubmitClicked()
 {
-    FString Command = GetCommandText();
-    if (!Command.IsEmpty())
+    const FMAInstructionPanelActionResult Result = Coordinator.BuildSubmitResult(GetCommandText());
+    if (Result.bAccepted)
     {
         // 广播命令提交事件
-        OnCommandSubmitted.Broadcast(Command);
+        OnCommandSubmitted.Broadcast(Result.Command);
         
         // 清空输入框
         ClearCommandInput();
         
-        UE_LOG(LogMAInstructionPanel, Log, TEXT("Command submitted: %s"), *Command);
-        
-        // 通知 UIManager 关闭索要指令通知
-        APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
-        if (PC)
-        {
-            if (AMAHUD* HUD = Cast<AMAHUD>(PC->GetHUD()))
-            {
-                if (UMAUIManager* UIManager = HUD->GetUIManager())
-                {
-                    UIManager->DismissRequestUserCommandNotification();
-                }
-            }
-        }
+        UE_LOG(LogMAInstructionPanel, Log, TEXT("Command submitted: %s"), *Result.Command);
+        Coordinator.ApplyPostSubmit(this, Result);
     }
 }

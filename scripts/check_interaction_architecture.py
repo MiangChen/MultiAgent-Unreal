@@ -126,6 +126,24 @@ REQUIRED_UI_SKILL_ALLOCATION_DIRS = (
     "UI/SkillAllocation/Infrastructure",
 )
 
+REQUIRED_UI_COMPONENTS_DIRS = (
+    "UI/Components/Application",
+    "UI/Components/Domain",
+    "UI/Components/Infrastructure",
+)
+
+REQUIRED_UI_SETUP_DIRS = (
+    "UI/Setup/Application",
+    "UI/Setup/Bootstrap",
+    "UI/Setup/Domain",
+    "UI/Setup/Infrastructure",
+)
+
+REQUIRED_UI_MODAL_DIRS = (
+    "UI/Modal/Application",
+    "UI/Modal/Domain",
+)
+
 REQUIRED_SKILL_ALLOCATION_DIRS = (
     "Core/SkillAllocation/Application",
     "Core/SkillAllocation/Bootstrap",
@@ -301,6 +319,18 @@ APPLICATION_RUNTIME_CALL_GUARDS = {
         "GetGameInstance(",
         "GetSubsystem<",
     ),
+    "UI/Setup/Application/": (
+        "GetWorld(",
+        "GetGameInstance(",
+        "GetSubsystem<",
+        "OpenLevel(",
+        "SetInputMode(",
+    ),
+    "UI/Modal/Application/": (
+        "GetWorld(",
+        "GetGameInstance(",
+        "GetSubsystem<",
+    ),
 }
 
 APPLICATION_RUNTIME_INCLUDE_GUARDS = {
@@ -325,6 +355,19 @@ APPLICATION_RUNTIME_INCLUDE_GUARDS = {
         '#include "../../../Core/Command/Runtime/',
         '#include "../../../Core/Comm/Runtime/',
     ),
+    "UI/Setup/Application/": (
+        '#include "../Infrastructure/',
+        '#include "../../../Core/Config/Runtime/',
+        '#include "../../../Core/GameFlow/Bootstrap/',
+        '#include "Kismet/GameplayStatics.h"',
+    ),
+    "UI/Modal/Application/": (
+        '#include "../Infrastructure/',
+    ),
+}
+
+ALLOWED_APPLICATION_RUNTIME_INCLUDE_FILES = {
+    "UI/Setup/Application/MASetupHUDCoordinator.cpp",
 }
 
 DOMAIN_RUNTIME_TOKEN_GUARDS = {
@@ -373,6 +416,28 @@ DOMAIN_RUNTIME_TOKEN_GUARDS = {
         "UMASquadManager",
         "UMAEditModeManager",
     ),
+    "UI/Setup/Domain/": (
+        "UWorld",
+        "AActor",
+        "UObject",
+        "GetWorld(",
+        "GetGameInstance(",
+        "GetSubsystem<",
+        "UGameplayStatics",
+        "AHUD",
+        "APlayerController",
+        "UMAConfigManager",
+    ),
+    "UI/Modal/Domain/": (
+        "UWorld",
+        "AActor",
+        "UObject",
+        "GetWorld(",
+        "GetGameInstance(",
+        "GetSubsystem<",
+        "AHUD",
+        "APlayerController",
+    ),
 }
 
 LEGACY_STATE_GUARDS = {
@@ -410,6 +475,92 @@ SKILLALLOCATION_UI_RUNTIME_CALL_GUARDS = (
     "GetWorld(",
     "GetGameInstance(",
     "GetSubsystem<",
+)
+
+COMPONENTS_PREVIEW_RUNTIME_INCLUDE_GUARDS = (
+    '#include "Core/Comm/Runtime/',
+    '#include "Core/TempData/Runtime/',
+    '#include "UI/Core/MAUIManager.h"',
+    '#include "UI/HUD/MAHUD.h"',
+)
+
+COMPONENTS_PREVIEW_RUNTIME_CALL_GUARDS = (
+    "GetWorld(",
+    "GetGameInstance(",
+    "GetSubsystem<",
+)
+
+COMPONENTS_RUNTIME_WIDGET_SCOPE = {
+    "UI/Components/MAMiniMapWidget.h",
+    "UI/Components/MAMiniMapWidget.cpp",
+    "UI/Components/MAMiniMapManager.h",
+    "UI/Components/MAMiniMapManager.cpp",
+    "UI/Components/MAInstructionPanel.h",
+    "UI/Components/MAInstructionPanel.cpp",
+}
+
+COMPONENTS_RUNTIME_INCLUDE_GUARDS = (
+    '#include "../../Core/AgentRuntime/Runtime/',
+    '#include "../../Core/Selection/Runtime/',
+    '#include "../../Core/Command/Runtime/',
+    '#include "../../Core/TempData/Runtime/',
+    '#include "../../Core/Camera/Runtime/',
+    '#include "../Core/MAUIManager.h"',
+    '#include "../HUD/MAHUD.h"',
+)
+
+COMPONENTS_RUNTIME_CALL_GUARDS = (
+    "GetWorld(",
+    "GetGameInstance(",
+    "GetSubsystem<",
+    "UGameplayStatics::GetPlayerController(",
+)
+
+SETUP_RUNTIME_WIDGET_SCOPE = {
+    "UI/Setup/MASetupHUD.h",
+    "UI/Setup/MASetupHUD.cpp",
+    "UI/Setup/MASetupWidget.h",
+    "UI/Setup/MASetupWidget.cpp",
+}
+
+SETUP_RUNTIME_INCLUDE_GUARDS = (
+    '#include "../../Core/Config/MAConfigManager.h"',
+    '#include "../../Core/Config/Runtime/',
+    '#include "../../Core/GameFlow/Bootstrap/',
+    '#include "Kismet/GameplayStatics.h"',
+)
+
+SETUP_RUNTIME_CALL_GUARDS = (
+    "GetWorld(",
+    "GetGameInstance(",
+    "GetSubsystem<",
+    "OpenLevel(",
+    "SetInputMode(",
+)
+
+MODAL_RUNTIME_WIDGET_SCOPE = {
+    "UI/Modal/MABaseModalWidget.h",
+    "UI/Modal/MABaseModalWidget.cpp",
+}
+
+MODAL_RUNTIME_CALL_GUARDS = (
+    "GetWorld(",
+    "GetGameInstance(",
+    "GetSubsystem<",
+)
+
+SELECTIONHUD_RUNTIME_INCLUDE_GUARDS = (
+    '#include "../../Core/Selection/Runtime/',
+    '#include "../../Core/AgentRuntime/Runtime/',
+    '#include "../Core/MAUIManager.h"',
+    '#include "Blueprint/UserWidget.h"',
+    '#include "Blueprint/WidgetBlueprintLibrary.h"',
+)
+
+SELECTIONHUD_RUNTIME_CALL_GUARDS = (
+    "GetSubsystem<UMASelectionManager>()",
+    "GetSubsystem<UMAAgentManager>()",
+    "GetAllWidgetsOfClass(",
 )
 
 
@@ -489,6 +640,18 @@ def main() -> int:
         if not (SOURCE_ROOT / relative_path).exists():
             errors.append(f"Missing required UI SkillAllocation directory: {relative_path}")
 
+    for relative_path in REQUIRED_UI_COMPONENTS_DIRS:
+        if not (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"Missing required UI Components directory: {relative_path}")
+
+    for relative_path in REQUIRED_UI_SETUP_DIRS:
+        if not (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"Missing required UI Setup directory: {relative_path}")
+
+    for relative_path in REQUIRED_UI_MODAL_DIRS:
+        if not (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"Missing required UI Modal directory: {relative_path}")
+
     for relative_path in REQUIRED_SKILL_ALLOCATION_DIRS:
         if not (SOURCE_ROOT / relative_path).exists():
             errors.append(f"Missing required SkillAllocation context directory: {relative_path}")
@@ -545,7 +708,7 @@ def main() -> int:
         for prefix, patterns in APPLICATION_RUNTIME_INCLUDE_GUARDS.items():
             if relative.startswith(prefix):
                 for pattern in patterns:
-                    if pattern in text:
+                    if pattern in text and relative not in ALLOWED_APPLICATION_RUNTIME_INCLUDE_FILES:
                         errors.append(f"{relative}: runtime include '{pattern}' should stay in Infrastructure")
 
         for prefix, patterns in DOMAIN_RUNTIME_TOKEN_GUARDS.items():
@@ -577,6 +740,65 @@ def main() -> int:
             for pattern in SKILLALLOCATION_UI_RUNTIME_CALL_GUARDS:
                 if pattern in text:
                     errors.append(f"{relative}: runtime call '{pattern}' should stay in UI/SkillAllocation/Infrastructure")
+
+        preview_component_scope = (
+            relative in {
+                "UI/Components/MAPreviewPanel.h",
+                "UI/Components/MAPreviewPanel.cpp",
+                "UI/Components/MATaskGraphPreview.h",
+                "UI/Components/MATaskGraphPreview.cpp",
+                "UI/Components/MASkillListPreview.h",
+                "UI/Components/MASkillListPreview.cpp",
+            }
+            or relative.startswith("UI/Components/Application/")
+            or relative.startswith("UI/Components/Domain/")
+            or relative.startswith("UI/Components/Infrastructure/")
+        )
+        if preview_component_scope and not relative.startswith("UI/Components/Infrastructure/"):
+            for pattern in COMPONENTS_PREVIEW_RUNTIME_INCLUDE_GUARDS:
+                if pattern in text:
+                    errors.append(f"{relative}: runtime include '{pattern}' should stay in UI/Components/Infrastructure")
+
+            for pattern in COMPONENTS_PREVIEW_RUNTIME_CALL_GUARDS:
+                if pattern in text:
+                    errors.append(f"{relative}: runtime call '{pattern}' should stay in UI/Components/Infrastructure")
+
+        runtime_component_scope = (
+            relative in COMPONENTS_RUNTIME_WIDGET_SCOPE
+            or relative.startswith("UI/Components/Application/")
+            or relative.startswith("UI/Components/Domain/")
+        )
+        if runtime_component_scope:
+            for pattern in COMPONENTS_RUNTIME_INCLUDE_GUARDS:
+                if pattern in text:
+                    errors.append(f"{relative}: runtime include '{pattern}' should stay in UI/Components/Infrastructure")
+
+            for pattern in COMPONENTS_RUNTIME_CALL_GUARDS:
+                if pattern in text:
+                    errors.append(f"{relative}: runtime call '{pattern}' should stay in UI/Components/Infrastructure")
+
+        if relative in SETUP_RUNTIME_WIDGET_SCOPE:
+            for pattern in SETUP_RUNTIME_INCLUDE_GUARDS:
+                if pattern in text:
+                    errors.append(f"{relative}: runtime include '{pattern}' should stay in UI/Setup/Infrastructure")
+
+            for pattern in SETUP_RUNTIME_CALL_GUARDS:
+                if pattern in text:
+                    errors.append(f"{relative}: runtime call '{pattern}' should stay in UI/Setup/Infrastructure")
+
+        if relative in MODAL_RUNTIME_WIDGET_SCOPE:
+            for pattern in MODAL_RUNTIME_CALL_GUARDS:
+                if pattern in text:
+                    errors.append(f"{relative}: runtime call '{pattern}' should stay out of UI/Modal widget shell")
+
+        if relative == "UI/HUD/MASelectionHUD.cpp":
+            for pattern in SELECTIONHUD_RUNTIME_INCLUDE_GUARDS:
+                if pattern in text:
+                    errors.append(f"{relative}: runtime include '{pattern}' should stay in UI/HUD/Infrastructure")
+
+            for pattern in SELECTIONHUD_RUNTIME_CALL_GUARDS:
+                if pattern in text:
+                    errors.append(f"{relative}: runtime call '{pattern}' should stay in UI/HUD/Infrastructure")
 
     old_dirs = [
         SOURCE_ROOT / "Input" / "Application",

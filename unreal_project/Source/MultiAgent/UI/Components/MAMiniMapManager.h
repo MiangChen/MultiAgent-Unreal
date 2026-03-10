@@ -5,6 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Infrastructure/MAMiniMapRuntimeAdapter.h"
 #include "MAMiniMapManager.generated.h"
 
 class USceneCaptureComponent2D;
@@ -78,4 +79,7 @@ private:
 
     /** 初始化主 HUD 上的小地图组件 */
     void InitializeMainHUDMiniMap();
+
+    /** HUD 解析桥 */
+    FMAMiniMapManagerHUDBridge HUDBridge;
 };

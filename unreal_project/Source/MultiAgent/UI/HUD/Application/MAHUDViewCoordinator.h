@@ -4,6 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "MAHUDWidgetCoordinator.h"
 
 class APlayerController;
 class UMAUIManager;
@@ -35,4 +36,5 @@ private:
     bool IsMouseOverSidebarXRange(float MouseX, int32 ViewportSizeX) const;
 
     UMAUIManager* UIManager = nullptr;
+    FMAHUDWidgetCoordinator WidgetCoordinator;
 };

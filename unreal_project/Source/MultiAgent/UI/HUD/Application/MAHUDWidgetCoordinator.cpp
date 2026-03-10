@@ -66,3 +66,48 @@ bool FMAHUDWidgetCoordinator::IsDirectControlIndicatorVisible(const UMAUIManager
 {
     return UIManager && UIManager->IsWidgetVisible(EMAWidgetType::DirectControl);
 }
+
+FMAHUDWidgetEditModeViewModel FMAHUDWidgetCoordinator::BuildEditModeViewModel(
+    bool bVisible,
+    const TArray<FString>& POIInfos,
+    const TArray<FString>& GoalInfos,
+    const TArray<FString>& ZoneInfos) const
+{
+    FMAHUDWidgetEditModeViewModel Model;
+    Model.bVisible = bVisible;
+    Model.POIText = BuildPrefixedListText(TEXT("POI:"), POIInfos);
+    Model.GoalText = BuildPrefixedListText(TEXT("Goal:"), GoalInfos);
+    Model.ZoneText = BuildPrefixedListText(TEXT("Zone:"), ZoneInfos);
+    return Model;
+}
+
+FMAHUDWidgetNotificationModel FMAHUDWidgetCoordinator::BuildNotificationModel(
+    const FString& Message,
+    bool bIsError,
+    bool bIsWarning) const
+{
+    FMAHUDWidgetNotificationModel Model;
+    Model.Message = Message;
+    Model.Severity = bIsError
+        ? EMAHUDWidgetNotificationSeverity::Error
+        : (bIsWarning ? EMAHUDWidgetNotificationSeverity::Warning : EMAHUDWidgetNotificationSeverity::Info);
+    return Model;
+}
+
+FString FMAHUDWidgetCoordinator::BuildPrefixedListText(const TCHAR* Prefix, const TArray<FString>& Infos) const
+{
+    if (Infos.Num() == 0)
+    {
+        return FString();
+    }
+
+    FString Text = Prefix;
+    Text += TEXT(" ");
+    for (const FString& Info : Infos)
+    {
+        Text += Info;
+        Text += TEXT(" ");
+    }
+
+    return Text;
+}

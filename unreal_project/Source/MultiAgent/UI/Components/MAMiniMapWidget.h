@@ -5,12 +5,13 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Application/MAMiniMapCoordinator.h"
+#include "Domain/MAMiniMapModels.h"
 #include "MAMiniMapWidget.generated.h"
 
 class UImage;
 class UCanvasPanel;
 class UTextureRenderTarget2D;
-class AMACharacter;
 class UMAUITheme;
 
 UCLASS()
@@ -50,9 +51,6 @@ protected:
 
     /** 小地图坐标转世界坐标 */
     FVector MiniMapToWorld(FVector2D MiniMapLocation) const;
-
-    /** 根据 Agent 类型获取颜色 */
-    FLinearColor GetAgentColor(AMACharacter* Agent, bool bIsSelected) const;
 
 public:
     /** 小地图大小 (像素) */
@@ -122,4 +120,16 @@ private:
 
     /** 更新间隔 (秒) */
     float UpdateInterval = 0.1f;
+
+    /** 小地图协调器 */
+    FMAMiniMapCoordinator Coordinator;
+
+    /** 构建当前视口配置 */
+    FMAMiniMapViewportConfig BuildViewportConfig() const;
+
+    /** 应用当前帧模型 */
+    void ApplyFrameModel(const FMAMiniMapFrameModel& Model);
+
+    /** 应用相机指示器模型 */
+    void ApplyCameraIndicator(const FMAMiniMapCameraIndicatorModel& Model);
 };

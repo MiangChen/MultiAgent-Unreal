@@ -17,7 +17,6 @@
 
 UMASetupWidget::UMASetupWidget(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
-    , SelectedScene(TEXT("CyberCity"))
 {
 }
 
@@ -43,32 +42,10 @@ TSharedRef<SWidget> UMASetupWidget::RebuildWidget()
 
 void UMASetupWidget::InitializeData()
 {
-    // 防止重复初始化
-    if (AvailableScenes.Num() > 0)
-    {
-        return;
-    }
-    
-    // 可用的智能体类型: 内部名称 -> 显示名称
-    AvailableAgentTypes.Add(TEXT("UAV"), TEXT("UAV (Multi-rotor)"));
-    AvailableAgentTypes.Add(TEXT("FixedWingUAV"), TEXT("Fixed Wing UAV"));
-    AvailableAgentTypes.Add(TEXT("UGV"), TEXT("UGV (Ground Vehicle)"));
-    AvailableAgentTypes.Add(TEXT("Quadruped"), TEXT("Quadruped Robot"));
-    AvailableAgentTypes.Add(TEXT("Humanoid"), TEXT("Humanoid"));
-
-    // 可用的场景
-    AvailableScenes.Add(TEXT("CyberCity"));
-    AvailableScenes.Add(TEXT("DesertLab"));
-    AvailableScenes.Add(TEXT("SpruceForest"));
-    AvailableScenes.Add(TEXT("Warehouse"));
-
-    // 默认添加每种智能体各一个
-    AgentConfigs.Add(FMAAgentSetupConfig(TEXT("UAV"), TEXT("UAV"), 1));
-    AgentConfigs.Add(FMAAgentSetupConfig(TEXT("Quadruped"), TEXT("Quadruped Robot"), 1));
-    AgentConfigs.Add(FMAAgentSetupConfig(TEXT("Humanoid"), TEXT("Humanoid"), 1));
+    Coordinator.InitializeState(State);
     
     UE_LOG(LogTemp, Warning, TEXT("[MASetupWidget] InitializeData: %d scenes, %d agent types"), 
-        AvailableScenes.Num(), AvailableAgentTypes.Num());
+        State.AvailableScenes.Num(), State.AvailableAgentTypes.Num());
 }
 
 void UMASetupWidget::BuildUI()
@@ -162,7 +139,7 @@ void UMASetupWidget::BuildUI()
     SceneComboBox = WidgetTree->ConstructWidget<UComboBoxString>(UComboBoxString::StaticClass(), TEXT("SceneComboBox"));
     SceneComboBox->ClearOptions();
     
-    for (const FString& Scene : AvailableScenes)
+    for (const FString& Scene : State.AvailableScenes)
     {
         SceneComboBox->AddOption(Scene);
         UE_LOG(LogTemp, Log, TEXT("[MASetupWidget] Added scene option: %s"), *Scene);
@@ -176,14 +153,14 @@ void UMASetupWidget::BuildUI()
     ItemStyle.SetSelectedTextColor(FSlateColor(FLinearColor::White));
     SceneComboBox->SetItemStyle(ItemStyle);
     
-    if (AvailableScenes.Num() > 0)
+    if (State.AvailableScenes.Num() > 0)
     {
-        if (!AvailableScenes.Contains(SelectedScene))
+        if (!State.AvailableScenes.Contains(State.SelectedScene))
         {
-            SelectedScene = AvailableScenes[0];
+            State.SelectedScene = State.AvailableScenes[0];
         }
-        SceneComboBox->SetSelectedOption(SelectedScene);
-        UE_LOG(LogTemp, Log, TEXT("[MASetupWidget] Scene ComboBox selected: %s"), *SelectedScene);
+        SceneComboBox->SetSelectedOption(State.SelectedScene);
+        UE_LOG(LogTemp, Log, TEXT("[MASetupWidget] Scene ComboBox selected: %s"), *State.SelectedScene);
     }
     
     SceneComboBox->OnSelectionChanged.AddDynamic(this, &UMASetupWidget::OnSceneSelectionChanged);
@@ -227,7 +204,7 @@ void UMASetupWidget::BuildUI()
     AgentTypeComboBox = WidgetTree->ConstructWidget<UComboBoxString>(UComboBoxString::StaticClass(), TEXT("AgentTypeComboBox"));
     AgentTypeComboBox->ClearOptions();
     
-    for (const auto& Pair : AvailableAgentTypes)
+    for (const auto& Pair : State.AvailableAgentTypes)
     {
         AgentTypeComboBox->AddOption(Pair.Key);
     }
@@ -240,7 +217,7 @@ void UMASetupWidget::BuildUI()
     AgentItemStyle.SetSelectedTextColor(FSlateColor(FLinearColor::White));
     AgentTypeComboBox->SetItemStyle(AgentItemStyle);
     
-    if (AvailableAgentTypes.Num() > 0)
+    if (State.AvailableAgentTypes.Num() > 0)
     {
         AgentTypeComboBox->SetSelectedIndex(0);
     }
@@ -427,7 +404,7 @@ void UMASetupWidget::RefreshAgentList()
     DecreaseButtonIndexMap.Empty();
     IncreaseButtonIndexMap.Empty();
 
-    if (AgentConfigs.Num() == 0)
+    if (State.AgentConfigs.Num() == 0)
     {
         // 空列表提示
         UTextBlock* EmptyText = NewObject<UTextBlock>(this);
@@ -441,9 +418,9 @@ void UMASetupWidget::RefreshAgentList()
     }
 
     // 为每个配置创建一行
-    for (int32 i = 0; i < AgentConfigs.Num(); ++i)
+    for (int32 i = 0; i < State.AgentConfigs.Num(); ++i)
     {
-        const FMAAgentSetupConfig& Config = AgentConfigs[i];
+        const FMAAgentSetupConfig& Config = State.AgentConfigs[i];
 
         UHorizontalBox* Row = NewObject<UHorizontalBox>(this);
 
@@ -548,12 +525,12 @@ void UMASetupWidget::RefreshAgentList()
         AgentListScrollBox->AddChild(RowSpacer);
     }
 
-    UE_LOG(LogTemp, Log, TEXT("[MASetupWidget] Agent list refreshed, %d configs"), AgentConfigs.Num());
+    UE_LOG(LogTemp, Log, TEXT("[MASetupWidget] Agent list refreshed, %d configs"), State.AgentConfigs.Num());
 }
 
 void UMASetupWidget::UpdateTotalCount()
 {
-    int32 Total = GetTotalAgentCount();
+    const int32 Total = Coordinator.GetTotalAgentCount(State);
     if (TotalCountText)
     {
         TotalCountText->SetText(FText::FromString(FString::Printf(TEXT("Total: %d agent(s)"), Total)));
@@ -562,18 +539,18 @@ void UMASetupWidget::UpdateTotalCount()
 
 int32 UMASetupWidget::GetTotalAgentCount() const
 {
-    int32 Total = 0;
-    for (const FMAAgentSetupConfig& Config : AgentConfigs)
-    {
-        Total += Config.Count;
-    }
-    return Total;
+    return Coordinator.GetTotalAgentCount(State);
+}
+
+FMASetupLaunchRequest UMASetupWidget::BuildLaunchRequest() const
+{
+    return Coordinator.BuildLaunchRequest(State);
 }
 
 void UMASetupWidget::OnSceneSelectionChanged(FString SelectedItem, ESelectInfo::Type SelectionType)
 {
-    SelectedScene = SelectedItem;
-    UE_LOG(LogTemp, Log, TEXT("[MASetupWidget] Scene changed to: %s"), *SelectedScene);
+    Coordinator.SetSelectedScene(State, SelectedItem);
+    UE_LOG(LogTemp, Log, TEXT("[MASetupWidget] Scene changed to: %s"), *State.SelectedScene);
 }
 
 void UMASetupWidget::OnAddButtonClicked()
@@ -593,28 +570,7 @@ void UMASetupWidget::OnAddButtonClicked()
     }
 
     // 获取显示名称
-    FString DisplayName = SelectedType;
-    if (FString* FoundName = AvailableAgentTypes.Find(SelectedType))
-    {
-        DisplayName = *FoundName;
-    }
-
-    // 检查是否已存在相同类型，如果是则增加数量
-    bool bFound = false;
-    for (FMAAgentSetupConfig& Config : AgentConfigs)
-    {
-        if (Config.AgentType == SelectedType)
-        {
-            Config.Count += Count;
-            bFound = true;
-            break;
-        }
-    }
-
-    if (!bFound)
-    {
-        AgentConfigs.Add(FMAAgentSetupConfig(SelectedType, DisplayName, Count));
-    }
+    Coordinator.AddAgent(State, SelectedType, Count);
 
     RefreshAgentList();
     UpdateTotalCount();
@@ -624,7 +580,7 @@ void UMASetupWidget::OnAddButtonClicked()
 
 void UMASetupWidget::OnClearButtonClicked()
 {
-    AgentConfigs.Empty();
+    Coordinator.ClearAgents(State);
     RefreshAgentList();
     UpdateTotalCount();
 
@@ -635,14 +591,14 @@ void UMASetupWidget::OnStartButtonClicked()
 {
     UE_LOG(LogTemp, Warning, TEXT("[MASetupWidget] >>>>>> OnStartButtonClicked CALLED! <<<<<<"));
     
-    if (AgentConfigs.Num() == 0)
+    if (State.AgentConfigs.Num() == 0)
     {
         UE_LOG(LogTemp, Warning, TEXT("[MASetupWidget] Cannot start: no agents configured"));
         // 即使没有配置也允许开始（用于测试）
     }
 
     UE_LOG(LogTemp, Warning, TEXT("[MASetupWidget] Starting simulation with %d agent types, scene: %s"), 
-        AgentConfigs.Num(), *SelectedScene);
+        State.AgentConfigs.Num(), *State.SelectedScene);
 
     // 广播开始事件
     UE_LOG(LogTemp, Warning, TEXT("[MASetupWidget] Broadcasting OnStartSimulation..."));
@@ -652,10 +608,10 @@ void UMASetupWidget::OnStartButtonClicked()
 
 void UMASetupWidget::OnRemoveAgentClicked(int32 Index)
 {
-    if (AgentConfigs.IsValidIndex(Index))
+    if (State.AgentConfigs.IsValidIndex(Index))
     {
         UE_LOG(LogTemp, Log, TEXT("[MASetupWidget] Removing agent at index %d"), Index);
-        AgentConfigs.RemoveAt(Index);
+        Coordinator.RemoveAgentAt(State, Index);
         RefreshAgentList();
         UpdateTotalCount();
     }
@@ -678,10 +634,10 @@ void UMASetupWidget::OnRemoveButtonClicked()
     
     // 备用方案：如果上面的方法都不行，删除最后一个
     // 这种情况不应该发生，但作为保险
-    if (AgentConfigs.Num() > 0)
+    if (State.AgentConfigs.Num() > 0)
     {
         UE_LOG(LogTemp, Warning, TEXT("[MASetupWidget] Fallback: removing last agent"));
-        OnRemoveAgentClicked(AgentConfigs.Num() - 1);
+        OnRemoveAgentClicked(State.AgentConfigs.Num() - 1);
     }
 }
 
@@ -705,20 +661,11 @@ void UMASetupWidget::OnDecreaseButtonClicked()
 
 void UMASetupWidget::OnDecreaseAgentCount(int32 Index)
 {
-    if (AgentConfigs.IsValidIndex(Index))
+    if (State.AgentConfigs.IsValidIndex(Index))
     {
-        FMAAgentSetupConfig& Config = AgentConfigs[Index];
-        Config.Count--;
-        
-        UE_LOG(LogTemp, Log, TEXT("[MASetupWidget] Decreased %s count to %d"), *Config.DisplayName, Config.Count);
-        
-        // 如果数量变为 0，则删除该项
-        if (Config.Count <= 0)
-        {
-            UE_LOG(LogTemp, Log, TEXT("[MASetupWidget] Count is 0, removing agent type"));
-            AgentConfigs.RemoveAt(Index);
-        }
-        
+        const FString DisplayName = State.AgentConfigs[Index].DisplayName;
+        Coordinator.DecreaseAgentCount(State, Index);
+        UE_LOG(LogTemp, Log, TEXT("[MASetupWidget] Decreased %s count"), *DisplayName);
         RefreshAgentList();
         UpdateTotalCount();
     }
@@ -744,13 +691,11 @@ void UMASetupWidget::OnIncreaseButtonClicked()
 
 void UMASetupWidget::OnIncreaseAgentCount(int32 Index)
 {
-    if (AgentConfigs.IsValidIndex(Index))
+    if (State.AgentConfigs.IsValidIndex(Index))
     {
-        FMAAgentSetupConfig& Config = AgentConfigs[Index];
-        Config.Count++;
-        
-        UE_LOG(LogTemp, Log, TEXT("[MASetupWidget] Increased %s count to %d"), *Config.DisplayName, Config.Count);
-        
+        const FString DisplayName = State.AgentConfigs[Index].DisplayName;
+        Coordinator.IncreaseAgentCount(State, Index);
+        UE_LOG(LogTemp, Log, TEXT("[MASetupWidget] Increased %s count"), *DisplayName);
         RefreshAgentList();
         UpdateTotalCount();
     }

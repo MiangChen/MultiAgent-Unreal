@@ -9,7 +9,7 @@
 
 namespace
 {
-UGameInstance* ResolveGameInstance(const UObject* WorldContextObject)
+UGameInstance* ResolveSkillAllocationGameInstance(const UObject* WorldContextObject)
 {
     if (!WorldContextObject)
     {
@@ -20,16 +20,16 @@ UGameInstance* ResolveGameInstance(const UObject* WorldContextObject)
     return World ? World->GetGameInstance() : nullptr;
 }
 
-UMATempDataManager* ResolveTempDataManager(const UObject* WorldContextObject)
+UMATempDataManager* ResolveSkillAllocationTempDataManager(const UObject* WorldContextObject)
 {
-    if (UGameInstance* GameInstance = ResolveGameInstance(WorldContextObject))
+    if (UGameInstance* GameInstance = ResolveSkillAllocationGameInstance(WorldContextObject))
     {
         return GameInstance->GetSubsystem<UMATempDataManager>();
     }
     return nullptr;
 }
 
-UMAUIManager* ResolveUIManager(const UObject* WorldContextObject)
+UMAUIManager* ResolveSkillAllocationUIManager(const UObject* WorldContextObject)
 {
     if (!WorldContextObject || !WorldContextObject->GetWorld())
     {
@@ -49,7 +49,7 @@ UMAUIManager* ResolveUIManager(const UObject* WorldContextObject)
 
 bool FMASkillAllocationViewerRuntimeAdapter::TryLoadSkillAllocation(const UObject* WorldContextObject, FMASkillAllocationData& OutData, FString& OutError)
 {
-    UMATempDataManager* TempDataManager = ResolveTempDataManager(WorldContextObject);
+    UMATempDataManager* TempDataManager = ResolveSkillAllocationTempDataManager(WorldContextObject);
     if (!TempDataManager)
     {
         OutError = TEXT("Unable to get TempDataManager");
@@ -67,7 +67,7 @@ bool FMASkillAllocationViewerRuntimeAdapter::TryLoadSkillAllocation(const UObjec
 
 bool FMASkillAllocationViewerRuntimeAdapter::TrySaveSkillAllocation(const UObject* WorldContextObject, const FMASkillAllocationData& Data, FString& OutError)
 {
-    UMATempDataManager* TempDataManager = ResolveTempDataManager(WorldContextObject);
+    UMATempDataManager* TempDataManager = ResolveSkillAllocationTempDataManager(WorldContextObject);
     if (!TempDataManager)
     {
         OutError = TEXT("Unable to get TempDataManager");
@@ -85,7 +85,7 @@ bool FMASkillAllocationViewerRuntimeAdapter::TrySaveSkillAllocation(const UObjec
 
 bool FMASkillAllocationViewerRuntimeAdapter::TryNavigateToSkillAllocationModal(const UObject* WorldContextObject, FString& OutError)
 {
-    UMAUIManager* UIManager = ResolveUIManager(WorldContextObject);
+    UMAUIManager* UIManager = ResolveSkillAllocationUIManager(WorldContextObject);
     if (!UIManager)
     {
         OutError = TEXT("Unable to get UIManager");
@@ -98,7 +98,7 @@ bool FMASkillAllocationViewerRuntimeAdapter::TryNavigateToSkillAllocationModal(c
 
 bool FMASkillAllocationViewerRuntimeAdapter::TryHideSkillAllocationViewer(const UObject* WorldContextObject, FString& OutError)
 {
-    UMAUIManager* UIManager = ResolveUIManager(WorldContextObject);
+    UMAUIManager* UIManager = ResolveSkillAllocationUIManager(WorldContextObject);
     if (!UIManager)
     {
         OutError = TEXT("Unable to get UIManager");
@@ -117,7 +117,7 @@ bool FMASkillAllocationViewerRuntimeAdapter::BindSkillAllocationChanged(const UO
         return false;
     }
 
-    UMATempDataManager* TempDataManager = ResolveTempDataManager(WorldContextObject);
+    UMATempDataManager* TempDataManager = ResolveSkillAllocationTempDataManager(WorldContextObject);
     if (!TempDataManager)
     {
         OutError = TEXT("Unable to get TempDataManager");
@@ -140,7 +140,7 @@ bool FMASkillAllocationViewerRuntimeAdapter::BindSkillStatusUpdated(const UObjec
         return false;
     }
 
-    UMATempDataManager* TempDataManager = ResolveTempDataManager(WorldContextObject);
+    UMATempDataManager* TempDataManager = ResolveSkillAllocationTempDataManager(WorldContextObject);
     if (!TempDataManager)
     {
         OutError = TEXT("Unable to get TempDataManager");

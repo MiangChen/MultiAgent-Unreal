@@ -7,6 +7,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Application/MAModalCoordinator.h"
 #include "../Core/MAHUDTypes.h"
 #include "MABaseModalWidget.generated.h"
 
@@ -335,6 +336,9 @@ private:
 
     /** 动画时长 (秒) */
     static constexpr float AnimationDuration = 0.2f;
+
+    /** 模态协调器 */
+    FMAModalCoordinator Coordinator;
 
     //=========================================================================
     // 内部方法

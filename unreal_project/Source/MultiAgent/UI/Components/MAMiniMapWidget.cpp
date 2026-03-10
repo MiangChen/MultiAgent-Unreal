@@ -3,18 +3,12 @@
 
 #include "MAMiniMapWidget.h"
 #include "../Core/MAUITheme.h"
-#include "../../Core/AgentRuntime/Runtime/MAAgentManager.h"
-#include "../../Core/Selection/Runtime/MASelectionManager.h"
-#include "../../Agent/Character/MACharacter.h"
 #include "Components/Image.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
-#include "Components/Border.h"
-#include "Components/Overlay.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceDynamic.h"
-#include "Kismet/GameplayStatics.h"
-#include "GameFramework/PlayerController.h"
 
 //=============================================================================
 // 主题辅助函数
@@ -136,15 +130,6 @@ void UMAMiniMapWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime
     {
         UpdateTimer = 0.f;
         UpdateAgentPositions();
-
-        // 更新相机位置
-        if (APlayerController* PC = GetOwningPlayer())
-        {
-            if (APawn* Pawn = PC->GetPawn())
-            {
-                UpdateCameraIndicator(Pawn->GetActorLocation(), Pawn->GetActorRotation());
-            }
-        }
     }
 }
 
@@ -174,121 +159,12 @@ void UMAMiniMapWidget::InitializeMiniMap(UTextureRenderTarget2D* InRenderTarget,
 
 void UMAMiniMapWidget::UpdateAgentPositions()
 {
-    if (!IconCanvas) return;
-
-    UWorld* World = GetWorld();
-    if (!World) return;
-
-    UMAAgentManager* AgentManager = World->GetSubsystem<UMAAgentManager>();
-    UMASelectionManager* SelectionManager = World->GetSubsystem<UMASelectionManager>();
-    if (!AgentManager) return;
-
-    // 清除旧图标 (简单实现：每帧重绘)
-    IconCanvas->ClearChildren();
-
-    // 获取选中的 Agent
-    TArray<AMACharacter*> SelectedAgents;
-    if (SelectionManager)
-    {
-        SelectedAgents = SelectionManager->GetSelectedAgents();
-    }
-
-    // 绘制所有 Agent
-    for (AMACharacter* Agent : AgentManager->GetAllAgents())
-    {
-        if (!Agent) continue;
-
-        FVector2D MiniMapPos = WorldToMiniMap(Agent->GetActorLocation());
-
-        // 创建图标
-        UImage* Icon = NewObject<UImage>(this);
-        if (!Icon) continue;
-
-        // 获取 Agent 颜色 (使用主题)
-        bool bIsSelected = SelectedAgents.Contains(Agent);
-        FLinearColor IconColor = GetAgentColor(Agent, bIsSelected);
-
-        // 设置图标颜色
-        Icon->SetColorAndOpacity(IconColor);
-        Icon->SetBrushTintColor(FSlateColor(IconColor));
-
-        // 添加到 Canvas
-        IconCanvas->AddChild(Icon);
-
-        // 设置位置
-        if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(Icon->Slot))
-        {
-            Slot->SetSize(FVector2D(AgentIconSize, AgentIconSize));
-            Slot->SetPosition(MiniMapPos - FVector2D(AgentIconSize / 2.f, AgentIconSize / 2.f));
-        }
-    }
-}
-
-FLinearColor UMAMiniMapWidget::GetAgentColor(AMACharacter* Agent, bool bIsSelected) const
-{
-    // 获取主题
-    UMAUITheme* CurrentTheme = Theme ? Theme : GetOrCreateDefaultTheme();
-    
-    // 选中的 Agent 用选中颜色
-    if (bIsSelected)
-    {
-        return CurrentTheme->AgentSelectedColor;
-    }
-    
-    // 根据类型返回颜色
-    switch (Agent->AgentType)
-    {
-        case EMAAgentType::Humanoid:
-            return CurrentTheme->AgentHumanoidColor;
-        case EMAAgentType::UAV:
-        case EMAAgentType::FixedWingUAV:
-            return CurrentTheme->AgentUAVColor;
-        case EMAAgentType::UGV:
-            return CurrentTheme->AgentUGVColor;
-        case EMAAgentType::Quadruped:
-            return CurrentTheme->AgentQuadrupedColor;
-        default:
-            return FLinearColor::White;
-    }
+    ApplyFrameModel(Coordinator.BuildFrameModel(this, BuildViewportConfig()));
 }
 
 void UMAMiniMapWidget::UpdateCameraIndicator(FVector CameraLocation, FRotator CameraRotation)
 {
-    if (!CameraIcon || !CameraFOVLeft || !CameraFOVRight) return;
-
-    // 计算相机在小地图上的位置
-    FVector2D MiniMapPos = WorldToMiniMap(CameraLocation);
-    
-    // 加上小地图的偏移 (20px 边距)
-    FVector2D ScreenPos = MiniMapPos + FVector2D(20.f, 20.f);
-
-    // 更新相机图标位置 (红色圆点)
-    if (UCanvasPanelSlot* CamSlot = Cast<UCanvasPanelSlot>(CameraIcon->Slot))
-    {
-        CamSlot->SetPosition(ScreenPos - FVector2D(CameraIconSize / 2.f, CameraIconSize / 2.f));
-    }
-
-    // 计算视野角度
-    // 左边线 = Yaw - FOV/2, 右边线 = Yaw + FOV/2
-    float HalfFOV = CameraFOVAngle / 2.f;
-    float LeftAngle = CameraRotation.Yaw - HalfFOV;
-    float RightAngle = CameraRotation.Yaw + HalfFOV;
-
-    // 更新左边视野线
-    if (UCanvasPanelSlot* LeftSlot = Cast<UCanvasPanelSlot>(CameraFOVLeft->Slot))
-    {
-        LeftSlot->SetPosition(ScreenPos - FVector2D(1.f, 0.f));
-        CameraFOVLeft->SetRenderTransformAngle(LeftAngle - 90.f);
-        CameraFOVLeft->SetRenderTransformPivot(FVector2D(0.5f, 0.f));
-    }
-
-    // 更新右边视野线
-    if (UCanvasPanelSlot* RightSlot = Cast<UCanvasPanelSlot>(CameraFOVRight->Slot))
-    {
-        RightSlot->SetPosition(ScreenPos - FVector2D(1.f, 0.f));
-        CameraFOVRight->SetRenderTransformAngle(RightAngle - 90.f);
-        CameraFOVRight->SetRenderTransformPivot(FVector2D(0.5f, 0.f));
-    }
+    ApplyCameraIndicator(Coordinator.BuildCameraIndicator(BuildViewportConfig(), CameraLocation, CameraRotation));
 }
 
 FVector2D UMAMiniMapWidget::WorldToMiniMap(FVector WorldLocation) const
@@ -319,30 +195,8 @@ FReply UMAMiniMapWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, co
     {
         // 获取点击位置
         FVector2D LocalPos = InGeometry.AbsoluteToLocal(InMouseEvent.GetScreenSpacePosition());
-
-        // 检查是否在圆形范围内
-        FVector2D Center(MiniMapSize / 2.f, MiniMapSize / 2.f);
-        float Distance = FVector2D::Distance(LocalPos, Center);
-
-        if (Distance <= MiniMapSize / 2.f)
+        if (Coordinator.HandleMiniMapClick(this, BuildViewportConfig(), LocalPos))
         {
-            // 转换为世界坐标
-            FVector WorldPos = MiniMapToWorld(LocalPos);
-
-            // 移动相机到该位置
-            if (APlayerController* PC = GetOwningPlayer())
-            {
-                if (APawn* Pawn = PC->GetPawn())
-                {
-                    FVector NewLocation = Pawn->GetActorLocation();
-                    NewLocation.X = WorldPos.X;
-                    NewLocation.Y = WorldPos.Y;
-                    Pawn->SetActorLocation(NewLocation);
-
-                    UE_LOG(LogTemp, Log, TEXT("[MiniMap] Camera moved to (%.0f, %.0f)"), WorldPos.X, WorldPos.Y);
-                }
-            }
-
             return FReply::Handled();
         }
     }
@@ -385,4 +239,88 @@ void UMAMiniMapWidget::ApplyTheme(UMAUITheme* InTheme)
     }
     
     UE_LOG(LogTemp, Log, TEXT("[MiniMap] Theme applied"));
+}
+
+FMAMiniMapViewportConfig UMAMiniMapWidget::BuildViewportConfig() const
+{
+    FMAMiniMapViewportConfig Config;
+    Config.MiniMapSize = MiniMapSize;
+    Config.WorldBounds = WorldBounds;
+    Config.WorldCenter = WorldCenter;
+    Config.AgentIconSize = AgentIconSize;
+    Config.CameraIconSize = CameraIconSize;
+    Config.CameraFOVLength = CameraFOVLength;
+    Config.CameraFOVAngle = CameraFOVAngle;
+    return Config;
+}
+
+void UMAMiniMapWidget::ApplyFrameModel(const FMAMiniMapFrameModel& Model)
+{
+    if (!IconCanvas)
+    {
+        return;
+    }
+
+    IconCanvas->ClearChildren();
+    for (const FMAMiniMapAgentMarker& Marker : Model.AgentMarkers)
+    {
+        UImage* Icon = NewObject<UImage>(this);
+        if (!Icon)
+        {
+            continue;
+        }
+
+        Icon->SetColorAndOpacity(Marker.Color);
+        Icon->SetBrushTintColor(FSlateColor(Marker.Color));
+        IconCanvas->AddChild(Icon);
+
+        if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(Icon->Slot))
+        {
+            Slot->SetSize(FVector2D(Marker.Size, Marker.Size));
+            Slot->SetPosition(Marker.Position - FVector2D(Marker.Size / 2.0f, Marker.Size / 2.0f));
+        }
+    }
+
+    ApplyCameraIndicator(Model.CameraIndicator);
+}
+
+void UMAMiniMapWidget::ApplyCameraIndicator(const FMAMiniMapCameraIndicatorModel& Model)
+{
+    if (!CameraIcon || !CameraFOVLeft || !CameraFOVRight)
+    {
+        return;
+    }
+
+    const ESlateVisibility Visibility = Model.bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed;
+    CameraIcon->SetVisibility(Visibility);
+    CameraFOVLeft->SetVisibility(Visibility);
+    CameraFOVRight->SetVisibility(Visibility);
+
+    if (!Model.bVisible)
+    {
+        return;
+    }
+
+    const FVector2D ScreenPos = Model.Position + FVector2D(20.0f, 20.0f);
+    if (UCanvasPanelSlot* CamSlot = Cast<UCanvasPanelSlot>(CameraIcon->Slot))
+    {
+        CamSlot->SetSize(FVector2D(Model.IconSize, Model.IconSize));
+        CamSlot->SetPosition(ScreenPos - FVector2D(Model.IconSize / 2.0f, Model.IconSize / 2.0f));
+    }
+
+    if (UCanvasPanelSlot* LeftSlot = Cast<UCanvasPanelSlot>(CameraFOVLeft->Slot))
+    {
+        LeftSlot->SetPosition(ScreenPos - FVector2D(1.0f, 0.0f));
+        LeftSlot->SetSize(FVector2D(2.0f, Model.FOVLength));
+        CameraFOVLeft->SetRenderTransformAngle(Model.LeftAngle);
+        CameraFOVLeft->SetRenderTransformPivot(FVector2D(0.5f, 0.0f));
+    }
+
+    if (UCanvasPanelSlot* RightSlot = Cast<UCanvasPanelSlot>(CameraFOVRight->Slot))
+    {
+        RightSlot->SetPosition(ScreenPos - FVector2D(1.0f, 0.0f));
+        RightSlot->SetSize(FVector2D(2.0f, Model.FOVLength));
+        CameraFOVRight->SetRenderTransformAngle(Model.RightAngle);
+        CameraFOVRight->SetRenderTransformPivot(FVector2D(0.5f, 0.0f));
+    }
 }

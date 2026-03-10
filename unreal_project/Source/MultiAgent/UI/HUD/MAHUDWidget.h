@@ -7,6 +7,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Domain/MAHUDWidgetModels.h"
 #include "MAHUDWidget.generated.h"
 
 class UTextBlock;
@@ -30,6 +31,8 @@ class MULTIAGENT_API UMAHUDWidget : public UUserWidget
 {
     GENERATED_BODY()
 
+    friend class FMAHUDWidgetRuntimeAdapter;
+
 public:
     UMAHUDWidget(const FObjectInitializer& ObjectInitializer);
 
@@ -40,29 +43,7 @@ public:
      * 设置 Edit 模式指示器可见性
      * @param bVisible 是否可见
      */
-    UFUNCTION(BlueprintCallable, Category = "HUD|EditMode")
-    void SetEditModeVisible(bool bVisible);
-
-    /**
-     * 更新 POI 列表
-     * @param POIInfos POI 信息字符串数组
-     */
-    UFUNCTION(BlueprintCallable, Category = "HUD|EditMode")
-    void UpdatePOIList(const TArray<FString>& POIInfos);
-
-    /**
-     * 更新 Goal 列表
-     * @param GoalInfos Goal 信息字符串数组
-     */
-    UFUNCTION(BlueprintCallable, Category = "HUD|EditMode")
-    void UpdateGoalList(const TArray<FString>& GoalInfos);
-
-    /**
-     * 更新 Zone 列表
-     * @param ZoneInfos Zone 信息字符串数组
-     */
-    UFUNCTION(BlueprintCallable, Category = "HUD|EditMode")
-    void UpdateZoneList(const TArray<FString>& ZoneInfos);
+    void ApplyEditModeViewModel(const FMAHUDWidgetEditModeViewModel& ViewModel);
 
     //=========================================================================
     // 通知消息
@@ -74,8 +55,7 @@ public:
      * @param bIsError 是否为错误消息 (红色)
      * @param bIsWarning 是否为警告消息 (黄色)，优先级低于 bIsError
      */
-    UFUNCTION(BlueprintCallable, Category = "HUD|Notification")
-    void ShowNotification(const FString& Message, bool bIsError = false, bool bIsWarning = false);
+    void ApplyNotificationModel(const FMAHUDWidgetNotificationModel& NotificationModel);
 
     //=========================================================================
     // 主题系统
@@ -164,4 +144,6 @@ private:
 
     /** 通知淡出完成 */
     void OnNotificationFadeComplete();
+
+    void ApplyTextBlockState(UTextBlock* TextBlock, const FString& Text, bool bVisible);
 };

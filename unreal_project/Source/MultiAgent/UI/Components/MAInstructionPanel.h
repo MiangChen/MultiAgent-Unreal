@@ -6,6 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Application/MAInstructionPanelCoordinator.h"
 #include "MAInstructionPanel.generated.h"
 
 class UVerticalBox;
@@ -164,6 +165,9 @@ private:
     /** 提交按钮 */
     UPROPERTY()
     UMAStyledButton* SubmitButton;
+
+    /** 指令提交协调器 */
+    FMAInstructionPanelCoordinator Coordinator;
 
     //=========================================================================
     // 内部方法
