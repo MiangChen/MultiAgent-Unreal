@@ -4,9 +4,9 @@
 
 #include "../MAHUD.h"
 #include "../../Mode/MASceneListWidget.h"
-#include "../../../Core/Manager/MAEditModeManager.h"
-#include "../../../Core/Manager/MAPIPCameraManager.h"
-#include "../../../Core/Manager/MASceneGraphManager.h"
+#include "../../../Core/Editing/Runtime/MAEditModeManager.h"
+#include "../../../Core/Camera/Runtime/MAPIPCameraManager.h"
+#include "../../../Core/SceneGraph/Runtime/MASceneGraphManager.h"
 #include "../../../Environment/Utils/MAGoalActor.h"
 #include "../../../Environment/Utils/MAPointOfInterest.h"
 #include "../../../Environment/Utils/MAZoneActor.h"

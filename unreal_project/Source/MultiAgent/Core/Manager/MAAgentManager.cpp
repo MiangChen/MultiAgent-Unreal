@@ -1,7 +1,7 @@
 // MAAgentManager.cpp
 
 #include "MAAgentManager.h"
-#include "MASceneGraphManager.h"
+#include "Core/SceneGraph/Runtime/MASceneGraphManager.h"
 #include "../Config/MAConfigManager.h"
 #include "../../Agent/Character/MACharacter.h"
 #include "../../Agent/Character/MAUAVCharacter.h"

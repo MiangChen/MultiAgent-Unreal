@@ -4,7 +4,7 @@
 #include "MASkillTemplateRegistry.h"
 #include "MAEventTemplateRegistry.h"
 #include "../../../Core/Manager/MACommandManager.h"
-#include "../../../Core/Manager/MASceneGraphManager.h"
+#include "../../../Core/SceneGraph/Runtime/MASceneGraphManager.h"
 #include "../../../Core/Types/MATypes.h"
 #include "../../Character/MACharacter.h"
 #include "../MASkillComponent.h"

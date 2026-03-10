@@ -5,8 +5,8 @@
 #include "../MASkillComponent.h"
 #include "../../Character/MACharacter.h"
 #include "../../../Core/Manager/MACommandManager.h"
-#include "../../../Core/Manager/MASceneGraphManager.h"
-#include "../../../Core/Manager/scene_graph_services/MASceneGraphQueryUseCases.h"
+#include "../../../Core/SceneGraph/Runtime/MASceneGraphManager.h"
+#include "../../../Core/SceneGraph/Application/MASceneGraphQueryUseCases.h"
 #include "Serialization/JsonSerializer.h"
 
 // 辅助宏：cm 转 m

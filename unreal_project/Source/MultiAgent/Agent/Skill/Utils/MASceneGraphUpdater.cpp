@@ -7,9 +7,9 @@
 #include "../../Character/MAUGVCharacter.h"
 #include "../MASkillComponent.h"
 #include "../../../Core/Manager/MACommandManager.h"
-#include "../../../Core/Manager/MASceneGraphManager.h"
-#include "../../../Core/Manager/scene_graph_adapters/MASceneGraphRuntimeSyncAdapter.h"
-#include "../../../Core/Manager/scene_graph_services/MASceneGraphRuntimeSyncUseCases.h"
+#include "../../../Core/SceneGraph/Runtime/MASceneGraphManager.h"
+#include "../../../Core/SceneGraph/Infrastructure/Adapters/MASceneGraphRuntimeSyncAdapter.h"
+#include "../../../Core/SceneGraph/Application/MASceneGraphRuntimeSyncUseCases.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMASceneGraphUpdater, Log, All);
 

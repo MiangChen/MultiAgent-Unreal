@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "../../../Core/Manager/MASceneGraphNodeTypes.h"
+#include "../../../Core/SceneGraph/Domain/MASceneGraphNodeTypes.h"
 
 class AMAPointOfInterest;
 

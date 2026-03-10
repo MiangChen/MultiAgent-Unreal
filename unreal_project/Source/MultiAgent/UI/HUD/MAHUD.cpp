@@ -9,7 +9,7 @@
 #include "../../Input/MAPlayerController.h"
 #include "../../Core/Comm/MACommTypes.h"
 #include "../../Core/Types/MASimTypes.h"
-#include "../../Core/Manager/MASceneGraphNodeTypes.h"
+#include "../../Core/SceneGraph/Domain/MASceneGraphNodeTypes.h"
 #include "../../Core/Interaction/Infrastructure/MAFeedback21Applier.h"
 #include "../Mode/Infrastructure/MAEditWidgetRuntimeAdapter.h"
 #include "Infrastructure/MAHUDBackendRuntimeAdapter.h"

@@ -8,7 +8,7 @@
 #include "../../UI/Components/MAMiniMapManager.h"
 #include "../Manager/MAAgentManager.h"
 #include "../Manager/MAEnvironmentManager.h"
-#include "../Manager/MAExternalCameraManager.h"
+#include "../Camera/Runtime/MAExternalCameraManager.h"
 #include "GameFramework/SpectatorPawn.h"
 #include "Engine/PostProcessVolume.h"
 #include "EngineUtils.h"

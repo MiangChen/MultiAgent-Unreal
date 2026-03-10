@@ -1,6 +1,6 @@
 #include "MAEditWidgetSceneGraphAdapter.h"
 
-#include "../../../Core/Manager/MASceneGraphManager.h"
+#include "../../../Core/SceneGraph/Runtime/MASceneGraphManager.h"
 #include "../../../Environment/Utils/MAGoalActor.h"
 #include "../../../Environment/Utils/MAZoneActor.h"
 #include "Kismet/GameplayStatics.h"

@@ -3,7 +3,7 @@
 #include "MAEditWidgetRuntimeAdapter.h"
 
 #include "../../HUD/MAHUD.h"
-#include "../../../Core/Manager/MAEditModeManager.h"
+#include "../../../Core/Editing/Runtime/MAEditModeManager.h"
 #include "../../../Environment/Utils/MAPointOfInterest.h"
 #include "Engine/World.h"
 

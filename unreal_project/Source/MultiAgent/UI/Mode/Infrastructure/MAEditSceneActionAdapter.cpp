@@ -1,8 +1,8 @@
 #include "MAEditSceneActionAdapter.h"
 
-#include "../../../Core/Manager/MAEditModeManager.h"
-#include "../../../Core/Manager/MASceneGraphManager.h"
-#include "../../../Core/Manager/ue_tools/MAUESceneApplier.h"
+#include "../../../Core/Editing/Runtime/MAEditModeManager.h"
+#include "../../../Core/SceneGraph/Runtime/MASceneGraphManager.h"
+#include "../../../Core/SceneGraph/Infrastructure/UE/MAUESceneApplier.h"
 #include "../../../Environment/Utils/MAGoalActor.h"
 #include "../../../Environment/Utils/MAPointOfInterest.h"
 #include "../../../Environment/Utils/MAZoneActor.h"

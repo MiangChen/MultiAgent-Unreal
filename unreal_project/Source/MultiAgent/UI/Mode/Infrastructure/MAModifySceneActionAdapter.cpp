@@ -1,7 +1,7 @@
 #include "MAModifySceneActionAdapter.h"
 
-#include "../../../Core/Manager/MASceneGraphManager.h"
-#include "../../../Core/Manager/ue_tools/MAUESceneApplier.h"
+#include "../../../Core/SceneGraph/Runtime/MASceneGraphManager.h"
+#include "../../../Core/SceneGraph/Infrastructure/UE/MAUESceneApplier.h"
 #include "Dom/JsonObject.h"
 #include "Engine/GameInstance.h"
 #include "GameFramework/Actor.h"

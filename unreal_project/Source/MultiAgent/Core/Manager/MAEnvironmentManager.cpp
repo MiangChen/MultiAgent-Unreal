@@ -2,7 +2,7 @@
 // 环境实体管理器实现
 
 #include "MAEnvironmentManager.h"
-#include "MASceneGraphManager.h"
+#include "Core/SceneGraph/Runtime/MASceneGraphManager.h"
 #include "../Config/MAConfigManager.h"
 #include "../../Environment/Entity/MAChargingStation.h"
 #include "../../Environment/Entity/MACargo.h"

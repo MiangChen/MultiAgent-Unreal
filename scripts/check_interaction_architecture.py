@@ -13,11 +13,82 @@ OLD_INCLUDE_PATTERNS = (
     "Input/Application/",
     "Input/Domain/",
     "Input/Infrastructure/",
+    "Core/Manager/MASceneGraphManager.h",
+    "Core/Manager/MASceneGraphNodeTypes.h",
+    "Core/Types/MASceneGraphTypes.h",
+    "Core/Manager/scene_graph_services/",
+    "Core/Manager/scene_graph_ports/",
+    "Core/Manager/scene_graph_adapters/",
+    "Core/Manager/scene_graph_tools/",
+    "Core/Manager/ue_tools/MAUESceneApplier.h",
+    "Core/Manager/MAPIPCameraManager.h",
+    "Core/Manager/MAExternalCameraManager.h",
+    "Core/Manager/MAViewportManager.h",
+    "Core/Manager/MAPIPViewExtension.h",
+    "Core/Types/MAPIPCameraTypes.h",
+    "Core/Manager/MAEditModeManager.h",
+    "Core/Manager/MASelectionManager.h",
 )
 
 FORBIDDEN_INFRA_FILES = (
     "Core/Interaction/Infrastructure/MAFeedbackPipeline.h",
     "Core/Interaction/Infrastructure/MAFeedbackPipeline.cpp",
+)
+
+REQUIRED_SCENEGRAPH_DIRS = (
+    "Core/SceneGraph/Application",
+    "Core/SceneGraph/Domain",
+    "Core/SceneGraph/Infrastructure",
+    "Core/SceneGraph/Runtime",
+)
+
+REQUIRED_CAMERA_DIRS = (
+    "Core/Camera/Domain",
+    "Core/Camera/Infrastructure",
+    "Core/Camera/Runtime",
+)
+
+REQUIRED_EDITING_DIRS = (
+    "Core/Editing/Runtime",
+)
+
+REQUIRED_SELECTION_DIRS = (
+    "Core/Selection/Runtime",
+)
+
+FORBIDDEN_LEGACY_SCENEGRAPH_PATHS = (
+    "Core/Manager/MASceneGraphManager.h",
+    "Core/Manager/MASceneGraphManager.cpp",
+    "Core/Manager/MASceneGraphNodeTypes.h",
+    "Core/Types/MASceneGraphTypes.h",
+    "Core/Manager/scene_graph_services",
+    "Core/Manager/scene_graph_ports",
+    "Core/Manager/scene_graph_adapters",
+    "Core/Manager/scene_graph_tools",
+    "Core/Manager/ue_tools/MAUESceneApplier.h",
+    "Core/Manager/ue_tools/MAUESceneApplier.cpp",
+)
+
+FORBIDDEN_LEGACY_CAMERA_PATHS = (
+    "Core/Manager/MAPIPCameraManager.h",
+    "Core/Manager/MAPIPCameraManager.cpp",
+    "Core/Manager/MAExternalCameraManager.h",
+    "Core/Manager/MAExternalCameraManager.cpp",
+    "Core/Manager/MAViewportManager.h",
+    "Core/Manager/MAViewportManager.cpp",
+    "Core/Manager/MAPIPViewExtension.h",
+    "Core/Manager/MAPIPViewExtension.cpp",
+    "Core/Types/MAPIPCameraTypes.h",
+)
+
+FORBIDDEN_LEGACY_EDITING_PATHS = (
+    "Core/Manager/MAEditModeManager.h",
+    "Core/Manager/MAEditModeManager.cpp",
+)
+
+FORBIDDEN_LEGACY_SELECTION_PATHS = (
+    "Core/Manager/MASelectionManager.h",
+    "Core/Manager/MASelectionManager.cpp",
 )
 
 FORBIDDEN_DEBUG_PATTERN = "AddOnScreenDebugMessage"
@@ -157,6 +228,22 @@ def main() -> int:
     if missing_feedback:
         errors.append(f"Missing feedback headers: {', '.join(missing_feedback)}")
 
+    for relative_path in REQUIRED_SCENEGRAPH_DIRS:
+        if not (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"Missing required SceneGraph context directory: {relative_path}")
+
+    for relative_path in REQUIRED_CAMERA_DIRS:
+        if not (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"Missing required Camera context directory: {relative_path}")
+
+    for relative_path in REQUIRED_EDITING_DIRS:
+        if not (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"Missing required Editing context directory: {relative_path}")
+
+    for relative_path in REQUIRED_SELECTION_DIRS:
+        if not (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"Missing required Selection context directory: {relative_path}")
+
     for path in source_files:
         text = path.read_text(encoding="utf-8", errors="ignore")
         relative = rel(path)
@@ -214,6 +301,22 @@ def main() -> int:
     for relative_path in FORBIDDEN_INFRA_FILES:
         if (SOURCE_ROOT / relative_path).exists():
             errors.append(f"{relative_path} should not live in Infrastructure; move pure feedback translation into Feedback/")
+
+    for relative_path in FORBIDDEN_LEGACY_SCENEGRAPH_PATHS:
+        if (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"{relative_path} should not exist after SceneGraph extraction")
+
+    for relative_path in FORBIDDEN_LEGACY_CAMERA_PATHS:
+        if (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"{relative_path} should not exist after Camera extraction")
+
+    for relative_path in FORBIDDEN_LEGACY_EDITING_PATHS:
+        if (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"{relative_path} should not exist after Editing extraction")
+
+    for relative_path in FORBIDDEN_LEGACY_SELECTION_PATHS:
+        if (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"{relative_path} should not exist after Selection extraction")
 
     if errors:
         print("Interaction architecture guard failed:")

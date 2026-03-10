@@ -17,8 +17,8 @@
 #include "Framework/Application/SlateApplication.h"
 #include "../Core/MARoundedBorderUtils.h"
 #include "../Core/MAUITheme.h"
-#include "../../Core/Manager/MAEditModeManager.h"
-#include "../../Core/Manager/MASceneGraphManager.h"
+#include "../../Core/Editing/Runtime/MAEditModeManager.h"
+#include "../../Core/SceneGraph/Runtime/MASceneGraphManager.h"
 #include "Kismet/GameplayStatics.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMASceneListWidget, Log, All);

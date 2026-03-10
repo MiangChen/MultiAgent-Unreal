@@ -10,7 +10,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "../../../Core/Types/MASceneGraphTypes.h"
+#include "../../../Core/SceneGraph/Domain/MASceneGraphTypes.h"
 #include "../../../Environment/IMAEnvironmentObject.h"
 
 class AActor;

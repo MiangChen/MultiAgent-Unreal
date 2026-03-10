@@ -25,7 +25,6 @@ FILE_MAPPING = {
     "Manager": [
         "MAAgentManager.h", "MAAgentManager.cpp",
         "MACommandManager.h", "MACommandManager.cpp",
-        "MASelectionManager.h", "MASelectionManager.cpp",
         "MASquadManager.h", "MASquadManager.cpp",
         "MAViewportManager.h", "MAViewportManager.cpp",
     ],

@@ -4,7 +4,7 @@
 #include "MACommandManager.h"
 #include "MAAgentManager.h"
 #include "MATempDataManager.h"
-#include "MASceneGraphManager.h"
+#include "Core/SceneGraph/Runtime/MASceneGraphManager.h"
 #include "../Config/MAConfigManager.h"
 #include "../Comm/MACommSubsystem.h"
 #include "../Comm/MACommTypes.h"

@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "MASceneSelectionDisplay.h"
 #include "../MAModifyTypes.h"
-#include "../../../Core/Manager/MASceneGraphNodeTypes.h"
+#include "../../../Core/SceneGraph/Domain/MASceneGraphNodeTypes.h"
 
 enum class EMAModifyPreviewTone : uint8
 {

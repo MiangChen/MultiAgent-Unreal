@@ -8,8 +8,8 @@
 #include "../../Character/MAUAVCharacter.h"
 #include "../../Component/MANavigationService.h"
 #include "../../../Core/Config/MAConfigManager.h"
-#include "../../../Core/Manager/MAPIPCameraManager.h"
-#include "../../../Core/Types/MAPIPCameraTypes.h"
+#include "../../../Core/Camera/Runtime/MAPIPCameraManager.h"
+#include "../../../Core/Camera/Domain/MAPIPCameraTypes.h"
 #include "TimerManager.h"
 
 USK_TakePhoto::USK_TakePhoto()

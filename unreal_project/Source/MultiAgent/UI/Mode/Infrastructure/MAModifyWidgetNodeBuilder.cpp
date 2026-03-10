@@ -1,6 +1,6 @@
 #include "MAModifyWidgetNodeBuilder.h"
 
-#include "../../../Core/Manager/MASceneGraphManager.h"
+#include "../../../Core/SceneGraph/Runtime/MASceneGraphManager.h"
 #include "../../../Utils/MAGeometryUtils.h"
 #include "Dom/JsonObject.h"
 #include "Engine/GameInstance.h"

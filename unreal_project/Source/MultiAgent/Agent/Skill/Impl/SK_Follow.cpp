@@ -9,8 +9,8 @@
 #include "../../Component/MANavigationService.h"
 #include "../../../Core/Types/MATypes.h"
 #include "../../../Core/Config/MAConfigManager.h"
-#include "../../../Core/Manager/MAPIPCameraManager.h"
-#include "../../../Core/Types/MAPIPCameraTypes.h"
+#include "../../../Core/Camera/Runtime/MAPIPCameraManager.h"
+#include "../../../Core/Camera/Domain/MAPIPCameraTypes.h"
 #include "AIController.h"
 #include "TimerManager.h"
 

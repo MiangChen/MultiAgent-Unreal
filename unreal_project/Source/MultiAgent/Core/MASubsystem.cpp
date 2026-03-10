@@ -3,10 +3,10 @@
 #include "MASubsystem.h"
 #include "Manager/MAAgentManager.h"
 #include "Manager/MACommandManager.h"
-#include "Manager/MASelectionManager.h"
+#include "Selection/Runtime/MASelectionManager.h"
 #include "Manager/MASquadManager.h"
-#include "Manager/MAViewportManager.h"
-#include "Manager/MAEditModeManager.h"
+#include "Camera/Runtime/MAViewportManager.h"
+#include "Editing/Runtime/MAEditModeManager.h"
 #include "Engine/World.h"
 
 FMASubsystem FMASubsystem::Get(UWorld* World)

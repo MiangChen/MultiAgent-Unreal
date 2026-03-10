@@ -6,9 +6,9 @@
 #include "../Utils/MASkillGeometryUtils.h"
 #include "../../Character/MACharacter.h"
 #include "../../Component/MANavigationService.h"
-#include "../../../Core/Manager/MASceneGraphManager.h"
-#include "../../../Core/Manager/MAPIPCameraManager.h"
-#include "../../../Core/Types/MAPIPCameraTypes.h"
+#include "../../../Core/SceneGraph/Runtime/MASceneGraphManager.h"
+#include "../../../Core/Camera/Runtime/MAPIPCameraManager.h"
+#include "../../../Core/Camera/Domain/MAPIPCameraTypes.h"
 #include "TimerManager.h"
 
 USK_Search::USK_Search()

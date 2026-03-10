@@ -52,16 +52,21 @@ flowchart LR
 | 层级 | 当前 folder 映射 |
 |---|---|
 | `L1` | `Input/`、`UI/` |
-| `L2` | `Core/Interaction/Application/`、`UI/HUD/Application/`、`UI/Mode/Application/` |
-| `L3` | `Core/Interaction/Domain/`、`Core/Interaction/Feedback/`、`UI/HUD/Domain/`、`UI/Mode/Domain/` |
-| `L4` | `Core/Interaction/Infrastructure/`、`UI/HUD/Infrastructure/`、`UI/Mode/Infrastructure/` |
-| `L5` | `Core/Manager/`、`Agent/`、`Environment/`、`Core/Comm/` |
+| `L2` | `Core/Interaction/Application/`、`Core/SceneGraph/Application/`、`UI/HUD/Application/`、`UI/Mode/Application/` |
+| `L3` | `Core/Interaction/Domain/`、`Core/Interaction/Feedback/`、`Core/SceneGraph/Domain/`、`Core/Camera/Domain/`、`UI/HUD/Domain/`、`UI/Mode/Domain/` |
+| `L4` | `Core/Interaction/Infrastructure/`、`Core/SceneGraph/Infrastructure/`、`Core/Camera/Infrastructure/`、`UI/HUD/Infrastructure/`、`UI/Mode/Infrastructure/` |
+| `L5` | `Core/SceneGraph/Runtime/`、`Core/Camera/Runtime/`、`Core/Editing/Runtime/`、`Core/Selection/Runtime/`、`Core/Manager/`、`Agent/`、`Environment/`、`Core/Comm/` |
 | `CR` | `Core/Interaction/Bootstrap/` |
 
 补充：
 - `Core/Interaction/Feedback/` 现在同时承载 feedback 合同类型和纯 feedback 翻译逻辑，例如 `MAFeedbackPipeline`。
 - `Core/Interaction/Infrastructure/` 应只保留真正触达 Unreal runtime / HUD / Manager 的 adapter 与 applier。
 - `Core/Interaction/Application/` 不再直接 include `Infrastructure`；运行时访问统一经由 `PlayerController / Bootstrap` 的桥接入口转发。
+- `Core/SceneGraph/` 现在是独立上下文，不再继续把 SceneGraph 类型、服务、工具和 UE 同步逻辑塞回 `Core/Manager/`。
+- `Core/Camera/` 现在承载 `PIP / ExternalCamera / Viewport` 这一组相机能力；`MAPIPCameraTypes` 也已从 `Core/Types/` 迁入 `Core/Camera/Domain/`。
+- `Core/Editing/` 目前已先把 `MAEditModeManager` 抽到 `Runtime/`，用于承接 UI 编辑流程与 SceneGraph 之间的运行时桥接。
+- `Core/Selection/` 目前已先把 `MASelectionManager` 抽到 `Runtime/`，用于承接框选、编组和选中态运行时同步。
+- `Core/Camera/` 当前主要落在 `Domain / Infrastructure / Runtime`；后续如果出现更明确的相机 workflow，再补 `Application / Feedback / Bootstrap`。
 
 ## 2. Folder 图（当前实现）
 
@@ -88,6 +93,7 @@ flowchart TB
 
     subgraph L2["L2 Application"]
         INTAPP["Core/Interaction/Application/"]
+        SGAPP["Core/SceneGraph/Application/"]
         HUDAPP["UI/HUD/Application/"]
         MODEAPP["UI/Mode/Application/"]
     end
@@ -95,17 +101,25 @@ flowchart TB
     subgraph L3["L3 Domain / Feedback"]
         INTDOMAIN["Core/Interaction/Domain/"]
         FEEDBACK["Core/Interaction/Feedback/"]
+        SGDOMAIN["Core/SceneGraph/Domain/"]
+        CAMDOMAIN["Core/Camera/Domain/"]
         HUDDOMAIN["UI/HUD/Domain/"]
         MODEDOMAIN["UI/Mode/Domain/"]
     end
 
     subgraph L4["L4 Infrastructure"]
         INTINFRA["Core/Interaction/Infrastructure/"]
+        SGINFRA["Core/SceneGraph/Infrastructure/"]
+        CAMINFRA["Core/Camera/Infrastructure/"]
         HUDINFRA["UI/HUD/Infrastructure/"]
         MODEINFRA["UI/Mode/Infrastructure/"]
     end
 
     subgraph L5["L5 Plant / Runtime"]
+        SGRUNTIME["Core/SceneGraph/Runtime/"]
+        CAMRUNTIME["Core/Camera/Runtime/"]
+        EDITRUNTIME["Core/Editing/Runtime/"]
+        SELECTIONRUNTIME["Core/Selection/Runtime/"]
         MANAGER["Core/Manager/"]
         AGENT["Agent/"]
         ENV["Environment/"]
@@ -122,14 +136,27 @@ flowchart TB
     UICORE --> UIMODE
     UIHUD --> HUDAPP
     UIMODE --> MODEAPP
+    INTAPP --> SGAPP
+    HUDAPP --> SGAPP
+    MODEAPP --> SGAPP
 
     INTAPP --> INTDOMAIN
     INTAPP --> FEEDBACK
+    SGAPP --> SGDOMAIN
     HUDAPP --> HUDDOMAIN
     HUDAPP --> MODEAPP
     HUDAPP --> FEEDBACK
 
     MODEAPP --> MODEDOMAIN
+
+    SGINFRA --> SGRUNTIME
+    SGRUNTIME --> MANAGER
+
+    CAMINFRA --> CAMRUNTIME
+    CAMRUNTIME --> MANAGER
+
+    EDITRUNTIME --> MANAGER
+    SELECTIONRUNTIME --> MANAGER
 
     INTINFRA --> MANAGER
     INTINFRA --> AGENT

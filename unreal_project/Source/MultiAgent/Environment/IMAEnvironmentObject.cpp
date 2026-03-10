@@ -2,7 +2,7 @@
 // 环境对象接口默认实现
 
 #include "IMAEnvironmentObject.h"
-#include "../Core/Types/MASceneGraphTypes.h"
+#include "../Core/SceneGraph/Domain/MASceneGraphTypes.h"
 
 FString IMAEnvironmentObject::GetFeature(const FString& Key, const FString& DefaultValue) const
 {

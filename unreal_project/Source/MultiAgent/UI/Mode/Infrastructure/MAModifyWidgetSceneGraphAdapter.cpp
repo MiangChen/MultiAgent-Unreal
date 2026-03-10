@@ -1,6 +1,6 @@
 #include "MAModifyWidgetSceneGraphAdapter.h"
 
-#include "../../../Core/Manager/MASceneGraphManager.h"
+#include "../../../Core/SceneGraph/Runtime/MASceneGraphManager.h"
 #include "Dom/JsonObject.h"
 #include "Engine/GameInstance.h"
 #include "GameFramework/Actor.h"

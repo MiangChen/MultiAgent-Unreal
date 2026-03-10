@@ -3,7 +3,7 @@
 
 #include "MACommHttpServer.h"
 #include "MACommSubsystem.h"
-#include "../Manager/MASceneGraphManager.h"
+#include "Core/SceneGraph/Runtime/MASceneGraphManager.h"
 #include "HttpServerModule.h"
 #include "IHttpRouter.h"
 #include "HttpPath.h"
