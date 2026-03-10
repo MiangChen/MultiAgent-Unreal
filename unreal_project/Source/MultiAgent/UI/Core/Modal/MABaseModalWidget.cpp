@@ -2,10 +2,10 @@
 // 基础模态窗口抽象类实现
 
 #include "MABaseModalWidget.h"
-#include "../Components/MAStyledButton.h"
-#include "../Core/MAUITheme.h"
-#include "../Core/MARoundedBorderUtils.h"
-#include "../Core/MAFrostedGlassUtils.h"
+#include "../../Components/MAStyledButton.h"
+#include "../MAUITheme.h"
+#include "../MARoundedBorderUtils.h"
+#include "../MAFrostedGlassUtils.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/Border.h"

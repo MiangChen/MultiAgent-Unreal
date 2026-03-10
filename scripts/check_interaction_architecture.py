@@ -13,6 +13,7 @@ OLD_INCLUDE_PATTERNS = (
     "Input/Application/",
     "Input/Domain/",
     "Input/Infrastructure/",
+    "UI/Mode/",
     "Core/Manager/MASceneGraphManager.h",
     "Core/Manager/MASceneGraphNodeTypes.h",
     "Core/Types/MASceneGraphTypes.h",
@@ -36,9 +37,13 @@ OLD_INCLUDE_PATTERNS = (
     "Core/MASquad.h",
     "Core/Types/MATypes.h",
     "Core/Types/MATaskGraphTypes.h",
+    "Core/TaskGraph/Bootstrap/MATaskGraphBootstrap.h",
+    "Core/TaskGraph/Bootstrap/MATaskGraphBootstrap.cpp",
     "Core/Types/MASimTypes.h",
     "Core/Shared/Types/MATaskGraphTypes.h",
     "Core/Shared/Types/MATaskGraphTypes.cpp",
+    "Core/SkillAllocation/Bootstrap/MASkillAllocationBootstrap.h",
+    "Core/SkillAllocation/Bootstrap/MASkillAllocationBootstrap.cpp",
     "Core/Comm/MACommSubsystem.h",
     "Core/Comm/MACommInbound.h",
     "Core/Comm/MACommOutbound.h",
@@ -47,6 +52,7 @@ OLD_INCLUDE_PATTERNS = (
     "Core/GameFlow/MAGameMode.h",
     "Core/GameFlow/MAGameInstance.h",
     "Core/GameFlow/MASetupGameMode.h",
+    "UI/Modal/",
 )
 
 FORBIDDEN_INFRA_FILES = (
@@ -108,7 +114,6 @@ REQUIRED_SHARED_DIRS = (
 
 REQUIRED_TASKGRAPH_DIRS = (
     "Core/TaskGraph/Application",
-    "Core/TaskGraph/Bootstrap",
     "Core/TaskGraph/Domain",
     "Core/TaskGraph/Feedback",
     "Core/TaskGraph/Infrastructure",
@@ -139,14 +144,13 @@ REQUIRED_UI_SETUP_DIRS = (
     "UI/Setup/Infrastructure",
 )
 
-REQUIRED_UI_MODAL_DIRS = (
-    "UI/Modal/Application",
-    "UI/Modal/Domain",
+REQUIRED_UI_CORE_MODAL_DIRS = (
+    "UI/Core/Modal/Application",
+    "UI/Core/Modal/Domain",
 )
 
 REQUIRED_SKILL_ALLOCATION_DIRS = (
     "Core/SkillAllocation/Application",
-    "Core/SkillAllocation/Bootstrap",
     "Core/SkillAllocation/Domain",
     "Core/SkillAllocation/Feedback",
     "Core/SkillAllocation/Infrastructure",
@@ -246,6 +250,14 @@ FORBIDDEN_LEGACY_SHARED_TYPE_PATHS = (
     "Core/TaskGraph/Infrastructure/MATaskGraphTypes.cpp",
 )
 
+FORBIDDEN_LEGACY_UI_MODAL_PATHS = (
+    "UI/Modal",
+)
+
+FORBIDDEN_LEGACY_UI_SCENE_EDITING_PATHS = (
+    "UI/Mode",
+)
+
 FORBIDDEN_LEGACY_COMM_PATHS = (
     "Core/Comm/MACommSubsystem.h",
     "Core/Comm/MACommSubsystem.cpp",
@@ -309,7 +321,7 @@ APPLICATION_RUNTIME_CALL_GUARDS = {
         "GetGameInstance(",
         "GetSubsystem<",
     ),
-    "UI/Mode/Application/": (
+    "UI/SceneEditing/Application/": (
         "GetWorld(",
         "GetGameInstance(",
         "GetSubsystem<",
@@ -326,7 +338,7 @@ APPLICATION_RUNTIME_CALL_GUARDS = {
         "OpenLevel(",
         "SetInputMode(",
     ),
-    "UI/Modal/Application/": (
+    "UI/Core/Modal/Application/": (
         "GetWorld(",
         "GetGameInstance(",
         "GetSubsystem<",
@@ -346,7 +358,7 @@ APPLICATION_RUNTIME_INCLUDE_GUARDS = {
     "UI/HUD/Application/": (
         '#include "../Infrastructure/',
     ),
-    "UI/Mode/Application/": (
+    "UI/SceneEditing/Application/": (
         '#include "../Infrastructure/',
     ),
     "UI/Core/Application/": (
@@ -361,7 +373,7 @@ APPLICATION_RUNTIME_INCLUDE_GUARDS = {
         '#include "../../../Core/GameFlow/Bootstrap/',
         '#include "Kismet/GameplayStatics.h"',
     ),
-    "UI/Modal/Application/": (
+    "UI/Core/Modal/Application/": (
         '#include "../Infrastructure/',
     ),
 }
@@ -386,7 +398,7 @@ DOMAIN_RUNTIME_TOKEN_GUARDS = {
         "UMASquadManager",
         "UMAEditModeManager",
     ),
-    "UI/Mode/Domain/": (
+    "UI/SceneEditing/Domain/": (
         "UWorld",
         "AActor",
         "UObject",
@@ -428,7 +440,7 @@ DOMAIN_RUNTIME_TOKEN_GUARDS = {
         "APlayerController",
         "UMAConfigManager",
     ),
-    "UI/Modal/Domain/": (
+    "UI/Core/Modal/Domain/": (
         "UWorld",
         "AActor",
         "UObject",
@@ -454,6 +466,7 @@ LEGACY_STATE_GUARDS = {
 TASKGRAPH_UI_RUNTIME_INCLUDE_GUARDS = (
     '#include "Core/Comm/Runtime/',
     '#include "Core/TempData/Runtime/',
+    '#include "Core/TaskGraph/Bootstrap/',
     '#include "UI/Core/MAUIManager.h"',
     '#include "UI/HUD/MAHUD.h"',
 )
@@ -467,6 +480,7 @@ TASKGRAPH_UI_RUNTIME_CALL_GUARDS = (
 SKILLALLOCATION_UI_RUNTIME_INCLUDE_GUARDS = (
     '#include "Core/Comm/Runtime/',
     '#include "Core/TempData/Runtime/',
+    '#include "Core/SkillAllocation/Bootstrap/',
     '#include "UI/Core/MAUIManager.h"',
     '#include "UI/HUD/MAHUD.h"',
 )
@@ -551,10 +565,10 @@ SETUP_RUNTIME_CALL_GUARDS = (
 )
 
 MODE_RUNTIME_WIDGET_SCOPE = {
-    "UI/Mode/MAModifyWidget.h",
-    "UI/Mode/MAModifyWidget.cpp",
-    "UI/Mode/MASceneListWidget.h",
-    "UI/Mode/MASceneListWidget.cpp",
+    "UI/SceneEditing/MAModifyWidget.h",
+    "UI/SceneEditing/MAModifyWidget.cpp",
+    "UI/SceneEditing/MASceneListWidget.h",
+    "UI/SceneEditing/MASceneListWidget.cpp",
 }
 
 MODE_RUNTIME_INCLUDE_GUARDS = (
@@ -571,10 +585,10 @@ MODE_RUNTIME_CALL_GUARDS = (
 )
 
 MODAL_RUNTIME_WIDGET_SCOPE = {
-    "UI/Modal/MABaseModalWidget.h",
-    "UI/Modal/MABaseModalWidget.cpp",
-    "UI/Modal/MASkillAllocationModal.h",
-    "UI/Modal/MASkillAllocationModal.cpp",
+    "UI/Core/Modal/MABaseModalWidget.h",
+    "UI/Core/Modal/MABaseModalWidget.cpp",
+    "UI/Core/Modal/MADecisionModal.h",
+    "UI/Core/Modal/MADecisionModal.cpp",
 }
 
 MODAL_RUNTIME_INCLUDE_GUARDS = (
@@ -687,9 +701,9 @@ def main() -> int:
         if not (SOURCE_ROOT / relative_path).exists():
             errors.append(f"Missing required UI Setup directory: {relative_path}")
 
-    for relative_path in REQUIRED_UI_MODAL_DIRS:
+    for relative_path in REQUIRED_UI_CORE_MODAL_DIRS:
         if not (SOURCE_ROOT / relative_path).exists():
-            errors.append(f"Missing required UI Modal directory: {relative_path}")
+            errors.append(f"Missing required UI Core Modal directory: {relative_path}")
 
     for relative_path in REQUIRED_SKILL_ALLOCATION_DIRS:
         if not (SOURCE_ROOT / relative_path).exists():
@@ -828,20 +842,20 @@ def main() -> int:
         if relative in MODE_RUNTIME_WIDGET_SCOPE:
             for pattern in MODE_RUNTIME_INCLUDE_GUARDS:
                 if pattern in text:
-                    errors.append(f"{relative}: runtime include '{pattern}' should stay in UI/Mode/Infrastructure")
+                    errors.append(f"{relative}: runtime include '{pattern}' should stay in UI/SceneEditing/Infrastructure")
 
             for pattern in MODE_RUNTIME_CALL_GUARDS:
                 if pattern in text:
-                    errors.append(f"{relative}: runtime call '{pattern}' should stay in UI/Mode/Infrastructure")
+                    errors.append(f"{relative}: runtime call '{pattern}' should stay in UI/SceneEditing/Infrastructure")
 
         if relative in MODAL_RUNTIME_WIDGET_SCOPE:
             for pattern in MODAL_RUNTIME_INCLUDE_GUARDS:
                 if pattern in text:
-                    errors.append(f"{relative}: runtime include '{pattern}' should stay out of UI/Modal widget shell")
+                    errors.append(f"{relative}: runtime include '{pattern}' should stay out of UI/Core/Modal widget shell")
 
             for pattern in MODAL_RUNTIME_CALL_GUARDS:
                 if pattern in text:
-                    errors.append(f"{relative}: runtime call '{pattern}' should stay out of UI/Modal widget shell")
+                    errors.append(f"{relative}: runtime call '{pattern}' should stay out of UI/Core/Modal widget shell")
 
         if relative == "UI/HUD/MASelectionHUD.cpp":
             for pattern in SELECTIONHUD_RUNTIME_INCLUDE_GUARDS:
@@ -912,6 +926,14 @@ def main() -> int:
     for relative_path in FORBIDDEN_LEGACY_SHARED_TYPE_PATHS:
         if (SOURCE_ROOT / relative_path).exists():
             errors.append(f"{relative_path} should not exist after Shared types extraction")
+
+    for relative_path in FORBIDDEN_LEGACY_UI_MODAL_PATHS:
+        if (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"{relative_path} should not exist after modal merge into UI/Core and owner contexts")
+
+    for relative_path in FORBIDDEN_LEGACY_UI_SCENE_EDITING_PATHS:
+        if (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"{relative_path} should not exist after SceneEditing rename")
 
     for relative_path in FORBIDDEN_LEGACY_COMM_PATHS:
         if (SOURCE_ROOT / relative_path).exists():

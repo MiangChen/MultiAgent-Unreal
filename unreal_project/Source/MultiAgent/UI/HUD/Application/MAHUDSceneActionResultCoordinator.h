@@ -2,8 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "../../../Core/Interaction/Feedback/MAFeedback21.h"
-#include "../../Mode/Application/MAModifyWidgetStateCoordinator.h"
-#include "../../Mode/Domain/MASceneActionResult.h"
+#include "../../SceneEditing/Application/MAModifyWidgetStateCoordinator.h"
+#include "../../SceneEditing/Domain/MASceneActionResult.h"
 
 class AActor;
 class AMAHUD;

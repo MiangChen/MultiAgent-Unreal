@@ -7,9 +7,6 @@
 
 namespace
 {
-const FString ModifyDefaultHintText = TEXT("Input format: cate:building/trans_facility/prop,type:xxx\n• building: Buildings (prism modeling, single-select only)\n• trans_facility: Transport facilities (OBB rectangle)\n• prop: Props (point modeling)");
-const FString ModifyMultiSelectHintText = TEXT("Multi-select mode - Input format: cate:trans_facility/prop,type:xxx\nNote: building type only supports single-select");
-
 UWorld* ResolveWorld(const UUserWidget* Context)
 {
     return Context ? Context->GetWorld() : nullptr;

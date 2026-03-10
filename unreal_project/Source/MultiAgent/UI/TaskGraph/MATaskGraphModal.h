@@ -5,7 +5,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MABaseModalWidget.h"
+#include "../Core/Modal/MABaseModalWidget.h"
 #include "Core/TaskGraph/Domain/MATaskGraphTypes.h"
 #include "MATaskGraphModal.generated.h"
 

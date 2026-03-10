@@ -3,7 +3,7 @@
 #include "MAHUDOverlayCoordinator.h"
 #include "../MAHUD.h"
 #include "../../Core/MAUIManager.h"
-#include "../../Mode/MAEditWidget.h"
+#include "../../SceneEditing/MAEditWidget.h"
 #include "../../../Input/MAPlayerController.h"
 #include "../MAHUDWidget.h"
 

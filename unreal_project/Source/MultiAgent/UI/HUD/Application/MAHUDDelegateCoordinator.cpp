@@ -5,8 +5,8 @@
 #include "../MAHUD.h"
 #include "../../Core/MAUIManager.h"
 #include "../../Components/MAInstructionPanel.h"
-#include "../../Mode/MAModifyWidget.h"
-#include "../../Mode/MASceneListWidget.h"
+#include "../../SceneEditing/MAModifyWidget.h"
+#include "../../SceneEditing/MASceneListWidget.h"
 #include "../../TaskGraph/MATaskPlannerWidget.h"
 #include "../../../Input/MAPlayerController.h"
 

@@ -2,9 +2,9 @@
 // HITL 决策模态窗口实现
 
 #include "MADecisionModal.h"
-#include "../Core/MAUITheme.h"
-#include "../Core/MARoundedBorderUtils.h"
-#include "../Components/MAStyledButton.h"
+#include "../MAUITheme.h"
+#include "../MARoundedBorderUtils.h"
+#include "../../Components/MAStyledButton.h"
 #include "Components/Border.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"

@@ -2,6 +2,16 @@
 
 #include "Core/SkillAllocation/Infrastructure/MASkillAllocationJsonCodec.h"
 
+FMASkillAllocationData FMASkillAllocationUseCases::BuildEmptyData(
+    const FString& Name,
+    const FString& Description)
+{
+    FMASkillAllocationData Data;
+    Data.Name = Name;
+    Data.Description = Description;
+    return Data;
+}
+
 FMASkillAllocationParseFeedback FMASkillAllocationUseCases::ParseJson(const FString& JsonString)
 {
     FMASkillAllocationParseFeedback Feedback;

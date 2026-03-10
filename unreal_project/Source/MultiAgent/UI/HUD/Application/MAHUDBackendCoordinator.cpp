@@ -6,8 +6,8 @@
 #include "../../Core/MAUIManager.h"
 #include "../../Core/MAHUDStateManager.h"
 #include "../../TaskGraph/MATaskPlannerWidget.h"
-#include "../../Modal/MATaskGraphModal.h"
-#include "../../Modal/MASkillAllocationModal.h"
+#include "../../TaskGraph/MATaskGraphModal.h"
+#include "../../SkillAllocation/MASkillAllocationModal.h"
 #include "../../../Core/SkillAllocation/Application/MASkillAllocationUseCases.h"
 #include "../../../Core/Shared/Types/MASimTypes.h"
 

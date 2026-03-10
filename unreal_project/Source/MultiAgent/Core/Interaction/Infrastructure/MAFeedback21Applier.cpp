@@ -6,7 +6,7 @@
 #include "../../../UI/Core/MAUIManager.h"
 #include "../../../UI/Core/MAHUDStateManager.h"
 #include "../../../UI/Core/MAHUDTypes.h"
-#include "../../../UI/Mode/MASceneListWidget.h"
+#include "../../../UI/SceneEditing/MASceneListWidget.h"
 #include "../../../UI/TaskGraph/MATaskPlannerWidget.h"
 #include "Engine/Engine.h"
 #include "GameFramework/PlayerController.h"

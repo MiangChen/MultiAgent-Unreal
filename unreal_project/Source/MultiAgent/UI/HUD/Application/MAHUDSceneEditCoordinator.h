@@ -6,7 +6,7 @@
 #include "CoreMinimal.h"
 #include "MAHUDSceneActionResultCoordinator.h"
 #include "MAHUDSceneListSelectionCoordinator.h"
-#include "../../Mode/Application/MAEditWidgetActionRequest.h"
+#include "../../SceneEditing/Application/MAEditWidgetActionRequest.h"
 
 class AActor;
 class AMAHUD;

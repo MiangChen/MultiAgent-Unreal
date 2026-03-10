@@ -5,7 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "MAHUDEditModeIndicatorBuilder.h"
-#include "../../Mode/Application/MAEditWidgetCoordinator.h"
+#include "../../SceneEditing/Application/MAEditWidgetCoordinator.h"
 
 class AMAHUD;
 class UMAEditWidget;

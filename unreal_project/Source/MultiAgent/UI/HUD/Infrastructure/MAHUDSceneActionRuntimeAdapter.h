@@ -1,9 +1,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "../../Mode/Domain/MASceneActionResult.h"
-#include "../../Mode/Infrastructure/MAEditSceneActionAdapter.h"
-#include "../../Mode/Infrastructure/MAModifySceneActionAdapter.h"
+#include "../../SceneEditing/Domain/MASceneActionResult.h"
+#include "../../SceneEditing/Infrastructure/MAEditSceneActionAdapter.h"
+#include "../../SceneEditing/Infrastructure/MAModifySceneActionAdapter.h"
 
 class AActor;
 class AMAHUD;

@@ -7,6 +7,9 @@
 
 struct MULTIAGENT_API FMASkillAllocationUseCases
 {
+    static FMASkillAllocationData BuildEmptyData(
+        const FString& Name = TEXT("Skill Allocation"),
+        const FString& Description = TEXT(""));
     static FMASkillAllocationParseFeedback ParseJson(const FString& JsonString);
     static bool ParseJson(const FString& JsonString, FMASkillAllocationData& OutData, FString& OutError);
     static FString SerializeJson(const FMASkillAllocationData& Data);

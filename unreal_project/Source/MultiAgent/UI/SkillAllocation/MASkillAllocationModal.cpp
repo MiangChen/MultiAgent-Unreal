@@ -4,10 +4,9 @@
 #include "MASkillAllocationModal.h"
 #include "../Core/MAUITheme.h"
 #include "../Core/MARoundedBorderUtils.h"
-#include "../SkillAllocation/MAGanttCanvas.h"
-#include "../SkillAllocation/MASkillAllocationModel.h"
+#include "MAGanttCanvas.h"
+#include "MASkillAllocationModel.h"
 #include "../../Core/SkillAllocation/Application/MASkillAllocationUseCases.h"
-#include "../../Core/SkillAllocation/Bootstrap/MASkillAllocationBootstrap.h"
 #include "Components/CanvasPanel.h"
 #include "Components/Border.h"
 #include "Components/TextBlock.h"
@@ -241,7 +240,7 @@ FMASkillAllocationData UMASkillAllocationModal::GetSkillAllocationData() const
     {
         return AllocationModel->GetWorkingData();
     }
-    return FMASkillAllocationBootstrap::BuildEmptyData();
+    return FMASkillAllocationUseCases::BuildEmptyData();
 }
 
 //=============================================================================

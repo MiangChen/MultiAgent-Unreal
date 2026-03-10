@@ -2,9 +2,9 @@
 
 #include "MAGanttDragStateMachine.h"
 
-#include "MAGanttGridLayout.h"
-#include "MAGanttPainter.h"
-#include "MAGanttRenderSnapshot.h"
+#include "../../Infrastructure/Gantt/MAGanttGridLayout.h"
+#include "../../Infrastructure/Gantt/MAGanttPainter.h"
+#include "../../Domain/Gantt/MAGanttRenderSnapshot.h"
 
 namespace
 {

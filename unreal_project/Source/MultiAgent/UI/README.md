@@ -18,19 +18,14 @@ UI/
 │   ├── MAUIManager           # Widget 管理器 (生命周期 + 可见性)
 │   ├── MAUITheme             # 主题系统 (颜色、字体、动画)
 │   ├── MAHUDTypes.h          # 类型定义 (状态枚举、通知类型)
-│   └── MAHUDStateManager     # HUD 状态机管理器
+│   ├── MAHUDStateManager     # HUD 状态机管理器
+│   └── Modal/                # 共享模态机制 (BaseModal + DecisionModal)
 │
 ├── HUD/                      # HUD 层 (Canvas 绘制)
 │   ├── MAHUD                 # 主 HUD 管理器
 │   ├── MASelectionHUD        # 框选绘制基类
 │   ├── MAHUDWidget           # HUD Widget
 │   └── MAMainHUDWidget       # 主 HUD Widget (集成小地图、通知、侧边栏)
-│
-├── Modal/                    # 模态窗口
-│   ├── MABaseModalWidget     # 模态基类 (淡入淡出动画、按钮布局)
-│   ├── MATaskGraphModal      # 任务图模态 (详细可视化 + 编辑)
-│   ├── MASkillAllocationModal      # 技能列表模态 (甘特图 + 编辑)
-│   └── MAEmergencyModal      # 紧急事件模态 (事件详情 + 干预)
 │
 ├── Components/               # 可复用组件
 │   ├── MAStyledButton        # 样式化按钮 (主题支持 + 微交互)
@@ -48,12 +43,14 @@ UI/
 │   ├── MADAGCanvasWidget     # DAG 画布 (节点拖拽/连线)
 │   ├── MATaskNodeWidget      # 任务节点 Widget
 │   ├── MANodePaletteWidget   # 节点工具栏
-│   └── MATaskPlannerWidget   # 任务规划工作台 (主容器)
+│   ├── MATaskPlannerWidget   # 任务规划工作台 (主容器)
+│   └── MATaskGraphModal      # 任务图模态 (归属 TaskGraph context)
 │
 ├── SkillAllocation/                # 技能分配系统 (Model + Canvas)
 │   ├── MASkillAllocationModel  # 技能分配数据模型
 │   ├── MAGanttCanvas           # 甘特图画布
-│   └── MASkillAllocationViewer # 技能分配查看器 (主容器)
+│   ├── MASkillAllocationViewer # 技能分配查看器 (主容器)
+│   └── MASkillAllocationModal  # 技能分配模态 (归属 SkillAllocation context)
 │
 ├── Mode/                     # 模式相关 Widget
 │   ├── MAModifyWidget        # Modify 模式面板 (场景标注)
@@ -149,7 +146,7 @@ UI/
 2. **事件协调** - 绑定 PlayerController、Manager 委托
 3. **Widget 控制** - 通过 UIManager 代理
 
-### Modal/MABaseModalWidget
+### Core/Modal/MABaseModalWidget
 
 **职责**:
 1. **统一布局** - 标题、内容区、按钮容器

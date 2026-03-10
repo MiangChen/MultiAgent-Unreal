@@ -1,7 +1,6 @@
 #include "MATaskPlannerCoordinator.h"
 #include "UI/TaskGraph/MATaskGraphModel.h"
 #include "Core/TaskGraph/Application/MATaskGraphUseCases.h"
-#include "Core/TaskGraph/Bootstrap/MATaskGraphBootstrap.h"
 
 namespace
 {
@@ -71,8 +70,7 @@ FMATaskPlannerActionResult FMATaskPlannerCoordinator::LoadMockData(UMATaskGraphM
         return MakeFailedResult(TEXT("[Error] Task graph model not initialized"));
     }
 
-    const FString FilePath = FTaskGraphBootstrap::GetMockResponseExamplePath(ProjectDir);
-    const FTaskGraphLoadResult LoadResult = FTaskGraphUseCases::LoadResponseExampleFile(FilePath);
+    const FTaskGraphLoadResult LoadResult = FTaskGraphUseCases::LoadResponseExample(ProjectDir);
     if (!LoadResult.bSuccess)
     {
         return MakeFailedResult(FString::Printf(TEXT("[Error] %s"), *LoadResult.Feedback.Message));

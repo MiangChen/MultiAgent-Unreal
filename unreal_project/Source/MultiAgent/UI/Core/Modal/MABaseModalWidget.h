@@ -8,7 +8,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Application/MAModalCoordinator.h"
-#include "../Core/MAHUDTypes.h"
+#include "../MAHUDTypes.h"
 #include "MABaseModalWidget.generated.h"
 
 class UCanvasPanel;

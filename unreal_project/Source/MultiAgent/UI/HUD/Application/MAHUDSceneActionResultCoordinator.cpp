@@ -2,8 +2,8 @@
 
 #include "../MAHUD.h"
 #include "../../Core/MAUIManager.h"
-#include "../../Mode/MAModifyWidget.h"
-#include "../../Mode/MASceneListWidget.h"
+#include "../../SceneEditing/MAModifyWidget.h"
+#include "../../SceneEditing/MASceneListWidget.h"
 
 namespace
 {

@@ -3,8 +3,8 @@
 #include "MAHUDSceneEditCoordinator.h"
 #include "../MAHUD.h"
 #include "../../Core/MAUIManager.h"
-#include "../../Mode/MAEditWidget.h"
-#include "../../Mode/MAModifyWidget.h"
+#include "../../SceneEditing/MAEditWidget.h"
+#include "../../SceneEditing/MAModifyWidget.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMAHUDSceneEditCoordinator, Log, All);
 

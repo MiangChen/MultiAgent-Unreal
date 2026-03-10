@@ -1,8 +1,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "../../Mode/Application/MAEditWidgetStateCoordinator.h"
-#include "../../Mode/Application/MAModifyWidgetStateCoordinator.h"
+#include "../../SceneEditing/Application/MAEditWidgetStateCoordinator.h"
+#include "../../SceneEditing/Application/MAModifyWidgetStateCoordinator.h"
 
 class AMAHUD;
 

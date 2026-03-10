@@ -6,10 +6,10 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Core/SkillAllocation/Domain/MASkillAllocationTypes.h"
-#include "Gantt/MAGanttGridLayout.h"
-#include "Gantt/MAGanttDragStateMachine.h"
-#include "Gantt/MAGanttPainter.h"
-#include "Gantt/MAGanttRenderSnapshot.h"
+#include "Application/Gantt/MAGanttDragStateMachine.h"
+#include "Domain/Gantt/MAGanttRenderSnapshot.h"
+#include "Infrastructure/Gantt/MAGanttGridLayout.h"
+#include "Infrastructure/Gantt/MAGanttPainter.h"
 #include "MAGanttCanvas.generated.h"
 
 class UMASkillAllocationModel;

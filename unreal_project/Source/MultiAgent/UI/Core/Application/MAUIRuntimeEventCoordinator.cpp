@@ -7,8 +7,8 @@
 #include "../../HUD/MAMainHUDWidget.h"
 #include "../../Components/MANotificationWidget.h"
 #include "../../Components/MAPreviewPanel.h"
-#include "../../Modal/MADecisionModal.h"
-#include "../../Modal/MASkillAllocationModal.h"
+#include "../Modal/MADecisionModal.h"
+#include "../../SkillAllocation/MASkillAllocationModal.h"
 
 void FMAUIRuntimeEventCoordinator::BindTempDataManagerEvents(UMAUIManager* UIManager) const
 {

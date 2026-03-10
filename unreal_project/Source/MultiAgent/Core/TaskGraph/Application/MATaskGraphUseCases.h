@@ -13,9 +13,11 @@ struct MULTIAGENT_API FTaskGraphLoadResult
 
 struct MULTIAGENT_API FTaskGraphUseCases
 {
+    static TArray<FMANodeTemplate> BuildDefaultNodeTemplates();
     static FTaskGraphLoadResult ParseJson(const FString& JsonString);
     static FTaskGraphLoadResult ParseResponseJson(const FString& JsonString);
     static FTaskGraphLoadResult ParseFlexibleJson(const FString& JsonString);
+    static FTaskGraphLoadResult LoadResponseExample(const FString& ProjectDir);
     static FTaskGraphLoadResult LoadResponseExampleFile(const FString& FilePath);
     static FString Serialize(const FMATaskGraphData& Data);
 };

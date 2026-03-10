@@ -11,7 +11,7 @@
 #include "../../Core/Shared/Types/MASimTypes.h"
 #include "../../Core/SceneGraph/Domain/MASceneGraphNodeTypes.h"
 #include "../../Core/Interaction/Infrastructure/MAFeedback21Applier.h"
-#include "../Mode/Infrastructure/MAEditWidgetRuntimeAdapter.h"
+#include "../SceneEditing/Infrastructure/MAEditWidgetRuntimeAdapter.h"
 #include "Infrastructure/MAHUDBackendRuntimeAdapter.h"
 #include "Infrastructure/MAHUDEditRuntimeAdapter.h"
 #include "Infrastructure/MAHUDSceneActionRuntimeAdapter.h"

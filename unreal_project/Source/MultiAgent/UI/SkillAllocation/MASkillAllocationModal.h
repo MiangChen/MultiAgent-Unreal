@@ -5,7 +5,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MABaseModalWidget.h"
+#include "../Core/Modal/MABaseModalWidget.h"
 #include "Core/SkillAllocation/Domain/MASkillAllocationTypes.h"
 #include "../Core/Comm/Domain/MACommTypes.h"
 #include "MASkillAllocationModal.generated.h"

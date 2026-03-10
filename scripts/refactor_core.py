@@ -55,9 +55,6 @@ FILE_MAPPING = {
     "TaskGraph/Infrastructure": [
         "MATaskGraphJsonCodec.h", "MATaskGraphJsonCodec.cpp",
     ],
-    "TaskGraph/Bootstrap": [
-        "MATaskGraphBootstrap.h", "MATaskGraphBootstrap.cpp",
-    ],
     "SkillAllocation/Domain": [
         "MASkillAllocationTypes.h",
         "MASkillAllocationTypes.cpp",
@@ -70,9 +67,6 @@ FILE_MAPPING = {
     ],
     "SkillAllocation/Infrastructure": [
         "MASkillAllocationJsonCodec.h", "MASkillAllocationJsonCodec.cpp",
-    ],
-    "SkillAllocation/Bootstrap": [
-        "MASkillAllocationBootstrap.h", "MASkillAllocationBootstrap.cpp",
     ],
     "Squad/Application": [
         "MASquadUseCases.h", "MASquadUseCases.cpp",

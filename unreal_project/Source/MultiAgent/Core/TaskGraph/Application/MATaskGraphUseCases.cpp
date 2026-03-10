@@ -33,6 +33,17 @@ FString BuildSummaryMessage(const FMATaskGraphData& Data, const FString& Prefix)
 }
 }
 
+TArray<FMANodeTemplate> FTaskGraphUseCases::BuildDefaultNodeTemplates()
+{
+    return {
+        FMANodeTemplate(TEXT("Navigate"), TEXT("Navigate to target location"), TEXT("target_location")),
+        FMANodeTemplate(TEXT("Patrol"), TEXT("Patrol specified area"), TEXT("patrol_area")),
+        FMANodeTemplate(TEXT("Perceive"), TEXT("Perceive surroundings"), TEXT("current_location")),
+        FMANodeTemplate(TEXT("Broadcast"), TEXT("Broadcast message"), TEXT("broadcast_area")),
+        FMANodeTemplate(TEXT("Custom"), TEXT("Custom task"), TEXT("custom_location"))
+    };
+}
+
 FTaskGraphLoadResult FTaskGraphUseCases::ParseJson(const FString& JsonString)
 {
     FMATaskGraphData Data;
@@ -67,6 +78,12 @@ FTaskGraphLoadResult FTaskGraphUseCases::ParseFlexibleJson(const FString& JsonSt
     }
 
     return MakeSuccessResult(Data, BuildSummaryMessage(Data, TEXT("Task graph parsed")));
+}
+
+FTaskGraphLoadResult FTaskGraphUseCases::LoadResponseExample(const FString& ProjectDir)
+{
+    const FString FilePath = FPaths::Combine(ProjectDir, TEXT("datasets/response_example.json"));
+    return LoadResponseExampleFile(FilePath);
 }
 
 FTaskGraphLoadResult FTaskGraphUseCases::LoadResponseExampleFile(const FString& FilePath)

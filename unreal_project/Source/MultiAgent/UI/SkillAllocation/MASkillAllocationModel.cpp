@@ -4,7 +4,6 @@
 #include "MASkillAllocationModel.h"
 
 #include "Core/SkillAllocation/Application/MASkillAllocationUseCases.h"
-#include "Core/SkillAllocation/Bootstrap/MASkillAllocationBootstrap.h"
 
 DEFINE_LOG_CATEGORY(LogMASkillAllocationModel);
 
@@ -81,8 +80,8 @@ void UMASkillAllocationModel::ResetToOriginal()
 
 void UMASkillAllocationModel::Clear()
 {
-    OriginalData = FMASkillAllocationBootstrap::BuildEmptyData();
-    WorkingData = FMASkillAllocationBootstrap::BuildEmptyData();
+    OriginalData = FMASkillAllocationUseCases::BuildEmptyData();
+    WorkingData = FMASkillAllocationUseCases::BuildEmptyData();
     BroadcastDataChanged();
     UE_LOG(LogMASkillAllocationModel, Log, TEXT("Cleared all data"));
 }

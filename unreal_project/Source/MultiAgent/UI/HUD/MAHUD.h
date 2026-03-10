@@ -9,7 +9,7 @@
 #include "MASelectionHUD.h"
 #include "../../Core/Interaction/Feedback/MAFeedback21.h"
 #include "../Core/MAHUDTypes.h"
-#include "../Mode/Domain/MASceneActionResult.h"
+#include "../SceneEditing/Domain/MASceneActionResult.h"
 #include "Application/MAHUDViewCoordinator.h"
 #include "Application/MAHUDBackendCoordinator.h"
 #include "Application/MAHUDSceneEditCoordinator.h"
