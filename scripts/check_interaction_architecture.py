@@ -550,10 +550,37 @@ SETUP_RUNTIME_CALL_GUARDS = (
     "SetInputMode(",
 )
 
+MODE_RUNTIME_WIDGET_SCOPE = {
+    "UI/Mode/MAModifyWidget.h",
+    "UI/Mode/MAModifyWidget.cpp",
+    "UI/Mode/MASceneListWidget.h",
+    "UI/Mode/MASceneListWidget.cpp",
+}
+
+MODE_RUNTIME_INCLUDE_GUARDS = (
+    '#include "../../Core/Editing/Runtime/',
+    '#include "../../Core/SceneGraph/Runtime/',
+    '#include "../../Core/SceneGraph/Bootstrap/',
+    '#include "../../Core/Comm/Runtime/',
+)
+
+MODE_RUNTIME_CALL_GUARDS = (
+    "GetWorld(",
+    "GetGameInstance(",
+    "GetSubsystem<",
+)
+
 MODAL_RUNTIME_WIDGET_SCOPE = {
     "UI/Modal/MABaseModalWidget.h",
     "UI/Modal/MABaseModalWidget.cpp",
+    "UI/Modal/MASkillAllocationModal.h",
+    "UI/Modal/MASkillAllocationModal.cpp",
 }
+
+MODAL_RUNTIME_INCLUDE_GUARDS = (
+    '#include "../../Core/Comm/Runtime/',
+    '#include "../../Core/TempData/Runtime/',
+)
 
 MODAL_RUNTIME_CALL_GUARDS = (
     "GetWorld(",
@@ -798,7 +825,20 @@ def main() -> int:
                 if pattern in text:
                     errors.append(f"{relative}: runtime call '{pattern}' should stay in UI/Setup/Infrastructure")
 
+        if relative in MODE_RUNTIME_WIDGET_SCOPE:
+            for pattern in MODE_RUNTIME_INCLUDE_GUARDS:
+                if pattern in text:
+                    errors.append(f"{relative}: runtime include '{pattern}' should stay in UI/Mode/Infrastructure")
+
+            for pattern in MODE_RUNTIME_CALL_GUARDS:
+                if pattern in text:
+                    errors.append(f"{relative}: runtime call '{pattern}' should stay in UI/Mode/Infrastructure")
+
         if relative in MODAL_RUNTIME_WIDGET_SCOPE:
+            for pattern in MODAL_RUNTIME_INCLUDE_GUARDS:
+                if pattern in text:
+                    errors.append(f"{relative}: runtime include '{pattern}' should stay out of UI/Modal widget shell")
+
             for pattern in MODAL_RUNTIME_CALL_GUARDS:
                 if pattern in text:
                     errors.append(f"{relative}: runtime call '{pattern}' should stay out of UI/Modal widget shell")

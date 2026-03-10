@@ -4,7 +4,6 @@
 #include "../Domain/MAHUDEditModeIndicatorModel.h"
 
 class AMAHUD;
-class UMASceneListWidget;
 struct FMASceneGraphNode;
 
 class MULTIAGENT_API FMAHUDEditRuntimeAdapter
@@ -14,7 +13,6 @@ public:
     void DrawSceneLabels(AMAHUD* HUD, const TArray<FMASceneGraphNode>& Nodes) const;
     void DrawPIPCameras(AMAHUD* HUD) const;
     bool BindEditModeSelectionChanged(AMAHUD* HUD) const;
-    void AssignSceneListEditModeManager(AMAHUD* HUD, UMASceneListWidget* SceneListWidget) const;
     bool BuildEditModeIndicatorModel(AMAHUD* HUD, FMAHUDEditModeIndicatorModel& OutModel) const;
     bool SelectGoalById(AMAHUD* HUD, const FString& GoalId) const;
     bool SelectZoneById(AMAHUD* HUD, const FString& ZoneId) const;
@@ -22,6 +20,5 @@ public:
 private:
     class UWorld* ResolveWorld(const AMAHUD* HUD) const;
     class UMAEditModeManager* ResolveEditModeManager(const AMAHUD* HUD) const;
-    class UMASceneGraphManager* ResolveSceneGraphManager(const AMAHUD* HUD) const;
     class UMAPIPCameraManager* ResolvePIPCameraManager(const AMAHUD* HUD) const;
 };

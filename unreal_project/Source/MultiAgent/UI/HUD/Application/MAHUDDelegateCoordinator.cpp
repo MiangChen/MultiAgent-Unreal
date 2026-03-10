@@ -57,8 +57,6 @@ void FMAHUDDelegateCoordinator::BindWidgetDelegates(AMAHUD* HUD) const
     UMASceneListWidget* SceneListWidget = HUD->UIManager->GetSceneListWidget();
     if (SceneListWidget)
     {
-        HUD->RuntimeAssignSceneListEditModeManager(SceneListWidget);
-
         if (!SceneListWidget->OnGoalItemClicked.IsAlreadyBound(HUD, &AMAHUD::OnSceneListGoalClicked))
         {
             SceneListWidget->OnGoalItemClicked.AddDynamic(HUD, &AMAHUD::OnSceneListGoalClicked);

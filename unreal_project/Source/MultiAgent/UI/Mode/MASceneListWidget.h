@@ -8,6 +8,8 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Application/MASceneListWidgetCoordinator.h"
+#include "Domain/MASceneListWidgetModels.h"
 #include "MASceneListWidget.generated.h"
 
 class UVerticalBox;
@@ -15,7 +17,6 @@ class UTextBlock;
 class UButton;
 class UScrollBox;
 class UBorder;
-class UMAEditModeManager;
 
 //=============================================================================
 // 委托声明
@@ -37,6 +38,8 @@ class MULTIAGENT_API UMASceneListWidget : public UUserWidget
 {
     GENERATED_BODY()
 
+    friend class FMASceneListWidgetCoordinator;
+
 public:
     UMASceneListWidget(const FObjectInitializer& ObjectInitializer);
 
@@ -49,13 +52,6 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "UI")
     void RefreshLists();
-
-    /**
-     * 设置 EditModeManager 引用
-     * @param InManager EditModeManager 指针
-     */
-    UFUNCTION(BlueprintCallable, Category = "UI")
-    void SetEditModeManager(UMAEditModeManager* InManager);
 
     //=========================================================================
     // 委托
@@ -125,10 +121,6 @@ private:
     // 内部状态
     //=========================================================================
     
-    /** EditModeManager 引用 */
-    UPROPERTY()
-    UMAEditModeManager* EditModeManager;
-
     /** Goal 按钮数组 */
     UPROPERTY()
     TArray<UButton*> GoalButtons;
@@ -143,6 +135,8 @@ private:
     /** Zone ID 映射 */
     TArray<FString> ZoneIds;
 
+    FMASceneListWidgetCoordinator Coordinator;
+
     //=========================================================================
     // 内部方法
     //=========================================================================
@@ -150,11 +144,8 @@ private:
     /** 构建 UI */
     void BuildUI();
 
-    /** 填充 Goal 列表 */
-    void PopulateGoalList();
-
-    /** 填充 Zone 列表 */
-    void PopulateZoneList();
+    void ApplyGoalSection(const FMASceneListSectionModel& SectionModel);
+    void ApplyZoneSection(const FMASceneListSectionModel& SectionModel);
 
     /** Goal 按钮点击处理 */
     UFUNCTION()
@@ -166,4 +157,7 @@ private:
 
     /** 创建列表项按钮 */
     UButton* CreateListItemButton(const FString& Label, const FString& Id, bool bIsGoal);
+
+    struct FMASceneGraphNodesFeedback RuntimeLoadGoals() const;
+    struct FMASceneGraphNodesFeedback RuntimeLoadZones() const;
 };

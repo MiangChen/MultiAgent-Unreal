@@ -3,10 +3,8 @@
 #include "MAHUDEditRuntimeAdapter.h"
 
 #include "../MAHUD.h"
-#include "../../Mode/MASceneListWidget.h"
 #include "../../../Core/Editing/Runtime/MAEditModeManager.h"
 #include "../../../Core/Camera/Runtime/MAPIPCameraManager.h"
-#include "../../../Core/SceneGraph/Runtime/MASceneGraphManager.h"
 #include "../../../Core/SceneGraph/Bootstrap/MASceneGraphBootstrap.h"
 #include "../../../Environment/Utils/MAGoalActor.h"
 #include "../../../Environment/Utils/MAPointOfInterest.h"
@@ -29,11 +27,6 @@ UMAEditModeManager* FMAHUDEditRuntimeAdapter::ResolveEditModeManager(const AMAHU
     }
 
     return nullptr;
-}
-
-UMASceneGraphManager* FMAHUDEditRuntimeAdapter::ResolveSceneGraphManager(const AMAHUD* HUD) const
-{
-    return FMASceneGraphBootstrap::Resolve(HUD);
 }
 
 UMAPIPCameraManager* FMAHUDEditRuntimeAdapter::ResolvePIPCameraManager(const AMAHUD* HUD) const
@@ -107,19 +100,6 @@ bool FMAHUDEditRuntimeAdapter::BindEditModeSelectionChanged(AMAHUD* HUD) const
     }
 
     return true;
-}
-
-void FMAHUDEditRuntimeAdapter::AssignSceneListEditModeManager(AMAHUD* HUD, UMASceneListWidget* SceneListWidget) const
-{
-    if (!SceneListWidget)
-    {
-        return;
-    }
-
-    if (UMAEditModeManager* EditModeManager = ResolveEditModeManager(HUD))
-    {
-        SceneListWidget->SetEditModeManager(EditModeManager);
-    }
 }
 
 bool FMAHUDEditRuntimeAdapter::BuildEditModeIndicatorModel(AMAHUD* HUD, FMAHUDEditModeIndicatorModel& OutModel) const

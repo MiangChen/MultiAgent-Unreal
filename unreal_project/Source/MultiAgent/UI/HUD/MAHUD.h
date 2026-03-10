@@ -485,7 +485,6 @@ private:
     void RuntimeDrawSceneLabels(const TArray<FMASceneGraphNode>& Nodes);
     void RuntimeDrawPIPCameras();
     bool RuntimeBindEditModeSelectionChanged();
-    void RuntimeAssignSceneListEditModeManager(UMASceneListWidget* SceneListWidget);
     bool RuntimeBuildEditModeIndicatorModel(FMAHUDEditModeIndicatorModel& OutModel) const;
     bool RuntimeSelectGoalById(const FString& GoalId);
     bool RuntimeSelectZoneById(const FString& ZoneId);

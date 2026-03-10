@@ -2,6 +2,7 @@
 // 场景列表面板 Widget 实现
 
 #include "MASceneListWidget.h"
+#include "Infrastructure/MASceneListWidgetRuntimeAdapter.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "Components/HorizontalBox.h"
@@ -17,12 +18,17 @@
 #include "Framework/Application/SlateApplication.h"
 #include "../Core/MARoundedBorderUtils.h"
 #include "../Core/MAUITheme.h"
-#include "../../Core/Editing/Runtime/MAEditModeManager.h"
-#include "../../Core/SceneGraph/Runtime/MASceneGraphManager.h"
-#include "../../Core/SceneGraph/Bootstrap/MASceneGraphBootstrap.h"
-#include "Kismet/GameplayStatics.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMASceneListWidget, Log, All);
+
+namespace
+{
+const FMASceneListWidgetRuntimeAdapter& SceneListRuntimeAdapter()
+{
+    static const FMASceneListWidgetRuntimeAdapter Adapter;
+    return Adapter;
+}
+}
 
 UMASceneListWidget::UMASceneListWidget(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
@@ -238,75 +244,48 @@ void UMASceneListWidget::BuildUI()
     UE_LOG(LogMASceneListWidget, Log, TEXT("BuildUI: UI construction completed"));
 }
 
-void UMASceneListWidget::SetEditModeManager(UMAEditModeManager* InManager)
-{
-    EditModeManager = InManager;
-    RefreshLists();
-}
-
 void UMASceneListWidget::RefreshLists()
 {
-    PopulateGoalList();
-    PopulateZoneList();
+    ApplyGoalSection(Coordinator.BuildGoalSection(this));
+    ApplyZoneSection(Coordinator.BuildZoneSection(this));
 
     UE_LOG(LogMASceneListWidget, Log, TEXT("RefreshLists: Lists refreshed"));
 }
 
-void UMASceneListWidget::PopulateGoalList()
+void UMASceneListWidget::ApplyGoalSection(const FMASceneListSectionModel& SectionModel)
 {
     if (!GoalListBox)
     {
         return;
     }
 
-    // 获取 SceneGraphManager
-    const FMASceneGraphNodesFeedback GoalFeedback = FMASceneGraphBootstrap::LoadGoals(this);
-    if (!GoalFeedback.bSuccess)
-    {
-        UE_LOG(LogMASceneListWidget, Warning, TEXT("PopulateGoalList: %s"), *GoalFeedback.Message);
-        return;
-    }
-
-    // 清除现有按钮
     GoalListBox->ClearChildren();
     GoalButtons.Empty();
     GoalIds.Empty();
 
-    // 获取所有 Goal 节点
-    const TArray<FMASceneGraphNode>& AllGoals = GoalFeedback.Nodes;
-
-    // 更新计数
     if (GoalCountText)
     {
-        GoalCountText->SetText(FText::FromString(FString::Printf(TEXT("(%d)"), AllGoals.Num())));
+        GoalCountText->SetText(FText::FromString(SectionModel.CountText));
     }
 
-    // 为每个 Goal 创建按钮
-    for (const FMASceneGraphNode& GoalNode : AllGoals)
+    for (const FMASceneListItemModel& Item : SectionModel.Items)
     {
-        FString Label = GoalNode.Label;
-        if (Label.IsEmpty())
-        {
-            Label = GoalNode.Id;
-        }
-
-        UButton* GoalButton = CreateListItemButton(Label, GoalNode.Id, true);
+        UButton* GoalButton = CreateListItemButton(Item.Label, Item.Id, true);
         if (GoalButton)
         {
             GoalButton->OnClicked.AddDynamic(this, &UMASceneListWidget::OnGoalButtonClicked);
             GoalButtons.Add(GoalButton);
-            GoalIds.Add(GoalNode.Id);
+            GoalIds.Add(Item.Id);
 
             UVerticalBoxSlot* ButtonSlot = GoalListBox->AddChildToVerticalBox(GoalButton);
             ButtonSlot->SetPadding(FMargin(0, 2, 0, 2));
         }
     }
 
-    // 如果没有 Goal，显示提示
-    if (AllGoals.Num() == 0)
+    if (SectionModel.Items.Num() == 0)
     {
         UTextBlock* EmptyText = NewObject<UTextBlock>(this);
-        EmptyText->SetText(FText::FromString(TEXT("  (No Goals)")));
+        EmptyText->SetText(FText::FromString(SectionModel.EmptyText.IsEmpty() ? TEXT("  (No Goals)") : SectionModel.EmptyText));
         FSlateFontInfo EmptyFont = EmptyText->GetFont();
         EmptyFont.Size = 10;
         EmptyText->SetFont(EmptyFont);
@@ -314,64 +293,43 @@ void UMASceneListWidget::PopulateGoalList()
         GoalListBox->AddChildToVerticalBox(EmptyText);
     }
 
-    UE_LOG(LogMASceneListWidget, Log, TEXT("PopulateGoalList: Added %d goals"), AllGoals.Num());
+    UE_LOG(LogMASceneListWidget, Log, TEXT("ApplyGoalSection: Added %d goals"), SectionModel.Items.Num());
 }
 
-void UMASceneListWidget::PopulateZoneList()
+void UMASceneListWidget::ApplyZoneSection(const FMASceneListSectionModel& SectionModel)
 {
     if (!ZoneListBox)
     {
         return;
     }
 
-    // 获取 SceneGraphManager
-    const FMASceneGraphNodesFeedback ZoneFeedback = FMASceneGraphBootstrap::LoadZones(this);
-    if (!ZoneFeedback.bSuccess)
-    {
-        UE_LOG(LogMASceneListWidget, Warning, TEXT("PopulateZoneList: %s"), *ZoneFeedback.Message);
-        return;
-    }
-
-    // 清除现有按钮
     ZoneListBox->ClearChildren();
     ZoneButtons.Empty();
     ZoneIds.Empty();
 
-    // 获取所有 Zone 节点
-    const TArray<FMASceneGraphNode>& AllZones = ZoneFeedback.Nodes;
-
-    // 更新计数
     if (ZoneCountText)
     {
-        ZoneCountText->SetText(FText::FromString(FString::Printf(TEXT("(%d)"), AllZones.Num())));
+        ZoneCountText->SetText(FText::FromString(SectionModel.CountText));
     }
 
-    // 为每个 Zone 创建按钮
-    for (const FMASceneGraphNode& ZoneNode : AllZones)
+    for (const FMASceneListItemModel& Item : SectionModel.Items)
     {
-        FString Label = ZoneNode.Label;
-        if (Label.IsEmpty())
-        {
-            Label = ZoneNode.Id;
-        }
-
-        UButton* ZoneButton = CreateListItemButton(Label, ZoneNode.Id, false);
+        UButton* ZoneButton = CreateListItemButton(Item.Label, Item.Id, false);
         if (ZoneButton)
         {
             ZoneButton->OnClicked.AddDynamic(this, &UMASceneListWidget::OnZoneButtonClicked);
             ZoneButtons.Add(ZoneButton);
-            ZoneIds.Add(ZoneNode.Id);
+            ZoneIds.Add(Item.Id);
 
             UVerticalBoxSlot* ButtonSlot = ZoneListBox->AddChildToVerticalBox(ZoneButton);
             ButtonSlot->SetPadding(FMargin(0, 2, 0, 2));
         }
     }
 
-    // 如果没有 Zone，显示提示
-    if (AllZones.Num() == 0)
+    if (SectionModel.Items.Num() == 0)
     {
         UTextBlock* EmptyText = NewObject<UTextBlock>(this);
-        EmptyText->SetText(FText::FromString(TEXT("  (No Zones)")));
+        EmptyText->SetText(FText::FromString(SectionModel.EmptyText.IsEmpty() ? TEXT("  (No Zones)") : SectionModel.EmptyText));
         FSlateFontInfo EmptyFont = EmptyText->GetFont();
         EmptyFont.Size = 10;
         EmptyText->SetFont(EmptyFont);
@@ -379,7 +337,7 @@ void UMASceneListWidget::PopulateZoneList()
         ZoneListBox->AddChildToVerticalBox(EmptyText);
     }
 
-    UE_LOG(LogMASceneListWidget, Log, TEXT("PopulateZoneList: Added %d zones"), AllZones.Num());
+    UE_LOG(LogMASceneListWidget, Log, TEXT("ApplyZoneSection: Added %d zones"), SectionModel.Items.Num());
 }
 
 UButton* UMASceneListWidget::CreateListItemButton(const FString& Label, const FString& Id, bool bIsGoal)
@@ -486,4 +444,14 @@ void UMASceneListWidget::OnZoneButtonClicked()
             }
         }
     }
+}
+
+FMASceneGraphNodesFeedback UMASceneListWidget::RuntimeLoadGoals() const
+{
+    return SceneListRuntimeAdapter().LoadGoals(this);
+}
+
+FMASceneGraphNodesFeedback UMASceneListWidget::RuntimeLoadZones() const
+{
+    return SceneListRuntimeAdapter().LoadZones(this);
 }

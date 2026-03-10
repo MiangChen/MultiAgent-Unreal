@@ -81,6 +81,8 @@ flowchart LR
 - `UI/HUD/MASelectionHUD` 现在只负责绘制；全屏 widget 判定、Agent/Selection 查询、控制组统计和状态文本投影统一经由 `UI/HUD/Application/MASelectionHUDCoordinator` 与 `UI/HUD/Infrastructure/MASelectionHUDRuntimeAdapter` 提供。
 - `UI/Setup/` 现在已经形成独立轻量 setup context：`MASetupHUD / MASetupWidget` 只保留展示与输入，配置读取、关卡启动、输入模式切换和启动请求组装都已下沉到 `Application / Infrastructure / Bootstrap`。
 - `UI/Modal/` 当前只做必要分层：`MABaseModalWidget` 的动画步进和按钮可见性规则已下沉到 `UI/Modal/Application + Domain`；具体 modal 仍保持薄 UI 壳，不额外引入 runtime 层。
+- `UI/Mode/` 的根 widget 现在也收口了最后一批 runtime 痕迹：`MAModifyWidget / MASceneListWidget` 通过本地 `Application + Infrastructure` 协调器访问 `SceneGraph / Editing`，widget 壳不再直接 include runtime 或 bootstrap。
+- `UI/Modal/MASkillAllocationModal` 现已移除对 `Comm` runtime 的直接依赖，保持为薄 modal 壳，技能分配数据流仍经 `UI/SkillAllocation` 与 `Core/SkillAllocation` 处理。
 - `Core/Squad/` 现在已经补齐 `Application / Feedback / Infrastructure / Bootstrap`，`Interaction` 不再自己拼 squad 文案或直接解析 `UMASquadManager`，而是统一经由 `Squad` context 的 runtime bridge 返回标准反馈。
 - `Core/Comm/` 现在已经补齐 `Application / Feedback / Runtime / Bootstrap`，不再把通信入口文件平铺在 context 根目录。
 - `Core/Config/` 现在保留 `MAConfigManager.h` 作为统一外部入口；内部的配置类型、加载用例、路径解析和 JSON 读取已下沉到 `Domain / Application / Infrastructure / Runtime / Bootstrap`。

@@ -252,11 +252,6 @@ bool AMAHUD::RuntimeBindEditModeSelectionChanged()
     return HUDEditRuntimeAdapter().BindEditModeSelectionChanged(this);
 }
 
-void AMAHUD::RuntimeAssignSceneListEditModeManager(UMASceneListWidget* SceneListWidget)
-{
-    HUDEditRuntimeAdapter().AssignSceneListEditModeManager(this, SceneListWidget);
-}
-
 bool AMAHUD::RuntimeBuildEditModeIndicatorModel(FMAHUDEditModeIndicatorModel& OutModel) const
 {
     return HUDEditRuntimeAdapter().BuildEditModeIndicatorModel(const_cast<AMAHUD*>(this), OutModel);

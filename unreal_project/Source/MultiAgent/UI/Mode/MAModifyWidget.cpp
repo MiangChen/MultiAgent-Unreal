@@ -2,6 +2,7 @@
 // Modify mode panel widget.
 
 #include "MAModifyWidget.h"
+#include "Application/MAModifyWidgetCoordinator.h"
 #include "Components/MultiLineEditableTextBox.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
@@ -14,9 +15,7 @@
 #include "Components/ScrollBox.h"
 #include "Components/BackgroundBlur.h"
 #include "Blueprint/WidgetTree.h"
-#include "Infrastructure/MAModifyWidgetInputParser.h"
-#include "Infrastructure/MAModifyWidgetNodeBuilder.h"
-#include "Infrastructure/MAModifyWidgetSceneGraphAdapter.h"
+#include "Infrastructure/MAModifyWidgetRuntimeAdapter.h"
 #include "../Core/MARoundedBorderUtils.h"
 #include "../Core/MAFrostedGlassUtils.h"
 #include "../Core/MAUITheme.h"
@@ -46,6 +45,12 @@ namespace
         default:
             return Theme ? Theme->HintTextColor : FLinearColor(0.6f, 0.6f, 0.6f);
         }
+    }
+
+    const FMAModifyWidgetRuntimeAdapter& ModifyWidgetRuntimeAdapter()
+    {
+        static const FMAModifyWidgetRuntimeAdapter Adapter;
+        return Adapter;
     }
 }
 
@@ -304,39 +309,9 @@ void UMAModifyWidget::SetSelectedActor(AActor* Actor)
 
     SelectedActors.Empty();
     SelectedActors.Add(Actor);
-
-    TArray<FMASceneGraphNode> MatchingNodes;
-    FString MatchError;
-    const bool bHasMatchingNode = SceneGraphAdapter.FindMatchingNodes(
-        GetWorld(),
-        Actor->GetActorGuid().ToString(),
-        MatchingNodes,
-        MatchError) && MatchingNodes.Num() > 0;
-    const FMASceneGraphNode* MatchedNode = bHasMatchingNode ? &MatchingNodes[0] : nullptr;
-    if (!bHasMatchingNode && !MatchError.IsEmpty())
-    {
-        UE_LOG(LogMAModifyWidget, Verbose, TEXT("SetSelectedActor: Match lookup failed for %s: %s"),
-            *Actor->GetName(), *MatchError);
-    }
-    ApplySelectionViewModel(FMAModifyWidgetModel::BuildSelectionViewModel(
-        1,
-        Actor->GetName(),
-        MatchedNode,
-        ModifyDefaultHintText,
-        ModifyMultiSelectHintText));
-
-    if (MatchedNode)
-    {
-        UE_LOG(LogMAModifyWidget, Log, TEXT("SetSelectedActor: Actor %s is marked, entering EditExisting mode for node %s"),
-            *Actor->GetName(), *MatchedNode->Id);
-    }
-    else
-    {
-        UE_LOG(LogMAModifyWidget, Log, TEXT("SetSelectedActor: Actor %s is not marked, entering AddNew mode"),
-            *Actor->GetName());
-    }
-
-    UpdateJsonPreview(Actor);
+    const FMAModifyWidgetSelectionModels Models = Coordinator.BuildSingleSelectionModels(this, Actor);
+    ApplySelectionViewModel(Models.SelectionViewModel);
+    ApplyPreviewModel(Models.PreviewModel);
 }
 
 void UMAModifyWidget::SetSelectedActors(const TArray<AActor*>& Actors)
@@ -355,36 +330,9 @@ void UMAModifyWidget::SetSelectedActors(const TArray<AActor*>& Actors)
         ClearSelection();
         return;
     }
-
-    FMASceneGraphNode MatchedNode;
-    FString MatchError;
-    const bool bFoundMatchingNode = SceneGraphAdapter.FindSharedNodeForActors(GetWorld(), SelectedActors, MatchedNode, MatchError);
-    ApplySelectionViewModel(FMAModifyWidgetModel::BuildSelectionViewModel(
-        SelectedActors.Num(),
-        SelectedActors.Num() == 1 && SelectedActors[0] ? SelectedActors[0]->GetName() : TEXT(""),
-        bFoundMatchingNode ? &MatchedNode : nullptr,
-        ModifyDefaultHintText,
-        ModifyMultiSelectHintText));
-
-    if (bFoundMatchingNode)
-    {
-        UE_LOG(LogMAModifyWidget, Log, TEXT("SetSelectedActors: All %d actors belong to node %s, entering EditExisting mode"),
-            SelectedActors.Num(), *MatchedNode.Id);
-    }
-    else
-    {
-        UE_LOG(LogMAModifyWidget, Log, TEXT("SetSelectedActors: %d actors selected, entering AddNew mode"),
-            SelectedActors.Num());
-    }
-
-    if (SelectedActors.Num() > 1)
-    {
-        UpdateJsonPreviewMultiSelect(SelectedActors);
-    }
-    else
-    {
-        UpdateJsonPreview(SelectedActors[0]);
-    }
+    const FMAModifyWidgetSelectionModels Models = Coordinator.BuildMultiSelectionModels(this, SelectedActors);
+    ApplySelectionViewModel(Models.SelectionViewModel);
+    ApplyPreviewModel(Models.PreviewModel);
     
     UE_LOG(LogMAModifyWidget, Log, TEXT("SetSelectedActors: %d actors selected"), SelectedActors.Num());
 }
@@ -392,13 +340,8 @@ void UMAModifyWidget::SetSelectedActors(const TArray<AActor*>& Actors)
 void UMAModifyWidget::ClearSelection()
 {
     SelectedActors.Empty();
-    ApplySelectionViewModel(FMAModifyWidgetModel::BuildSelectionViewModel(
-        0,
-        TEXT(""),
-        nullptr,
-        ModifyDefaultHintText,
-        ModifyMultiSelectHintText));
-    ApplyPreviewModel(FMAModifyPreviewModel());
+    ApplySelectionViewModel(Coordinator.BuildClearedSelectionViewModel(ModifyDefaultHintText, ModifyMultiSelectHintText));
+    ApplyPreviewModel(Coordinator.BuildClearedPreviewModel());
 
     UE_LOG(LogMAModifyWidget, Log, TEXT("ClearSelection: Selection cleared"));
 }
@@ -433,64 +376,25 @@ void UMAModifyWidget::OnConfirmButtonClicked()
     }
     
     const FString LabelContent = GetLabelText();
-    FMAAnnotationInput ParsedInput;
-    FString ParseError;
-    FMAModifyWidgetInputParser InputParser;
-    FMAModifyWidgetNodeBuilder NodeBuilder;
-    if (!InputParser.ParseAnnotationInput(GetWorld(), LabelContent, ParsedInput, ParseError))
+    const FMAModifyWidgetSubmitResult SubmitResult = Coordinator.BuildSubmitResult(
+        this,
+        SelectedActors,
+        LabelContent,
+        CurrentAnnotationMode,
+        EditingNodeId);
+
+    switch (SubmitResult.Kind)
     {
-        OnModifyConfirmed.Broadcast(SelectedActors[0], LabelContent);
-        return;
+    case EMAModifyWidgetSubmitKind::Multi:
+        OnMultiSelectModifyConfirmed.Broadcast(SelectedActors, SubmitResult.LabelText, SubmitResult.GeneratedJson);
+        break;
+    case EMAModifyWidgetSubmitKind::Single:
+        OnModifyConfirmed.Broadcast(SelectedActors[0], SubmitResult.LabelText);
+        break;
+    case EMAModifyWidgetSubmitKind::None:
+    default:
+        break;
     }
-
-    if (CurrentAnnotationMode == EMAAnnotationMode::AddNew && ParsedInput.HasCategory())
-    {
-        FString ValidationError;
-        if (!InputParser.ValidateSelectionForCategory(ParsedInput.Category, SelectedActors.Num(), ValidationError))
-        {
-            OnModifyConfirmed.Broadcast(SelectedActors[0], FString::Printf(TEXT("ERROR: %s"), *ValidationError));
-            return;
-        }
-    }
-
-    if (CurrentAnnotationMode == EMAAnnotationMode::EditExisting)
-    {
-        OnMultiSelectModifyConfirmed.Broadcast(
-            SelectedActors,
-            LabelContent,
-            SceneGraphAdapter.BuildEditNodeJson(GetWorld(), ParsedInput, EditingNodeId));
-        return;
-    }
-
-    if (ParsedInput.HasCategory())
-    {
-        OnMultiSelectModifyConfirmed.Broadcast(
-            SelectedActors,
-            LabelContent,
-            NodeBuilder.GenerateSceneGraphNodeV2(GetWorld(), ParsedInput, SelectedActors));
-        return;
-    }
-
-    if (ParsedInput.IsMultiSelect())
-    {
-        OnMultiSelectModifyConfirmed.Broadcast(
-            SelectedActors,
-            LabelContent,
-            NodeBuilder.GenerateSceneGraphNode(GetWorld(), ParsedInput, SelectedActors));
-        return;
-    }
-
-    OnModifyConfirmed.Broadcast(SelectedActors[0], LabelContent);
-}
-
-void UMAModifyWidget::UpdateJsonPreview(AActor* Actor)
-{
-    ApplyPreviewModel(SceneGraphAdapter.BuildSingleActorPreview(GetWorld(), Actor));
-}
-
-void UMAModifyWidget::UpdateJsonPreviewMultiSelect(const TArray<AActor*>& Actors)
-{
-    ApplyPreviewModel(SceneGraphAdapter.BuildMultiActorPreview(Actors));
 }
 
 void UMAModifyWidget::SetAnnotationMode(EMAAnnotationMode Mode, const FString& NodeId)
@@ -524,4 +428,31 @@ void UMAModifyWidget::UpdateModeIndicator()
         FLinearColor AddColor = Theme ? Theme->SuccessColor : FLinearColor(0.3f, 0.8f, 0.3f);
         ModeIndicatorText->SetColorAndOpacity(FSlateColor(AddColor));
     }
+}
+
+FMAModifyWidgetSelectionModels UMAModifyWidget::RuntimeBuildSingleSelectionModels(AActor* Actor) const
+{
+    return ModifyWidgetRuntimeAdapter().BuildSingleSelectionModels(
+        this,
+        Actor,
+        ModifyDefaultHintText,
+        ModifyMultiSelectHintText);
+}
+
+FMAModifyWidgetSelectionModels UMAModifyWidget::RuntimeBuildMultiSelectionModels(const TArray<AActor*>& Actors) const
+{
+    return ModifyWidgetRuntimeAdapter().BuildMultiSelectionModels(
+        this,
+        Actors,
+        ModifyDefaultHintText,
+        ModifyMultiSelectHintText);
+}
+
+FMAModifyWidgetSubmitResult UMAModifyWidget::RuntimeBuildSubmitResult(
+    const TArray<AActor*>& Actors,
+    const FString& LabelText,
+    EMAAnnotationMode AnnotationMode,
+    const FString& NodeId) const
+{
+    return ModifyWidgetRuntimeAdapter().BuildSubmitResult(this, Actors, LabelText, AnnotationMode, NodeId);
 }

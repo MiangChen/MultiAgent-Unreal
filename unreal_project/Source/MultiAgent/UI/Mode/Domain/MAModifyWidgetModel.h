@@ -29,6 +29,26 @@ struct FMAModifySelectionViewModel
     FString LabelInputHintText;
 };
 
+struct FMAModifyWidgetSelectionModels
+{
+    FMAModifySelectionViewModel SelectionViewModel;
+    FMAModifyPreviewModel PreviewModel;
+};
+
+enum class EMAModifyWidgetSubmitKind : uint8
+{
+    None,
+    Single,
+    Multi
+};
+
+struct FMAModifyWidgetSubmitResult
+{
+    EMAModifyWidgetSubmitKind Kind = EMAModifyWidgetSubmitKind::None;
+    FString LabelText;
+    FString GeneratedJson;
+};
+
 struct FMAModifyWidgetModel
 {
     static FString BuildInputTextFromNode(const FMASceneGraphNode& Node)

@@ -8,7 +8,6 @@
 #include "../SkillAllocation/MASkillAllocationModel.h"
 #include "../../Core/SkillAllocation/Application/MASkillAllocationUseCases.h"
 #include "../../Core/SkillAllocation/Bootstrap/MASkillAllocationBootstrap.h"
-#include "../../Core/Comm/Runtime/MACommSubsystem.h"
 #include "Components/CanvasPanel.h"
 #include "Components/Border.h"
 #include "Components/TextBlock.h"
@@ -21,7 +20,6 @@
 #include "Components/MultiLineEditableTextBox.h"
 #include "Components/SizeBox.h"
 #include "Blueprint/WidgetTree.h"
-#include "Kismet/GameplayStatics.h"
 
 DEFINE_LOG_CATEGORY(LogMASkillAllocationModal);
 

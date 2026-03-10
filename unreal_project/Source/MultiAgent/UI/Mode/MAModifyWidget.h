@@ -7,8 +7,8 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Application/MAModifyWidgetCoordinator.h"
 #include "Domain/MAModifyWidgetModel.h"
-#include "Infrastructure/MAModifyWidgetSceneGraphAdapter.h"
 #include "MAModifyTypes.h"
 #include "MAModifyWidget.generated.h"
 
@@ -50,6 +50,8 @@ UCLASS()
 class MULTIAGENT_API UMAModifyWidget : public UUserWidget
 {
     GENERATED_BODY()
+
+    friend class FMAModifyWidgetCoordinator;
 
 public:
     UMAModifyWidget(const FObjectInitializer& ObjectInitializer);
@@ -211,8 +213,7 @@ private:
     /** 当前选中的 Actor 数组 (支持多选) */
     UPROPERTY()
     TArray<AActor*> SelectedActors;
-
-    FMAModifyWidgetSceneGraphAdapter SceneGraphAdapter;
+    FMAModifyWidgetCoordinator Coordinator;
 
     //=========================================================================
     // 内部方法
@@ -233,20 +234,6 @@ private:
     void ApplyPreviewModel(const FMAModifyPreviewModel& PreviewModel);
 
     /**
-     * 更新 JSON 预览文本 (单选模式)
-     * 显示选中 Actor 对应的 JSON 片段
-     * @param Actor 选中的 Actor
-     */
-    void UpdateJsonPreview(AActor* Actor);
-
-    /**
-     * 更新 JSON 预览文本 (多选模式)
-     * 显示将要生成的 JSON 结构预览
-     * @param Actors 选中的 Actor 数组
-     */
-    void UpdateJsonPreviewMultiSelect(const TArray<AActor*>& Actors);
-
-    /**
      * 设置标注模式
      * @param Mode 新模式
      * @param NodeId 编辑模式下的节点 ID
@@ -257,5 +244,13 @@ private:
      * 更新模式指示器 UI
      */
     void UpdateModeIndicator();
+
+    FMAModifyWidgetSelectionModels RuntimeBuildSingleSelectionModels(AActor* Actor) const;
+    FMAModifyWidgetSelectionModels RuntimeBuildMultiSelectionModels(const TArray<AActor*>& Actors) const;
+    FMAModifyWidgetSubmitResult RuntimeBuildSubmitResult(
+        const TArray<AActor*>& Actors,
+        const FString& LabelText,
+        EMAAnnotationMode AnnotationMode,
+        const FString& NodeId) const;
 
 };
