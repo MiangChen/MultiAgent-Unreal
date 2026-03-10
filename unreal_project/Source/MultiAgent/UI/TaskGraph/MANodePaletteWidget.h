@@ -5,7 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "../../Core/Shared/Types/MATaskGraphTypes.h"
+#include "Core/TaskGraph/Domain/MATaskGraphTypes.h"
 #include "MANodePaletteWidget.generated.h"
 
 class UVerticalBox;
@@ -64,7 +64,7 @@ public:
 
     /** 初始化节点模板列表 */
     UFUNCTION(BlueprintCallable, Category = "NodePalette")
-    void InitializeTemplates();
+    void InitializeTemplates(const TArray<FMANodeTemplate>& InTemplates);
 
     /** 添加自定义模板 */
     UFUNCTION(BlueprintCallable, Category = "NodePalette")

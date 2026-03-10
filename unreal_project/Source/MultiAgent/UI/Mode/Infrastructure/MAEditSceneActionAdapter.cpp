@@ -2,6 +2,8 @@
 
 #include "../../../Core/Editing/Runtime/MAEditModeManager.h"
 #include "../../../Core/SceneGraph/Runtime/MASceneGraphManager.h"
+#include "../../../Core/SceneGraph/Bootstrap/MASceneGraphBootstrap.h"
+#include "../../../Core/SceneGraph/Feedback/MASceneGraphFeedback.h"
 #include "../../../Core/SceneGraph/Infrastructure/UE/MAUESceneApplier.h"
 #include "../../../Environment/Utils/MAGoalActor.h"
 #include "../../../Environment/Utils/MAPointOfInterest.h"
@@ -12,11 +14,23 @@
 
 namespace
 {
-    FMASceneActionResult MakeFailure(const FString& Message)
+    FMASceneActionResult ToSceneActionResult(const FMASceneGraphMutationFeedback& Feedback)
     {
         FMASceneActionResult Result;
-        Result.Message = Message;
+        Result.bSuccess = Feedback.bSuccess;
+        Result.bIsWarning = Feedback.Kind == EMASceneGraphFeedbackKind::Warning;
+        Result.bClearSelection = Feedback.bClearSelection;
+        Result.bRefreshSceneList = Feedback.bRefreshSceneList;
+        Result.bRefreshSelection = Feedback.bRefreshSelection;
+        Result.bReloadSceneVisualization = Feedback.bReloadSceneVisualization;
+        Result.bClearHighlightedActor = Feedback.bClearHighlightedActor;
+        Result.Message = Feedback.Message;
         return Result;
+    }
+
+    FMASceneActionResult MakeFailure(const FString& Message)
+    {
+        return ToSceneActionResult(MASceneGraphFeedback::MakeMutationFailure(Message));
     }
 
     FMASceneActionResult MakeSuccess(
@@ -26,14 +40,13 @@ namespace
         bool bRefreshSelection = false,
         bool bReloadSceneVisualization = false)
     {
-        FMASceneActionResult Result;
-        Result.bSuccess = true;
-        Result.Message = Message;
-        Result.bClearSelection = bClearSelection;
-        Result.bRefreshSceneList = bRefreshSceneList;
-        Result.bRefreshSelection = bRefreshSelection;
-        Result.bReloadSceneVisualization = bReloadSceneVisualization;
-        return Result;
+        return ToSceneActionResult(
+            MASceneGraphFeedback::MakeMutationSuccess(
+                Message,
+                bClearSelection,
+                bRefreshSceneList,
+                bRefreshSelection,
+                bReloadSceneVisualization));
     }
 
     bool ResolveManagers(
@@ -58,14 +71,7 @@ namespace
             return false;
         }
 
-        UGameInstance* GameInstance = World->GetGameInstance();
-        if (!GameInstance)
-        {
-            OutError = TEXT("Unable to get GameInstance");
-            return false;
-        }
-
-        OutSceneGraphManager = GameInstance->GetSubsystem<UMASceneGraphManager>();
+        OutSceneGraphManager = FMASceneGraphBootstrap::Resolve(World);
         if (!OutSceneGraphManager)
         {
             OutError = TEXT("SceneGraphManager not found");

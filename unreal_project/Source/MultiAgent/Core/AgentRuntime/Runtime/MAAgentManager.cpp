@@ -2,6 +2,7 @@
 
 #include "MAAgentManager.h"
 #include "Core/SceneGraph/Runtime/MASceneGraphManager.h"
+#include "Core/SceneGraph/Bootstrap/MASceneGraphBootstrap.h"
 #include "Core/Config/MAConfigManager.h"
 #include "Agent/Character/MACharacter.h"
 #include "Agent/Character/MAUAVCharacter.h"
@@ -118,7 +119,7 @@ AMACharacter* UMAAgentManager::SpawnAgentInternal(const FString& TypeName, const
         // 绑定 GUID 到场景图节点
         if (UGameInstance* GI = GetWorld()->GetGameInstance())
         {
-            if (UMASceneGraphManager* SceneGraphMgr = GI->GetSubsystem<UMASceneGraphManager>())
+            if (UMASceneGraphManager* SceneGraphMgr = FMASceneGraphBootstrap::Resolve(GI))
             {
                 SceneGraphMgr->BindDynamicNodeGuid(Label, Agent->GetActorGuid().ToString());
             }

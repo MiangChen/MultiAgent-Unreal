@@ -1,6 +1,7 @@
 #include "MAModifyWidgetSceneGraphAdapter.h"
 
 #include "../../../Core/SceneGraph/Runtime/MASceneGraphManager.h"
+#include "../../../Core/SceneGraph/Bootstrap/MASceneGraphBootstrap.h"
 #include "Dom/JsonObject.h"
 #include "Engine/GameInstance.h"
 #include "GameFramework/Actor.h"
@@ -66,8 +67,7 @@ namespace
 
     UMASceneGraphManager* ResolveModifySceneGraphAdapterManager(UWorld* World)
     {
-        UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
-        return GameInstance ? GameInstance->GetSubsystem<UMASceneGraphManager>() : nullptr;
+        return FMASceneGraphBootstrap::Resolve(World);
     }
 }
 

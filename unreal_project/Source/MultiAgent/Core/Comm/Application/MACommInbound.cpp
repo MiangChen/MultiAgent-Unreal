@@ -6,8 +6,10 @@
 #include "Core/Comm/Infrastructure/Codec/MACommJsonCodec.h"
 #include "Core/Comm/Infrastructure/Codec/MACommTypeHelper.h"
 #include "Core/Command/Runtime/MACommandManager.h"
+#include "Core/SkillAllocation/Application/MASkillAllocationUseCases.h"
 #include "Core/TempData/Runtime/MATempDataManager.h"
-#include "Core/Shared/Types/MATaskGraphTypes.h"
+#include "Core/TaskGraph/Application/MATaskGraphUseCases.h"
+#include "Core/TaskGraph/Domain/MATaskGraphTypes.h"
 #include "HttpModule.h"
 #include "Interfaces/IHttpRequest.h"
 #include "Interfaces/IHttpResponse.h"
@@ -534,11 +536,10 @@ void FMACommInbound::HandleTaskGraph(const TSharedPtr<FJsonObject>& PayloadObjec
     UE_LOG(LogMACommInbound, Log, TEXT("HandleTaskGraph: Received task graph payload"));
 
     // 使用 FromResponseJson 解析 (支持 meta + task_graph 格式)
-    FMATaskGraphData TaskGraphData;
-    FString ErrorMessage;
-    
-    if (FMATaskGraphData::FromResponseJson(PayloadJson, TaskGraphData, ErrorMessage))
+    const FTaskGraphLoadResult LoadResult = FTaskGraphUseCases::ParseResponseJson(PayloadJson);
+    if (LoadResult.bSuccess)
     {
+        const FMATaskGraphData& TaskGraphData = LoadResult.Data;
         UE_LOG(LogMACommInbound, Log, TEXT("HandleTaskGraph: Parsed task graph with %d nodes, %d edges"),
             TaskGraphData.Nodes.Num(), TaskGraphData.Edges.Num());
 
@@ -588,7 +589,7 @@ void FMACommInbound::HandleTaskGraph(const TSharedPtr<FJsonObject>& PayloadObjec
     }
     else
     {
-        UE_LOG(LogMACommInbound, Warning, TEXT("HandleTaskGraph: Failed to parse task graph: %s"), *ErrorMessage);
+        UE_LOG(LogMACommInbound, Warning, TEXT("HandleTaskGraph: Failed to parse task graph: %s"), *LoadResult.Feedback.Message);
     }
 }
 
@@ -663,7 +664,7 @@ void FMACommInbound::HandleSkillAllocation(const TSharedPtr<FJsonObject>& Payloa
     // 解析 payload 为 FMASkillAllocationData
     FMASkillAllocationData AllocationData;
     FString ErrorMessage;
-    if (!FMASkillAllocationData::FromJson(PayloadJson, AllocationData, ErrorMessage))
+    if (!FMASkillAllocationUseCases::ParseJson(PayloadJson, AllocationData, ErrorMessage))
     {
         UE_LOG(LogMACommInbound, Warning, TEXT("HandleSkillAllocation: Failed to parse: %s"), *ErrorMessage);
         return;

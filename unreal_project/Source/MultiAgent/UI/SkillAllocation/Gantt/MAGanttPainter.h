@@ -4,7 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "../../../Core/Shared/Types/MATaskGraphTypes.h"
+#include "Core/SkillAllocation/Domain/MASkillAllocationTypes.h"
 #include "MAGanttGridLayout.h"
 
 struct FGeometry;

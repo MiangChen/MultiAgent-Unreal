@@ -7,6 +7,7 @@
 #include "../../../Core/Editing/Runtime/MAEditModeManager.h"
 #include "../../../Core/Camera/Runtime/MAPIPCameraManager.h"
 #include "../../../Core/SceneGraph/Runtime/MASceneGraphManager.h"
+#include "../../../Core/SceneGraph/Bootstrap/MASceneGraphBootstrap.h"
 #include "../../../Environment/Utils/MAGoalActor.h"
 #include "../../../Environment/Utils/MAPointOfInterest.h"
 #include "../../../Environment/Utils/MAZoneActor.h"
@@ -32,15 +33,7 @@ UMAEditModeManager* FMAHUDEditRuntimeAdapter::ResolveEditModeManager(const AMAHU
 
 UMASceneGraphManager* FMAHUDEditRuntimeAdapter::ResolveSceneGraphManager(const AMAHUD* HUD) const
 {
-    if (UWorld* World = ResolveWorld(HUD))
-    {
-        if (UGameInstance* GameInstance = World->GetGameInstance())
-        {
-            return GameInstance->GetSubsystem<UMASceneGraphManager>();
-        }
-    }
-
-    return nullptr;
+    return FMASceneGraphBootstrap::Resolve(HUD);
 }
 
 UMAPIPCameraManager* FMAHUDEditRuntimeAdapter::ResolvePIPCameraManager(const AMAHUD* HUD) const
@@ -57,9 +50,10 @@ bool FMAHUDEditRuntimeAdapter::LoadSceneGraphNodes(AMAHUD* HUD, TArray<FMASceneG
 {
     OutNodes.Reset();
 
-    if (UMASceneGraphManager* SceneGraphManager = ResolveSceneGraphManager(HUD))
+    const FMASceneGraphNodesFeedback Feedback = FMASceneGraphBootstrap::LoadAllNodes(HUD);
+    if (Feedback.bSuccess)
     {
-        OutNodes = SceneGraphManager->GetAllNodes();
+        OutNodes = Feedback.Nodes;
         return true;
     }
 
@@ -133,8 +127,14 @@ bool FMAHUDEditRuntimeAdapter::BuildEditModeIndicatorModel(AMAHUD* HUD, FMAHUDEd
     OutModel = FMAHUDEditModeIndicatorModel();
 
     UMAEditModeManager* EditModeManager = ResolveEditModeManager(HUD);
-    UMASceneGraphManager* SceneGraphManager = ResolveSceneGraphManager(HUD);
-    if (!EditModeManager || !SceneGraphManager)
+    if (!EditModeManager)
+    {
+        return false;
+    }
+
+    const FMASceneGraphNodesFeedback GoalFeedback = FMASceneGraphBootstrap::LoadGoals(HUD);
+    const FMASceneGraphNodesFeedback ZoneFeedback = FMASceneGraphBootstrap::LoadZones(HUD);
+    if (!GoalFeedback.bSuccess || !ZoneFeedback.bSuccess)
     {
         return false;
     }
@@ -149,7 +149,7 @@ bool FMAHUDEditRuntimeAdapter::BuildEditModeIndicatorModel(AMAHUD* HUD, FMAHUDEd
         }
     }
 
-    for (const FMASceneGraphNode& GoalNode : SceneGraphManager->GetAllGoals())
+    for (const FMASceneGraphNode& GoalNode : GoalFeedback.Nodes)
     {
         const FString Label = GoalNode.Label.IsEmpty() ? GoalNode.Id : GoalNode.Label;
         if (AMAGoalActor* GoalActor = EditModeManager->GetGoalActorByNodeId(GoalNode.Id))
@@ -163,7 +163,7 @@ bool FMAHUDEditRuntimeAdapter::BuildEditModeIndicatorModel(AMAHUD* HUD, FMAHUDEd
         }
     }
 
-    for (const FMASceneGraphNode& ZoneNode : SceneGraphManager->GetAllZones())
+    for (const FMASceneGraphNode& ZoneNode : ZoneFeedback.Nodes)
     {
         const FString Label = ZoneNode.Label.IsEmpty() ? ZoneNode.Id : ZoneNode.Label;
         OutModel.ZoneInfos.Add(FString::Printf(TEXT("[%s]"), *Label));
@@ -186,19 +186,13 @@ bool FMAHUDEditRuntimeAdapter::SelectGoalById(AMAHUD* HUD, const FString& GoalId
         return true;
     }
 
-    UMASceneGraphManager* SceneGraphManager = ResolveSceneGraphManager(HUD);
-    if (!SceneGraphManager)
+    const FMASceneGraphNodeFeedback NodeFeedback = FMASceneGraphBootstrap::LoadNodeById(HUD, GoalId);
+    if (!NodeFeedback.bSuccess || NodeFeedback.Node.Guid.IsEmpty())
     {
         return false;
     }
 
-    const FMASceneGraphNode Node = SceneGraphManager->GetNodeById(GoalId);
-    if (!Node.IsValid() || Node.Guid.IsEmpty())
-    {
-        return false;
-    }
-
-    if (AActor* FoundActor = EditModeManager->FindActorByGuid(Node.Guid))
+    if (AActor* FoundActor = EditModeManager->FindActorByGuid(NodeFeedback.Node.Guid))
     {
         EditModeManager->SelectActor(FoundActor);
         return true;

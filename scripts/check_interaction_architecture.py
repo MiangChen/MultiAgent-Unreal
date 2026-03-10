@@ -37,6 +37,8 @@ OLD_INCLUDE_PATTERNS = (
     "Core/Types/MATypes.h",
     "Core/Types/MATaskGraphTypes.h",
     "Core/Types/MASimTypes.h",
+    "Core/Shared/Types/MATaskGraphTypes.h",
+    "Core/Shared/Types/MATaskGraphTypes.cpp",
     "Core/Comm/MACommSubsystem.h",
     "Core/Comm/MACommInbound.h",
     "Core/Comm/MACommOutbound.h",
@@ -54,7 +56,9 @@ FORBIDDEN_INFRA_FILES = (
 
 REQUIRED_SCENEGRAPH_DIRS = (
     "Core/SceneGraph/Application",
+    "Core/SceneGraph/Bootstrap",
     "Core/SceneGraph/Domain",
+    "Core/SceneGraph/Feedback",
     "Core/SceneGraph/Infrastructure",
     "Core/SceneGraph/Runtime",
 )
@@ -82,7 +86,11 @@ REQUIRED_AGENT_RUNTIME_DIRS = (
 )
 
 REQUIRED_SQUAD_DIRS = (
+    "Core/Squad/Application",
+    "Core/Squad/Bootstrap",
     "Core/Squad/Domain",
+    "Core/Squad/Feedback",
+    "Core/Squad/Infrastructure",
     "Core/Squad/Runtime",
 )
 
@@ -96,6 +104,22 @@ REQUIRED_ENVIRONMENT_CORE_DIRS = (
 
 REQUIRED_SHARED_DIRS = (
     "Core/Shared/Types",
+)
+
+REQUIRED_TASKGRAPH_DIRS = (
+    "Core/TaskGraph/Application",
+    "Core/TaskGraph/Bootstrap",
+    "Core/TaskGraph/Domain",
+    "Core/TaskGraph/Feedback",
+    "Core/TaskGraph/Infrastructure",
+)
+
+REQUIRED_SKILL_ALLOCATION_DIRS = (
+    "Core/SkillAllocation/Application",
+    "Core/SkillAllocation/Bootstrap",
+    "Core/SkillAllocation/Domain",
+    "Core/SkillAllocation/Feedback",
+    "Core/SkillAllocation/Infrastructure",
 )
 
 REQUIRED_COMM_DIRS = (
@@ -187,6 +211,9 @@ FORBIDDEN_LEGACY_SHARED_TYPE_PATHS = (
     "Core/Types/MATaskGraphTypes.cpp",
     "Core/Types/MASimTypes.h",
     "Core/Types/MASimTypes.cpp",
+    "Core/Shared/Types/MATaskGraphTypes.h",
+    "Core/Shared/Types/MATaskGraphTypes.cpp",
+    "Core/TaskGraph/Infrastructure/MATaskGraphTypes.cpp",
 )
 
 FORBIDDEN_LEGACY_COMM_PATHS = (
@@ -226,6 +253,16 @@ FORBIDDEN_UI_MUTATION_PATTERNS = (
 
 ALLOWED_UI_MUTATION_FILES = {
     "Core/Interaction/Infrastructure/MAFeedback21Applier.cpp",
+}
+
+SCENEGRAPH_SUBSYSTEM_PATTERN = "GetSubsystem<UMASceneGraphManager>()"
+ALLOWED_SCENEGRAPH_SUBSYSTEM_FILES = {
+    "Core/SceneGraph/Bootstrap/MASceneGraphBootstrap.cpp",
+}
+
+SQUAD_SUBSYSTEM_PATTERN = "GetSubsystem<UMASquadManager>()"
+ALLOWED_SQUAD_SUBSYSTEM_FILES = {
+    "Core/Squad/Bootstrap/MASquadBootstrap.cpp",
 }
 
 APPLICATION_RUNTIME_CALL_GUARDS = {
@@ -391,6 +428,14 @@ def main() -> int:
         if not (SOURCE_ROOT / relative_path).exists():
             errors.append(f"Missing required Shared context directory: {relative_path}")
 
+    for relative_path in REQUIRED_TASKGRAPH_DIRS:
+        if not (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"Missing required TaskGraph context directory: {relative_path}")
+
+    for relative_path in REQUIRED_SKILL_ALLOCATION_DIRS:
+        if not (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"Missing required SkillAllocation context directory: {relative_path}")
+
     for relative_path in REQUIRED_COMM_DIRS:
         if not (SOURCE_ROOT / relative_path).exists():
             errors.append(f"Missing required Comm context directory: {relative_path}")
@@ -423,6 +468,16 @@ def main() -> int:
             for pattern in FORBIDDEN_UI_MUTATION_PATTERNS:
                 if pattern in text and relative not in ALLOWED_UI_MUTATION_FILES:
                     errors.append(f"{relative}: direct UI mutation '{pattern}' should go through FB21")
+
+        if SCENEGRAPH_SUBSYSTEM_PATTERN in text and relative not in ALLOWED_SCENEGRAPH_SUBSYSTEM_FILES:
+            errors.append(
+                f"{relative}: SceneGraph subsystem lookup should go through Core/SceneGraph/Bootstrap/MASceneGraphBootstrap.cpp"
+            )
+
+        if SQUAD_SUBSYSTEM_PATTERN in text and relative not in ALLOWED_SQUAD_SUBSYSTEM_FILES:
+            errors.append(
+                f"{relative}: Squad subsystem lookup should go through Core/Squad/Bootstrap/MASquadBootstrap.cpp"
+            )
 
         for prefix, patterns in APPLICATION_RUNTIME_CALL_GUARDS.items():
             if relative.startswith(prefix):

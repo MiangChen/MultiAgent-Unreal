@@ -3,6 +3,9 @@
 
 #include "MASkillAllocationModel.h"
 
+#include "Core/SkillAllocation/Application/MASkillAllocationUseCases.h"
+#include "Core/SkillAllocation/Bootstrap/MASkillAllocationBootstrap.h"
+
 DEFINE_LOG_CATEGORY(LogMASkillAllocationModel);
 
 //=============================================================================
@@ -34,7 +37,7 @@ bool UMASkillAllocationModel::LoadFromJsonWithError(const FString& JsonString, F
     }
 
     FMASkillAllocationData ParsedData;
-    if (!FMASkillAllocationData::FromJson(JsonString, ParsedData, OutError))
+    if (!FMASkillAllocationUseCases::ParseJson(JsonString, ParsedData, OutError))
     {
         UE_LOG(LogMASkillAllocationModel, Warning, TEXT("Failed to parse JSON: %s"), *OutError);
         return false;
@@ -78,8 +81,8 @@ void UMASkillAllocationModel::ResetToOriginal()
 
 void UMASkillAllocationModel::Clear()
 {
-    OriginalData = FMASkillAllocationData();
-    WorkingData = FMASkillAllocationData();
+    OriginalData = FMASkillAllocationBootstrap::BuildEmptyData();
+    WorkingData = FMASkillAllocationBootstrap::BuildEmptyData();
     BroadcastDataChanged();
     UE_LOG(LogMASkillAllocationModel, Log, TEXT("Cleared all data"));
 }
@@ -90,7 +93,7 @@ void UMASkillAllocationModel::Clear()
 
 FString UMASkillAllocationModel::ToJson() const
 {
-    return WorkingData.ToJson();
+    return FMASkillAllocationUseCases::SerializeJson(WorkingData);
 }
 
 FMASkillAllocationData UMASkillAllocationModel::GetWorkingData() const

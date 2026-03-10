@@ -41,11 +41,53 @@ FILE_MAPPING = {
     "Shared/Types": [
         "MATypes.h",
         "MASimTypes.h", "MASimTypes.cpp",
-        "MATaskGraphTypes.h", "MATaskGraphTypes.cpp",
     ],
-    # Squad Domain / 保留在根目录
+    "TaskGraph/Domain": [
+        "MATaskGraphTypes.h",
+        "MATaskGraphTypes.cpp",
+    ],
+    "TaskGraph/Application": [
+        "MATaskGraphUseCases.h", "MATaskGraphUseCases.cpp",
+    ],
+    "TaskGraph/Feedback": [
+        "MATaskGraphFeedback.h",
+    ],
+    "TaskGraph/Infrastructure": [
+        "MATaskGraphJsonCodec.h", "MATaskGraphJsonCodec.cpp",
+    ],
+    "TaskGraph/Bootstrap": [
+        "MATaskGraphBootstrap.h", "MATaskGraphBootstrap.cpp",
+    ],
+    "SkillAllocation/Domain": [
+        "MASkillAllocationTypes.h",
+        "MASkillAllocationTypes.cpp",
+    ],
+    "SkillAllocation/Application": [
+        "MASkillAllocationUseCases.h", "MASkillAllocationUseCases.cpp",
+    ],
+    "SkillAllocation/Feedback": [
+        "MASkillAllocationFeedback.h",
+    ],
+    "SkillAllocation/Infrastructure": [
+        "MASkillAllocationJsonCodec.h", "MASkillAllocationJsonCodec.cpp",
+    ],
+    "SkillAllocation/Bootstrap": [
+        "MASkillAllocationBootstrap.h", "MASkillAllocationBootstrap.cpp",
+    ],
+    "Squad/Application": [
+        "MASquadUseCases.h", "MASquadUseCases.cpp",
+    ],
+    "Squad/Bootstrap": [
+        "MASquadBootstrap.h", "MASquadBootstrap.cpp",
+    ],
     "Squad/Domain": [
         "MASquad.h", "MASquad.cpp",
+    ],
+    "Squad/Feedback": [
+        "MASquadFeedback.h",
+    ],
+    "Squad/Infrastructure": [
+        "MASquadRuntimeBridge.h", "MASquadRuntimeBridge.cpp",
     ],
     # 保留在根目录
     "": [

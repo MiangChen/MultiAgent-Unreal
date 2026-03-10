@@ -11,6 +11,7 @@
 #include "../../../Core/Comm/Domain/MACommTypes.h"
 #include "../../../Core/Command/Runtime/MACommandManager.h"
 #include "../../../Core/SceneGraph/Runtime/MASceneGraphManager.h"
+#include "../../../Core/SceneGraph/Bootstrap/MASceneGraphBootstrap.h"
 #include "../../../Core/SceneGraph/Application/MASceneGraphQueryUseCases.h"
 #include "../../../Utils/MAGeometryUtils.h"
 #include "../../../Environment/Entity/MAChargingStation.h"
@@ -150,7 +151,7 @@ bool FMASkillParamsProcessor::MatchTargetObject(
     
     UWorld* World = Agent->GetWorld();
     UGameInstance* GameInstance = World->GetGameInstance();
-    UMASceneGraphManager* SceneGraphManager = GameInstance ? GameInstance->GetSubsystem<UMASceneGraphManager>() : nullptr;
+    UMASceneGraphManager* SceneGraphManager = FMASceneGraphBootstrap::Resolve(GameInstance);
     
     bool bFoundInSceneGraph = false;
     
@@ -624,7 +625,7 @@ void FMASkillParamsProcessor::ProcessNavigate(UMASkillComponent* SkillComp, cons
     // Step 4: 存储附近地标信息到反馈上下文（用于反馈生成）
     //=========================================================================
     UGameInstance* GameInstance = World->GetGameInstance();
-    UMASceneGraphManager* SceneGraphManager = GameInstance ? GameInstance->GetSubsystem<UMASceneGraphManager>() : nullptr;
+    UMASceneGraphManager* SceneGraphManager = FMASceneGraphBootstrap::Resolve(GameInstance);
     
     if (SceneGraphManager)
     {
@@ -739,7 +740,7 @@ void FMASkillParamsProcessor::ProcessSearch(AMACharacter* Agent, UMASkillCompone
     if (!World) return;
     
     UGameInstance* GameInstance = World->GetGameInstance();
-    UMASceneGraphManager* SceneGraphManager = GameInstance ? GameInstance->GetSubsystem<UMASceneGraphManager>() : nullptr;
+    UMASceneGraphManager* SceneGraphManager = FMASceneGraphBootstrap::Resolve(GameInstance);
     
     bool bFoundInSceneGraph = false;
     
@@ -886,7 +887,7 @@ void FMASkillParamsProcessor::ProcessPlace(AMACharacter* Agent, UMASkillComponen
     if (!World) return;
     
     UGameInstance* GameInstance = World->GetGameInstance();
-    UMASceneGraphManager* SceneGraphManager = GameInstance ? GameInstance->GetSubsystem<UMASceneGraphManager>() : nullptr;
+    UMASceneGraphManager* SceneGraphManager = FMASceneGraphBootstrap::Resolve(GameInstance);
     
     TArray<FMASceneGraphNode> AllNodes;
     if (SceneGraphManager)
@@ -1173,7 +1174,7 @@ void FMASkillParamsProcessor::ProcessTakeOff(UMASkillComponent* SkillComp, const
     //=========================================================================
     UWorld* World = Agent->GetWorld();
     UGameInstance* GameInstance = World->GetGameInstance();
-    UMASceneGraphManager* SceneGraphManager = GameInstance ? GameInstance->GetSubsystem<UMASceneGraphManager>() : nullptr;
+    UMASceneGraphManager* SceneGraphManager = FMASceneGraphBootstrap::Resolve(GameInstance);
     
     const float SafetyMargin = 500.f;  // 安全距离 5m
     const float SearchRadius = 3000.f;  // 搜索半径 30m
@@ -1313,7 +1314,7 @@ void FMASkillParamsProcessor::ProcessLand(UMASkillComponent* SkillComp, const FM
     // Step 1: 使用场景图查找安全着陆区
     //=========================================================================
     UGameInstance* GameInstance = World->GetGameInstance();
-    UMASceneGraphManager* SceneGraphManager = GameInstance ? GameInstance->GetSubsystem<UMASceneGraphManager>() : nullptr;
+    UMASceneGraphManager* SceneGraphManager = FMASceneGraphBootstrap::Resolve(GameInstance);
     
     if (SceneGraphManager)
     {
@@ -1512,7 +1513,7 @@ void FMASkillParamsProcessor::ProcessReturnHome(UMASkillComponent* SkillComp, co
     // Step 2: 查找家位置附近的地标
     //=========================================================================
     UGameInstance* GameInstance = World->GetGameInstance();
-    UMASceneGraphManager* SceneGraphManager = GameInstance ? GameInstance->GetSubsystem<UMASceneGraphManager>() : nullptr;
+    UMASceneGraphManager* SceneGraphManager = FMASceneGraphBootstrap::Resolve(GameInstance);
     
     if (SceneGraphManager)
     {
@@ -1622,7 +1623,7 @@ void FMASkillParamsProcessor::ProcessTakePhoto(AMACharacter* Agent, UMASkillComp
     if (!TargetActor.IsValid())
     {
         UGameInstance* GameInstance = World->GetGameInstance();
-        UMASceneGraphManager* SceneGraphManager = GameInstance ? GameInstance->GetSubsystem<UMASceneGraphManager>() : nullptr;
+        UMASceneGraphManager* SceneGraphManager = FMASceneGraphBootstrap::Resolve(GameInstance);
         
         if (SceneGraphManager)
         {
@@ -1769,7 +1770,7 @@ void FMASkillParamsProcessor::ProcessBroadcast(AMACharacter* Agent, UMASkillComp
     if (!TargetActor.IsValid())
     {
         UGameInstance* GameInstance = World->GetGameInstance();
-        UMASceneGraphManager* SceneGraphManager = GameInstance ? GameInstance->GetSubsystem<UMASceneGraphManager>() : nullptr;
+        UMASceneGraphManager* SceneGraphManager = FMASceneGraphBootstrap::Resolve(GameInstance);
         
         if (SceneGraphManager)
         {
@@ -1903,7 +1904,7 @@ void FMASkillParamsProcessor::ProcessHandleHazard(AMACharacter* Agent, UMASkillC
     if (!TargetActor.IsValid())
     {
         UGameInstance* GameInstance = World->GetGameInstance();
-        UMASceneGraphManager* SceneGraphManager = GameInstance ? GameInstance->GetSubsystem<UMASceneGraphManager>() : nullptr;
+        UMASceneGraphManager* SceneGraphManager = FMASceneGraphBootstrap::Resolve(GameInstance);
         
         if (SceneGraphManager)
         {
@@ -2023,7 +2024,7 @@ void FMASkillParamsProcessor::ProcessGuide(AMACharacter* Agent, UMASkillComponen
     if (!TargetActor.IsValid())
     {
         UGameInstance* GameInstance = World->GetGameInstance();
-        UMASceneGraphManager* SceneGraphManager = GameInstance ? GameInstance->GetSubsystem<UMASceneGraphManager>() : nullptr;
+        UMASceneGraphManager* SceneGraphManager = FMASceneGraphBootstrap::Resolve(GameInstance);
         
         if (SceneGraphManager)
         {
@@ -2145,7 +2146,7 @@ void FMASkillParamsProcessor::ProcessFollow(UMASkillComponent* SkillComp, const 
     if (!TargetActor)
     {
         UGameInstance* GameInstance = World->GetGameInstance();
-        UMASceneGraphManager* SceneGraphManager = GameInstance ? GameInstance->GetSubsystem<UMASceneGraphManager>() : nullptr;
+        UMASceneGraphManager* SceneGraphManager = FMASceneGraphBootstrap::Resolve(GameInstance);
         
         if (SceneGraphManager)
         {
@@ -2229,7 +2230,7 @@ void FMASkillParamsProcessor::ProcessCharge(UMASkillComponent* SkillComp, const 
     //=========================================================================
     UWorld* World = Agent->GetWorld();
     UGameInstance* GameInstance = World->GetGameInstance();
-    UMASceneGraphManager* SceneGraphManager = GameInstance ? GameInstance->GetSubsystem<UMASceneGraphManager>() : nullptr;
+    UMASceneGraphManager* SceneGraphManager = FMASceneGraphBootstrap::Resolve(GameInstance);
     
     bool bFoundInSceneGraph = false;
     

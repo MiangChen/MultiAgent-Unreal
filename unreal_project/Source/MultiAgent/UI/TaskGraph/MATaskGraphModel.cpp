@@ -2,6 +2,7 @@
 // 任务图数据模型实现
 
 #include "MATaskGraphModel.h"
+#include "Core/TaskGraph/Application/MATaskGraphUseCases.h"
 
 DEFINE_LOG_CATEGORY(LogMATaskGraphModel);
 
@@ -26,14 +27,15 @@ bool UMATaskGraphModel::LoadFromJson(const FString& JsonString)
 
 bool UMATaskGraphModel::LoadFromJsonWithError(const FString& JsonString, FString& OutError)
 {
-    FMATaskGraphData ParsedData;
-    if (!FMATaskGraphData::FromJsonWithError(JsonString, ParsedData, OutError))
+    const FTaskGraphLoadResult LoadResult = FTaskGraphUseCases::ParseFlexibleJson(JsonString);
+    if (!LoadResult.bSuccess)
     {
+        OutError = LoadResult.Feedback.Message;
         UE_LOG(LogMATaskGraphModel, Warning, TEXT("Failed to parse JSON: %s"), *OutError);
         return false;
     }
 
-    LoadFromData(ParsedData);
+    LoadFromData(LoadResult.Data);
     return true;
 }
 
@@ -90,7 +92,7 @@ void UMATaskGraphModel::Clear()
 
 FString UMATaskGraphModel::ToJson() const
 {
-    return WorkingData.ToJson();
+    return FTaskGraphUseCases::Serialize(WorkingData);
 }
 
 FMATaskGraphData UMATaskGraphModel::GetWorkingData() const

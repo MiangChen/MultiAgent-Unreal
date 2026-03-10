@@ -56,12 +56,6 @@ void UMANodePaletteWidget::NativeConstruct()
         BuildUI();
     }
     
-    // 初始化默认模板（现在 TemplateListBox 已经存在）
-    if (!bTemplatesInitialized)
-    {
-        InitializeTemplates();
-    }
-    
     UE_LOG(LogMANodePalette, Log, TEXT("MANodePaletteWidget NativeConstruct completed"));
 }
 
@@ -273,65 +267,17 @@ UButton* UMANodePaletteWidget::CreateTemplateButton(const FMANodeTemplate& Templ
 // 初始化
 //=============================================================================
 
-void UMANodePaletteWidget::InitializeTemplates()
+void UMANodePaletteWidget::InitializeTemplates(const TArray<FMANodeTemplate>& InTemplates)
 {
-    if (bTemplatesInitialized)
-    {
-        return;
-    }
+    UE_LOG(LogMANodePalette, Log, TEXT("InitializeTemplates: Applying %d templates"), InTemplates.Num());
 
-    UE_LOG(LogMANodePalette, Log, TEXT("InitializeTemplates: Adding default templates..."));
-
-    // 确保 UI 已经构建
     if (!TemplateListBox)
     {
-        UE_LOG(LogMANodePalette, Log, TEXT("InitializeTemplates: Building UI first..."));
         BuildUI();
     }
 
-    // 添加默认模板
-    NodeTemplates.Empty();
-    
-    // Navigate template
-    NodeTemplates.Add(FMANodeTemplate(
-        TEXT("Navigate"),
-        TEXT("Navigate to target location"),
-        TEXT("target_location")
-    ));
-    
-    // Patrol template
-    NodeTemplates.Add(FMANodeTemplate(
-        TEXT("Patrol"),
-        TEXT("Patrol specified area"),
-        TEXT("patrol_area")
-    ));
-    
-    // Perceive template
-    NodeTemplates.Add(FMANodeTemplate(
-        TEXT("Perceive"),
-        TEXT("Perceive surroundings"),
-        TEXT("current_location")
-    ));
-    
-    // Broadcast template
-    NodeTemplates.Add(FMANodeTemplate(
-        TEXT("Broadcast"),
-        TEXT("Broadcast message"),
-        TEXT("broadcast_area")
-    ));
-    
-    // Custom template
-    NodeTemplates.Add(FMANodeTemplate(
-        TEXT("Custom"),
-        TEXT("Custom task"),
-        TEXT("custom_location")
-    ));
-
+    NodeTemplates = InTemplates;
     bTemplatesInitialized = true;
-
-    UE_LOG(LogMANodePalette, Log, TEXT("InitializeTemplates: Added %d templates"), NodeTemplates.Num());
-
-    // 刷新显示并绑定事件
     RefreshTemplateList();
 }
 

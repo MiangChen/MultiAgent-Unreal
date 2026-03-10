@@ -7,6 +7,7 @@
 #include "../../Character/MACharacter.h"
 #include "../../Component/MANavigationService.h"
 #include "../../../Core/SceneGraph/Runtime/MASceneGraphManager.h"
+#include "../../../Core/SceneGraph/Bootstrap/MASceneGraphBootstrap.h"
 #include "../../../Core/Camera/Runtime/MAPIPCameraManager.h"
 #include "../../../Core/Camera/Domain/MAPIPCameraTypes.h"
 #include "TimerManager.h"
@@ -161,7 +162,7 @@ void USK_Search::GenerateSearchPath()
         
         if (UGameInstance* GameInstance = Character->GetGameInstance())
         {
-            if (UMASceneGraphManager* SceneGraphManager = GameInstance->GetSubsystem<UMASceneGraphManager>())
+            if (UMASceneGraphManager* SceneGraphManager = FMASceneGraphBootstrap::Resolve(GameInstance))
             {
                 TArray<FMASceneGraphNode> Buildings = SceneGraphManager->GetAllBuildings();
                 for (const FMASceneGraphNode& Building : Buildings)

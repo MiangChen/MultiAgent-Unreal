@@ -10,8 +10,7 @@ class AMAPointOfInterest;
 class AMAPlayerController;
 
 class UMACameraSensorComponent;
-
-class UMASquad;
+struct FMASquadOperationFeedback;
 
 enum class EMAAgentType : uint8;
 enum class EMACommand : uint8;
@@ -64,12 +63,9 @@ public:
     bool TakePhotoForCurrentCamera(AMAPlayerController* PlayerController, FString& OutSensorName) const;
     FMACameraStreamRuntimeResult ToggleTCPStreamForCurrentCamera(AMAPlayerController* PlayerController) const;
 
-    void CycleFormation(AMAPlayerController* PlayerController) const;
-    bool CreateSquadFromSelection(
-        AMAPlayerController* PlayerController,
-        FString& OutSquadName,
-        int32& OutMemberCount) const;
-    int32 DisbandSelectedSquads(AMAPlayerController* PlayerController) const;
+    FMASquadOperationFeedback CycleFormation(AMAPlayerController* PlayerController) const;
+    FMASquadOperationFeedback CreateSquadFromSelection(AMAPlayerController* PlayerController) const;
+    FMASquadOperationFeedback DisbandSelectedSquads(AMAPlayerController* PlayerController) const;
 
     bool CanEnterEditMode(const AMAPlayerController* PlayerController) const;
     void ToggleEditSelection(AMAPlayerController* PlayerController, AActor* HitActor) const;
@@ -81,7 +77,6 @@ private:
     class UMASelectionManager* ResolveSelectionManager(const AMAPlayerController* PlayerController) const;
     class UMAAgentManager* ResolveAgentManager(const AMAPlayerController* PlayerController) const;
     class UMACommandManager* ResolveCommandManager(const AMAPlayerController* PlayerController) const;
-    class UMASquadManager* ResolveSquadManager(const AMAPlayerController* PlayerController) const;
     class UMAViewportManager* ResolveViewportManager(const AMAPlayerController* PlayerController) const;
     class UMAEditModeManager* ResolveEditModeManager(const AMAPlayerController* PlayerController) const;
     class UMACameraSensorComponent* ResolveCurrentCamera(const AMAPlayerController* PlayerController) const;

@@ -9,7 +9,7 @@ class MULTIAGENT_API FMASquadInputCoordinator
 {
 public:
     void HandleControlGroup(AMAPlayerController* PlayerController, int32 GroupIndex) const;
-    void CycleFormation(AMAPlayerController* PlayerController) const;
+    FMAFeedback21Batch CycleFormation(AMAPlayerController* PlayerController) const;
     FMAFeedback21Batch CreateSquad(AMAPlayerController* PlayerController) const;
     FMAFeedback21Batch DisbandSquad(AMAPlayerController* PlayerController) const;
 };

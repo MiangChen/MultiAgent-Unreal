@@ -4,6 +4,7 @@
 #include "MASkillAllocationViewer.h"
 #include "MAGanttCanvas.h"
 #include "MASkillAllocationModel.h"
+#include "../../Core/SkillAllocation/Application/MASkillAllocationUseCases.h"
 #include "../../Core/Comm/Runtime/MACommSubsystem.h"
 #include "../../Core/TempData/Runtime/MATempDataManager.h"
 #include "../Core/MARoundedBorderUtils.h"
@@ -1167,76 +1168,7 @@ bool UMASkillAllocationViewer::ConvertToSkillListMessage(
     FMASkillListMessage& OutMessage,
     FString& OutErrorMessage)
 {
-    // Initialize output
-    OutMessage = FMASkillListMessage();
-    OutErrorMessage.Empty();
-    
-    // Check for empty data
-    if (InData.Data.Num() == 0)
-    {
-        OutErrorMessage = TEXT("技能列表为空");
-        return false;
-    }
-    
-    // Get sorted time steps
-    TArray<int32> TimeSteps;
-    InData.Data.GetKeys(TimeSteps);
-    TimeSteps.Sort();
-    
-    OutMessage.TotalTimeSteps = TimeSteps.Num();
-    
-    for (int32 TimeStep : TimeSteps)
-    {
-        FMATimeStepCommands TimeStepCmd;
-        TimeStepCmd.TimeStep = TimeStep;
-        
-        const FMATimeStepData* TimeStepData = InData.Data.Find(TimeStep);
-        if (!TimeStepData)
-        {
-            continue;
-        }
-        
-        for (const auto& Pair : TimeStepData->RobotSkills)
-        {
-            const FString& RobotId = Pair.Key;
-            const FMASkillAssignment& Assignment = Pair.Value;
-            
-            FMAAgentSkillCommand Cmd;
-            Cmd.AgentId = RobotId;
-            Cmd.SkillName = Assignment.SkillName;
-            
-            // 保存原始 params JSON
-            Cmd.Params.RawParamsJson = Assignment.ParamsJson;
-            
-            if (!Assignment.ParamsJson.IsEmpty())
-            {
-                UE_LOG(LogMASkillAllocationViewer, Verbose, 
-                    TEXT("ConvertToSkillListMessage: %s at TimeStep %d - skill=%s, params=%s"),
-                    *RobotId, TimeStep, *Assignment.SkillName, *Assignment.ParamsJson);
-            }
-            else
-            {
-                UE_LOG(LogMASkillAllocationViewer, Warning, 
-                    TEXT("ConvertToSkillListMessage: Empty params JSON for %s at TimeStep %d"),
-                    *RobotId, TimeStep);
-            }
-            
-            TimeStepCmd.Commands.Add(Cmd);
-        }
-        
-        OutMessage.TimeSteps.Add(TimeStepCmd);
-    }
-    
-    UE_LOG(LogMASkillAllocationViewer, Log, 
-        TEXT("ConvertToSkillListMessage: Converted %d time steps with %d total commands"),
-        OutMessage.TotalTimeSteps, 
-        [&OutMessage]() {
-            int32 Total = 0;
-            for (const auto& TS : OutMessage.TimeSteps) { Total += TS.Commands.Num(); }
-            return Total;
-        }());
-    
-    return true;
+    return FMASkillAllocationUseCases::TryBuildSkillListMessage(InData, OutMessage, OutErrorMessage);
 }
 
 

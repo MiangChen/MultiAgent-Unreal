@@ -3,6 +3,7 @@
 
 #include "MAEnvironmentManager.h"
 #include "Core/SceneGraph/Runtime/MASceneGraphManager.h"
+#include "Core/SceneGraph/Bootstrap/MASceneGraphBootstrap.h"
 #include "Core/Config/MAConfigManager.h"
 #include "Environment/Entity/MAChargingStation.h"
 #include "Environment/Entity/MACargo.h"
@@ -134,7 +135,7 @@ void UMAEnvironmentManager::SpawnEnvironmentObjects()
             // 绑定 GUID 到场景图节点
             if (UGameInstance* GI = GetWorld()->GetGameInstance())
             {
-                if (UMASceneGraphManager* SceneGraphMgr = GI->GetSubsystem<UMASceneGraphManager>())
+                if (UMASceneGraphManager* SceneGraphMgr = FMASceneGraphBootstrap::Resolve(GI))
                 {
                     SceneGraphMgr->BindDynamicNodeGuid(Config.Label, SpawnedObject->GetActorGuid().ToString());
                 }

@@ -19,6 +19,7 @@
 #include "../Core/MAUITheme.h"
 #include "../../Core/Editing/Runtime/MAEditModeManager.h"
 #include "../../Core/SceneGraph/Runtime/MASceneGraphManager.h"
+#include "../../Core/SceneGraph/Bootstrap/MASceneGraphBootstrap.h"
 #include "Kismet/GameplayStatics.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMASceneListWidget, Log, All);
@@ -259,11 +260,10 @@ void UMASceneListWidget::PopulateGoalList()
     }
 
     // 获取 SceneGraphManager
-    UGameInstance* GI = UGameplayStatics::GetGameInstance(GetWorld());
-    UMASceneGraphManager* SceneGraphManager = GI ? GI->GetSubsystem<UMASceneGraphManager>() : nullptr;
-    if (!SceneGraphManager)
+    const FMASceneGraphNodesFeedback GoalFeedback = FMASceneGraphBootstrap::LoadGoals(this);
+    if (!GoalFeedback.bSuccess)
     {
-        UE_LOG(LogMASceneListWidget, Warning, TEXT("PopulateGoalList: SceneGraphManager not found"));
+        UE_LOG(LogMASceneListWidget, Warning, TEXT("PopulateGoalList: %s"), *GoalFeedback.Message);
         return;
     }
 
@@ -273,7 +273,7 @@ void UMASceneListWidget::PopulateGoalList()
     GoalIds.Empty();
 
     // 获取所有 Goal 节点
-    TArray<FMASceneGraphNode> AllGoals = SceneGraphManager->GetAllGoals();
+    const TArray<FMASceneGraphNode>& AllGoals = GoalFeedback.Nodes;
 
     // 更新计数
     if (GoalCountText)
@@ -325,11 +325,10 @@ void UMASceneListWidget::PopulateZoneList()
     }
 
     // 获取 SceneGraphManager
-    UGameInstance* GI = UGameplayStatics::GetGameInstance(GetWorld());
-    UMASceneGraphManager* SceneGraphManager = GI ? GI->GetSubsystem<UMASceneGraphManager>() : nullptr;
-    if (!SceneGraphManager)
+    const FMASceneGraphNodesFeedback ZoneFeedback = FMASceneGraphBootstrap::LoadZones(this);
+    if (!ZoneFeedback.bSuccess)
     {
-        UE_LOG(LogMASceneListWidget, Warning, TEXT("PopulateZoneList: SceneGraphManager not found"));
+        UE_LOG(LogMASceneListWidget, Warning, TEXT("PopulateZoneList: %s"), *ZoneFeedback.Message);
         return;
     }
 
@@ -339,7 +338,7 @@ void UMASceneListWidget::PopulateZoneList()
     ZoneIds.Empty();
 
     // 获取所有 Zone 节点
-    TArray<FMASceneGraphNode> AllZones = SceneGraphManager->GetAllZones();
+    const TArray<FMASceneGraphNode>& AllZones = ZoneFeedback.Nodes;
 
     // 更新计数
     if (ZoneCountText)

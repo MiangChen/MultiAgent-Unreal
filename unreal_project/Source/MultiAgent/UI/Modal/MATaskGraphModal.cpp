@@ -2,6 +2,7 @@
 // 任务图模态窗口实现
 
 #include "MATaskGraphModal.h"
+#include "Core/TaskGraph/Application/MATaskGraphUseCases.h"
 #include "../Core/MAUITheme.h"
 #include "../Core/MARoundedBorderUtils.h"
 #include "../TaskGraph/MADAGCanvasWidget.h"
@@ -217,16 +218,14 @@ void UMATaskGraphModal::LoadTaskGraph(const FMATaskGraphData& Data)
 
 bool UMATaskGraphModal::LoadTaskGraphFromJson(const FString& JsonString)
 {
-    FMATaskGraphData Data;
-    FString ErrorMessage;
-    
-    if (!FMATaskGraphData::FromJsonWithError(JsonString, Data, ErrorMessage))
+    const FTaskGraphLoadResult LoadResult = FTaskGraphUseCases::ParseFlexibleJson(JsonString);
+    if (!LoadResult.bSuccess)
     {
-        UE_LOG(LogMATaskGraphModal, Warning, TEXT("Failed to parse JSON: %s"), *ErrorMessage);
+        UE_LOG(LogMATaskGraphModal, Warning, TEXT("Failed to parse JSON: %s"), *LoadResult.Feedback.Message);
         return false;
     }
     
-    LoadTaskGraph(Data);
+    LoadTaskGraph(LoadResult.Data);
     return true;
 }
 
@@ -241,8 +240,7 @@ FMATaskGraphData UMATaskGraphModal::GetTaskGraphData() const
 
 FString UMATaskGraphModal::GetTaskGraphJson() const
 {
-    FMATaskGraphData Data = GetTaskGraphData();
-    return Data.ToJson();
+    return FTaskGraphUseCases::Serialize(GetTaskGraphData());
 }
 
 //=============================================================================
@@ -393,8 +391,7 @@ void UMATaskGraphModal::SyncJsonPreview()
         return;
     }
     
-    FMATaskGraphData Data = GraphModel->GetWorkingData();
-    FString JsonString = Data.ToJson();
+    const FString JsonString = FTaskGraphUseCases::Serialize(GraphModel->GetWorkingData());
     
     JsonPreviewBox->SetText(FText::FromString(JsonString));
 }
@@ -407,12 +404,10 @@ void UMATaskGraphModal::UpdateModelFromJson()
     }
     
     FString JsonString = JsonPreviewBox->GetText().ToString();
-    FMATaskGraphData Data;
-    FString ErrorMessage;
-    
-    if (FMATaskGraphData::FromJsonWithError(JsonString, Data, ErrorMessage))
+    const FTaskGraphLoadResult LoadResult = FTaskGraphUseCases::ParseFlexibleJson(JsonString);
+    if (LoadResult.bSuccess)
     {
-        GraphModel->LoadFromData(Data);
+        GraphModel->LoadFromData(LoadResult.Data);
         
         // 更新 DAG 画布
         if (DAGCanvas && GraphModel)
@@ -425,7 +420,7 @@ void UMATaskGraphModal::UpdateModelFromJson()
     }
     else
     {
-        UE_LOG(LogMATaskGraphModal, Warning, TEXT("Failed to parse JSON: %s"), *ErrorMessage);
+        UE_LOG(LogMATaskGraphModal, Warning, TEXT("Failed to parse JSON: %s"), *LoadResult.Feedback.Message);
     }
 }
 

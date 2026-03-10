@@ -6,6 +6,8 @@
 #include "../Core/MARoundedBorderUtils.h"
 #include "../SkillAllocation/MAGanttCanvas.h"
 #include "../SkillAllocation/MASkillAllocationModel.h"
+#include "../../Core/SkillAllocation/Application/MASkillAllocationUseCases.h"
+#include "../../Core/SkillAllocation/Bootstrap/MASkillAllocationBootstrap.h"
 #include "../../Core/Comm/Runtime/MACommSubsystem.h"
 #include "Components/CanvasPanel.h"
 #include "Components/Border.h"
@@ -225,7 +227,7 @@ bool UMASkillAllocationModal::LoadSkillAllocationFromJson(const FString& JsonStr
     FMASkillAllocationData Data;
     FString ErrorMessage;
     
-    if (!FMASkillAllocationData::FromJson(JsonString, Data, ErrorMessage))
+    if (!FMASkillAllocationUseCases::ParseJson(JsonString, Data, ErrorMessage))
     {
         UE_LOG(LogMASkillAllocationModal, Warning, TEXT("Failed to parse JSON: %s"), *ErrorMessage);
         return false;
@@ -241,7 +243,7 @@ FMASkillAllocationData UMASkillAllocationModal::GetSkillAllocationData() const
     {
         return AllocationModel->GetWorkingData();
     }
-    return FMASkillAllocationData();
+    return FMASkillAllocationBootstrap::BuildEmptyData();
 }
 
 //=============================================================================
@@ -398,7 +400,7 @@ void UMASkillAllocationModal::SyncJsonPreview()
     }
     
     FMASkillAllocationData Data = AllocationModel->GetWorkingData();
-    FString JsonString = Data.ToJson();
+    FString JsonString = FMASkillAllocationUseCases::SerializeJson(Data);
     
     JsonPreviewBox->SetText(FText::FromString(JsonString));
 }
@@ -414,7 +416,7 @@ void UMASkillAllocationModal::UpdateModelFromJson()
     FMASkillAllocationData Data;
     FString ErrorMessage;
     
-    if (FMASkillAllocationData::FromJson(JsonString, Data, ErrorMessage))
+    if (FMASkillAllocationUseCases::ParseJson(JsonString, Data, ErrorMessage))
     {
         AllocationModel->LoadFromData(Data);
         
@@ -573,15 +575,8 @@ void UMASkillAllocationModal::UnbindGanttCanvasEvents()
 
 FMASkillAllocationMessage UMASkillAllocationModal::GetSkillAllocationMessage() const
 {
-    FMASkillAllocationMessage Message;
-    
-    // 获取当前技能分配数据
-    FMASkillAllocationData Data = GetSkillAllocationData();
-    
-    // 填充消息字段
-    Message.Name = Data.Name;
-    Message.Description = Data.Description;
-    Message.DataJson = Data.ToJson();
+    const FMASkillAllocationData Data = GetSkillAllocationData();
+    const FMASkillAllocationMessage Message = FMASkillAllocationUseCases::BuildMessage(Data);
     
     UE_LOG(LogMASkillAllocationModal, Log, TEXT("GetSkillAllocationMessage: Name=%s, Description=%s"),
         *Message.Name, *Message.Description);

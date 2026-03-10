@@ -207,17 +207,17 @@ FMACameraStreamRuntimeResult AMAPlayerController::RuntimeToggleTCPStreamForCurre
     return RuntimeAdapter().ToggleTCPStreamForCurrentCamera(this);
 }
 
-void AMAPlayerController::RuntimeCycleFormation()
+FMASquadOperationFeedback AMAPlayerController::RuntimeCycleFormation()
 {
-    RuntimeAdapter().CycleFormation(this);
+    return RuntimeAdapter().CycleFormation(this);
 }
 
-bool AMAPlayerController::RuntimeCreateSquadFromSelection(FString& OutSquadName, int32& OutMemberCount)
+FMASquadOperationFeedback AMAPlayerController::RuntimeCreateSquadFromSelection()
 {
-    return RuntimeAdapter().CreateSquadFromSelection(this, OutSquadName, OutMemberCount);
+    return RuntimeAdapter().CreateSquadFromSelection(this);
 }
 
-int32 AMAPlayerController::RuntimeDisbandSelectedSquads()
+FMASquadOperationFeedback AMAPlayerController::RuntimeDisbandSelectedSquads()
 {
     return RuntimeAdapter().DisbandSelectedSquads(this);
 }
@@ -465,7 +465,7 @@ void AMAPlayerController::OnStartFollow(const FInputActionValue& Value)
 
 void AMAPlayerController::OnStartFormation(const FInputActionValue& Value)
 {
-    SquadInputCoordinator.CycleFormation(this);
+    ApplyFeedback(SquadInputCoordinator.CycleFormation(this));
 }
 
 // ========== 相机操作 ==========

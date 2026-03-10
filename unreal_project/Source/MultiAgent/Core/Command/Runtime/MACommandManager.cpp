@@ -5,6 +5,7 @@
 #include "Core/AgentRuntime/Runtime/MAAgentManager.h"
 #include "Core/TempData/Runtime/MATempDataManager.h"
 #include "Core/SceneGraph/Runtime/MASceneGraphManager.h"
+#include "Core/SceneGraph/Bootstrap/MASceneGraphBootstrap.h"
 #include "Core/Config/MAConfigManager.h"
 #include "Core/Comm/Runtime/MACommSubsystem.h"
 #include "Core/Comm/Domain/MACommTypes.h"
@@ -643,14 +644,7 @@ UMATempDataManager* UMACommandManager::GetTempDataManager() const
 
 UMASceneGraphManager* UMACommandManager::GetSceneGraphManager() const
 {
-    if (UWorld* World = GetWorld())
-    {
-        if (UGameInstance* GI = World->GetGameInstance())
-        {
-            return GI->GetSubsystem<UMASceneGraphManager>();
-        }
-    }
-    return nullptr;
+    return FMASceneGraphBootstrap::Resolve(GetWorld());
 }
 
 void UMACommandManager::HandlePrecheckFailure(AMACharacter* Agent, EMACommand Command, const FMAAgentSkillCommand* Cmd, const FMAPrecheckResult& Result)

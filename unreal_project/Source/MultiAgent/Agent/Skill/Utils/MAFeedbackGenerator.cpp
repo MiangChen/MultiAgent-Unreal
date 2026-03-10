@@ -6,6 +6,7 @@
 #include "../../Character/MACharacter.h"
 #include "../../../Core/Command/Runtime/MACommandManager.h"
 #include "../../../Core/SceneGraph/Runtime/MASceneGraphManager.h"
+#include "../../../Core/SceneGraph/Bootstrap/MASceneGraphBootstrap.h"
 #include "../../../Core/SceneGraph/Application/MASceneGraphQueryUseCases.h"
 #include "Serialization/JsonSerializer.h"
 
@@ -93,12 +94,7 @@ TSharedPtr<FJsonObject> FMAFeedbackGenerator::BuildNodeJsonFromUE5Data(
 
 UMASceneGraphManager* FMAFeedbackGenerator::GetSceneGraphManager(AMACharacter* Agent)
 {
-    if (!Agent) return nullptr;
-    UWorld* World = Agent->GetWorld();
-    if (!World) return nullptr;
-    UGameInstance* GameInstance = World->GetGameInstance();
-    if (!GameInstance) return nullptr;
-    return GameInstance->GetSubsystem<UMASceneGraphManager>();
+    return Agent ? FMASceneGraphBootstrap::Resolve(Agent) : nullptr;
 }
 
 void FMAFeedbackGenerator::AddCommonFieldsToFeedback(FMASkillExecutionFeedback& Feedback, UMASkillComponent* SkillComp, AMACharacter* Agent)

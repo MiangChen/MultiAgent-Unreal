@@ -1,6 +1,7 @@
 #include "MAEditWidgetSceneGraphAdapter.h"
 
 #include "../../../Core/SceneGraph/Runtime/MASceneGraphManager.h"
+#include "../../../Core/SceneGraph/Bootstrap/MASceneGraphBootstrap.h"
 #include "../../../Environment/Utils/MAGoalActor.h"
 #include "../../../Environment/Utils/MAZoneActor.h"
 #include "Kismet/GameplayStatics.h"
@@ -47,8 +48,7 @@ bool FMAEditWidgetSceneGraphAdapter::ResolveActorNodes(
         return false;
     }
 
-    UGameInstance* GameInstance = UGameplayStatics::GetGameInstance(World);
-    UMASceneGraphManager* SceneGraphManager = GameInstance ? GameInstance->GetSubsystem<UMASceneGraphManager>() : nullptr;
+    UMASceneGraphManager* SceneGraphManager = FMASceneGraphBootstrap::Resolve(World);
     if (!SceneGraphManager)
     {
         OutError = TEXT("SceneGraphManager not found");

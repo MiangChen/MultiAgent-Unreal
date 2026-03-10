@@ -2,6 +2,8 @@
 // 临时数据管理器实现
 
 #include "MATempDataManager.h"
+#include "Core/SkillAllocation/Application/MASkillAllocationUseCases.h"
+#include "Core/TaskGraph/Application/MATaskGraphUseCases.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -74,7 +76,7 @@ bool UMATempDataManager::SaveTaskGraph(const FMATaskGraphData& Data)
     }
 
     // 序列化为 JSON
-    FString JsonContent = Data.ToJson();
+    const FString JsonContent = FTaskGraphUseCases::Serialize(Data);
 
     // 写入文件
     if (!WriteJsonToFile(CachedTaskGraphFilePath, JsonContent))
@@ -110,18 +112,14 @@ bool UMATempDataManager::LoadTaskGraph(FMATaskGraphData& OutData)
         return false;
     }
 
-    // 解析 JSON
-    FString ErrorMessage;
-    if (!FMATaskGraphData::FromJsonWithError(JsonContent, OutData, ErrorMessage))
+    const FTaskGraphLoadResult LoadResult = FTaskGraphUseCases::ParseFlexibleJson(JsonContent);
+    if (!LoadResult.bSuccess)
     {
-        // 尝试使用 response 格式解析
-        if (!FMATaskGraphData::FromResponseJson(JsonContent, OutData, ErrorMessage))
-        {
-            UE_LOG(LogMATempData, Error, TEXT("LoadTaskGraph: Failed to parse JSON: %s"), *ErrorMessage);
-            OutData = FMATaskGraphData();
-            return false;
-        }
+        UE_LOG(LogMATempData, Error, TEXT("LoadTaskGraph: Failed to parse JSON: %s"), *LoadResult.Feedback.Message);
+        OutData = FMATaskGraphData();
+        return false;
     }
+    OutData = LoadResult.Data;
 
     UE_LOG(LogMATempData, Log, TEXT("LoadTaskGraph: Successfully loaded from %s (Nodes: %d, Edges: %d)"),
         *CachedTaskGraphFilePath, OutData.Nodes.Num(), OutData.Edges.Num());
@@ -158,7 +156,7 @@ bool UMATempDataManager::SaveSkillAllocation(const FMASkillAllocationData& Data)
     }
 
     // 序列化为 JSON
-    FString JsonContent = Data.ToJson();
+    const FString JsonContent = FMASkillAllocationUseCases::SerializeJson(Data);
 
     // 写入文件
     if (!WriteJsonToFile(CachedSkillAllocationFilePath, JsonContent))
@@ -209,7 +207,7 @@ bool UMATempDataManager::LoadSkillAllocation(FMASkillAllocationData& OutData)
 
     // 解析 JSON
     FString ErrorMessage;
-    if (!FMASkillAllocationData::FromJson(JsonContent, OutData, ErrorMessage))
+    if (!FMASkillAllocationUseCases::ParseJson(JsonContent, OutData, ErrorMessage))
     {
         UE_LOG(LogMATempData, Error, TEXT("LoadSkillAllocation: Failed to parse JSON: %s"), *ErrorMessage);
         OutData = FMASkillAllocationData();

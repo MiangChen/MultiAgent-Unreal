@@ -5,6 +5,7 @@
 
 #include "MAEditModeManager.h"
 #include "Core/SceneGraph/Runtime/MASceneGraphManager.h"
+#include "Core/SceneGraph/Bootstrap/MASceneGraphBootstrap.h"
 #include "Core/Config/MAConfigManager.h"
 #include "Agent/Skill/Utils/MAUESceneQuery.h"
 #include "Environment/Utils/MAPointOfInterest.h"
@@ -76,19 +77,7 @@ void UMAEditModeManager::Deinitialize()
 
 UMASceneGraphManager* UMAEditModeManager::GetSceneGraphManager() const
 {
-    UWorld* World = GetWorld();
-    if (!World)
-    {
-        return nullptr;
-    }
-    
-    UGameInstance* GameInstance = World->GetGameInstance();
-    if (!GameInstance)
-    {
-        return nullptr;
-    }
-    
-    return GameInstance->GetSubsystem<UMASceneGraphManager>();
+    return FMASceneGraphBootstrap::Resolve(this);
 }
 
 FString UMAEditModeManager::GenerateNextId()

@@ -8,6 +8,7 @@
 #include "../MASkillComponent.h"
 #include "../../../Core/Command/Runtime/MACommandManager.h"
 #include "../../../Core/SceneGraph/Runtime/MASceneGraphManager.h"
+#include "../../../Core/SceneGraph/Bootstrap/MASceneGraphBootstrap.h"
 #include "../../../Core/SceneGraph/Infrastructure/Adapters/MASceneGraphRuntimeSyncAdapter.h"
 #include "../../../Core/SceneGraph/Application/MASceneGraphRuntimeSyncUseCases.h"
 
@@ -25,10 +26,7 @@ UMASceneGraphManager* FMASceneGraphUpdater::GetSceneGraphManager(AMACharacter* A
 
 UMASceneGraphManager* FMASceneGraphUpdater::GetSceneGraphManager(UWorld* World)
 {
-    if (!World) return nullptr;
-    UGameInstance* GI = World->GetGameInstance();
-    if (!GI) return nullptr;
-    return GI->GetSubsystem<UMASceneGraphManager>();
+    return World ? FMASceneGraphBootstrap::Resolve(World) : nullptr;
 }
 
 void FMASceneGraphUpdater::UpdateRobotPosition(AMACharacter* Agent)

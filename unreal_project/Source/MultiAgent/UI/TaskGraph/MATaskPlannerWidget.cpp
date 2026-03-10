@@ -5,7 +5,8 @@
 #include "MADAGCanvasWidget.h"
 #include "MANodePaletteWidget.h"
 #include "MATaskGraphModel.h"
-#include "../../Core/Config/MAConfigManager.h"
+#include "../../Core/TaskGraph/Application/MATaskGraphUseCases.h"
+#include "../../Core/TaskGraph/Bootstrap/MATaskGraphBootstrap.h"
 #include "../../Core/Comm/Runtime/MACommSubsystem.h"
 #include "../../Core/TempData/Runtime/MATempDataManager.h"
 #include "../Core/MARoundedBorderUtils.h"
@@ -31,7 +32,6 @@
 #include "Components/BackgroundBlur.h"
 #include "Blueprint/WidgetTree.h"
 #include "Misc/DateTime.h"
-#include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 
 DEFINE_LOG_CATEGORY(LogMATaskPlanner);
@@ -623,7 +623,7 @@ UBorder* UMATaskPlannerWidget::CreateRightPanel()
 
     // Node toolbar
     NodePalette = WidgetTree->ConstructWidget<UMANodePaletteWidget>(UMANodePaletteWidget::StaticClass(), TEXT("NodePalette"));
-    NodePalette->InitializeTemplates();
+    NodePalette->InitializeTemplates(FTaskGraphBootstrap::BuildDefaultNodeTemplates());
     
     UHorizontalBoxSlot* PaletteSlot = RightHBox->AddChildToHorizontalBox(NodePalette);
     PaletteSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
@@ -1078,38 +1078,16 @@ FString UMATaskPlannerWidget::GetTimestamp() const
 
 bool UMATaskPlannerWidget::LoadMockData()
 {
-    // Build mock data file path
-    FString FilePath = FPaths::ProjectDir() / TEXT("datasets/response_example.json");
-    
-    // Check if file exists
-    if (!FPaths::FileExists(FilePath))
+    const FString FilePath = FTaskGraphBootstrap::GetMockResponseExamplePath(FPaths::ProjectDir());
+    const FTaskGraphLoadResult LoadResult = FTaskGraphUseCases::LoadResponseExampleFile(FilePath);
+    if (!LoadResult.bSuccess)
     {
-        AppendStatusLog(FString::Printf(TEXT("[Error] Mock data file not found: %s"), *FilePath));
-        UE_LOG(LogMATaskPlanner, Warning, TEXT("Mock data file not found: %s"), *FilePath);
+        AppendStatusLog(FString::Printf(TEXT("[Error] %s"), *LoadResult.Feedback.Message));
+        UE_LOG(LogMATaskPlanner, Error, TEXT("Failed to load mock data: %s"), *LoadResult.Feedback.Message);
         return false;
     }
-    
-    // Read file content
-    FString JsonContent;
-    if (!FFileHelper::LoadFileToString(JsonContent, *FilePath))
-    {
-        AppendStatusLog(FString::Printf(TEXT("[Error] Unable to read file: %s"), *FilePath));
-        UE_LOG(LogMATaskPlanner, Error, TEXT("Failed to read file: %s"), *FilePath);
-        return false;
-    }
-    
-    // Parse JSON (using response_example.json format)
-    FMATaskGraphData Data;
-    FString ErrorMessage;
-    if (!FMATaskGraphData::FromResponseJson(JsonContent, Data, ErrorMessage))
-    {
-        AppendStatusLog(FString::Printf(TEXT("[Error] Mock data format error: %s"), *ErrorMessage));
-        UE_LOG(LogMATaskPlanner, Error, TEXT("Failed to parse mock data: %s"), *ErrorMessage);
-        return false;
-    }
-    
-    // Load data
-    LoadTaskGraph(Data);
+
+    LoadTaskGraph(LoadResult.Data);
     AppendStatusLog(TEXT("[Success] Mock data loaded"));
     
     return true;

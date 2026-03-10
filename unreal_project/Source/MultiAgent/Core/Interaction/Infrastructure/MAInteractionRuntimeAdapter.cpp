@@ -7,9 +7,8 @@
 #include "../../Command/Runtime/MACommandManager.h"
 #include "../../Editing/Runtime/MAEditModeManager.h"
 #include "../../Selection/Runtime/MASelectionManager.h"
-#include "../../Squad/Runtime/MASquadManager.h"
 #include "../../Camera/Runtime/MAViewportManager.h"
-#include "../../Squad/Domain/MASquad.h"
+#include "../../Squad/Infrastructure/MASquadRuntimeBridge.h"
 #include "../../../Agent/Character/MACharacter.h"
 #include "../../../Agent/Character/MAUAVCharacter.h"
 #include "../../../Agent/Component/Sensor/MACameraSensorComponent.h"
@@ -42,11 +41,6 @@ UMAAgentManager* FMAInteractionRuntimeAdapter::ResolveAgentManager(const AMAPlay
 UMACommandManager* FMAInteractionRuntimeAdapter::ResolveCommandManager(const AMAPlayerController* PlayerController) const
 {
     return ResolveWorldSubsystem<UMACommandManager>(PlayerController);
-}
-
-UMASquadManager* FMAInteractionRuntimeAdapter::ResolveSquadManager(const AMAPlayerController* PlayerController) const
-{
-    return ResolveWorldSubsystem<UMASquadManager>(PlayerController);
 }
 
 UMAViewportManager* FMAInteractionRuntimeAdapter::ResolveViewportManager(const AMAPlayerController* PlayerController) const
@@ -494,67 +488,21 @@ FMACameraStreamRuntimeResult FMAInteractionRuntimeAdapter::ToggleTCPStreamForCur
     return Result;
 }
 
-void FMAInteractionRuntimeAdapter::CycleFormation(AMAPlayerController* PlayerController) const
+FMASquadOperationFeedback FMAInteractionRuntimeAdapter::CycleFormation(AMAPlayerController* PlayerController) const
 {
-    if (UMASquadManager* SquadManager = ResolveSquadManager(PlayerController))
-    {
-        if (UMASquad* Squad = SquadManager->GetOrCreateDefaultSquad())
-        {
-            SquadManager->CycleFormation(Squad);
-        }
-    }
+    return FMASquadRuntimeBridge::CycleFormation(PlayerController);
 }
 
-bool FMAInteractionRuntimeAdapter::CreateSquadFromSelection(
-    AMAPlayerController* PlayerController,
-    FString& OutSquadName,
-    int32& OutMemberCount) const
+FMASquadOperationFeedback FMAInteractionRuntimeAdapter::CreateSquadFromSelection(AMAPlayerController* PlayerController) const
 {
-    UMASquadManager* SquadManager = ResolveSquadManager(PlayerController);
     const TArray<AMACharacter*> Selected = GetSelectedAgents(PlayerController);
-    if (!SquadManager || Selected.Num() < 2)
-    {
-        return false;
-    }
-
-    if (UMASquad* Squad = SquadManager->CreateSquad(Selected, Selected[0]))
-    {
-        OutSquadName = Squad->SquadName;
-        OutMemberCount = Squad->GetMemberCount();
-        return true;
-    }
-
-    return false;
+    return FMASquadRuntimeBridge::CreateSquadFromSelection(PlayerController, Selected);
 }
 
-int32 FMAInteractionRuntimeAdapter::DisbandSelectedSquads(AMAPlayerController* PlayerController) const
+FMASquadOperationFeedback FMAInteractionRuntimeAdapter::DisbandSelectedSquads(AMAPlayerController* PlayerController) const
 {
-    UMASquadManager* SquadManager = ResolveSquadManager(PlayerController);
-    if (!SquadManager)
-    {
-        return 0;
-    }
-
     const TArray<AMACharacter*> Selected = GetSelectedAgents(PlayerController);
-    TSet<UMASquad*> SquadsToDisband;
-    for (AMACharacter* Agent : Selected)
-    {
-        if (Agent && Agent->CurrentSquad)
-        {
-            SquadsToDisband.Add(Agent->CurrentSquad);
-        }
-    }
-
-    int32 DisbandedCount = 0;
-    for (UMASquad* Squad : SquadsToDisband)
-    {
-        if (SquadManager->DisbandSquad(Squad))
-        {
-            DisbandedCount++;
-        }
-    }
-
-    return DisbandedCount;
+    return FMASquadRuntimeBridge::DisbandSelectedSquads(PlayerController, Selected);
 }
 
 bool FMAInteractionRuntimeAdapter::CanEnterEditMode(const AMAPlayerController* PlayerController) const

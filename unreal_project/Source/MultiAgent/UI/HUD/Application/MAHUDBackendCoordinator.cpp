@@ -8,6 +8,7 @@
 #include "../../TaskGraph/MATaskPlannerWidget.h"
 #include "../../Modal/MATaskGraphModal.h"
 #include "../../Modal/MASkillAllocationModal.h"
+#include "../../../Core/SkillAllocation/Application/MASkillAllocationUseCases.h"
 #include "../../../Core/Shared/Types/MASimTypes.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMAHUDBackendCoordinator, Log, All);
@@ -193,7 +194,7 @@ void FMAHUDBackendCoordinator::HandleModalConfirmed(AMAHUD* HUD, UMAUIManager* U
             }
 
             const FMASkillAllocationData Data = SkillModal->GetSkillAllocationData();
-            const FString ModifiedDataJson = Data.ToJson();
+            const FString ModifiedDataJson = FMASkillAllocationUseCases::SerializeJson(Data);
             HUD->RuntimeSendReviewResponse(true, ModifiedDataJson, TEXT(""));
             UE_LOG(LogMAHUDBackendCoordinator, Log, TEXT("HandleModalConfirmed: Skill allocation approved"));
         }

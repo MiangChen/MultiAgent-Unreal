@@ -22,6 +22,7 @@
 #include "../Core/Interaction/Application/MAModifyInputCoordinator.h"
 #include "../Core/Interaction/Application/MAMouseModeCoordinator.h"
 #include "../Core/Interaction/Application/MASquadInputCoordinator.h"
+#include "../Core/Squad/Feedback/MASquadFeedback.h"
 #include "MAPlayerController.generated.h"
 
 class UMAHUDStateManager;
@@ -290,9 +291,9 @@ private:
     void RuntimeReturnToSpectator();
     bool RuntimeTakePhotoForCurrentCamera(FString& OutSensorName);
     FMACameraStreamRuntimeResult RuntimeToggleTCPStreamForCurrentCamera();
-    void RuntimeCycleFormation();
-    bool RuntimeCreateSquadFromSelection(FString& OutSquadName, int32& OutMemberCount);
-    int32 RuntimeDisbandSelectedSquads();
+    FMASquadOperationFeedback RuntimeCycleFormation();
+    FMASquadOperationFeedback RuntimeCreateSquadFromSelection();
+    FMASquadOperationFeedback RuntimeDisbandSelectedSquads();
     bool RuntimeCanEnterEditMode() const;
     void RuntimeToggleEditSelection(AActor* HitActor);
     void RuntimeClearEditSelection();

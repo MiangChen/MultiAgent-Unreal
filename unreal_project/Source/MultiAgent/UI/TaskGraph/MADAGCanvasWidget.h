@@ -5,7 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "../../Core/Shared/Types/MATaskGraphTypes.h"
+#include "Core/TaskGraph/Domain/MATaskGraphTypes.h"
 #include "MADAGCanvasWidget.generated.h"
 
 class UMATaskNodeWidget;

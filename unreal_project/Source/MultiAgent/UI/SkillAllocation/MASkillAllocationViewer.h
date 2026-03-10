@@ -5,7 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "../../Core/Shared/Types/MATaskGraphTypes.h"
+#include "Core/SkillAllocation/Domain/MASkillAllocationTypes.h"
 #include "../../Core/Comm/Domain/MACommTypes.h"
 #include "MASkillAllocationViewer.generated.h"
 

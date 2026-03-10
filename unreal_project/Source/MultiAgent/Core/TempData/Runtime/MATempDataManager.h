@@ -11,7 +11,8 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
-#include "Core/Shared/Types/MATaskGraphTypes.h"
+#include "Core/TaskGraph/Domain/MATaskGraphTypes.h"
+#include "Core/SkillAllocation/Domain/MASkillAllocationTypes.h"
 #include "MATempDataManager.generated.h"
 
 //=============================================================================

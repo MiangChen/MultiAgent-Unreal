@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "../../Shared/Types/MATaskGraphTypes.h"
+#include "Core/SkillAllocation/Domain/MASkillAllocationTypes.h"
 #include "MACommBaseTypes.h"
 #include "MACommSceneTypes.generated.h"
 

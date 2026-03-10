@@ -4,6 +4,7 @@
 #include "Core/Comm/Infrastructure/MACommHttpServer.h"
 #include "Core/Comm/Runtime/MACommSubsystem.h"
 #include "Core/SceneGraph/Runtime/MASceneGraphManager.h"
+#include "Core/SceneGraph/Bootstrap/MASceneGraphBootstrap.h"
 #include "HttpServerModule.h"
 #include "IHttpRouter.h"
 #include "HttpPath.h"
@@ -181,7 +182,7 @@ bool FMACommHttpServer::HandleWorldStateRequest(const FHttpServerRequest& Reques
     {
         if (UGameInstance* GameInstance = Owner->GetGameInstance())
         {
-            SceneGraphManager = GameInstance->GetSubsystem<UMASceneGraphManager>();
+            SceneGraphManager = FMASceneGraphBootstrap::Resolve(GameInstance);
         }
     }
     

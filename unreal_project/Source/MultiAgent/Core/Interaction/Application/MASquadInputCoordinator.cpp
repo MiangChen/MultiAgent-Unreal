@@ -2,7 +2,34 @@
 
 #include "MASquadInputCoordinator.h"
 
+#include "../../Squad/Feedback/MASquadFeedback.h"
 #include "../../../Input/MAPlayerController.h"
+
+namespace
+{
+EMAFeedback21MessageSeverity ToInteractionSeverity(const EMASquadFeedbackSeverity Severity)
+{
+    switch (Severity)
+    {
+    case EMASquadFeedbackSeverity::Success:
+        return EMAFeedback21MessageSeverity::Success;
+    case EMASquadFeedbackSeverity::Warning:
+        return EMAFeedback21MessageSeverity::Warning;
+    case EMASquadFeedbackSeverity::Error:
+        return EMAFeedback21MessageSeverity::Error;
+    case EMASquadFeedbackSeverity::Info:
+    default:
+        return EMAFeedback21MessageSeverity::Info;
+    }
+}
+
+FMAFeedback21Batch BuildSquadFeedback(const FMASquadOperationFeedback& Feedback)
+{
+    FMAFeedback21Batch Batch;
+    Batch.AddMessage(Feedback.Message, ToInteractionSeverity(Feedback.Severity), 3.f);
+    return Batch;
+}
+}
 
 void FMASquadInputCoordinator::HandleControlGroup(AMAPlayerController* PlayerController, int32 GroupIndex) const
 {
@@ -23,9 +50,14 @@ void FMASquadInputCoordinator::HandleControlGroup(AMAPlayerController* PlayerCon
     PlayerController->RuntimeSelectControlGroup(GroupIndex);
 }
 
-void FMASquadInputCoordinator::CycleFormation(AMAPlayerController* PlayerController) const
+FMAFeedback21Batch FMASquadInputCoordinator::CycleFormation(AMAPlayerController* PlayerController) const
 {
-    PlayerController->RuntimeCycleFormation();
+    if (!PlayerController)
+    {
+        return {};
+    }
+
+    return BuildSquadFeedback(PlayerController->RuntimeCycleFormation());
 }
 
 FMAFeedback21Batch FMASquadInputCoordinator::CreateSquad(AMAPlayerController* PlayerController) const
@@ -41,20 +73,7 @@ FMAFeedback21Batch FMASquadInputCoordinator::CreateSquad(AMAPlayerController* Pl
         return Feedback;
     }
 
-    FString SquadName;
-    int32 MemberCount = 0;
-    if (!PlayerController->RuntimeCreateSquadFromSelection(SquadName, MemberCount))
-    {
-        Feedback.AddMessage(TEXT("Select at least 2 agents to create squad (Q)"), EMAFeedback21MessageSeverity::Warning, 3.f);
-        return Feedback;
-    }
-
-    Feedback.AddMessage(
-        FString::Printf(TEXT("Created Squad '%s' with %d members"), *SquadName, MemberCount),
-        EMAFeedback21MessageSeverity::Success,
-        3.f);
-
-    return Feedback;
+    return BuildSquadFeedback(PlayerController->RuntimeCreateSquadFromSelection());
 }
 
 FMAFeedback21Batch FMASquadInputCoordinator::DisbandSquad(AMAPlayerController* PlayerController) const
@@ -70,16 +89,5 @@ FMAFeedback21Batch FMASquadInputCoordinator::DisbandSquad(AMAPlayerController* P
         return Feedback;
     }
 
-    const int32 DisbandedCount = PlayerController->RuntimeDisbandSelectedSquads();
-    if (DisbandedCount <= 0)
-    {
-        Feedback.AddMessage(TEXT("No squad to disband (Shift+Q)"), EMAFeedback21MessageSeverity::Warning, 3.f);
-        return Feedback;
-    }
-
-    Feedback.AddMessage(
-        FString::Printf(TEXT("Disbanded %d squad(s)"), DisbandedCount),
-        EMAFeedback21MessageSeverity::Warning,
-        3.f);
-    return Feedback;
+    return BuildSquadFeedback(PlayerController->RuntimeDisbandSelectedSquads());
 }
