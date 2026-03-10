@@ -6,7 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "MABaseModalWidget.h"
-#include "../Core/Types/MATaskGraphTypes.h"
+#include "../Core/Shared/Types/MATaskGraphTypes.h"
 #include "MATaskGraphModal.generated.h"
 
 class UMADAGCanvasWidget;

@@ -5,7 +5,7 @@
 #include "MAEventTemplateRegistry.h"
 #include "../../../Core/Command/Runtime/MACommandManager.h"
 #include "../../../Core/SceneGraph/Runtime/MASceneGraphManager.h"
-#include "../../../Core/Types/MATypes.h"
+#include "../../../Core/Shared/Types/MATypes.h"
 #include "../../Character/MACharacter.h"
 #include "../MASkillComponent.h"
 

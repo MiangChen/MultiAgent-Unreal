@@ -8,7 +8,7 @@
 #include "../Impl/SK_Search.h"  // For ESearchMode definition
 #include "../../Character/MACharacter.h"
 #include "../../Component/MANavigationService.h"
-#include "../../../Core/Comm/MACommTypes.h"
+#include "../../../Core/Comm/Domain/MACommTypes.h"
 #include "../../../Core/Command/Runtime/MACommandManager.h"
 #include "../../../Core/SceneGraph/Runtime/MASceneGraphManager.h"
 #include "../../../Core/SceneGraph/Application/MASceneGraphQueryUseCases.h"

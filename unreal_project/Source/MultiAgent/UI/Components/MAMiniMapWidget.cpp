@@ -3,7 +3,7 @@
 
 #include "MAMiniMapWidget.h"
 #include "../Core/MAUITheme.h"
-#include "../../Core/Manager/MAAgentManager.h"
+#include "../../Core/AgentRuntime/Runtime/MAAgentManager.h"
 #include "../../Core/Selection/Runtime/MASelectionManager.h"
 #include "../../Agent/Character/MACharacter.h"
 #include "Components/Image.h"

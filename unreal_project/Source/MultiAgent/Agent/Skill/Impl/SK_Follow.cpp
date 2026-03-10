@@ -7,7 +7,7 @@
 #include "../MASkillComponent.h"
 #include "../../Character/MACharacter.h"
 #include "../../Component/MANavigationService.h"
-#include "../../../Core/Types/MATypes.h"
+#include "../../../Core/Shared/Types/MATypes.h"
 #include "../../../Core/Config/MAConfigManager.h"
 #include "../../../Core/Camera/Runtime/MAPIPCameraManager.h"
 #include "../../../Core/Camera/Domain/MAPIPCameraTypes.h"

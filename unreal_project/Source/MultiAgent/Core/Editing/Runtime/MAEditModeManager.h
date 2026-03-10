@@ -11,7 +11,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "Dom/JsonObject.h"
-#include "Core/Comm/MACommTypes.h"
+#include "Core/Comm/Domain/MACommTypes.h"
 #include "MAEditModeManager.generated.h"
 
 class AMAPointOfInterest;

@@ -6,7 +6,7 @@
 #include "../Core/MARoundedBorderUtils.h"
 #include "../SkillAllocation/MAGanttCanvas.h"
 #include "../SkillAllocation/MASkillAllocationModel.h"
-#include "../../Core/Comm/MACommSubsystem.h"
+#include "../../Core/Comm/Runtime/MACommSubsystem.h"
 #include "Components/CanvasPanel.h"
 #include "Components/Border.h"
 #include "Components/TextBlock.h"

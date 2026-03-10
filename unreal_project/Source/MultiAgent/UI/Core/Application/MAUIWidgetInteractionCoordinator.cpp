@@ -11,7 +11,7 @@
 #include "../../SkillAllocation/MASkillAllocationViewer.h"
 #include "../../TaskGraph/MATaskPlannerWidget.h"
 #include "../../Mode/MAEditWidget.h"
-#include "../../../Core/Manager/MATempDataManager.h"
+#include "../../../Core/TempData/Runtime/MATempDataManager.h"
 #include "Engine/GameInstance.h"
 #include "Blueprint/UserWidget.h"
 

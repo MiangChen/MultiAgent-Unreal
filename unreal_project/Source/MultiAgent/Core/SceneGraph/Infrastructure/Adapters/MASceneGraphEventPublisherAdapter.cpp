@@ -1,7 +1,7 @@
 // MASceneGraphEventPublisherAdapter.cpp
 
 #include "Core/SceneGraph/Infrastructure/Adapters/MASceneGraphEventPublisherAdapter.h"
-#include "Core/Comm/MACommSubsystem.h"
+#include "Core/Comm/Runtime/MACommSubsystem.h"
 #include "Engine/GameInstance.h"
 
 FMASceneGraphEventPublisherAdapter::FMASceneGraphEventPublisherAdapter(UGameInstance* InGameInstance, EMARunMode InRunMode)

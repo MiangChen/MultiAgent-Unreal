@@ -3,7 +3,7 @@
 
 #include "MASelectionHUD.h"
 #include "../../Core/Selection/Runtime/MASelectionManager.h"
-#include "../../Core/Manager/MAAgentManager.h"
+#include "../../Core/AgentRuntime/Runtime/MAAgentManager.h"
 #include "../../Input/MAPlayerController.h"
 #include "../../Agent/Character/MACharacter.h"
 #include "../Core/MAUIManager.h"

@@ -29,6 +29,22 @@ OLD_INCLUDE_PATTERNS = (
     "Core/Manager/MAEditModeManager.h",
     "Core/Manager/MASelectionManager.h",
     "Core/Manager/MACommandManager.h",
+    "Core/Manager/MAAgentManager.h",
+    "Core/Manager/MASquadManager.h",
+    "Core/Manager/MATempDataManager.h",
+    "Core/Manager/MAEnvironmentManager.h",
+    "Core/MASquad.h",
+    "Core/Types/MATypes.h",
+    "Core/Types/MATaskGraphTypes.h",
+    "Core/Types/MASimTypes.h",
+    "Core/Comm/MACommSubsystem.h",
+    "Core/Comm/MACommInbound.h",
+    "Core/Comm/MACommOutbound.h",
+    "Core/Comm/MACommHttpServer.h",
+    "Core/Comm/MACommTypes.h",
+    "Core/GameFlow/MAGameMode.h",
+    "Core/GameFlow/MAGameInstance.h",
+    "Core/GameFlow/MASetupGameMode.h",
 )
 
 FORBIDDEN_INFRA_FILES = (
@@ -59,6 +75,40 @@ REQUIRED_SELECTION_DIRS = (
 
 REQUIRED_COMMAND_DIRS = (
     "Core/Command/Runtime",
+)
+
+REQUIRED_AGENT_RUNTIME_DIRS = (
+    "Core/AgentRuntime/Runtime",
+)
+
+REQUIRED_SQUAD_DIRS = (
+    "Core/Squad/Domain",
+    "Core/Squad/Runtime",
+)
+
+REQUIRED_TEMPDATA_DIRS = (
+    "Core/TempData/Runtime",
+)
+
+REQUIRED_ENVIRONMENT_CORE_DIRS = (
+    "Core/EnvironmentCore/Runtime",
+)
+
+REQUIRED_SHARED_DIRS = (
+    "Core/Shared/Types",
+)
+
+REQUIRED_COMM_DIRS = (
+    "Core/Comm/Application",
+    "Core/Comm/Bootstrap",
+    "Core/Comm/Domain",
+    "Core/Comm/Feedback",
+    "Core/Comm/Infrastructure",
+    "Core/Comm/Runtime",
+)
+
+REQUIRED_GAMEFLOW_DIRS = (
+    "Core/GameFlow/Bootstrap",
 )
 
 FORBIDDEN_LEGACY_SCENEGRAPH_PATHS = (
@@ -99,6 +149,57 @@ FORBIDDEN_LEGACY_SELECTION_PATHS = (
 FORBIDDEN_LEGACY_COMMAND_PATHS = (
     "Core/Manager/MACommandManager.h",
     "Core/Manager/MACommandManager.cpp",
+)
+
+FORBIDDEN_LEGACY_AGENT_RUNTIME_PATHS = (
+    "Core/Manager/MAAgentManager.h",
+    "Core/Manager/MAAgentManager.cpp",
+)
+
+FORBIDDEN_LEGACY_SQUAD_PATHS = (
+    "Core/Manager/MASquadManager.h",
+    "Core/Manager/MASquadManager.cpp",
+    "Core/MASquad.h",
+    "Core/MASquad.cpp",
+)
+
+FORBIDDEN_LEGACY_TEMPDATA_PATHS = (
+    "Core/Manager/MATempDataManager.h",
+    "Core/Manager/MATempDataManager.cpp",
+)
+
+FORBIDDEN_LEGACY_ENVIRONMENT_CORE_PATHS = (
+    "Core/Manager/MAEnvironmentManager.h",
+    "Core/Manager/MAEnvironmentManager.cpp",
+)
+
+FORBIDDEN_LEGACY_SHARED_TYPE_PATHS = (
+    "Core/Types/MATypes.h",
+    "Core/Types/MATaskGraphTypes.h",
+    "Core/Types/MATaskGraphTypes.cpp",
+    "Core/Types/MASimTypes.h",
+    "Core/Types/MASimTypes.cpp",
+)
+
+FORBIDDEN_LEGACY_COMM_PATHS = (
+    "Core/Comm/MACommSubsystem.h",
+    "Core/Comm/MACommSubsystem.cpp",
+    "Core/Comm/MACommInbound.h",
+    "Core/Comm/MACommInbound.cpp",
+    "Core/Comm/MACommOutbound.h",
+    "Core/Comm/MACommOutbound.cpp",
+    "Core/Comm/MACommHttpServer.h",
+    "Core/Comm/MACommHttpServer.cpp",
+    "Core/Comm/MACommTypes.h",
+)
+
+FORBIDDEN_LEGACY_GAMEFLOW_PATHS = (
+    "Core/GameFlow/MAGameMode.h",
+    "Core/GameFlow/MAGameMode.cpp",
+    "Core/GameFlow/MAGameInstance.h",
+    "Core/GameFlow/MAGameInstance.cpp",
+    "Core/GameFlow/MASetupGameMode.h",
+    "Core/GameFlow/MASetupGameMode.cpp",
 )
 
 FORBIDDEN_DEBUG_PATTERN = "AddOnScreenDebugMessage"
@@ -258,6 +359,34 @@ def main() -> int:
         if not (SOURCE_ROOT / relative_path).exists():
             errors.append(f"Missing required Command context directory: {relative_path}")
 
+    for relative_path in REQUIRED_AGENT_RUNTIME_DIRS:
+        if not (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"Missing required AgentRuntime context directory: {relative_path}")
+
+    for relative_path in REQUIRED_SQUAD_DIRS:
+        if not (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"Missing required Squad context directory: {relative_path}")
+
+    for relative_path in REQUIRED_TEMPDATA_DIRS:
+        if not (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"Missing required TempData context directory: {relative_path}")
+
+    for relative_path in REQUIRED_ENVIRONMENT_CORE_DIRS:
+        if not (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"Missing required EnvironmentCore context directory: {relative_path}")
+
+    for relative_path in REQUIRED_SHARED_DIRS:
+        if not (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"Missing required Shared context directory: {relative_path}")
+
+    for relative_path in REQUIRED_COMM_DIRS:
+        if not (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"Missing required Comm context directory: {relative_path}")
+
+    for relative_path in REQUIRED_GAMEFLOW_DIRS:
+        if not (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"Missing required GameFlow bootstrap directory: {relative_path}")
+
     for path in source_files:
         text = path.read_text(encoding="utf-8", errors="ignore")
         relative = rel(path)
@@ -312,6 +441,14 @@ def main() -> int:
         if directory.exists() and any(directory.iterdir()):
             errors.append(f"{directory.relative_to(REPO_ROOT)} should be empty after Interaction migration")
 
+    legacy_manager_dir = SOURCE_ROOT / "Core" / "Manager"
+    if legacy_manager_dir.exists():
+        remaining_entries = [p.name for p in legacy_manager_dir.iterdir() if p.name != ".DS_Store"]
+        if remaining_entries:
+            errors.append(
+                f"{legacy_manager_dir.relative_to(REPO_ROOT)} should be retired after context extraction; found: {', '.join(sorted(remaining_entries))}"
+            )
+
     for relative_path in FORBIDDEN_INFRA_FILES:
         if (SOURCE_ROOT / relative_path).exists():
             errors.append(f"{relative_path} should not live in Infrastructure; move pure feedback translation into Feedback/")
@@ -335,6 +472,34 @@ def main() -> int:
     for relative_path in FORBIDDEN_LEGACY_COMMAND_PATHS:
         if (SOURCE_ROOT / relative_path).exists():
             errors.append(f"{relative_path} should not exist after Command extraction")
+
+    for relative_path in FORBIDDEN_LEGACY_AGENT_RUNTIME_PATHS:
+        if (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"{relative_path} should not exist after AgentRuntime extraction")
+
+    for relative_path in FORBIDDEN_LEGACY_SQUAD_PATHS:
+        if (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"{relative_path} should not exist after Squad extraction")
+
+    for relative_path in FORBIDDEN_LEGACY_TEMPDATA_PATHS:
+        if (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"{relative_path} should not exist after TempData extraction")
+
+    for relative_path in FORBIDDEN_LEGACY_ENVIRONMENT_CORE_PATHS:
+        if (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"{relative_path} should not exist after EnvironmentCore extraction")
+
+    for relative_path in FORBIDDEN_LEGACY_SHARED_TYPE_PATHS:
+        if (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"{relative_path} should not exist after Shared types extraction")
+
+    for relative_path in FORBIDDEN_LEGACY_COMM_PATHS:
+        if (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"{relative_path} should not exist after Comm context layering")
+
+    for relative_path in FORBIDDEN_LEGACY_GAMEFLOW_PATHS:
+        if (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"{relative_path} should not exist after GameFlow bootstrap consolidation")
 
     if errors:
         print("Interaction architecture guard failed:")

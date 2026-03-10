@@ -52,11 +52,11 @@ flowchart LR
 | 层级 | 当前 folder 映射 |
 |---|---|
 | `L1` | `Input/`、`UI/` |
-| `L2` | `Core/Interaction/Application/`、`Core/SceneGraph/Application/`、`UI/HUD/Application/`、`UI/Mode/Application/` |
-| `L3` | `Core/Interaction/Domain/`、`Core/Interaction/Feedback/`、`Core/SceneGraph/Domain/`、`Core/Camera/Domain/`、`UI/HUD/Domain/`、`UI/Mode/Domain/` |
-| `L4` | `Core/Interaction/Infrastructure/`、`Core/SceneGraph/Infrastructure/`、`Core/Camera/Infrastructure/`、`UI/HUD/Infrastructure/`、`UI/Mode/Infrastructure/` |
-| `L5` | `Core/SceneGraph/Runtime/`、`Core/Camera/Runtime/`、`Core/Editing/Runtime/`、`Core/Selection/Runtime/`、`Core/Command/Runtime/`、`Core/Manager/`、`Agent/`、`Environment/`、`Core/Comm/` |
-| `CR` | `Core/Interaction/Bootstrap/` |
+| `L2` | `Core/Interaction/Application/`、`Core/SceneGraph/Application/`、`Core/Command/Application/`、`Core/Selection/Application/`、`Core/Editing/Application/`、`Core/AgentRuntime/Application/`、`Core/EnvironmentCore/Application/`、`Core/TempData/Application/`、`Core/Camera/Application/`、`Core/Comm/Application/`、`UI/HUD/Application/`、`UI/Mode/Application/` |
+| `L3` | `Core/Interaction/Domain/`、`Core/Interaction/Feedback/`、`Core/SceneGraph/Domain/`、`Core/Command/Domain/`、`Core/Command/Feedback/`、`Core/Selection/Domain/`、`Core/Selection/Feedback/`、`Core/Editing/Domain/`、`Core/Editing/Feedback/`、`Core/AgentRuntime/Domain/`、`Core/AgentRuntime/Feedback/`、`Core/EnvironmentCore/Domain/`、`Core/EnvironmentCore/Feedback/`、`Core/TempData/Domain/`、`Core/TempData/Feedback/`、`Core/Camera/Domain/`、`Core/Camera/Feedback/`、`Core/Comm/Domain/`、`Core/Comm/Feedback/`、`Core/Squad/Domain/`、`Core/Shared/Types/`、`UI/HUD/Domain/`、`UI/Mode/Domain/` |
+| `L4` | `Core/Interaction/Infrastructure/`、`Core/SceneGraph/Infrastructure/`、`Core/Command/Infrastructure/`、`Core/Selection/Infrastructure/`、`Core/Editing/Infrastructure/`、`Core/AgentRuntime/Infrastructure/`、`Core/EnvironmentCore/Infrastructure/`、`Core/TempData/Infrastructure/`、`Core/Camera/Infrastructure/`、`Core/Comm/Infrastructure/`、`UI/HUD/Infrastructure/`、`UI/Mode/Infrastructure/` |
+| `L5` | `Core/SceneGraph/Runtime/`、`Core/Camera/Runtime/`、`Core/Editing/Runtime/`、`Core/Selection/Runtime/`、`Core/Command/Runtime/`、`Core/AgentRuntime/Runtime/`、`Core/Squad/Runtime/`、`Core/TempData/Runtime/`、`Core/EnvironmentCore/Runtime/`、`Core/Comm/Runtime/`、`Agent/`、`Environment/` |
+| `CR` | `Core/Interaction/Bootstrap/`、`Core/Command/Bootstrap/`、`Core/Selection/Bootstrap/`、`Core/Editing/Bootstrap/`、`Core/AgentRuntime/Bootstrap/`、`Core/EnvironmentCore/Bootstrap/`、`Core/TempData/Bootstrap/`、`Core/Camera/Bootstrap/`、`Core/Comm/Bootstrap/`、`Core/GameFlow/Bootstrap/` |
 
 补充：
 - `Core/Interaction/Feedback/` 现在同时承载 feedback 合同类型和纯 feedback 翻译逻辑，例如 `MAFeedbackPipeline`。
@@ -67,6 +67,10 @@ flowchart LR
 - `Core/Editing/` 目前已先把 `MAEditModeManager` 抽到 `Runtime/`，用于承接 UI 编辑流程与 SceneGraph 之间的运行时桥接。
 - `Core/Selection/` 目前已先把 `MASelectionManager` 抽到 `Runtime/`，用于承接框选、编组和选中态运行时同步。
 - `Core/Command/` 目前已先把 `MACommandManager` 抽到 `Runtime/`，用于承接技能列表执行、暂停恢复、运行时检查和 Python 反馈发送。
+- `Core/AgentRuntime/`、`Core/Squad/`、`Core/TempData/`、`Core/EnvironmentCore/` 已从 `Core/Manager/` 中拆出，当前 `Core/Manager/` 不再承载正式运行时代码。
+- `Core/Shared/Types/` 现在承载跨上下文共享的纯合同类型；原 `Core/Types/` 已退休。
+- `Core/Comm/` 现在已经补齐 `Application / Feedback / Runtime / Bootstrap`，不再把通信入口文件平铺在 context 根目录。
+- `Core/GameFlow/` 现在明确定位为 **Bootstrap shell**，只承载地图启动、Setup 流程和引擎级装配，不作为完整业务 context 继续扩张。
 - `Core/Camera/` 当前主要落在 `Domain / Infrastructure / Runtime`；后续如果出现更明确的相机 workflow，再补 `Application / Feedback / Bootstrap`。
 
 ## 2. Folder 图（当前实现）
@@ -83,6 +87,7 @@ flowchart LR
 flowchart TB
     subgraph CR["Composition Root"]
         BOOT["Core/Interaction/Bootstrap/"]
+        CTXBOOT["Core/*/Bootstrap/"]
     end
 
     subgraph L1["L1 Entry / Presentation"]
@@ -95,6 +100,7 @@ flowchart TB
     subgraph L2["L2 Application"]
         INTAPP["Core/Interaction/Application/"]
         SGAPP["Core/SceneGraph/Application/"]
+        CTXAPP["Core/{Command,Selection,Editing,AgentRuntime,EnvironmentCore,TempData,Camera,Comm}/Application/"]
         HUDAPP["UI/HUD/Application/"]
         MODEAPP["UI/Mode/Application/"]
     end
@@ -103,7 +109,10 @@ flowchart TB
         INTDOMAIN["Core/Interaction/Domain/"]
         FEEDBACK["Core/Interaction/Feedback/"]
         SGDOMAIN["Core/SceneGraph/Domain/"]
-        CAMDOMAIN["Core/Camera/Domain/"]
+        CTXDOMAIN["Core/{Command,Selection,Editing,AgentRuntime,EnvironmentCore,TempData,Camera,Comm}/Domain/"]
+        CTXFB["Core/{Command,Selection,Editing,AgentRuntime,EnvironmentCore,TempData,Camera,Comm}/Feedback/"]
+        SQUADDOMAIN["Core/Squad/Domain/"]
+        SHAREDTYPES["Core/Shared/Types/"]
         HUDDOMAIN["UI/HUD/Domain/"]
         MODEDOMAIN["UI/Mode/Domain/"]
     end
@@ -111,26 +120,23 @@ flowchart TB
     subgraph L4["L4 Infrastructure"]
         INTINFRA["Core/Interaction/Infrastructure/"]
         SGINFRA["Core/SceneGraph/Infrastructure/"]
-        CAMINFRA["Core/Camera/Infrastructure/"]
+        CTXINFRA["Core/{Command,Selection,Editing,AgentRuntime,EnvironmentCore,TempData,Camera,Comm}/Infrastructure/"]
         HUDINFRA["UI/HUD/Infrastructure/"]
         MODEINFRA["UI/Mode/Infrastructure/"]
     end
 
     subgraph L5["L5 Plant / Runtime"]
         SGRUNTIME["Core/SceneGraph/Runtime/"]
-        CAMRUNTIME["Core/Camera/Runtime/"]
-        EDITRUNTIME["Core/Editing/Runtime/"]
-        SELECTIONRUNTIME["Core/Selection/Runtime/"]
-        COMMANDRUNTIME["Core/Command/Runtime/"]
-        MANAGER["Core/Manager/"]
+        CTXRUNTIME["Core/{Camera,Editing,Selection,Command,AgentRuntime,Squad,TempData,EnvironmentCore,Comm}/Runtime/"]
         AGENT["Agent/"]
         ENV["Environment/"]
-        COMM["Core/Comm/"]
     end
 
     BOOT --> INPUT
     BOOT --> INTAPP
     BOOT --> INTINFRA
+    CTXBOOT --> CTXAPP
+    CTXBOOT --> CTXINFRA
 
     INPUT --> INTAPP
 
@@ -139,12 +145,15 @@ flowchart TB
     UIHUD --> HUDAPP
     UIMODE --> MODEAPP
     INTAPP --> SGAPP
+    INTAPP --> CTXAPP
     HUDAPP --> SGAPP
     MODEAPP --> SGAPP
 
     INTAPP --> INTDOMAIN
     INTAPP --> FEEDBACK
     SGAPP --> SGDOMAIN
+    CTXAPP --> CTXDOMAIN
+    CTXAPP --> CTXFB
     HUDAPP --> HUDDOMAIN
     HUDAPP --> MODEAPP
     HUDAPP --> FEEDBACK
@@ -152,26 +161,17 @@ flowchart TB
     MODEAPP --> MODEDOMAIN
 
     SGINFRA --> SGRUNTIME
-    SGRUNTIME --> MANAGER
+    CTXINFRA --> CTXRUNTIME
 
-    CAMINFRA --> CAMRUNTIME
-    CAMRUNTIME --> MANAGER
-
-    EDITRUNTIME --> MANAGER
-    SELECTIONRUNTIME --> MANAGER
-    COMMANDRUNTIME --> MANAGER
-
-    INTINFRA --> MANAGER
+    INTINFRA --> CTXRUNTIME
     INTINFRA --> AGENT
     INTINFRA --> ENV
-    INTINFRA --> COMM
 
-    HUDINFRA --> MANAGER
+    HUDINFRA --> CTXRUNTIME
     HUDINFRA --> AGENT
     HUDINFRA --> ENV
-    HUDINFRA --> COMM
 
-    MODEINFRA --> MANAGER
+    MODEINFRA --> CTXRUNTIME
     MODEINFRA --> AGENT
     MODEINFRA --> ENV
 ```

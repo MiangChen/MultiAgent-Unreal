@@ -1,7 +1,7 @@
 // MAExternalCameraManager.cpp
 
 #include "MAExternalCameraManager.h"
-#include "Core/Manager/MAAgentManager.h"
+#include "Core/AgentRuntime/Runtime/MAAgentManager.h"
 #include "Agent/Character/MACharacter.h"
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"

@@ -6,8 +6,8 @@
 
 #include "CoreMinimal.h"
 #include "MABaseModalWidget.h"
-#include "../Core/Types/MATaskGraphTypes.h"
-#include "../Core/Comm/MACommTypes.h"
+#include "../Core/Shared/Types/MATaskGraphTypes.h"
+#include "../Core/Comm/Domain/MACommTypes.h"
 #include "MASkillAllocationModal.generated.h"
 
 class UMAGanttCanvas;

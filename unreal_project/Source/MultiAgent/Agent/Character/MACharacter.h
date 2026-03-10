@@ -7,7 +7,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "AbilitySystemInterface.h"
-#include "../../Core/Types/MATypes.h"
+#include "../../Core/Shared/Types/MATypes.h"
 #include "MACharacter.generated.h"
 
 class UMASkillComponent;

@@ -2,12 +2,12 @@
 // ========== 指令调度层实现 ==========
 
 #include "MACommandManager.h"
-#include "Core/Manager/MAAgentManager.h"
-#include "Core/Manager/MATempDataManager.h"
+#include "Core/AgentRuntime/Runtime/MAAgentManager.h"
+#include "Core/TempData/Runtime/MATempDataManager.h"
 #include "Core/SceneGraph/Runtime/MASceneGraphManager.h"
 #include "Core/Config/MAConfigManager.h"
-#include "Core/Comm/MACommSubsystem.h"
-#include "Core/Comm/MACommTypes.h"
+#include "Core/Comm/Runtime/MACommSubsystem.h"
+#include "Core/Comm/Domain/MACommTypes.h"
 #include "Core/Comm/Infrastructure/Codec/MACommJsonCodec.h"
 #include "Agent/Character/MACharacter.h"
 #include "Agent/Skill/MASkillComponent.h"

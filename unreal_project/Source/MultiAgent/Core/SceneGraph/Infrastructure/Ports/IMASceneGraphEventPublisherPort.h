@@ -4,7 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Core/Comm/MACommTypes.h"
+#include "Core/Comm/Domain/MACommTypes.h"
 
 class IMASceneGraphEventPublisherPort
 {

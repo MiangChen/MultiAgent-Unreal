@@ -21,10 +21,14 @@ FILE_MAPPING = {
         "MAGameMode.h", "MAGameMode.cpp",
         "MASetupGameMode.h", "MASetupGameMode.cpp",
     ],
-    # Manager - 管理器子系统
-    "Manager": [
+    # AgentRuntime / Squad / Camera - 已拆分上下文
+    "AgentRuntime/Runtime": [
         "MAAgentManager.h", "MAAgentManager.cpp",
+    ],
+    "Squad/Runtime": [
         "MASquadManager.h", "MASquadManager.cpp",
+    ],
+    "Camera/Runtime": [
         "MAViewportManager.h", "MAViewportManager.cpp",
     ],
     # Comm - 通信相关
@@ -33,15 +37,18 @@ FILE_MAPPING = {
         "MACommSubsystemTest.cpp",
         "MACommTypes.h", "MACommTypes.cpp",
     ],
-    # Types - 类型定义
-    "Types": [
+    # Shared Types - 共享合同类型
+    "Shared/Types": [
         "MATypes.h",
         "MASimTypes.h", "MASimTypes.cpp",
         "MATaskGraphTypes.h", "MATaskGraphTypes.cpp",
     ],
+    # Squad Domain / 保留在根目录
+    "Squad/Domain": [
+        "MASquad.h", "MASquad.cpp",
+    ],
     # 保留在根目录
     "": [
-        "MASquad.h", "MASquad.cpp",
         "MASubsystem.h", "MASubsystem.cpp",
         "MARTSCompatibilityTest.cpp",
     ],

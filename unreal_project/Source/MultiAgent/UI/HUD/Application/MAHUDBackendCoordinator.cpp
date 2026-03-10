@@ -8,7 +8,7 @@
 #include "../../TaskGraph/MATaskPlannerWidget.h"
 #include "../../Modal/MATaskGraphModal.h"
 #include "../../Modal/MASkillAllocationModal.h"
-#include "../../../Core/Types/MASimTypes.h"
+#include "../../../Core/Shared/Types/MASimTypes.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMAHUDBackendCoordinator, Log, All);
 

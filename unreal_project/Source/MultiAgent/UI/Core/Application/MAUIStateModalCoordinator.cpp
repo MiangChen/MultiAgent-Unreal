@@ -10,7 +10,7 @@
 #include "../../Modal/MATaskGraphModal.h"
 #include "../../Modal/MASkillAllocationModal.h"
 #include "../../Modal/MADecisionModal.h"
-#include "../../../Core/Manager/MATempDataManager.h"
+#include "../../../Core/TempData/Runtime/MATempDataManager.h"
 #include "Blueprint/UserWidget.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/World.h"

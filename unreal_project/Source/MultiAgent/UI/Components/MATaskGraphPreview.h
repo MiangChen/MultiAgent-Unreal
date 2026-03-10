@@ -7,7 +7,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "../../Core/Types/MATaskGraphTypes.h"
+#include "../../Core/Shared/Types/MATaskGraphTypes.h"
 #include "MATaskGraphPreview.generated.h"
 
 class UVerticalBox;

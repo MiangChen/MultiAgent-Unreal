@@ -11,7 +11,7 @@
 #include "Core/SceneGraph/Infrastructure/Adapters/MASceneGraphRepositoryAdapter.h"
 #include "Core/SceneGraph/Infrastructure/Adapters/MASceneGraphEventPublisherAdapter.h"
 #include "Core/SceneGraph/Infrastructure/UE/MAUESceneApplier.h"
-#include "Core/Comm/MACommTypes.h"
+#include "Core/Comm/Domain/MACommTypes.h"
 #include "GameFramework/Actor.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"

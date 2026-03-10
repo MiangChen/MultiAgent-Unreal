@@ -2,7 +2,7 @@
 
 #include "MASkillTemplateRegistry.h"
 #include "../../../Core/Command/Runtime/MACommandManager.h"
-#include "../../../Core/Types/MATypes.h"
+#include "../../../Core/Shared/Types/MATypes.h"
 
 // Static member initialization
 TMap<EMACommand, FMASkillCheckTemplate> FMASkillTemplateRegistry::BaseTemplates;

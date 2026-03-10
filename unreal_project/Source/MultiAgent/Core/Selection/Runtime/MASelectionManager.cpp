@@ -2,7 +2,7 @@
 // 星际争霸风格选择系统实现
 
 #include "MASelectionManager.h"
-#include "Core/Manager/MAAgentManager.h"
+#include "Core/AgentRuntime/Runtime/MAAgentManager.h"
 #include "Agent/Character/MACharacter.h"
 #include "Engine/Engine.h"
 #include "GameFramework/PlayerController.h"

@@ -6,8 +6,8 @@
 #include "CoreMinimal.h"
 #include "../../../Core/Interaction/Feedback/MAFeedback21.h"
 #include "../../Core/MAHUDTypes.h"
-#include "../../../Core/Types/MATaskGraphTypes.h"
-#include "../../../Core/Comm/MACommTypes.h"
+#include "../../../Core/Shared/Types/MATaskGraphTypes.h"
+#include "../../../Core/Comm/Domain/MACommTypes.h"
 
 class AMAHUD;
 class UWorld;

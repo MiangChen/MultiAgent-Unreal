@@ -8,7 +8,7 @@
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
 #include "MAHUDTypes.h"
-#include "../../Core/Types/MATaskGraphTypes.h"
+#include "../../Core/Shared/Types/MATaskGraphTypes.h"
 #include "Application/MAUIStateModalCoordinator.h"
 #include "Application/MAUIRuntimeEventCoordinator.h"
 #include "Application/MAUIWidgetLifecycleCoordinator.h"

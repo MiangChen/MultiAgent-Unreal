@@ -4,7 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "../../../Core/Types/MATaskGraphTypes.h"
+#include "../../../Core/Shared/Types/MATaskGraphTypes.h"
 
 /** 甘特图渲染快照 */
 struct MULTIAGENT_API FMAGanttRenderSnapshot

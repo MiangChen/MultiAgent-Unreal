@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "../../MACommTypes.h"
+#include "../../Domain/MACommTypes.h"
 
 namespace MACommTypeHelpers
 {

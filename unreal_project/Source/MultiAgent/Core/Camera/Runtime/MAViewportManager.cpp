@@ -1,7 +1,7 @@
 // MAViewportManager.cpp
 
 #include "MAViewportManager.h"
-#include "Core/Manager/MAAgentManager.h"
+#include "Core/AgentRuntime/Runtime/MAAgentManager.h"
 #include "Core/Camera/Runtime/MAExternalCameraManager.h"
 #include "Agent/Character/MACharacter.h"
 #include "Agent/Character/MAUAVCharacter.h"

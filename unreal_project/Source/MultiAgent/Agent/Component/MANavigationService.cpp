@@ -2,7 +2,7 @@
 // 统一导航服务组件实现（核心状态/生命周期）
 
 #include "MANavigationService.h"
-#include "../../Core/Types/MATypes.h"
+#include "../../Core/Shared/Types/MATypes.h"
 #include "../../Core/Config/MAConfigManager.h"
 #include "../../Utils/MAFlightController.h"
 #include "AIController.h"
