@@ -491,12 +491,24 @@ COMPONENTS_PREVIEW_RUNTIME_CALL_GUARDS = (
 )
 
 COMPONENTS_RUNTIME_WIDGET_SCOPE = {
+    "UI/Components/MAContextMenuWidget.h",
+    "UI/Components/MAContextMenuWidget.cpp",
     "UI/Components/MAMiniMapWidget.h",
     "UI/Components/MAMiniMapWidget.cpp",
     "UI/Components/MAMiniMapManager.h",
     "UI/Components/MAMiniMapManager.cpp",
+    "UI/Components/MANotificationWidget.h",
+    "UI/Components/MANotificationWidget.cpp",
     "UI/Components/MAInstructionPanel.h",
     "UI/Components/MAInstructionPanel.cpp",
+    "UI/Components/MASystemLogPanel.h",
+    "UI/Components/MASystemLogPanel.cpp",
+    "UI/Components/MADirectControlIndicator.h",
+    "UI/Components/MADirectControlIndicator.cpp",
+    "UI/Components/MASpeechBubbleWidget.h",
+    "UI/Components/MASpeechBubbleWidget.cpp",
+    "UI/Components/MAStyledButton.h",
+    "UI/Components/MAStyledButton.cpp",
 }
 
 COMPONENTS_RUNTIME_INCLUDE_GUARDS = (

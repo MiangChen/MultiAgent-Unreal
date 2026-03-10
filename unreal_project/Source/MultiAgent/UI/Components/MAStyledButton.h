@@ -7,6 +7,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Application/MAStyledButtonCoordinator.h"
 #include "../Core/MARoundedBorderUtils.h"
 #include "MAStyledButton.generated.h"
 
@@ -277,6 +278,9 @@ private:
     /** 当前按钮圆角半径 */
     float CurrentCornerRadius = MARoundedBorderUtils::DefaultButtonCornerRadius;
 
+    /** 按钮协调器 */
+    FMAStyledButtonCoordinator Coordinator;
+
     //=========================================================================
     // 内部方法
     //=========================================================================
@@ -292,12 +296,6 @@ private:
 
     /** 应用动画状态到 UI */
     void ApplyAnimationState();
-
-    /** 获取样式对应的基础颜色 */
-    FLinearColor GetBaseColorForStyle(EMAButtonStyle Style) const;
-
-    /** 获取样式对应的悬停颜色 */
-    FLinearColor GetHoverColorForStyle(EMAButtonStyle Style) const;
 
     /** 应用圆角效果到按钮边框 */
     void ApplyRoundedCornersToButton();

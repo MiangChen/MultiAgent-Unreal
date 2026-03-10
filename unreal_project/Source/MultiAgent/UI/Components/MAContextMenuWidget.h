@@ -5,6 +5,8 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Application/MAContextMenuCoordinator.h"
+#include "Domain/MAContextMenuModels.h"
 #include "MAContextMenuWidget.generated.h"
 
 class UVerticalBox;
@@ -192,4 +194,7 @@ protected:
 
     /** 禁用文本颜色 */
     FLinearColor DisabledTextColor = FLinearColor(0.5f, 0.5f, 0.5f, 0.5f);
+
+    /** 菜单协调器 */
+    FMAContextMenuCoordinator Coordinator;
 };

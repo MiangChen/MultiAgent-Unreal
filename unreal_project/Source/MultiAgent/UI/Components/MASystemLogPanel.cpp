@@ -218,15 +218,7 @@ UWidget* UMASystemLogPanel::CreateLogSection()
 
 void UMASystemLogPanel::AppendLog(const FString& Message, bool bIsError)
 {
-    // 创建日志条目
-    FMALogEntry Entry(Message, bIsError);
-    LogEntries.Add(Entry);
-    
-    // 限制日志条目数量
-    while (LogEntries.Num() > MaxLogEntries)
-    {
-        LogEntries.RemoveAt(0);
-    }
+    Coordinator.AppendLog(LogEntries, Message, bIsError, MaxLogEntries);
     
     // 刷新显示
     RefreshLogDisplay();
@@ -239,7 +231,7 @@ void UMASystemLogPanel::AppendLog(const FString& Message, bool bIsError)
 
 void UMASystemLogPanel::ClearLogs()
 {
-    LogEntries.Empty();
+    Coordinator.ClearLogs(LogEntries);
     RefreshLogDisplay();
 }
 
@@ -272,24 +264,16 @@ UWidget* UMASystemLogPanel::CreateLogEntryWidget(const FMALogEntry& Entry)
         return nullptr;
     }
     
-    // 获取主题
-    UMAUITheme* CurrentTheme = GetOrCreateTheme(this);
-    
     UTextBlock* LogText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
     if (!LogText)
     {
         return nullptr;
     }
-    
-    // 格式化时间戳
-    FString TimeStr = Entry.Timestamp.ToString(TEXT("%H:%M:%S"));
-    FString FormattedMessage = FString::Printf(TEXT("[%s] %s"), *TimeStr, *Entry.Message);
-    
-    LogText->SetText(FText::FromString(FormattedMessage));
-    
-    // 设置颜色 (错误消息用危险色，普通消息用次要文字颜色)
-    FLinearColor TextColor = Entry.bIsError ? CurrentTheme->DangerColor : CurrentTheme->SecondaryTextColor;
-    LogText->SetColorAndOpacity(FSlateColor(TextColor));
+
+    const UMAUITheme* CurrentTheme = GetOrCreateTheme(this);
+    const FMALogEntryViewModel Model = Coordinator.BuildEntryViewModel(Entry, CurrentTheme);
+    LogText->SetText(FText::FromString(Model.FormattedMessage));
+    LogText->SetColorAndOpacity(FSlateColor(Model.TextColor));
     
     // 设置字体
     FSlateFontInfo LogFont = FCoreStyle::GetDefaultFontStyle("Regular", 10);
@@ -328,14 +312,8 @@ void UMASystemLogPanel::ApplyTheme(UMAUITheme* InTheme)
         PanelBackground->SetBrushColor(Theme->BackgroundColor);
     }
     
-    // 应用区域背景颜色 (稍微亮一点) 并应用圆角
-    FLinearColor SectionBgColor = Theme->BackgroundColor;
-    SectionBgColor.R += 0.05f;
-    SectionBgColor.G += 0.05f;
-    SectionBgColor.B += 0.05f;
-    
-    // 获取圆角半径
-    float CornerRadius = MARoundedBorderUtils::GetCornerRadiusForType(Theme, EMARoundedElementType::Panel);
+    const FLinearColor SectionBgColor = Coordinator.BuildSectionBackgroundColor(Theme);
+    const float CornerRadius = MARoundedBorderUtils::GetCornerRadiusForType(Theme, EMARoundedElementType::Panel);
     
     if (LogSectionBorder)
     {

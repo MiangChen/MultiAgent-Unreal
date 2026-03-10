@@ -75,6 +75,8 @@ flowchart LR
 - `UI/SkillAllocation/` 现在也建立了本地 `Application / Domain / Infrastructure` 支撑层：`MASkillAllocationViewer` 通过 coordinator + runtime adapter 驱动技能分配加载、保存、导航和运行时事件绑定，viewer 自身不再直接访问 `TempData / UIManager / HUD`。
 - `UI/Components/` 现在也开始沿同一模式收口：`MATaskGraphPreview` 和 `MASkillListPreview` 的数据构建与布局计算已分别下沉到 `Application / Domain / Infrastructure`，`MAPreviewPanel` 保持为薄容器。
 - `UI/Components/` 的 runtime-heavy 组件也已按同一模式收口：`MAMiniMapWidget / MAMiniMapManager / MAInstructionPanel` 的运行时采样、点击跳转和 post-submit 行为已下沉到各自的 `Infrastructure` 与 `Application` 协调器。
+- `UI/Components/` 的剩余小组件现在也已收口：`MAContextMenuWidget / MANotificationWidget / MASystemLogPanel / MADirectControlIndicator` 已具备明确的 `Application / Domain` 支撑层，其中日志与通知状态编排、主题模型、菜单布局与点击关闭规则都已离开 widget 主体。
+- 纯视觉小组件 `MASpeechBubbleWidget / MAStyledButton` 也已按轻量模式拆分：保留 widget 展示壳，并将动画/颜色/状态步进下沉到 `Application + Domain`，因为它们不直接触达 runtime，所以不额外引入 `Infrastructure`。
 - `UI/Core/` 现在继续承接 UI 根级流程，但 `Application` 已不再直接 include `TempData / Comm / Command` 运行时代码；这些访问统一经由 `UI/Core/Infrastructure/MAUIRuntimeBridge` 进入运行时。
 - `UI/HUD/MASelectionHUD` 现在只负责绘制；全屏 widget 判定、Agent/Selection 查询、控制组统计和状态文本投影统一经由 `UI/HUD/Application/MASelectionHUDCoordinator` 与 `UI/HUD/Infrastructure/MASelectionHUDRuntimeAdapter` 提供。
 - `UI/Setup/` 现在已经形成独立轻量 setup context：`MASetupHUD / MASetupWidget` 只保留展示与输入，配置读取、关卡启动、输入模式切换和启动请求组装都已下沉到 `Application / Infrastructure / Bootstrap`。

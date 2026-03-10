@@ -7,6 +7,8 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Application/MANotificationCoordinator.h"
+#include "Domain/MANotificationModels.h"
 #include "../Core/MAHUDTypes.h"
 #include "MANotificationWidget.generated.h"
 
@@ -64,14 +66,14 @@ public:
      * @return true 如果通知正在显示
      */
     UFUNCTION(BlueprintPure, Category = "Notification")
-    bool IsNotificationVisible() const { return bIsVisible; }
+    bool IsNotificationVisible() const { return NotificationState.bVisible; }
 
     /**
      * 获取当前通知类型
      * @return 当前通知类型
      */
     UFUNCTION(BlueprintPure, Category = "Notification")
-    EMANotificationType GetCurrentNotificationType() const { return CurrentType; }
+    EMANotificationType GetCurrentNotificationType() const { return NotificationState.Type; }
 
     //=========================================================================
     // 消息获取
@@ -171,25 +173,6 @@ private:
     // 状态
     //=========================================================================
 
-    /** 当前通知类型 */
-    EMANotificationType CurrentType = EMANotificationType::None;
-
-    /** 是否可见 */
-    bool bIsVisible = false;
-
-    /** 是否正在播放动画 */
-    bool bIsAnimating = false;
-
-    /** 是否正在显示 (用于动画方向) */
-    bool bIsShowing = false;
-
-    //=========================================================================
-    // 动画状态
-    //=========================================================================
-
-    /** 当前动画时间 */
-    float CurrentAnimTime = 0.0f;
-
     /** 滑入动画时长 (秒) - 300ms */
     static constexpr float SlideInDuration = 0.3f;
 
@@ -202,11 +185,11 @@ private:
     /** 动画目标 X 偏移 (最终位置) */
     static constexpr float AnimEndOffsetX = 0.0f;
 
-    /** 当前 X 偏移 */
-    float CurrentOffsetX = AnimStartOffsetX;
+    /** 通知状态 */
+    FMANotificationAnimationState NotificationState;
 
-    /** 当前透明度 */
-    float CurrentOpacity = 0.0f;
+    /** 通知协调器 */
+    FMANotificationCoordinator Coordinator;
 
     //=========================================================================
     // 内部方法

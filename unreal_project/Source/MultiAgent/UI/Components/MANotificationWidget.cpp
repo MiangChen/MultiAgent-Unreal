@@ -29,37 +29,12 @@ UMANotificationWidget::UMANotificationWidget(const FObjectInitializer& ObjectIni
 
 void UMANotificationWidget::ShowNotification(EMANotificationType Type)
 {
-    if (Type == EMANotificationType::None)
+    Coordinator.BeginShow(NotificationState, Type);
+    if (NotificationState.Type == EMANotificationType::None)
     {
         HideNotification();
         return;
     }
-
-    // 如果已经在显示相同类型的通知且不在动画中，忽略
-    if (bIsVisible && CurrentType == Type && !bIsAnimating && bIsShowing)
-    {
-        UE_LOG(LogTemp, Log, TEXT("[Notification] Ignoring duplicate notification type: %d (already showing)"), static_cast<int32>(Type));
-        return;
-    }
-
-    // 如果正在隐藏动画中，立即停止并重新开始显示动画
-    if (bIsAnimating && !bIsShowing)
-    {
-        UE_LOG(LogTemp, Log, TEXT("[Notification] Interrupting hide animation to show new notification"));
-        // 不需要重置位置，从当前位置开始显示动画
-    }
-    else
-    {
-        // 设置初始动画状态 (从左边缘开始)
-        CurrentOffsetX = AnimStartOffsetX;
-        CurrentOpacity = 0.0f;
-    }
-
-    CurrentType = Type;
-    bIsVisible = true;
-    bIsShowing = true;
-    bIsAnimating = true;
-    CurrentAnimTime = 0.0f;
 
     // 更新内容
     UpdateNotificationContent();
@@ -72,14 +47,7 @@ void UMANotificationWidget::ShowNotification(EMANotificationType Type)
 
 void UMANotificationWidget::HideNotification()
 {
-    if (!bIsVisible)
-    {
-        return;
-    }
-
-    bIsShowing = false;
-    bIsAnimating = true;
-    CurrentAnimTime = 0.0f;
+    Coordinator.BeginHide(NotificationState);
 
     UE_LOG(LogTemp, Log, TEXT("[Notification] Hiding notification"));
 }
@@ -90,48 +58,12 @@ void UMANotificationWidget::HideNotification()
 
 FString UMANotificationWidget::GetNotificationMessage(EMANotificationType Type)
 {
-    switch (Type)
-    {
-        case EMANotificationType::TaskGraphUpdate:
-            return TEXT("Task Graph Updated");
-        case EMANotificationType::SkillListUpdate:
-            return TEXT("Skill List Updated");
-        case EMANotificationType::SkillListExecuting:
-            return TEXT("Skills Executing");
-        case EMANotificationType::RequestUserCommand:
-            return TEXT("Command Input Required");
-        case EMANotificationType::SkillListPaused:
-            return TEXT("Skill Execution Paused");
-        case EMANotificationType::SkillListResumed:
-            return TEXT("Skill Execution Resumed");
-        case EMANotificationType::DecisionUpdate:
-            return TEXT("Decision Required");
-        default:
-            return TEXT("");
-    }
+    return FMANotificationCoordinator().GetNotificationMessage(Type);
 }
 
 FString UMANotificationWidget::GetKeyHint(EMANotificationType Type)
 {
-    switch (Type)
-    {
-        case EMANotificationType::TaskGraphUpdate:
-            return TEXT("Press 'Z' to review Task Graph");
-        case EMANotificationType::SkillListUpdate:
-            return TEXT("Press 'N' to review Skill List");
-        case EMANotificationType::SkillListExecuting:
-            return TEXT("Skills are currently being executed");
-        case EMANotificationType::RequestUserCommand:
-            return TEXT("Please enter command in the right sidebar");
-        case EMANotificationType::SkillListPaused:
-            return TEXT("Press 'P' to resume execution");
-        case EMANotificationType::SkillListResumed:
-            return TEXT("Skills are continuing to execute");
-        case EMANotificationType::DecisionUpdate:
-            return TEXT("Press '9' to review Decision");
-        default:
-            return TEXT("");
-    }
+    return FMANotificationCoordinator().GetKeyHint(Type);
 }
 
 //=============================================================================
@@ -150,7 +82,7 @@ void UMANotificationWidget::ApplyTheme(UMAUITheme* InTheme)
     // 应用圆角和背景颜色
     if (NotificationBorder)
     {
-        FLinearColor BgColor = GetBackgroundColorForType(CurrentType);
+        FLinearColor BgColor = GetBackgroundColorForType(NotificationState.Type);
         MARoundedBorderUtils::ApplyRoundedCornersFromTheme(
             NotificationBorder,
             Theme,
@@ -200,7 +132,7 @@ void UMANotificationWidget::NativeTick(const FGeometry& MyGeometry, float InDelt
 {
     Super::NativeTick(MyGeometry, InDeltaTime);
 
-    if (bIsAnimating)
+    if (NotificationState.bAnimating)
     {
         UpdateAnimation(InDeltaTime);
     }
@@ -337,56 +269,38 @@ void UMANotificationWidget::UpdateNotificationContent()
 {
     if (NotificationText)
     {
-        FString Message = GetNotificationMessage(CurrentType);
-        NotificationText->SetText(FText::FromString(Message));
-    }
+        const FMANotificationContentModel Model = Coordinator.BuildContentModel(NotificationState.Type, Theme);
+        NotificationText->SetText(FText::FromString(Model.Message));
+        if (NotificationBorder)
+        {
+            MARoundedBorderUtils::ApplyRoundedCornersFromTheme(
+                NotificationBorder,
+                Theme,
+                EMARoundedElementType::Panel
+            );
+            NotificationBorder->SetBrushColor(Model.BackgroundColor);
+        }
 
-    if (KeyHintText)
-    {
-        FString Hint = GetKeyHint(CurrentType);
-        KeyHintText->SetText(FText::FromString(Hint));
-    }
-
-    // 更新背景颜色和圆角
-    if (NotificationBorder)
-    {
-        FLinearColor BgColor = GetBackgroundColorForType(CurrentType);
-        MARoundedBorderUtils::ApplyRoundedCornersFromTheme(
-            NotificationBorder,
-            Theme,
-            EMARoundedElementType::Panel
-        );
-        NotificationBorder->SetBrushColor(BgColor);
+        if (KeyHintText)
+        {
+            KeyHintText->SetText(FText::FromString(Model.KeyHint));
+        }
     }
 }
 
 void UMANotificationWidget::UpdateAnimation(float DeltaTime)
 {
-    CurrentAnimTime += DeltaTime;
-
-    float Duration = bIsShowing ? SlideInDuration : SlideOutDuration;
-    float Progress = FMath::Clamp(CurrentAnimTime / Duration, 0.0f, 1.0f);
-
-    // 使用 ease-out 缓动函数 (更丝滑的动画)
-    float EasedProgress = 1.0f - FMath::Pow(1.0f - Progress, 3.0f);
-
-    if (bIsShowing)
-    {
-        // 滑入动画：从左边缘滑入
-        CurrentOffsetX = FMath::Lerp(AnimStartOffsetX, AnimEndOffsetX, EasedProgress);
-        CurrentOpacity = EasedProgress;
-    }
-    else
-    {
-        // 滑出动画：向左边缘滑出
-        CurrentOffsetX = FMath::Lerp(AnimEndOffsetX, AnimStartOffsetX, EasedProgress);
-        CurrentOpacity = 1.0f - EasedProgress;
-    }
+    const FMANotificationAnimationFrame Frame = Coordinator.StepAnimation(
+        NotificationState,
+        DeltaTime,
+        SlideInDuration,
+        SlideOutDuration,
+        AnimStartOffsetX,
+        AnimEndOffsetX);
 
     ApplyAnimationState();
 
-    // 检查动画是否完成
-    if (Progress >= 1.0f)
+    if (Frame.bFinished)
     {
         OnAnimationFinished();
     }
@@ -399,23 +313,21 @@ void UMANotificationWidget::ApplyAnimationState()
     {
         if (UCanvasPanelSlot* BorderSlot = Cast<UCanvasPanelSlot>(NotificationBorder->Slot))
         {
-            BorderSlot->SetPosition(FVector2D(CurrentOffsetX, 0.0f));
+            BorderSlot->SetPosition(FVector2D(NotificationState.CurrentOffsetX, 0.0f));
         }
     }
 
     // 应用透明度
-    SetRenderOpacity(CurrentOpacity);
+    SetRenderOpacity(NotificationState.CurrentOpacity);
 }
 
 void UMANotificationWidget::OnAnimationFinished()
 {
-    bIsAnimating = false;
+    Coordinator.FinishAnimation(NotificationState);
 
-    if (!bIsShowing)
+    if (!NotificationState.bVisible)
     {
         // 隐藏动画完成，隐藏 Widget
-        bIsVisible = false;
-        CurrentType = EMANotificationType::None;
         SetVisibility(ESlateVisibility::Collapsed);
         UE_LOG(LogTemp, Log, TEXT("[Notification] Hide animation finished"));
     }
@@ -427,79 +339,5 @@ void UMANotificationWidget::OnAnimationFinished()
 
 FLinearColor UMANotificationWidget::GetBackgroundColorForType(EMANotificationType Type) const
 {
-    // 根据通知类型返回不同的背景颜色
-    switch (Type)
-    {
-        case EMANotificationType::TaskGraphUpdate:
-            // 蓝色调 - 任务图更新
-            if (Theme)
-            {
-                FLinearColor Color = Theme->PrimaryColor;
-                Color.A = 0.95f;
-                return Color * 0.3f + FLinearColor(0.1f, 0.1f, 0.12f, 0.95f) * 0.7f;
-            }
-            return FLinearColor(0.12f, 0.15f, 0.22f, 0.95f);
-
-        case EMANotificationType::SkillListUpdate:
-            // 绿色调 - 技能列表更新
-            if (Theme)
-            {
-                FLinearColor Color = Theme->SuccessColor;
-                Color.A = 0.95f;
-                return Color * 0.3f + FLinearColor(0.1f, 0.1f, 0.12f, 0.95f) * 0.7f;
-            }
-            return FLinearColor(0.12f, 0.18f, 0.14f, 0.95f);
-
-        case EMANotificationType::SkillListExecuting:
-            // 黄色调 - 技能列表执行中
-            if (Theme)
-            {
-                FLinearColor Color = Theme->WarningColor;
-                Color.A = 0.95f;
-                return Color * 0.3f + FLinearColor(0.1f, 0.1f, 0.12f, 0.95f) * 0.7f;
-            }
-            return FLinearColor(0.22f, 0.20f, 0.12f, 0.95f);
-
-        case EMANotificationType::RequestUserCommand:
-            // 蓝色调 - 索要用户指令
-            return FLinearColor(0.1f, 0.3f, 0.6f, 0.9f);
-
-        case EMANotificationType::SkillListPaused:
-            // 橙色/琥珀色调 - 技能执行暂停
-            if (Theme)
-            {
-                FLinearColor Color = Theme->WarningColor;
-                Color.A = 0.95f;
-                return Color * 0.4f + FLinearColor(0.1f, 0.1f, 0.12f, 0.95f) * 0.6f;
-            }
-            return FLinearColor(0.25f, 0.18f, 0.08f, 0.95f);
-
-        case EMANotificationType::SkillListResumed:
-            // 绿色调 - 技能执行恢复
-            if (Theme)
-            {
-                FLinearColor Color = Theme->SuccessColor;
-                Color.A = 0.95f;
-                return Color * 0.3f + FLinearColor(0.1f, 0.1f, 0.12f, 0.95f) * 0.7f;
-            }
-            return FLinearColor(0.12f, 0.20f, 0.14f, 0.95f);
-
-        case EMANotificationType::DecisionUpdate:
-            // 橙色/琥珀色调 - 决策请求（需要用户注意）
-            if (Theme)
-            {
-                FLinearColor Color = Theme->WarningColor;
-                Color.A = 0.95f;
-                return Color * 0.35f + FLinearColor(0.1f, 0.1f, 0.12f, 0.95f) * 0.65f;
-            }
-            return FLinearColor(0.24f, 0.19f, 0.10f, 0.95f);
-
-        default:
-            // 默认深色背景
-            if (Theme)
-            {
-                return Theme->BackgroundColor;
-            }
-            return FLinearColor(0.1f, 0.1f, 0.12f, 0.95f);
-    }
+    return FMANotificationCoordinator().GetBackgroundColorForType(Type, Theme);
 }

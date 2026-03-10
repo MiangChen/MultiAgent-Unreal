@@ -12,8 +12,6 @@
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Blueprint/WidgetTree.h"
-#include "Blueprint/WidgetLayoutLibrary.h"
-#include "GameFramework/PlayerController.h"
 
 DEFINE_LOG_CATEGORY(LogMAContextMenu);
 
@@ -64,27 +62,13 @@ void UMAContextMenuWidget::SetMenuItems(const TArray<FMAContextMenuItem>& Items)
 
 void UMAContextMenuWidget::ShowAtPosition(FVector2D ScreenPosition)
 {
-    // 使用 UWidgetLayoutLibrary 获取视口缩放
-    APlayerController* PC = GetOwningPlayer();
-    float ViewportScale = 1.0f;
-    if (PC)
-    {
-        ViewportScale = UWidgetLayoutLibrary::GetViewportScale(PC);
-    }
+    const FMAContextMenuPlacementModel Model = Coordinator.BuildPlacement(this, ScreenPosition);
+    SetPositionInViewport(Model.ViewportPosition, false);
     
-    // 将屏幕坐标转换为视口坐标 (考虑 DPI 缩放)
-    // SetPositionInViewport 期望的是视口坐标，而 GetScreenSpacePosition 返回的是屏幕坐标
-    // 在大多数情况下，它们是相同的，但在高 DPI 显示器上可能不同
-    FVector2D ViewportPosition = ScreenPosition / ViewportScale;
+    UE_LOG(LogMAContextMenu, Log, TEXT("ShowAtPosition: Screen(%.1f, %.1f) -> Viewport(%.1f, %.1f)"), 
+           ScreenPosition.X, ScreenPosition.Y, Model.ViewportPosition.X, Model.ViewportPosition.Y);
     
-    // 设置位置
-    SetPositionInViewport(ViewportPosition, false);
-    
-    UE_LOG(LogMAContextMenu, Log, TEXT("ShowAtPosition: Screen(%.1f, %.1f) -> Viewport(%.1f, %.1f), Scale=%.2f"), 
-           ScreenPosition.X, ScreenPosition.Y, ViewportPosition.X, ViewportPosition.Y, ViewportScale);
-    
-    // 显示
-    SetVisibility(ESlateVisibility::Visible);
+    SetVisibility(Model.Visibility);
     
     // 获取焦点
     SetKeyboardFocus();
@@ -143,8 +127,7 @@ FReply UMAContextMenuWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry
     FVector2D LocalPosition = InGeometry.AbsoluteToLocal(InMouseEvent.GetScreenSpacePosition());
     FVector2D Size = InGeometry.GetLocalSize();
 
-    if (LocalPosition.X < 0 || LocalPosition.Y < 0 || 
-        LocalPosition.X > Size.X || LocalPosition.Y > Size.Y)
+    if (Coordinator.ShouldCloseForClick(LocalPosition, Size))
     {
         CloseMenu();
         return FReply::Handled();
@@ -353,34 +336,13 @@ void UMAContextMenuWidget::ApplyTheme(UMAUITheme* InTheme)
         return;
     }
 
-    // 从主题更新颜色变量
-    // 菜单背景使用 BackgroundColor
-    MenuBackgroundColor = Theme->BackgroundColor;
-    
-    // 菜单项默认颜色使用 SecondaryColor
-    ItemDefaultColor = Theme->SecondaryColor;
-    
-    // 菜单项悬浮颜色使用 HighlightColor
-    ItemHoverColor = Theme->HighlightColor;
-    
-    // 菜单项禁用颜色 - 使用 SecondaryColor 的暗化版本
-    ItemDisabledColor = FLinearColor(
-        Theme->SecondaryColor.R * 0.5f,
-        Theme->SecondaryColor.G * 0.5f,
-        Theme->SecondaryColor.B * 0.5f,
-        0.5f
-    );
-    
-    // 文本颜色使用 TextColor
-    TextColor = Theme->TextColor;
-    
-    // 禁用文本颜色使用 SecondaryTextColor
-    DisabledTextColor = FLinearColor(
-        Theme->SecondaryTextColor.R,
-        Theme->SecondaryTextColor.G,
-        Theme->SecondaryTextColor.B,
-        0.5f
-    );
+    const FMAContextMenuThemeModel Model = Coordinator.BuildThemeModel(Theme);
+    MenuBackgroundColor = Model.MenuBackgroundColor;
+    ItemDefaultColor = Model.ItemDefaultColor;
+    ItemHoverColor = Model.ItemHoverColor;
+    ItemDisabledColor = Model.ItemDisabledColor;
+    TextColor = Model.TextColor;
+    DisabledTextColor = Model.DisabledTextColor;
 
     // 更新菜单背景
     if (MenuBackground)

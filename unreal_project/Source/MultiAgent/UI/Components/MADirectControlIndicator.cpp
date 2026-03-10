@@ -2,6 +2,7 @@
 // Direct Control 指示器 Widget 实现
 
 #include "MADirectControlIndicator.h"
+#include "Domain/MADirectControlIndicatorModel.h"
 #include "../Core/MARoundedBorderUtils.h"
 #include "../Core/MAUITheme.h"
 #include "Components/TextBlock.h"
@@ -109,13 +110,8 @@ void UMADirectControlIndicator::BuildUI()
 void UMADirectControlIndicator::SetAgentLabel(const FString& AgentLabel)
 {
     CurrentAgentLabel = AgentLabel;
-    
-    if (IndicatorText)
-    {
-        FString DisplayText = FString::Printf(TEXT("Direct Control: %s"), *AgentLabel);
-        IndicatorText->SetText(FText::FromString(DisplayText));
-        UE_LOG(LogMADirectControlIndicator, Log, TEXT("SetAgentLabel: %s"), *AgentLabel);
-    }
+    ApplyModel(Coordinator.BuildModel(CurrentAgentLabel, Theme, IndicatorTextColor));
+    UE_LOG(LogMADirectControlIndicator, Log, TEXT("SetAgentLabel: %s"), *AgentLabel);
 }
 
 FString UMADirectControlIndicator::GetAgentLabel() const
@@ -126,19 +122,16 @@ FString UMADirectControlIndicator::GetAgentLabel() const
 void UMADirectControlIndicator::ApplyTheme(UMAUITheme* InTheme)
 {
     Theme = InTheme;
-    if (!Theme)
-    {
-        return;
-    }
+    ApplyModel(Coordinator.BuildModel(CurrentAgentLabel, Theme, IndicatorTextColor));
+    UE_LOG(LogMADirectControlIndicator, Log, TEXT("ApplyTheme: Theme applied successfully"));
+}
 
-    // 使用 SuccessColor 作为指示器文字颜色
-    IndicatorTextColor = Theme->SuccessColor;
-
-    // 更新指示器文字颜色
+void UMADirectControlIndicator::ApplyModel(const FMADirectControlIndicatorModel& Model)
+{
+    IndicatorTextColor = Model.TextColor;
     if (IndicatorText)
     {
-        IndicatorText->SetColorAndOpacity(FSlateColor(IndicatorTextColor));
+        IndicatorText->SetText(FText::FromString(Model.DisplayText));
+        IndicatorText->SetColorAndOpacity(FSlateColor(Model.TextColor));
     }
-
-    UE_LOG(LogMADirectControlIndicator, Log, TEXT("ApplyTheme: Theme applied successfully"));
 }

@@ -5,6 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Application/MADirectControlIndicatorCoordinator.h"
 #include "MADirectControlIndicator.generated.h"
 
 class UTextBlock;
@@ -70,6 +71,9 @@ private:
     /** 构建 UI 布局 */
     void BuildUI();
 
+    /** 应用显示模型 */
+    void ApplyModel(const FMADirectControlIndicatorModel& Model);
+
     /** 当前显示的 Agent 名称 */
     FString CurrentAgentLabel;
 
@@ -79,4 +83,7 @@ private:
 
     /** 指示器文字颜色 (默认绿色) */
     FLinearColor IndicatorTextColor = FLinearColor(0.2f, 1.0f, 0.2f);
+
+    /** 指示器协调器 */
+    FMADirectControlIndicatorCoordinator Coordinator;
 };

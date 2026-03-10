@@ -7,6 +7,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Application/MASpeechBubbleCoordinator.h"
 #include "MASpeechBubbleWidget.generated.h"
 
 class UBorder;
@@ -45,7 +46,7 @@ public:
 
     /** 检查气泡是否可见 */
     UFUNCTION(BlueprintPure, Category = "SpeechBubble")
-    bool IsBubbleVisible() const { return bIsBubbleVisible; }
+    bool IsBubbleVisible() const { return BubbleState.bVisible; }
 
     /** 获取推荐的 WidgetComponent Pivot 值（引脚尖端对齐附着点） */
     static FVector2D GetRecommendedPivot(float DrawSizeX)
@@ -82,12 +83,8 @@ private:
     UPROPERTY() UImage* TailShadowImage = nullptr;
     UPROPERTY() UMAUITheme* Theme = nullptr;
 
-    bool bIsBubbleVisible = false;
-    float AutoHideDuration = 10.0f;
-    float ElapsedTime = 0.0f;
-    bool bIsFadingIn = false;
-    bool bIsFadingOut = false;
-    float FadeProgress = 0.0f;
+    FMASpeechBubbleState BubbleState;
+    FMASpeechBubbleCoordinator Coordinator;
 
     // 样式常量 - 宽扁气泡（World 空间下使用较大值，DrawSize 为 800x300）
     static constexpr float BubbleCornerRadius = 16.0f;   // 圆角半径

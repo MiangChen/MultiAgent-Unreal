@@ -6,6 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Application/MASystemLogPanelCoordinator.h"
 #include "MASystemLogPanel.generated.h"
 
 class UVerticalBox;
@@ -186,6 +187,9 @@ private:
 
     /** 日志条目列表 */
     TArray<FMALogEntry> LogEntries;
+
+    /** 日志协调器 */
+    FMASystemLogPanelCoordinator Coordinator;
 
     //=========================================================================
     // 内部方法

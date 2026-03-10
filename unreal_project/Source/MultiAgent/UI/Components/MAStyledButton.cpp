@@ -2,6 +2,7 @@
 // 样式化按钮组件实现
 
 #include "MAStyledButton.h"
+#include "Domain/MAStyledButtonModels.h"
 #include "../Core/MAUITheme.h"
 #include "../Core/MARoundedBorderUtils.h"
 #include "Components/Button.h"
@@ -250,32 +251,11 @@ void UMAStyledButton::SetButtonEnabled(bool bEnabled)
 void UMAStyledButton::ApplyTheme(UMAUITheme* InTheme)
 {
     Theme = InTheme;
-
-    if (!Theme)
-    {
-        UE_LOG(LogMAStyledButton, Warning, TEXT("ApplyTheme: Theme is null, using default colors"));
-        CurrentCornerRadius = MARoundedBorderUtils::DefaultButtonCornerRadius;
-        UpdateButtonColors();
-        ApplyRoundedCornersToButton();
-        return;
-    }
-
-    // 更新圆角半径
-    CurrentCornerRadius = MARoundedBorderUtils::GetCornerRadiusForType(Theme, EMARoundedElementType::Button);
-
-    // 应用字体
-    if (ButtonLabel)
+    UpdateButtonColors();
+    if (ButtonLabel && Theme)
     {
         ButtonLabel->SetFont(Theme->ButtonFont);
-        ButtonLabel->SetColorAndOpacity(FSlateColor(Theme->TextColor));
     }
-
-    // 更新颜色
-    UpdateButtonColors();
-    
-    // 应用圆角效果
-    ApplyRoundedCornersToButton();
-
     UE_LOG(LogMAStyledButton, Log, TEXT("Theme applied to button with corner radius: %f"), CurrentCornerRadius);
 }
 
@@ -285,8 +265,13 @@ void UMAStyledButton::ApplyTheme(UMAUITheme* InTheme)
 
 void UMAStyledButton::UpdateButtonColors()
 {
-    BaseColor = GetBaseColorForStyle(ButtonStyle);
-    HoverColor = GetHoverColorForStyle(ButtonStyle);
+    const FMAStyledButtonPalette Palette = Coordinator.BuildPalette(
+        ButtonStyle,
+        Theme,
+        MARoundedBorderUtils::DefaultButtonCornerRadius);
+    BaseColor = Palette.BaseColor;
+    HoverColor = Palette.HoverColor;
+    CurrentCornerRadius = Palette.CornerRadius;
 
     // 应用基础颜色到边框 - 使用圆角画刷
     if (ButtonBorder)
@@ -297,63 +282,8 @@ void UMAStyledButton::UpdateButtonColors()
     // 应用文本颜色
     if (ButtonLabel)
     {
-        FLinearColor TextColor = Theme ? Theme->TextColor : FLinearColor(0.95f, 0.95f, 0.95f, 1.0f);
-        ButtonLabel->SetColorAndOpacity(FSlateColor(TextColor));
+        ButtonLabel->SetColorAndOpacity(FSlateColor(Palette.TextColor));
     }
-}
-
-FLinearColor UMAStyledButton::GetBaseColorForStyle(EMAButtonStyle Style) const
-{
-    if (Theme)
-    {
-        switch (Style)
-        {
-        case EMAButtonStyle::Primary:
-            return Theme->PrimaryColor;
-        case EMAButtonStyle::Secondary:
-            return Theme->SecondaryColor;
-        case EMAButtonStyle::Danger:
-            return Theme->DangerColor;
-        case EMAButtonStyle::Success:
-            return Theme->SuccessColor;
-        case EMAButtonStyle::Warning:
-            return Theme->WarningColor;
-        default:
-            return Theme->PrimaryColor;
-        }
-    }
-
-    // 默认颜色 (无主题时)
-    switch (Style)
-    {
-    case EMAButtonStyle::Primary:
-        return FLinearColor(0.2f, 0.6f, 1.0f, 1.0f);    // 蓝色
-    case EMAButtonStyle::Secondary:
-        return FLinearColor(0.3f, 0.3f, 0.35f, 1.0f);   // 灰色
-    case EMAButtonStyle::Danger:
-        return FLinearColor(1.0f, 0.3f, 0.3f, 1.0f);    // 红色
-    case EMAButtonStyle::Success:
-        return FLinearColor(0.3f, 0.8f, 0.4f, 1.0f);    // 绿色
-    case EMAButtonStyle::Warning:
-        return FLinearColor(1.0f, 0.8f, 0.2f, 1.0f);    // 黄色
-    default:
-        return FLinearColor(0.2f, 0.6f, 1.0f, 1.0f);
-    }
-}
-
-FLinearColor UMAStyledButton::GetHoverColorForStyle(EMAButtonStyle Style) const
-{
-    // 悬停颜色 = 基础颜色变亮
-    FLinearColor Base = GetBaseColorForStyle(Style);
-    
-    // 增加亮度
-    float BrightnessMultiplier = 1.2f;
-    return FLinearColor(
-        FMath::Min(Base.R * BrightnessMultiplier, 1.0f),
-        FMath::Min(Base.G * BrightnessMultiplier, 1.0f),
-        FMath::Min(Base.B * BrightnessMultiplier, 1.0f),
-        Base.A
-    );
 }
 
 //=============================================================================
@@ -381,38 +311,7 @@ void UMAStyledButton::ApplyRoundedCornersToButton()
 
 void UMAStyledButton::UpdateAnimationState(float DeltaTime)
 {
-    // 使用插值平滑过渡到目标状态
-    float InterpAlpha = FMath::Clamp(DeltaTime * AnimationInterpSpeed, 0.0f, 1.0f);
-
-    // 插值位置偏移
-    CurrentAnimState.PositionOffset = FMath::Lerp(
-        CurrentAnimState.PositionOffset,
-        TargetAnimState.PositionOffset,
-        InterpAlpha
-    );
-
-    // 插值缩放
-    CurrentAnimState.Scale = FMath::Lerp(
-        CurrentAnimState.Scale,
-        TargetAnimState.Scale,
-        InterpAlpha
-    );
-
-    // 插值颜色
-    CurrentAnimState.TintColor = FMath::Lerp(
-        CurrentAnimState.TintColor,
-        TargetAnimState.TintColor,
-        InterpAlpha
-    );
-
-    // 插值阴影透明度
-    CurrentAnimState.ShadowOpacity = FMath::Lerp(
-        CurrentAnimState.ShadowOpacity,
-        TargetAnimState.ShadowOpacity,
-        InterpAlpha
-    );
-
-    // 应用动画状态到 UI
+    Coordinator.StepAnimation(CurrentAnimState, TargetAnimState, DeltaTime, AnimationInterpSpeed);
     ApplyAnimationState();
 }
 

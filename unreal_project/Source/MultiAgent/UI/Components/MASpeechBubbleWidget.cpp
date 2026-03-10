@@ -4,6 +4,7 @@
 #include "MASpeechBubbleWidget.h"
 #include "../Core/MAUITheme.h"
 #include "../Core/MARoundedBorderUtils.h"
+#include "Domain/MASpeechBubbleModels.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
 #include "Components/TextBlock.h"
@@ -92,12 +93,7 @@ void UMASpeechBubbleWidget::ShowMessage(const FString& Message, float Duration)
         MessageText->SetText(FText::FromString(Message));
     }
 
-    AutoHideDuration = Duration;
-    ElapsedTime = 0.0f;
-    bIsBubbleVisible = true;
-    bIsFadingIn = true;
-    bIsFadingOut = false;
-    FadeProgress = 0.0f;
+    Coordinator.BeginShow(BubbleState, Duration);
 
     SetVisibility(ESlateVisibility::HitTestInvisible);
     SetRenderOpacity(0.0f);
@@ -105,14 +101,7 @@ void UMASpeechBubbleWidget::ShowMessage(const FString& Message, float Duration)
 
 void UMASpeechBubbleWidget::HideMessage()
 {
-    if (!bIsBubbleVisible && !bIsFadingIn)
-    {
-        return;
-    }
-
-    bIsFadingOut = true;
-    bIsFadingIn = false;
-    FadeProgress = 0.0f;
+    Coordinator.BeginHide(BubbleState);
 }
 
 //=============================================================================
@@ -171,46 +160,16 @@ void UMASpeechBubbleWidget::NativeTick(const FGeometry& MyGeometry, float InDelt
 {
     Super::NativeTick(MyGeometry, InDeltaTime);
 
-    // 淡入
-    if (bIsFadingIn)
+    const FMASpeechBubbleAnimationFrame Frame = Coordinator.Step(BubbleState, InDeltaTime, FadeInDuration, FadeOutDuration);
+    SetRenderOpacity(Frame.Opacity);
+    if (Frame.bHideNow)
     {
-        FadeProgress += InDeltaTime / FadeInDuration;
-        if (FadeProgress >= 1.0f)
-        {
-            FadeProgress = 1.0f;
-            bIsFadingIn = false;
-        }
-        SetRenderOpacity(1.0f - FMath::Pow(1.0f - FadeProgress, 3.0f));
-    }
-
-    // 淡出
-    if (bIsFadingOut)
-    {
-        FadeProgress += InDeltaTime / FadeOutDuration;
-        if (FadeProgress >= 1.0f)
-        {
-            FadeProgress = 1.0f;
-            bIsFadingOut = false;
-            bIsBubbleVisible = false;
-            SetVisibility(ESlateVisibility::Collapsed);
-            SetRenderOpacity(0.0f);
-            return;
-        }
-        SetRenderOpacity(FMath::Pow(1.0f - FadeProgress, 2.0f));
-    }
-
-    // 自动隐藏
-    if (bIsBubbleVisible && !bIsFadingIn && !bIsFadingOut && AutoHideDuration > 0.0f)
-    {
-        ElapsedTime += InDeltaTime;
-        if (ElapsedTime >= AutoHideDuration)
-        {
-            HideMessage();
-        }
+        SetVisibility(ESlateVisibility::Collapsed);
+        return;
     }
 
     // 动态定位引脚到气泡底部中央
-    if (bIsBubbleVisible && BubbleBorder)
+    if (BubbleState.bVisible && BubbleBorder)
     {
         FVector2D BubbleSize = BubbleBorder->GetDesiredSize();
         if (BubbleSize.X > 0.0f && BubbleSize.Y > 0.0f)
