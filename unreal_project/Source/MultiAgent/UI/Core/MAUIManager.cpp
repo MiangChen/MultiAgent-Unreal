@@ -135,6 +135,46 @@ void UMAUIManager::BindRuntimeEventSourcesInternal()
     BindCommandManagerEvents();
 }
 
+bool UMAUIManager::BindTempDataEventsInternal(FString& OutError)
+{
+    return RuntimeBridge.BindTempDataEvents(this, OutError);
+}
+
+bool UMAUIManager::BindCommEventsInternal(FString& OutError)
+{
+    return RuntimeBridge.BindCommEvents(this, OutError);
+}
+
+bool UMAUIManager::BindCommandEventsInternal(FString& OutError)
+{
+    return RuntimeBridge.BindCommandEvents(this, OutError);
+}
+
+bool UMAUIManager::LoadTaskGraphDataInternal(FMATaskGraphData& OutData, FString& OutError) const
+{
+    return RuntimeBridge.TryLoadTaskGraphData(this, OutData, OutError);
+}
+
+bool UMAUIManager::LoadSkillAllocationDataInternal(FMASkillAllocationData& OutData, FString& OutError) const
+{
+    return RuntimeBridge.TryLoadSkillAllocationData(this, OutData, OutError);
+}
+
+bool UMAUIManager::SendDecisionResponseInternal(const FString& SelectedOption, const FString& UserFeedback, FString& OutError) const
+{
+    return RuntimeBridge.TrySendDecisionResponse(this, SelectedOption, UserFeedback, OutError);
+}
+
+bool UMAUIManager::ClearResumeNotificationTimerInternal(FString& OutError)
+{
+    return RuntimeBridge.TryClearResumeNotificationTimer(this, ResumeNotificationTimerHandle, OutError);
+}
+
+bool UMAUIManager::ScheduleResumeNotificationAutoHideInternal(float DelaySeconds, FString& OutError)
+{
+    return RuntimeBridge.TryScheduleResumeNotificationAutoHide(this, ResumeNotificationTimerHandle, DelaySeconds, OutError);
+}
+
 void UMAUIManager::CreateModalWidgetsInternal()
 {
     CreateModalWidgets();

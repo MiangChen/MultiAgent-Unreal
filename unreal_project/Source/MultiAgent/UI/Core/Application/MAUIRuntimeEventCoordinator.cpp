@@ -9,13 +9,6 @@
 #include "../../Components/MAPreviewPanel.h"
 #include "../../Modal/MADecisionModal.h"
 #include "../../Modal/MASkillAllocationModal.h"
-#include "../../../Core/TempData/Runtime/MATempDataManager.h"
-#include "../../../Core/Command/Runtime/MACommandManager.h"
-#include "../../../Core/Comm/Runtime/MACommSubsystem.h"
-#include "Engine/World.h"
-#include "Engine/GameInstance.h"
-#include "GameFramework/PlayerController.h"
-#include "TimerManager.h"
 
 void FMAUIRuntimeEventCoordinator::BindTempDataManagerEvents(UMAUIManager* UIManager) const
 {
@@ -24,43 +17,17 @@ void FMAUIRuntimeEventCoordinator::BindTempDataManagerEvents(UMAUIManager* UIMan
         return;
     }
 
-    APlayerController* OwningPC = UIManager->GetOwningPlayerController();
-    UWorld* World = OwningPC ? OwningPC->GetWorld() : nullptr;
-    UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
-
-    if (!GameInstance)
+    FString RuntimeError;
+    if (!UIManager->BindTempDataEventsInternal(RuntimeError))
     {
-        UE_LOG(LogMAUIManager, Warning, TEXT("BindTempDataManagerEvents: GameInstance not available"));
+        UE_LOG(LogMAUIManager, Warning, TEXT("BindTempDataManagerEvents: %s"), *RuntimeError);
         return;
     }
 
-    UMATempDataManager* TempDataMgr = GameInstance->GetSubsystem<UMATempDataManager>();
-    if (!TempDataMgr)
-    {
-        UE_LOG(LogMAUIManager, Warning, TEXT("BindTempDataManagerEvents: TempDataManager not available"));
-        return;
-    }
-
-    if (!TempDataMgr->OnTaskGraphChanged.IsAlreadyBound(UIManager, &UMAUIManager::OnTempTaskGraphChanged))
-    {
-        TempDataMgr->OnTaskGraphChanged.AddDynamic(UIManager, &UMAUIManager::OnTempTaskGraphChanged);
-        UE_LOG(LogMAUIManager, Log, TEXT("BindTempDataManagerEvents: Bound OnTaskGraphChanged event"));
-    }
-
-    if (!TempDataMgr->OnSkillAllocationChanged.IsAlreadyBound(UIManager, &UMAUIManager::OnTempSkillAllocationChanged))
-    {
-        TempDataMgr->OnSkillAllocationChanged.AddDynamic(UIManager, &UMAUIManager::OnTempSkillAllocationChanged);
-        UE_LOG(LogMAUIManager, Log, TEXT("BindTempDataManagerEvents: Bound OnSkillAllocationChanged event"));
-    }
-
-    if (!TempDataMgr->OnSkillStatusUpdated.IsAlreadyBound(UIManager, &UMAUIManager::OnSkillStatusUpdated))
-    {
-        TempDataMgr->OnSkillStatusUpdated.AddDynamic(UIManager, &UMAUIManager::OnSkillStatusUpdated);
-        UE_LOG(LogMAUIManager, Log, TEXT("BindTempDataManagerEvents: Bound OnSkillStatusUpdated event"));
-    }
+    UE_LOG(LogMAUIManager, Log, TEXT("BindTempDataManagerEvents: Bound runtime temp-data events"));
 
     FMATaskGraphData TaskGraphData;
-    if (TempDataMgr->LoadTaskGraph(TaskGraphData) && TaskGraphData.Nodes.Num() > 0)
+    if (UIManager->LoadTaskGraphDataInternal(TaskGraphData, RuntimeError) && TaskGraphData.Nodes.Num() > 0)
     {
         HandleTempTaskGraphChanged(UIManager, TaskGraphData);
         UE_LOG(LogMAUIManager, Log, TEXT("BindTempDataManagerEvents: Loaded existing task graph data (%d nodes)"),
@@ -68,7 +35,7 @@ void FMAUIRuntimeEventCoordinator::BindTempDataManagerEvents(UMAUIManager* UIMan
     }
 
     FMASkillAllocationData SkillAllocationData;
-    if (TempDataMgr->LoadSkillAllocation(SkillAllocationData) && SkillAllocationData.Data.Num() > 0)
+    if (UIManager->LoadSkillAllocationDataInternal(SkillAllocationData, RuntimeError) && SkillAllocationData.Data.Num() > 0)
     {
         HandleTempSkillAllocationChanged(UIManager, SkillAllocationData);
         UE_LOG(LogMAUIManager, Log, TEXT("BindTempDataManagerEvents: Loaded existing skill allocation data (%d time steps)"),
@@ -145,33 +112,11 @@ void FMAUIRuntimeEventCoordinator::BindCommSubsystemEvents(UMAUIManager* UIManag
         return;
     }
 
-    APlayerController* OwningPC = UIManager->GetOwningPlayerController();
-    UWorld* World = OwningPC ? OwningPC->GetWorld() : nullptr;
-    UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
-
-    if (!GameInstance)
+    FString RuntimeError;
+    if (!UIManager->BindCommEventsInternal(RuntimeError))
     {
-        UE_LOG(LogMAUIManager, Warning, TEXT("BindCommSubsystemEvents: GameInstance not available"));
+        UE_LOG(LogMAUIManager, Warning, TEXT("BindCommSubsystemEvents: %s"), *RuntimeError);
         return;
-    }
-
-    UMACommSubsystem* CommSubsystem = GameInstance->GetSubsystem<UMACommSubsystem>();
-    if (!CommSubsystem)
-    {
-        UE_LOG(LogMAUIManager, Warning, TEXT("BindCommSubsystemEvents: CommSubsystem not available"));
-        return;
-    }
-
-    if (!CommSubsystem->OnRequestUserCommandReceived.IsAlreadyBound(UIManager, &UMAUIManager::OnRequestUserCommandReceived))
-    {
-        CommSubsystem->OnRequestUserCommandReceived.AddDynamic(UIManager, &UMAUIManager::OnRequestUserCommandReceived);
-        UE_LOG(LogMAUIManager, Log, TEXT("BindCommSubsystemEvents: Bound OnRequestUserCommandReceived"));
-    }
-
-    if (!CommSubsystem->OnDecisionReceived.IsAlreadyBound(UIManager, &UMAUIManager::OnDecisionDataReceived))
-    {
-        CommSubsystem->OnDecisionReceived.AddDynamic(UIManager, &UMAUIManager::OnDecisionDataReceived);
-        UE_LOG(LogMAUIManager, Log, TEXT("BindCommSubsystemEvents: Bound OnDecisionReceived"));
     }
 
     UE_LOG(LogMAUIManager, Log, TEXT("BindCommSubsystemEvents: CommSubsystem events bound"));
@@ -195,25 +140,11 @@ void FMAUIRuntimeEventCoordinator::BindCommandManagerEvents(UMAUIManager* UIMana
         return;
     }
 
-    APlayerController* OwningPC = UIManager->GetOwningPlayerController();
-    UWorld* World = OwningPC ? OwningPC->GetWorld() : nullptr;
-    if (!World)
+    FString RuntimeError;
+    if (!UIManager->BindCommandEventsInternal(RuntimeError))
     {
-        UE_LOG(LogMAUIManager, Warning, TEXT("BindCommandManagerEvents: World not available"));
+        UE_LOG(LogMAUIManager, Warning, TEXT("BindCommandManagerEvents: %s"), *RuntimeError);
         return;
-    }
-
-    UMACommandManager* CommandManager = World->GetSubsystem<UMACommandManager>();
-    if (!CommandManager)
-    {
-        UE_LOG(LogMAUIManager, Warning, TEXT("BindCommandManagerEvents: CommandManager not available"));
-        return;
-    }
-
-    if (!CommandManager->OnExecutionPauseStateChanged.IsAlreadyBound(UIManager, &UMAUIManager::OnExecutionPauseStateChanged))
-    {
-        CommandManager->OnExecutionPauseStateChanged.AddDynamic(UIManager, &UMAUIManager::OnExecutionPauseStateChanged);
-        UE_LOG(LogMAUIManager, Log, TEXT("BindCommandManagerEvents: Bound OnExecutionPauseStateChanged"));
     }
 
     UE_LOG(LogMAUIManager, Log, TEXT("BindCommandManagerEvents: CommandManager events bound"));
@@ -228,12 +159,8 @@ void FMAUIRuntimeEventCoordinator::HandleExecutionPauseStateChanged(UMAUIManager
 
     UE_LOG(LogMAUIManager, Log, TEXT("OnExecutionPauseStateChanged: bPaused=%s"), bPaused ? TEXT("true") : TEXT("false"));
 
-    APlayerController* OwningPC = UIManager->GetOwningPlayerController();
-    UWorld* World = OwningPC ? OwningPC->GetWorld() : nullptr;
-    if (World)
-    {
-        World->GetTimerManager().ClearTimer(UIManager->GetResumeNotificationTimerHandleInternal());
-    }
+    FString RuntimeError;
+    UIManager->ClearResumeNotificationTimerInternal(RuntimeError);
 
     if (bPaused)
     {
@@ -242,31 +169,11 @@ void FMAUIRuntimeEventCoordinator::HandleExecutionPauseStateChanged(UMAUIManager
     }
 
     UIManager->ShowNotification(EMANotificationType::SkillListResumed);
-    if (!World)
+    if (!UIManager->ScheduleResumeNotificationAutoHideInternal(2.0f, RuntimeError))
     {
+        UE_LOG(LogMAUIManager, Warning, TEXT("OnExecutionPauseStateChanged: %s"), *RuntimeError);
         return;
     }
-
-    World->GetTimerManager().SetTimer(
-        UIManager->GetResumeNotificationTimerHandleInternal(),
-        [UIManager]()
-        {
-            if (!UIManager)
-            {
-                return;
-            }
-
-            UMAMainHUDWidget* MainHUDWidget = UIManager->GetMainHUDWidget();
-            UMANotificationWidget* NotificationWidget = MainHUDWidget ? MainHUDWidget->GetNotification() : nullptr;
-            if (NotificationWidget && NotificationWidget->GetCurrentNotificationType() == EMANotificationType::SkillListResumed)
-            {
-                NotificationWidget->HideNotification();
-                UE_LOG(LogMAUIManager, Log, TEXT("OnExecutionPauseStateChanged: Auto-hiding SkillListResumed notification"));
-            }
-        },
-        2.0f,
-        false
-    );
 }
 
 void FMAUIRuntimeEventCoordinator::HandleDecisionDataReceived(
@@ -307,30 +214,14 @@ void FMAUIRuntimeEventCoordinator::HandleDecisionModalConfirmed(
     UE_LOG(LogMAUIManager, Log, TEXT("OnDecisionModalConfirmed: SelectedOption=%s, UserFeedback=%s"),
         *SelectedOption, *UserFeedback);
 
-    APlayerController* OwningPC = UIManager->GetOwningPlayerController();
-    UWorld* World = OwningPC ? OwningPC->GetWorld() : nullptr;
-    UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
-
-    if (GameInstance)
+    FString RuntimeError;
+    if (!UIManager->SendDecisionResponseInternal(SelectedOption, UserFeedback, RuntimeError))
     {
-        UMACommSubsystem* CommSubsystem = GameInstance->GetSubsystem<UMACommSubsystem>();
-        if (CommSubsystem)
-        {
-            CommSubsystem->GetOutbound()->SendDecisionResponseSimple(
-                SelectedOption,
-                TEXT(""),
-                UserFeedback
-            );
-            UE_LOG(LogMAUIManager, Log, TEXT("OnDecisionModalConfirmed: Decision response sent to backend"));
-        }
-        else
-        {
-            UE_LOG(LogMAUIManager, Warning, TEXT("OnDecisionModalConfirmed: CommSubsystem not available"));
-        }
+        UE_LOG(LogMAUIManager, Warning, TEXT("OnDecisionModalConfirmed: %s"), *RuntimeError);
     }
     else
     {
-        UE_LOG(LogMAUIManager, Warning, TEXT("OnDecisionModalConfirmed: GameInstance not available"));
+        UE_LOG(LogMAUIManager, Log, TEXT("OnDecisionModalConfirmed: Decision response sent to backend"));
     }
 
     if (UMAHUDStateManager* HUDStateManager = UIManager->GetHUDStateManager())
@@ -357,30 +248,14 @@ void FMAUIRuntimeEventCoordinator::HandleDecisionModalRejected(
     UE_LOG(LogMAUIManager, Log, TEXT("OnDecisionModalRejected: SelectedOption=%s, UserFeedback=%s"),
         *SelectedOption, *UserFeedback);
 
-    APlayerController* OwningPC = UIManager->GetOwningPlayerController();
-    UWorld* World = OwningPC ? OwningPC->GetWorld() : nullptr;
-    UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
-
-    if (GameInstance)
+    FString RuntimeError;
+    if (!UIManager->SendDecisionResponseInternal(SelectedOption, UserFeedback, RuntimeError))
     {
-        UMACommSubsystem* CommSubsystem = GameInstance->GetSubsystem<UMACommSubsystem>();
-        if (CommSubsystem)
-        {
-            CommSubsystem->GetOutbound()->SendDecisionResponseSimple(
-                SelectedOption,
-                TEXT(""),
-                UserFeedback
-            );
-            UE_LOG(LogMAUIManager, Log, TEXT("OnDecisionModalRejected: Decision response sent to backend"));
-        }
-        else
-        {
-            UE_LOG(LogMAUIManager, Warning, TEXT("OnDecisionModalRejected: CommSubsystem not available"));
-        }
+        UE_LOG(LogMAUIManager, Warning, TEXT("OnDecisionModalRejected: %s"), *RuntimeError);
     }
     else
     {
-        UE_LOG(LogMAUIManager, Warning, TEXT("OnDecisionModalRejected: GameInstance not available"));
+        UE_LOG(LogMAUIManager, Log, TEXT("OnDecisionModalRejected: Decision response sent to backend"));
     }
 
     if (UMAHUDStateManager* HUDStateManager = UIManager->GetHUDStateManager())

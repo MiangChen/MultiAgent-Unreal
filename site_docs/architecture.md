@@ -52,9 +52,9 @@ flowchart LR
 | 层级 | 当前 folder 映射 |
 |---|---|
 | `L1` | `Input/`、`UI/` |
-| `L2` | `Core/Interaction/Application/`、`Core/SceneGraph/Application/`、`Core/TaskGraph/Application/`、`Core/SkillAllocation/Application/`、`Core/Command/Application/`、`Core/Selection/Application/`、`Core/Editing/Application/`、`Core/AgentRuntime/Application/`、`Core/Squad/Application/`、`Core/EnvironmentCore/Application/`、`Core/TempData/Application/`、`Core/Camera/Application/`、`Core/Comm/Application/`、`Core/Config/Application/`、`UI/HUD/Application/`、`UI/Mode/Application/` |
-| `L3` | `Core/Interaction/Domain/`、`Core/Interaction/Feedback/`、`Core/SceneGraph/Domain/`、`Core/SceneGraph/Feedback/`、`Core/TaskGraph/Domain/`、`Core/TaskGraph/Feedback/`、`Core/SkillAllocation/Domain/`、`Core/SkillAllocation/Feedback/`、`Core/Command/Domain/`、`Core/Command/Feedback/`、`Core/Selection/Domain/`、`Core/Selection/Feedback/`、`Core/Editing/Domain/`、`Core/Editing/Feedback/`、`Core/AgentRuntime/Domain/`、`Core/AgentRuntime/Feedback/`、`Core/Squad/Domain/`、`Core/Squad/Feedback/`、`Core/EnvironmentCore/Domain/`、`Core/EnvironmentCore/Feedback/`、`Core/TempData/Domain/`、`Core/TempData/Feedback/`、`Core/Camera/Domain/`、`Core/Camera/Feedback/`、`Core/Comm/Domain/`、`Core/Comm/Feedback/`、`Core/Config/Domain/`、`Core/Shared/Types/`、`UI/HUD/Domain/`、`UI/Mode/Domain/` |
-| `L4` | `Core/Interaction/Infrastructure/`、`Core/SceneGraph/Infrastructure/`、`Core/TaskGraph/Infrastructure/`、`Core/SkillAllocation/Infrastructure/`、`Core/Command/Infrastructure/`、`Core/Selection/Infrastructure/`、`Core/Editing/Infrastructure/`、`Core/AgentRuntime/Infrastructure/`、`Core/Squad/Infrastructure/`、`Core/EnvironmentCore/Infrastructure/`、`Core/TempData/Infrastructure/`、`Core/Camera/Infrastructure/`、`Core/Comm/Infrastructure/`、`Core/Config/Infrastructure/`、`UI/HUD/Infrastructure/`、`UI/Mode/Infrastructure/` |
+| `L2` | `Core/Interaction/Application/`、`Core/SceneGraph/Application/`、`Core/TaskGraph/Application/`、`Core/SkillAllocation/Application/`、`Core/Command/Application/`、`Core/Selection/Application/`、`Core/Editing/Application/`、`Core/AgentRuntime/Application/`、`Core/Squad/Application/`、`Core/EnvironmentCore/Application/`、`Core/TempData/Application/`、`Core/Camera/Application/`、`Core/Comm/Application/`、`Core/Config/Application/`、`UI/Core/Application/`、`UI/HUD/Application/`、`UI/Mode/Application/`、`UI/TaskGraph/Application/`、`UI/SkillAllocation/Application/` |
+| `L3` | `Core/Interaction/Domain/`、`Core/Interaction/Feedback/`、`Core/SceneGraph/Domain/`、`Core/SceneGraph/Feedback/`、`Core/TaskGraph/Domain/`、`Core/TaskGraph/Feedback/`、`Core/SkillAllocation/Domain/`、`Core/SkillAllocation/Feedback/`、`Core/Command/Domain/`、`Core/Command/Feedback/`、`Core/Selection/Domain/`、`Core/Selection/Feedback/`、`Core/Editing/Domain/`、`Core/Editing/Feedback/`、`Core/AgentRuntime/Domain/`、`Core/AgentRuntime/Feedback/`、`Core/Squad/Domain/`、`Core/Squad/Feedback/`、`Core/EnvironmentCore/Domain/`、`Core/EnvironmentCore/Feedback/`、`Core/TempData/Domain/`、`Core/TempData/Feedback/`、`Core/Camera/Domain/`、`Core/Camera/Feedback/`、`Core/Comm/Domain/`、`Core/Comm/Feedback/`、`Core/Config/Domain/`、`Core/Shared/Types/`、`UI/HUD/Domain/`、`UI/Mode/Domain/`、`UI/TaskGraph/Domain/`、`UI/SkillAllocation/Domain/` |
+| `L4` | `Core/Interaction/Infrastructure/`、`Core/SceneGraph/Infrastructure/`、`Core/TaskGraph/Infrastructure/`、`Core/SkillAllocation/Infrastructure/`、`Core/Command/Infrastructure/`、`Core/Selection/Infrastructure/`、`Core/Editing/Infrastructure/`、`Core/AgentRuntime/Infrastructure/`、`Core/Squad/Infrastructure/`、`Core/EnvironmentCore/Infrastructure/`、`Core/TempData/Infrastructure/`、`Core/Camera/Infrastructure/`、`Core/Comm/Infrastructure/`、`Core/Config/Infrastructure/`、`UI/Core/Infrastructure/`、`UI/HUD/Infrastructure/`、`UI/Mode/Infrastructure/`、`UI/TaskGraph/Infrastructure/`、`UI/SkillAllocation/Infrastructure/` |
 | `L5` | `Core/SceneGraph/Runtime/`、`Core/Camera/Runtime/`、`Core/Editing/Runtime/`、`Core/Selection/Runtime/`、`Core/Command/Runtime/`、`Core/AgentRuntime/Runtime/`、`Core/Squad/Runtime/`、`Core/TempData/Runtime/`、`Core/EnvironmentCore/Runtime/`、`Core/Comm/Runtime/`、`Core/Config/Runtime/`、`Agent/`、`Environment/` |
 | `CR` | `Core/Interaction/Bootstrap/`、`Core/SceneGraph/Bootstrap/`、`Core/TaskGraph/Bootstrap/`、`Core/SkillAllocation/Bootstrap/`、`Core/Command/Bootstrap/`、`Core/Selection/Bootstrap/`、`Core/Editing/Bootstrap/`、`Core/AgentRuntime/Bootstrap/`、`Core/Squad/Bootstrap/`、`Core/EnvironmentCore/Bootstrap/`、`Core/TempData/Bootstrap/`、`Core/Camera/Bootstrap/`、`Core/Comm/Bootstrap/`、`Core/Config/Bootstrap/`、`Core/GameFlow/Bootstrap/` |
 
@@ -71,6 +71,9 @@ flowchart LR
 - `Core/Shared/Types/` 现在承载跨上下文共享的纯合同类型；原 `Core/Types/` 已退休。
 - `Core/TaskGraph/` 现在已经补齐 `Application / Feedback / Bootstrap`，并把 JSON codec 从 domain 类型中剥离到 `Infrastructure/`；当前它是一个无专属 `Runtime/` 的轻量 context，运行时持久化与传输仍分别由 `TempData / Comm` 承担。
 - `Core/SkillAllocation/` 现在已经补齐 `Application / Feedback / Bootstrap`，并把 skill-list 构建与 JSON 解析统一收回该 context；它和 `TaskGraph` 一样属于**轻量 context**，运行时持久化与分发仍分别由 `TempData / Comm` 承担。
+- `UI/TaskGraph/` 现在也建立了本地 `Application / Domain / Infrastructure` 支撑层：`MATaskPlannerWidget` 通过 coordinator + runtime adapter 驱动任务图加载/保存/提交，`MADAGCanvasWidget` 的视口状态、自动布局和几何计算已从 widget 主体中拆开。
+- `UI/SkillAllocation/` 现在也建立了本地 `Application / Domain / Infrastructure` 支撑层：`MASkillAllocationViewer` 通过 coordinator + runtime adapter 驱动技能分配加载、保存、导航和运行时事件绑定，viewer 自身不再直接访问 `TempData / UIManager / HUD`。
+- `UI/Core/` 现在继续承接 UI 根级流程，但 `Application` 已不再直接 include `TempData / Comm / Command` 运行时代码；这些访问统一经由 `UI/Core/Infrastructure/MAUIRuntimeBridge` 进入运行时。
 - `Core/Squad/` 现在已经补齐 `Application / Feedback / Infrastructure / Bootstrap`，`Interaction` 不再自己拼 squad 文案或直接解析 `UMASquadManager`，而是统一经由 `Squad` context 的 runtime bridge 返回标准反馈。
 - `Core/Comm/` 现在已经补齐 `Application / Feedback / Runtime / Bootstrap`，不再把通信入口文件平铺在 context 根目录。
 - `Core/Config/` 现在保留 `MAConfigManager.h` 作为统一外部入口；内部的配置类型、加载用例、路径解析和 JSON 读取已下沉到 `Domain / Application / Infrastructure / Runtime / Bootstrap`。
@@ -107,6 +110,7 @@ flowchart TB
         SGAPP["Core/SceneGraph/Application/"]
         TASKGRAPHAPP["Core/TaskGraph/Application/"]
         CTXAPP["Core/{Command,Selection,Editing,AgentRuntime,Squad,EnvironmentCore,TempData,Camera,Comm,Config,SkillAllocation}/Application/"]
+        UICOREAPP["UI/Core/Application/"]
         HUDAPP["UI/HUD/Application/"]
         MODEAPP["UI/Mode/Application/"]
     end
@@ -131,6 +135,7 @@ flowchart TB
         CTXINFRA["Core/{Command,Selection,Editing,AgentRuntime,Squad,EnvironmentCore,TempData,Camera,Comm,Config,SkillAllocation}/Infrastructure/"]
         TASKGRAPHINFRA["Core/TaskGraph/Infrastructure/"]
         SKILLALLOCINFRA["Core/SkillAllocation/Infrastructure/"]
+        UICOREINFRA["UI/Core/Infrastructure/"]
         HUDINFRA["UI/HUD/Infrastructure/"]
         MODEINFRA["UI/Mode/Infrastructure/"]
     end
@@ -155,6 +160,7 @@ flowchart TB
 
     UICORE --> UIHUD
     UICORE --> UIMODE
+    UICORE --> UICOREAPP
     UIHUD --> HUDAPP
     UIMODE --> MODEAPP
     INTAPP --> SGAPP
@@ -181,6 +187,7 @@ flowchart TB
 
     SGINFRA --> SGRUNTIME
     CTXINFRA --> CTXRUNTIME
+    UICOREINFRA --> CTXRUNTIME
 
     INTINFRA --> CTXRUNTIME
     INTINFRA --> AGENT

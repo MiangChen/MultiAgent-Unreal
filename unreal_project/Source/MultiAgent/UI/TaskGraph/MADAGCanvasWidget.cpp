@@ -4,6 +4,8 @@
 #include "MADAGCanvasWidget.h"
 #include "MATaskNodeWidget.h"
 #include "MATaskGraphModel.h"
+#include "Application/MADAGCanvasAutoLayout.h"
+#include "Infrastructure/MADAGCanvasGeometry.h"
 #include "../Components/MAContextMenuWidget.h"
 #include "../Core/MAUITheme.h"
 #include "../Core/MARoundedBorderUtils.h"
@@ -187,9 +189,9 @@ void UMADAGCanvasWidget::RemoveNode(const FString& NodeId)
     NodeWidgets.Remove(NodeId);
 
     // 清除选中状态
-    if (SelectedNodeId == NodeId)
+    if (CanvasState.SelectedNodeId == NodeId)
     {
-        SelectedNodeId.Empty();
+        CanvasState.SelectedNodeId.Empty();
     }
 
     UE_LOG(LogMADAGCanvas, Verbose, TEXT("Removed node: %s"), *NodeId);
@@ -244,7 +246,7 @@ void UMADAGCanvasWidget::ClearAllNodes()
         }
     }
     NodeWidgets.Empty();
-    SelectedNodeId.Empty();
+    CanvasState.SelectedNodeId.Empty();
 }
 
 //=============================================================================
@@ -287,32 +289,11 @@ void UMADAGCanvasWidget::RemoveEdge(const FString& FromNodeId, const FString& To
 
 void UMADAGCanvasWidget::UpdateEdgePositions()
 {
-    for (FMAEdgeRenderData& Edge : EdgeRenderData)
-    {
-        UMATaskNodeWidget* FromWidget = GetNodeWidget(Edge.FromNodeId);
-        UMATaskNodeWidget* ToWidget = GetNodeWidget(Edge.ToNodeId);
-
-        if (FromWidget && ToWidget)
-        {
-            // 获取节点的画布位置
-            FMATaskNodeData FromData = FromWidget->GetNodeData();
-            FMATaskNodeData ToData = ToWidget->GetNodeData();
-            
-            // 计算端口的屏幕位置
-            // 节点屏幕位置 = 画布位置 * 缩放 + 偏移
-            // 端口屏幕位置 = 节点屏幕位置 + 端口本地偏移 (不缩放)
-            FVector2D FromNodeScreen = CanvasToScreen(FromData.CanvasPosition);
-            FVector2D ToNodeScreen = CanvasToScreen(ToData.CanvasPosition);
-            
-            // 端口本地偏移不受缩放影响，因为节点 Widget 本身不缩放
-            FVector2D OutputPortLocal = FromWidget->GetOutputPortLocalPosition();
-            FVector2D InputPortLocal = ToWidget->GetInputPortLocalPosition();
-            
-            // 存储屏幕坐标 (而不是画布坐标)
-            Edge.StartPoint = FromNodeScreen + OutputPortLocal;
-            Edge.EndPoint = ToNodeScreen + InputPortLocal;
-        }
-    }
+    FMADAGCanvasGeometry::UpdateEdgePositions(
+        EdgeRenderData,
+        NodeWidgets,
+        CanvasState.ZoomLevel,
+        CanvasState.ViewOffset);
 }
 
 void UMADAGCanvasWidget::ClearAllEdges()
@@ -363,22 +344,22 @@ void UMADAGCanvasWidget::ApplyTheme(UMAUITheme* InTheme)
 
 void UMADAGCanvasWidget::SetViewOffset(FVector2D Offset)
 {
-    ViewOffset = Offset;
+    CanvasState.ViewOffset = Offset;
     UpdateNodePositions();
     UpdateEdgePositions();
 }
 
 void UMADAGCanvasWidget::SetZoomLevel(float Zoom)
 {
-    ZoomLevel = FMath::Clamp(Zoom, MinZoom, MaxZoom);
+    CanvasState.ZoomLevel = FMath::Clamp(Zoom, CanvasState.MinZoom, CanvasState.MaxZoom);
     UpdateNodePositions();
     UpdateEdgePositions();
 }
 
 void UMADAGCanvasWidget::ResetView()
 {
-    ViewOffset = FVector2D::ZeroVector;
-    ZoomLevel = 1.0f;
+    CanvasState.ViewOffset = FVector2D::ZeroVector;
+    CanvasState.ZoomLevel = 1.0f;
     UpdateNodePositions();
     UpdateEdgePositions();
 }
@@ -390,16 +371,16 @@ void UMADAGCanvasWidget::ResetView()
 void UMADAGCanvasWidget::SelectNode(const FString& NodeId)
 {
     // 取消之前的选中
-    if (!SelectedNodeId.IsEmpty() && SelectedNodeId != NodeId)
+    if (!CanvasState.SelectedNodeId.IsEmpty() && CanvasState.SelectedNodeId != NodeId)
     {
-        UMATaskNodeWidget* OldWidget = GetNodeWidget(SelectedNodeId);
+        UMATaskNodeWidget* OldWidget = GetNodeWidget(CanvasState.SelectedNodeId);
         if (OldWidget)
         {
             OldWidget->SetSelected(false);
         }
     }
 
-    SelectedNodeId = NodeId;
+    CanvasState.SelectedNodeId = NodeId;
 
     // 选中新节点
     UMATaskNodeWidget* NewWidget = GetNodeWidget(NodeId);
@@ -413,14 +394,14 @@ void UMADAGCanvasWidget::SelectNode(const FString& NodeId)
 
 void UMADAGCanvasWidget::ClearSelection()
 {
-    if (!SelectedNodeId.IsEmpty())
+    if (!CanvasState.SelectedNodeId.IsEmpty())
     {
-        UMATaskNodeWidget* Widget = GetNodeWidget(SelectedNodeId);
+        UMATaskNodeWidget* Widget = GetNodeWidget(CanvasState.SelectedNodeId);
         if (Widget)
         {
             Widget->SetSelected(false);
         }
-        SelectedNodeId.Empty();
+        CanvasState.SelectedNodeId.Empty();
     }
     
     // 同时清除边选择
@@ -434,8 +415,8 @@ void UMADAGCanvasWidget::SelectEdge(const FString& FromNodeId, const FString& To
     ClearSelection();
     
     // 设置新的边选择
-    SelectedEdgeFrom = FromNodeId;
-    SelectedEdgeTo = ToNodeId;
+    CanvasState.SelectedEdgeFrom = FromNodeId;
+    CanvasState.SelectedEdgeTo = ToNodeId;
     
     // 高亮选中的边
     for (FMAEdgeRenderData& Edge : EdgeRenderData)
@@ -452,7 +433,7 @@ void UMADAGCanvasWidget::SelectEdge(const FString& FromNodeId, const FString& To
 
 void UMADAGCanvasWidget::ClearEdgeSelection()
 {
-    if (!SelectedEdgeFrom.IsEmpty() || !SelectedEdgeTo.IsEmpty())
+    if (!CanvasState.SelectedEdgeFrom.IsEmpty() || !CanvasState.SelectedEdgeTo.IsEmpty())
     {
         // 取消高亮
         for (FMAEdgeRenderData& Edge : EdgeRenderData)
@@ -460,25 +441,25 @@ void UMADAGCanvasWidget::ClearEdgeSelection()
             Edge.bIsHighlighted = false;
         }
         
-        SelectedEdgeFrom.Empty();
-        SelectedEdgeTo.Empty();
+        CanvasState.SelectedEdgeFrom.Empty();
+        CanvasState.SelectedEdgeTo.Empty();
     }
 }
 
 void UMADAGCanvasWidget::DeleteSelectedElement()
 {
     // 优先删除选中的节点
-    if (!SelectedNodeId.IsEmpty())
+    if (!CanvasState.SelectedNodeId.IsEmpty())
     {
-        OnNodeDeleteRequested.Broadcast(SelectedNodeId);
-        SelectedNodeId.Empty();
+        OnNodeDeleteRequested.Broadcast(CanvasState.SelectedNodeId);
+        CanvasState.SelectedNodeId.Empty();
         return;
     }
     
     // 其次删除选中的边
-    if (!SelectedEdgeFrom.IsEmpty() && !SelectedEdgeTo.IsEmpty())
+    if (!CanvasState.SelectedEdgeFrom.IsEmpty() && !CanvasState.SelectedEdgeTo.IsEmpty())
     {
-        OnEdgeDeleteRequested.Broadcast(SelectedEdgeFrom, SelectedEdgeTo);
+        OnEdgeDeleteRequested.Broadcast(CanvasState.SelectedEdgeFrom, CanvasState.SelectedEdgeTo);
         ClearEdgeSelection();
         return;
     }
@@ -541,7 +522,7 @@ int32 UMADAGCanvasWidget::NativePaint(const FPaintArgs& Args, const FGeometry& A
     DrawEdges(AllottedGeometry, OutDrawElements, LayerId);
 
     // 绘制预览连线
-    if (bIsDraggingEdge)
+    if (CanvasState.bIsDraggingEdge)
     {
         DrawPreviewEdge(AllottedGeometry, OutDrawElements, LayerId + 1);
     }
@@ -559,7 +540,7 @@ FReply UMADAGCanvasWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, 
     if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
     {
         // 检查是否点击在边上
-        FMAEdgeRenderData* ClickedEdge = FindEdgeAtPoint(LocalPosition);
+        FMAEdgeRenderData* ClickedEdge = FMADAGCanvasGeometry::FindEdgeAtPoint(EdgeRenderData, LocalPosition);
         if (ClickedEdge)
         {
             // 选中边
@@ -568,9 +549,9 @@ FReply UMADAGCanvasWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, 
         }
 
         // 开始拖拽画布
-        bIsDraggingCanvas = true;
-        CanvasDragStart = LocalPosition;
-        CanvasDragStartOffset = ViewOffset;
+        CanvasState.bIsDraggingCanvas = true;
+        CanvasState.CanvasDragStart = LocalPosition;
+        CanvasState.CanvasDragStartOffset = CanvasState.ViewOffset;
 
         // 取消所有选中
         ClearSelection();
@@ -586,44 +567,48 @@ FReply UMADAGCanvasWidget::NativeOnMouseButtonUp(const FGeometry& InGeometry, co
 {
     if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
     {
-        if (bIsDraggingCanvas)
+        if (CanvasState.bIsDraggingCanvas)
         {
-            bIsDraggingCanvas = false;
+            CanvasState.bIsDraggingCanvas = false;
             return FReply::Handled().ReleaseMouseCapture();
         }
 
-        if (bIsDraggingEdge)
+        if (CanvasState.bIsDraggingEdge)
         {
             // 检查是否释放在某个节点的输入端口上
             FVector2D LocalPosition = InGeometry.AbsoluteToLocal(InMouseEvent.GetScreenSpacePosition());
-            FString TargetNodeId = FindInputPortAtPoint(LocalPosition);
+            FString TargetNodeId = FMADAGCanvasGeometry::FindInputPortAtPoint(
+                NodeWidgets,
+                LocalPosition,
+                CanvasState.ZoomLevel,
+                CanvasState.ViewOffset);
 
-            if (!TargetNodeId.IsEmpty() && TargetNodeId != DragSourceNodeId)
+            if (!TargetNodeId.IsEmpty() && TargetNodeId != CanvasState.DragSourceNodeId)
             {
                 // 创建边
                 if (GraphModel)
                 {
-                    if (GraphModel->AddEdge(DragSourceNodeId, TargetNodeId))
+                    if (GraphModel->AddEdge(CanvasState.DragSourceNodeId, TargetNodeId))
                     {
-                        CreateEdge(DragSourceNodeId, TargetNodeId);
-                        OnEdgeCreated.Broadcast(DragSourceNodeId, TargetNodeId);
+                        CreateEdge(CanvasState.DragSourceNodeId, TargetNodeId);
+                        OnEdgeCreated.Broadcast(CanvasState.DragSourceNodeId, TargetNodeId);
                     }
                 }
             }
 
             // 清除高亮
-            if (!HighlightedTargetNodeId.IsEmpty())
+            if (!CanvasState.HighlightedTargetNodeId.IsEmpty())
             {
-                UMATaskNodeWidget* TargetWidget = GetNodeWidget(HighlightedTargetNodeId);
+                UMATaskNodeWidget* TargetWidget = GetNodeWidget(CanvasState.HighlightedTargetNodeId);
                 if (TargetWidget)
                 {
                     TargetWidget->SetInputPortHighlighted(false);
                 }
-                HighlightedTargetNodeId.Empty();
+                CanvasState.HighlightedTargetNodeId.Empty();
             }
 
-            bIsDraggingEdge = false;
-            DragSourceNodeId.Empty();
+            CanvasState.bIsDraggingEdge = false;
+            CanvasState.DragSourceNodeId.Empty();
             return FReply::Handled().ReleaseMouseCapture();
         }
     }
@@ -635,29 +620,33 @@ FReply UMADAGCanvasWidget::NativeOnMouseMove(const FGeometry& InGeometry, const 
 {
     FVector2D LocalPosition = InGeometry.AbsoluteToLocal(InMouseEvent.GetScreenSpacePosition());
 
-    if (bIsDraggingCanvas)
+    if (CanvasState.bIsDraggingCanvas)
     {
         // 计算拖拽偏移
-        FVector2D Delta = LocalPosition - CanvasDragStart;
-        SetViewOffset(CanvasDragStartOffset + Delta);
+        FVector2D Delta = LocalPosition - CanvasState.CanvasDragStart;
+        SetViewOffset(CanvasState.CanvasDragStartOffset + Delta);
         return FReply::Handled();
     }
 
-    if (bIsDraggingEdge)
+    if (CanvasState.bIsDraggingEdge)
     {
         // 更新预览线终点
-        DragEdgeEnd = LocalPosition;
+        CanvasState.DragEdgeEnd = LocalPosition;
 
         // 检查是否悬浮在某个节点的输入端口上
-        FString NewTargetNodeId = FindInputPortAtPoint(LocalPosition);
+        FString NewTargetNodeId = FMADAGCanvasGeometry::FindInputPortAtPoint(
+            NodeWidgets,
+            LocalPosition,
+            CanvasState.ZoomLevel,
+            CanvasState.ViewOffset);
 
         // 更新高亮状态
-        if (NewTargetNodeId != HighlightedTargetNodeId)
+        if (NewTargetNodeId != CanvasState.HighlightedTargetNodeId)
         {
             // 取消旧高亮
-            if (!HighlightedTargetNodeId.IsEmpty())
+            if (!CanvasState.HighlightedTargetNodeId.IsEmpty())
             {
-                UMATaskNodeWidget* OldTarget = GetNodeWidget(HighlightedTargetNodeId);
+                UMATaskNodeWidget* OldTarget = GetNodeWidget(CanvasState.HighlightedTargetNodeId);
                 if (OldTarget)
                 {
                     OldTarget->SetInputPortHighlighted(false);
@@ -665,7 +654,7 @@ FReply UMADAGCanvasWidget::NativeOnMouseMove(const FGeometry& InGeometry, const 
             }
 
             // 设置新高亮
-            if (!NewTargetNodeId.IsEmpty() && NewTargetNodeId != DragSourceNodeId)
+            if (!NewTargetNodeId.IsEmpty() && NewTargetNodeId != CanvasState.DragSourceNodeId)
             {
                 UMATaskNodeWidget* NewTarget = GetNodeWidget(NewTargetNodeId);
                 if (NewTarget)
@@ -674,7 +663,7 @@ FReply UMADAGCanvasWidget::NativeOnMouseMove(const FGeometry& InGeometry, const 
                 }
             }
 
-            HighlightedTargetNodeId = NewTargetNodeId;
+            CanvasState.HighlightedTargetNodeId = NewTargetNodeId;
         }
 
         return FReply::Handled();
@@ -688,19 +677,19 @@ FReply UMADAGCanvasWidget::NativeOnMouseWheel(const FGeometry& InGeometry, const
     // 缩放
     float WheelDelta = InMouseEvent.GetWheelDelta();
     float ZoomDelta = WheelDelta * 0.1f;
-    float NewZoom = FMath::Clamp(ZoomLevel + ZoomDelta, MinZoom, MaxZoom);
+    float NewZoom = FMath::Clamp(CanvasState.ZoomLevel + ZoomDelta, CanvasState.MinZoom, CanvasState.MaxZoom);
 
-    if (NewZoom != ZoomLevel)
+    if (NewZoom != CanvasState.ZoomLevel)
     {
         // 以鼠标位置为中心缩放
         FVector2D LocalPosition = InGeometry.AbsoluteToLocal(InMouseEvent.GetScreenSpacePosition());
         FVector2D CanvasPos = ScreenToCanvas(LocalPosition);
 
-        ZoomLevel = NewZoom;
+        CanvasState.ZoomLevel = NewZoom;
 
         // 调整偏移以保持鼠标位置不变
         FVector2D NewScreenPos = CanvasToScreen(CanvasPos);
-        ViewOffset += LocalPosition - NewScreenPos;
+        CanvasState.ViewOffset += LocalPosition - NewScreenPos;
 
         UpdateNodePositions();
         UpdateEdgePositions();
@@ -714,21 +703,21 @@ FReply UMADAGCanvasWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FK
     if (InKeyEvent.GetKey() == EKeys::Escape)
     {
         // 取消连线拖拽
-        if (bIsDraggingEdge)
+        if (CanvasState.bIsDraggingEdge)
         {
             // 清除高亮
-            if (!HighlightedTargetNodeId.IsEmpty())
+            if (!CanvasState.HighlightedTargetNodeId.IsEmpty())
             {
-                UMATaskNodeWidget* TargetWidget = GetNodeWidget(HighlightedTargetNodeId);
+                UMATaskNodeWidget* TargetWidget = GetNodeWidget(CanvasState.HighlightedTargetNodeId);
                 if (TargetWidget)
                 {
                     TargetWidget->SetInputPortHighlighted(false);
                 }
-                HighlightedTargetNodeId.Empty();
+                CanvasState.HighlightedTargetNodeId.Empty();
             }
 
-            bIsDraggingEdge = false;
-            DragSourceNodeId.Empty();
+            CanvasState.bIsDraggingEdge = false;
+            CanvasState.DragSourceNodeId.Empty();
             return FReply::Handled();
         }
 
@@ -851,8 +840,8 @@ void UMADAGCanvasWidget::DrawPreviewEdge(const FGeometry& AllottedGeometry, FSla
 {
     // 绘制预览线
     TArray<FVector2D> Points;
-    Points.Add(DragEdgeStart);
-    Points.Add(DragEdgeEnd);
+    Points.Add(CanvasState.DragEdgeStart);
+    Points.Add(CanvasState.DragEdgeEnd);
 
     FSlateDrawElement::MakeLines(
         OutDrawElements,
@@ -866,7 +855,7 @@ void UMADAGCanvasWidget::DrawPreviewEdge(const FGeometry& AllottedGeometry, FSla
     );
 
     // 绘制箭头
-    DrawArrow(DragEdgeStart, DragEdgeEnd, PreviewEdgeColor, AllottedGeometry, OutDrawElements, LayerId);
+    DrawArrow(CanvasState.DragEdgeStart, CanvasState.DragEdgeEnd, PreviewEdgeColor, AllottedGeometry, OutDrawElements, LayerId);
 }
 
 void UMADAGCanvasWidget::DrawArrow(const FVector2D& Start, const FVector2D& End, const FLinearColor& Color,
@@ -945,20 +934,20 @@ void UMADAGCanvasWidget::OnNodePortDragStarted(const FString& NodeId, bool bIsOu
         return;
     }
 
-    bIsDraggingEdge = true;
-    DragSourceNodeId = NodeId;
+    CanvasState.bIsDraggingEdge = true;
+    CanvasState.DragSourceNodeId = NodeId;
     
     // 获取输出端口的屏幕位置
     UMATaskNodeWidget* Widget = GetNodeWidget(NodeId);
     if (Widget)
     {
-        DragEdgeStart = CanvasToScreen(Widget->GetOutputPortPosition());
+        CanvasState.DragEdgeStart = CanvasToScreen(Widget->GetOutputPortPosition());
     }
     else
     {
-        DragEdgeStart = PortPosition;
+        CanvasState.DragEdgeStart = PortPosition;
     }
-    DragEdgeEnd = DragEdgeStart;
+    CanvasState.DragEdgeEnd = CanvasState.DragEdgeStart;
 
     UE_LOG(LogMADAGCanvas, Verbose, TEXT("Port drag started from: %s"), *NodeId);
 }
@@ -1014,10 +1003,7 @@ void UMADAGCanvasWidget::OnContextMenuClosed()
 
 void UMADAGCanvasWidget::OnModelDataChanged()
 {
-    // 模型数据变更时刷新画布
-    // 注意：这里不直接调用 RefreshFromModel，因为可能导致循环
-    // 只更新边位置
-    UpdateEdgePositions();
+    RefreshFromModel();
 }
 
 //=============================================================================
@@ -1026,210 +1012,45 @@ void UMADAGCanvasWidget::OnModelDataChanged()
 
 FVector2D UMADAGCanvasWidget::CanvasToScreen(FVector2D CanvasPos) const
 {
-    return (CanvasPos * ZoomLevel) + ViewOffset;
+    return FMADAGCanvasGeometry::CanvasToScreen(CanvasPos, CanvasState.ZoomLevel, CanvasState.ViewOffset);
 }
 
 FVector2D UMADAGCanvasWidget::ScreenToCanvas(FVector2D ScreenPos) const
 {
-    return (ScreenPos - ViewOffset) / ZoomLevel;
-}
-
-bool UMADAGCanvasWidget::IsPointOnEdge(const FVector2D& Point, const FMAEdgeRenderData& Edge, float Tolerance) const
-{
-    // Edge.StartPoint 和 Edge.EndPoint 已经是屏幕坐标了
-    FVector2D StartScreen = Edge.StartPoint;
-    FVector2D EndScreen = Edge.EndPoint;
-
-    // 计算点到线段的距离
-    FVector2D LineDir = EndScreen - StartScreen;
-    float LineLength = LineDir.Size();
-    if (LineLength < 1.0f) return false;
-
-    LineDir /= LineLength;
-
-    FVector2D PointToStart = Point - StartScreen;
-    float Projection = FVector2D::DotProduct(PointToStart, LineDir);
-
-    // 检查投影是否在线段范围内
-    if (Projection < 0 || Projection > LineLength) return false;
-
-    // 计算垂直距离
-    FVector2D ClosestPoint = StartScreen + LineDir * Projection;
-    float Distance = FVector2D::Distance(Point, ClosestPoint);
-
-    return Distance <= Tolerance;
-}
-
-FMAEdgeRenderData* UMADAGCanvasWidget::FindEdgeAtPoint(const FVector2D& Point)
-{
-    for (FMAEdgeRenderData& Edge : EdgeRenderData)
-    {
-        if (IsPointOnEdge(Point, Edge))
-        {
-            return &Edge;
-        }
-    }
-    return nullptr;
-}
-
-FString UMADAGCanvasWidget::FindInputPortAtPoint(const FVector2D& ScreenPoint) const
-{
-    const float PortHitRadius = 20.0f;
-
-    for (const auto& Pair : NodeWidgets)
-    {
-        UMATaskNodeWidget* Widget = Pair.Value;
-        if (!Widget) continue;
-
-        // 获取输入端口的屏幕位置
-        // 节点屏幕位置 + 端口本地偏移
-        FMATaskNodeData NodeData = Widget->GetNodeData();
-        FVector2D NodeScreenPos = CanvasToScreen(NodeData.CanvasPosition);
-        FVector2D InputPortScreen = NodeScreenPos + Widget->GetInputPortLocalPosition();
-
-        float Distance = FVector2D::Distance(ScreenPoint, InputPortScreen);
-        if (Distance <= PortHitRadius)
-        {
-            return Pair.Key;
-        }
-    }
-
-    return FString();
+    return FMADAGCanvasGeometry::ScreenToCanvas(ScreenPos, CanvasState.ZoomLevel, CanvasState.ViewOffset);
 }
 
 void UMADAGCanvasWidget::AutoLayoutNodes()
 {
-    if (NodeWidgets.Num() == 0) return;
-
-    // 拓扑排序分层布局算法
-    // 使用 Kahn 算法进行拓扑排序，同时计算每个节点的层级
-    
-    const float NodeSpacingX = 280.0f;  // 同层节点水平间距
-    const float NodeSpacingY = 180.0f;  // 层与层之间的垂直间距
-    const float StartX = 80.0f;
-    const float StartY = 50.0f;
-
-    // 构建邻接表和入度表
-    TMap<FString, TArray<FString>> Adjacency;  // 节点 -> 后继节点列表
-    TMap<FString, int32> InDegree;             // 节点 -> 入度
-    TSet<FString> AllNodeIds;
-
-    // 初始化所有节点
-    for (const auto& Pair : NodeWidgets)
+    if (!GraphModel || NodeWidgets.IsEmpty())
     {
-        AllNodeIds.Add(Pair.Key);
-        InDegree.Add(Pair.Key, 0);
-        Adjacency.Add(Pair.Key, TArray<FString>());
+        return;
     }
 
-    // 根据边构建邻接表和入度
-    for (const FMAEdgeRenderData& Edge : EdgeRenderData)
+    const FMATaskGraphData Data = GraphModel->GetWorkingData();
+    const TMap<FString, FVector2D> Layout = FMADAGCanvasAutoLayout::BuildTopologicalLayout(Data);
+
+    for (const TPair<FString, FVector2D>& Pair : Layout)
     {
-        if (AllNodeIds.Contains(Edge.FromNodeId) && AllNodeIds.Contains(Edge.ToNodeId))
+        UMATaskNodeWidget* Widget = GetNodeWidget(Pair.Key);
+        if (!Widget)
         {
-            Adjacency[Edge.FromNodeId].Add(Edge.ToNodeId);
-            InDegree[Edge.ToNodeId]++;
+            continue;
         }
-    }
 
-    // Kahn 算法 - 计算每个节点的层级
-    TMap<FString, int32> NodeLevel;  // 节点 -> 层级 (0 为最顶层)
-    TArray<FString> Queue;
+        FMATaskNodeData NodeData = Widget->GetNodeData();
+        NodeData.CanvasPosition = Pair.Value;
+        Widget->SetNodeData(NodeData);
 
-    // 将所有入度为 0 的节点加入队列 (第 0 层)
-    for (const auto& Pair : InDegree)
-    {
-        if (Pair.Value == 0)
+        if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(Widget->Slot))
         {
-            Queue.Add(Pair.Key);
-            NodeLevel.Add(Pair.Key, 0);
+            Slot->SetPosition(CanvasToScreen(Pair.Value));
         }
+
+        GraphModel->UpdateNodePosition(Pair.Key, Pair.Value);
     }
 
-    // BFS 遍历，计算每个节点的层级
-    int32 ProcessedCount = 0;
-    while (Queue.Num() > 0)
-    {
-        FString CurrentNode = Queue[0];
-        Queue.RemoveAt(0);
-        ProcessedCount++;
+    UpdateEdgePositions();
 
-        int32 CurrentLevel = NodeLevel[CurrentNode];
-
-        // 遍历所有后继节点
-        for (const FString& Successor : Adjacency[CurrentNode])
-        {
-            // 后继节点的层级至少是当前节点层级 + 1
-            if (!NodeLevel.Contains(Successor))
-            {
-                NodeLevel.Add(Successor, CurrentLevel + 1);
-            }
-            else
-            {
-                // 取最大层级，确保所有前驱都在上层
-                NodeLevel[Successor] = FMath::Max(NodeLevel[Successor], CurrentLevel + 1);
-            }
-
-            // 减少入度
-            InDegree[Successor]--;
-            if (InDegree[Successor] == 0)
-            {
-                Queue.Add(Successor);
-            }
-        }
-    }
-
-    // 处理可能存在的孤立节点或环路中的节点
-    for (const FString& NodeId : AllNodeIds)
-    {
-        if (!NodeLevel.Contains(NodeId))
-        {
-            // 孤立节点或环路中的节点，放到最后一层
-            NodeLevel.Add(NodeId, 0);
-            UE_LOG(LogMADAGCanvas, Warning, TEXT("Node '%s' not reached by topological sort (isolated or in cycle)"), *NodeId);
-        }
-    }
-
-    // 按层级分组节点
-    TMap<int32, TArray<FString>> LevelNodes;  // 层级 -> 该层的节点列表
-    int32 MaxLevel = 0;
-
-    for (const auto& Pair : NodeLevel)
-    {
-        int32 Level = Pair.Value;
-        if (!LevelNodes.Contains(Level))
-        {
-            LevelNodes.Add(Level, TArray<FString>());
-        }
-        LevelNodes[Level].Add(Pair.Key);
-        MaxLevel = FMath::Max(MaxLevel, Level);
-    }
-
-    // 计算布局位置
-    for (int32 Level = 0; Level <= MaxLevel; Level++)
-    {
-        if (!LevelNodes.Contains(Level)) continue;
-
-        TArray<FString>& NodesInLevel = LevelNodes[Level];
-        int32 NodeCount = NodesInLevel.Num();
-
-        // 计算该层的起始 X 位置，使节点居中
-        float TotalWidth = (NodeCount - 1) * NodeSpacingX;
-        float LevelStartX = StartX + (MaxLevel > 0 ? 200.0f : 0.0f) - TotalWidth / 2.0f;
-        
-        // 确保不会出现负坐标
-        LevelStartX = FMath::Max(LevelStartX, StartX);
-
-        float Y = StartY + Level * NodeSpacingY;
-
-        for (int32 i = 0; i < NodeCount; i++)
-        {
-            float X = LevelStartX + i * NodeSpacingX;
-            FVector2D NewPosition(X, Y);
-            MoveNode(NodesInLevel[i], NewPosition);
-        }
-    }
-
-    UE_LOG(LogMADAGCanvas, Log, TEXT("Topological layout completed: %d nodes in %d levels"), 
-           NodeWidgets.Num(), MaxLevel + 1);
+    UE_LOG(LogMADAGCanvas, Log, TEXT("Topological layout completed: %d nodes"), NodeWidgets.Num());
 }

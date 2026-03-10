@@ -11,8 +11,6 @@
 #include "../../SkillAllocation/MASkillAllocationViewer.h"
 #include "../../TaskGraph/MATaskPlannerWidget.h"
 #include "../../Mode/MAEditWidget.h"
-#include "../../../Core/TempData/Runtime/MATempDataManager.h"
-#include "Engine/GameInstance.h"
 #include "Blueprint/UserWidget.h"
 
 bool FMAUIWidgetInteractionCoordinator::ShowWidget(UMAUIManager* UIManager, EMAWidgetType Type, bool bSetFocus) const
@@ -192,19 +190,12 @@ void FMAUIWidgetInteractionCoordinator::NavigateFromViewerToSkillAllocationModal
 
     if (UMASkillAllocationModal* SkillAllocationModal = UIManager->GetSkillAllocationModal())
     {
-        if (UGameInstance* GameInstance = UIManager->GetOwningPlayerController()
-            ? UIManager->GetOwningPlayerController()->GetGameInstance()
-            : nullptr)
+        FString RuntimeError;
+        FMASkillAllocationData Data;
+        if (UIManager->LoadSkillAllocationDataInternal(Data, RuntimeError))
         {
-            if (UMATempDataManager* TempDataMgr = GameInstance->GetSubsystem<UMATempDataManager>())
-            {
-                FMASkillAllocationData Data;
-                if (TempDataMgr->LoadSkillAllocation(Data))
-                {
-                    SkillAllocationModal->LoadSkillAllocation(Data);
-                    UE_LOG(LogMAUIManager, Log, TEXT("NavigateFromViewerToSkillAllocationModal: Data loaded into modal"));
-                }
-            }
+            SkillAllocationModal->LoadSkillAllocation(Data);
+            UE_LOG(LogMAUIManager, Log, TEXT("NavigateFromViewerToSkillAllocationModal: Data loaded into modal"));
         }
 
         SkillAllocationModal->SetEditMode(false);
@@ -241,19 +232,12 @@ void FMAUIWidgetInteractionCoordinator::NavigateFromWorkbenchToTaskGraphModal(UM
 
     if (UMATaskGraphModal* TaskGraphModal = UIManager->GetTaskGraphModal())
     {
-        if (UGameInstance* GameInstance = UIManager->GetOwningPlayerController()
-            ? UIManager->GetOwningPlayerController()->GetGameInstance()
-            : nullptr)
+        FString RuntimeError;
+        FMATaskGraphData Data;
+        if (UIManager->LoadTaskGraphDataInternal(Data, RuntimeError))
         {
-            if (UMATempDataManager* TempDataMgr = GameInstance->GetSubsystem<UMATempDataManager>())
-            {
-                FMATaskGraphData Data;
-                if (TempDataMgr->LoadTaskGraph(Data))
-                {
-                    TaskGraphModal->LoadTaskGraph(Data);
-                    UE_LOG(LogMAUIManager, Log, TEXT("NavigateFromWorkbenchToTaskGraphModal: Data loaded into modal"));
-                }
-            }
+            TaskGraphModal->LoadTaskGraph(Data);
+            UE_LOG(LogMAUIManager, Log, TEXT("NavigateFromWorkbenchToTaskGraphModal: Data loaded into modal"));
         }
 
         TaskGraphModal->SetEditMode(false);

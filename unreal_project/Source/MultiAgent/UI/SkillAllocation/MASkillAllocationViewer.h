@@ -6,12 +6,13 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Core/SkillAllocation/Domain/MASkillAllocationTypes.h"
-#include "../../Core/Comm/Domain/MACommTypes.h"
+#include "../../Core/Comm/Domain/MACommSkillTypes.h"
 #include "MASkillAllocationViewer.generated.h"
 
+struct FMASkillAllocationViewerActionResult;
 class UMAGanttCanvas;
 class UMASkillAllocationModel;
-class UMATempDataManager;
+class FMASkillAllocationViewerRuntimeAdapter;
 class UMultiLineEditableTextBox;
 class UButton;
 class UTextBlock;
@@ -187,6 +188,9 @@ protected:
     /** 保存数据并导航到 Modal */
     void SaveAndNavigateToModal();
 
+    /** 应用 coordinator 返回的结果 */
+    void ApplyActionResult(const FMASkillAllocationViewerActionResult& Result);
+
     /** "重置" 按钮点击回调 */
     UFUNCTION()
     void OnResetButtonClicked();
@@ -203,13 +207,13 @@ protected:
     UFUNCTION()
     void OnSkillStatusUpdated(int32 TimeStep, const FString& RobotId, ESkillExecutionStatus Status);
 
-    /** TempDataManager 技能分配变更回调 */
+    /** 运行时技能分配变更回调 */
     UFUNCTION()
-    void OnTempSkillAllocationChanged(const FMASkillAllocationData& NewData);
+    void OnRuntimeSkillAllocationChanged(const FMASkillAllocationData& NewData);
 
-    /** TempDataManager 技能状态更新回调 */
+    /** 运行时技能状态更新回调 */
     UFUNCTION()
-    void OnTempSkillStatusUpdated(int32 TimeStep, const FString& RobotId, ESkillExecutionStatus NewStatus);
+    void OnRuntimeSkillStatusUpdated(int32 TimeStep, const FString& RobotId, ESkillExecutionStatus NewStatus);
 
     //=========================================================================
     // 拖拽事件处理
@@ -236,8 +240,14 @@ protected:
     UFUNCTION()
     void OnGanttDragFailed();
 
-    /** 同步数据到临时文件 */
-    void SyncDataToTempFile();
+    /** 从运行时存储加载技能分配 */
+    void LoadRuntimeSkillAllocation();
+
+    /** 绑定运行时事件 */
+    void BindRuntimeEvents();
+
+    /** 同步数据到运行时存储 */
+    bool PersistRuntimeData(FString* OutError = nullptr);
 
     //=========================================================================
     // 辅助方法
@@ -320,6 +330,8 @@ protected:
     /** 技能分配数据模型 */
     UPROPERTY()
     UMASkillAllocationModel* AllocationModel;
+
+    friend class FMASkillAllocationViewerRuntimeAdapter;
 
     //=========================================================================
     // 配置

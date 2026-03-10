@@ -8,6 +8,8 @@
 #include "Core/TaskGraph/Domain/MATaskGraphTypes.h"
 #include "MATaskPlannerWidget.generated.h"
 
+struct FMATaskPlannerActionResult;
+class FMATaskPlannerRuntimeAdapter;
 class UMADAGCanvasWidget;
 class UMANodePaletteWidget;
 class UMATaskGraphModel;
@@ -201,6 +203,9 @@ protected:
     /** 保存数据并导航到 Modal */
     void SaveAndNavigateToModal();
 
+    /** 应用 coordinator 返回的结果 */
+    void ApplyActionResult(const FMATaskPlannerActionResult& Result);
+
     /** 数据模型变更回调 */
     UFUNCTION()
     void OnModelDataChanged();
@@ -239,18 +244,18 @@ protected:
     /** 获取当前时间戳字符串 */
     FString GetTimestamp() const;
 
-    /** 从临时文件加载任务图数据 */
-    void LoadFromTempFile();
+    /** 从运行时存储加载任务图数据 */
+    void LoadRuntimeTaskGraph();
 
-    /** 绑定 TempDataManager 数据变更事件 */
-    void BindTempDataManagerEvents();
+    /** 绑定运行时任务图数据变更事件 */
+    void BindRuntimeEvents();
 
-    /** TempDataManager 任务图数据变更回调 */
+    /** 运行时任务图数据变更回调 */
     UFUNCTION()
-    void OnTempDataTaskGraphChanged(const FMATaskGraphData& NewData);
+    void OnRuntimeTaskGraphChanged(const FMATaskGraphData& NewData);
 
-    /** 保存任务图到临时文件 */
-    void SaveToTempFile();
+    /** 保存任务图到运行时存储 */
+    bool PersistTaskGraph(FString* OutError = nullptr);
 
     //=========================================================================
     // UI 组件
@@ -387,4 +392,6 @@ protected:
 
     /** 是否使用 Mock 数据 */
     bool bUseMockData = true;
+
+    friend class FMATaskPlannerRuntimeAdapter;
 };

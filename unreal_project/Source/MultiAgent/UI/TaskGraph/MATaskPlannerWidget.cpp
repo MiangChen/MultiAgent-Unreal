@@ -5,17 +5,13 @@
 #include "MADAGCanvasWidget.h"
 #include "MANodePaletteWidget.h"
 #include "MATaskGraphModel.h"
-#include "../../Core/TaskGraph/Application/MATaskGraphUseCases.h"
 #include "../../Core/TaskGraph/Bootstrap/MATaskGraphBootstrap.h"
-#include "../../Core/Comm/Runtime/MACommSubsystem.h"
-#include "../../Core/TempData/Runtime/MATempDataManager.h"
+#include "Application/MATaskPlannerCoordinator.h"
+#include "Infrastructure/MATaskPlannerRuntimeAdapter.h"
 #include "../Core/MARoundedBorderUtils.h"
 #include "../Core/MAFrostedGlassUtils.h"
 #include "../Core/MAUITheme.h"
 #include "../Components/MAStyledButton.h"
-#include "../Core/MAUIManager.h"
-#include "../HUD/MAHUD.h"
-#include "Kismet/GameplayStatics.h"
 #include "Components/MultiLineEditableTextBox.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
@@ -144,11 +140,11 @@ void UMATaskPlannerWidget::NativeConstruct()
     AppendStatusLog(TEXT("Task Decomposition Workbench started"));
     AppendStatusLog(TEXT("Tip: Drag nodes from the left toolbar to the canvas to create tasks"));
     
-    // Try to load task graph from temp file (Requirement 4.1)
-    LoadFromTempFile();
+    // Try to load task graph from runtime storage.
+    LoadRuntimeTaskGraph();
     
-    // Bind TempDataManager data change event (Requirement 4.4)
-    BindTempDataManagerEvents();
+    // Bind runtime task graph change events.
+    BindRuntimeEvents();
     
     UE_LOG(LogMATaskPlanner, Log, TEXT("MATaskPlannerWidget NativeConstruct completed"));
 }
@@ -659,32 +655,13 @@ void UMATaskPlannerWidget::LoadTaskGraph(const FMATaskGraphData& Data)
 
 bool UMATaskPlannerWidget::LoadTaskGraphFromJson(const FString& JsonString)
 {
-    if (!GraphModel)
-    {
-        UE_LOG(LogMATaskPlanner, Error, TEXT("LoadTaskGraphFromJson: GraphModel is null!"));
-        return false;
-    }
-    
-    FString ErrorMessage;
-    if (!GraphModel->LoadFromJsonWithError(JsonString, ErrorMessage))
-    {
-        AppendStatusLog(FString::Printf(TEXT("[Error] JSON parse failed: %s"), *ErrorMessage));
-        return false;
-    }
-    
-    SyncJsonEditorFromModel();
-    
-    if (DAGCanvas)
-    {
-        DAGCanvas->RefreshFromModel();
-    }
-    
-    FMATaskGraphData Data = GraphModel->GetWorkingData();
-    AppendStatusLog(FString::Printf(TEXT("Task graph loaded: %d nodes, %d edges"),
-        Data.Nodes.Num(), Data.Edges.Num()));
-    
-    OnTaskGraphChanged.Broadcast(Data);
-    return true;
+    const FMATaskPlannerActionResult Result = FMATaskPlannerCoordinator::LoadGraphJson(
+        GraphModel,
+        JsonString,
+        TEXT("[Warning] JSON editor is empty"),
+        TEXT("Task graph loaded: "));
+    ApplyActionResult(Result);
+    return Result.bSuccess;
 }
 
 void UMATaskPlannerWidget::AppendStatusLog(const FString& Message)
@@ -750,33 +727,13 @@ void UMATaskPlannerWidget::FocusJsonEditor()
 void UMATaskPlannerWidget::OnUpdateGraphButtonClicked()
 {
     UE_LOG(LogMATaskPlanner, Log, TEXT("UpdateGraphButton clicked"));
-    
-    FString JsonText = GetJsonText();
-    
-    if (JsonText.IsEmpty())
-    {
-        AppendStatusLog(TEXT("[Warning] JSON editor is empty"));
-        return;
-    }
-    
-    FString ErrorMessage;
-    if (!GraphModel->LoadFromJsonWithError(JsonText, ErrorMessage))
-    {
-        AppendStatusLog(FString::Printf(TEXT("[Error] JSON parse failed: %s"), *ErrorMessage));
-        return;
-    }
-    
-    if (DAGCanvas)
-    {
-        DAGCanvas->RefreshFromModel();
-    }
-    
-    AppendStatusLog(TEXT("[Success] Task graph updated"));
-    
-    // Save to temp file (Requirement 4.3)
-    SaveToTempFile();
-    
-    OnTaskGraphChanged.Broadcast(GraphModel->GetWorkingData());
+
+    const FMATaskPlannerActionResult Result = FMATaskPlannerCoordinator::LoadGraphJson(
+        GraphModel,
+        GetJsonText(),
+        TEXT("[Warning] JSON editor is empty"),
+        TEXT("[Success] Task graph updated: "));
+    ApplyActionResult(Result);
 }
 
 void UMATaskPlannerWidget::OnSendCommandButtonClicked()
@@ -827,23 +784,12 @@ void UMATaskPlannerWidget::OnSubmitTaskGraphButtonClicked()
         return;
     }
 
-    // Get CommSubsystem and send task graph
-    UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
-    if (!GameInstance)
+    FString RuntimeError;
+    if (!FMATaskPlannerRuntimeAdapter::TrySubmitTaskGraph(this, TaskGraphJson, RuntimeError))
     {
-        AppendStatusLog(TEXT("[Error] Unable to get GameInstance"));
+        AppendStatusLog(FString::Printf(TEXT("[Error] %s"), *RuntimeError));
         return;
     }
-
-    UMACommSubsystem* CommSubsystem = GameInstance->GetSubsystem<UMACommSubsystem>();
-    if (!CommSubsystem)
-    {
-        AppendStatusLog(TEXT("[Error] Unable to get communication subsystem"));
-        return;
-    }
-
-    // Send task graph to backend
-    CommSubsystem->SendTaskGraphSubmitMessage(TaskGraphJson);
 
     // Log
     FMATaskGraphData Data = GraphModel->GetWorkingData();
@@ -862,59 +808,29 @@ void UMATaskPlannerWidget::OnSaveButtonClicked()
 void UMATaskPlannerWidget::SaveAndNavigateToModal()
 {
     UE_LOG(LogMATaskPlanner, Log, TEXT("SaveAndNavigateToModal: Saving data and navigating to modal"));
-    
-    // 1. 保存当前数据到 TempDataManager
-    if (GraphModel)
+
+    if (!GraphModel)
     {
-        FMATaskGraphData CurrentData = GraphModel->GetWorkingData();
-        
-        UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
-        if (GameInstance)
-        {
-            if (UMATempDataManager* TempDataMgr = GameInstance->GetSubsystem<UMATempDataManager>())
-            {
-                TempDataMgr->SaveTaskGraph(CurrentData);
-                AppendStatusLog(TEXT("[保存] 任务图已保存"));
-                UE_LOG(LogMATaskPlanner, Log, TEXT("SaveAndNavigateToModal: Task graph saved to TempDataManager"));
-            }
-            else
-            {
-                UE_LOG(LogMATaskPlanner, Error, TEXT("SaveAndNavigateToModal: TempDataManager not found"));
-                AppendStatusLog(TEXT("[错误] 无法保存数据：TempDataManager 不可用"));
-                return;
-            }
-        }
-        else
-        {
-            UE_LOG(LogMATaskPlanner, Error, TEXT("SaveAndNavigateToModal: GameInstance not found"));
-            AppendStatusLog(TEXT("[错误] 无法保存数据：GameInstance 不可用"));
-            return;
-        }
+        AppendStatusLog(TEXT("[错误] 无法保存数据：TaskGraphModel 不可用"));
+        return;
     }
-    
-    // 2. 导航到 TaskGraphModal (通过 MAHUD 获取 UIManager)
-    APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
-    if (PC)
+
+    FString RuntimeError;
+    if (!PersistTaskGraph(&RuntimeError))
     {
-        if (AMAHUD* HUD = Cast<AMAHUD>(PC->GetHUD()))
-        {
-            if (UMAUIManager* UIManager = HUD->GetUIManager())
-            {
-                UIManager->NavigateFromWorkbenchToTaskGraphModal();
-                UE_LOG(LogMATaskPlanner, Log, TEXT("SaveAndNavigateToModal: Navigation to TaskGraphModal initiated"));
-            }
-            else
-            {
-                UE_LOG(LogMATaskPlanner, Error, TEXT("SaveAndNavigateToModal: UIManager not found"));
-                AppendStatusLog(TEXT("[错误] 无法导航：UIManager 不可用"));
-            }
-        }
-        else
-        {
-            UE_LOG(LogMATaskPlanner, Error, TEXT("SaveAndNavigateToModal: MAHUD not found"));
-            AppendStatusLog(TEXT("[错误] 无法导航：HUD 不可用"));
-        }
+        AppendStatusLog(FString::Printf(TEXT("[错误] 无法保存数据：%s"), *RuntimeError));
+        return;
     }
+
+    AppendStatusLog(TEXT("[保存] 任务图已保存"));
+
+    if (!FMATaskPlannerRuntimeAdapter::TryNavigateToTaskGraphModal(this, RuntimeError))
+    {
+        AppendStatusLog(FString::Printf(TEXT("[错误] 无法导航：%s"), *RuntimeError));
+        return;
+    }
+
+    UE_LOG(LogMATaskPlanner, Log, TEXT("SaveAndNavigateToModal: Navigation to TaskGraphModal initiated"));
 }
 
 void UMATaskPlannerWidget::OnModelDataChanged()
@@ -925,66 +841,17 @@ void UMATaskPlannerWidget::OnModelDataChanged()
 
 void UMATaskPlannerWidget::OnNodeTemplateSelected(const FMANodeTemplate& Template)
 {
-    if (!GraphModel)
-    {
-        return;
-    }
-    
-    // Create new node
-    FString NewNodeId = GraphModel->CreateNode(Template.DefaultDescription, Template.DefaultLocation);
-    
-    AppendStatusLog(FString::Printf(TEXT("Node created: %s (%s)"), *NewNodeId, *Template.TemplateName));
-    
-    if (DAGCanvas)
-    {
-        DAGCanvas->RefreshFromModel();
-    }
-    
-    // Save to temp file (Requirement 4.3)
-    SaveToTempFile();
+    ApplyActionResult(FMATaskPlannerCoordinator::AddNodeFromTemplate(GraphModel, Template));
 }
 
 void UMATaskPlannerWidget::OnNodeDeleteRequested(const FString& NodeId)
 {
-    if (!GraphModel)
-    {
-        return;
-    }
-    
-    if (GraphModel->RemoveNode(NodeId))
-    {
-        AppendStatusLog(FString::Printf(TEXT("Node deleted: %s"), *NodeId));
-        
-        if (DAGCanvas)
-        {
-            DAGCanvas->RefreshFromModel();
-        }
-        
-        // Save to temp file (Requirement 4.3)
-        SaveToTempFile();
-    }
+    ApplyActionResult(FMATaskPlannerCoordinator::DeleteNode(GraphModel, NodeId));
 }
 
 void UMATaskPlannerWidget::OnNodeEditRequested(const FString& NodeId)
 {
-    if (!GraphModel)
-    {
-        return;
-    }
-    
-    // Get node data
-    FMATaskNodeData NodeData;
-    if (!GraphModel->FindNode(NodeId, NodeData))
-    {
-        AppendStatusLog(FString::Printf(TEXT("[Error] Node not found: %s"), *NodeId));
-        return;
-    }
-    
-    // TODO: Show node edit dialog
-    // Currently just display node info in status log
-    AppendStatusLog(FString::Printf(TEXT("Edit node: %s"), *NodeId));
-    AppendStatusLog(FString::Printf(TEXT("  Description: %s"), *NodeData.Description));
-    AppendStatusLog(FString::Printf(TEXT("  Location: %s"), *NodeData.Location));
+    ApplyActionResult(FMATaskPlannerCoordinator::DescribeNode(GraphModel, NodeId));
     
     // Select this node
     if (DAGCanvas)
@@ -995,63 +862,26 @@ void UMATaskPlannerWidget::OnNodeEditRequested(const FString& NodeId)
 
 void UMATaskPlannerWidget::OnEdgeCreated(const FString& FromNodeId, const FString& ToNodeId)
 {
-    if (!GraphModel)
-    {
-        return;
-    }
-    
-    if (GraphModel->AddEdge(FromNodeId, ToNodeId))
-    {
-        AppendStatusLog(FString::Printf(TEXT("Edge created: %s -> %s"), *FromNodeId, *ToNodeId));
-        
-        // Save to temp file (Requirement 4.3)
-        SaveToTempFile();
-    }
+    ApplyActionResult(FMATaskPlannerCoordinator::AddEdge(GraphModel, FromNodeId, ToNodeId));
 }
 
 void UMATaskPlannerWidget::OnEdgeDeleteRequested(const FString& FromNodeId, const FString& ToNodeId)
 {
-    if (!GraphModel)
-    {
-        return;
-    }
-    
-    if (GraphModel->RemoveEdge(FromNodeId, ToNodeId))
-    {
-        AppendStatusLog(FString::Printf(TEXT("Edge deleted: %s -> %s"), *FromNodeId, *ToNodeId));
-        
-        if (DAGCanvas)
-        {
-            DAGCanvas->RefreshFromModel();
-        }
-        
-        // Save to temp file (Requirement 4.3)
-        SaveToTempFile();
-    }
+    ApplyActionResult(FMATaskPlannerCoordinator::DeleteEdge(GraphModel, FromNodeId, ToNodeId));
 }
 
 void UMATaskPlannerWidget::OnCloseButtonClicked()
 {
     UE_LOG(LogMATaskPlanner, Log, TEXT("Close button clicked"));
-    
-    // 通过 UIManager 隐藏 widget，这样可以正确同步 HUDStateManager 状态
-    // 直接调用 SetVisibility 会导致状态不同步
-    APlayerController* PC = GetOwningPlayer();
-    if (PC)
+
+    FString RuntimeError;
+    if (FMATaskPlannerRuntimeAdapter::TryHideTaskPlanner(this, RuntimeError))
     {
-        if (AMAHUD* HUD = Cast<AMAHUD>(PC->GetHUD()))
-        {
-            if (UMAUIManager* UIManager = HUD->GetUIManager())
-            {
-                UIManager->HideWidget(EMAWidgetType::TaskPlanner);
-                UE_LOG(LogMATaskPlanner, Log, TEXT("TaskPlannerWidget hidden via UIManager"));
-                return;
-            }
-        }
+        UE_LOG(LogMATaskPlanner, Log, TEXT("TaskPlannerWidget hidden via UIManager"));
+        return;
     }
-    
-    // Fallback: 如果无法获取 UIManager，直接隐藏（但状态可能不同步）
-    UE_LOG(LogMATaskPlanner, Warning, TEXT("Could not get UIManager, hiding widget directly (state may be out of sync)"));
+
+    UE_LOG(LogMATaskPlanner, Warning, TEXT("OnCloseButtonClicked: %s"), *RuntimeError);
     SetVisibility(ESlateVisibility::Collapsed);
 }
 
@@ -1078,155 +908,105 @@ FString UMATaskPlannerWidget::GetTimestamp() const
 
 bool UMATaskPlannerWidget::LoadMockData()
 {
-    const FString FilePath = FTaskGraphBootstrap::GetMockResponseExamplePath(FPaths::ProjectDir());
-    const FTaskGraphLoadResult LoadResult = FTaskGraphUseCases::LoadResponseExampleFile(FilePath);
-    if (!LoadResult.bSuccess)
-    {
-        AppendStatusLog(FString::Printf(TEXT("[Error] %s"), *LoadResult.Feedback.Message));
-        UE_LOG(LogMATaskPlanner, Error, TEXT("Failed to load mock data: %s"), *LoadResult.Feedback.Message);
-        return false;
-    }
-
-    LoadTaskGraph(LoadResult.Data);
-    AppendStatusLog(TEXT("[Success] Mock data loaded"));
-    
-    return true;
+    const FMATaskPlannerActionResult Result = FMATaskPlannerCoordinator::LoadMockData(GraphModel, FPaths::ProjectDir());
+    ApplyActionResult(Result);
+    return Result.bSuccess;
 }
 
 //=============================================================================
-// TempDataManager Integration
+// Runtime Integration
 //=============================================================================
 
-void UMATaskPlannerWidget::LoadFromTempFile()
+void UMATaskPlannerWidget::LoadRuntimeTaskGraph()
 {
-    // Get TempDataManager
-    UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
-    if (!GameInstance)
-    {
-        UE_LOG(LogMATaskPlanner, Warning, TEXT("LoadFromTempFile: Unable to get GameInstance"));
-        return;
-    }
-
-    UMATempDataManager* TempDataMgr = GameInstance->GetSubsystem<UMATempDataManager>();
-    if (!TempDataMgr)
-    {
-        UE_LOG(LogMATaskPlanner, Warning, TEXT("LoadFromTempFile: Unable to get TempDataManager"));
-        return;
-    }
-
-    // Check if temp file exists
-    if (!TempDataMgr->TaskGraphFileExists())
-    {
-        UE_LOG(LogMATaskPlanner, Log, TEXT("LoadFromTempFile: Temp file does not exist, skipping load"));
-        return;
-    }
-
-    // Load task graph from temp file
     FMATaskGraphData Data;
-    if (TempDataMgr->LoadTaskGraph(Data))
+    FString RuntimeError;
+    if (!FMATaskPlannerRuntimeAdapter::TryLoadTaskGraph(this, Data, RuntimeError))
     {
-        // Load data to model without broadcasting (to avoid recursive save)
-        if (GraphModel)
-        {
-            GraphModel->LoadFromData(Data);
-            SyncJsonEditorFromModel();
-            
-            if (DAGCanvas)
-            {
-                DAGCanvas->RefreshFromModel();
-            }
-            
-            AppendStatusLog(FString::Printf(TEXT("[Loaded] Task graph from temp file: %d nodes, %d edges"),
-                Data.Nodes.Num(), Data.Edges.Num()));
-        }
-    }
-    else
-    {
-        UE_LOG(LogMATaskPlanner, Warning, TEXT("LoadFromTempFile: Failed to load task graph from temp file"));
-    }
-}
-
-void UMATaskPlannerWidget::BindTempDataManagerEvents()
-{
-    // Get TempDataManager
-    UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
-    if (!GameInstance)
-    {
-        UE_LOG(LogMATaskPlanner, Warning, TEXT("BindTempDataManagerEvents: Unable to get GameInstance"));
+        UE_LOG(LogMATaskPlanner, Verbose, TEXT("LoadRuntimeTaskGraph skipped: %s"), *RuntimeError);
         return;
     }
 
-    UMATempDataManager* TempDataMgr = GameInstance->GetSubsystem<UMATempDataManager>();
-    if (!TempDataMgr)
+    ApplyActionResult(FMATaskPlannerCoordinator::LoadGraphData(
+        GraphModel,
+        Data,
+        FString::Printf(TEXT("[Loaded] Task graph from runtime storage: %d nodes, %d edges"), Data.Nodes.Num(), Data.Edges.Num())));
+}
+
+void UMATaskPlannerWidget::BindRuntimeEvents()
+{
+    FString RuntimeError;
+    if (!FMATaskPlannerRuntimeAdapter::BindTaskGraphChanged(this, this, RuntimeError))
     {
-        UE_LOG(LogMATaskPlanner, Warning, TEXT("BindTempDataManagerEvents: Unable to get TempDataManager"));
+        UE_LOG(LogMATaskPlanner, Warning, TEXT("BindRuntimeEvents: %s"), *RuntimeError);
         return;
     }
 
-    // Bind task graph data change event
-    if (!TempDataMgr->OnTaskGraphChanged.IsAlreadyBound(this, &UMATaskPlannerWidget::OnTempDataTaskGraphChanged))
-    {
-        TempDataMgr->OnTaskGraphChanged.AddDynamic(this, &UMATaskPlannerWidget::OnTempDataTaskGraphChanged);
-        UE_LOG(LogMATaskPlanner, Log, TEXT("BindTempDataManagerEvents: Bound OnTaskGraphChanged event"));
-    }
+    UE_LOG(LogMATaskPlanner, Log, TEXT("BindRuntimeEvents: Bound OnTaskGraphChanged event"));
 }
 
-void UMATaskPlannerWidget::OnTempDataTaskGraphChanged(const FMATaskGraphData& NewData)
+void UMATaskPlannerWidget::OnRuntimeTaskGraphChanged(const FMATaskGraphData& NewData)
 {
-    UE_LOG(LogMATaskPlanner, Log, TEXT("OnTempDataTaskGraphChanged: Received data update (Nodes: %d, Edges: %d)"),
+    UE_LOG(LogMATaskPlanner, Log, TEXT("OnRuntimeTaskGraphChanged: Received data update (Nodes: %d, Edges: %d)"),
         NewData.Nodes.Num(), NewData.Edges.Num());
-
-    // Load data to model
-    if (GraphModel)
-    {
-        GraphModel->LoadFromData(NewData);
-        SyncJsonEditorFromModel();
-        
-        if (DAGCanvas)
-        {
-            DAGCanvas->RefreshFromModel();
-        }
-        
-        AppendStatusLog(FString::Printf(TEXT("[Updated] Task graph refreshed: %d nodes, %d edges"),
-            NewData.Nodes.Num(), NewData.Edges.Num()));
-    }
+    ApplyActionResult(FMATaskPlannerCoordinator::LoadGraphData(
+        GraphModel,
+        NewData,
+        FString::Printf(TEXT("[Updated] Task graph refreshed: %d nodes, %d edges"), NewData.Nodes.Num(), NewData.Edges.Num())));
 }
 
-void UMATaskPlannerWidget::SaveToTempFile()
+bool UMATaskPlannerWidget::PersistTaskGraph(FString* OutError)
 {
     if (!GraphModel)
     {
-        UE_LOG(LogMATaskPlanner, Warning, TEXT("SaveToTempFile: GraphModel is null"));
-        return;
+        UE_LOG(LogMATaskPlanner, Warning, TEXT("PersistTaskGraph: GraphModel is null"));
+        if (OutError)
+        {
+            *OutError = TEXT("TaskGraphModel is null");
+        }
+        return false;
     }
 
-    // Get TempDataManager
-    UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
-    if (!GameInstance)
+    FString RuntimeError;
+    if (!FMATaskPlannerRuntimeAdapter::TrySaveTaskGraph(this, GraphModel->GetWorkingData(), RuntimeError))
     {
-        UE_LOG(LogMATaskPlanner, Warning, TEXT("SaveToTempFile: Unable to get GameInstance"));
-        return;
+        UE_LOG(LogMATaskPlanner, Error, TEXT("PersistTaskGraph: %s"), *RuntimeError);
+        if (OutError)
+        {
+            *OutError = RuntimeError;
+        }
+        return false;
     }
 
-    UMATempDataManager* TempDataMgr = GameInstance->GetSubsystem<UMATempDataManager>();
-    if (!TempDataMgr)
+    UE_LOG(LogMATaskPlanner, Log, TEXT("PersistTaskGraph: Saved task graph to runtime storage"));
+    return true;
+}
+
+void UMATaskPlannerWidget::ApplyActionResult(const FMATaskPlannerActionResult& Result)
+{
+    if (!Result.Message.IsEmpty())
     {
-        UE_LOG(LogMATaskPlanner, Warning, TEXT("SaveToTempFile: Unable to get TempDataManager"));
-        return;
+        AppendStatusLog(Result.Message);
     }
 
-    // Get current data from model
-    FMATaskGraphData Data = GraphModel->GetWorkingData();
-
-    // Save to temp file
-    if (TempDataMgr->SaveTaskGraph(Data))
+    for (const FString& Line : Result.DetailLines)
     {
-        UE_LOG(LogMATaskPlanner, Log, TEXT("SaveToTempFile: Successfully saved task graph to temp file"));
+        AppendStatusLog(Line);
     }
-    else
+
+    if (Result.bShouldPersist && GraphModel)
     {
-        UE_LOG(LogMATaskPlanner, Error, TEXT("SaveToTempFile: Failed to save task graph to temp file"));
-        AppendStatusLog(TEXT("[Error] Failed to save task graph to temp file"));
+        FString RuntimeError;
+        if (!PersistTaskGraph(&RuntimeError))
+        {
+            AppendStatusLog(FString::Printf(TEXT("[Error] Failed to save task graph: %s"), *RuntimeError));
+        }
+    }
+
+    if (Result.bGraphChanged)
+    {
+        const FMATaskGraphData DataToBroadcast = Result.bHasData ? Result.Data : (GraphModel ? GraphModel->GetWorkingData() : FMATaskGraphData());
+        OnTaskGraphChanged.Broadcast(DataToBroadcast);
     }
 }
 

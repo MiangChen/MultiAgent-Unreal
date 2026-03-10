@@ -14,7 +14,7 @@
 
 namespace
 {
-    FMASceneActionResult ToSceneActionResult(const FMASceneGraphMutationFeedback& Feedback)
+    FMASceneActionResult ToEditSceneActionResult(const FMASceneGraphMutationFeedback& Feedback)
     {
         FMASceneActionResult Result;
         Result.bSuccess = Feedback.bSuccess;
@@ -30,7 +30,7 @@ namespace
 
     FMASceneActionResult MakeFailure(const FString& Message)
     {
-        return ToSceneActionResult(MASceneGraphFeedback::MakeMutationFailure(Message));
+        return ToEditSceneActionResult(MASceneGraphFeedback::MakeMutationFailure(Message));
     }
 
     FMASceneActionResult MakeSuccess(
@@ -40,7 +40,7 @@ namespace
         bool bRefreshSelection = false,
         bool bReloadSceneVisualization = false)
     {
-        return ToSceneActionResult(
+        return ToEditSceneActionResult(
             MASceneGraphFeedback::MakeMutationSuccess(
                 Message,
                 bClearSelection,

@@ -18,7 +18,7 @@ namespace
         return FMASceneGraphBootstrap::Resolve(World);
     }
 
-    FMASceneActionResult ToSceneActionResult(const FMASceneGraphMutationFeedback& Feedback)
+    FMASceneActionResult ToModifySceneActionResult(const FMASceneGraphMutationFeedback& Feedback)
     {
         FMASceneActionResult Result;
         Result.bSuccess = Feedback.bSuccess;
@@ -40,17 +40,17 @@ FMASceneActionResult FMAModifySceneActionAdapter::ApplySingleModify(
 {
     if (!World)
     {
-        return ToSceneActionResult(MASceneGraphFeedback::MakeMutationFailure(TEXT("Save failed: World not found")));
+        return ToModifySceneActionResult(MASceneGraphFeedback::MakeMutationFailure(TEXT("Save failed: World not found")));
     }
     if (!Actor)
     {
-        return ToSceneActionResult(MASceneGraphFeedback::MakeMutationFailure(TEXT("Please select an Actor first")));
+        return ToModifySceneActionResult(MASceneGraphFeedback::MakeMutationFailure(TEXT("Please select an Actor first")));
     }
 
     UMASceneGraphManager* SceneGraphManager = ResolveModifyActionSceneGraphManager(World);
     if (!SceneGraphManager)
     {
-        return ToSceneActionResult(MASceneGraphFeedback::MakeMutationFailure(TEXT("Save failed: SceneGraphManager not found")));
+        return ToModifySceneActionResult(MASceneGraphFeedback::MakeMutationFailure(TEXT("Save failed: SceneGraphManager not found")));
     }
 
     FString Id;
@@ -58,19 +58,19 @@ FMASceneActionResult FMAModifySceneActionAdapter::ApplySingleModify(
     FString ErrorMessage;
     if (!SceneGraphManager->ParseLabelInput(LabelText, Id, Type, ErrorMessage))
     {
-        return ToSceneActionResult(MASceneGraphFeedback::MakeMutationFailure(ErrorMessage));
+        return ToModifySceneActionResult(MASceneGraphFeedback::MakeMutationFailure(ErrorMessage));
     }
 
     FString GeneratedLabel;
     if (!SceneGraphManager->AddSceneNode(Id, Type, Actor->GetActorLocation(), Actor, GeneratedLabel, ErrorMessage))
     {
-        return ToSceneActionResult(
+        return ToModifySceneActionResult(
             ErrorMessage.Contains(TEXT("ID already exists"))
                 ? MASceneGraphFeedback::MakeMutationWarning(ErrorMessage, true, true)
                 : MASceneGraphFeedback::MakeMutationFailure(ErrorMessage));
     }
 
-    return ToSceneActionResult(
+    return ToModifySceneActionResult(
         MASceneGraphFeedback::MakeMutationSuccess(
             FString::Printf(TEXT("Label saved: %s"), *GeneratedLabel),
             true,
@@ -88,17 +88,17 @@ FMASceneActionResult FMAModifySceneActionAdapter::ApplyMultiModify(
 {
     if (!World)
     {
-        return ToSceneActionResult(MASceneGraphFeedback::MakeMutationFailure(TEXT("Save failed: World not found")));
+        return ToModifySceneActionResult(MASceneGraphFeedback::MakeMutationFailure(TEXT("Save failed: World not found")));
     }
     if (Actors.Num() == 0)
     {
-        return ToSceneActionResult(MASceneGraphFeedback::MakeMutationFailure(TEXT("Please select at least one Actor first")));
+        return ToModifySceneActionResult(MASceneGraphFeedback::MakeMutationFailure(TEXT("Please select at least one Actor first")));
     }
 
     UMASceneGraphManager* SceneGraphManager = ResolveModifyActionSceneGraphManager(World);
     if (!SceneGraphManager)
     {
-        return ToSceneActionResult(MASceneGraphFeedback::MakeMutationFailure(TEXT("Save failed: SceneGraphManager not found")));
+        return ToModifySceneActionResult(MASceneGraphFeedback::MakeMutationFailure(TEXT("Save failed: SceneGraphManager not found")));
     }
 
     FString ErrorMessage;
@@ -106,7 +106,7 @@ FMASceneActionResult FMAModifySceneActionAdapter::ApplyMultiModify(
     TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(GeneratedJson);
     if (!FJsonSerializer::Deserialize(Reader, JsonObject) || !JsonObject.IsValid())
     {
-        return ToSceneActionResult(MASceneGraphFeedback::MakeMutationFailure(TEXT("JSON parse failed")));
+        return ToModifySceneActionResult(MASceneGraphFeedback::MakeMutationFailure(TEXT("JSON parse failed")));
     }
 
     bool bIsEditMode = false;
@@ -123,7 +123,7 @@ FMASceneActionResult FMAModifySceneActionAdapter::ApplyMultiModify(
 
         if (!SceneGraphManager->EditNode(EditNodeId, CleanJson, ErrorMessage))
         {
-            return ToSceneActionResult(MASceneGraphFeedback::MakeMutationFailure(ErrorMessage));
+            return ToModifySceneActionResult(MASceneGraphFeedback::MakeMutationFailure(ErrorMessage));
         }
 
         const FMASceneGraphNode UpdatedNode = SceneGraphManager->GetNodeById(EditNodeId);
@@ -133,7 +133,7 @@ FMASceneActionResult FMAModifySceneActionAdapter::ApplyMultiModify(
         }
 
         SceneGraphManager->SaveToSource();
-        return ToSceneActionResult(
+        return ToModifySceneActionResult(
             MASceneGraphFeedback::MakeMutationSuccess(
                 FString::Printf(TEXT("Node %s updated"), *EditNodeId),
                 true,
@@ -147,23 +147,23 @@ FMASceneActionResult FMAModifySceneActionAdapter::ApplyMultiModify(
     FString Type;
     if (!SceneGraphManager->ParseLabelInput(LabelText, Id, Type, ErrorMessage))
     {
-        return ToSceneActionResult(MASceneGraphFeedback::MakeMutationFailure(ErrorMessage));
+        return ToModifySceneActionResult(MASceneGraphFeedback::MakeMutationFailure(ErrorMessage));
     }
 
     if (SceneGraphManager->IsIdExists(Id))
     {
-        return ToSceneActionResult(
+        return ToModifySceneActionResult(
             MASceneGraphFeedback::MakeMutationWarning(
                 FString::Printf(TEXT("ID '%s' already exists, please use a different ID"), *Id)));
     }
 
     if (!SceneGraphManager->AddNode(GeneratedJson, ErrorMessage))
     {
-        return ToSceneActionResult(MASceneGraphFeedback::MakeMutationFailure(ErrorMessage));
+        return ToModifySceneActionResult(MASceneGraphFeedback::MakeMutationFailure(ErrorMessage));
     }
 
     SceneGraphManager->SaveToSource();
-    return ToSceneActionResult(
+    return ToModifySceneActionResult(
         MASceneGraphFeedback::MakeMutationSuccess(
             FString::Printf(TEXT("Multi-select annotation saved: %d Actors"), Actors.Num()),
             true,

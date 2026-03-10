@@ -5,15 +5,12 @@
 #include "MAGanttCanvas.h"
 #include "MASkillAllocationModel.h"
 #include "../../Core/SkillAllocation/Application/MASkillAllocationUseCases.h"
-#include "../../Core/Comm/Runtime/MACommSubsystem.h"
-#include "../../Core/TempData/Runtime/MATempDataManager.h"
+#include "Application/MASkillAllocationViewerCoordinator.h"
+#include "Infrastructure/MASkillAllocationViewerRuntimeAdapter.h"
 #include "../Core/MARoundedBorderUtils.h"
 #include "../Core/MAFrostedGlassUtils.h"
 #include "../Core/MAUITheme.h"
 #include "../Components/MAStyledButton.h"
-#include "../Core/MAUIManager.h"
-#include "../HUD/MAHUD.h"
-#include "Kismet/GameplayStatics.h"
 #include "Components/MultiLineEditableTextBox.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
@@ -32,7 +29,6 @@
 #include "Misc/DateTime.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
-#include "TimerManager.h"
 
 DEFINE_LOG_CATEGORY(LogMASkillAllocationViewer);
 
@@ -104,25 +100,7 @@ void UMASkillAllocationViewer::NativeConstruct()
         UE_LOG(LogMASkillAllocationViewer, Log, TEXT("AllocationModel OnSkillStatusChanged event bound"));
     }
     
-    // Bind TempDataManager skill allocation change event
-    if (UGameInstance* GameInstance = UGameplayStatics::GetGameInstance(GetWorld()))
-    {
-        if (UMATempDataManager* TempDataMgr = GameInstance->GetSubsystem<UMATempDataManager>())
-        {
-            if (!TempDataMgr->OnSkillAllocationChanged.IsAlreadyBound(this, &UMASkillAllocationViewer::OnTempSkillAllocationChanged))
-            {
-                TempDataMgr->OnSkillAllocationChanged.AddDynamic(this, &UMASkillAllocationViewer::OnTempSkillAllocationChanged);
-                UE_LOG(LogMASkillAllocationViewer, Log, TEXT("TempDataManager OnSkillAllocationChanged event bound"));
-            }
-            
-            // Bind skill status update event for real-time status display
-            if (!TempDataMgr->OnSkillStatusUpdated.IsAlreadyBound(this, &UMASkillAllocationViewer::OnTempSkillStatusUpdated))
-            {
-                TempDataMgr->OnSkillStatusUpdated.AddDynamic(this, &UMASkillAllocationViewer::OnTempSkillStatusUpdated);
-                UE_LOG(LogMASkillAllocationViewer, Log, TEXT("TempDataManager OnSkillStatusUpdated event bound"));
-            }
-        }
-    }
+    BindRuntimeEvents();
     
     // Bind GanttCanvas drag events
     if (GanttCanvas)
@@ -164,6 +142,8 @@ void UMASkillAllocationViewer::NativeConstruct()
     // Initialize status log
     AppendStatusLog(TEXT("Skill Allocation Workbench started"));
     AppendStatusLog(TEXT("Tip: Edit JSON and click 'Update' to load data"));
+
+    LoadRuntimeSkillAllocation();
     
     UE_LOG(LogMASkillAllocationViewer, Log, TEXT("MASkillAllocationViewer NativeConstruct completed"));
 }
@@ -622,67 +602,20 @@ UBorder* UMASkillAllocationViewer::CreateRightPanel()
 
 void UMASkillAllocationViewer::LoadSkillAllocation(const FMASkillAllocationData& Data)
 {
-    if (!AllocationModel)
-    {
-        UE_LOG(LogMASkillAllocationViewer, Error, TEXT("LoadSkillAllocation: AllocationModel is null!"));
-        return;
-    }
-    
-    AllocationModel->LoadFromData(Data);
-    SyncJsonEditorFromModel();
-    
-    if (GanttCanvas)
-    {
-        GanttCanvas->RefreshFromModel();
-    }
-    
-    AppendStatusLog(FString::Printf(TEXT("Skill allocation loaded: %d time steps, %d robots"),
-        AllocationModel->GetAllTimeSteps().Num(), AllocationModel->GetAllRobotIds().Num()));
-    
-    OnSkillAllocationChanged.Broadcast(Data);
+    ApplyActionResult(FMASkillAllocationViewerCoordinator::LoadAllocationData(
+        AllocationModel,
+        Data,
+        FString::Printf(TEXT("[Loaded] Skill allocation loaded: %d time steps, %d robots"),
+            Data.GetAllTimeSteps().Num(), Data.GetAllRobotIds().Num()),
+        false));
 }
 
 bool UMASkillAllocationViewer::LoadSkillAllocationFromJson(const FString& JsonString)
 {
-    if (!AllocationModel)
-    {
-        UE_LOG(LogMASkillAllocationViewer, Error, TEXT("LoadSkillAllocationFromJson: AllocationModel is null!"));
-        return false;
-    }
-    
-    // Check for empty input
-    if (JsonString.IsEmpty())
-    {
-        AppendStatusLog(TEXT("[Error] JSON input is empty"));
-        return false;
-    }
-    
-    FString ErrorMessage;
-    if (!AllocationModel->LoadFromJsonWithError(JsonString, ErrorMessage))
-    {
-        AppendStatusLog(FString::Printf(TEXT("[Error] %s"), *ErrorMessage));
-        return false;
-    }
-    
-    // Check if there were warnings
-    if (!ErrorMessage.IsEmpty() && ErrorMessage.StartsWith(TEXT("[Warning]")))
-    {
-        AppendStatusLog(ErrorMessage);
-    }
-    
-    SyncJsonEditorFromModel();
-    
-    if (GanttCanvas)
-    {
-        GanttCanvas->RefreshFromModel();
-    }
-    
-    FMASkillAllocationData Data = AllocationModel->GetWorkingData();
-    AppendStatusLog(FString::Printf(TEXT("[Success] Skill allocation loaded: %d time steps, %d robots"),
-        AllocationModel->GetTimeStepCount(), AllocationModel->GetRobotCount()));
-    
-    OnSkillAllocationChanged.Broadcast(Data);
-    return true;
+    const FMASkillAllocationViewerActionResult Result =
+        FMASkillAllocationViewerCoordinator::LoadAllocationJson(AllocationModel, JsonString, false);
+    ApplyActionResult(Result);
+    return Result.bSuccess;
 }
 
 void UMASkillAllocationViewer::AppendStatusLog(const FString& Message)
@@ -735,9 +668,8 @@ void UMASkillAllocationViewer::SetJsonText(const FString& JsonText)
 
 bool UMASkillAllocationViewer::LoadMockData()
 {
-    // 请使用 TempDataManager 从 skill_allocation_temp.json 读取数据
-    AppendStatusLog(TEXT("[Warning] LoadMockData is deprecated. Use TempDataManager instead."));
-    UE_LOG(LogMASkillAllocationViewer, Warning, TEXT("LoadMockData is deprecated. Data should be loaded from skill_allocation_temp.json via TempDataManager."));
+    AppendStatusLog(TEXT("[Warning] LoadMockData is deprecated. Use runtime storage instead."));
+    UE_LOG(LogMASkillAllocationViewer, Warning, TEXT("LoadMockData is deprecated. Data should be loaded from runtime storage."));
     return false;
 }
 
@@ -748,45 +680,11 @@ bool UMASkillAllocationViewer::LoadMockData()
 void UMASkillAllocationViewer::OnUpdateButtonClicked()
 {
     UE_LOG(LogMASkillAllocationViewer, Log, TEXT("UpdateButton clicked"));
-    
-    FString JsonText = GetJsonText();
-    
-    if (JsonText.IsEmpty())
-    {
-        AppendStatusLog(TEXT("[Warning] JSON editor is empty"));
-        return;
-    }
-    
-    // Trim whitespace and check if it's just whitespace
-    FString TrimmedJson = JsonText.TrimStartAndEnd();
-    if (TrimmedJson.IsEmpty())
-    {
-        AppendStatusLog(TEXT("[Warning] JSON editor contains only whitespace"));
-        return;
-    }
-    
-    FString ErrorMessage;
-    if (!AllocationModel->LoadFromJsonWithError(JsonText, ErrorMessage))
-    {
-        AppendStatusLog(FString::Printf(TEXT("[Error] %s"), *ErrorMessage));
-        return;
-    }
-    
-    // Check if there were warnings
-    if (!ErrorMessage.IsEmpty() && ErrorMessage.StartsWith(TEXT("[Warning]")))
-    {
-        AppendStatusLog(ErrorMessage);
-    }
-    
-    if (GanttCanvas)
-    {
-        GanttCanvas->RefreshFromModel();
-    }
-    
-    AppendStatusLog(FString::Printf(TEXT("[Success] Skill allocation updated: %d time steps, %d robots"),
-        AllocationModel->GetTimeStepCount(), AllocationModel->GetRobotCount()));
-    
-    OnSkillAllocationChanged.Broadcast(AllocationModel->GetWorkingData());
+
+    ApplyActionResult(FMASkillAllocationViewerCoordinator::LoadAllocationJson(
+        AllocationModel,
+        GetJsonText(),
+        true));
 }
 
 void UMASkillAllocationViewer::OnSaveButtonClicked()
@@ -798,58 +696,23 @@ void UMASkillAllocationViewer::OnSaveButtonClicked()
 void UMASkillAllocationViewer::SaveAndNavigateToModal()
 {
     UE_LOG(LogMASkillAllocationViewer, Log, TEXT("SaveAndNavigateToModal: Saving data and navigating to modal"));
-    
-    // 1. 保存当前数据到 TempDataManager
-    if (AllocationModel)
+
+    FString RuntimeError;
+    if (!PersistRuntimeData(&RuntimeError))
     {
-        FMASkillAllocationData CurrentData = AllocationModel->GetWorkingData();
-        
-        if (UGameInstance* GameInstance = UGameplayStatics::GetGameInstance(GetWorld()))
-        {
-            if (UMATempDataManager* TempDataMgr = GameInstance->GetSubsystem<UMATempDataManager>())
-            {
-                TempDataMgr->SaveSkillAllocation(CurrentData);
-                AppendStatusLog(TEXT("[保存] 技能分配已保存"));
-                UE_LOG(LogMASkillAllocationViewer, Log, TEXT("SaveAndNavigateToModal: Skill allocation saved to TempDataManager"));
-            }
-            else
-            {
-                UE_LOG(LogMASkillAllocationViewer, Error, TEXT("SaveAndNavigateToModal: TempDataManager not found"));
-                AppendStatusLog(TEXT("[错误] 无法保存数据：TempDataManager 不可用"));
-                return;
-            }
-        }
-        else
-        {
-            UE_LOG(LogMASkillAllocationViewer, Error, TEXT("SaveAndNavigateToModal: GameInstance not found"));
-            AppendStatusLog(TEXT("[错误] 无法保存数据：GameInstance 不可用"));
-            return;
-        }
+        AppendStatusLog(FString::Printf(TEXT("[错误] 无法保存数据：%s"), *RuntimeError));
+        return;
     }
-    
-    // 2. 导航到 SkillAllocationModal (通过 MAHUD 获取 UIManager)
-    APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
-    if (PC)
+
+    AppendStatusLog(TEXT("[保存] 技能分配已保存"));
+
+    if (!FMASkillAllocationViewerRuntimeAdapter::TryNavigateToSkillAllocationModal(this, RuntimeError))
     {
-        if (AMAHUD* HUD = Cast<AMAHUD>(PC->GetHUD()))
-        {
-            if (UMAUIManager* UIManager = HUD->GetUIManager())
-            {
-                UIManager->NavigateFromViewerToSkillAllocationModal();
-                UE_LOG(LogMASkillAllocationViewer, Log, TEXT("SaveAndNavigateToModal: Navigation to SkillAllocationModal initiated"));
-            }
-            else
-            {
-                UE_LOG(LogMASkillAllocationViewer, Error, TEXT("SaveAndNavigateToModal: UIManager not found"));
-                AppendStatusLog(TEXT("[错误] 无法导航：UIManager 不可用"));
-            }
-        }
-        else
-        {
-            UE_LOG(LogMASkillAllocationViewer, Error, TEXT("SaveAndNavigateToModal: MAHUD not found"));
-            AppendStatusLog(TEXT("[错误] 无法导航：HUD 不可用"));
-        }
+        AppendStatusLog(FString::Printf(TEXT("[错误] 无法导航：%s"), *RuntimeError));
+        return;
     }
+
+    UE_LOG(LogMASkillAllocationViewer, Log, TEXT("SaveAndNavigateToModal: Navigation to SkillAllocationModal initiated"));
 }
 
 void UMASkillAllocationViewer::OnResetButtonClicked()
@@ -863,48 +726,22 @@ void UMASkillAllocationViewer::OnResetButtonClicked()
         UE_LOG(LogMASkillAllocationViewer, Log, TEXT("OnResetButtonClicked: Drag re-enabled"));
     }
     
-    // 调用 AllocationModel->ResetToOriginal() 重置所有状态
-    if (AllocationModel)
-    {
-        AllocationModel->ResetToOriginal();
-        
-        // 同步 JSON 编辑器
-        SyncJsonEditorFromModel();
-    }
-    
-    // 刷新甘特图
-    if (GanttCanvas)
-    {
-        GanttCanvas->RefreshFromModel();
-    }
-    
-    // 记录日志
-    AppendStatusLog(TEXT("[重置] 所有技能状态已重置为待执行"));
+    ApplyActionResult(FMASkillAllocationViewerCoordinator::ResetAllocation(AllocationModel, true));
     UE_LOG(LogMASkillAllocationViewer, Log, TEXT("Reset completed - all skills set to Pending"));
 }
 
 void UMASkillAllocationViewer::OnCloseButtonClicked()
 {
     UE_LOG(LogMASkillAllocationViewer, Log, TEXT("Close button clicked"));
-    
-    // 通过 UIManager 隐藏 widget，这样可以正确同步 HUDStateManager 状态
-    // 直接调用 SetVisibility 会导致状态不同步
-    APlayerController* PC = GetOwningPlayer();
-    if (PC)
+
+    FString RuntimeError;
+    if (FMASkillAllocationViewerRuntimeAdapter::TryHideSkillAllocationViewer(this, RuntimeError))
     {
-        if (AMAHUD* HUD = Cast<AMAHUD>(PC->GetHUD()))
-        {
-            if (UMAUIManager* UIManager = HUD->GetUIManager())
-            {
-                UIManager->HideWidget(EMAWidgetType::SkillAllocation);
-                UE_LOG(LogMASkillAllocationViewer, Log, TEXT("SkillAllocationViewer hidden via UIManager"));
-                return;
-            }
-        }
+        UE_LOG(LogMASkillAllocationViewer, Log, TEXT("SkillAllocationViewer hidden via UIManager"));
+        return;
     }
-    
-    // Fallback: 如果无法获取 UIManager，直接隐藏（但状态可能不同步）
-    UE_LOG(LogMASkillAllocationViewer, Warning, TEXT("Could not get UIManager, hiding widget directly (state may be out of sync)"));
+
+    UE_LOG(LogMASkillAllocationViewer, Warning, TEXT("OnCloseButtonClicked: %s"), *RuntimeError);
     SetVisibility(ESlateVisibility::Collapsed);
 }
 
@@ -976,32 +813,20 @@ void UMASkillAllocationViewer::OnSkillStatusUpdated(int32 TimeStep, const FStrin
         TimeStep, *RobotId, *StatusStr));
 }
 
-void UMASkillAllocationViewer::OnTempSkillAllocationChanged(const FMASkillAllocationData& NewData)
+void UMASkillAllocationViewer::OnRuntimeSkillAllocationChanged(const FMASkillAllocationData& NewData)
 {
-    UE_LOG(LogMASkillAllocationViewer, Log, TEXT("OnTempSkillAllocationChanged: Received new skill allocation data"));
-    
-    // 加载新数据到模型
-    if (AllocationModel)
-    {
-        AllocationModel->LoadFromData(NewData);
-        
-        // 同步 JSON 编辑器
-        SyncJsonEditorFromModel();
-        
-        // 刷新甘特图
-        if (GanttCanvas)
-        {
-            GanttCanvas->RefreshFromModel();
-        }
-        
-        AppendStatusLog(FString::Printf(TEXT("[Info] Skill list auto-refreshed: %s (%d time steps, %d robots)"),
-            *NewData.Name, NewData.Data.Num(), AllocationModel->GetRobotCount()));
-    }
+    UE_LOG(LogMASkillAllocationViewer, Log, TEXT("OnRuntimeSkillAllocationChanged: Received new skill allocation data"));
+    ApplyActionResult(FMASkillAllocationViewerCoordinator::LoadAllocationData(
+        AllocationModel,
+        NewData,
+        FString::Printf(TEXT("[Info] Skill list auto-refreshed: %s (%d time steps, %d robots)"),
+            *NewData.Name, NewData.Data.Num(), NewData.GetAllRobotIds().Num()),
+        false));
 }
 
-void UMASkillAllocationViewer::OnTempSkillStatusUpdated(int32 TimeStep, const FString& RobotId, ESkillExecutionStatus NewStatus)
+void UMASkillAllocationViewer::OnRuntimeSkillStatusUpdated(int32 TimeStep, const FString& RobotId, ESkillExecutionStatus NewStatus)
 {
-    UE_LOG(LogMASkillAllocationViewer, Log, TEXT("OnTempSkillStatusUpdated: TimeStep=%d, RobotId=%s, Status=%d"),
+    UE_LOG(LogMASkillAllocationViewer, Log, TEXT("OnRuntimeSkillStatusUpdated: TimeStep=%d, RobotId=%s, Status=%d"),
         TimeStep, *RobotId, static_cast<int32>(NewStatus));
     
     // Update the AllocationModel with the new status
@@ -1059,7 +884,11 @@ void UMASkillAllocationViewer::OnGanttDragCompleted(int32 SourceTimeStep, const 
     SyncJsonEditorFromModel();
     
     // 同步数据到临时文件
-    SyncDataToTempFile();
+    FString RuntimeError;
+    if (!PersistRuntimeData(&RuntimeError))
+    {
+        AppendStatusLog(FString::Printf(TEXT("[错误] 数据同步失败：%s"), *RuntimeError));
+    }
 }
 
 void UMASkillAllocationViewer::OnGanttDragCancelled()
@@ -1086,55 +915,113 @@ void UMASkillAllocationViewer::OnGanttDragFailed()
     AppendStatusLog(TEXT("[失败] 无法放置: 目标槽位已被占用"));
 }
 
-void UMASkillAllocationViewer::SyncDataToTempFile()
+void UMASkillAllocationViewer::LoadRuntimeSkillAllocation()
 {
-    // 获取 MATempDataManager
-    UGameInstance* GameInstance = UGameplayStatics::GetGameInstance(GetWorld());
-    if (!GameInstance)
+    FMASkillAllocationData Data;
+    FString RuntimeError;
+    if (!FMASkillAllocationViewerRuntimeAdapter::TryLoadSkillAllocation(this, Data, RuntimeError))
     {
-        AppendStatusLog(TEXT("[错误] 无法获取 GameInstance，数据同步失败"));
-        UE_LOG(LogMASkillAllocationViewer, Error, TEXT("SyncDataToTempFile: Failed to get GameInstance"));
+        UE_LOG(LogMASkillAllocationViewer, Verbose, TEXT("LoadRuntimeSkillAllocation skipped: %s"), *RuntimeError);
         return;
     }
-    
-    UMATempDataManager* TempDataMgr = GameInstance->GetSubsystem<UMATempDataManager>();
-    if (!TempDataMgr)
+
+    ApplyActionResult(FMASkillAllocationViewerCoordinator::LoadAllocationData(
+        AllocationModel,
+        Data,
+        FString::Printf(TEXT("[Loaded] Skill allocation from runtime storage: %d time steps, %d robots"),
+            Data.Data.Num(), Data.GetAllRobotIds().Num()),
+        false));
+}
+
+void UMASkillAllocationViewer::BindRuntimeEvents()
+{
+    FString RuntimeError;
+    if (!FMASkillAllocationViewerRuntimeAdapter::BindSkillAllocationChanged(this, this, RuntimeError))
     {
-        AppendStatusLog(TEXT("[错误] TempDataManager 不可用，数据同步失败"));
-        UE_LOG(LogMASkillAllocationViewer, Error, TEXT("SyncDataToTempFile: TempDataManager not available"));
+        UE_LOG(LogMASkillAllocationViewer, Warning, TEXT("BindRuntimeEvents(skill allocation): %s"), *RuntimeError);
         return;
     }
-    
-    // 获取当前模型数据
+
+    if (!FMASkillAllocationViewerRuntimeAdapter::BindSkillStatusUpdated(this, this, RuntimeError))
+    {
+        UE_LOG(LogMASkillAllocationViewer, Warning, TEXT("BindRuntimeEvents(skill status): %s"), *RuntimeError);
+        return;
+    }
+
+    UE_LOG(LogMASkillAllocationViewer, Log, TEXT("BindRuntimeEvents: Bound runtime skill allocation events"));
+}
+
+bool UMASkillAllocationViewer::PersistRuntimeData(FString* OutError)
+{
     if (!AllocationModel)
     {
-        AppendStatusLog(TEXT("[错误] AllocationModel 为空，数据同步失败"));
-        UE_LOG(LogMASkillAllocationViewer, Error, TEXT("SyncDataToTempFile: AllocationModel is null"));
-        return;
+        if (OutError)
+        {
+            *OutError = TEXT("AllocationModel is null");
+        }
+        UE_LOG(LogMASkillAllocationViewer, Error, TEXT("PersistRuntimeData: AllocationModel is null"));
+        return false;
     }
-    
-    FMASkillAllocationData Data = AllocationModel->GetWorkingData();
-    
-    // 验证数据完整性
+
+    const FMASkillAllocationData Data = AllocationModel->GetWorkingData();
     if (Data.Data.Num() == 0)
     {
-        AppendStatusLog(TEXT("[警告] 技能分配为空，跳过数据同步"));
-        UE_LOG(LogMASkillAllocationViewer, Warning, TEXT("SyncDataToTempFile: Skill allocation is empty, skipping sync"));
-        return;
+        if (OutError)
+        {
+            *OutError = TEXT("Skill allocation is empty");
+        }
+        UE_LOG(LogMASkillAllocationViewer, Warning, TEXT("PersistRuntimeData: Skill allocation is empty"));
+        return false;
     }
-    
-    // 调用 SaveSkillAllocation() 保存数据
-    if (TempDataMgr->SaveSkillAllocation(Data))
+
+    FString RuntimeError;
+    if (!FMASkillAllocationViewerRuntimeAdapter::TrySaveSkillAllocation(this, Data, RuntimeError))
     {
-        // 记录成功日志
-        AppendStatusLog(TEXT("[同步] 数据已保存到 skill_allocation_temp.json"));
-        UE_LOG(LogMASkillAllocationViewer, Log, TEXT("SyncDataToTempFile: Data saved to skill_allocation_temp.json"));
+        if (OutError)
+        {
+            *OutError = RuntimeError;
+        }
+        UE_LOG(LogMASkillAllocationViewer, Error, TEXT("PersistRuntimeData: %s"), *RuntimeError);
+        return false;
     }
-    else
+
+    UE_LOG(LogMASkillAllocationViewer, Log, TEXT("PersistRuntimeData: Saved skill allocation to runtime storage"));
+    return true;
+}
+
+void UMASkillAllocationViewer::ApplyActionResult(const FMASkillAllocationViewerActionResult& Result)
+{
+    if (!Result.Message.IsEmpty())
     {
-        // 记录失败日志
-        AppendStatusLog(TEXT("[错误] 文件写入失败，数据同步失败"));
-        UE_LOG(LogMASkillAllocationViewer, Error, TEXT("SyncDataToTempFile: Failed to save data to temp file"));
+        AppendStatusLog(Result.Message);
+    }
+
+    for (const FString& Line : Result.DetailLines)
+    {
+        AppendStatusLog(Line);
+    }
+
+    if (Result.bDataChanged)
+    {
+        SyncJsonEditorFromModel();
+
+        if (GanttCanvas)
+        {
+            GanttCanvas->RefreshFromModel();
+        }
+
+        const FMASkillAllocationData DataToBroadcast =
+            Result.bHasData ? Result.Data : (AllocationModel ? AllocationModel->GetWorkingData() : FMASkillAllocationData());
+        OnSkillAllocationChanged.Broadcast(DataToBroadcast);
+    }
+
+    if (Result.bShouldPersist)
+    {
+        FString RuntimeError;
+        if (!PersistRuntimeData(&RuntimeError))
+        {
+            AppendStatusLog(FString::Printf(TEXT("[Error] Failed to save skill allocation: %s"), *RuntimeError));
+        }
     }
 }
 

@@ -10,10 +10,8 @@
 #include "../../Modal/MATaskGraphModal.h"
 #include "../../Modal/MASkillAllocationModal.h"
 #include "../../Modal/MADecisionModal.h"
-#include "../../../Core/TempData/Runtime/MATempDataManager.h"
 #include "Blueprint/UserWidget.h"
 #include "GameFramework/PlayerController.h"
-#include "Engine/World.h"
 
 void FMAUIStateModalCoordinator::InitializeHUDStateManager(UMAUIManager* UIManager) const
 {
@@ -383,26 +381,19 @@ void FMAUIStateModalCoordinator::LoadDataIntoModal(UMAUIManager* UIManager, EMAM
         return;
     }
 
-    APlayerController* OwningPC = UIManager->GetOwningPlayerController();
-    UWorld* World = OwningPC ? OwningPC->GetWorld() : nullptr;
-    UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
-    UMATempDataManager* TempDataMgr = GameInstance ? GameInstance->GetSubsystem<UMATempDataManager>() : nullptr;
-
     switch (ModalType)
     {
     case EMAModalType::TaskGraph:
         if (UMATaskGraphModal* TaskGraphModal = UIManager->GetTaskGraphModal())
         {
-            if (TempDataMgr && TempDataMgr->TaskGraphFileExists())
+            FString RuntimeError;
+            FMATaskGraphData Data;
+            if (UIManager->LoadTaskGraphDataInternal(Data, RuntimeError))
             {
-                FMATaskGraphData Data;
-                if (TempDataMgr->LoadTaskGraph(Data))
-                {
-                    TaskGraphModal->LoadTaskGraph(Data);
-                    UE_LOG(LogMAUIManager, Log, TEXT("TaskGraphModal: Loaded data from temp file (%d nodes, %d edges)"),
-                        Data.Nodes.Num(), Data.Edges.Num());
-                    return;
-                }
+                TaskGraphModal->LoadTaskGraph(Data);
+                UE_LOG(LogMAUIManager, Log, TEXT("TaskGraphModal: Loaded data from runtime storage (%d nodes, %d edges)"),
+                    Data.Nodes.Num(), Data.Edges.Num());
+                return;
             }
 
             FMATaskGraphData EmptyData;
@@ -414,16 +405,14 @@ void FMAUIStateModalCoordinator::LoadDataIntoModal(UMAUIManager* UIManager, EMAM
     case EMAModalType::SkillAllocation:
         if (UMASkillAllocationModal* SkillAllocationModal = UIManager->GetSkillAllocationModal())
         {
-            if (TempDataMgr && TempDataMgr->SkillAllocationFileExists())
+            FString RuntimeError;
+            FMASkillAllocationData Data;
+            if (UIManager->LoadSkillAllocationDataInternal(Data, RuntimeError))
             {
-                FMASkillAllocationData Data;
-                if (TempDataMgr->LoadSkillAllocation(Data))
-                {
-                    SkillAllocationModal->LoadSkillAllocation(Data);
-                    UE_LOG(LogMAUIManager, Log, TEXT("SkillAllocationModal: Loaded data from temp file (%d time steps)"),
-                        Data.Data.Num());
-                    return;
-                }
+                SkillAllocationModal->LoadSkillAllocation(Data);
+                UE_LOG(LogMAUIManager, Log, TEXT("SkillAllocationModal: Loaded data from runtime storage (%d time steps)"),
+                    Data.Data.Num());
+                return;
             }
 
             FMASkillAllocationData EmptyData;

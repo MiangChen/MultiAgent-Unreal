@@ -18,6 +18,7 @@
 #include "Application/MAUINotificationCoordinator.h"
 #include "Application/MAUIWidgetRegistryCoordinator.h"
 #include "Infrastructure/MAUIInputModeAdapter.h"
+#include "Infrastructure/MAUIRuntimeBridge.h"
 #include "MAUIManager.generated.h"
 
 // 前向声明
@@ -142,6 +143,30 @@ public:
 
     /** 统一绑定 runtime 事件源（TempData/Comm/Command） */
     void BindRuntimeEventSourcesInternal();
+
+    /** 运行时事件桥接：TempData */
+    bool BindTempDataEventsInternal(FString& OutError);
+
+    /** 运行时事件桥接：Comm */
+    bool BindCommEventsInternal(FString& OutError);
+
+    /** 运行时事件桥接：Command */
+    bool BindCommandEventsInternal(FString& OutError);
+
+    /** 运行时数据访问：TaskGraph */
+    bool LoadTaskGraphDataInternal(FMATaskGraphData& OutData, FString& OutError) const;
+
+    /** 运行时数据访问：SkillAllocation */
+    bool LoadSkillAllocationDataInternal(FMASkillAllocationData& OutData, FString& OutError) const;
+
+    /** 运行时动作：发送决策回复 */
+    bool SendDecisionResponseInternal(const FString& SelectedOption, const FString& UserFeedback, FString& OutError) const;
+
+    /** 运行时动作：清理恢复通知计时器 */
+    bool ClearResumeNotificationTimerInternal(FString& OutError);
+
+    /** 运行时动作：调度恢复通知自动隐藏 */
+    bool ScheduleResumeNotificationAutoHideInternal(float DelaySeconds, FString& OutError);
 
     /** 统一创建模态窗口（供生命周期协调器调用） */
     void CreateModalWidgetsInternal();
@@ -665,4 +690,7 @@ private:
 
     /** L3 Infrastructure: 输入模式适配器 */
     FMAUIInputModeAdapter InputModeAdapter;
+
+    /** L4 Infrastructure: UI 运行时桥接 */
+    FMAUIRuntimeBridge RuntimeBridge;
 };

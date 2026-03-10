@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Core/TaskGraph/Domain/MATaskGraphTypes.h"
+#include "Domain/MADAGCanvasState.h"
 #include "MADAGCanvasWidget.generated.h"
 
 class UMATaskNodeWidget;
@@ -15,40 +16,6 @@ class UCanvasPanel;
 class UCanvasPanelSlot;
 class UBorder;
 class UMAUITheme;
-
-//=============================================================================
-// 边渲染数据
-//=============================================================================
-
-/** 边渲染数据 - 用于绘制连线 */
-USTRUCT()
-struct FMAEdgeRenderData
-{
-    GENERATED_BODY()
-
-    /** 源节点 ID */
-    FString FromNodeId;
-
-    /** 目标节点 ID */
-    FString ToNodeId;
-
-    /** 边类型 */
-    FString EdgeType;
-
-    /** 起点位置 (画布坐标) */
-    FVector2D StartPoint;
-
-    /** 终点位置 (画布坐标) */
-    FVector2D EndPoint;
-
-    /** 是否高亮 */
-    bool bIsHighlighted = false;
-
-    FMAEdgeRenderData() {}
-
-    FMAEdgeRenderData(const FString& InFrom, const FString& InTo, const FString& InType = TEXT("sequential"))
-        : FromNodeId(InFrom), ToNodeId(InTo), EdgeType(InType) {}
-};
 
 //=============================================================================
 // 委托声明
@@ -170,7 +137,7 @@ public:
 
     /** 获取视图偏移 */
     UFUNCTION(BlueprintPure, Category = "DAGCanvas")
-    FVector2D GetViewOffset() const { return ViewOffset; }
+    FVector2D GetViewOffset() const { return CanvasState.ViewOffset; }
 
     /** 设置缩放级别 */
     UFUNCTION(BlueprintCallable, Category = "DAGCanvas")
@@ -178,7 +145,7 @@ public:
 
     /** 获取缩放级别 */
     UFUNCTION(BlueprintPure, Category = "DAGCanvas")
-    float GetZoomLevel() const { return ZoomLevel; }
+    float GetZoomLevel() const { return CanvasState.ZoomLevel; }
 
     /** 重置视图 */
     UFUNCTION(BlueprintCallable, Category = "DAGCanvas")
@@ -206,7 +173,7 @@ public:
 
     /** 获取选中的节点 ID */
     UFUNCTION(BlueprintPure, Category = "DAGCanvas")
-    FString GetSelectedNodeId() const { return SelectedNodeId; }
+    FString GetSelectedNodeId() const { return CanvasState.SelectedNodeId; }
 
     /** 删除当前选中的元素 (节点或边) */
     UFUNCTION(BlueprintCallable, Category = "DAGCanvas")
@@ -366,15 +333,6 @@ protected:
     /** 屏幕坐标转换为画布坐标 */
     FVector2D ScreenToCanvas(FVector2D ScreenPos) const;
 
-    /** 检测点击是否在边上 */
-    bool IsPointOnEdge(const FVector2D& Point, const FMAEdgeRenderData& Edge, float Tolerance = 5.0f) const;
-
-    /** 查找点击位置的边 */
-    FMAEdgeRenderData* FindEdgeAtPoint(const FVector2D& Point);
-
-    /** 查找点击位置的节点输入端口 */
-    FString FindInputPortAtPoint(const FVector2D& ScreenPoint) const;
-
     /** 自动布局节点 */
     void AutoLayoutNodes();
 
@@ -405,56 +363,8 @@ protected:
     /** 边渲染数据 */
     TArray<FMAEdgeRenderData> EdgeRenderData;
 
-    //=========================================================================
-    // 视图状态
-    //=========================================================================
-
-    /** 视图偏移 */
-    FVector2D ViewOffset = FVector2D::ZeroVector;
-
-    /** 缩放级别 */
-    float ZoomLevel = 1.0f;
-
-    /** 最小缩放 */
-    float MinZoom = 0.25f;
-
-    /** 最大缩放 */
-    float MaxZoom = 2.0f;
-
-    //=========================================================================
-    // 交互状态
-    //=========================================================================
-
-    /** 选中的节点 ID */
-    FString SelectedNodeId;
-
-    /** 选中的边 (From, To) */
-    FString SelectedEdgeFrom;
-    FString SelectedEdgeTo;
-
-    /** 是否正在拖拽画布 */
-    bool bIsDraggingCanvas = false;
-
-    /** 画布拖拽起始位置 */
-    FVector2D CanvasDragStart;
-
-    /** 画布拖拽起始偏移 */
-    FVector2D CanvasDragStartOffset;
-
-    /** 是否正在拖拽连线 */
-    bool bIsDraggingEdge = false;
-
-    /** 连线拖拽源节点 ID */
-    FString DragSourceNodeId;
-
-    /** 连线拖拽起点 */
-    FVector2D DragEdgeStart;
-
-    /** 连线拖拽终点 */
-    FVector2D DragEdgeEnd;
-
-    /** 高亮的目标节点 ID (连线拖拽时) */
-    FString HighlightedTargetNodeId;
+    /** 视图和交互状态 */
+    FMADAGCanvasViewportState CanvasState;
 
     /** 上下文菜单 Widget */
     UPROPERTY()

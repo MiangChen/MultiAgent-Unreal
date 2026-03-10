@@ -114,6 +114,18 @@ REQUIRED_TASKGRAPH_DIRS = (
     "Core/TaskGraph/Infrastructure",
 )
 
+REQUIRED_UI_TASKGRAPH_DIRS = (
+    "UI/TaskGraph/Application",
+    "UI/TaskGraph/Domain",
+    "UI/TaskGraph/Infrastructure",
+)
+
+REQUIRED_UI_SKILL_ALLOCATION_DIRS = (
+    "UI/SkillAllocation/Application",
+    "UI/SkillAllocation/Domain",
+    "UI/SkillAllocation/Infrastructure",
+)
+
 REQUIRED_SKILL_ALLOCATION_DIRS = (
     "Core/SkillAllocation/Application",
     "Core/SkillAllocation/Bootstrap",
@@ -284,6 +296,11 @@ APPLICATION_RUNTIME_CALL_GUARDS = {
         "GetGameInstance(",
         "GetSubsystem<",
     ),
+    "UI/Core/Application/": (
+        "GetWorld(",
+        "GetGameInstance(",
+        "GetSubsystem<",
+    ),
 }
 
 APPLICATION_RUNTIME_INCLUDE_GUARDS = {
@@ -301,6 +318,12 @@ APPLICATION_RUNTIME_INCLUDE_GUARDS = {
     ),
     "UI/Mode/Application/": (
         '#include "../Infrastructure/',
+    ),
+    "UI/Core/Application/": (
+        '#include "../../Infrastructure/',
+        '#include "../../../Core/TempData/Runtime/',
+        '#include "../../../Core/Command/Runtime/',
+        '#include "../../../Core/Comm/Runtime/',
     ),
 }
 
@@ -362,6 +385,32 @@ LEGACY_STATE_GUARDS = {
         "HighlightedActors;",
     ),
 }
+
+TASKGRAPH_UI_RUNTIME_INCLUDE_GUARDS = (
+    '#include "Core/Comm/Runtime/',
+    '#include "Core/TempData/Runtime/',
+    '#include "UI/Core/MAUIManager.h"',
+    '#include "UI/HUD/MAHUD.h"',
+)
+
+TASKGRAPH_UI_RUNTIME_CALL_GUARDS = (
+    "GetWorld(",
+    "GetGameInstance(",
+    "GetSubsystem<",
+)
+
+SKILLALLOCATION_UI_RUNTIME_INCLUDE_GUARDS = (
+    '#include "Core/Comm/Runtime/',
+    '#include "Core/TempData/Runtime/',
+    '#include "UI/Core/MAUIManager.h"',
+    '#include "UI/HUD/MAHUD.h"',
+)
+
+SKILLALLOCATION_UI_RUNTIME_CALL_GUARDS = (
+    "GetWorld(",
+    "GetGameInstance(",
+    "GetSubsystem<",
+)
 
 
 def iter_source_files() -> list[pathlib.Path]:
@@ -431,6 +480,14 @@ def main() -> int:
     for relative_path in REQUIRED_TASKGRAPH_DIRS:
         if not (SOURCE_ROOT / relative_path).exists():
             errors.append(f"Missing required TaskGraph context directory: {relative_path}")
+
+    for relative_path in REQUIRED_UI_TASKGRAPH_DIRS:
+        if not (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"Missing required UI TaskGraph directory: {relative_path}")
+
+    for relative_path in REQUIRED_UI_SKILL_ALLOCATION_DIRS:
+        if not (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"Missing required UI SkillAllocation directory: {relative_path}")
 
     for relative_path in REQUIRED_SKILL_ALLOCATION_DIRS:
         if not (SOURCE_ROOT / relative_path).exists():
@@ -502,6 +559,24 @@ def main() -> int:
                 for pattern in patterns:
                     if pattern in text:
                         errors.append(f"{relative}: legacy controller state '{pattern}' should live in state objects")
+
+        if relative.startswith("UI/TaskGraph/") and not relative.startswith("UI/TaskGraph/Infrastructure/"):
+            for pattern in TASKGRAPH_UI_RUNTIME_INCLUDE_GUARDS:
+                if pattern in text:
+                    errors.append(f"{relative}: runtime include '{pattern}' should stay in UI/TaskGraph/Infrastructure")
+
+            for pattern in TASKGRAPH_UI_RUNTIME_CALL_GUARDS:
+                if pattern in text:
+                    errors.append(f"{relative}: runtime call '{pattern}' should stay in UI/TaskGraph/Infrastructure")
+
+        if relative.startswith("UI/SkillAllocation/") and not relative.startswith("UI/SkillAllocation/Infrastructure/"):
+            for pattern in SKILLALLOCATION_UI_RUNTIME_INCLUDE_GUARDS:
+                if pattern in text:
+                    errors.append(f"{relative}: runtime include '{pattern}' should stay in UI/SkillAllocation/Infrastructure")
+
+            for pattern in SKILLALLOCATION_UI_RUNTIME_CALL_GUARDS:
+                if pattern in text:
+                    errors.append(f"{relative}: runtime call '{pattern}' should stay in UI/SkillAllocation/Infrastructure")
 
     old_dirs = [
         SOURCE_ROOT / "Input" / "Application",
