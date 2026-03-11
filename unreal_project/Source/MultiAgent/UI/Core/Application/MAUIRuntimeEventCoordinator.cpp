@@ -10,6 +10,59 @@
 #include "../Modal/MADecisionModal.h"
 #include "../../SkillAllocation/MASkillAllocationModal.h"
 
+namespace
+{
+void ApplyPreviewFeedback(UMAUIManager* UIManager, const FMAUIPreviewFeedback& Feedback)
+{
+    if (!UIManager)
+    {
+        return;
+    }
+
+    if (UMAPreviewPanel* PreviewPanel = UIManager->GetPreviewPanel())
+    {
+        if (Feedback.bUpdateTaskGraph)
+        {
+            PreviewPanel->UpdateTaskGraphPreview(Feedback.TaskGraphData);
+        }
+        if (Feedback.bUpdateSkillAllocation)
+        {
+            PreviewPanel->UpdateSkillListPreview(Feedback.SkillAllocationData);
+        }
+        if (Feedback.bUpdateSkillStatus)
+        {
+            PreviewPanel->UpdateSkillStatus(Feedback.TimeStep, Feedback.RobotId, Feedback.SkillStatus);
+        }
+    }
+}
+
+void ApplyNotificationFeedback(UMAUIManager* UIManager, const FMAUINotificationFeedback& Feedback)
+{
+    if (UIManager)
+    {
+        UIManager->ShowNotification(Feedback.Type);
+    }
+}
+
+void ApplyDecisionModalFeedback(UMAUIManager* UIManager, const FMAUIDecisionModalFeedback& Feedback)
+{
+    if (!UIManager)
+    {
+        return;
+    }
+
+    if (UMADecisionModal* DecisionModal = UIManager->GetDecisionModal())
+    {
+        DecisionModal->LoadDecisionData(Feedback.Description, Feedback.ContextJson);
+        UE_LOG(LogMAUIManager, Log, TEXT("OnDecisionDataReceived: Decision data loaded into DecisionModal"));
+    }
+    else
+    {
+        UE_LOG(LogMAUIManager, Warning, TEXT("OnDecisionDataReceived: DecisionModal is null"));
+    }
+}
+}
+
 void FMAUIRuntimeEventCoordinator::BindTempDataManagerEvents(UMAUIManager* UIManager) const
 {
     if (!UIManager)
@@ -53,10 +106,10 @@ void FMAUIRuntimeEventCoordinator::HandleTempTaskGraphChanged(UMAUIManager* UIMa
     UE_LOG(LogMAUIManager, Log, TEXT("OnTempTaskGraphChanged: Received task graph update (%d nodes, %d edges)"),
         Data.Nodes.Num(), Data.Edges.Num());
 
-    if (UMAPreviewPanel* PreviewPanel = UIManager->GetPreviewPanel())
-    {
-        PreviewPanel->UpdateTaskGraphPreview(Data);
-    }
+    FMAUIPreviewFeedback Feedback;
+    Feedback.bUpdateTaskGraph = true;
+    Feedback.TaskGraphData = Data;
+    ApplyPreviewFeedback(UIManager, Feedback);
 }
 
 void FMAUIRuntimeEventCoordinator::HandleTempSkillAllocationChanged(UMAUIManager* UIManager, const FMASkillAllocationData& Data) const
@@ -69,10 +122,10 @@ void FMAUIRuntimeEventCoordinator::HandleTempSkillAllocationChanged(UMAUIManager
     UE_LOG(LogMAUIManager, Log, TEXT("OnTempSkillAllocationChanged: Received skill allocation update (%d time steps)"),
         Data.Data.Num());
 
-    if (UMAPreviewPanel* PreviewPanel = UIManager->GetPreviewPanel())
-    {
-        PreviewPanel->UpdateSkillListPreview(Data);
-    }
+    FMAUIPreviewFeedback Feedback;
+    Feedback.bUpdateSkillAllocation = true;
+    Feedback.SkillAllocationData = Data;
+    ApplyPreviewFeedback(UIManager, Feedback);
 }
 
 void FMAUIRuntimeEventCoordinator::HandleSkillStatusUpdated(
@@ -89,15 +142,12 @@ void FMAUIRuntimeEventCoordinator::HandleSkillStatusUpdated(
     UE_LOG(LogMAUIManager, Log, TEXT("OnSkillStatusUpdated: TimeStep=%d, RobotId=%s, Status=%d"),
         TimeStep, *RobotId, static_cast<int32>(NewStatus));
 
-    if (UMAPreviewPanel* PreviewPanel = UIManager->GetPreviewPanel())
-    {
-        UE_LOG(LogMAUIManager, Log, TEXT("OnSkillStatusUpdated: Forwarding to PreviewPanel"));
-        PreviewPanel->UpdateSkillStatus(TimeStep, RobotId, NewStatus);
-    }
-    else
-    {
-        UE_LOG(LogMAUIManager, Warning, TEXT("OnSkillStatusUpdated: PreviewPanel is null"));
-    }
+    FMAUIPreviewFeedback PreviewFeedback;
+    PreviewFeedback.bUpdateSkillStatus = true;
+    PreviewFeedback.TimeStep = TimeStep;
+    PreviewFeedback.RobotId = RobotId;
+    PreviewFeedback.SkillStatus = NewStatus;
+    ApplyPreviewFeedback(UIManager, PreviewFeedback);
 
     if (UMASkillAllocationModal* SkillAllocationModal = UIManager->GetSkillAllocationModal())
     {
@@ -130,7 +180,9 @@ void FMAUIRuntimeEventCoordinator::HandleRequestUserCommandReceived(UMAUIManager
     }
 
     UE_LOG(LogMAUIManager, Log, TEXT("OnRequestUserCommandReceived: Received request for user command"));
-    UIManager->ShowNotification(EMANotificationType::RequestUserCommand);
+    FMAUINotificationFeedback Feedback;
+    Feedback.Type = EMANotificationType::RequestUserCommand;
+    ApplyNotificationFeedback(UIManager, Feedback);
 }
 
 void FMAUIRuntimeEventCoordinator::BindCommandManagerEvents(UMAUIManager* UIManager) const
@@ -164,11 +216,15 @@ void FMAUIRuntimeEventCoordinator::HandleExecutionPauseStateChanged(UMAUIManager
 
     if (bPaused)
     {
-        UIManager->ShowNotification(EMANotificationType::SkillListPaused);
+        FMAUINotificationFeedback Feedback;
+        Feedback.Type = EMANotificationType::SkillListPaused;
+        ApplyNotificationFeedback(UIManager, Feedback);
         return;
     }
 
-    UIManager->ShowNotification(EMANotificationType::SkillListResumed);
+    FMAUINotificationFeedback Feedback;
+    Feedback.Type = EMANotificationType::SkillListResumed;
+    ApplyNotificationFeedback(UIManager, Feedback);
     if (!UIManager->ScheduleResumeNotificationAutoHideInternal(2.0f, RuntimeError))
     {
         UE_LOG(LogMAUIManager, Warning, TEXT("OnExecutionPauseStateChanged: %s"), *RuntimeError);
@@ -188,17 +244,14 @@ void FMAUIRuntimeEventCoordinator::HandleDecisionDataReceived(
 
     UE_LOG(LogMAUIManager, Log, TEXT("OnDecisionDataReceived: Description='%s'"), *Description);
 
-    if (UMADecisionModal* DecisionModal = UIManager->GetDecisionModal())
-    {
-        DecisionModal->LoadDecisionData(Description, ContextJson);
-        UE_LOG(LogMAUIManager, Log, TEXT("OnDecisionDataReceived: Decision data loaded into DecisionModal"));
-    }
-    else
-    {
-        UE_LOG(LogMAUIManager, Warning, TEXT("OnDecisionDataReceived: DecisionModal is null"));
-    }
+    FMAUIDecisionModalFeedback DecisionFeedback;
+    DecisionFeedback.Description = Description;
+    DecisionFeedback.ContextJson = ContextJson;
+    ApplyDecisionModalFeedback(UIManager, DecisionFeedback);
 
-    UIManager->ShowNotification(EMANotificationType::DecisionUpdate);
+    FMAUINotificationFeedback NotificationFeedback;
+    NotificationFeedback.Type = EMANotificationType::DecisionUpdate;
+    ApplyNotificationFeedback(UIManager, NotificationFeedback);
 }
 
 void FMAUIRuntimeEventCoordinator::HandleDecisionModalConfirmed(

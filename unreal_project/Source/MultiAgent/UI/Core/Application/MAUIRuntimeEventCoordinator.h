@@ -4,11 +4,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "../MAHUDTypes.h"
+#include "../Feedback/MAUIFeedback.h"
 
 class UMAUIManager;
-struct FMATaskGraphData;
-struct FMASkillAllocationData;
 enum class ESkillExecutionStatus : uint8;
 
 class MULTIAGENT_API FMAUIRuntimeEventCoordinator

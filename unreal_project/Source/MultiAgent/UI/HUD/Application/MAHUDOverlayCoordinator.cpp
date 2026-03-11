@@ -11,10 +11,19 @@ DEFINE_LOG_CATEGORY_STATIC(LogMAHUDOverlayCoordinator, Log, All);
 
 namespace
 {
-    FMAHUDWidgetEditModeViewModel MakeClearedEditModeModel(const FMAHUDWidgetCoordinator& WidgetCoordinator, const bool bVisible)
-    {
-        return WidgetCoordinator.BuildEditModeViewModel(bVisible, {}, {}, {});
-    }
+FMAHUDEditModeFeedback MakeEditModeFeedback(
+    const bool bVisible,
+    const TArray<FString>& POIInfos = TArray<FString>(),
+    const TArray<FString>& GoalInfos = TArray<FString>(),
+    const TArray<FString>& ZoneInfos = TArray<FString>())
+{
+    FMAHUDEditModeFeedback Feedback;
+    Feedback.bVisible = bVisible;
+    Feedback.POIInfos = POIInfos;
+    Feedback.GoalInfos = GoalInfos;
+    Feedback.ZoneInfos = ZoneInfos;
+    return Feedback;
+}
 }
 
 UMAEditWidget* FMAHUDOverlayCoordinator::ResolveEditWidget(AMAHUD* HUD) const
@@ -178,14 +187,14 @@ void FMAHUDOverlayCoordinator::DrawEditModeIndicator(AMAHUD* HUD) const
     UMAHUDWidget* HUDWidget = HUD->UIManager ? HUD->UIManager->GetHUDWidget() : nullptr;
     if (HUDWidget)
     {
-        HUDWidget->ApplyEditModeViewModel(HUD->WidgetCoordinator.BuildEditModeViewModel(bInEditMode, {}, {}, {}));
+        HUDWidget->ApplyEditModeViewModel(HUD->WidgetCoordinator.BuildEditModeViewModel(MakeEditModeFeedback(bInEditMode)));
     }
 
     if (!bInEditMode)
     {
         if (HUDWidget)
         {
-            HUDWidget->ApplyEditModeViewModel(MakeClearedEditModeModel(HUD->WidgetCoordinator, false));
+            HUDWidget->ApplyEditModeViewModel(HUD->WidgetCoordinator.BuildEditModeViewModel(MakeEditModeFeedback(false)));
         }
         return;
     }
@@ -195,15 +204,15 @@ void FMAHUDOverlayCoordinator::DrawEditModeIndicator(AMAHUD* HUD) const
     {
         if (HUDWidget)
         {
-            HUDWidget->ApplyEditModeViewModel(MakeClearedEditModeModel(HUD->WidgetCoordinator, true));
+            HUDWidget->ApplyEditModeViewModel(HUD->WidgetCoordinator.BuildEditModeViewModel(MakeEditModeFeedback(true)));
         }
         return;
     }
 
     if (HUDWidget)
     {
-        HUDWidget->ApplyEditModeViewModel(
-            HUD->WidgetCoordinator.BuildEditModeViewModel(true, IndicatorModel.POIInfos, IndicatorModel.GoalInfos, IndicatorModel.ZoneInfos));
+        HUDWidget->ApplyEditModeViewModel(HUD->WidgetCoordinator.BuildEditModeViewModel(
+            MakeEditModeFeedback(true, IndicatorModel.POIInfos, IndicatorModel.GoalInfos, IndicatorModel.ZoneInfos)));
     }
 }
 

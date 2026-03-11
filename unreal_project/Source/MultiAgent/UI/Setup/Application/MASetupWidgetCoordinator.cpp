@@ -1,6 +1,6 @@
 #include "MASetupWidgetCoordinator.h"
 
-#include "../Bootstrap/MASetupBootstrap.h"
+#include "../Domain/MASetupCatalog.h"
 
 void FMASetupWidgetCoordinator::InitializeState(FMASetupWidgetState& State) const
 {
@@ -9,9 +9,9 @@ void FMASetupWidgetCoordinator::InitializeState(FMASetupWidgetState& State) cons
         return;
     }
 
-    State.AvailableAgentTypes = FMASetupBootstrap::GetAvailableAgentTypes();
-    State.AvailableScenes = FMASetupBootstrap::GetAvailableScenes();
-    State.AgentConfigs = FMASetupBootstrap::BuildDefaultAgentConfigs();
+    State.AvailableAgentTypes = FMASetupCatalog::GetAvailableAgentTypes();
+    State.AvailableScenes = FMASetupCatalog::GetAvailableScenes();
+    State.AgentConfigs = FMASetupCatalog::BuildDefaultAgentConfigs();
 
     if (!State.AvailableScenes.Contains(State.SelectedScene) && !State.AvailableScenes.IsEmpty())
     {

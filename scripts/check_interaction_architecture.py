@@ -121,18 +121,23 @@ REQUIRED_TASKGRAPH_DIRS = (
 
 REQUIRED_UI_TASKGRAPH_DIRS = (
     "UI/TaskGraph/Application",
+    "UI/TaskGraph/Bootstrap",
     "UI/TaskGraph/Domain",
+    "UI/TaskGraph/Feedback",
     "UI/TaskGraph/Infrastructure",
 )
 
 REQUIRED_UI_SKILL_ALLOCATION_DIRS = (
     "UI/SkillAllocation/Application",
+    "UI/SkillAllocation/Bootstrap",
     "UI/SkillAllocation/Domain",
+    "UI/SkillAllocation/Feedback",
     "UI/SkillAllocation/Infrastructure",
 )
 
 REQUIRED_UI_COMPONENTS_DIRS = (
     "UI/Components/Application",
+    "UI/Components/Bootstrap",
     "UI/Components/Domain",
     "UI/Components/Infrastructure",
 )
@@ -147,6 +152,29 @@ REQUIRED_UI_SETUP_DIRS = (
 REQUIRED_UI_CORE_MODAL_DIRS = (
     "UI/Core/Modal/Application",
     "UI/Core/Modal/Domain",
+)
+
+REQUIRED_UI_CORE_DIRS = (
+    "UI/Core/Application",
+    "UI/Core/Bootstrap",
+    "UI/Core/Feedback",
+    "UI/Core/Infrastructure",
+)
+
+REQUIRED_UI_HUD_DIRS = (
+    "UI/HUD/Application",
+    "UI/HUD/Bootstrap",
+    "UI/HUD/Domain",
+    "UI/HUD/Feedback",
+    "UI/HUD/Infrastructure",
+)
+
+REQUIRED_UI_SCENE_EDITING_DIRS = (
+    "UI/SceneEditing/Application",
+    "UI/SceneEditing/Bootstrap",
+    "UI/SceneEditing/Domain",
+    "UI/SceneEditing/Feedback",
+    "UI/SceneEditing/Infrastructure",
 )
 
 REQUIRED_SKILL_ALLOCATION_DIRS = (
@@ -256,6 +284,10 @@ FORBIDDEN_LEGACY_UI_MODAL_PATHS = (
 
 FORBIDDEN_LEGACY_UI_SCENE_EDITING_PATHS = (
     "UI/Mode",
+)
+
+FORBIDDEN_LEGACY_UI_MISC_PATHS = (
+    "UI/Legacy",
 )
 
 FORBIDDEN_LEGACY_COMM_PATHS = (
@@ -375,6 +407,34 @@ APPLICATION_RUNTIME_INCLUDE_GUARDS = {
     ),
     "UI/Core/Modal/Application/": (
         '#include "../Infrastructure/',
+    ),
+}
+
+APPLICATION_BOOTSTRAP_INCLUDE_GUARDS = {
+    "UI/Core/Application/": (
+        '#include "../../TaskGraph/Bootstrap/',
+        '#include "../../SkillAllocation/Bootstrap/',
+        '#include "../../SceneEditing/Bootstrap/',
+        '#include "../../Components/Bootstrap/',
+    ),
+    "UI/HUD/Application/": (
+        '#include "../../Core/Bootstrap/',
+        '#include "../Bootstrap/',
+    ),
+    "UI/SceneEditing/Application/": (
+        '#include "../Bootstrap/',
+    ),
+    "UI/TaskGraph/Application/": (
+        '#include "../Bootstrap/',
+    ),
+    "UI/SkillAllocation/Application/": (
+        '#include "../Bootstrap/',
+    ),
+    "UI/Components/Application/": (
+        '#include "../Bootstrap/',
+    ),
+    "UI/Setup/Application/": (
+        '#include "../Bootstrap/',
     ),
 }
 
@@ -705,6 +765,18 @@ def main() -> int:
         if not (SOURCE_ROOT / relative_path).exists():
             errors.append(f"Missing required UI Core Modal directory: {relative_path}")
 
+    for relative_path in REQUIRED_UI_CORE_DIRS:
+        if not (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"Missing required UI Core directory: {relative_path}")
+
+    for relative_path in REQUIRED_UI_HUD_DIRS:
+        if not (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"Missing required UI HUD directory: {relative_path}")
+
+    for relative_path in REQUIRED_UI_SCENE_EDITING_DIRS:
+        if not (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"Missing required UI SceneEditing directory: {relative_path}")
+
     for relative_path in REQUIRED_SKILL_ALLOCATION_DIRS:
         if not (SOURCE_ROOT / relative_path).exists():
             errors.append(f"Missing required SkillAllocation context directory: {relative_path}")
@@ -763,6 +835,12 @@ def main() -> int:
                 for pattern in patterns:
                     if pattern in text and relative not in ALLOWED_APPLICATION_RUNTIME_INCLUDE_FILES:
                         errors.append(f"{relative}: runtime include '{pattern}' should stay in Infrastructure")
+
+        for prefix, patterns in APPLICATION_BOOTSTRAP_INCLUDE_GUARDS.items():
+            if relative.startswith(prefix):
+                for pattern in patterns:
+                    if pattern in text:
+                        errors.append(f"{relative}: bootstrap include '{pattern}' should stay in Bootstrap or entry shell")
 
         for prefix, patterns in DOMAIN_RUNTIME_TOKEN_GUARDS.items():
             if relative.startswith(prefix):
@@ -934,6 +1012,10 @@ def main() -> int:
     for relative_path in FORBIDDEN_LEGACY_UI_SCENE_EDITING_PATHS:
         if (SOURCE_ROOT / relative_path).exists():
             errors.append(f"{relative_path} should not exist after SceneEditing rename")
+
+    for relative_path in FORBIDDEN_LEGACY_UI_MISC_PATHS:
+        if (SOURCE_ROOT / relative_path).exists():
+            errors.append(f"{relative_path} should not exist after UI context consolidation")
 
     for relative_path in FORBIDDEN_LEGACY_COMM_PATHS:
         if (SOURCE_ROOT / relative_path).exists():

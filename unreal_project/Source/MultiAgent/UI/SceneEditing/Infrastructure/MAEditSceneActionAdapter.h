@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "../Domain/MASceneActionResult.h"
+#include "../Feedback/MASceneEditingFeedback.h"
 #include "MAEditWidgetSceneGraphAdapter.h"
 
 class AActor;

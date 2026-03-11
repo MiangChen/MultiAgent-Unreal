@@ -9,6 +9,7 @@
 #include "MASetupHUD.generated.h"
 
 class UMASetupWidget;
+class FMASetupBootstrap;
 
 /**
  * Setup 阶段的 HUD
@@ -21,6 +22,8 @@ UCLASS()
 class MULTIAGENT_API AMASetupHUD : public AHUD
 {
     GENERATED_BODY()
+
+    friend class FMASetupBootstrap;
 
 public:
     AMASetupHUD();

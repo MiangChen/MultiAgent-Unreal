@@ -4,6 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "../Feedback/MAHUDFeedback.h"
 #include "../Domain/MAHUDWidgetModels.h"
 
 class UMAUIManager;
@@ -22,7 +23,9 @@ public:
         const TArray<FString>& POIInfos,
         const TArray<FString>& GoalInfos,
         const TArray<FString>& ZoneInfos) const;
+    FMAHUDWidgetEditModeViewModel BuildEditModeViewModel(const FMAHUDEditModeFeedback& Feedback) const;
     FMAHUDWidgetNotificationModel BuildNotificationModel(const FString& Message, bool bIsError, bool bIsWarning) const;
+    FMAHUDWidgetNotificationModel BuildNotificationModel(const FMAHUDNotificationFeedback& Feedback) const;
 
 private:
     FString BuildPrefixedListText(const TCHAR* Prefix, const TArray<FString>& Infos) const;

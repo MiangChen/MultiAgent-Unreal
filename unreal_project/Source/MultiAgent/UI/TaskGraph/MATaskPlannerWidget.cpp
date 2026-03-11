@@ -5,7 +5,6 @@
 #include "MADAGCanvasWidget.h"
 #include "MANodePaletteWidget.h"
 #include "MATaskGraphModel.h"
-#include "../../Core/TaskGraph/Application/MATaskGraphUseCases.h"
 #include "Application/MATaskPlannerCoordinator.h"
 #include "Infrastructure/MATaskPlannerRuntimeAdapter.h"
 #include "../Core/MARoundedBorderUtils.h"
@@ -619,7 +618,6 @@ UBorder* UMATaskPlannerWidget::CreateRightPanel()
 
     // Node toolbar
     NodePalette = WidgetTree->ConstructWidget<UMANodePaletteWidget>(UMANodePaletteWidget::StaticClass(), TEXT("NodePalette"));
-    NodePalette->InitializeTemplates(FTaskGraphUseCases::BuildDefaultNodeTemplates());
     
     UHorizontalBoxSlot* PaletteSlot = RightHBox->AddChildToHorizontalBox(NodePalette);
     PaletteSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));

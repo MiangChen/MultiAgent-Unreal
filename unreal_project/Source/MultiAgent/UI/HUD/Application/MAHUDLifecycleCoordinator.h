@@ -10,6 +10,5 @@ class AMAHUD;
 class MULTIAGENT_API FMAHUDLifecycleCoordinator
 {
 public:
-    void InitializeUI(AMAHUD* HUD) const;
     void BindRuntimeDelegates(AMAHUD* HUD) const;
 };

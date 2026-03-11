@@ -146,6 +146,20 @@ void FMAHUDViewCoordinator::ShowNotification(const FString& Message, bool bIsErr
     }
 }
 
+void FMAHUDViewCoordinator::ShowNotification(const FMAHUDNotificationFeedback& Feedback) const
+{
+    if (!UIManager)
+    {
+        UE_LOG(LogMAHUDViewCoordinator, Warning, TEXT("ShowNotification: UIManager is null"));
+        return;
+    }
+
+    if (UMAHUDWidget* HUDWidget = UIManager->GetHUDWidget())
+    {
+        HUDWidget->ApplyNotificationModel(WidgetCoordinator.BuildNotificationModel(Feedback));
+    }
+}
+
 bool FMAHUDViewCoordinator::IsAnyRightSidebarVisible() const
 {
     return UIManager &&

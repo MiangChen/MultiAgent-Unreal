@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "../Domain/MASceneActionResult.h"
+#include "../Feedback/MASceneEditingFeedback.h"
 
 class AActor;
 class UMAModifyWidget;

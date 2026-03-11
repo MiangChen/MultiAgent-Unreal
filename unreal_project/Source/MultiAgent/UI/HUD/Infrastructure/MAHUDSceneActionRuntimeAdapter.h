@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "../../SceneEditing/Domain/MASceneActionResult.h"
+#include "../../SceneEditing/Feedback/MASceneEditingFeedback.h"
 #include "../../SceneEditing/Infrastructure/MAEditSceneActionAdapter.h"
 #include "../../SceneEditing/Infrastructure/MAModifySceneActionAdapter.h"
 

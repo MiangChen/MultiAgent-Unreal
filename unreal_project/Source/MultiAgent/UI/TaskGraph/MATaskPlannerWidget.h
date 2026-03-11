@@ -114,6 +114,10 @@ public:
     UFUNCTION(BlueprintPure, Category = "TaskPlanner")
     UMADAGCanvasWidget* GetDAGCanvas() const { return DAGCanvas; }
 
+    /** 获取节点工具栏 */
+    UFUNCTION(BlueprintPure, Category = "TaskPlanner")
+    UMANodePaletteWidget* GetNodePalette() const { return NodePalette; }
+
     /** 将焦点设置到 JSON 编辑器 */
     UFUNCTION(BlueprintCallable, Category = "TaskPlanner")
     void FocusJsonEditor();

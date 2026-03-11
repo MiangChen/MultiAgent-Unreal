@@ -81,6 +81,11 @@ FMAHUDWidgetEditModeViewModel FMAHUDWidgetCoordinator::BuildEditModeViewModel(
     return Model;
 }
 
+FMAHUDWidgetEditModeViewModel FMAHUDWidgetCoordinator::BuildEditModeViewModel(const FMAHUDEditModeFeedback& Feedback) const
+{
+    return BuildEditModeViewModel(Feedback.bVisible, Feedback.POIInfos, Feedback.GoalInfos, Feedback.ZoneInfos);
+}
+
 FMAHUDWidgetNotificationModel FMAHUDWidgetCoordinator::BuildNotificationModel(
     const FString& Message,
     bool bIsError,
@@ -92,6 +97,11 @@ FMAHUDWidgetNotificationModel FMAHUDWidgetCoordinator::BuildNotificationModel(
         ? EMAHUDWidgetNotificationSeverity::Error
         : (bIsWarning ? EMAHUDWidgetNotificationSeverity::Warning : EMAHUDWidgetNotificationSeverity::Info);
     return Model;
+}
+
+FMAHUDWidgetNotificationModel FMAHUDWidgetCoordinator::BuildNotificationModel(const FMAHUDNotificationFeedback& Feedback) const
+{
+    return BuildNotificationModel(Feedback.Message, Feedback.bIsError, Feedback.bIsWarning);
 }
 
 FString FMAHUDWidgetCoordinator::BuildPrefixedListText(const TCHAR* Prefix, const TArray<FString>& Infos) const

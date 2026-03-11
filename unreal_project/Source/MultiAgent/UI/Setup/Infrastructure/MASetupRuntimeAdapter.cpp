@@ -1,6 +1,6 @@
 #include "MASetupRuntimeAdapter.h"
 
-#include "../Bootstrap/MASetupBootstrap.h"
+#include "../Domain/MASetupCatalog.h"
 #include "../../../Core/Config/MAConfigManager.h"
 #include "../../../Core/GameFlow/Bootstrap/MAGameInstance.h"
 #include "Blueprint/UserWidget.h"
@@ -77,7 +77,7 @@ bool FMASetupRuntimeAdapter::OpenSelectedScene(const AHUD* HUD, const FString& S
     }
 
     FString MapPath = TEXT("/Game/Maps/") + SelectedScene;
-    if (const FString* FoundPath = FMASetupBootstrap::GetSceneToMapPaths().Find(SelectedScene))
+    if (const FString* FoundPath = FMASetupCatalog::GetSceneToMapPaths().Find(SelectedScene))
     {
         MapPath = *FoundPath;
     }

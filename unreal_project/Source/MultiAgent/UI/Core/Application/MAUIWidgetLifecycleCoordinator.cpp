@@ -8,7 +8,6 @@
 #include "../../HUD/MAMainHUDWidget.h"
 #include "../../TaskGraph/MATaskPlannerWidget.h"
 #include "../../SkillAllocation/MASkillAllocationViewer.h"
-#include "../../SkillAllocation/MAGanttCanvas.h"
 #include "../../Components/MADirectControlIndicator.h"
 #include "../../SceneEditing/MAModifyWidget.h"
 #include "../../SceneEditing/MAEditWidget.h"
@@ -85,14 +84,6 @@ void FMAUIWidgetLifecycleCoordinator::CreatePlannerWidgets(UMAUIManager* UIManag
     if (TaskPlannerWidget)
     {
         UIManager->RegisterViewportWidgetInternal(EMAWidgetType::TaskPlanner, TaskPlannerWidget, ESlateVisibility::Collapsed);
-        if (TaskPlannerWidget->IsMockMode())
-        {
-            TaskPlannerWidget->LoadMockData();
-        }
-        if (UMAUITheme* ThemeToApply = UIManager->GetTheme())
-        {
-            TaskPlannerWidget->ApplyTheme(ThemeToApply);
-        }
         UE_LOG(LogMAUIManager, Log, TEXT("TaskPlannerWidget created"));
     }
     else
@@ -105,15 +96,6 @@ void FMAUIWidgetLifecycleCoordinator::CreatePlannerWidgets(UMAUIManager* UIManag
     if (SkillAllocationViewer)
     {
         UIManager->RegisterViewportWidgetInternal(EMAWidgetType::SkillAllocation, SkillAllocationViewer, ESlateVisibility::Collapsed);
-        SkillAllocationViewer->LoadMockData();
-
-        if (UMAUITheme* ThemeToApply = UIManager->GetTheme())
-        {
-            if (UMAGanttCanvas* GanttCanvas = SkillAllocationViewer->GetGanttCanvas())
-            {
-                GanttCanvas->ApplyTheme(ThemeToApply);
-            }
-        }
         UE_LOG(LogMAUIManager, Log, TEXT("SkillAllocationViewer created"));
     }
     else
@@ -141,10 +123,6 @@ void FMAUIWidgetLifecycleCoordinator::CreateModeWidgets(UMAUIManager* UIManager,
     if (DirectControlIndicator)
     {
         UIManager->RegisterViewportWidgetInternal(EMAWidgetType::DirectControl, DirectControlIndicator, ESlateVisibility::Collapsed);
-        if (UMAUITheme* ThemeToApply = UIManager->GetTheme())
-        {
-            DirectControlIndicator->ApplyTheme(ThemeToApply);
-        }
         UE_LOG(LogMAUIManager, Log, TEXT("DirectControlIndicator created"));
     }
     else
@@ -157,10 +135,6 @@ void FMAUIWidgetLifecycleCoordinator::CreateModeWidgets(UMAUIManager* UIManager,
     if (ModifyWidget)
     {
         UIManager->RegisterViewportWidgetInternal(EMAWidgetType::Modify, ModifyWidget, ESlateVisibility::Collapsed);
-        if (UMAUITheme* ThemeToApply = UIManager->GetTheme())
-        {
-            ModifyWidget->ApplyTheme(ThemeToApply);
-        }
         UE_LOG(LogMAUIManager, Log, TEXT("ModifyWidget created"));
     }
     else
@@ -173,10 +147,6 @@ void FMAUIWidgetLifecycleCoordinator::CreateModeWidgets(UMAUIManager* UIManager,
     if (EditWidget)
     {
         UIManager->RegisterViewportWidgetInternal(EMAWidgetType::Edit, EditWidget, ESlateVisibility::Collapsed);
-        if (UMAUITheme* ThemeToApply = UIManager->GetTheme())
-        {
-            EditWidget->ApplyTheme(ThemeToApply);
-        }
         UE_LOG(LogMAUIManager, Log, TEXT("EditWidget created"));
     }
     else
@@ -189,10 +159,6 @@ void FMAUIWidgetLifecycleCoordinator::CreateModeWidgets(UMAUIManager* UIManager,
     if (SceneListWidget)
     {
         UIManager->RegisterViewportWidgetInternal(EMAWidgetType::SceneList, SceneListWidget, ESlateVisibility::Collapsed);
-        if (UMAUITheme* ThemeToApply = UIManager->GetTheme())
-        {
-            SceneListWidget->ApplyTheme(ThemeToApply);
-        }
         UE_LOG(LogMAUIManager, Log, TEXT("SceneListWidget created"));
     }
     else
@@ -208,10 +174,6 @@ void FMAUIWidgetLifecycleCoordinator::CreatePanelWidgets(UMAUIManager* UIManager
     if (SystemLogPanel)
     {
         UIManager->RegisterViewportWidgetInternal(EMAWidgetType::SystemLogPanel, SystemLogPanel, ESlateVisibility::Collapsed);
-        if (UMAUITheme* ThemeToApply = UIManager->GetTheme())
-        {
-            SystemLogPanel->ApplyTheme(ThemeToApply);
-        }
         UE_LOG(LogMAUIManager, Log, TEXT("SystemLogPanel created"));
     }
     else
@@ -224,10 +186,6 @@ void FMAUIWidgetLifecycleCoordinator::CreatePanelWidgets(UMAUIManager* UIManager
     if (PreviewPanel)
     {
         UIManager->RegisterViewportWidgetInternal(EMAWidgetType::PreviewPanel, PreviewPanel, ESlateVisibility::Collapsed);
-        if (UMAUITheme* ThemeToApply = UIManager->GetTheme())
-        {
-            PreviewPanel->ApplyTheme(ThemeToApply);
-        }
         UE_LOG(LogMAUIManager, Log, TEXT("PreviewPanel created"));
     }
     else
@@ -240,10 +198,6 @@ void FMAUIWidgetLifecycleCoordinator::CreatePanelWidgets(UMAUIManager* UIManager
     if (InstructionPanel)
     {
         UIManager->RegisterViewportWidgetInternal(EMAWidgetType::InstructionPanel, InstructionPanel, ESlateVisibility::Collapsed);
-        if (UMAUITheme* ThemeToApply = UIManager->GetTheme())
-        {
-            InstructionPanel->ApplyTheme(ThemeToApply);
-        }
         UE_LOG(LogMAUIManager, Log, TEXT("InstructionPanel created"));
     }
     else

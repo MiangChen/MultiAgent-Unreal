@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UI/SkillAllocation/Domain/MASkillAllocationViewerState.h"
+#include "../Feedback/MASkillAllocationViewerFeedback.h"
 
 struct FMASkillAllocationData;
 class UMASkillAllocationModel;

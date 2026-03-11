@@ -5,6 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "MAHUDWidgetCoordinator.h"
+#include "../Feedback/MAHUDFeedback.h"
 
 class APlayerController;
 class UMAUIManager;
@@ -24,6 +25,7 @@ public:
     bool IsMouseOverPersistentUI(const APlayerController* PlayerController) const;
 
     void ShowNotification(const FString& Message, bool bIsError, bool bIsWarning) const;
+    void ShowNotification(const FMAHUDNotificationFeedback& Feedback) const;
 
 private:
     bool IsAnyRightSidebarVisible() const;

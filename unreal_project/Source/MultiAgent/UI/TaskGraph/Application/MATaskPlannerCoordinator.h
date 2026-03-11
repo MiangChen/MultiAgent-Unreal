@@ -1,20 +1,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Core/TaskGraph/Domain/MATaskGraphTypes.h"
+#include "../Feedback/MATaskPlannerFeedback.h"
 
 class UMATaskGraphModel;
-
-struct FMATaskPlannerActionResult
-{
-    bool bSuccess = false;
-    bool bGraphChanged = false;
-    bool bShouldPersist = false;
-    bool bHasData = false;
-    FString Message;
-    TArray<FString> DetailLines;
-    FMATaskGraphData Data;
-};
 
 class FMATaskPlannerCoordinator
 {

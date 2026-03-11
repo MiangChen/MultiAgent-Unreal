@@ -9,7 +9,7 @@
 #include "MASelectionHUD.h"
 #include "../../Core/Interaction/Feedback/MAFeedback21.h"
 #include "../Core/MAHUDTypes.h"
-#include "../SceneEditing/Domain/MASceneActionResult.h"
+#include "../SceneEditing/Feedback/MASceneEditingFeedback.h"
 #include "Application/MAHUDViewCoordinator.h"
 #include "Application/MAHUDBackendCoordinator.h"
 #include "Application/MAHUDSceneEditCoordinator.h"
@@ -69,6 +69,7 @@ class MULTIAGENT_API AMAHUD : public AMASelectionHUD
     friend class FMAHUDDelegateCoordinator;
     friend class FMAHUDPanelCoordinator;
     friend class FMAHUDLifecycleCoordinator;
+    friend class FMAHUDBootstrap;
     friend class FMAHUDSceneActionResultCoordinator;
     friend class FMAHUDSceneListSelectionCoordinator;
     friend class FMAHUDEditModeIndicatorBuilder;

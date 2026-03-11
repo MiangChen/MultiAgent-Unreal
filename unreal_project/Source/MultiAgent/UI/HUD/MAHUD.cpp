@@ -15,11 +15,18 @@
 #include "Infrastructure/MAHUDBackendRuntimeAdapter.h"
 #include "Infrastructure/MAHUDEditRuntimeAdapter.h"
 #include "Infrastructure/MAHUDSceneActionRuntimeAdapter.h"
+#include "Bootstrap/MAHUDBootstrap.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMAHUD, Log, All);
 
 namespace
 {
+const FMAHUDBootstrap& HUDBootstrap()
+{
+    static const FMAHUDBootstrap Bootstrap;
+    return Bootstrap;
+}
+
 const FMAFeedback21Applier& HUDFeedbackApplier()
 {
     static const FMAFeedback21Applier Applier;
@@ -73,9 +80,7 @@ void AMAHUD::BeginPlay()
 
     UE_LOG(LogMAHUD, Log, TEXT("MAHUD BeginPlay"));
 
-    LifecycleCoordinator.InitializeUI(this);
-    ViewCoordinator.SetUIManager(UIManager);
-    LifecycleCoordinator.BindRuntimeDelegates(this);
+    HUDBootstrap().InitializeHUD(this);
 }
 
 //=============================================================================

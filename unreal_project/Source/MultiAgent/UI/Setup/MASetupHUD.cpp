@@ -2,6 +2,7 @@
 
 #include "MASetupHUD.h"
 #include "MASetupWidget.h"
+#include "Bootstrap/MASetupBootstrap.h"
 #include "Blueprint/UserWidget.h"
 
 AMASetupHUD::AMASetupHUD()
@@ -11,16 +12,8 @@ AMASetupHUD::AMASetupHUD()
 void AMASetupHUD::BeginPlay()
 {
     Super::BeginPlay();
-
-    // 检查是否需要显示 Setup UI
-    if (!Coordinator.ShouldShowSetupUI(*this))
-    {
-        UE_LOG(LogTemp, Log, TEXT("[MASetupHUD] bUseSetupUI=false, skipping Setup UI"));
-        return;
-    }
-    
-    // 延迟一帧创建 Widget
-    Coordinator.ScheduleWidgetCreation(*this, [this]() { CreateSetupWidget(); });
+    static const FMASetupBootstrap Bootstrap;
+    Bootstrap.InitializeSetupHUD(this);
 }
 
 void AMASetupHUD::CreateSetupWidget()
