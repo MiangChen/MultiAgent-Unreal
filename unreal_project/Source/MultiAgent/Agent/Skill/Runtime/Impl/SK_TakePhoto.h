@@ -13,6 +13,8 @@
 
 class UMANavigationService;
 class UMAPIPCameraManager;
+class UMASkillComponent;
+class AMACharacter;
 
 /** 技能执行阶段 */
 UENUM()
@@ -45,6 +47,13 @@ protected:
         const FGameplayAbilityActivationInfo ActivationInfo,
         bool bReplicateEndAbility,
         bool bWasCancelled) override;
+
+    void ResetTakePhotoRuntimeState();
+    void FailTakePhoto(const FString& ResultMessage, const FString& ErrorReason, const FString& StatusMessage = FString());
+    bool InitializeTakePhotoContext(AMACharacter& Character, UMASkillComponent& SkillComp);
+    void HandleNavigationFailure(const FString& Message);
+    void CompleteTakePhoto();
+    void CleanupTakePhotoRuntime(AMACharacter* Character, bool bWasCancelled, bool& bOutSuccessToNotify, FString& InOutMessageToNotify);
 
 private:
     //=========================================================================

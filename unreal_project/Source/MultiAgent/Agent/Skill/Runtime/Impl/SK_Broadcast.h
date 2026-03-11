@@ -15,6 +15,8 @@ class UMANavigationService;
 class UTextRenderComponent;
 class AMAShockWave;
 class AMATextDisplay;
+class UMASkillComponent;
+class AMACharacter;
 
 /** 技能执行阶段 */
 UENUM()
@@ -47,6 +49,13 @@ protected:
         const FGameplayAbilityActivationInfo ActivationInfo,
         bool bReplicateEndAbility,
         bool bWasCancelled) override;
+
+    void ResetBroadcastRuntimeState();
+    void FailBroadcast(const FString& ResultMessage, const FString& ErrorReason, const FString& StatusMessage = FString());
+    bool InitializeBroadcastContext(AMACharacter& Character, UMASkillComponent& SkillComp);
+    void HandleNavigationFailure(const FString& Message);
+    void CompleteBroadcast();
+    void CleanupBroadcastRuntime(AMACharacter* Character, bool bWasCancelled, bool& bOutSuccessToNotify, FString& InOutMessageToNotify);
 
 private:
     //=========================================================================

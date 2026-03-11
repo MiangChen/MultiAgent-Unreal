@@ -19,6 +19,195 @@ USK_Broadcast::USK_Broadcast()
     ActivationOwnedTags.AddTag(FMASkillTags::Get().Status_Searching);
 }
 
+void USK_Broadcast::ResetBroadcastRuntimeState()
+{
+    bBroadcastSucceeded = false;
+    BroadcastResultMessage.Reset();
+    BroadcastProgress = 0.f;
+    StartTime = 0.f;
+    CurrentPhase = EBroadcastPhase::MoveToDistance;
+    bIsAircraft = false;
+    MinFlightAltitude = 800.f;
+    BroadcastMessage.Reset();
+    NavigationService = nullptr;
+    BroadcastEffect = nullptr;
+    TextDisplay = nullptr;
+    TextBubble = nullptr;
+    TargetActor.Reset();
+    TargetLocation = FVector::ZeroVector;
+    TargetName.Reset();
+}
+
+void USK_Broadcast::FailBroadcast(
+    const FString& ResultMessage,
+    const FString& ErrorReason,
+    const FString& StatusMessage)
+{
+    bBroadcastSucceeded = false;
+    BroadcastResultMessage = ResultMessage;
+
+    UE_LOG(LogTemp, Error, TEXT("[SK_Broadcast] %s"), *ErrorReason);
+
+    if (!StatusMessage.IsEmpty())
+    {
+        if (AMACharacter* Character = GetOwningCharacter())
+        {
+            Character->ShowStatus(StatusMessage, 2.f);
+        }
+    }
+
+    EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
+}
+
+bool USK_Broadcast::InitializeBroadcastContext(AMACharacter& Character, UMASkillComponent& SkillComp)
+{
+    if (UGameInstance* GameInstance = Character.GetGameInstance())
+    {
+        if (UMAConfigManager* ConfigManager = GameInstance->GetSubsystem<UMAConfigManager>())
+        {
+            const FMABroadcastConfig& Config = ConfigManager->GetBroadcastConfig();
+            BroadcastDistance = Config.BroadcastDistance;
+            BroadcastDuration = Config.BroadcastDuration;
+            EffectSpeed = Config.EffectSpeed;
+            EffectWidth = Config.EffectWidth;
+            EffectRate = Config.ShockRate;
+
+            UE_LOG(LogTemp, Log, TEXT("[SK_Broadcast] Loaded config: BroadcastDistance=%.0f, Duration=%.1f, ShockRate=%.1f"),
+                BroadcastDistance, BroadcastDuration, EffectRate);
+        }
+    }
+
+    const FMASkillParams& Params = SkillComp.GetSkillParams();
+    const FMAFeedbackContext& Context = SkillComp.GetFeedbackContext();
+
+    TargetActor = SkillComp.GetSkillRuntimeTargets().BroadcastTargetActor;
+    TargetLocation = Context.TargetLocation;
+    TargetName = Context.BroadcastTargetName;
+    BroadcastMessage = Params.BroadcastMessage;
+
+    if (BroadcastMessage.IsEmpty())
+    {
+        BroadcastMessage = TEXT("Hello!");
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("[SK_Broadcast] %s: ActivateAbility - TargetActor=%s, TargetLocation=%s, Message='%s'"),
+        *Character.AgentLabel,
+        TargetActor.IsValid() ? *TargetActor->GetName() : TEXT("null"),
+        *TargetLocation.ToString(),
+        *BroadcastMessage);
+
+    if (!TargetActor.IsValid() && TargetLocation.IsZero())
+    {
+        FailBroadcast(TEXT("Broadcast failed: No valid target"), TEXT("No valid target found"), TEXT("[Broadcast] Target not found"));
+        return false;
+    }
+
+    if (TargetActor.IsValid())
+    {
+        TargetLocation = TargetActor->GetActorLocation();
+    }
+
+    NavigationService = Character.GetNavigationService();
+    if (!NavigationService)
+    {
+        FailBroadcast(TEXT("Broadcast failed: NavigationService not found"), TEXT("NavigationService not found"));
+        return false;
+    }
+
+    bIsAircraft = (Character.AgentType == EMAAgentType::UAV ||
+                   Character.AgentType == EMAAgentType::FixedWingUAV);
+
+    if (bIsAircraft)
+    {
+        if (AMAUAVCharacter* UAV = Cast<AMAUAVCharacter>(&Character))
+        {
+            MinFlightAltitude = UAV->MinFlightAltitude;
+        }
+    }
+
+    const float HorizontalDistance = FVector::Dist2D(Character.GetActorLocation(), TargetLocation);
+    UE_LOG(LogTemp, Log, TEXT("[SK_Broadcast] %s: HorizontalDistance=%.0f, BroadcastDistance=%.0f"),
+        *Character.AgentLabel, HorizontalDistance, BroadcastDistance);
+
+    CurrentPhase = (HorizontalDistance <= BroadcastDistance * 1.2f && HorizontalDistance >= BroadcastDistance * 0.5f)
+        ? EBroadcastPhase::TurnToTarget
+        : EBroadcastPhase::MoveToDistance;
+    return true;
+}
+
+void USK_Broadcast::HandleNavigationFailure(const FString& Message)
+{
+    FailBroadcast(FString::Printf(TEXT("Broadcast failed: %s"), *Message), Message);
+}
+
+void USK_Broadcast::CompleteBroadcast()
+{
+    AMACharacter* Character = GetOwningCharacter();
+
+    UE_LOG(LogTemp, Log, TEXT("[SK_Broadcast] HandleComplete called"));
+    bBroadcastSucceeded = true;
+    BroadcastResultMessage = TargetName.IsEmpty()
+        ? FString::Printf(TEXT("Broadcast completed: '%s'"), *BroadcastMessage)
+        : FString::Printf(TEXT("Broadcast to %s completed: '%s'"), *TargetName, *BroadcastMessage);
+
+    if (Character)
+    {
+        Character->ShowAbilityStatus(TEXT("Broadcast"), TEXT("Complete!"));
+
+        if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
+        {
+            FMAFeedbackContext& Context = SkillComp->GetFeedbackContextMutable();
+            Context.BroadcastDurationSeconds = BroadcastDuration;
+        }
+
+        UE_LOG(LogTemp, Log, TEXT("[SK_Broadcast] %s: Skill completed successfully"),
+            *Character->AgentLabel);
+    }
+
+    EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, false);
+}
+
+void USK_Broadcast::CleanupBroadcastRuntime(
+    AMACharacter* Character,
+    const bool bWasCancelled,
+    bool& bOutSuccessToNotify,
+    FString& InOutMessageToNotify)
+{
+    if (Character)
+    {
+        if (UWorld* World = Character->GetWorld())
+        {
+            World->GetTimerManager().ClearTimer(BroadcastTimerHandle);
+            World->GetTimerManager().ClearTimer(TurnTimerHandle);
+            World->GetTimerManager().ClearTimer(ProgressTimerHandle);
+        }
+
+        if (NavigationService)
+        {
+            NavigationService->OnNavigationCompleted.RemoveDynamic(this, &USK_Broadcast::OnNavigationCompleted);
+            NavigationService->CancelNavigation();
+        }
+
+        CleanupBroadcastEffect();
+        HideTextBubble();
+        Character->ShowStatus(TEXT(""), 0.f);
+
+        if (bWasCancelled && BroadcastResultMessage.IsEmpty())
+        {
+            bOutSuccessToNotify = false;
+            InOutMessageToNotify = FString::Printf(TEXT("Broadcast cancelled: Stopped while %s"), *GetPhaseString());
+        }
+    }
+
+    NavigationService = nullptr;
+    BroadcastEffect = nullptr;
+    TextDisplay = nullptr;
+    TextBubble = nullptr;
+    TargetActor.Reset();
+    TargetLocation = FVector::ZeroVector;
+    TargetName.Reset();
+}
+
 void USK_Broadcast::ActivateAbility(
     const FGameplayAbilitySpecHandle Handle,
     const FGameplayAbilityActorInfo* ActorInfo,
@@ -29,120 +218,25 @@ void USK_Broadcast::ActivateAbility(
 
     CachedHandle = Handle;
     CachedActivationInfo = ActivationInfo;
-    
-    bBroadcastSucceeded = false;
-    BroadcastResultMessage = TEXT("");
-    BroadcastProgress = 0.f;
-    CurrentPhase = EBroadcastPhase::MoveToDistance;
+    ResetBroadcastRuntimeState();
 
     AMACharacter* Character = GetOwningCharacter();
     if (!Character)
     {
-        bBroadcastSucceeded = false;
-        BroadcastResultMessage = TEXT("Broadcast failed: Character not found");
-        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+        FailBroadcast(TEXT("Broadcast failed: Character not found"), TEXT("Character not found"));
         return;
-    }
-
-    // 从配置管理器加载参数
-    if (UGameInstance* GameInstance = Character->GetGameInstance())
-    {
-        if (UMAConfigManager* ConfigManager = GameInstance->GetSubsystem<UMAConfigManager>())
-        {
-            const FMABroadcastConfig& Config = ConfigManager->GetBroadcastConfig();
-            BroadcastDistance = Config.BroadcastDistance;
-            BroadcastDuration = Config.BroadcastDuration;
-            EffectSpeed = Config.EffectSpeed;
-            EffectWidth = Config.EffectWidth;
-            EffectRate = Config.ShockRate;
-            
-            UE_LOG(LogTemp, Log, TEXT("[SK_Broadcast] Loaded config: BroadcastDistance=%.0f, Duration=%.1f, ShockRate=%.1f"),
-                BroadcastDistance, BroadcastDuration, EffectRate);
-        }
     }
 
     UMASkillComponent* SkillComp = Character->GetSkillComponent();
     if (!SkillComp)
     {
-        bBroadcastSucceeded = false;
-        BroadcastResultMessage = TEXT("Broadcast failed: SkillComponent not found");
-        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+        FailBroadcast(TEXT("Broadcast failed: SkillComponent not found"), TEXT("SkillComponent not found"));
         return;
     }
 
-    const FMASkillParams& Params = SkillComp->GetSkillParams();
-    const FMAFeedbackContext& Context = SkillComp->GetFeedbackContext();
-    
-    // 获取目标 Actor 和位置
-    TargetActor = SkillComp->GetSkillRuntimeTargets().BroadcastTargetActor;
-    TargetLocation = Context.TargetLocation;
-    TargetName = Context.BroadcastTargetName;
-    BroadcastMessage = Params.BroadcastMessage;
-    
-    if (BroadcastMessage.IsEmpty())
+    if (!InitializeBroadcastContext(*Character, *SkillComp))
     {
-        BroadcastMessage = TEXT("Hello!");
-    }
-    
-    UE_LOG(LogTemp, Log, TEXT("[SK_Broadcast] %s: ActivateAbility - TargetActor=%s, TargetLocation=%s, Message='%s'"),
-        *Character->AgentLabel,
-        TargetActor.IsValid() ? *TargetActor->GetName() : TEXT("null"),
-        *TargetLocation.ToString(),
-        *BroadcastMessage);
-    
-    // 验证目标
-    if (!TargetActor.IsValid() && TargetLocation.IsZero())
-    {
-        bBroadcastSucceeded = false;
-        BroadcastResultMessage = TEXT("Broadcast failed: No valid target");
-        UE_LOG(LogTemp, Warning, TEXT("[SK_Broadcast] %s: No valid target found"), *Character->AgentLabel);
-        Character->ShowStatus(TEXT("[Broadcast] Target not found"), 2.f);
-        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
         return;
-    }
-    
-    // 如果有目标 Actor，使用其位置
-    if (TargetActor.IsValid())
-    {
-        TargetLocation = TargetActor->GetActorLocation();
-    }
-
-    NavigationService = Character->GetNavigationService();
-    if (!NavigationService)
-    {
-        bBroadcastSucceeded = false;
-        BroadcastResultMessage = TEXT("Broadcast failed: NavigationService not found");
-        UE_LOG(LogTemp, Error, TEXT("[SK_Broadcast] %s: NavigationService not found"), *Character->AgentLabel);
-        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-        return;
-    }
-
-    // 判断是否是飞行机器人
-    bIsAircraft = (Character->AgentType == EMAAgentType::UAV || 
-                   Character->AgentType == EMAAgentType::FixedWingUAV);
-    
-    // 获取飞行机器人的最小高度限制
-    if (bIsAircraft)
-    {
-        if (AMAUAVCharacter* UAV = Cast<AMAUAVCharacter>(Character))
-        {
-            MinFlightAltitude = UAV->MinFlightAltitude;
-        }
-    }
-    
-    // 检查当前距离
-    float HorizontalDistance = FVector::Dist2D(Character->GetActorLocation(), TargetLocation);
-    UE_LOG(LogTemp, Log, TEXT("[SK_Broadcast] %s: HorizontalDistance=%.0f, BroadcastDistance=%.0f"),
-        *Character->AgentLabel, HorizontalDistance, BroadcastDistance);
-    
-    // 如果已经在合适距离内，直接转向
-    if (HorizontalDistance <= BroadcastDistance * 1.2f && HorizontalDistance >= BroadcastDistance * 0.5f)
-    {
-        CurrentPhase = EBroadcastPhase::TurnToTarget;
-    }
-    else
-    {
-        CurrentPhase = EBroadcastPhase::MoveToDistance;
     }
 
     Character->ShowAbilityStatus(TEXT("Broadcast"), TEXT("Starting..."));
@@ -174,10 +268,7 @@ void USK_Broadcast::HandleMoveToDistance()
     AMACharacter* Character = GetOwningCharacter();
     if (!Character || !NavigationService)
     {
-        bBroadcastSucceeded = false;
-        BroadcastResultMessage = TEXT("Broadcast failed: Lost reference during navigation");
-        UE_LOG(LogTemp, Error, TEXT("[SK_Broadcast] HandleMoveToDistance: Lost reference"));
-        EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
+        FailBroadcast(TEXT("Broadcast failed: Lost reference during navigation"), TEXT("HandleMoveToDistance lost Character or NavigationService"));
         return;
     }
 
@@ -192,10 +283,7 @@ void USK_Broadcast::HandleMoveToDistance()
     if (!NavigationService->NavigateTo(BroadcastPosition, 100.f))
     {
         NavigationService->OnNavigationCompleted.RemoveDynamic(this, &USK_Broadcast::OnNavigationCompleted);
-        bBroadcastSucceeded = false;
-        BroadcastResultMessage = TEXT("Broadcast failed: Could not start navigation");
-        UE_LOG(LogTemp, Error, TEXT("[SK_Broadcast] %s: NavigateTo failed"), *Character->AgentLabel);
-        EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
+        HandleNavigationFailure(TEXT("Could not start navigation"));
     }
 }
 
@@ -216,9 +304,7 @@ void USK_Broadcast::OnNavigationCompleted(bool bSuccess, const FString& Message)
     }
     else
     {
-        bBroadcastSucceeded = false;
-        BroadcastResultMessage = FString::Printf(TEXT("Broadcast failed: %s"), *Message);
-        EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
+        HandleNavigationFailure(Message);
     }
 }
 
@@ -227,10 +313,14 @@ void USK_Broadcast::HandleTurnToTarget()
     AMACharacter* Character = GetOwningCharacter();
     if (!Character)
     {
-        bBroadcastSucceeded = false;
-        BroadcastResultMessage = TEXT("Broadcast failed: Character lost during turn");
-        UE_LOG(LogTemp, Error, TEXT("[SK_Broadcast] HandleTurnToTarget: Character lost"));
-        EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
+        FailBroadcast(TEXT("Broadcast failed: Character lost during turn"), TEXT("HandleTurnToTarget lost Character"));
+        return;
+    }
+
+    UWorld* World = Character->GetWorld();
+    if (!World)
+    {
+        FailBroadcast(TEXT("Broadcast failed: World not found during turn"), TEXT("HandleTurnToTarget lost World"));
         return;
     }
 
@@ -240,7 +330,7 @@ void USK_Broadcast::HandleTurnToTarget()
         *Character->AgentLabel, *TargetLocation.ToString());
 
     // 启动转向计时器
-    Character->GetWorld()->GetTimerManager().SetTimer(
+    World->GetTimerManager().SetTimer(
         TurnTimerHandle,
         this,
         &USK_Broadcast::OnTurnTick,
@@ -252,18 +342,14 @@ void USK_Broadcast::HandleTurnToTarget()
 void USK_Broadcast::OnTurnTick()
 {
     AMACharacter* Character = GetOwningCharacter();
-    if (!Character || !Character->GetWorld())
+    UWorld* World = Character ? Character->GetWorld() : nullptr;
+    if (!Character || !World)
     {
-        if (Character && Character->GetWorld())
-        {
-            Character->GetWorld()->GetTimerManager().ClearTimer(TurnTimerHandle);
-        }
-        CurrentPhase = EBroadcastPhase::Broadcasting;
-        UpdatePhase();
+        FailBroadcast(TEXT("Broadcast failed: Character lost during turn"), TEXT("OnTurnTick lost Character or World"));
         return;
     }
 
-    float DeltaTime = Character->GetWorld()->GetDeltaSeconds();
+    const float DeltaTime = World->GetDeltaSeconds();
     
     // 计算目标朝向（只考虑水平方向）
     FVector DirectionToTarget = TargetLocation - Character->GetActorLocation();
@@ -272,7 +358,7 @@ void USK_Broadcast::OnTurnTick()
     
     if (DirectionToTarget.IsNearlyZero())
     {
-        Character->GetWorld()->GetTimerManager().ClearTimer(TurnTimerHandle);
+        World->GetTimerManager().ClearTimer(TurnTimerHandle);
         CurrentPhase = EBroadcastPhase::Broadcasting;
         UpdatePhase();
         return;
@@ -293,8 +379,8 @@ void USK_Broadcast::OnTurnTick()
     {
         UE_LOG(LogTemp, Log, TEXT("[SK_Broadcast] %s: Turn complete, YawDiff=%.1f"),
             *Character->AgentLabel, YawDiff);
-        
-        Character->GetWorld()->GetTimerManager().ClearTimer(TurnTimerHandle);
+
+        World->GetTimerManager().ClearTimer(TurnTimerHandle);
         CurrentPhase = EBroadcastPhase::Broadcasting;
         UpdatePhase();
     }
@@ -305,10 +391,14 @@ void USK_Broadcast::HandleBroadcasting()
     AMACharacter* Character = GetOwningCharacter();
     if (!Character)
     {
-        bBroadcastSucceeded = false;
-        BroadcastResultMessage = TEXT("Broadcast failed: Character lost");
-        UE_LOG(LogTemp, Error, TEXT("[SK_Broadcast] HandleBroadcasting: Character lost"));
-        EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
+        FailBroadcast(TEXT("Broadcast failed: Character lost"), TEXT("HandleBroadcasting lost Character"));
+        return;
+    }
+
+    UWorld* World = Character->GetWorld();
+    if (!World)
+    {
+        FailBroadcast(TEXT("Broadcast failed: World not found"), TEXT("HandleBroadcasting lost World"));
         return;
     }
 
@@ -320,14 +410,14 @@ void USK_Broadcast::HandleBroadcasting()
     // 生成喊话特效（暂用喷水特效占位）
     SpawnBroadcastEffect();
 
-    StartTime = Character->GetWorld()->GetTimeSeconds();
+    StartTime = World->GetTimeSeconds();
     BroadcastProgress = 0.f;
 
     UE_LOG(LogTemp, Log, TEXT("[SK_Broadcast] %s: Starting broadcast, duration=%.1fs, message='%s'"),
         *Character->AgentLabel, BroadcastDuration, *BroadcastMessage);
 
     // 启动进度计时器
-    Character->GetWorld()->GetTimerManager().SetTimer(
+    World->GetTimerManager().SetTimer(
         ProgressTimerHandle,
         this,
         &USK_Broadcast::OnProgressTick,
@@ -341,12 +431,19 @@ void USK_Broadcast::OnProgressTick()
     AMACharacter* Character = GetOwningCharacter();
     if (!Character)
     {
-        HandleComplete();
+        FailBroadcast(TEXT("Broadcast failed: Character lost during execution"), TEXT("OnProgressTick lost Character"));
         return;
     }
 
-    float CurrentTime = Character->GetWorld()->GetTimeSeconds();
-    float ElapsedTime = CurrentTime - StartTime;
+    UWorld* World = Character->GetWorld();
+    if (!World)
+    {
+        FailBroadcast(TEXT("Broadcast failed: World not found during execution"), TEXT("OnProgressTick lost World"));
+        return;
+    }
+
+    const float CurrentTime = World->GetTimeSeconds();
+    const float ElapsedTime = CurrentTime - StartTime;
     BroadcastProgress = FMath::Clamp(ElapsedTime / BroadcastDuration, 0.f, 1.f);
 
     int32 ProgressPercent = FMath::RoundToInt(BroadcastProgress * 100.f);
@@ -362,45 +459,7 @@ void USK_Broadcast::OnProgressTick()
 
 void USK_Broadcast::HandleComplete()
 {
-    AMACharacter* Character = GetOwningCharacter();
-    
-    UE_LOG(LogTemp, Log, TEXT("[SK_Broadcast] HandleComplete called"));
-    
-    if (Character && Character->GetWorld())
-    {
-        Character->GetWorld()->GetTimerManager().ClearTimer(ProgressTimerHandle);
-    }
-
-    // 清理特效
-    CleanupBroadcastEffect();
-    HideTextBubble();
-
-    bBroadcastSucceeded = true;
-    
-    if (TargetName.IsEmpty())
-    {
-        BroadcastResultMessage = FString::Printf(TEXT("Broadcast completed: '%s'"), *BroadcastMessage);
-    }
-    else
-    {
-        BroadcastResultMessage = FString::Printf(TEXT("Broadcast to %s completed: '%s'"), *TargetName, *BroadcastMessage);
-    }
-
-    if (Character)
-    {
-        Character->ShowAbilityStatus(TEXT("Broadcast"), TEXT("Complete!"));
-        
-        if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
-        {
-            FMAFeedbackContext& Context = SkillComp->GetFeedbackContextMutable();
-            Context.BroadcastDurationSeconds = BroadcastDuration;
-        }
-        
-        UE_LOG(LogTemp, Log, TEXT("[SK_Broadcast] %s: Skill completed successfully"),
-            *Character->AgentLabel);
-    }
-
-    EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, false);
+    CompleteBroadcast();
 }
 
 FVector USK_Broadcast::CalculateBroadcastPosition() const
@@ -564,40 +623,10 @@ void USK_Broadcast::EndAbility(
     bool bWasCancelled)
 {
     AMACharacter* Character = GetOwningCharacter();
-    
+
     bool bSuccessToNotify = bBroadcastSucceeded;
     FString MessageToNotify = BroadcastResultMessage;
-
-    if (Character)
-    {
-        if (Character->GetWorld())
-        {
-            Character->GetWorld()->GetTimerManager().ClearTimer(BroadcastTimerHandle);
-            Character->GetWorld()->GetTimerManager().ClearTimer(TurnTimerHandle);
-            Character->GetWorld()->GetTimerManager().ClearTimer(ProgressTimerHandle);
-        }
-
-        if (NavigationService)
-        {
-            NavigationService->OnNavigationCompleted.RemoveDynamic(this, &USK_Broadcast::OnNavigationCompleted);
-            NavigationService->CancelNavigation();
-        }
-
-        CleanupBroadcastEffect();
-        HideTextBubble();
-
-        Character->ShowStatus(TEXT(""), 0.f);
-
-        if (bWasCancelled && BroadcastResultMessage.IsEmpty())
-        {
-            bSuccessToNotify = false;
-            MessageToNotify = FString::Printf(TEXT("Broadcast cancelled: Stopped while %s"), *GetPhaseString());
-        }
-
-    }
-
-    NavigationService = nullptr;
-    TargetActor.Reset();
+    CleanupBroadcastRuntime(Character, bWasCancelled, bSuccessToNotify, MessageToNotify);
 
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 

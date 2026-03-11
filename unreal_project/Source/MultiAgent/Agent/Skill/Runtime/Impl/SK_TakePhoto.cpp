@@ -18,6 +18,194 @@ USK_TakePhoto::USK_TakePhoto()
     ActivationOwnedTags.AddTag(FMASkillTags::Get().Status_Searching);
 }
 
+void USK_TakePhoto::ResetTakePhotoRuntimeState()
+{
+    bPhotoSucceeded = false;
+    PhotoResultMessage.Reset();
+    CurrentPhase = ETakePhotoPhase::MoveToDistance;
+    bIsAircraft = false;
+    MinFlightAltitude = 800.f;
+    NavigationService = nullptr;
+    PIPCameraManager = nullptr;
+    PIPCameraId.Invalidate();
+    TargetActor.Reset();
+    TargetLocation = FVector::ZeroVector;
+    TargetName.Reset();
+}
+
+void USK_TakePhoto::FailTakePhoto(
+    const FString& ResultMessage,
+    const FString& ErrorReason,
+    const FString& StatusMessage)
+{
+    bPhotoSucceeded = false;
+    PhotoResultMessage = ResultMessage;
+
+    UE_LOG(LogTemp, Error, TEXT("[SK_TakePhoto] %s"), *ErrorReason);
+
+    if (!StatusMessage.IsEmpty())
+    {
+        if (AMACharacter* Character = GetOwningCharacter())
+        {
+            Character->ShowStatus(StatusMessage, 2.f);
+        }
+    }
+
+    EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
+}
+
+bool USK_TakePhoto::InitializeTakePhotoContext(AMACharacter& Character, UMASkillComponent& SkillComp)
+{
+    if (UGameInstance* GameInstance = Character.GetGameInstance())
+    {
+        if (UMAConfigManager* ConfigManager = GameInstance->GetSubsystem<UMAConfigManager>())
+        {
+            const FMATakePhotoConfig& Config = ConfigManager->GetTakePhotoConfig();
+            PhotoDistance = Config.PhotoDistance;
+            PhotoDuration = Config.PhotoDuration;
+            CameraFOV = Config.CameraFOV;
+            CameraForwardOffset = Config.CameraForwardOffset;
+
+            UE_LOG(LogTemp, Log, TEXT("[SK_TakePhoto] Loaded config: PhotoDistance=%.0f, Duration=%.1f, FOV=%.0f"),
+                PhotoDistance, PhotoDuration, CameraFOV);
+        }
+    }
+
+    const FMASkillParams& Params = SkillComp.GetSkillParams();
+    const FMAFeedbackContext& Context = SkillComp.GetFeedbackContext();
+
+    if (Params.PhotoFOVOverride > 0.f)
+    {
+        CameraFOV = Params.PhotoFOVOverride;
+        UE_LOG(LogTemp, Log, TEXT("[SK_TakePhoto] %s: Using wide FOV=%.0f for area-type target"),
+            *Character.AgentLabel, CameraFOV);
+    }
+
+    TargetActor = SkillComp.GetSkillRuntimeTargets().PhotoTargetActor;
+    TargetLocation = Context.TargetLocation;
+    TargetName = Context.PhotoTargetName;
+
+    UE_LOG(LogTemp, Log, TEXT("[SK_TakePhoto] %s: ActivateAbility - TargetActor=%s, TargetLocation=%s, TargetName=%s"),
+        *Character.AgentLabel,
+        TargetActor.IsValid() ? *TargetActor->GetName() : TEXT("null"),
+        *TargetLocation.ToString(),
+        *TargetName);
+
+    if (!TargetActor.IsValid() && TargetLocation.IsZero())
+    {
+        FailTakePhoto(TEXT("TakePhoto failed: No valid target"), TEXT("No valid target found"), TEXT("[TakePhoto] Target not found"));
+        return false;
+    }
+
+    if (TargetActor.IsValid())
+    {
+        TargetLocation = TargetActor->GetActorLocation();
+    }
+
+    NavigationService = Character.GetNavigationService();
+    if (!NavigationService)
+    {
+        FailTakePhoto(TEXT("TakePhoto failed: NavigationService not found"), TEXT("NavigationService not found"));
+        return false;
+    }
+
+    bIsAircraft = (Character.AgentType == EMAAgentType::UAV ||
+                   Character.AgentType == EMAAgentType::FixedWingUAV);
+
+    if (bIsAircraft)
+    {
+        if (AMAUAVCharacter* UAV = Cast<AMAUAVCharacter>(&Character))
+        {
+            MinFlightAltitude = UAV->MinFlightAltitude;
+        }
+    }
+
+    if (UWorld* World = Character.GetWorld())
+    {
+        PIPCameraManager = World->GetSubsystem<UMAPIPCameraManager>();
+    }
+
+    if (!PIPCameraManager)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[SK_TakePhoto] %s: PIPCameraManager not found, will create camera on demand"),
+            *Character.AgentLabel);
+    }
+
+    const float HorizontalDistance = FVector::Dist2D(Character.GetActorLocation(), TargetLocation);
+    UE_LOG(LogTemp, Log, TEXT("[SK_TakePhoto] %s: HorizontalDistance=%.0f, PhotoDistance=%.0f"),
+        *Character.AgentLabel, HorizontalDistance, PhotoDistance);
+
+    CurrentPhase = (HorizontalDistance <= PhotoDistance * 1.2f && HorizontalDistance >= PhotoDistance * 0.5f)
+        ? ETakePhotoPhase::TurnToTarget
+        : ETakePhotoPhase::MoveToDistance;
+    return true;
+}
+
+void USK_TakePhoto::HandleNavigationFailure(const FString& Message)
+{
+    FailTakePhoto(FString::Printf(TEXT("TakePhoto failed: %s"), *Message), Message);
+}
+
+void USK_TakePhoto::CompleteTakePhoto()
+{
+    AMACharacter* Character = GetOwningCharacter();
+
+    bPhotoSucceeded = true;
+    PhotoResultMessage = TargetName.IsEmpty()
+        ? TEXT("Photo taken successfully")
+        : FString::Printf(TEXT("Photo taken successfully: %s"), *TargetName);
+
+    if (Character)
+    {
+        Character->ShowAbilityStatus(TEXT("TakePhoto"), TEXT("Complete!"));
+        Character->ShowStatus(TEXT(""), 0.f);
+
+        UE_LOG(LogTemp, Log, TEXT("[SK_TakePhoto] %s: Skill completed successfully"),
+            *Character->AgentLabel);
+    }
+
+    EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, false);
+}
+
+void USK_TakePhoto::CleanupTakePhotoRuntime(
+    AMACharacter* Character,
+    const bool bWasCancelled,
+    bool& bOutSuccessToNotify,
+    FString& InOutMessageToNotify)
+{
+    if (Character)
+    {
+        if (UWorld* World = Character->GetWorld())
+        {
+            World->GetTimerManager().ClearTimer(PhotoTimerHandle);
+            World->GetTimerManager().ClearTimer(TurnTimerHandle);
+        }
+
+        if (NavigationService)
+        {
+            NavigationService->OnNavigationCompleted.RemoveDynamic(this, &USK_TakePhoto::OnNavigationCompleted);
+            NavigationService->CancelNavigation();
+        }
+
+        HidePIPCamera();
+        CleanupPIPCamera();
+        Character->ShowStatus(TEXT(""), 0.f);
+
+        if (bWasCancelled && PhotoResultMessage.IsEmpty())
+        {
+            bOutSuccessToNotify = false;
+            InOutMessageToNotify = FString::Printf(TEXT("TakePhoto cancelled: Stopped while %s"), *GetPhaseString());
+        }
+    }
+
+    NavigationService = nullptr;
+    PIPCameraManager = nullptr;
+    PIPCameraId.Invalidate();
+    TargetActor.Reset();
+    TargetLocation = FVector::ZeroVector;
+    TargetName.Reset();
+}
+
 void USK_TakePhoto::ActivateAbility(
     const FGameplayAbilitySpecHandle Handle,
     const FGameplayAbilityActorInfo* ActorInfo,
@@ -28,128 +216,25 @@ void USK_TakePhoto::ActivateAbility(
 
     CachedHandle = Handle;
     CachedActivationInfo = ActivationInfo;
-    
-    bPhotoSucceeded = false;
-    PhotoResultMessage = TEXT("");
-    CurrentPhase = ETakePhotoPhase::MoveToDistance;
+    ResetTakePhotoRuntimeState();
 
     AMACharacter* Character = GetOwningCharacter();
     if (!Character)
     {
-        bPhotoSucceeded = false;
-        PhotoResultMessage = TEXT("TakePhoto failed: Character not found");
-        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+        FailTakePhoto(TEXT("TakePhoto failed: Character not found"), TEXT("Character not found"));
         return;
-    }
-
-    // 从配置管理器加载参数
-    if (UGameInstance* GameInstance = Character->GetGameInstance())
-    {
-        if (UMAConfigManager* ConfigManager = GameInstance->GetSubsystem<UMAConfigManager>())
-        {
-            const FMATakePhotoConfig& Config = ConfigManager->GetTakePhotoConfig();
-            PhotoDistance = Config.PhotoDistance;
-            PhotoDuration = Config.PhotoDuration;
-            CameraFOV = Config.CameraFOV;
-            CameraForwardOffset = Config.CameraForwardOffset;
-            
-            UE_LOG(LogTemp, Log, TEXT("[SK_TakePhoto] Loaded config: PhotoDistance=%.0f, Duration=%.1f, FOV=%.0f"),
-                PhotoDistance, PhotoDuration, CameraFOV);
-        }
     }
 
     UMASkillComponent* SkillComp = Character->GetSkillComponent();
     if (!SkillComp)
     {
-        bPhotoSucceeded = false;
-        PhotoResultMessage = TEXT("TakePhoto failed: SkillComponent not found");
-        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+        FailTakePhoto(TEXT("TakePhoto failed: SkillComponent not found"), TEXT("SkillComponent not found"));
         return;
     }
 
-    const FMASkillParams& Params = SkillComp->GetSkillParams();
-    const FMAFeedbackContext& Context = SkillComp->GetFeedbackContext();
-    
-    // 大范围目标 FOV 覆盖
-    if (Params.PhotoFOVOverride > 0.f)
+    if (!InitializeTakePhotoContext(*Character, *SkillComp))
     {
-        CameraFOV = Params.PhotoFOVOverride;
-        UE_LOG(LogTemp, Log, TEXT("[SK_TakePhoto] %s: Using wide FOV=%.0f for area-type target"),
-            *Character->AgentLabel, CameraFOV);
-    }
-    
-    // 获取目标 Actor 和位置
-    TargetActor = SkillComp->GetSkillRuntimeTargets().PhotoTargetActor;
-    TargetLocation = Context.TargetLocation;
-    TargetName = Context.PhotoTargetName;
-    
-    UE_LOG(LogTemp, Log, TEXT("[SK_TakePhoto] %s: ActivateAbility - TargetActor=%s, TargetLocation=%s, TargetName=%s"),
-        *Character->AgentLabel,
-        TargetActor.IsValid() ? *TargetActor->GetName() : TEXT("null"),
-        *TargetLocation.ToString(),
-        *TargetName);
-    
-    // 验证目标
-    if (!TargetActor.IsValid() && TargetLocation.IsZero())
-    {
-        bPhotoSucceeded = false;
-        PhotoResultMessage = TEXT("TakePhoto failed: No valid target");
-        UE_LOG(LogTemp, Warning, TEXT("[SK_TakePhoto] %s: No valid target found"), *Character->AgentLabel);
-        Character->ShowStatus(TEXT("[TakePhoto] Target not found"), 2.f);
-        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
         return;
-    }
-    
-    // 如果有目标 Actor，使用其位置
-    if (TargetActor.IsValid())
-    {
-        TargetLocation = TargetActor->GetActorLocation();
-    }
-
-    NavigationService = Character->GetNavigationService();
-    if (!NavigationService)
-    {
-        bPhotoSucceeded = false;
-        PhotoResultMessage = TEXT("TakePhoto failed: NavigationService not found");
-        UE_LOG(LogTemp, Error, TEXT("[SK_TakePhoto] %s: NavigationService not found"), *Character->AgentLabel);
-        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-        return;
-    }
-
-    // 判断是否是飞行机器人
-    bIsAircraft = (Character->AgentType == EMAAgentType::UAV || 
-                   Character->AgentType == EMAAgentType::FixedWingUAV);
-    
-    // 获取飞行机器人的最小高度限制
-    if (bIsAircraft)
-    {
-        if (AMAUAVCharacter* UAV = Cast<AMAUAVCharacter>(Character))
-        {
-            MinFlightAltitude = UAV->MinFlightAltitude;
-        }
-    }
-    
-    // 获取画中画相机管理器
-    PIPCameraManager = Character->GetWorld()->GetSubsystem<UMAPIPCameraManager>();
-    if (!PIPCameraManager)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[SK_TakePhoto] %s: PIPCameraManager not found, will create camera on demand"),
-            *Character->AgentLabel);
-    }
-    
-    // 检查当前距离
-    float HorizontalDistance = FVector::Dist2D(Character->GetActorLocation(), TargetLocation);
-    UE_LOG(LogTemp, Log, TEXT("[SK_TakePhoto] %s: HorizontalDistance=%.0f, PhotoDistance=%.0f"),
-        *Character->AgentLabel, HorizontalDistance, PhotoDistance);
-    
-    // 如果已经在合适距离内，直接转向
-    if (HorizontalDistance <= PhotoDistance * 1.2f && HorizontalDistance >= PhotoDistance * 0.5f)
-    {
-        CurrentPhase = ETakePhotoPhase::TurnToTarget;
-    }
-    else
-    {
-        CurrentPhase = ETakePhotoPhase::MoveToDistance;
     }
 
     Character->ShowAbilityStatus(TEXT("TakePhoto"), TEXT("Starting..."));
@@ -181,10 +266,7 @@ void USK_TakePhoto::HandleMoveToDistance()
     AMACharacter* Character = GetOwningCharacter();
     if (!Character || !NavigationService)
     {
-        bPhotoSucceeded = false;
-        PhotoResultMessage = TEXT("TakePhoto failed: Lost reference during navigation");
-        UE_LOG(LogTemp, Error, TEXT("[SK_TakePhoto] HandleMoveToDistance: Lost reference"));
-        EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
+        FailTakePhoto(TEXT("TakePhoto failed: Lost reference during navigation"), TEXT("HandleMoveToDistance lost Character or NavigationService"));
         return;
     }
 
@@ -199,10 +281,7 @@ void USK_TakePhoto::HandleMoveToDistance()
     if (!NavigationService->NavigateTo(PhotoPosition, 100.f))
     {
         NavigationService->OnNavigationCompleted.RemoveDynamic(this, &USK_TakePhoto::OnNavigationCompleted);
-        bPhotoSucceeded = false;
-        PhotoResultMessage = TEXT("TakePhoto failed: Could not start navigation");
-        UE_LOG(LogTemp, Error, TEXT("[SK_TakePhoto] %s: NavigateTo failed"), *Character->AgentLabel);
-        EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
+        HandleNavigationFailure(TEXT("Could not start navigation"));
     }
 }
 
@@ -223,9 +302,7 @@ void USK_TakePhoto::OnNavigationCompleted(bool bSuccess, const FString& Message)
     }
     else
     {
-        bPhotoSucceeded = false;
-        PhotoResultMessage = FString::Printf(TEXT("TakePhoto failed: %s"), *Message);
-        EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
+        HandleNavigationFailure(Message);
     }
 }
 
@@ -234,10 +311,14 @@ void USK_TakePhoto::HandleTurnToTarget()
     AMACharacter* Character = GetOwningCharacter();
     if (!Character)
     {
-        bPhotoSucceeded = false;
-        PhotoResultMessage = TEXT("TakePhoto failed: Character lost during turn");
-        UE_LOG(LogTemp, Error, TEXT("[SK_TakePhoto] HandleTurnToTarget: Character lost"));
-        EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
+        FailTakePhoto(TEXT("TakePhoto failed: Character lost during turn"), TEXT("HandleTurnToTarget lost Character"));
+        return;
+    }
+
+    UWorld* World = Character->GetWorld();
+    if (!World)
+    {
+        FailTakePhoto(TEXT("TakePhoto failed: World not found during turn"), TEXT("HandleTurnToTarget lost World"));
         return;
     }
 
@@ -247,7 +328,7 @@ void USK_TakePhoto::HandleTurnToTarget()
         *Character->AgentLabel, *TargetLocation.ToString());
 
     // 启动转向计时器
-    Character->GetWorld()->GetTimerManager().SetTimer(
+    World->GetTimerManager().SetTimer(
         TurnTimerHandle,
         this,
         &USK_TakePhoto::OnTurnTick,
@@ -259,18 +340,14 @@ void USK_TakePhoto::HandleTurnToTarget()
 void USK_TakePhoto::OnTurnTick()
 {
     AMACharacter* Character = GetOwningCharacter();
-    if (!Character || !Character->GetWorld())
+    UWorld* World = Character ? Character->GetWorld() : nullptr;
+    if (!Character || !World)
     {
-        if (Character && Character->GetWorld())
-        {
-            Character->GetWorld()->GetTimerManager().ClearTimer(TurnTimerHandle);
-        }
-        CurrentPhase = ETakePhotoPhase::TakePhoto;
-        UpdatePhase();
+        FailTakePhoto(TEXT("TakePhoto failed: Character lost during turn"), TEXT("OnTurnTick lost Character or World"));
         return;
     }
 
-    float DeltaTime = Character->GetWorld()->GetDeltaSeconds();
+    const float DeltaTime = World->GetDeltaSeconds();
     
     // 计算目标朝向（只考虑水平方向）
     FVector DirectionToTarget = TargetLocation - Character->GetActorLocation();
@@ -279,7 +356,7 @@ void USK_TakePhoto::OnTurnTick()
     
     if (DirectionToTarget.IsNearlyZero())
     {
-        Character->GetWorld()->GetTimerManager().ClearTimer(TurnTimerHandle);
+        World->GetTimerManager().ClearTimer(TurnTimerHandle);
         CurrentPhase = ETakePhotoPhase::TakePhoto;
         UpdatePhase();
         return;
@@ -300,8 +377,8 @@ void USK_TakePhoto::OnTurnTick()
     {
         UE_LOG(LogTemp, Log, TEXT("[SK_TakePhoto] %s: Turn complete, YawDiff=%.1f"),
             *Character->AgentLabel, YawDiff);
-        
-        Character->GetWorld()->GetTimerManager().ClearTimer(TurnTimerHandle);
+
+        World->GetTimerManager().ClearTimer(TurnTimerHandle);
         CurrentPhase = ETakePhotoPhase::TakePhoto;
         UpdatePhase();
     }
@@ -312,10 +389,14 @@ void USK_TakePhoto::HandleTakePhoto()
     AMACharacter* Character = GetOwningCharacter();
     if (!Character)
     {
-        bPhotoSucceeded = false;
-        PhotoResultMessage = TEXT("TakePhoto failed: Character lost");
-        UE_LOG(LogTemp, Error, TEXT("[SK_TakePhoto] HandleTakePhoto: Character lost"));
-        EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
+        FailTakePhoto(TEXT("TakePhoto failed: Character lost"), TEXT("HandleTakePhoto lost Character"));
+        return;
+    }
+
+    UWorld* World = Character->GetWorld();
+    if (!World)
+    {
+        FailTakePhoto(TEXT("TakePhoto failed: World not found"), TEXT("HandleTakePhoto lost World"));
         return;
     }
 
@@ -330,7 +411,7 @@ void USK_TakePhoto::HandleTakePhoto()
         *Character->AgentLabel, PhotoDuration);
 
     // 设置拍照完成定时器
-    Character->GetWorld()->GetTimerManager().SetTimer(
+    World->GetTimerManager().SetTimer(
         PhotoTimerHandle,
         this,
         &USK_TakePhoto::OnPhotoComplete,
@@ -353,29 +434,7 @@ void USK_TakePhoto::OnPhotoComplete()
 
 void USK_TakePhoto::HandleComplete()
 {
-    AMACharacter* Character = GetOwningCharacter();
-    
-    bPhotoSucceeded = true;
-    
-    if (TargetName.IsEmpty())
-    {
-        PhotoResultMessage = TEXT("Photo taken successfully");
-    }
-    else
-    {
-        PhotoResultMessage = FString::Printf(TEXT("Photo taken successfully: %s"), *TargetName);
-    }
-
-    if (Character)
-    {
-        Character->ShowAbilityStatus(TEXT("TakePhoto"), TEXT("Complete!"));
-        Character->ShowStatus(TEXT(""), 0.f);
-        
-        UE_LOG(LogTemp, Log, TEXT("[SK_TakePhoto] %s: Skill completed successfully"),
-            *Character->AgentLabel);
-    }
-
-    EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, false);
+    CompleteTakePhoto();
 }
 
 FVector USK_TakePhoto::CalculatePhotoPosition() const
@@ -523,38 +582,10 @@ void USK_TakePhoto::EndAbility(
     bool bWasCancelled)
 {
     AMACharacter* Character = GetOwningCharacter();
-    
+
     bool bSuccessToNotify = bPhotoSucceeded;
     FString MessageToNotify = PhotoResultMessage;
-
-    if (Character)
-    {
-        if (Character->GetWorld())
-        {
-            Character->GetWorld()->GetTimerManager().ClearTimer(PhotoTimerHandle);
-            Character->GetWorld()->GetTimerManager().ClearTimer(TurnTimerHandle);
-        }
-
-        if (NavigationService)
-        {
-            NavigationService->OnNavigationCompleted.RemoveDynamic(this, &USK_TakePhoto::OnNavigationCompleted);
-            NavigationService->CancelNavigation();
-        }
-
-        CleanupPIPCamera();
-
-        Character->ShowStatus(TEXT(""), 0.f);
-
-        if (bWasCancelled && PhotoResultMessage.IsEmpty())
-        {
-            bSuccessToNotify = false;
-            MessageToNotify = FString::Printf(TEXT("TakePhoto cancelled: Stopped while %s"), *GetPhaseString());
-        }
-
-    }
-
-    NavigationService = nullptr;
-    TargetActor.Reset();
+    CleanupTakePhotoRuntime(Character, bWasCancelled, bSuccessToNotify, MessageToNotify);
 
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 
