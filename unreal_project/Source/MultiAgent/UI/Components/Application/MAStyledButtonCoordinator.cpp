@@ -1,7 +1,7 @@
 #include "MAStyledButtonCoordinator.h"
 
 #include "../Core/MAUITheme.h"
-#include "../MAStyledButton.h"
+#include "../Presentation/MAStyledButton.h"
 #include "../Core/MARoundedBorderUtils.h"
 
 FMAStyledButtonPalette FMAStyledButtonCoordinator::BuildPalette(EMAButtonStyle Style, const UMAUITheme* Theme, float DefaultCornerRadius) const

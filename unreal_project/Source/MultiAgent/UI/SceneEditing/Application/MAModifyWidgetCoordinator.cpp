@@ -1,6 +1,6 @@
 #include "MAModifyWidgetCoordinator.h"
 
-#include "../MAModifyWidget.h"
+#include "../Presentation/MAModifyWidget.h"
 
 FMAModifySelectionViewModel FMAModifyWidgetCoordinator::BuildClearedSelectionViewModel(
     const FString& DefaultHintText,

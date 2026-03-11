@@ -1,6 +1,6 @@
 #include "MASetupBootstrap.h"
 
-#include "UI/Setup/MASetupHUD.h"
+#include "UI/Setup/Runtime/MASetupHUD.h"
 
 void FMASetupBootstrap::InitializeSetupHUD(AMASetupHUD* HUD) const
 {

@@ -2,8 +2,8 @@
 
 #include "MAEditWidgetCoordinator.h"
 
-#include "../../HUD/MAHUD.h"
-#include "../MAEditWidget.h"
+#include "../../HUD/Runtime/MAHUD.h"
+#include "../Presentation/MAEditWidget.h"
 #include "../Domain/MASceneSelectionDisplay.h"
 #include "../../../Environment/Utils/MAPointOfInterest.h"
 

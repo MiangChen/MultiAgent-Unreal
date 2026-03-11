@@ -2,7 +2,7 @@
 
 #include "MAHUDBackendRuntimeAdapter.h"
 
-#include "../MAHUD.h"
+#include "../Runtime/MAHUD.h"
 #include "../../../Core/Comm/Runtime/MACommSubsystem.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"

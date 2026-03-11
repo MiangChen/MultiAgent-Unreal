@@ -7,7 +7,7 @@
 #include "Agent/Character/MAUAVCharacter.h"
 #include "Agent/Component/Sensor/MACameraSensorComponent.h"
 #include "Input/MAAgentInputComponent.h"
-#include "UI/HUD/MAHUD.h"
+#include "UI/HUD/Runtime/MAHUD.h"
 #include "Engine/Engine.h"
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"

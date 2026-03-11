@@ -2,7 +2,7 @@
 
 #include "MAHUDSceneListSelectionCoordinator.h"
 
-#include "../MAHUD.h"
+#include "../Runtime/MAHUD.h"
 #include "../../../Core/Interaction/Feedback/MAFeedback21.h"
 
 void FMAHUDSceneListSelectionCoordinator::HandleGoalClicked(AMAHUD* HUD, const FString& GoalId) const

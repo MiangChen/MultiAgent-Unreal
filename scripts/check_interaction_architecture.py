@@ -125,6 +125,7 @@ REQUIRED_UI_TASKGRAPH_DIRS = (
     "UI/TaskGraph/Domain",
     "UI/TaskGraph/Feedback",
     "UI/TaskGraph/Infrastructure",
+    "UI/TaskGraph/Presentation",
 )
 
 REQUIRED_UI_SKILL_ALLOCATION_DIRS = (
@@ -133,6 +134,7 @@ REQUIRED_UI_SKILL_ALLOCATION_DIRS = (
     "UI/SkillAllocation/Domain",
     "UI/SkillAllocation/Feedback",
     "UI/SkillAllocation/Infrastructure",
+    "UI/SkillAllocation/Presentation",
 )
 
 REQUIRED_UI_COMPONENTS_DIRS = (
@@ -140,6 +142,8 @@ REQUIRED_UI_COMPONENTS_DIRS = (
     "UI/Components/Bootstrap",
     "UI/Components/Domain",
     "UI/Components/Infrastructure",
+    "UI/Components/Presentation",
+    "UI/Components/Runtime",
 )
 
 REQUIRED_UI_SETUP_DIRS = (
@@ -147,6 +151,8 @@ REQUIRED_UI_SETUP_DIRS = (
     "UI/Setup/Bootstrap",
     "UI/Setup/Domain",
     "UI/Setup/Infrastructure",
+    "UI/Setup/Presentation",
+    "UI/Setup/Runtime",
 )
 
 REQUIRED_UI_CORE_MODAL_DIRS = (
@@ -167,6 +173,8 @@ REQUIRED_UI_HUD_DIRS = (
     "UI/HUD/Domain",
     "UI/HUD/Feedback",
     "UI/HUD/Infrastructure",
+    "UI/HUD/Presentation",
+    "UI/HUD/Runtime",
 )
 
 REQUIRED_UI_SCENE_EDITING_DIRS = (
@@ -175,6 +183,7 @@ REQUIRED_UI_SCENE_EDITING_DIRS = (
     "UI/SceneEditing/Domain",
     "UI/SceneEditing/Feedback",
     "UI/SceneEditing/Infrastructure",
+    "UI/SceneEditing/Presentation",
 )
 
 REQUIRED_SKILL_ALLOCATION_DIRS = (
@@ -524,11 +533,11 @@ LEGACY_STATE_GUARDS = {
 }
 
 TASKGRAPH_UI_RUNTIME_INCLUDE_GUARDS = (
-    '#include "Core/Comm/Runtime/',
-    '#include "Core/TempData/Runtime/',
-    '#include "Core/TaskGraph/Bootstrap/',
-    '#include "UI/Core/MAUIManager.h"',
-    '#include "UI/HUD/MAHUD.h"',
+    'Core/Comm/Runtime/',
+    'Core/TempData/Runtime/',
+    'Core/TaskGraph/Bootstrap/',
+    'UI/Core/MAUIManager.h',
+    'UI/HUD/Runtime/MAHUD.h',
 )
 
 TASKGRAPH_UI_RUNTIME_CALL_GUARDS = (
@@ -538,11 +547,11 @@ TASKGRAPH_UI_RUNTIME_CALL_GUARDS = (
 )
 
 SKILLALLOCATION_UI_RUNTIME_INCLUDE_GUARDS = (
-    '#include "Core/Comm/Runtime/',
-    '#include "Core/TempData/Runtime/',
-    '#include "Core/SkillAllocation/Bootstrap/',
-    '#include "UI/Core/MAUIManager.h"',
-    '#include "UI/HUD/MAHUD.h"',
+    'Core/Comm/Runtime/',
+    'Core/TempData/Runtime/',
+    'Core/SkillAllocation/Bootstrap/',
+    'UI/Core/MAUIManager.h',
+    'UI/HUD/Runtime/MAHUD.h',
 )
 
 SKILLALLOCATION_UI_RUNTIME_CALL_GUARDS = (
@@ -552,10 +561,10 @@ SKILLALLOCATION_UI_RUNTIME_CALL_GUARDS = (
 )
 
 COMPONENTS_PREVIEW_RUNTIME_INCLUDE_GUARDS = (
-    '#include "Core/Comm/Runtime/',
-    '#include "Core/TempData/Runtime/',
-    '#include "UI/Core/MAUIManager.h"',
-    '#include "UI/HUD/MAHUD.h"',
+    'Core/Comm/Runtime/',
+    'Core/TempData/Runtime/',
+    'UI/Core/MAUIManager.h',
+    'UI/HUD/Runtime/MAHUD.h',
 )
 
 COMPONENTS_PREVIEW_RUNTIME_CALL_GUARDS = (
@@ -565,34 +574,34 @@ COMPONENTS_PREVIEW_RUNTIME_CALL_GUARDS = (
 )
 
 COMPONENTS_RUNTIME_WIDGET_SCOPE = {
-    "UI/Components/MAContextMenuWidget.h",
-    "UI/Components/MAContextMenuWidget.cpp",
-    "UI/Components/MAMiniMapWidget.h",
-    "UI/Components/MAMiniMapWidget.cpp",
-    "UI/Components/MAMiniMapManager.h",
-    "UI/Components/MAMiniMapManager.cpp",
-    "UI/Components/MANotificationWidget.h",
-    "UI/Components/MANotificationWidget.cpp",
-    "UI/Components/MAInstructionPanel.h",
-    "UI/Components/MAInstructionPanel.cpp",
-    "UI/Components/MASystemLogPanel.h",
-    "UI/Components/MASystemLogPanel.cpp",
-    "UI/Components/MADirectControlIndicator.h",
-    "UI/Components/MADirectControlIndicator.cpp",
-    "UI/Components/MASpeechBubbleWidget.h",
-    "UI/Components/MASpeechBubbleWidget.cpp",
-    "UI/Components/MAStyledButton.h",
-    "UI/Components/MAStyledButton.cpp",
+    "UI/Components/Presentation/MAContextMenuWidget.h",
+    "UI/Components/Presentation/MAContextMenuWidget.cpp",
+    "UI/Components/Presentation/MAMiniMapWidget.h",
+    "UI/Components/Presentation/MAMiniMapWidget.cpp",
+    "UI/Components/Runtime/MAMiniMapManager.h",
+    "UI/Components/Runtime/MAMiniMapManager.cpp",
+    "UI/Components/Presentation/MANotificationWidget.h",
+    "UI/Components/Presentation/MANotificationWidget.cpp",
+    "UI/Components/Presentation/MAInstructionPanel.h",
+    "UI/Components/Presentation/MAInstructionPanel.cpp",
+    "UI/Components/Presentation/MASystemLogPanel.h",
+    "UI/Components/Presentation/MASystemLogPanel.cpp",
+    "UI/Components/Presentation/MADirectControlIndicator.h",
+    "UI/Components/Presentation/MADirectControlIndicator.cpp",
+    "UI/Components/Presentation/MASpeechBubbleWidget.h",
+    "UI/Components/Presentation/MASpeechBubbleWidget.cpp",
+    "UI/Components/Presentation/MAStyledButton.h",
+    "UI/Components/Presentation/MAStyledButton.cpp",
 }
 
 COMPONENTS_RUNTIME_INCLUDE_GUARDS = (
-    '#include "../../Core/AgentRuntime/Runtime/',
-    '#include "../../Core/Selection/Runtime/',
-    '#include "../../Core/Command/Runtime/',
-    '#include "../../Core/TempData/Runtime/',
-    '#include "../../Core/Camera/Runtime/',
-    '#include "../Core/MAUIManager.h"',
-    '#include "../HUD/MAHUD.h"',
+    'Core/AgentRuntime/Runtime/',
+    'Core/Selection/Runtime/',
+    'Core/Command/Runtime/',
+    'Core/TempData/Runtime/',
+    'Core/Camera/Runtime/',
+    'UI/Core/MAUIManager.h',
+    'UI/HUD/Runtime/MAHUD.h',
 )
 
 COMPONENTS_RUNTIME_CALL_GUARDS = (
@@ -603,17 +612,17 @@ COMPONENTS_RUNTIME_CALL_GUARDS = (
 )
 
 SETUP_RUNTIME_WIDGET_SCOPE = {
-    "UI/Setup/MASetupHUD.h",
-    "UI/Setup/MASetupHUD.cpp",
-    "UI/Setup/MASetupWidget.h",
-    "UI/Setup/MASetupWidget.cpp",
+    "UI/Setup/Runtime/MASetupHUD.h",
+    "UI/Setup/Runtime/MASetupHUD.cpp",
+    "UI/Setup/Presentation/MASetupWidget.h",
+    "UI/Setup/Presentation/MASetupWidget.cpp",
 }
 
 SETUP_RUNTIME_INCLUDE_GUARDS = (
-    '#include "../../Core/Config/MAConfigManager.h"',
-    '#include "../../Core/Config/Runtime/',
-    '#include "../../Core/GameFlow/Bootstrap/',
-    '#include "Kismet/GameplayStatics.h"',
+    'Core/Config/MAConfigManager.h',
+    'Core/Config/Runtime/',
+    'Core/GameFlow/Bootstrap/',
+    'Kismet/GameplayStatics.h',
 )
 
 SETUP_RUNTIME_CALL_GUARDS = (
@@ -625,17 +634,17 @@ SETUP_RUNTIME_CALL_GUARDS = (
 )
 
 MODE_RUNTIME_WIDGET_SCOPE = {
-    "UI/SceneEditing/MAModifyWidget.h",
-    "UI/SceneEditing/MAModifyWidget.cpp",
-    "UI/SceneEditing/MASceneListWidget.h",
-    "UI/SceneEditing/MASceneListWidget.cpp",
+    "UI/SceneEditing/Presentation/MAModifyWidget.h",
+    "UI/SceneEditing/Presentation/MAModifyWidget.cpp",
+    "UI/SceneEditing/Presentation/MASceneListWidget.h",
+    "UI/SceneEditing/Presentation/MASceneListWidget.cpp",
 }
 
 MODE_RUNTIME_INCLUDE_GUARDS = (
-    '#include "../../Core/Editing/Runtime/',
-    '#include "../../Core/SceneGraph/Runtime/',
-    '#include "../../Core/SceneGraph/Bootstrap/',
-    '#include "../../Core/Comm/Runtime/',
+    'Core/Editing/Runtime/',
+    'Core/SceneGraph/Runtime/',
+    'Core/SceneGraph/Bootstrap/',
+    'Core/Comm/Runtime/',
 )
 
 MODE_RUNTIME_CALL_GUARDS = (
@@ -663,11 +672,11 @@ MODAL_RUNTIME_CALL_GUARDS = (
 )
 
 SELECTIONHUD_RUNTIME_INCLUDE_GUARDS = (
-    '#include "../../Core/Selection/Runtime/',
-    '#include "../../Core/AgentRuntime/Runtime/',
-    '#include "../Core/MAUIManager.h"',
-    '#include "Blueprint/UserWidget.h"',
-    '#include "Blueprint/WidgetBlueprintLibrary.h"',
+    'Core/Selection/Runtime/',
+    'Core/AgentRuntime/Runtime/',
+    'UI/Core/MAUIManager.h',
+    'Blueprint/UserWidget.h',
+    'Blueprint/WidgetBlueprintLibrary.h',
 )
 
 SELECTIONHUD_RUNTIME_CALL_GUARDS = (
@@ -874,12 +883,12 @@ def main() -> int:
 
         preview_component_scope = (
             relative in {
-                "UI/Components/MAPreviewPanel.h",
-                "UI/Components/MAPreviewPanel.cpp",
-                "UI/Components/MATaskGraphPreview.h",
-                "UI/Components/MATaskGraphPreview.cpp",
-                "UI/Components/MASkillListPreview.h",
-                "UI/Components/MASkillListPreview.cpp",
+                "UI/Components/Presentation/MAPreviewPanel.h",
+                "UI/Components/Presentation/MAPreviewPanel.cpp",
+                "UI/Components/Presentation/MATaskGraphPreview.h",
+                "UI/Components/Presentation/MATaskGraphPreview.cpp",
+                "UI/Components/Presentation/MASkillListPreview.h",
+                "UI/Components/Presentation/MASkillListPreview.cpp",
             }
             or relative.startswith("UI/Components/Application/")
             or relative.startswith("UI/Components/Domain/")
@@ -935,7 +944,7 @@ def main() -> int:
                 if pattern in text:
                     errors.append(f"{relative}: runtime call '{pattern}' should stay out of UI/Core/Modal widget shell")
 
-        if relative == "UI/HUD/MASelectionHUD.cpp":
+        if relative == "UI/HUD/Runtime/MASelectionHUD.cpp":
             for pattern in SELECTIONHUD_RUNTIME_INCLUDE_GUARDS:
                 if pattern in text:
                     errors.append(f"{relative}: runtime include '{pattern}' should stay in UI/HUD/Infrastructure")

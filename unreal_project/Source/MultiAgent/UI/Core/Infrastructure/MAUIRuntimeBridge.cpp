@@ -1,8 +1,8 @@
 #include "MAUIRuntimeBridge.h"
 
 #include "UI/Core/MAUIManager.h"
-#include "UI/HUD/MAMainHUDWidget.h"
-#include "UI/Components/MANotificationWidget.h"
+#include "UI/HUD/Presentation/MAMainHUDWidget.h"
+#include "UI/Components/Presentation/MANotificationWidget.h"
 #include "Core/TempData/Runtime/MATempDataManager.h"
 #include "Core/Command/Runtime/MACommandManager.h"
 #include "Core/Comm/Runtime/MACommSubsystem.h"

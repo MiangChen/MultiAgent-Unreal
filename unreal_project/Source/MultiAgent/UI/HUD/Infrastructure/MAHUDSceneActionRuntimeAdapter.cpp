@@ -2,7 +2,7 @@
 
 #include "MAHUDSceneActionRuntimeAdapter.h"
 
-#include "../MAHUD.h"
+#include "../Runtime/MAHUD.h"
 #include "Engine/World.h"
 
 UWorld* FMAHUDSceneActionRuntimeAdapter::ResolveWorld(const AMAHUD* HUD) const

@@ -1,6 +1,6 @@
 #include "MAHUDBootstrap.h"
 
-#include "UI/HUD/MAHUD.h"
+#include "UI/HUD/Runtime/MAHUD.h"
 #include "UI/Core/MAUIManager.h"
 #include "UI/Core/Bootstrap/MAUIBootstrap.h"
 

@@ -3,9 +3,9 @@
 
 #include "MAHUDViewCoordinator.h"
 #include "../../Core/MAUIManager.h"
-#include "../MAHUDWidget.h"
-#include "../MAMainHUDWidget.h"
-#include "../../Components/MAMiniMapWidget.h"
+#include "../Presentation/MAHUDWidget.h"
+#include "../Presentation/MAMainHUDWidget.h"
+#include "../../Components/Presentation/MAMiniMapWidget.h"
 #include "GameFramework/PlayerController.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMAHUDViewCoordinator, Log, All);

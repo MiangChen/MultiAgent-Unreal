@@ -2,7 +2,7 @@
 
 #include "MAHUDEditRuntimeAdapter.h"
 
-#include "../MAHUD.h"
+#include "../Runtime/MAHUD.h"
 #include "../../../Core/Editing/Runtime/MAEditModeManager.h"
 #include "../../../Core/Camera/Runtime/MAPIPCameraManager.h"
 #include "../../../Core/SceneGraph/Bootstrap/MASceneGraphBootstrap.h"

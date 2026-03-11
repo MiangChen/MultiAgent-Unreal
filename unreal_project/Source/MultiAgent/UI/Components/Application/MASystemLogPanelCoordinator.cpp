@@ -1,6 +1,6 @@
 #include "MASystemLogPanelCoordinator.h"
 
-#include "../MASystemLogPanel.h"
+#include "../Presentation/MASystemLogPanel.h"
 #include "../Core/MAUITheme.h"
 
 void FMASystemLogPanelCoordinator::AppendLog(TArray<FMALogEntry>& Entries, const FString& Message, bool bIsError, int32 MaxEntries) const

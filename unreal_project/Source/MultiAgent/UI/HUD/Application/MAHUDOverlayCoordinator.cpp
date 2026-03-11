@@ -1,11 +1,11 @@
 // HUD overlay and edit-mode coordination.
 
 #include "MAHUDOverlayCoordinator.h"
-#include "../MAHUD.h"
+#include "../Runtime/MAHUD.h"
 #include "../../Core/MAUIManager.h"
-#include "../../SceneEditing/MAEditWidget.h"
+#include "../../SceneEditing/Presentation/MAEditWidget.h"
 #include "../../../Input/MAPlayerController.h"
-#include "../MAHUDWidget.h"
+#include "../Presentation/MAHUDWidget.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMAHUDOverlayCoordinator, Log, All);
 

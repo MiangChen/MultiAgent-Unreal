@@ -1,7 +1,7 @@
 #include "MATaskGraphUIBootstrap.h"
 
-#include "UI/TaskGraph/MATaskPlannerWidget.h"
-#include "UI/TaskGraph/MANodePaletteWidget.h"
+#include "UI/TaskGraph/Presentation/MATaskPlannerWidget.h"
+#include "UI/TaskGraph/Presentation/MANodePaletteWidget.h"
 #include "UI/Core/MAUITheme.h"
 #include "Core/TaskGraph/Application/MATaskGraphUseCases.h"
 

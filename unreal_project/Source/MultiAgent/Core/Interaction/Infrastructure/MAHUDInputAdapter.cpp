@@ -2,8 +2,8 @@
 
 #include "MAHUDInputAdapter.h"
 
-#include "../../../UI/HUD/MAHUD.h"
-#include "../../../UI/HUD/MASelectionHUD.h"
+#include "../../../UI/HUD/Runtime/MAHUD.h"
+#include "../../../UI/HUD/Runtime/MASelectionHUD.h"
 #include "../../../UI/Core/MAHUDStateManager.h"
 #include "GameFramework/PlayerController.h"
 

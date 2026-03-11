@@ -2,12 +2,12 @@
 // HUD backend interaction coordination.
 
 #include "MAHUDBackendCoordinator.h"
-#include "../MAHUD.h"
+#include "../Runtime/MAHUD.h"
 #include "../../Core/MAUIManager.h"
 #include "../../Core/MAHUDStateManager.h"
-#include "../../TaskGraph/MATaskPlannerWidget.h"
-#include "../../TaskGraph/MATaskGraphModal.h"
-#include "../../SkillAllocation/MASkillAllocationModal.h"
+#include "../../TaskGraph/Presentation/MATaskPlannerWidget.h"
+#include "../../TaskGraph/Presentation/MATaskGraphModal.h"
+#include "../../SkillAllocation/Presentation/MASkillAllocationModal.h"
 #include "../../../Core/SkillAllocation/Application/MASkillAllocationUseCases.h"
 #include "../../../Core/Shared/Types/MASimTypes.h"
 

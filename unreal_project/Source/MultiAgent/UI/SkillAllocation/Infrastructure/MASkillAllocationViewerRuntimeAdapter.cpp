@@ -1,8 +1,8 @@
 #include "MASkillAllocationViewerRuntimeAdapter.h"
 
-#include "UI/SkillAllocation/MASkillAllocationViewer.h"
+#include "UI/SkillAllocation/Presentation/MASkillAllocationViewer.h"
 #include "Core/TempData/Runtime/MATempDataManager.h"
-#include "UI/HUD/MAHUD.h"
+#include "UI/HUD/Runtime/MAHUD.h"
 #include "UI/Core/MAUIManager.h"
 #include "Engine/GameInstance.h"
 #include "GameFramework/PlayerController.h"

@@ -2,7 +2,7 @@
 
 #include "MAModifyWidgetStateCoordinator.h"
 
-#include "../MAModifyWidget.h"
+#include "../Presentation/MAModifyWidget.h"
 
 void FMAModifyWidgetStateCoordinator::ApplySingleSelection(UMAModifyWidget* Widget, AActor* SelectedActor) const
 {

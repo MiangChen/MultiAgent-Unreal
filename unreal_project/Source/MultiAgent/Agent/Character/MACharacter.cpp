@@ -14,10 +14,10 @@
 #include "../../Core/Config/MAConfigManager.h"
 #include "../../Core/Command/Runtime/MACommandManager.h"
 #include "../../UI/Core/MAUIManager.h"
-#include "../../UI/HUD/MAHUD.h"
+#include "../../UI/HUD/Runtime/MAHUD.h"
 #include "Components/WidgetComponent.h"
 #include "Camera/PlayerCameraManager.h"
-#include "../../UI/Components/MASpeechBubbleWidget.h"
+#include "../../UI/Components/Presentation/MASpeechBubbleWidget.h"
 
 AMACharacter::AMACharacter()
 {

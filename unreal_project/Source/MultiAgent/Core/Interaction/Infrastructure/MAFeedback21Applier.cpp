@@ -2,12 +2,12 @@
 
 #include "MAFeedback21Applier.h"
 
-#include "../../../UI/HUD/MAHUD.h"
+#include "../../../UI/HUD/Runtime/MAHUD.h"
 #include "../../../UI/Core/MAUIManager.h"
 #include "../../../UI/Core/MAHUDStateManager.h"
 #include "../../../UI/Core/MAHUDTypes.h"
-#include "../../../UI/SceneEditing/MASceneListWidget.h"
-#include "../../../UI/TaskGraph/MATaskPlannerWidget.h"
+#include "../../../UI/SceneEditing/Presentation/MASceneListWidget.h"
+#include "../../../UI/TaskGraph/Presentation/MATaskPlannerWidget.h"
 #include "Engine/Engine.h"
 #include "GameFramework/PlayerController.h"
 

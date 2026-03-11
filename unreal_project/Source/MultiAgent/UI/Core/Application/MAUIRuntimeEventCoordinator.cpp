@@ -4,11 +4,11 @@
 #include "MAUIRuntimeEventCoordinator.h"
 #include "../MAUIManager.h"
 #include "../MAHUDStateManager.h"
-#include "../../HUD/MAMainHUDWidget.h"
-#include "../../Components/MANotificationWidget.h"
-#include "../../Components/MAPreviewPanel.h"
+#include "../../HUD/Presentation/MAMainHUDWidget.h"
+#include "../../Components/Presentation/MANotificationWidget.h"
+#include "../../Components/Presentation/MAPreviewPanel.h"
 #include "../Modal/MADecisionModal.h"
-#include "../../SkillAllocation/MASkillAllocationModal.h"
+#include "../../SkillAllocation/Presentation/MASkillAllocationModal.h"
 
 namespace
 {

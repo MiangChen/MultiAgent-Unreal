@@ -1,7 +1,7 @@
 #include "MAInstructionPanelRuntimeAdapter.h"
 
 #include "../../Core/MAUIManager.h"
-#include "../../HUD/MAHUD.h"
+#include "../../HUD/Runtime/MAHUD.h"
 #include "Blueprint/UserWidget.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"

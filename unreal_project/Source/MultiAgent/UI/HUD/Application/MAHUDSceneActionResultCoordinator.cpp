@@ -1,9 +1,9 @@
 #include "MAHUDSceneActionResultCoordinator.h"
 
-#include "../MAHUD.h"
+#include "../Runtime/MAHUD.h"
 #include "../../Core/MAUIManager.h"
-#include "../../SceneEditing/MAModifyWidget.h"
-#include "../../SceneEditing/MASceneListWidget.h"
+#include "../../SceneEditing/Presentation/MAModifyWidget.h"
+#include "../../SceneEditing/Presentation/MASceneListWidget.h"
 
 namespace
 {

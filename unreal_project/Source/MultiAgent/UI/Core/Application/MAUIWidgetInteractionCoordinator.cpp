@@ -5,12 +5,12 @@
 #include "../MAUIManager.h"
 #include "../MAHUDStateManager.h"
 #include "../Modal/MABaseModalWidget.h"
-#include "../../TaskGraph/MATaskGraphModal.h"
-#include "../../SkillAllocation/MASkillAllocationModal.h"
+#include "../../TaskGraph/Presentation/MATaskGraphModal.h"
+#include "../../SkillAllocation/Presentation/MASkillAllocationModal.h"
 #include "../Modal/MADecisionModal.h"
-#include "../../SkillAllocation/MASkillAllocationViewer.h"
-#include "../../TaskGraph/MATaskPlannerWidget.h"
-#include "../../SceneEditing/MAEditWidget.h"
+#include "../../SkillAllocation/Presentation/MASkillAllocationViewer.h"
+#include "../../TaskGraph/Presentation/MATaskPlannerWidget.h"
+#include "../../SceneEditing/Presentation/MAEditWidget.h"
 #include "Blueprint/UserWidget.h"
 
 bool FMAUIWidgetInteractionCoordinator::ShowWidget(UMAUIManager* UIManager, EMAWidgetType Type, bool bSetFocus) const

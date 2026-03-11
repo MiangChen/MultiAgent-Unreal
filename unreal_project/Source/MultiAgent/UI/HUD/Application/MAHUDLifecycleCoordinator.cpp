@@ -1,7 +1,7 @@
 // HUD lifecycle coordination.
 
 #include "MAHUDLifecycleCoordinator.h"
-#include "../MAHUD.h"
+#include "../Runtime/MAHUD.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMAHUDLifecycleCoordinator, Log, All);
 

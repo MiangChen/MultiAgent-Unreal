@@ -2,10 +2,10 @@
 
 #include "MAHUDModeWidgetLifecycleCoordinator.h"
 
-#include "../MAHUD.h"
+#include "../Runtime/MAHUD.h"
 #include "../../Core/MAUIManager.h"
-#include "../../SceneEditing/MAEditWidget.h"
-#include "../../SceneEditing/MAModifyWidget.h"
+#include "../../SceneEditing/Presentation/MAEditWidget.h"
+#include "../../SceneEditing/Presentation/MAModifyWidget.h"
 
 void FMAHUDModeWidgetLifecycleCoordinator::ShowModifyWidget(AMAHUD* HUD) const
 {

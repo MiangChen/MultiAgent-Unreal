@@ -2,12 +2,12 @@
 // HUD delegate binding coordination.
 
 #include "MAHUDDelegateCoordinator.h"
-#include "../MAHUD.h"
+#include "../Runtime/MAHUD.h"
 #include "../../Core/MAUIManager.h"
-#include "../../Components/MAInstructionPanel.h"
-#include "../../SceneEditing/MAModifyWidget.h"
-#include "../../SceneEditing/MASceneListWidget.h"
-#include "../../TaskGraph/MATaskPlannerWidget.h"
+#include "../../Components/Presentation/MAInstructionPanel.h"
+#include "../../SceneEditing/Presentation/MAModifyWidget.h"
+#include "../../SceneEditing/Presentation/MASceneListWidget.h"
+#include "../../TaskGraph/Presentation/MATaskPlannerWidget.h"
 #include "../../../Input/MAPlayerController.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMAHUDDelegateCoordinator, Log, All);

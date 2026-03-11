@@ -1,10 +1,10 @@
 // HUD panel visibility coordination.
 
 #include "MAHUDPanelCoordinator.h"
-#include "../MAHUD.h"
+#include "../Runtime/MAHUD.h"
 #include "../../Core/MAUIManager.h"
-#include "../../SceneEditing/MAEditWidget.h"
-#include "../../SceneEditing/MAModifyWidget.h"
+#include "../../SceneEditing/Presentation/MAEditWidget.h"
+#include "../../SceneEditing/Presentation/MAModifyWidget.h"
 #include "GameFramework/PlayerController.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMAHUDPanelCoordinator, Log, All);

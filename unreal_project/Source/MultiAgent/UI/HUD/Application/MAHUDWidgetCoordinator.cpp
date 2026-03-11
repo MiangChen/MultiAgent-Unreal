@@ -3,8 +3,8 @@
 
 #include "MAHUDWidgetCoordinator.h"
 #include "../../Core/MAUIManager.h"
-#include "../../TaskGraph/MATaskPlannerWidget.h"
-#include "../../Components/MADirectControlIndicator.h"
+#include "../../TaskGraph/Presentation/MATaskPlannerWidget.h"
+#include "../../Components/Presentation/MADirectControlIndicator.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMAHUDWidgetCoordinator, Log, All);
 

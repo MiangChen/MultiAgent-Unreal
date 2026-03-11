@@ -2,7 +2,7 @@
 
 #include "MASelectionHUDCoordinator.h"
 
-#include "../MASelectionHUD.h"
+#include "../Runtime/MASelectionHUD.h"
 
 FMASelectionHUDFrameModel FMASelectionHUDCoordinator::BuildFrameModel(const AMASelectionHUD* HUD, bool bShowAgentCircles) const
 {

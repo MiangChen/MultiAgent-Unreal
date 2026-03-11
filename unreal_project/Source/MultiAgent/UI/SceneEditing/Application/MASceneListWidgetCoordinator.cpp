@@ -1,6 +1,6 @@
 #include "MASceneListWidgetCoordinator.h"
 
-#include "../MASceneListWidget.h"
+#include "../Presentation/MASceneListWidget.h"
 #include "../../../Core/SceneGraph/Feedback/MASceneGraphFeedback.h"
 
 namespace

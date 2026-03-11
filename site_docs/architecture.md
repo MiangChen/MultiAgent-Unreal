@@ -47,16 +47,17 @@ flowchart LR
 
 | 层级 | 当前 folder 映射 |
 |---|---|
-| `L1` | `Input/`、`UI/` |
+| `L1` | `Input/`、`UI/{HUD,SceneEditing,TaskGraph,SkillAllocation,Components,Setup}/Presentation/`、`UI/Core/Modal/` |
 | `L2` | `Core/{Interaction,SceneGraph,TaskGraph,SkillAllocation,Command,Selection,Editing,AgentRuntime,Squad,EnvironmentCore,TempData,Camera,Comm,Config}/Application/`、`UI/Core/Application/`、`UI/Core/Modal/Application/`、`UI/HUD/Application/`、`UI/SceneEditing/Application/`、`UI/TaskGraph/Application/`、`UI/SkillAllocation/Application/`、`UI/Components/Application/`、`UI/Setup/Application/` |
 | `L3` | `Core/{Interaction,SceneGraph,TaskGraph,SkillAllocation,Command,Selection,Editing,AgentRuntime,Squad,EnvironmentCore,TempData,Camera,Comm,Config}/Domain/`、`Core/{Interaction,SceneGraph,TaskGraph,SkillAllocation,Command,Selection,Editing,AgentRuntime,Squad,EnvironmentCore,TempData,Camera,Comm}/Feedback/`、`Core/Shared/Types/`、`UI/Core/Feedback/`、`UI/Core/Modal/Domain/`、`UI/HUD/{Domain,Feedback}/`、`UI/SceneEditing/{Domain,Feedback}/`、`UI/TaskGraph/{Domain,Feedback}/`、`UI/SkillAllocation/{Domain,Feedback}/`、`UI/Components/Domain/`、`UI/Setup/Domain/` |
 | `L4` | `Core/{Interaction,SceneGraph,TaskGraph,SkillAllocation,Command,Selection,Editing,AgentRuntime,Squad,EnvironmentCore,TempData,Camera,Comm,Config}/Infrastructure/`、`UI/Core/Infrastructure/`、`UI/HUD/Infrastructure/`、`UI/SceneEditing/Infrastructure/`、`UI/TaskGraph/Infrastructure/`、`UI/SkillAllocation/Infrastructure/`、`UI/Components/Infrastructure/`、`UI/Setup/Infrastructure/` |
-| `L5` | `Core/{SceneGraph,Command,Selection,Editing,AgentRuntime,Squad,TempData,EnvironmentCore,Camera,Comm,Config}/Runtime/`、`Agent/`、`Environment/` |
+| `L5` | `Core/{SceneGraph,Command,Selection,Editing,AgentRuntime,Squad,TempData,EnvironmentCore,Camera,Comm,Config}/Runtime/`、`UI/{HUD,Setup,Components}/Runtime/`、`Agent/`、`Environment/` |
 | `CR` | `Core/{Interaction,SceneGraph,Command,Selection,Editing,AgentRuntime,Squad,EnvironmentCore,TempData,Camera,Comm,Config}/Bootstrap/`、`Core/GameFlow/Bootstrap/`、`UI/Core/Bootstrap/`、`UI/HUD/Bootstrap/`、`UI/SceneEditing/Bootstrap/`、`UI/TaskGraph/Bootstrap/`、`UI/SkillAllocation/Bootstrap/`、`UI/Components/Bootstrap/`、`UI/Setup/Bootstrap/` |
 
 必要说明：
 - `Core` 现在是 context 集合，不再存在 `Core/Manager` 和 `Core/Types` 大桶。
 - `UI` 现在也按 context 收口：`Core / HUD / SceneEditing / TaskGraph / SkillAllocation / Components / Setup`，共享 modal 机制并入 `UI/Core/Modal/`。
+- `UI` 现在和 `Core` 使用同一套结构语言：`Presentation/` 表示 UI 的 `L1` 展示壳，`Runtime/` 表示 UI 的 `L5` 入口壳。
 - `TaskGraph`、`SkillAllocation` 属于轻量 context：没有专属 `Runtime/`，运行时持久化与传输仍由 `TempData / Comm` 承担。
 - `Interaction` 也是轻量 context：没有专属 `Runtime/`，它负责编排其他 runtime context。
 
@@ -78,7 +79,7 @@ flowchart TB
 
     subgraph L1["L1 Entry / Presentation"]
         INPUT["Input/"]
-        UIROOT["UI/"]
+        UIPRESENTATION["UI/*/Presentation/ + UI/Core/Modal/"]
     end
 
     subgraph L2["L2 Application"]
@@ -119,25 +120,25 @@ flowchart TB
     end
 
     subgraph L5["L5 Runtime / Plant"]
-        CORERUNTIME["Core/*/Runtime/"]
+        CORERUNTIME["Core/*/Runtime/ + UI/*/Runtime/"]
         AGENT["Agent/"]
         ENV["Environment/"]
     end
 
     COREBOOT --> COREAPP
     GAMEFLOWBOOT --> INPUT
-    GAMEFLOWBOOT --> UIROOT
-    UIBOOT --> UIROOT
+    GAMEFLOWBOOT --> UIPRESENTATION
+    UIBOOT --> UIPRESENTATION
 
     INPUT --> COREAPP
-    UIROOT --> UICOREAPP
-    UIROOT --> UIHUDAPP
-    UIROOT --> UIEDITAPP
-    UIROOT --> UITGAPP
-    UIROOT --> UISAAPP
-    UIROOT --> UICOMPAPP
-    UIROOT --> UISETUPAPP
-    UIROOT --> UIMODALAPP
+    UIPRESENTATION --> UICOREAPP
+    UIPRESENTATION --> UIHUDAPP
+    UIPRESENTATION --> UIEDITAPP
+    UIPRESENTATION --> UITGAPP
+    UIPRESENTATION --> UISAAPP
+    UIPRESENTATION --> UICOMPAPP
+    UIPRESENTATION --> UISETUPAPP
+    UIPRESENTATION --> UIMODALAPP
 
     COREAPP --> COREDOMAIN
     COREAPP --> COREFEEDBACK

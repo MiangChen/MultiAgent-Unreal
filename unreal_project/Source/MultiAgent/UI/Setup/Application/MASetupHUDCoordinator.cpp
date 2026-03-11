@@ -1,7 +1,7 @@
 #include "MASetupHUDCoordinator.h"
 
 #include "../Infrastructure/MASetupRuntimeAdapter.h"
-#include "../MASetupHUD.h"
+#include "../Runtime/MASetupHUD.h"
 #include "GameFramework/PlayerController.h"
 
 bool FMASetupHUDCoordinator::ShouldShowSetupUI(const AMASetupHUD& HUD) const

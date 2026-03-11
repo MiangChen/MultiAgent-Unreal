@@ -4,8 +4,8 @@
 #include "MAUINotificationCoordinator.h"
 #include "../MAUIManager.h"
 #include "../MAHUDStateManager.h"
-#include "../../HUD/MAMainHUDWidget.h"
-#include "../../Components/MANotificationWidget.h"
+#include "../../HUD/Presentation/MAMainHUDWidget.h"
+#include "../../Components/Presentation/MANotificationWidget.h"
 
 void FMAUINotificationCoordinator::ShowNotification(UMAUIManager* UIManager, EMANotificationType Type) const
 {

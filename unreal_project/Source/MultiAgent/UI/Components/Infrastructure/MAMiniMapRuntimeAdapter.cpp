@@ -1,8 +1,8 @@
 #include "MAMiniMapRuntimeAdapter.h"
 
-#include "../MAMiniMapWidget.h"
-#include "../../HUD/MAHUD.h"
-#include "../../HUD/MAMainHUDWidget.h"
+#include "../Presentation/MAMiniMapWidget.h"
+#include "../../HUD/Runtime/MAHUD.h"
+#include "../../HUD/Presentation/MAMainHUDWidget.h"
 #include "../../../Core/AgentRuntime/Runtime/MAAgentManager.h"
 #include "../../../Core/Selection/Runtime/MASelectionManager.h"
 #include "../../../Agent/Character/MACharacter.h"

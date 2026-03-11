@@ -1,7 +1,7 @@
 #include "MASkillAllocationUIBootstrap.h"
 
-#include "UI/SkillAllocation/MASkillAllocationViewer.h"
-#include "UI/SkillAllocation/MAGanttCanvas.h"
+#include "UI/SkillAllocation/Presentation/MASkillAllocationViewer.h"
+#include "UI/SkillAllocation/Presentation/MAGanttCanvas.h"
 #include "UI/Core/MAUITheme.h"
 
 void FMASkillAllocationUIBootstrap::ConfigureSkillAllocationViewer(UMASkillAllocationViewer* Viewer, UMAUITheme* Theme) const

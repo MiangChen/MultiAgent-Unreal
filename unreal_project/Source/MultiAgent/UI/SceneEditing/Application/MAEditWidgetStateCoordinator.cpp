@@ -2,7 +2,7 @@
 
 #include "MAEditWidgetStateCoordinator.h"
 
-#include "../MAEditWidget.h"
+#include "../Presentation/MAEditWidget.h"
 
 void FMAEditWidgetStateCoordinator::ApplyViewModel(UMAEditWidget* Widget, const FMAEditWidgetViewModel& ViewModel) const
 {

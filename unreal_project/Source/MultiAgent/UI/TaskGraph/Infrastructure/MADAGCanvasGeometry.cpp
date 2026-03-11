@@ -1,5 +1,5 @@
 #include "MADAGCanvasGeometry.h"
-#include "UI/TaskGraph/MATaskNodeWidget.h"
+#include "UI/TaskGraph/Presentation/MATaskNodeWidget.h"
 #include "Core/TaskGraph/Domain/MATaskGraphTypes.h"
 
 FVector2D FMADAGCanvasGeometry::CanvasToScreen(const FVector2D& CanvasPos, float ZoomLevel, const FVector2D& ViewOffset)

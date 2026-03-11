@@ -1,9 +1,9 @@
 #include "MAComponentsBootstrap.h"
 
-#include "UI/Components/MADirectControlIndicator.h"
-#include "UI/Components/MASystemLogPanel.h"
-#include "UI/Components/MAPreviewPanel.h"
-#include "UI/Components/MAInstructionPanel.h"
+#include "UI/Components/Presentation/MADirectControlIndicator.h"
+#include "UI/Components/Presentation/MASystemLogPanel.h"
+#include "UI/Components/Presentation/MAPreviewPanel.h"
+#include "UI/Components/Presentation/MAInstructionPanel.h"
 #include "UI/Core/MAUITheme.h"
 
 void FMAComponentsBootstrap::ConfigureDirectControlIndicator(UMADirectControlIndicator* Widget, UMAUITheme* Theme) const

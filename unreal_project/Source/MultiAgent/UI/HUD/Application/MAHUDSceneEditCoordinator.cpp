@@ -1,10 +1,10 @@
 // HUD scene-edit flow coordination.
 
 #include "MAHUDSceneEditCoordinator.h"
-#include "../MAHUD.h"
+#include "../Runtime/MAHUD.h"
 #include "../../Core/MAUIManager.h"
-#include "../../SceneEditing/MAEditWidget.h"
-#include "../../SceneEditing/MAModifyWidget.h"
+#include "../../SceneEditing/Presentation/MAEditWidget.h"
+#include "../../SceneEditing/Presentation/MAModifyWidget.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMAHUDSceneEditCoordinator, Log, All);
 

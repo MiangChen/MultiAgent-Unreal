@@ -1,8 +1,8 @@
 #include "MASceneEditingBootstrap.h"
 
-#include "UI/SceneEditing/MAModifyWidget.h"
-#include "UI/SceneEditing/MAEditWidget.h"
-#include "UI/SceneEditing/MASceneListWidget.h"
+#include "UI/SceneEditing/Presentation/MAModifyWidget.h"
+#include "UI/SceneEditing/Presentation/MAEditWidget.h"
+#include "UI/SceneEditing/Presentation/MASceneListWidget.h"
 #include "UI/Core/MAUITheme.h"
 
 void FMASceneEditingBootstrap::ConfigureModifyWidget(UMAModifyWidget* Widget, UMAUITheme* Theme) const

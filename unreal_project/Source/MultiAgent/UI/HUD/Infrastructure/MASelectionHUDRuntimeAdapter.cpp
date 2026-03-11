@@ -2,8 +2,8 @@
 
 #include "MASelectionHUDRuntimeAdapter.h"
 
-#include "../MAHUD.h"
-#include "../MASelectionHUD.h"
+#include "../Runtime/MAHUD.h"
+#include "../Runtime/MASelectionHUD.h"
 #include "../Core/MAUIManager.h"
 #include "../../../Agent/Character/MACharacter.h"
 #include "../../../Core/AgentRuntime/Runtime/MAAgentManager.h"

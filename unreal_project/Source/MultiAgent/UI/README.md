@@ -18,48 +18,59 @@ UI/
 │   ├── Domain/
 │   ├── Feedback/
 │   └── Infrastructure/
+│   ├── Presentation/
+│   └── Runtime/
 ├── SceneEditing/
 │   ├── Application/
 │   ├── Bootstrap/
 │   ├── Domain/
 │   ├── Feedback/
-│   └── Infrastructure/
+│   ├── Infrastructure/
+│   └── Presentation/
 ├── TaskGraph/
 │   ├── Application/
 │   ├── Bootstrap/
 │   ├── Domain/
 │   ├── Feedback/
-│   └── Infrastructure/
+│   ├── Infrastructure/
+│   └── Presentation/
 ├── SkillAllocation/
 │   ├── Application/
 │   ├── Bootstrap/
 │   ├── Domain/
 │   ├── Feedback/
-│   └── Infrastructure/
+│   ├── Infrastructure/
+│   └── Presentation/
 ├── Components/
 │   ├── Application/
 │   ├── Bootstrap/
 │   ├── Domain/
-│   └── Infrastructure/
+│   ├── Infrastructure/
+│   ├── Presentation/
+│   └── Runtime/
 └── Setup/
     ├── Application/
     ├── Bootstrap/
     ├── Domain/
-    └── Infrastructure/
+    ├── Infrastructure/
+    ├── Presentation/
+    └── Runtime/
 ```
 
 ## 规则
 
-- `L1`：widget / HUD shell / UI entry
+- `L1`：`Presentation/` 中的 widget shell，以及 `UI/Core/Modal/` 中的共享 modal shell
 - `L2`：`Application/`
 - `L3`：`Domain/` + `Feedback/`
 - `L4`：`Infrastructure/`
+- `L5`：`Runtime/` 中的 UI 运行时入口壳
 - `CR`：`Bootstrap/`
 
 约束：
 - widget 壳不直接做 runtime/subsystem 查询
 - `Application` 不直接 include `Infrastructure`
 - `Domain` 不依赖 runtime 类型
+- `Runtime` 只允许承载 Unreal 生命周期入口和最薄转发
 - `Bootstrap` 只做装配
 
 ## context 角色
@@ -84,6 +95,9 @@ UI/
 - `UI/Core/Modal/`
   - 只保留共享 modal 机制和全局决策 modal
   - 业务专属 modal 已归还给各自 owner context
+- `UI/*/Runtime/`
+  - 和 `Core/*/Runtime/` 一样，表示该 UI context 的运行时入口壳
+  - 当前主要用于 `HUD`、`Setup` 和 `Components/MiniMap`
 - `UI/TaskGraph`、`UI/SkillAllocation`
   - 是轻量 UI context
   - 它们没有独立 `Runtime/`，运行时数据分别经 `Core/TempData`、`Core/Comm` 与 `UI/Core` 接入
