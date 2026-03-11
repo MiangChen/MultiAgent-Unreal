@@ -33,6 +33,7 @@ from urllib.parse import urlparse, parse_qs
 import sys
 import uuid
 import queue
+import demo_guided
 
 # ========== 配置 ==========
 DEFAULT_REDBOX_POSITION = {"x": 300, "y": 2400, "z": 0}
@@ -596,7 +597,17 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: #1a1a2e; color: #eee; height: 100vh; overflow: hidden;
         }
-        .container { display: flex; height: 100vh; }
+        /* Tab Navigation */
+        .top-tabs { display: flex; background: #0d1126; border-bottom: 1px solid #1e2a4a; padding: 0 16px; }
+        .top-tab { padding: 13px 24px; cursor: pointer; border-bottom: 2px solid transparent;
+                   color: #667; font-size: 14px; font-weight: 600; transition: all 0.2s; text-decoration: none; }
+        .top-tab:hover { color: #aab; }
+        .top-tab.active { color: #00d9ff; border-bottom-color: #00d9ff; }
+        .top-tab .new-badge { background: #e94560; color: #fff; font-size: 9px; padding: 2px 6px;
+                              border-radius: 8px; margin-left: 6px; font-weight: 700; vertical-align: top; }
+        .page { display: none; height: calc(100vh - 46px); }
+        .page.active { display: flex; }
+        .container { display: flex; height: 100%; }
         
         /* Left Panel - Controls */
         .left-panel {
@@ -727,9 +738,21 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             text-align: center; color: #666; padding: 60px 20px;
         }
         .empty-state svg { width: 80px; height: 80px; margin-bottom: 20px; opacity: 0.3; }
+
+        /* Mermaid in messages */
+        .msg-mermaid { background: #0a0e1a; border: 1px solid #1e3a5f; border-radius: 8px;
+                       padding: 16px; margin-top: 10px; overflow-x: auto; }
+        .msg-mermaid .mermaid { display: flex; justify-content: center; }
+        .msg-mermaid-label { font-size: 10px; color: #00d9ff; font-weight: 700;
+                            letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
     </style>
 </head>
 <body>
+    <div class="top-tabs">
+        <a class="top-tab active" href="/">🎮 控制台</a>
+        <a class="top-tab" href="/demo">📖 引导演示 <span class="new-badge">NEW</span></a>
+    </div>
+    <div class="page active" id="page-console">
     <div class="container">
         <div class="left-panel">
             <h2>🎮 Mock Backend Control</h2>
@@ -978,6 +1001,52 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
                 <div class="message-content">${typeof content === 'object' ? JSON.stringify(content, null, 2) : content}</div>
             `;
             messagesDiv.insertBefore(msg, messagesDiv.firstChild);
+
+            // Auto-render Mermaid diagram for task_graph and skill_allocation
+            try {
+                const obj = typeof content === 'object' ? content : JSON.parse(content);
+                let mermaidCode = null, mermaidLabel = null;
+                if (obj && obj.task_graph && obj.task_graph.nodes && obj.task_graph.edges) {
+                    mermaidLabel = '📊 Task Graph DAG';
+                    const g = obj.task_graph;
+                    let code = 'graph TD\\n';
+                    g.nodes.forEach(n => {
+                        const skills = (n.required_skills || []).map(s => s.skill_name).join(', ');
+                        code += '    ' + n.task_id + '["' + n.task_id + ': ' + (n.description || '').substring(0, 30) + '<br/>' + skills + '"]\\n';
+                    });
+                    g.edges.forEach(e => {
+                        const arrow = e.type === 'parallel' ? ' -.-> ' : ' --> ';
+                        const label = e.condition ? e.type + ': ' + e.condition : e.type;
+                        code += '    ' + e.from + arrow + '|' + label + '| ' + e.to + '\\n';
+                    });
+                    mermaidCode = code;
+                } else if (obj && obj.stages) {
+                    mermaidLabel = '📊 Skill Allocation Gantt';
+                    let code = 'gantt\\n    title Skill Allocation Timeline\\n    dateFormat X\\n    axisFormat %s\\n';
+                    const robotTasks = {};
+                    obj.stages.forEach((stage, si) => {
+                        (stage.skills || []).forEach(sk => {
+                            const rkey = (sk.assigned_robots || ['?']).join('+');
+                            if (!robotTasks[rkey]) robotTasks[rkey] = [];
+                            robotTasks[rkey].push({name: sk.skill_name || 'skill', start: si, end: si+1});
+                        });
+                    });
+                    for (const [robot, tasks] of Object.entries(robotTasks)) {
+                        code += '    section ' + robot + '\\n';
+                        tasks.forEach((t, i) => {
+                            code += '        ' + t.name + ' :t' + i + ', ' + t.start + ', ' + t.end + '\\n';
+                        });
+                    }
+                    mermaidCode = code;
+                }
+                if (mermaidCode) {
+                    const wrap = document.createElement('div');
+                    wrap.className = 'msg-mermaid';
+                    wrap.innerHTML = '<div class="msg-mermaid-label">' + mermaidLabel + '</div><pre class="mermaid">' + mermaidCode + '</pre>';
+                    msg.appendChild(wrap);
+                    mermaid.run({nodes: [wrap.querySelector('.mermaid')]});
+                }
+            } catch(e) { console.error("Mermaid parsing/rendering error:", e); }
             
             // Limit messages
             while (messagesDiv.children.length > 100) {
@@ -1011,6 +1080,14 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
         fetchUEConnectionStatus();
         setInterval(fetchUEConnectionStatus, 1000);
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>mermaid.initialize({
+        startOnLoad: false, theme: 'dark',
+        themeVariables: { darkMode: true, background: '#0a0a1a', primaryColor: '#16213e',
+            primaryTextColor: '#eee', primaryBorderColor: '#0f3460', lineColor: '#00d9ff',
+            secondaryColor: '#1a1a2e', tertiaryColor: '#0a0a1a' }
+    });</script>
+    </div><!-- /page-console -->
 </body>
 </html>'''
 
@@ -1154,6 +1231,8 @@ class MockBackendHandler(BaseHTTPRequestHandler):
 
         if parsed_path.path == '/' or parsed_path.path == '/index.html':
             self.serve_html()
+        elif parsed_path.path == '/demo':
+            self.serve_demo_html()
         elif parsed_path.path == '/api/sim/poll':
             self.handle_poll()
         elif parsed_path.path == '/api/hitl/poll':
@@ -1187,12 +1266,14 @@ class MockBackendHandler(BaseHTTPRequestHandler):
             self.handle_send_task_graph(body)
         elif parsed_path.path == '/api/send_request_user_command':
             self.handle_send_request_user_command()
+        elif parsed_path.path == '/api/demo/send_step':
+            self.handle_demo_send_step(body)
         else:
             self.send_response(404)
             self.end_headers()
     
     def serve_html(self):
-        """Serve the Web UI"""
+        """Serve the Console Web UI"""
         global server_port
         html = HTML_TEMPLATE.replace('{{PORT}}', str(server_port))
         html = html.replace('{{SKILL_LISTS}}', json.dumps(SKILL_LISTS, ensure_ascii=False))
@@ -1203,6 +1284,61 @@ class MockBackendHandler(BaseHTTPRequestHandler):
         self.send_header('Content-Type', 'text/html; charset=utf-8')
         self.end_headers()
         self.wfile.write(html.encode('utf-8'))
+
+    def serve_demo_html(self):
+        """Serve the Guided Demo UI (content from demo_guided.py)"""
+        global server_port
+        demo_content = demo_guided.get_demo_html(json.dumps(demo_guided.DEMO_SCENARIOS, ensure_ascii=False))
+        html = f'''<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MultiAgent - Guided Demo</title>
+<style>
+    * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+    body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+           background: #0a0e1a; color: #eee; height: 100vh; overflow: hidden; }}
+    .top-tabs {{ display: flex; background: #0d1126; border-bottom: 1px solid #1e2a4a; padding: 0 16px; }}
+    .top-tab {{ padding: 13px 24px; cursor: pointer; border-bottom: 2px solid transparent;
+               color: #667; font-size: 14px; font-weight: 600; transition: all 0.2s; text-decoration: none; }}
+    .top-tab:hover {{ color: #aab; }}
+    .top-tab.active {{ color: #ffd700; border-bottom-color: #ffd700; }}
+    .top-tab .new-badge {{ background: #e94560; color: #fff; font-size: 9px; padding: 2px 6px;
+                          border-radius: 8px; margin-left: 6px; font-weight: 700; vertical-align: top; }}
+    .page {{ height: calc(100vh - 46px); overflow: hidden; }}
+</style></head><body>
+    <div class="top-tabs">
+        <a class="top-tab" href="/">🎮 控制台</a>
+        <a class="top-tab active" href="/demo">📖 引导演示 <span class="new-badge">NEW</span></a>
+    </div>
+    <div class="page">{demo_content}</div>
+</body></html>'''
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/html; charset=utf-8')
+        self.end_headers()
+        self.wfile.write(html.encode('utf-8'))
+
+    def handle_demo_send_step(self, body):
+        """Handle demo action - delegates to demo_guided module"""
+        global pending_messages, hitl_messages
+        try:
+            data = json.loads(body)
+            status, response = demo_guided.handle_demo_action(
+                action_type=data.get('action_type', ''),
+                action_key=data.get('action_key', ''),
+                skill_lists=SKILL_LISTS,
+                task_graphs=TASK_GRAPHS,
+                skill_allocations=SKILL_ALLOCATIONS,
+                pending_messages=pending_messages,
+                hitl_messages=hitl_messages,
+                message_lock=message_lock,
+                hitl_lock=hitl_lock,
+                create_skill_list_message=create_skill_list_message,
+                create_task_graph_message=create_task_graph_message,
+                create_skill_allocation_message=create_skill_allocation_message
+            )
+            self.send_json_response(status, response)
+        except json.JSONDecodeError as e:
+            self.send_json_response(400, {"error": str(e)})
     
     def handle_poll(self):
         """Handle UE5 poll request for Platform messages"""
