@@ -2,30 +2,20 @@
 // Ground follow updates, navmesh refresh, and direct movement fallback
 
 #include "MANavigationService.h"
+#include "Agent/Navigation/Application/MANavigationUseCases.h"
 #include "../Infrastructure/MAPathPlanner.h"
 #include "AIController.h"
 #include "GameFramework/Character.h"
 
-bool UMANavigationService::ShouldRefreshGroundFollowNav(const FVector& FollowPos, float CurrentTimeSeconds) const
-{
-    constexpr float FollowPosChangeThreshold = 100.f;
-    if (LastFollowTargetPos.IsZero())
-    {
-        return true;
-    }
-
-    const float FollowPosChange = FVector::Dist2D(FollowPos, LastFollowTargetPos);
-    if (FollowPosChange > FollowPosChangeThreshold)
-    {
-        return true;
-    }
-
-    return (CurrentTimeSeconds - LastNavMeshNavigateTime) >= NavMeshFollowUpdateInterval;
-}
-
 void UMANavigationService::UpdateGroundFollowNavMesh(AAIController* AICtrl, const FVector& FollowPos, float CurrentTimeSeconds)
 {
-    if (!AICtrl || !ShouldRefreshGroundFollowNav(FollowPos, CurrentTimeSeconds))
+    const bool bShouldRefresh = FMANavigationUseCases::ShouldRefreshGroundFollowNav(
+        !LastFollowTargetPos.IsZero(),
+        FVector::Dist2D(FollowPos, LastFollowTargetPos),
+        CurrentTimeSeconds,
+        LastNavMeshNavigateTime,
+        NavMeshFollowUpdateInterval);
+    if (!AICtrl || !bShouldRefresh)
     {
         return;
     }

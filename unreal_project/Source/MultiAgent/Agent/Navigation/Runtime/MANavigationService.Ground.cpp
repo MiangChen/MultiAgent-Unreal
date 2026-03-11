@@ -2,6 +2,7 @@
 // 地面导航、NavMesh 回调与手动导航相关实现
 
 #include "MANavigationService.h"
+#include "Agent/Navigation/Application/MANavigationUseCases.h"
 #include "AIController.h"
 #include "Navigation/PathFollowingComponent.h"
 #include "NavigationSystem.h"
@@ -97,67 +98,38 @@ void UMANavigationService::ScheduleNavMeshFalseSuccessCheck(const FVector& Check
 
 void UMANavigationService::HandleGroundMoveRequestResult(EPathFollowingRequestResult::Type Result, float DistanceToTarget)
 {
-    if (Result == EPathFollowingRequestResult::Failed)
+    const float ActualDistance = OwnerCharacter
+        ? FVector::Dist2D(OwnerCharacter->GetActorLocation(), TargetLocation)
+        : DistanceToTarget;
+    const FMANavigationGroundRequestFeedback Feedback =
+        FMANavigationUseCases::BuildGroundMoveRequestDecision(
+            Result,
+            DistanceToTarget,
+            ActualDistance,
+            AcceptanceRadius,
+            TargetLocation);
+
+    if (Feedback.Action == EMANavigationGroundRequestAction::FallbackToManual)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[MANavigationService] %s: NavMesh path failed, trying manual navigation"),
-            *OwnerCharacter->GetName());
+        const TCHAR* Reason = Result == EPathFollowingRequestResult::AlreadyAtGoal
+            ? TEXT("AlreadyAtGoal but target still far")
+            : TEXT("NavMesh path failed");
+        UE_LOG(LogTemp, Warning, TEXT("[MANavigationService] %s: %s, trying manual navigation"),
+            *OwnerCharacter->GetName(), Reason);
         StartManualNavigation();
         return;
     }
 
-    if (Result == EPathFollowingRequestResult::AlreadyAtGoal)
+    if (Feedback.Action == EMANavigationGroundRequestAction::CompleteSuccess)
     {
-        const float ActualDistance = FVector::Dist2D(OwnerCharacter->GetActorLocation(), TargetLocation);
-        if (ActualDistance < AcceptanceRadius * 2.f)
-        {
-            SetNavigationState(EMANavigationState::Arrived);
-            CompleteNavigation(true, FString::Printf(
-                TEXT("Navigate succeeded: Already at destination (%.0f, %.0f, %.0f)"),
-                TargetLocation.X, TargetLocation.Y, TargetLocation.Z));
-        }
-        else
-        {
-            UE_LOG(LogTemp, Warning, TEXT("[MANavigationService] %s: AlreadyAtGoal but distance=%.0f, trying manual navigation"),
-                *OwnerCharacter->GetName(), ActualDistance);
-            StartManualNavigation();
-        }
+        SetNavigationState(EMANavigationState::Arrived);
+        CompleteNavigation(true, Feedback.CompletionMessage);
         return;
     }
 
-    if (Result == EPathFollowingRequestResult::RequestSuccessful && DistanceToTarget > AcceptanceRadius * 3.f)
+    if (Feedback.bShouldScheduleFalseSuccessCheck)
     {
         ScheduleNavMeshFalseSuccessCheck(OwnerCharacter->GetActorLocation());
-    }
-}
-
-bool UMANavigationService::ShouldFallbackToManualNavigation(const FPathFollowingResult& Result, float ActualDistance) const
-{
-    const bool bTooFar = ActualDistance > AcceptanceRadius * 2.f;
-    if (!bTooFar)
-    {
-        return false;
-    }
-
-    if (Result.IsSuccess())
-    {
-        return true;
-    }
-
-    return Result.Code == EPathFollowingResult::Blocked || Result.Code == EPathFollowingResult::OffPath;
-}
-
-FString UMANavigationService::BuildNavFailureMessage(EPathFollowingResult::Type ResultCode) const
-{
-    switch (ResultCode)
-    {
-        case EPathFollowingResult::Blocked:
-            return TEXT("Navigate failed: Path blocked by obstacle");
-        case EPathFollowingResult::OffPath:
-            return TEXT("Navigate failed: Lost navigation path");
-        case EPathFollowingResult::Aborted:
-            return TEXT("Navigate failed: Navigation aborted");
-        default:
-            return TEXT("Navigate failed: Unknown error");
     }
 }
 
@@ -224,9 +196,16 @@ void UMANavigationService::OnNavMeshMoveCompleted(FAIRequestID RequestID, const 
     if (OwnerCharacter)
     {
         const float ActualDistance = FVector::Dist(OwnerCharacter->GetActorLocation(), TargetLocation);
-        if (ShouldFallbackToManualNavigation(Result, ActualDistance))
+        const FMANavigationCompletionFeedback Feedback =
+            FMANavigationUseCases::BuildGroundCompletionDecision(
+                Result,
+                ActualDistance,
+                AcceptanceRadius,
+                TargetLocation);
+
+        if (Feedback.Action == EMANavigationCompletionAction::FallbackToManual)
         {
-            if (Result.IsSuccess())
+            if (Feedback.bWasFalseSuccess)
             {
                 UE_LOG(LogTemp, Warning, TEXT("[MANavigationService] %s: FALSE SUCCESS! Distance %.1f, switching to manual navigation"),
                     *OwnerCharacter->GetName(), ActualDistance);
@@ -240,16 +219,31 @@ void UMANavigationService::OnNavMeshMoveCompleted(FAIRequestID RequestID, const 
             StartManualNavigation();
             return;
         }
+
+        if (Feedback.Action == EMANavigationCompletionAction::CompleteSuccess)
+        {
+            CompleteNavigateSuccess();
+        }
+        else
+        {
+            SetNavigationState(EMANavigationState::Failed);
+            CompleteNavigation(false, Feedback.CompletionMessage);
+        }
+        return;
     }
-    
-    // 根据结果设置状态
+
     if (Result.IsSuccess())
     {
         CompleteNavigateSuccess();
+        return;
     }
-    else
-    {
-        SetNavigationState(EMANavigationState::Failed);
-        CompleteNavigation(false, BuildNavFailureMessage(Result.Code));
-    }
+
+    const FMANavigationCompletionFeedback Feedback =
+        FMANavigationUseCases::BuildGroundCompletionDecision(
+            Result,
+            0.f,
+            AcceptanceRadius,
+            TargetLocation);
+    SetNavigationState(EMANavigationState::Failed);
+    CompleteNavigation(false, Feedback.CompletionMessage);
 }

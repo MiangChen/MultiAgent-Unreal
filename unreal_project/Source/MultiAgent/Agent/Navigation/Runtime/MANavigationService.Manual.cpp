@@ -2,6 +2,7 @@
 // Ground manual fallback navigation and local movement updates
 
 #include "MANavigationService.h"
+#include "Agent/Navigation/Application/MANavigationUseCases.h"
 #include "../Infrastructure/MAPathPlanner.h"
 #include "GameFramework/Character.h"
 
@@ -55,36 +56,39 @@ void UMANavigationService::UpdateManualNavigation(float DeltaTime)
     FVector CurrentLocation = OwnerCharacter->GetActorLocation();
     float Distance2D = FVector::Dist2D(CurrentLocation, TargetLocation);
 
-    // 检查是否到达目标
-    if (Distance2D < AcceptanceRadius)
+    const float MovedDistance = FVector::Dist(CurrentLocation, LastManualNavLocation);
+    const FMANavigationManualUpdateFeedback Feedback =
+        FMANavigationUseCases::BuildManualNavigationUpdate(
+            Distance2D,
+            MovedDistance,
+            DeltaTime,
+            ManualNavStuckTime,
+            AcceptanceRadius,
+            StuckTimeout,
+            TargetLocation);
+
+    if (Feedback.Action == EMANavigationManualUpdateAction::CompleteSuccess)
     {
         SetNavigationState(EMANavigationState::Arrived);
-        CompleteNavigation(true, FString::Printf(
-            TEXT("Navigate succeeded: Reached destination (%.0f, %.0f, %.0f)"),
-            TargetLocation.X, TargetLocation.Y, TargetLocation.Z));
+        CompleteNavigation(true, Feedback.CompletionMessage);
         return;
     }
 
-    // 检查是否卡住
-    float MovedDistance = FVector::Dist(CurrentLocation, LastManualNavLocation);
-    if (MovedDistance < 50.f)
+    if (Feedback.Action == EMANavigationManualUpdateAction::CompleteFailure)
     {
-        ManualNavStuckTime += DeltaTime;
-        if (ManualNavStuckTime > StuckTimeout)
-        {
-            UE_LOG(LogTemp, Warning, TEXT("[MANavigationService] %s: Manual navigation stuck for %.0fs, giving up"),
-                *OwnerCharacter->GetName(), StuckTimeout);
-            SetNavigationState(EMANavigationState::Failed);
-            CompleteNavigation(false, TEXT("Navigate failed: Path blocked, unable to reach destination"));
-            return;
-        }
-    }
-    else
-    {
-        ManualNavStuckTime = 0.f;
-        LastManualNavLocation = CurrentLocation;
+        UE_LOG(LogTemp, Warning, TEXT("[MANavigationService] %s: Manual navigation stuck for %.0fs, giving up"),
+            *OwnerCharacter->GetName(), StuckTimeout);
+        SetNavigationState(EMANavigationState::Failed);
+        CompleteNavigation(false, Feedback.CompletionMessage);
+        return;
     }
 
+    ManualNavStuckTime = Feedback.NextStuckTime;
+    if (Feedback.bShouldUpdateLastLocation)
+    {
+        LastManualNavLocation = CurrentLocation;
+    }
+    
     // 计算移动方向
     FVector MoveDirection;
     if (PathPlanner.IsValid())

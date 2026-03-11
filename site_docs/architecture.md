@@ -61,6 +61,7 @@ flowchart LR
 - `UI` 现在和 `Core` 使用同一套结构语言：`Presentation/` 表示 UI 的 `L1` 展示壳，`Runtime/` 表示 UI 的 `L5` 入口壳。
 - `Agent` 现在按 `CharacterRuntime / Navigation / Sensing / Skill / StateTree` 五个 context 收口，使用与 `Core/UI` 同一套层语义，但不包含 `Presentation/`。
 - `Agent/Skill` 进一步收紧为 `Activation / Execution / Completion -> RuntimeGateway -> RuntimeHost`，Application 不再直接认识 `UMASkillComponent` 的 handle/prepare 细节。
+- `Agent/Navigation` 现在开始把地面导航、manual fallback、ground follow 的纯决策收回 `Application`，`Runtime` 主要负责驱动 NavMesh、FlightController 和 Character movement。
 - `TaskGraph`、`SkillAllocation` 属于轻量 context：没有专属 `Runtime/`，运行时持久化与传输仍由 `TempData / Comm` 承担。
 - `Interaction` 也是轻量 context：没有专属 `Runtime/`，它负责编排其他 runtime context。
 
@@ -243,6 +244,7 @@ flowchart LR
 - `Core` 已经完成 context 化与 layer 化。
 - `UI` 现在也已经完成同样的 context 化与 layer 化；剩余 runtime 边界只保留在刻意允许的入口壳，例如 `AMAHUD`、`AMASelectionHUD`。
 - `Agent/Skill` 现在已经从“兼容包装壳”推进到“Activation / Execution / Completion + Gateway + RuntimeHost”结构，`Application` 不再直接触碰 runtime 内部句柄。
+- `Agent/Navigation` 现在不再把地面导航策略完全塞在 `Runtime`；`MANavigationUseCases` 已接管 ground request、manual update、ground follow refresh、completion decision 这些纯决策。
 - `Bootstrap` 只允许被真正的入口壳或 bootstrap 层消费；`UI/*/Application/` 不再直接 include 其他 UI context 的 bootstrap。
 - 架构守卫文件是：
   - `scripts/check_interaction_architecture.py`

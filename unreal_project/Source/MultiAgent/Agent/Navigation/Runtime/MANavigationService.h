@@ -245,9 +245,6 @@ private:
     /** 处理跟随失败并统一发事件 */
     void HandleFollowFailure(const TCHAR* FailureReason);
 
-    /** 判断地面跟随是否需要刷新 NavMesh 目标 */
-    bool ShouldRefreshGroundFollowNav(const FVector& FollowPos, float CurrentTimeSeconds) const;
-
     /** 地面远距离跟随：通过 NavMesh 驱动 */
     void UpdateGroundFollowNavMesh(AAIController* AICtrl, const FVector& FollowPos, float CurrentTimeSeconds);
 
@@ -274,12 +271,6 @@ private:
 
     /** 启动 NavMesh 假成功检测 */
     void ScheduleNavMeshFalseSuccessCheck(const FVector& CheckStartLocation);
-
-    /** 判断是否应从 NavMesh 回退到手动导航 */
-    bool ShouldFallbackToManualNavigation(const FPathFollowingResult& Result, float ActualDistance) const;
-
-    /** 将 NavMesh 失败码转换为可读消息 */
-    FString BuildNavFailureMessage(EPathFollowingResult::Type ResultCode) const;
 
     /** 完成导航 */
     void CompleteNavigation(bool bSuccess, const FString& Message);
