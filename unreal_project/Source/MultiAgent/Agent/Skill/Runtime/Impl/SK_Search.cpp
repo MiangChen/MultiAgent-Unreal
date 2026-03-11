@@ -1,6 +1,7 @@
 // SK_Search.cpp
 
 #include "SK_Search.h"
+#include "Agent/Skill/Application/MASkillCompletionUseCases.h"
 #include "../../Domain/MASkillTags.h"
 #include "../MASkillComponent.h"
 #include "../../Infrastructure/MASkillGeometryUtils.h"
@@ -734,11 +735,8 @@ void USK_Search::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGame
 {
     AMACharacter* Character = GetOwningCharacter();
     
-    // 保存通知所需的信息
-    bool bShouldNotify = false;
     bool bSuccessToNotify = bSearchSucceeded;
     FString MessageToNotify = SearchResultMessage;
-    UMASkillComponent* SkillCompToNotify = nullptr;
     
     // 解绑 NavigationService 委托并取消导航
     if (NavigationService.IsValid())
@@ -789,17 +787,6 @@ void USK_Search::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGame
             }
         }
         
-        // 检查是否需要通知完成
-        if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
-        {
-            FGameplayTag SearchTag = FGameplayTag::RequestGameplayTag(FName("Command.Search"));
-            if (SkillComp->HasMatchingGameplayTag(SearchTag))
-            {
-                SkillComp->RemoveLooseGameplayTag(SearchTag);
-                bShouldNotify = true;
-                SkillCompToNotify = SkillComp;
-            }
-        }
     }
     
     UE_LOG(LogTemp, Log, TEXT("[SK_Search] %s: EndAbility - Mode=%s, Success=%s, Cycles=%d, Message=%s"),
@@ -815,8 +802,11 @@ void USK_Search::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGame
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
     
     // 在技能完全结束后再通知完成
-    if (bShouldNotify && SkillCompToNotify)
+    if (Character)
     {
-        SkillCompToNotify->NotifySkillCompleted(bSuccessToNotify, MessageToNotify);
+        if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
+        {
+            FMASkillCompletionUseCases::NotifyAbilityFinished(*SkillComp, EMACommand::Search, bSuccessToNotify, MessageToNotify);
+        }
     }
 }

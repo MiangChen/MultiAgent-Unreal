@@ -2,6 +2,7 @@
 // 起飞技能 - 使用 MANavigationService 统一接口
 
 #include "SK_TakeOff.h"
+#include "Agent/Skill/Application/MASkillCompletionUseCases.h"
 #include "../../Domain/MASkillTags.h"
 #include "../MASkillComponent.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
@@ -89,9 +90,6 @@ void USK_TakeOff::FailAndEnd(const FString& Message)
 void USK_TakeOff::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
     AMACharacter* Character = GetOwningCharacter();
-    UMASkillComponent* SkillCompToNotify = nullptr;
-    bool bShouldNotify = false;
-    
     if (Character)
     {
         // 解绑回调
@@ -117,23 +115,15 @@ void USK_TakeOff::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGam
                 CurrentLocation.Z / 100.f, TargetAltitude / 100.f);
         }
         
-        // 检查是否需要通知完成
-        if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
-        {
-            FGameplayTag TakeOffTag = FGameplayTag::RequestGameplayTag(FName("Command.TakeOff"));
-            if (SkillComp->HasMatchingGameplayTag(TakeOffTag))
-            {
-                SkillComp->RemoveLooseGameplayTag(TakeOffTag);
-                bShouldNotify = true;
-                SkillCompToNotify = SkillComp;
-            }
-        }
     }
     
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
     
-    if (bShouldNotify && SkillCompToNotify)
+    if (Character)
     {
-        SkillCompToNotify->NotifySkillCompleted(bTakeOffSucceeded, TakeOffResultMessage);
+        if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
+        {
+            FMASkillCompletionUseCases::NotifyAbilityFinished(*SkillComp, EMACommand::TakeOff, bTakeOffSucceeded, TakeOffResultMessage);
+        }
     }
 }

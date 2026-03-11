@@ -3,6 +3,7 @@
 // 使用 NavigationService 进行统一导航
 
 #include "SK_Follow.h"
+#include "Agent/Skill/Application/MASkillCompletionUseCases.h"
 #include "../../Domain/MASkillTags.h"
 #include "../MASkillComponent.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
@@ -207,10 +208,8 @@ void USK_Follow::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGame
 {
     AMACharacter* Character = GetOwningCharacter();
     
-    bool bShouldNotify = false;
     bool bSuccessToNotify = bFollowSucceeded;
     FString MessageToNotify = FollowResultMessage;
-    UMASkillComponent* SkillCompToNotify = nullptr;
     
     if (Character)
     {
@@ -239,16 +238,6 @@ void USK_Follow::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGame
             MessageToNotify = FString::Printf(TEXT("Follow cancelled: Stopped following %s"), *TargetName);
         }
         
-        if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
-        {
-            FGameplayTag FollowTag = FGameplayTag::RequestGameplayTag(FName("Command.Follow"));
-            if (SkillComp->HasMatchingGameplayTag(FollowTag))
-            {
-                SkillComp->RemoveLooseGameplayTag(FollowTag);
-                bShouldNotify = true;
-                SkillCompToNotify = SkillComp;
-            }
-        }
     }
     
     NavigationService = nullptr;
@@ -256,9 +245,12 @@ void USK_Follow::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGame
     
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
     
-    if (bShouldNotify && SkillCompToNotify)
+    if (Character)
     {
-        SkillCompToNotify->NotifySkillCompleted(bSuccessToNotify, MessageToNotify);
+        if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
+        {
+            FMASkillCompletionUseCases::NotifyAbilityFinished(*SkillComp, EMACommand::Follow, bSuccessToNotify, MessageToNotify);
+        }
     }
 }
 

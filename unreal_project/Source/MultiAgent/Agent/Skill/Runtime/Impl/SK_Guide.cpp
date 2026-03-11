@@ -4,6 +4,7 @@
 // 被引导对象支持两种移动模式: Direct (直接移动) 或 NavMesh (导航服务)
 
 #include "SK_Guide.h"
+#include "Agent/Skill/Application/MASkillCompletionUseCases.h"
 #include "../../Domain/MASkillTags.h"
 #include "../MASkillComponent.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
@@ -395,32 +396,24 @@ void USK_Guide::OnGuideComplete(bool bSuccess, const FString& Message)
         Character->ShowStatus(TEXT(""), 0.f);
     }
 
-    bool bShouldNotify = false;
-    UMASkillComponent* SkillCompToNotify = nullptr;
-
     if (Character)
     {
         if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
         {
-            FGameplayTag GuideTag = FGameplayTag::RequestGameplayTag(FName("Command.Guide"));
-            if (SkillComp->HasMatchingGameplayTag(GuideTag))
-            {
-                SkillComp->RemoveLooseGameplayTag(GuideTag);
-                bShouldNotify = true;
-                SkillCompToNotify = SkillComp;
-
-                float Duration = Character->GetWorld()->GetTimeSeconds() - StartTime;
-                FMAFeedbackContext& FeedbackCtx = SkillComp->GetFeedbackContextMutable();
-                FeedbackCtx.GuideDurationSeconds = Duration;
-            }
+            float Duration = Character->GetWorld()->GetTimeSeconds() - StartTime;
+            FMAFeedbackContext& FeedbackCtx = SkillComp->GetFeedbackContextMutable();
+            FeedbackCtx.GuideDurationSeconds = Duration;
         }
     }
 
     EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, !bSuccess);
 
-    if (bShouldNotify && SkillCompToNotify)
+    if (Character)
     {
-        SkillCompToNotify->NotifySkillCompleted(bGuideSucceeded, GuideResultMessage);
+        if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
+        {
+            FMASkillCompletionUseCases::NotifyAbilityFinished(*SkillComp, EMACommand::Guide, bGuideSucceeded, GuideResultMessage);
+        }
     }
 }
 

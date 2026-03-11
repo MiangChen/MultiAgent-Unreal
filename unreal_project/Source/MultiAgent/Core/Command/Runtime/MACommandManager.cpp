@@ -12,9 +12,9 @@
 #include "Core/Comm/Infrastructure/Codec/MACommJsonCodec.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
 #include "Agent/Skill/Application/MASkillActivationUseCases.h"
+#include "Agent/Skill/Application/MASkillCompletionUseCases.h"
 #include "Agent/Skill/Runtime/MASkillComponent.h"
 #include "Agent/Skill/Infrastructure/MASkillParamsProcessor.h"
-#include "Agent/Skill/Infrastructure/MAFeedbackGenerator.h"
 #include "Agent/Skill/Infrastructure/MASceneGraphUpdater.h"
 #include "Agent/Skill/Infrastructure/MAConditionChecker.h"
 #include "Agent/Skill/Domain/MASkillTemplateRegistry.h"
@@ -275,12 +275,9 @@ void UMACommandManager::OnSkillCompleted(AMACharacter* Agent, bool bSuccess, con
     {
         Command = *FoundCommand;
     }
-    
-    // 更新场景图（在生成反馈之前）
-    FMASceneGraphUpdater::UpdateAfterSkillCompletion(Agent, Command, bSuccess);
-    
-    // 生成反馈
-    FMASkillExecutionFeedback Feedback = FMAFeedbackGenerator::Generate(Agent, Command, bSuccess, Message);
+
+    FMASkillExecutionFeedback Feedback =
+        FMASkillCompletionUseCases::BuildCompletionFeedback(*Agent, Command, bSuccess, Message);
     
     // 附加 PendingInfoEvents 到反馈 Data（预检查和运行时产生的 info 事件）
     if (TArray<FMARenderedEvent>* InfoEvents = PendingInfoEvents.Find(Agent))

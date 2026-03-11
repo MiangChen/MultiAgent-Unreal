@@ -4,6 +4,7 @@
 #include "MASTTask_Search.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
 #include "Agent/Skill/Application/MASkillActivationUseCases.h"
+#include "Agent/Skill/Application/MASkillExecutionUseCases.h"
 #include "Agent/Skill/Runtime/MASkillComponent.h"
 #include "StateTreeExecutionContext.h"
 
@@ -35,7 +36,7 @@ EStateTreeRunStatus FMASTTask_Search::Tick(
     if (!SkillComp) return EStateTreeRunStatus::Failed;
 
     // 检查命令 Tag 是否还存在（由 GAS Ability 完成时清除）
-    if (!SkillComp->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Search"))))
+    if (FMASkillExecutionUseCases::HasCommandCompleted(*SkillComp, EMACommand::Search))
     {
         return EStateTreeRunStatus::Succeeded;
     }
@@ -53,7 +54,7 @@ void FMASTTask_Search::ExitState(
         AActor* Owner = Cast<AActor>(Context.GetOwner());
         if (UMASkillComponent* SkillComp = Owner ? Owner->FindComponentByClass<UMASkillComponent>() : nullptr)
         {
-            FMASkillActivationUseCases::CancelCommand(*SkillComp, EMACommand::Search);
+            FMASkillExecutionUseCases::CancelCommandIfInterrupted(*SkillComp, EMACommand::Search, Transition.CurrentRunStatus);
         }
     }
 }

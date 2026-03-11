@@ -4,6 +4,7 @@
 #include "MASTTask_Land.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
 #include "Agent/Skill/Application/MASkillActivationUseCases.h"
+#include "Agent/Skill/Application/MASkillExecutionUseCases.h"
 #include "Agent/Skill/Runtime/MASkillComponent.h"
 #include "StateTreeExecutionContext.h"
 
@@ -35,7 +36,7 @@ EStateTreeRunStatus FMASTTask_Land::Tick(
     if (!SkillComp) return EStateTreeRunStatus::Failed;
 
     // 检查命令 Tag 是否还存在（由 GAS Ability 完成时清除）
-    if (!SkillComp->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Land"))))
+    if (FMASkillExecutionUseCases::HasCommandCompleted(*SkillComp, EMACommand::Land))
     {
         return EStateTreeRunStatus::Succeeded;
     }

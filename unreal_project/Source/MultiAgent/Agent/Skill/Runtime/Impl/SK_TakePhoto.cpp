@@ -2,6 +2,7 @@
 // 拍照技能 - 多阶段实现
 
 #include "SK_TakePhoto.h"
+#include "Agent/Skill/Application/MASkillCompletionUseCases.h"
 #include "../../Domain/MASkillTags.h"
 #include "../MASkillComponent.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
@@ -523,10 +524,8 @@ void USK_TakePhoto::EndAbility(
 {
     AMACharacter* Character = GetOwningCharacter();
     
-    bool bShouldNotify = false;
     bool bSuccessToNotify = bPhotoSucceeded;
     FString MessageToNotify = PhotoResultMessage;
-    UMASkillComponent* SkillCompToNotify = nullptr;
 
     if (Character)
     {
@@ -552,16 +551,6 @@ void USK_TakePhoto::EndAbility(
             MessageToNotify = FString::Printf(TEXT("TakePhoto cancelled: Stopped while %s"), *GetPhaseString());
         }
 
-        if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
-        {
-            FGameplayTag TakePhotoTag = FGameplayTag::RequestGameplayTag(FName("Command.TakePhoto"));
-            if (SkillComp->HasMatchingGameplayTag(TakePhotoTag))
-            {
-                SkillComp->RemoveLooseGameplayTag(TakePhotoTag);
-                bShouldNotify = true;
-                SkillCompToNotify = SkillComp;
-            }
-        }
     }
 
     NavigationService = nullptr;
@@ -569,8 +558,11 @@ void USK_TakePhoto::EndAbility(
 
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 
-    if (bShouldNotify && SkillCompToNotify)
+    if (Character)
     {
-        SkillCompToNotify->NotifySkillCompleted(bSuccessToNotify, MessageToNotify);
+        if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
+        {
+            FMASkillCompletionUseCases::NotifyAbilityFinished(*SkillComp, EMACommand::TakePhoto, bSuccessToNotify, MessageToNotify);
+        }
     }
 }

@@ -2,6 +2,7 @@
 // 导航技能 - 委托到 NavigationService 实现
 
 #include "SK_Navigate.h"
+#include "Agent/Skill/Application/MASkillCompletionUseCases.h"
 #include "../../Domain/MASkillTags.h"
 #include "../MASkillComponent.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
@@ -131,11 +132,8 @@ void USK_Navigate::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGa
         NavigationService = nullptr;
     }
     
-    // 保存通知所需的信息
-    bool bShouldNotify = false;
     bool bSuccessToNotify = bNavigationSucceeded;
     FString MessageToNotify = NavigationResultMessage;
-    UMASkillComponent* SkillCompToNotify = nullptr;
     
     if (Character)
     {
@@ -149,25 +147,17 @@ void USK_Navigate::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGa
             MessageToNotify = TEXT("Navigate failed: Cancelled by user");
         }
         
-        // 检查是否需要通知完成
-        if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
-        {
-            FGameplayTag NavigateTag = FGameplayTag::RequestGameplayTag(FName("Command.Navigate"));
-            if (SkillComp->HasMatchingGameplayTag(NavigateTag))
-            {
-                SkillComp->RemoveLooseGameplayTag(NavigateTag);
-                bShouldNotify = true;
-                SkillCompToNotify = SkillComp;
-            }
-        }
     }
     
     // 先调用父类 EndAbility，确保技能完全结束
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
     
     // 在技能完全结束后再通知完成
-    if (bShouldNotify && SkillCompToNotify)
+    if (Character)
     {
-        SkillCompToNotify->NotifySkillCompleted(bSuccessToNotify, MessageToNotify);
+        if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
+        {
+            FMASkillCompletionUseCases::NotifyAbilityFinished(*SkillComp, EMACommand::Navigate, bSuccessToNotify, MessageToNotify);
+        }
     }
 }

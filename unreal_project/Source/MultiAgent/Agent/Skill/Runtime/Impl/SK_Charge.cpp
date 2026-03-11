@@ -1,6 +1,7 @@
 // SK_Charge.cpp
 
 #include "SK_Charge.h"
+#include "Agent/Skill/Application/MASkillCompletionUseCases.h"
 #include "../../Domain/MASkillTags.h"
 #include "../MASkillComponent.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
@@ -115,11 +116,8 @@ void USK_Charge::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGame
 {
     AMACharacter* Character = GetOwningCharacter();
     
-    // 保存通知所需的信息
-    bool bShouldNotify = false;
     bool bSuccessToNotify = bChargeSucceeded;
     FString MessageToNotify = ChargeResultMessage;
-    UMASkillComponent* SkillCompToNotify = nullptr;
     
     if (Character)
     {
@@ -146,17 +144,6 @@ void USK_Charge::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGame
             }
         }
         
-        // 检查是否需要通知完成
-        if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
-        {
-            FGameplayTag ChargeTag = FGameplayTag::RequestGameplayTag(FName("Command.Charge"));
-            if (SkillComp->HasMatchingGameplayTag(ChargeTag))
-            {
-                SkillComp->RemoveLooseGameplayTag(ChargeTag);
-                bShouldNotify = true;
-                SkillCompToNotify = SkillComp;
-            }
-        }
     }
     
     CurrentChargingStation.Reset();
@@ -164,9 +151,11 @@ void USK_Charge::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGame
     // 先调用父类 EndAbility
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
     
-    // 在技能完全结束后再通知完成
-    if (bShouldNotify && SkillCompToNotify)
+    if (Character)
     {
-        SkillCompToNotify->NotifySkillCompleted(bSuccessToNotify, MessageToNotify);
+        if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
+        {
+            FMASkillCompletionUseCases::NotifyAbilityFinished(*SkillComp, EMACommand::Charge, bSuccessToNotify, MessageToNotify);
+        }
     }
 }

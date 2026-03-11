@@ -4,6 +4,7 @@
 #include "MASTTask_Follow.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
 #include "Agent/Skill/Application/MASkillActivationUseCases.h"
+#include "Agent/Skill/Application/MASkillExecutionUseCases.h"
 #include "Agent/Skill/Runtime/MASkillComponent.h"
 #include "StateTreeExecutionContext.h"
 
@@ -57,7 +58,7 @@ EStateTreeRunStatus FMASTTask_Follow::Tick(
     if (!Character) return EStateTreeRunStatus::Failed;
 
     UMASkillComponent* SkillComp = Character->GetSkillComponent();
-    if (SkillComp && !SkillComp->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Follow"))))
+    if (SkillComp && FMASkillExecutionUseCases::HasCommandCompleted(*SkillComp, EMACommand::Follow))
     {
         return EStateTreeRunStatus::Succeeded;
     }
@@ -81,9 +82,6 @@ void FMASTTask_Follow::ExitState(
     
     if (UMASkillComponent* SkillComp = Owner->FindComponentByClass<UMASkillComponent>())
     {
-        if (Data.bSkillActivated)
-        {
-            FMASkillActivationUseCases::CancelCommand(*SkillComp, EMACommand::Follow);
-        }
+        FMASkillExecutionUseCases::CancelCommandIfActivated(*SkillComp, EMACommand::Follow, Data.bSkillActivated);
     }
 }

@@ -4,6 +4,7 @@
 #include "MASTTask_ReturnHome.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
 #include "Agent/Skill/Application/MASkillActivationUseCases.h"
+#include "Agent/Skill/Application/MASkillExecutionUseCases.h"
 #include "Agent/Skill/Runtime/MASkillComponent.h"
 #include "StateTreeExecutionContext.h"
 
@@ -38,7 +39,7 @@ EStateTreeRunStatus FMASTTask_ReturnHome::Tick(
     if (!SkillComp) return EStateTreeRunStatus::Failed;
 
     // 检查命令 Tag 是否还存在（由 GAS Ability 完成时清除）
-    if (!SkillComp->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.ReturnHome"))))
+    if (FMASkillExecutionUseCases::HasCommandCompleted(*SkillComp, EMACommand::ReturnHome))
     {
         return EStateTreeRunStatus::Succeeded;
     }
@@ -56,7 +57,7 @@ void FMASTTask_ReturnHome::ExitState(
         AActor* Owner = Cast<AActor>(Context.GetOwner());
         if (UMASkillComponent* SkillComp = Owner ? Owner->FindComponentByClass<UMASkillComponent>() : nullptr)
         {
-            FMASkillActivationUseCases::CancelCommand(*SkillComp, EMACommand::ReturnHome);
+            FMASkillExecutionUseCases::CancelCommandIfInterrupted(*SkillComp, EMACommand::ReturnHome, Transition.CurrentRunStatus);
         }
     }
 }

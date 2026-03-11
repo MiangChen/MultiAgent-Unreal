@@ -4,6 +4,7 @@
 #include "MASTTask_Navigate.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
 #include "Agent/Skill/Application/MASkillActivationUseCases.h"
+#include "Agent/Skill/Application/MASkillExecutionUseCases.h"
 #include "Agent/Skill/Runtime/MASkillComponent.h"
 #include "StateTreeExecutionContext.h"
 
@@ -41,7 +42,7 @@ EStateTreeRunStatus FMASTTask_Navigate::Tick(
     if (!SkillComp) return EStateTreeRunStatus::Failed;
 
     // 检查命令 Tag 是否还存在（由 GAS Ability 完成时清除）
-    if (!SkillComp->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Navigate"))))
+    if (FMASkillExecutionUseCases::HasCommandCompleted(*SkillComp, EMACommand::Navigate))
     {
         return EStateTreeRunStatus::Succeeded;
     }
@@ -59,7 +60,7 @@ void FMASTTask_Navigate::ExitState(
         AActor* Owner = Cast<AActor>(Context.GetOwner());
         if (UMASkillComponent* SkillComp = Owner ? Owner->FindComponentByClass<UMASkillComponent>() : nullptr)
         {
-            FMASkillActivationUseCases::CancelCommand(*SkillComp, EMACommand::Navigate);
+            FMASkillExecutionUseCases::CancelCommandIfInterrupted(*SkillComp, EMACommand::Navigate, Transition.CurrentRunStatus);
         }
     }
 }

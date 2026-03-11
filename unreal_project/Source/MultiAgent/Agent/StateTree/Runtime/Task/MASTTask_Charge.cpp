@@ -3,7 +3,7 @@
 
 #include "MASTTask_Charge.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
-#include "Agent/Skill/Application/MASkillActivationUseCases.h"
+#include "Agent/Skill/Application/MASkillExecutionUseCases.h"
 #include "Agent/Skill/Runtime/MASkillComponent.h"
 #include "../../../Environment/Entity/MAChargingStation.h"
 #include "StateTreeExecutionContext.h"
@@ -26,9 +26,6 @@ EStateTreeRunStatus FMASTTask_Charge::EnterState(
     UMASkillComponent* SkillComp = Character->GetSkillComponent();
     if (!SkillComp) return EStateTreeRunStatus::Failed;
 
-    // 记录充电前能量
-    SkillComp->GetFeedbackContextMutable().EnergyBefore = SkillComp->GetEnergyPercent();
-
     // 查找最近的充电站
     AMAChargingStation* Station = FindNearestChargingStation(Owner->GetWorld(), Character->GetActorLocation(), Data.StationLocation);
     if (!Station)
@@ -40,23 +37,13 @@ EStateTreeRunStatus FMASTTask_Charge::EnterState(
     Data.ChargingStation = Station;
     Data.InteractionRadius = Station->InteractionRadius;
 
-    // 检查是否已在充电站范围内
-    float Distance = FVector::Dist(Character->GetActorLocation(), Data.StationLocation);
-    if (Distance <= Data.InteractionRadius)
-    {
-        Data.bIsCharging = true;
-        FMASkillActivationUseCases::PrepareAndActivateCharge(*SkillComp);
-        return EStateTreeRunStatus::Running;
-    }
-
-    // 导航到充电站
-    if (FMASkillActivationUseCases::PrepareAndActivateNavigate(*SkillComp, Data.StationLocation))
-    {
-        Data.bIsMoving = true;
-        return EStateTreeRunStatus::Running;
-    }
-
-    return EStateTreeRunStatus::Failed;
+    return FMASkillExecutionUseCases::StartChargeFlow(
+        *SkillComp,
+        Character->GetActorLocation(),
+        Data.StationLocation,
+        Data.InteractionRadius,
+        Data.bIsMoving,
+        Data.bIsCharging);
 }
 
 EStateTreeRunStatus FMASTTask_Charge::Tick(
@@ -72,50 +59,27 @@ EStateTreeRunStatus FMASTTask_Charge::Tick(
     UMASkillComponent* SkillComp = Character->GetSkillComponent();
     if (!SkillComp) return EStateTreeRunStatus::Failed;
 
-    // 检查命令是否被取消
-    if (!SkillComp->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Charge"))))
+    if (FMASkillExecutionUseCases::HasCommandCompleted(*SkillComp, EMACommand::Charge))
     {
         return EStateTreeRunStatus::Succeeded;
     }
 
-    // 更新反馈上下文
-    SkillComp->GetFeedbackContextMutable().EnergyAfter = SkillComp->GetEnergyPercent();
-
-    // 充电中
-    if (Data.bIsCharging)
-    {
-        if (SkillComp->IsFullEnergy())
-        {
-            SkillComp->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Charge")));
-            SkillComp->AddLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Idle")));
-            return EStateTreeRunStatus::Succeeded;
-        }
-        return EStateTreeRunStatus::Running;
-    }
-
-    // 移动中
-    if (Data.bIsMoving)
-    {
-        float Distance = FVector::Dist(Character->GetActorLocation(), Data.StationLocation);
-        if (Distance <= Data.InteractionRadius)
-        {
-            Data.bIsMoving = false;
-            Data.bIsCharging = true;
-            FMASkillActivationUseCases::PrepareAndActivateCharge(*SkillComp);
-        }
-        else if (!Character->bIsMoving)
-        {
-            FMASkillActivationUseCases::PrepareAndActivateNavigate(*SkillComp, Data.StationLocation);
-        }
-    }
-
-    return EStateTreeRunStatus::Running;
+    return FMASkillExecutionUseCases::TickChargeFlow(
+        *SkillComp,
+        Character->GetActorLocation(),
+        Character->bIsMoving,
+        Data.StationLocation,
+        Data.InteractionRadius,
+        Data.bIsMoving,
+        Data.bIsCharging);
 }
 
 void FMASTTask_Charge::ExitState(
     FStateTreeExecutionContext& Context,
     const FStateTreeTransitionResult& Transition) const
 {
+    FMASTTask_ChargeInstanceData& Data = Context.GetInstanceData<FMASTTask_ChargeInstanceData>(*this);
+
     AActor* Owner = Cast<AActor>(Context.GetOwner());
     if (!Owner) return;
     
@@ -127,7 +91,7 @@ void FMASTTask_Charge::ExitState(
     
     if (UMASkillComponent* SkillComp = Owner->FindComponentByClass<UMASkillComponent>())
     {
-        FMASkillActivationUseCases::CancelCommand(*SkillComp, EMACommand::Navigate);
+        FMASkillExecutionUseCases::CancelCommandIfActivated(*SkillComp, EMACommand::Navigate, Data.bIsMoving);
     }
 }
 

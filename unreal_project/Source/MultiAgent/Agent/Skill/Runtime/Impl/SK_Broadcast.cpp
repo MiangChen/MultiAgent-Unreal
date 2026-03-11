@@ -2,6 +2,7 @@
 // 喊话技能 - 多阶段实现
 
 #include "SK_Broadcast.h"
+#include "Agent/Skill/Application/MASkillCompletionUseCases.h"
 #include "../../Domain/MASkillTags.h"
 #include "../MASkillComponent.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
@@ -564,10 +565,8 @@ void USK_Broadcast::EndAbility(
 {
     AMACharacter* Character = GetOwningCharacter();
     
-    bool bShouldNotify = false;
     bool bSuccessToNotify = bBroadcastSucceeded;
     FString MessageToNotify = BroadcastResultMessage;
-    UMASkillComponent* SkillCompToNotify = nullptr;
 
     if (Character)
     {
@@ -595,16 +594,6 @@ void USK_Broadcast::EndAbility(
             MessageToNotify = FString::Printf(TEXT("Broadcast cancelled: Stopped while %s"), *GetPhaseString());
         }
 
-        if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
-        {
-            FGameplayTag BroadcastTag = FGameplayTag::RequestGameplayTag(FName("Command.Broadcast"));
-            if (SkillComp->HasMatchingGameplayTag(BroadcastTag))
-            {
-                SkillComp->RemoveLooseGameplayTag(BroadcastTag);
-                bShouldNotify = true;
-                SkillCompToNotify = SkillComp;
-            }
-        }
     }
 
     NavigationService = nullptr;
@@ -612,8 +601,11 @@ void USK_Broadcast::EndAbility(
 
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 
-    if (bShouldNotify && SkillCompToNotify)
+    if (Character)
     {
-        SkillCompToNotify->NotifySkillCompleted(bSuccessToNotify, MessageToNotify);
+        if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
+        {
+            FMASkillCompletionUseCases::NotifyAbilityFinished(*SkillComp, EMACommand::Broadcast, bSuccessToNotify, MessageToNotify);
+        }
     }
 }

@@ -60,7 +60,7 @@ flowchart LR
 - `UI` 现在也按 context 收口：`Core / HUD / SceneEditing / TaskGraph / SkillAllocation / Components / Setup`，共享 modal 机制并入 `UI/Core/Modal/`。
 - `UI` 现在和 `Core` 使用同一套结构语言：`Presentation/` 表示 UI 的 `L1` 展示壳，`Runtime/` 表示 UI 的 `L5` 入口壳。
 - `Agent` 现在按 `CharacterRuntime / Navigation / Sensing / Skill / StateTree` 五个 context 收口，使用与 `Core/UI` 同一套层语义，但不包含 `Presentation/`。
-- `Agent/Skill` 进一步收紧为 `Application -> RuntimeGateway -> RuntimeHost`，Application 不再直接认识 `UMASkillComponent` 的 handle/prepare 细节。
+- `Agent/Skill` 进一步收紧为 `Activation / Execution / Completion -> RuntimeGateway -> RuntimeHost`，Application 不再直接认识 `UMASkillComponent` 的 handle/prepare 细节。
 - `TaskGraph`、`SkillAllocation` 属于轻量 context：没有专属 `Runtime/`，运行时持久化与传输仍由 `TempData / Comm` 承担。
 - `Interaction` 也是轻量 context：没有专属 `Runtime/`，它负责编排其他 runtime context。
 
@@ -187,6 +187,7 @@ flowchart TB
 - 这张图只展开 `Agent/Skill` 这个 context。
 - 目标是把 `Application` 和 `UMASkillComponent` 的内部细节隔开。
 - `MASkillRuntimeGateway` 是 runtime 边界翻译层，不承载业务策略。
+- `Application` 现在拆成三段：启动命令、执行编排、完成收尾。
 
 ```mermaid
 flowchart LR
@@ -194,15 +195,26 @@ flowchart LR
     classDef gateway fill:#e3f2fd,stroke:#1565c0,color:#0d47a1,stroke-width:2px
     classDef runtime fill:#fff3e0,stroke:#ef6c00,color:#e65100
     classDef ability fill:#f3e5f5,stroke:#6a1b9a,color:#4a148c
+    classDef infra fill:#fce4ec,stroke:#ad1457,color:#880e4f
 
     CALLERS["CharacterRuntime / StateTree / Command"]:::app
-    APP["Skill/Application\nMASkillActivationUseCases"]:::app
+    ACT["Skill/Application\nMASkillActivationUseCases"]:::app
+    EXEC["Skill/Application\nMASkillExecutionUseCases"]:::app
+    DONE["Skill/Application\nMASkillCompletionUseCases"]:::app
     GATE["Skill/Runtime\nMASkillRuntimeGateway"]:::gateway
     HOST["Skill/Runtime\nUMASkillComponent"]:::runtime
     ABILITY["Skill/Runtime/Impl\nSK_* abilities"]:::ability
+    INFRA["Skill/Infrastructure\nFeedbackGenerator / SceneGraphUpdater"]:::infra
 
-    CALLERS --> APP
-    APP --> GATE
+    CALLERS --> ACT
+    CALLERS --> EXEC
+    ABILITY --> DONE
+
+    ACT --> GATE
+    EXEC --> ACT
+    EXEC --> HOST
+    DONE --> HOST
+    DONE --> INFRA
     GATE --> HOST
     HOST --> ABILITY
 ```
@@ -211,13 +223,18 @@ flowchart LR
 
 | 角色 | 对应文件 |
 |---|---|
-| `Application` | `Agent/Skill/Application/MASkillActivationUseCases.*` |
+| `Activation` | `Agent/Skill/Application/MASkillActivationUseCases.*` |
+| `Execution` | `Agent/Skill/Application/MASkillExecutionUseCases.*` |
+| `Completion` | `Agent/Skill/Application/MASkillCompletionUseCases.*` |
 | `Runtime Gateway` | `Agent/Skill/Runtime/MASkillRuntimeGateway.*` |
 | `Runtime Host` | `Agent/Skill/Runtime/MASkillComponent.*` |
+| `Feedback / SceneGraph` | `Agent/Skill/Infrastructure/MAFeedbackGenerator.*`、`Agent/Skill/Infrastructure/MASceneGraphUpdater.*` |
 | `Ability 实现` | `Agent/Skill/Runtime/Impl/SK_*` |
 
 当前约束：
-- `Application` 只表达命令意图，例如 `PrepareAndActivateNavigate`、`ActivatePreparedCommand`、`CancelCommand`。
+- `ActivationUseCases` 只表达命令启动/取消意图，例如 `PrepareAndActivateNavigate`、`ActivatePreparedCommand`、`CancelCommand`。
+- `ExecutionUseCases` 负责运行中编排，例如充电流程的“导航到站 -> 切换充电 -> 满电回 Idle”。
+- `CompletionUseCases` 负责收尾，例如 command tag 清理、统一 `NotifySkillCompleted`、以及生成 completion feedback。
 - `Runtime Gateway` 负责把命令翻译为 runtime 参数写入、ability handle 选择、底层激活与取消。
 - `UMASkillComponent` 的 `Prepare*`、ability handle、底层 activate/cancel helper 已收回 `private`，只允许 `Bootstrap` 和 `RuntimeGateway` 通过 `friend` 访问。
 
@@ -225,7 +242,7 @@ flowchart LR
 
 - `Core` 已经完成 context 化与 layer 化。
 - `UI` 现在也已经完成同样的 context 化与 layer 化；剩余 runtime 边界只保留在刻意允许的入口壳，例如 `AMAHUD`、`AMASelectionHUD`。
-- `Agent/Skill` 现在已经从“兼容包装壳”推进到“Gateway + RuntimeHost”结构，`Application` 不再直接触碰 runtime 内部句柄。
+- `Agent/Skill` 现在已经从“兼容包装壳”推进到“Activation / Execution / Completion + Gateway + RuntimeHost”结构，`Application` 不再直接触碰 runtime 内部句柄。
 - `Bootstrap` 只允许被真正的入口壳或 bootstrap 层消费；`UI/*/Application/` 不再直接 include 其他 UI context 的 bootstrap。
 - 架构守卫文件是：
   - `scripts/check_interaction_architecture.py`

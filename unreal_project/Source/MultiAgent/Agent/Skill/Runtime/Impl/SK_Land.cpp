@@ -2,6 +2,7 @@
 // 降落技能 - 使用 MANavigationService 统一接口
 
 #include "SK_Land.h"
+#include "Agent/Skill/Application/MASkillCompletionUseCases.h"
 #include "../../Domain/MASkillTags.h"
 #include "../MASkillComponent.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
@@ -93,9 +94,6 @@ void USK_Land::FailAndEnd(const FString& Message)
 void USK_Land::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
     AMACharacter* Character = GetOwningCharacter();
-    UMASkillComponent* SkillCompToNotify = nullptr;
-    bool bShouldNotify = false;
-    
     if (Character)
     {
         // 解绑回调
@@ -119,22 +117,15 @@ void USK_Land::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGamepl
                 CurrentLocation.Z / 100.f, TargetAltitude / 100.f);
         }
         
-        if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
-        {
-            FGameplayTag LandTag = FGameplayTag::RequestGameplayTag(FName("Command.Land"));
-            if (SkillComp->HasMatchingGameplayTag(LandTag))
-            {
-                SkillComp->RemoveLooseGameplayTag(LandTag);
-                bShouldNotify = true;
-                SkillCompToNotify = SkillComp;
-            }
-        }
     }
     
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
     
-    if (bShouldNotify && SkillCompToNotify)
+    if (Character)
     {
-        SkillCompToNotify->NotifySkillCompleted(bLandSucceeded, LandResultMessage);
+        if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
+        {
+            FMASkillCompletionUseCases::NotifyAbilityFinished(*SkillComp, EMACommand::Land, bLandSucceeded, LandResultMessage);
+        }
     }
 }

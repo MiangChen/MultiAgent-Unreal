@@ -2,6 +2,7 @@
 // 返航技能 - 使用 MANavigationService 统一接口
 
 #include "SK_ReturnHome.h"
+#include "Agent/Skill/Application/MASkillCompletionUseCases.h"
 #include "../../Domain/MASkillTags.h"
 #include "../MASkillComponent.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
@@ -94,9 +95,6 @@ void USK_ReturnHome::FailAndEnd(const FString& Message)
 void USK_ReturnHome::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
     AMACharacter* Character = GetOwningCharacter();
-    UMASkillComponent* SkillCompToNotify = nullptr;
-    bool bShouldNotify = false;
-    
     if (Character)
     {
         // 解绑回调
@@ -122,22 +120,15 @@ void USK_ReturnHome::EndAbility(const FGameplayAbilitySpecHandle Handle, const F
                 Distance2D / 100.f, CurrentLocation.X, CurrentLocation.Y, CurrentLocation.Z);
         }
         
-        if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
-        {
-            FGameplayTag ReturnHomeTag = FGameplayTag::RequestGameplayTag(FName("Command.ReturnHome"));
-            if (SkillComp->HasMatchingGameplayTag(ReturnHomeTag))
-            {
-                SkillComp->RemoveLooseGameplayTag(ReturnHomeTag);
-                bShouldNotify = true;
-                SkillCompToNotify = SkillComp;
-            }
-        }
     }
     
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
     
-    if (bShouldNotify && SkillCompToNotify)
+    if (Character)
     {
-        SkillCompToNotify->NotifySkillCompleted(bReturnHomeSucceeded, ReturnHomeResultMessage);
+        if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
+        {
+            FMASkillCompletionUseCases::NotifyAbilityFinished(*SkillComp, EMACommand::ReturnHome, bReturnHomeSucceeded, ReturnHomeResultMessage);
+        }
     }
 }

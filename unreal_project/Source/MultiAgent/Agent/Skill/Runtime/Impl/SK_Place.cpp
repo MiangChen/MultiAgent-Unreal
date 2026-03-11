@@ -3,6 +3,7 @@
 // 使用 NavigationService 进行统一导航
 
 #include "SK_Place.h"
+#include "Agent/Skill/Application/MASkillCompletionUseCases.h"
 #include "../../Domain/MASkillTags.h"
 #include "../MASkillComponent.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
@@ -700,10 +701,8 @@ void USK_Place::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGamep
 {
     AMACharacter* Character = GetOwningCharacter();
     
-    bool bShouldNotify = false;
     bool bSuccessToNotify = bPlaceSucceeded;
     FString MessageToNotify = PlaceResultMessage;
-    UMASkillComponent* SkillCompToNotify = nullptr;
     
     if (Character)
     {
@@ -754,16 +753,6 @@ void USK_Place::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGamep
             }
         }
         
-        if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
-        {
-            FGameplayTag PlaceTag = FGameplayTag::RequestGameplayTag(FName("Command.Place"));
-            if (SkillComp->HasMatchingGameplayTag(PlaceTag))
-            {
-                SkillComp->RemoveLooseGameplayTag(PlaceTag);
-                bShouldNotify = true;
-                SkillCompToNotify = SkillComp;
-            }
-        }
     }
     
     // 清理引用
@@ -775,8 +764,11 @@ void USK_Place::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGamep
     
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
     
-    if (bShouldNotify && SkillCompToNotify)
+    if (Character)
     {
-        SkillCompToNotify->NotifySkillCompleted(bSuccessToNotify, MessageToNotify);
+        if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
+        {
+            FMASkillCompletionUseCases::NotifyAbilityFinished(*SkillComp, EMACommand::Place, bSuccessToNotify, MessageToNotify);
+        }
     }
 }

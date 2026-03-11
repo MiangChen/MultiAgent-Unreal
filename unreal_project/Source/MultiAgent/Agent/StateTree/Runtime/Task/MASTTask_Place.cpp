@@ -4,6 +4,7 @@
 #include "MASTTask_Place.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
 #include "Agent/Skill/Application/MASkillActivationUseCases.h"
+#include "Agent/Skill/Application/MASkillExecutionUseCases.h"
 #include "Agent/Skill/Runtime/MASkillComponent.h"
 #include "StateTreeExecutionContext.h"
 
@@ -52,7 +53,7 @@ EStateTreeRunStatus FMASTTask_Place::Tick(
     if (!SkillComp) return EStateTreeRunStatus::Failed;
 
     // 检查命令是否被取消
-    if (!SkillComp->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Place"))))
+    if (FMASkillExecutionUseCases::HasCommandCompleted(*SkillComp, EMACommand::Place))
     {
         return EStateTreeRunStatus::Succeeded;
     }
@@ -77,13 +78,7 @@ void FMASTTask_Place::ExitState(
     
     if (UMASkillComponent* SkillComp = Owner->FindComponentByClass<UMASkillComponent>())
     {
-        if (Data.bSkillActivated)
-        {
-            FMASkillActivationUseCases::CancelCommand(*SkillComp, EMACommand::Place);
-        }
-        
-        // 完成后切换到 Idle
-        SkillComp->RemoveLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Place")));
-        SkillComp->AddLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Idle")));
+        FMASkillExecutionUseCases::CancelCommandIfActivated(*SkillComp, EMACommand::Place, Data.bSkillActivated);
+        FMASkillExecutionUseCases::TransitionCommandToIdle(*SkillComp, EMACommand::Place);
     }
 }

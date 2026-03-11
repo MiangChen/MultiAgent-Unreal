@@ -2,6 +2,7 @@
 // 处理危险技能实现
 
 #include "SK_HandleHazard.h"
+#include "Agent/Skill/Application/MASkillCompletionUseCases.h"
 #include "../../Domain/MASkillTags.h"
 #include "../MASkillComponent.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
@@ -593,10 +594,8 @@ void USK_HandleHazard::EndAbility(
 {
     AMACharacter* Character = GetOwningCharacter();
     
-    bool bShouldNotify = false;
     bool bSuccessToNotify = bHandleSucceeded;
     FString MessageToNotify = HandleResultMessage;
-    UMASkillComponent* SkillCompToNotify = nullptr;
 
     if (Character)
     {
@@ -622,16 +621,6 @@ void USK_HandleHazard::EndAbility(
             MessageToNotify = FString::Printf(TEXT("HandleHazard cancelled: Stopped while %s"), *GetPhaseString());
         }
 
-        if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
-        {
-            FGameplayTag HandleHazardTag = FGameplayTag::RequestGameplayTag(FName("Command.HandleHazard"));
-            if (SkillComp->HasMatchingGameplayTag(HandleHazardTag))
-            {
-                SkillComp->RemoveLooseGameplayTag(HandleHazardTag);
-                bShouldNotify = true;
-                SkillCompToNotify = SkillComp;
-            }
-        }
     }
 
     NavigationService = nullptr;
@@ -640,8 +629,11 @@ void USK_HandleHazard::EndAbility(
 
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 
-    if (bShouldNotify && SkillCompToNotify)
+    if (Character)
     {
-        SkillCompToNotify->NotifySkillCompleted(bSuccessToNotify, MessageToNotify);
+        if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
+        {
+            FMASkillCompletionUseCases::NotifyAbilityFinished(*SkillComp, EMACommand::HandleHazard, bSuccessToNotify, MessageToNotify);
+        }
     }
 }
