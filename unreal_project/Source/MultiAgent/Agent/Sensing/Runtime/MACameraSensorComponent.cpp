@@ -206,68 +206,14 @@ void UMACameraSensorComponent::StopTCPStream()
 
 void UMACameraSensorComponent::OnStreamTick()
 {
-    AcceptNewClients();
+    FMASensingRuntimeBridge::AcceptPendingClients(*this);
     
     if (ClientSockets.Num() == 0) return;
     
     TArray<uint8> JPEGData = GetFrameAsJPEG(JPEGQuality);
     if (JPEGData.Num() > 0)
     {
-        SendFrameToClients(JPEGData);
-    }
-}
-
-void UMACameraSensorComponent::AcceptNewClients()
-{
-    if (!ListenSocket) return;
-    
-    bool bHasPendingConnection = false;
-    if (ListenSocket->HasPendingConnection(bHasPendingConnection) && bHasPendingConnection)
-    {
-        FSocket* ClientSocket = ListenSocket->Accept(TEXT("CameraStreamClient"));
-        if (ClientSocket)
-        {
-            ClientSocket->SetNonBlocking(true);
-            ClientSockets.Add(ClientSocket);
-            UE_LOG(LogTemp, Log, TEXT("[Camera] %s new client connected. Total: %d"), *SensorName, ClientSockets.Num());
-        }
-    }
-}
-
-void UMACameraSensorComponent::SendFrameToClients(const TArray<uint8>& JPEGData)
-{
-    // 帧格式: [4字节长度][JPEG数据]
-    int32 DataSize = JPEGData.Num();
-    
-    TArray<FSocket*> DisconnectedClients;
-    
-    for (FSocket* Client : ClientSockets)
-    {
-        if (!Client) continue;
-        
-        int32 BytesSent = 0;
-        
-        // 发送长度头
-        if (!Client->Send((uint8*)&DataSize, sizeof(int32), BytesSent) || BytesSent != sizeof(int32))
-        {
-            DisconnectedClients.Add(Client);
-            continue;
-        }
-        
-        // 发送 JPEG 数据
-        if (!Client->Send(JPEGData.GetData(), DataSize, BytesSent) || BytesSent != DataSize)
-        {
-            DisconnectedClients.Add(Client);
-            continue;
-        }
-    }
-    
-    // 清理断开的客户端
-    for (FSocket* Client : DisconnectedClients)
-    {
-        ClientSockets.Remove(Client);
-        ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->DestroySocket(Client);
-        UE_LOG(LogTemp, Log, TEXT("[Camera] %s client disconnected. Remaining: %d"), *SensorName, ClientSockets.Num());
+        FMASensingRuntimeBridge::SendFrameToClients(*this, JPEGData);
     }
 }
 

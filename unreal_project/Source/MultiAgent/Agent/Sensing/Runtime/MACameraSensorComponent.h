@@ -102,6 +102,4 @@ private:
     FSocket* ListenSocket = nullptr;
     TArray<FSocket*> ClientSockets;
     void OnStreamTick();
-    void AcceptNewClients();
-    void SendFrameToClients(const TArray<uint8>& JPEGData);
 };

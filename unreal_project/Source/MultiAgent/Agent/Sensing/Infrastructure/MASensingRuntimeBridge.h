@@ -12,4 +12,6 @@ struct MULTIAGENT_API FMASensingRuntimeBridge
     static void ClearStreamTimer(UMACameraSensorComponent& CameraSensor, FTimerHandle& TimerHandle);
     static bool CreateListenSocket(UMACameraSensorComponent& CameraSensor, int32 Port);
     static void CleanupSockets(UMACameraSensorComponent& CameraSensor);
+    static void AcceptPendingClients(UMACameraSensorComponent& CameraSensor);
+    static void SendFrameToClients(UMACameraSensorComponent& CameraSensor, const TArray<uint8>& JPEGData);
 };
