@@ -7,7 +7,7 @@
 #include "Core/SceneGraph/Runtime/MASceneGraphManager.h"
 #include "Core/SceneGraph/Bootstrap/MASceneGraphBootstrap.h"
 #include "Core/Config/MAConfigManager.h"
-#include "Agent/Skill/Utils/MAUESceneQuery.h"
+#include "Agent/Skill/Infrastructure/MAUESceneQuery.h"
 #include "Environment/Utils/MAPointOfInterest.h"
 #include "Environment/Utils/MAZoneActor.h"
 #include "Environment/Utils/MAGoalActor.h"

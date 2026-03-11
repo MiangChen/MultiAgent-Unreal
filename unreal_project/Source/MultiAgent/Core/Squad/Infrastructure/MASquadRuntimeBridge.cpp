@@ -4,7 +4,7 @@
 #include "Core/Squad/Bootstrap/MASquadBootstrap.h"
 #include "Core/Squad/Domain/MASquad.h"
 #include "Core/Squad/Runtime/MASquadManager.h"
-#include "Agent/Character/MACharacter.h"
+#include "Agent/CharacterRuntime/Runtime/MACharacter.h"
 
 FMASquadOperationFeedback FMASquadRuntimeBridge::CycleFormation(const UObject* WorldContext)
 {

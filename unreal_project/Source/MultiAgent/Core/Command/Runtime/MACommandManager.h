@@ -8,35 +8,16 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "GameplayTagContainer.h"
 #include "Core/Shared/Types/MATypes.h"
+#include "Core/Command/Domain/MACommandTypes.h"
 #include "Core/Comm/Domain/MACommTypes.h"
-#include "Agent/Skill/Utils/MAFeedbackGenerator.h"
-#include "Agent/Skill/Utils/MAConditionCheckTypes.h"
+#include "Agent/Skill/Feedback/MASkillFeedbackTypes.h"
+#include "Agent/Skill/Domain/MAConditionCheckTypes.h"
 #include "MACommandManager.generated.h"
 
 class AMACharacter;
 struct FMAAgentSkillCommand;
 class UMATempDataManager;
 class UMASceneGraphManager;
-
-// ========== 指令类型 ==========
-UENUM(BlueprintType)
-enum class EMACommand : uint8
-{
-    None         UMETA(DisplayName = "None"),
-    Idle         UMETA(DisplayName = "Idle"),
-    Navigate     UMETA(DisplayName = "Navigate"),
-    Follow       UMETA(DisplayName = "Follow"),
-    Charge       UMETA(DisplayName = "Charge"),
-    Search       UMETA(DisplayName = "Search"),
-    Place        UMETA(DisplayName = "Place"),
-    TakeOff      UMETA(DisplayName = "TakeOff"),
-    Land         UMETA(DisplayName = "Land"),
-    ReturnHome   UMETA(DisplayName = "ReturnHome"),
-    TakePhoto    UMETA(DisplayName = "TakePhoto"),
-    Broadcast    UMETA(DisplayName = "Broadcast"),
-    HandleHazard UMETA(DisplayName = "HandleHazard"),
-    Guide        UMETA(DisplayName = "Guide")
-};
 
 // ========== 时间步执行反馈 ==========
 USTRUCT(BlueprintType)

@@ -3,8 +3,8 @@
 #include "MAChargingStation.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
-#include "../../Agent/Character/MACharacter.h"
-#include "../../Agent/Character/MAQuadrupedCharacter.h"
+#include "../../Agent/CharacterRuntime/Runtime/MACharacter.h"
+#include "../../Agent/CharacterRuntime/Runtime/MAQuadrupedCharacter.h"
 #include "UObject/ConstructorHelpers.h"
 
 AMAChargingStation::AMAChargingStation()

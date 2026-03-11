@@ -2,9 +2,9 @@
 
 #include "MAAgentInputComponent.h"
 #include "MAInputActions.h"
-#include "../Agent/Character/MACharacter.h"
-#include "../Agent/Character/MAUAVCharacter.h"
-#include "../Agent/Component/Sensor/MACameraSensorComponent.h"
+#include "../Agent/CharacterRuntime/Runtime/MACharacter.h"
+#include "../Agent/CharacterRuntime/Runtime/MAUAVCharacter.h"
+#include "../Agent/Sensing/Runtime/MACameraSensorComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"

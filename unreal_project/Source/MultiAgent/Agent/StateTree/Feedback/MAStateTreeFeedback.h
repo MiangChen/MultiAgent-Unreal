@@ -1,0 +1,11 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Agent/StateTree/Domain/MAStateTreeTypes.h"
+
+struct MULTIAGENT_API FMAStateTreeLifecycleFeedback
+{
+    bool bShouldStartLogic = false;
+    EMAStateTreeLifecycleMode Mode = EMAStateTreeLifecycleMode::Disabled;
+    FString Message;
+};

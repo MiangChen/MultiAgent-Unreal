@@ -2,7 +2,7 @@
 // UI 集成相关的数据类型实现
 
 #include "MASimTypes.h"
-#include "../Agent/Character/MACharacter.h"
+#include "../Agent/CharacterRuntime/Runtime/MACharacter.h"
 
 DEFINE_LOG_CATEGORY(LogMASimTypes);
 

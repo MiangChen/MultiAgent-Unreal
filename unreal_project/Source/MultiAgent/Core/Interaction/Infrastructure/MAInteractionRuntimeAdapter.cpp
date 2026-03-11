@@ -9,9 +9,9 @@
 #include "../../Selection/Runtime/MASelectionManager.h"
 #include "../../Camera/Runtime/MAViewportManager.h"
 #include "../../Squad/Infrastructure/MASquadRuntimeBridge.h"
-#include "../../../Agent/Character/MACharacter.h"
-#include "../../../Agent/Character/MAUAVCharacter.h"
-#include "../../../Agent/Component/Sensor/MACameraSensorComponent.h"
+#include "../../../Agent/CharacterRuntime/Runtime/MACharacter.h"
+#include "../../../Agent/CharacterRuntime/Runtime/MAUAVCharacter.h"
+#include "../../../Agent/Sensing/Runtime/MACameraSensorComponent.h"
 #include "../../../Environment/Utils/MAPointOfInterest.h"
 
 namespace

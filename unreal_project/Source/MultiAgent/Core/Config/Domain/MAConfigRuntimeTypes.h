@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Utils/MAPathPlanner.h"
+#include "Agent/Navigation/Infrastructure/MAPathPlanner.h"
 #include "MAConfigNavigationTypes.h"
 #include "MAConfigEntityTypes.h"
 #include "MAConfigRuntimeTypes.generated.h"

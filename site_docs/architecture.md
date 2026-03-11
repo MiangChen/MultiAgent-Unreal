@@ -1,8 +1,9 @@
 # 架构
 
-本页只保留当前仓库的两张基线图：
+本页保留当前仓库的两张基线图，以及一个关键子图：
 - 自动控制架构图
 - folder 映射图
+- Skill Runtime Gateway 子图
 
 ## 1. 自动控制架构图
 
@@ -48,16 +49,18 @@ flowchart LR
 | 层级 | 当前 folder 映射 |
 |---|---|
 | `L1` | `Input/`、`UI/{HUD,SceneEditing,TaskGraph,SkillAllocation,Components,Setup}/Presentation/`、`UI/Core/Modal/` |
-| `L2` | `Core/{Interaction,SceneGraph,TaskGraph,SkillAllocation,Command,Selection,Editing,AgentRuntime,Squad,EnvironmentCore,TempData,Camera,Comm,Config}/Application/`、`UI/Core/Application/`、`UI/Core/Modal/Application/`、`UI/HUD/Application/`、`UI/SceneEditing/Application/`、`UI/TaskGraph/Application/`、`UI/SkillAllocation/Application/`、`UI/Components/Application/`、`UI/Setup/Application/` |
-| `L3` | `Core/{Interaction,SceneGraph,TaskGraph,SkillAllocation,Command,Selection,Editing,AgentRuntime,Squad,EnvironmentCore,TempData,Camera,Comm,Config}/Domain/`、`Core/{Interaction,SceneGraph,TaskGraph,SkillAllocation,Command,Selection,Editing,AgentRuntime,Squad,EnvironmentCore,TempData,Camera,Comm}/Feedback/`、`Core/Shared/Types/`、`UI/Core/Feedback/`、`UI/Core/Modal/Domain/`、`UI/HUD/{Domain,Feedback}/`、`UI/SceneEditing/{Domain,Feedback}/`、`UI/TaskGraph/{Domain,Feedback}/`、`UI/SkillAllocation/{Domain,Feedback}/`、`UI/Components/Domain/`、`UI/Setup/Domain/` |
-| `L4` | `Core/{Interaction,SceneGraph,TaskGraph,SkillAllocation,Command,Selection,Editing,AgentRuntime,Squad,EnvironmentCore,TempData,Camera,Comm,Config}/Infrastructure/`、`UI/Core/Infrastructure/`、`UI/HUD/Infrastructure/`、`UI/SceneEditing/Infrastructure/`、`UI/TaskGraph/Infrastructure/`、`UI/SkillAllocation/Infrastructure/`、`UI/Components/Infrastructure/`、`UI/Setup/Infrastructure/` |
-| `L5` | `Core/{SceneGraph,Command,Selection,Editing,AgentRuntime,Squad,TempData,EnvironmentCore,Camera,Comm,Config}/Runtime/`、`UI/{HUD,Setup,Components}/Runtime/`、`Agent/`、`Environment/` |
-| `CR` | `Core/{Interaction,SceneGraph,Command,Selection,Editing,AgentRuntime,Squad,EnvironmentCore,TempData,Camera,Comm,Config}/Bootstrap/`、`Core/GameFlow/Bootstrap/`、`UI/Core/Bootstrap/`、`UI/HUD/Bootstrap/`、`UI/SceneEditing/Bootstrap/`、`UI/TaskGraph/Bootstrap/`、`UI/SkillAllocation/Bootstrap/`、`UI/Components/Bootstrap/`、`UI/Setup/Bootstrap/` |
+| `L2` | `Core/{Interaction,SceneGraph,TaskGraph,SkillAllocation,Command,Selection,Editing,AgentRuntime,Squad,EnvironmentCore,TempData,Camera,Comm,Config}/Application/`、`UI/Core/Application/`、`UI/Core/Modal/Application/`、`UI/HUD/Application/`、`UI/SceneEditing/Application/`、`UI/TaskGraph/Application/`、`UI/SkillAllocation/Application/`、`UI/Components/Application/`、`UI/Setup/Application/`、`Agent/{CharacterRuntime,Navigation,Sensing,Skill,StateTree}/Application/` |
+| `L3` | `Core/{Interaction,SceneGraph,TaskGraph,SkillAllocation,Command,Selection,Editing,AgentRuntime,Squad,EnvironmentCore,TempData,Camera,Comm,Config}/Domain/`、`Core/{Interaction,SceneGraph,TaskGraph,SkillAllocation,Command,Selection,Editing,AgentRuntime,Squad,EnvironmentCore,TempData,Camera,Comm}/Feedback/`、`Core/Shared/Types/`、`UI/Core/Feedback/`、`UI/Core/Modal/Domain/`、`UI/HUD/{Domain,Feedback}/`、`UI/SceneEditing/{Domain,Feedback}/`、`UI/TaskGraph/{Domain,Feedback}/`、`UI/SkillAllocation/{Domain,Feedback}/`、`UI/Components/Domain/`、`UI/Setup/Domain/`、`Agent/{CharacterRuntime,Navigation,Sensing,Skill,StateTree}/{Domain,Feedback}/` |
+| `L4` | `Core/{Interaction,SceneGraph,TaskGraph,SkillAllocation,Command,Selection,Editing,AgentRuntime,Squad,EnvironmentCore,TempData,Camera,Comm,Config}/Infrastructure/`、`UI/Core/Infrastructure/`、`UI/HUD/Infrastructure/`、`UI/SceneEditing/Infrastructure/`、`UI/TaskGraph/Infrastructure/`、`UI/SkillAllocation/Infrastructure/`、`UI/Components/Infrastructure/`、`UI/Setup/Infrastructure/`、`Agent/{CharacterRuntime,Navigation,Sensing,Skill,StateTree}/Infrastructure/` |
+| `L5` | `Core/{SceneGraph,Command,Selection,Editing,AgentRuntime,Squad,TempData,EnvironmentCore,Camera,Comm,Config}/Runtime/`、`UI/{HUD,Setup,Components}/Runtime/`、`Agent/{CharacterRuntime,Navigation,Sensing,Skill,StateTree}/Runtime/`、`Environment/` |
+| `CR` | `Core/{Interaction,SceneGraph,Command,Selection,Editing,AgentRuntime,Squad,EnvironmentCore,TempData,Camera,Comm,Config}/Bootstrap/`、`Core/GameFlow/Bootstrap/`、`UI/Core/Bootstrap/`、`UI/HUD/Bootstrap/`、`UI/SceneEditing/Bootstrap/`、`UI/TaskGraph/Bootstrap/`、`UI/SkillAllocation/Bootstrap/`、`UI/Components/Bootstrap/`、`UI/Setup/Bootstrap/`、`Agent/{CharacterRuntime,Navigation,Sensing,Skill,StateTree}/Bootstrap/` |
 
 必要说明：
 - `Core` 现在是 context 集合，不再存在 `Core/Manager` 和 `Core/Types` 大桶。
 - `UI` 现在也按 context 收口：`Core / HUD / SceneEditing / TaskGraph / SkillAllocation / Components / Setup`，共享 modal 机制并入 `UI/Core/Modal/`。
 - `UI` 现在和 `Core` 使用同一套结构语言：`Presentation/` 表示 UI 的 `L1` 展示壳，`Runtime/` 表示 UI 的 `L5` 入口壳。
+- `Agent` 现在按 `CharacterRuntime / Navigation / Sensing / Skill / StateTree` 五个 context 收口，使用与 `Core/UI` 同一套层语义，但不包含 `Presentation/`。
+- `Agent/Skill` 进一步收紧为 `Application -> RuntimeGateway -> RuntimeHost`，Application 不再直接认识 `UMASkillComponent` 的 handle/prepare 细节。
 - `TaskGraph`、`SkillAllocation` 属于轻量 context：没有专属 `Runtime/`，运行时持久化与传输仍由 `TempData / Comm` 承担。
 - `Interaction` 也是轻量 context：没有专属 `Runtime/`，它负责编排其他 runtime context。
 
@@ -84,6 +87,7 @@ flowchart TB
 
     subgraph L2["L2 Application"]
         COREAPP["Core/*/Application/"]
+        AGENTAPP["Agent/*/Application/"]
         UICOREAPP["UI/Core/Application/"]
         UIMODALAPP["UI/Core/Modal/Application/"]
         UIHUDAPP["UI/HUD/Application/"]
@@ -97,6 +101,7 @@ flowchart TB
     subgraph L3["L3 Domain / Feedback"]
         COREDOMAIN["Core/*/Domain/"]
         COREFEEDBACK["Core/*/Feedback/"]
+        AGENTDOMAIN["Agent/*/{Domain,Feedback}/"]
         SHAREDTYPES["Core/Shared/Types/"]
         UICOREFEEDBACK["UI/Core/Feedback/"]
         UIMODALDOMAIN["UI/Core/Modal/Domain/"]
@@ -110,6 +115,7 @@ flowchart TB
 
     subgraph L4["L4 Infrastructure"]
         COREINFRA["Core/*/Infrastructure/"]
+        AGENTINFRA["Agent/*/Infrastructure/"]
         UICOREINFRA["UI/Core/Infrastructure/"]
         UIHUDINFRA["UI/HUD/Infrastructure/"]
         UIEDITINFRA["UI/SceneEditing/Infrastructure/"]
@@ -121,7 +127,7 @@ flowchart TB
 
     subgraph L5["L5 Runtime / Plant"]
         CORERUNTIME["Core/*/Runtime/ + UI/*/Runtime/"]
-        AGENT["Agent/"]
+        AGENTRUNTIME["Agent/*/Runtime/"]
         ENV["Environment/"]
     end
 
@@ -143,6 +149,7 @@ flowchart TB
     COREAPP --> COREDOMAIN
     COREAPP --> COREFEEDBACK
     COREAPP --> SHAREDTYPES
+    AGENTAPP --> AGENTDOMAIN
 
     UICOREAPP --> UICOREFEEDBACK
     UIMODALAPP --> UIMODALDOMAIN
@@ -154,29 +161,71 @@ flowchart TB
     UISETUPAPP --> UISETUPDOMAIN
 
     COREINFRA --> CORERUNTIME
-    COREINFRA --> AGENT
+    COREINFRA --> AGENTRUNTIME
     COREINFRA --> ENV
+    AGENTINFRA --> AGENTRUNTIME
 
     UICOREINFRA --> CORERUNTIME
     UIHUDINFRA --> CORERUNTIME
-    UIHUDINFRA --> AGENT
+    UIHUDINFRA --> AGENTRUNTIME
     UIHUDINFRA --> ENV
     UIEDITINFRA --> CORERUNTIME
-    UIEDITINFRA --> AGENT
+    UIEDITINFRA --> AGENTRUNTIME
     UIEDITINFRA --> ENV
     UITGINFRA --> CORERUNTIME
     UISAINFRA --> CORERUNTIME
     UICOMPINFRA --> CORERUNTIME
-    UICOMPINFRA --> AGENT
+    UICOMPINFRA --> AGENTRUNTIME
     UICOMPINFRA --> ENV
     UISETUPINFRA --> CORERUNTIME
     UISETUPINFRA --> ENV
 ```
 
-## 3. 当前结论
+## 3. Skill Runtime Gateway
+
+说明：
+- 这张图只展开 `Agent/Skill` 这个 context。
+- 目标是把 `Application` 和 `UMASkillComponent` 的内部细节隔开。
+- `MASkillRuntimeGateway` 是 runtime 边界翻译层，不承载业务策略。
+
+```mermaid
+flowchart LR
+    classDef app fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20
+    classDef gateway fill:#e3f2fd,stroke:#1565c0,color:#0d47a1,stroke-width:2px
+    classDef runtime fill:#fff3e0,stroke:#ef6c00,color:#e65100
+    classDef ability fill:#f3e5f5,stroke:#6a1b9a,color:#4a148c
+
+    CALLERS["CharacterRuntime / StateTree / Command"]:::app
+    APP["Skill/Application\nMASkillActivationUseCases"]:::app
+    GATE["Skill/Runtime\nMASkillRuntimeGateway"]:::gateway
+    HOST["Skill/Runtime\nUMASkillComponent"]:::runtime
+    ABILITY["Skill/Runtime/Impl\nSK_* abilities"]:::ability
+
+    CALLERS --> APP
+    APP --> GATE
+    GATE --> HOST
+    HOST --> ABILITY
+```
+
+当前落位：
+
+| 角色 | 对应文件 |
+|---|---|
+| `Application` | `Agent/Skill/Application/MASkillActivationUseCases.*` |
+| `Runtime Gateway` | `Agent/Skill/Runtime/MASkillRuntimeGateway.*` |
+| `Runtime Host` | `Agent/Skill/Runtime/MASkillComponent.*` |
+| `Ability 实现` | `Agent/Skill/Runtime/Impl/SK_*` |
+
+当前约束：
+- `Application` 只表达命令意图，例如 `PrepareAndActivateNavigate`、`ActivatePreparedCommand`、`CancelCommand`。
+- `Runtime Gateway` 负责把命令翻译为 runtime 参数写入、ability handle 选择、底层激活与取消。
+- `UMASkillComponent` 的 `Prepare*`、ability handle、底层 activate/cancel helper 已收回 `private`，只允许 `Bootstrap` 和 `RuntimeGateway` 通过 `friend` 访问。
+
+## 4. 当前结论
 
 - `Core` 已经完成 context 化与 layer 化。
 - `UI` 现在也已经完成同样的 context 化与 layer 化；剩余 runtime 边界只保留在刻意允许的入口壳，例如 `AMAHUD`、`AMASelectionHUD`。
+- `Agent/Skill` 现在已经从“兼容包装壳”推进到“Gateway + RuntimeHost”结构，`Application` 不再直接触碰 runtime 内部句柄。
 - `Bootstrap` 只允许被真正的入口壳或 bootstrap 层消费；`UI/*/Application/` 不再直接 include 其他 UI context 的 bootstrap。
 - 架构守卫文件是：
   - `scripts/check_interaction_architecture.py`

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Core/Command/Domain/MACommandTypes.h"
 #include "../Domain/MAInteractionRuntimeTypes.h"
 #include "../Feedback/MAFeedback54.h"
 
@@ -13,7 +14,6 @@ class UMACameraSensorComponent;
 struct FMASquadOperationFeedback;
 
 enum class EMAAgentType : uint8;
-enum class EMACommand : uint8;
 
 class MULTIAGENT_API FMAInteractionRuntimeAdapter
 {

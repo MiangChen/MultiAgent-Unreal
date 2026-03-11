@@ -4,7 +4,7 @@
 // Widget 管理职责已委托给 UMAUIManager
 
 #include "MAHUD.h"
-#include "../../../Agent/Character/MACharacter.h"
+#include "../../../Agent/CharacterRuntime/Runtime/MACharacter.h"
 #include "../../Core/MAUIManager.h"
 #include "../../../Input/MAPlayerController.h"
 #include "../../../Core/Comm/Domain/MACommTypes.h"

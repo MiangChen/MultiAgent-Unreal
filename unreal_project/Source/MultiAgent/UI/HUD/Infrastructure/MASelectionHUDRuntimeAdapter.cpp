@@ -5,7 +5,7 @@
 #include "../Runtime/MAHUD.h"
 #include "../Runtime/MASelectionHUD.h"
 #include "../Core/MAUIManager.h"
-#include "../../../Agent/Character/MACharacter.h"
+#include "../../../Agent/CharacterRuntime/Runtime/MACharacter.h"
 #include "../../../Core/AgentRuntime/Runtime/MAAgentManager.h"
 #include "../../../Core/Selection/Runtime/MASelectionManager.h"
 #include "Blueprint/UserWidget.h"

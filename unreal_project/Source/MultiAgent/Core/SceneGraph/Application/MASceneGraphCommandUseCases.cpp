@@ -7,7 +7,7 @@
 #include "Core/SceneGraph/Infrastructure/Tools/MASceneGraphLabelInputParser.h"
 #include "Core/SceneGraph/Infrastructure/Tools/MASceneGraphNodeJsonBuilder.h"
 #include "Core/SceneGraph/Infrastructure/Tools/MASceneGraphNodeJsonValidator.h"
-#include "../../../Agent/Skill/Utils/MALocationUtils.h"
+#include "../../../Agent/Skill/Infrastructure/MALocationUtils.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonWriter.h"
 #include "Serialization/JsonSerializer.h"

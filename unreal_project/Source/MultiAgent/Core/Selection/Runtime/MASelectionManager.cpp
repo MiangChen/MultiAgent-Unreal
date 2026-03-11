@@ -3,7 +3,7 @@
 
 #include "MASelectionManager.h"
 #include "Core/AgentRuntime/Runtime/MAAgentManager.h"
-#include "Agent/Character/MACharacter.h"
+#include "Agent/CharacterRuntime/Runtime/MACharacter.h"
 #include "Engine/Engine.h"
 #include "GameFramework/PlayerController.h"
 

@@ -2,8 +2,8 @@
 // Squad 实体实现
 
 #include "Core/Squad/Domain/MASquad.h"
-#include "Agent/Character/MACharacter.h"
-#include "Agent/Character/MAQuadrupedCharacter.h"
+#include "Agent/CharacterRuntime/Runtime/MACharacter.h"
+#include "Agent/CharacterRuntime/Runtime/MAQuadrupedCharacter.h"
 #include "TimerManager.h"
 #include "Engine/Engine.h"
 

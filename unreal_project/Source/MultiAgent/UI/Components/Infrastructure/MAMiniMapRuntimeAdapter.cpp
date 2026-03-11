@@ -5,7 +5,7 @@
 #include "../../HUD/Presentation/MAMainHUDWidget.h"
 #include "../../../Core/AgentRuntime/Runtime/MAAgentManager.h"
 #include "../../../Core/Selection/Runtime/MASelectionManager.h"
-#include "../../../Agent/Character/MACharacter.h"
+#include "../../../Agent/CharacterRuntime/Runtime/MACharacter.h"
 #include "Blueprint/UserWidget.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"

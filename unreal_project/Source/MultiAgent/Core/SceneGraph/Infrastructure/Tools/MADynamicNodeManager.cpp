@@ -3,7 +3,7 @@
 
 #include "MADynamicNodeManager.h"
 #include "Core/Config/MAConfigManager.h"
-#include "../../../Agent/Skill/Utils/MALocationUtils.h"
+#include "../../../Agent/Skill/Infrastructure/MALocationUtils.h"
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonWriter.h"
 #include "Serialization/JsonSerializer.h"

@@ -1,10 +1,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Core/Command/Domain/MACommandTypes.h"
 #include "../Feedback/MAFeedback21.h"
 #include "../Feedback/MAFeedbackPipeline.h"
 
-enum class EMACommand : uint8;
 class AMAPlayerController;
 
 class MULTIAGENT_API FMACommandInputCoordinator

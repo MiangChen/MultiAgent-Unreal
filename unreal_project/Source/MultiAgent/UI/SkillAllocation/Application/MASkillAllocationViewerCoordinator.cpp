@@ -5,14 +5,14 @@
 
 namespace
 {
-FMASkillAllocationViewerActionResult MakeFailure(const FString& Message)
+FMASkillAllocationViewerActionResult MakeSkillAllocationFailure(const FString& Message)
 {
     FMASkillAllocationViewerActionResult Result;
     Result.Message = Message;
     return Result;
 }
 
-FMASkillAllocationViewerActionResult MakeSuccess(
+FMASkillAllocationViewerActionResult MakeSkillAllocationSuccess(
     const FString& Message,
     const FMASkillAllocationData& Data,
     bool bShouldPersist)
@@ -36,11 +36,11 @@ FMASkillAllocationViewerActionResult FMASkillAllocationViewerCoordinator::LoadAl
 {
     if (!AllocationModel)
     {
-        return MakeFailure(TEXT("AllocationModel is null"));
+        return MakeSkillAllocationFailure(TEXT("AllocationModel is null"));
     }
 
     AllocationModel->LoadFromData(Data);
-    return MakeSuccess(SuccessMessage, AllocationModel->GetWorkingData(), bShouldPersist);
+    return MakeSkillAllocationSuccess(SuccessMessage, AllocationModel->GetWorkingData(), bShouldPersist);
 }
 
 FMASkillAllocationViewerActionResult FMASkillAllocationViewerCoordinator::LoadAllocationJson(
@@ -50,24 +50,24 @@ FMASkillAllocationViewerActionResult FMASkillAllocationViewerCoordinator::LoadAl
 {
     if (!AllocationModel)
     {
-        return MakeFailure(TEXT("AllocationModel is null"));
+        return MakeSkillAllocationFailure(TEXT("AllocationModel is null"));
     }
 
     const FString TrimmedJson = JsonText.TrimStartAndEnd();
     if (TrimmedJson.IsEmpty())
     {
-        return MakeFailure(TEXT("[Warning] JSON editor is empty"));
+        return MakeSkillAllocationFailure(TEXT("[Warning] JSON editor is empty"));
     }
 
     const FMASkillAllocationParseFeedback ParseFeedback = FMASkillAllocationUseCases::ParseJson(JsonText);
     if (!ParseFeedback.bSuccess)
     {
-        return MakeFailure(FString::Printf(TEXT("[Error] %s"), *ParseFeedback.Message));
+        return MakeSkillAllocationFailure(FString::Printf(TEXT("[Error] %s"), *ParseFeedback.Message));
     }
 
     AllocationModel->LoadFromData(ParseFeedback.Data);
 
-    FMASkillAllocationViewerActionResult Result = MakeSuccess(
+    FMASkillAllocationViewerActionResult Result = MakeSkillAllocationSuccess(
         FString::Printf(
             TEXT("[Success] Skill allocation updated: %d time steps, %d robots"),
             AllocationModel->GetTimeStepCount(),
@@ -89,9 +89,9 @@ FMASkillAllocationViewerActionResult FMASkillAllocationViewerCoordinator::ResetA
 {
     if (!AllocationModel)
     {
-        return MakeFailure(TEXT("AllocationModel is null"));
+        return MakeSkillAllocationFailure(TEXT("AllocationModel is null"));
     }
 
     AllocationModel->ResetToOriginal();
-    return MakeSuccess(TEXT("[重置] 所有技能状态已重置为待执行"), AllocationModel->GetWorkingData(), bShouldPersist);
+    return MakeSkillAllocationSuccess(TEXT("[重置] 所有技能状态已重置为待执行"), AllocationModel->GetWorkingData(), bShouldPersist);
 }

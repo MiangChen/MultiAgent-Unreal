@@ -6,7 +6,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "../../Agent/Component/MANavigationService.h"
+#include "../../Agent/Navigation/Runtime/MANavigationService.h"
 #include "../../Core/Config/MAConfigManager.h"
 #include "../Effect/MAFire.h"
 #include "AIController.h"

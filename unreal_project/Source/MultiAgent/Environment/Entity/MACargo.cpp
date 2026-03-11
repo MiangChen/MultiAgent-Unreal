@@ -5,9 +5,9 @@
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
-#include "../../Agent/Character/MACharacter.h"
-#include "../../Agent/Character/MAHumanoidCharacter.h"
-#include "../../Agent/Character/MAUGVCharacter.h"
+#include "../../Agent/CharacterRuntime/Runtime/MACharacter.h"
+#include "../../Agent/CharacterRuntime/Runtime/MAHumanoidCharacter.h"
+#include "../../Agent/CharacterRuntime/Runtime/MAUGVCharacter.h"
 
 AMACargo::AMACargo()
 {

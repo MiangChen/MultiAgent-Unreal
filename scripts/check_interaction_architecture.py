@@ -53,6 +53,18 @@ OLD_INCLUDE_PATTERNS = (
     "Core/GameFlow/MAGameInstance.h",
     "Core/GameFlow/MASetupGameMode.h",
     "UI/Modal/",
+    "Agent/Character/",
+    "Agent/Component/",
+    "Agent/Skill/Impl/",
+    "Agent/Skill/Utils/",
+    "Agent/StateTree/MAStateTreeComponent.h",
+    "Agent/StateTree/Condition/",
+    "Agent/StateTree/Task/",
+    "Utils/MAPathPlanner.h",
+    "Utils/MAFlightController.h",
+    "Agent/Skill/Application/MAConditionChecker.h",
+    "Agent/Skill/Application/MASkillParamsProcessor.h",
+    "Agent/Skill/Feedback/MAFeedbackGenerator.h",
 )
 
 FORBIDDEN_INFRA_FILES = (
@@ -214,6 +226,51 @@ REQUIRED_GAMEFLOW_DIRS = (
     "Core/GameFlow/Bootstrap",
 )
 
+REQUIRED_AGENT_CHARACTER_RUNTIME_DIRS = (
+    "Agent/CharacterRuntime/Application",
+    "Agent/CharacterRuntime/Bootstrap",
+    "Agent/CharacterRuntime/Domain",
+    "Agent/CharacterRuntime/Feedback",
+    "Agent/CharacterRuntime/Infrastructure",
+    "Agent/CharacterRuntime/Runtime",
+)
+
+REQUIRED_AGENT_NAVIGATION_DIRS = (
+    "Agent/Navigation/Application",
+    "Agent/Navigation/Bootstrap",
+    "Agent/Navigation/Domain",
+    "Agent/Navigation/Feedback",
+    "Agent/Navigation/Infrastructure",
+    "Agent/Navigation/Runtime",
+)
+
+REQUIRED_AGENT_SENSING_DIRS = (
+    "Agent/Sensing/Application",
+    "Agent/Sensing/Bootstrap",
+    "Agent/Sensing/Domain",
+    "Agent/Sensing/Feedback",
+    "Agent/Sensing/Infrastructure",
+    "Agent/Sensing/Runtime",
+)
+
+REQUIRED_AGENT_SKILL_DIRS = (
+    "Agent/Skill/Application",
+    "Agent/Skill/Bootstrap",
+    "Agent/Skill/Domain",
+    "Agent/Skill/Feedback",
+    "Agent/Skill/Infrastructure",
+    "Agent/Skill/Runtime",
+)
+
+REQUIRED_AGENT_STATETREE_DIRS = (
+    "Agent/StateTree/Application",
+    "Agent/StateTree/Bootstrap",
+    "Agent/StateTree/Domain",
+    "Agent/StateTree/Feedback",
+    "Agent/StateTree/Infrastructure",
+    "Agent/StateTree/Runtime",
+)
+
 FORBIDDEN_LEGACY_SCENEGRAPH_PATHS = (
     "Core/Manager/MASceneGraphManager.h",
     "Core/Manager/MASceneGraphManager.cpp",
@@ -324,6 +381,27 @@ FORBIDDEN_LEGACY_CONFIG_PATHS = (
     "Core/Config/MAConfigManager.cpp",
 )
 
+FORBIDDEN_LEGACY_AGENT_PATHS = (
+    "Agent/Character",
+    "Agent/Component",
+    "Agent/Skill/Impl",
+    "Agent/Skill/Utils",
+    "Agent/StateTree/Condition",
+    "Agent/StateTree/Task",
+    "Agent/StateTree/MAStateTreeComponent.h",
+    "Agent/StateTree/MAStateTreeComponent.cpp",
+    "Utils/MAPathPlanner.h",
+    "Utils/MAPathPlanner.cpp",
+    "Utils/MAFlightController.h",
+    "Utils/MAFlightController.cpp",
+    "Agent/Skill/Application/MAConditionChecker.h",
+    "Agent/Skill/Application/MAConditionChecker.cpp",
+    "Agent/Skill/Application/MASkillParamsProcessor.h",
+    "Agent/Skill/Application/MASkillParamsProcessor.cpp",
+    "Agent/Skill/Feedback/MAFeedbackGenerator.h",
+    "Agent/Skill/Feedback/MAFeedbackGenerator.cpp",
+)
+
 FORBIDDEN_DEBUG_PATTERN = "AddOnScreenDebugMessage"
 ALLOWED_DEBUG_FILES = {
     "Core/Interaction/Infrastructure/MAFeedback21Applier.cpp",
@@ -341,6 +419,7 @@ ALLOWED_UI_MUTATION_FILES = {
 SCENEGRAPH_SUBSYSTEM_PATTERN = "GetSubsystem<UMASceneGraphManager>()"
 ALLOWED_SCENEGRAPH_SUBSYSTEM_FILES = {
     "Core/SceneGraph/Bootstrap/MASceneGraphBootstrap.cpp",
+    "Agent/Skill/Infrastructure/MASceneGraphUpdater.cpp",
 }
 
 SQUAD_SUBSYSTEM_PATTERN = "GetSubsystem<UMASquadManager>()"
@@ -384,6 +463,31 @@ APPLICATION_RUNTIME_CALL_GUARDS = {
         "GetGameInstance(",
         "GetSubsystem<",
     ),
+    "Agent/CharacterRuntime/Application/": (
+        "GetWorld(",
+        "GetGameInstance(",
+        "GetSubsystem<",
+    ),
+    "Agent/Navigation/Application/": (
+        "GetWorld(",
+        "GetGameInstance(",
+        "GetSubsystem<",
+    ),
+    "Agent/Sensing/Application/": (
+        "GetWorld(",
+        "GetGameInstance(",
+        "GetSubsystem<",
+    ),
+    "Agent/Skill/Application/": (
+        "GetWorld(",
+        "GetGameInstance(",
+        "GetSubsystem<",
+    ),
+    "Agent/StateTree/Application/": (
+        "GetWorld(",
+        "GetGameInstance(",
+        "GetSubsystem<",
+    ),
 }
 
 APPLICATION_RUNTIME_INCLUDE_GUARDS = {
@@ -417,6 +521,34 @@ APPLICATION_RUNTIME_INCLUDE_GUARDS = {
     "UI/Core/Modal/Application/": (
         '#include "../Infrastructure/',
     ),
+    "Agent/CharacterRuntime/Application/": (
+        '#include "../Runtime/',
+        '#include "../Bootstrap/',
+        '#include "../Infrastructure/',
+        '#include "Agent/Navigation/Runtime/',
+    ),
+    "Agent/Navigation/Application/": (
+        '#include "../Runtime/',
+        '#include "../Bootstrap/',
+        '#include "../Infrastructure/',
+    ),
+    "Agent/Sensing/Application/": (
+        '#include "../Runtime/',
+        '#include "../Bootstrap/',
+        '#include "../Infrastructure/',
+    ),
+    "Agent/Skill/Application/": (
+        '#include "../Runtime/',
+        '#include "../Bootstrap/',
+        '#include "../Infrastructure/',
+        '#include "Core/SceneGraph/Runtime/',
+        '#include "Agent/CharacterRuntime/Runtime/',
+    ),
+    "Agent/StateTree/Application/": (
+        '#include "../Runtime/',
+        '#include "../Bootstrap/',
+        '#include "../Infrastructure/',
+    ),
 }
 
 APPLICATION_BOOTSTRAP_INCLUDE_GUARDS = {
@@ -443,6 +575,21 @@ APPLICATION_BOOTSTRAP_INCLUDE_GUARDS = {
         '#include "../Bootstrap/',
     ),
     "UI/Setup/Application/": (
+        '#include "../Bootstrap/',
+    ),
+    "Agent/CharacterRuntime/Application/": (
+        '#include "../Bootstrap/',
+    ),
+    "Agent/Navigation/Application/": (
+        '#include "../Bootstrap/',
+    ),
+    "Agent/Sensing/Application/": (
+        '#include "../Bootstrap/',
+    ),
+    "Agent/Skill/Application/": (
+        '#include "../Bootstrap/',
+    ),
+    "Agent/StateTree/Application/": (
         '#include "../Bootstrap/',
     ),
 }
@@ -518,6 +665,102 @@ DOMAIN_RUNTIME_TOKEN_GUARDS = {
         "GetSubsystem<",
         "AHUD",
         "APlayerController",
+    ),
+    "Agent/CharacterRuntime/Domain/": (
+        "UWorld",
+        "AActor",
+        "UObject",
+        "GetWorld(",
+        "GetGameInstance(",
+        "GetSubsystem<",
+        "UMA",
+    ),
+    "Agent/Navigation/Domain/": (
+        "UWorld",
+        "AActor",
+        "UObject",
+        "GetWorld(",
+        "GetGameInstance(",
+        "GetSubsystem<",
+        "UMA",
+        "AMACharacter",
+    ),
+    "Agent/Sensing/Domain/": (
+        "UWorld",
+        "AActor",
+        "UObject",
+        "GetWorld(",
+        "GetGameInstance(",
+        "GetSubsystem<",
+        "UMA",
+        "AMACharacter",
+    ),
+    "Agent/Skill/Domain/": (
+        "UWorld",
+        "AActor",
+        "UObject",
+        "GetWorld(",
+        "GetGameInstance(",
+        "GetSubsystem<",
+        "UMA",
+        "AMACharacter",
+        "UMASkillComponent",
+    ),
+    "Agent/StateTree/Domain/": (
+        "UWorld",
+        "AActor",
+        "UObject",
+        "GetWorld(",
+        "GetGameInstance(",
+        "GetSubsystem<",
+        "UMA",
+        "AMACharacter",
+    ),
+    "Agent/CharacterRuntime/Feedback/": (
+        "UWorld",
+        "AActor",
+        "UObject",
+        "GetWorld(",
+        "GetGameInstance(",
+        "GetSubsystem<",
+        "UMA",
+    ),
+    "Agent/Navigation/Feedback/": (
+        "UWorld",
+        "AActor",
+        "UObject",
+        "GetWorld(",
+        "GetGameInstance(",
+        "GetSubsystem<",
+        "UMA",
+    ),
+    "Agent/Sensing/Feedback/": (
+        "UWorld",
+        "AActor",
+        "UObject",
+        "GetWorld(",
+        "GetGameInstance(",
+        "GetSubsystem<",
+        "UMA",
+    ),
+    "Agent/Skill/Feedback/": (
+        "UWorld",
+        "AActor",
+        "UObject",
+        "GetWorld(",
+        "GetGameInstance(",
+        "GetSubsystem<",
+        "UMA",
+        "UMASkillComponent",
+    ),
+    "Agent/StateTree/Feedback/": (
+        "UWorld",
+        "AActor",
+        "UObject",
+        "GetWorld(",
+        "GetGameInstance(",
+        "GetSubsystem<",
+        "UMA",
     ),
 }
 

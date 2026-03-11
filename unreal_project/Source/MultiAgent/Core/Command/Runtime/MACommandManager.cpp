@@ -10,16 +10,17 @@
 #include "Core/Comm/Runtime/MACommSubsystem.h"
 #include "Core/Comm/Domain/MACommTypes.h"
 #include "Core/Comm/Infrastructure/Codec/MACommJsonCodec.h"
-#include "Agent/Character/MACharacter.h"
-#include "Agent/Skill/MASkillComponent.h"
-#include "Agent/Skill/Utils/MASkillParamsProcessor.h"
-#include "Agent/Skill/Utils/MAFeedbackGenerator.h"
-#include "Agent/Skill/Utils/MASceneGraphUpdater.h"
-#include "Agent/Skill/Utils/MAConditionChecker.h"
-#include "Agent/Skill/Utils/MASkillTemplateRegistry.h"
-#include "Agent/Skill/Utils/MAEventTemplateRegistry.h"
-#include "Agent/StateTree/MAStateTreeComponent.h"
-#include "Agent/Component/MANavigationService.h"
+#include "Agent/CharacterRuntime/Runtime/MACharacter.h"
+#include "Agent/Skill/Application/MASkillActivationUseCases.h"
+#include "Agent/Skill/Runtime/MASkillComponent.h"
+#include "Agent/Skill/Infrastructure/MASkillParamsProcessor.h"
+#include "Agent/Skill/Infrastructure/MAFeedbackGenerator.h"
+#include "Agent/Skill/Infrastructure/MASceneGraphUpdater.h"
+#include "Agent/Skill/Infrastructure/MAConditionChecker.h"
+#include "Agent/Skill/Domain/MASkillTemplateRegistry.h"
+#include "Agent/Skill/Domain/MAEventTemplateRegistry.h"
+#include "Agent/StateTree/Runtime/MAStateTreeComponent.h"
+#include "Agent/Navigation/Runtime/MANavigationService.h"
 #include "Components/StateTreeComponent.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMACommandManager, Log, All);
@@ -521,54 +522,7 @@ bool UMACommandManager::HasActiveStateTree(AMACharacter* Agent) const
 
 bool UMACommandManager::ActivateSkillDirectly(AMACharacter* Agent, UMASkillComponent* SkillComp, EMACommand Command)
 {
-    bool bActivated = false;
-    
-    switch (Command)
-    {
-        case EMACommand::Navigate:
-            bActivated = SkillComp->TryActivateNavigate(SkillComp->GetSkillParams().TargetLocation);
-            break;
-        case EMACommand::Follow:
-            bActivated = SkillComp->TryActivateFollow(SkillComp->GetSkillParams().FollowTarget.Get(), SkillComp->GetSkillParams().FollowDistance);
-            break;
-        case EMACommand::Charge:
-            bActivated = SkillComp->TryActivateCharge();
-            break;
-        case EMACommand::Search:
-            bActivated = SkillComp->TryActivateSearch();
-            break;
-        case EMACommand::Place:
-            bActivated = SkillComp->TryActivatePlace();
-            break;
-        case EMACommand::TakeOff:
-            bActivated = SkillComp->TryActivateTakeOff();
-            break;
-        case EMACommand::Land:
-            bActivated = SkillComp->TryActivateLand();
-            break;
-        case EMACommand::ReturnHome:
-            bActivated = SkillComp->TryActivateReturnHome();
-            break;
-        case EMACommand::TakePhoto:
-            bActivated = SkillComp->TryActivateTakePhoto();
-            break;
-        case EMACommand::Broadcast:
-            bActivated = SkillComp->TryActivateBroadcast();
-            break;
-        case EMACommand::HandleHazard:
-            bActivated = SkillComp->TryActivateHandleHazard();
-            break;
-        case EMACommand::Guide:
-            bActivated = SkillComp->TryActivateGuide();
-            break;
-        case EMACommand::Idle:
-            SkillComp->NotifySkillCompleted(true, TEXT("Idle state entered"));
-            bActivated = true;
-            break;
-        default:
-            SkillComp->NotifySkillCompleted(false, TEXT("Unknown command type"));
-            break;
-    }
+    const bool bActivated = FMASkillActivationUseCases::ActivatePreparedCommand(*SkillComp, Command);
     
     if (!bActivated && Command != EMACommand::Idle && Command != EMACommand::None)
     {

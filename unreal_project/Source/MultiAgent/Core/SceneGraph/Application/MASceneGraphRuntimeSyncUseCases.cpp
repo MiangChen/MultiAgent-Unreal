@@ -1,9 +1,9 @@
 // MASceneGraphRuntimeSyncUseCases.cpp
 
 #include "Core/SceneGraph/Application/MASceneGraphRuntimeSyncUseCases.h"
-#include "../../../Agent/Skill/Utils/MAUESceneQuery.h"
-#include "../../../Agent/Character/MACharacter.h"
-#include "../../../Agent/Skill/MASkillComponent.h"
+#include "../../../Agent/Skill/Infrastructure/MAUESceneQuery.h"
+#include "../../../Agent/CharacterRuntime/Runtime/MACharacter.h"
+#include "../../../Agent/Skill/Runtime/MASkillComponent.h"
 #include "GameFramework/Actor.h"
 
 bool FMASceneGraphRuntimeSyncUseCases::SyncNodePosition(

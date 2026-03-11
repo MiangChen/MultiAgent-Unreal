@@ -5,9 +5,9 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/SphereComponent.h"
 #include "../../Core/Config/MAConfigManager.h"
-#include "../../Agent/Character/MACharacter.h"
-#include "../../Agent/Character/MAHumanoidCharacter.h"
-#include "../../Agent/Character/MAUGVCharacter.h"
+#include "../../Agent/CharacterRuntime/Runtime/MACharacter.h"
+#include "../../Agent/CharacterRuntime/Runtime/MAHumanoidCharacter.h"
+#include "../../Agent/CharacterRuntime/Runtime/MAUGVCharacter.h"
 
 AMAComponent::AMAComponent()
 {

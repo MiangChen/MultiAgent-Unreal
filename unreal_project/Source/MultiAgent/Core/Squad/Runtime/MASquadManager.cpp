@@ -4,7 +4,7 @@
 #include "MASquadManager.h"
 #include "Core/Squad/Domain/MASquad.h"
 #include "Core/AgentRuntime/Runtime/MAAgentManager.h"
-#include "Agent/Character/MACharacter.h"
+#include "Agent/CharacterRuntime/Runtime/MACharacter.h"
 #include "Engine/Engine.h"
 
 void UMASquadManager::Initialize(FSubsystemCollectionBase& Collection)

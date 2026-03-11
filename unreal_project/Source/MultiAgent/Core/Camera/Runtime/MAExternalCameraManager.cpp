@@ -2,7 +2,7 @@
 
 #include "MAExternalCameraManager.h"
 #include "Core/AgentRuntime/Runtime/MAAgentManager.h"
-#include "Agent/Character/MACharacter.h"
+#include "Agent/CharacterRuntime/Runtime/MACharacter.h"
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/SpringArmComponent.h"
