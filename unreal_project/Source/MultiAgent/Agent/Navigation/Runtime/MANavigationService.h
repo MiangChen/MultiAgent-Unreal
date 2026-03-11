@@ -197,6 +197,18 @@ private:
     /** 设置导航状态 */
     void SetNavigationState(EMANavigationState NewState);
 
+    /** 当前是否处于活跃导航操作状态 */
+    bool HasActiveNavigationOperation() const;
+
+    /** 当前是否处于导航终态 */
+    bool IsNavigationTerminalState() const;
+
+    /** 初始化一次 NavigateTo 请求的运行期状态 */
+    void InitializeNavigateRequest(const FVector& Destination, float InAcceptanceRadius);
+
+    /** 延迟将终态重置回 Idle，避免覆盖新请求 */
+    void ScheduleResetToIdle();
+
     /** 启动地面导航 (NavMesh 优先) */
     bool StartGroundNavigation();
 

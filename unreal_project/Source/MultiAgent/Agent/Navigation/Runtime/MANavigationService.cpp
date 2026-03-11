@@ -48,52 +48,6 @@ void UMANavigationService::TickComponent(float DeltaTime, ELevelTick TickType,
     if (bIsNavigationPaused) return;
 }
 
-//=========================================================================
-// 暂停/恢复实现
-//=========================================================================
-
-void UMANavigationService::PauseNavigation()
-{
-    if (bIsNavigationPaused || CurrentState == EMANavigationState::Idle)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[MANavigationService] %s: PauseNavigation SKIPPED (bIsNavigationPaused=%s, CurrentState=%d, bIsFlying=%s, FlightTimer=%s)"),
-            OwnerCharacter ? *OwnerCharacter->GetName() : TEXT("NULL"),
-            bIsNavigationPaused ? TEXT("true") : TEXT("false"),
-            (int32)CurrentState,
-            bIsFlying ? TEXT("true") : TEXT("false"),
-            FlightCheckTimerHandle.IsValid() ? TEXT("valid") : TEXT("invalid"));
-        return;
-    }
-
-    CapturePauseSnapshot();
-    PauseActiveDrivers();
-
-    bIsNavigationPaused = true;
-
-    const bool bPausedFollowing = PauseSnapshot.Mode == EMANavigationPauseMode::Following;
-    const bool bPausedManual = PauseSnapshot.Mode == EMANavigationPauseMode::Manual;
-    UE_LOG(LogTemp, Log, TEXT("[MANavigationService] %s: Navigation PAUSED (flying=%s, following=%s, manualNav=%s)"),
-        OwnerCharacter ? *OwnerCharacter->GetName() : TEXT("NULL"),
-        bIsFlying ? TEXT("true") : TEXT("false"),
-        bPausedFollowing ? TEXT("true") : TEXT("false"),
-        bPausedManual ? TEXT("true") : TEXT("false"));
-}
-
-void UMANavigationService::ResumeNavigation()
-{
-    if (!bIsNavigationPaused)
-    {
-        return;
-    }
-
-    bIsNavigationPaused = false;
-
-    ResumeFromPauseSnapshot();
-    ClearPauseSnapshot();
-
-    UE_LOG(LogTemp, Log, TEXT("[MANavigationService] %s: Navigation RESUMED"),
-        OwnerCharacter ? *OwnerCharacter->GetName() : TEXT("NULL"));
-}
 
 //=========================================================================
 // 核心 API 实现
@@ -149,23 +103,14 @@ bool UMANavigationService::NavigateTo(FVector Destination, float InAcceptanceRad
     }
     
     // 如果正在进行其他操作，先取消
-    if (CurrentState == EMANavigationState::Navigating || 
-        CurrentState == EMANavigationState::TakingOff || 
-        CurrentState == EMANavigationState::Landing)
+    if (HasActiveNavigationOperation())
     {
         UE_LOG(LogTemp, Log, TEXT("[MANavigationService] %s: NavigateTo - Cancelling previous operation (state=%d)"),
             *OwnerCharacter->GetName(), (int32)CurrentState);
         CleanupNavigation();
     }
     
-    // 初始化导航参数
-    TargetLocation = Destination;
-    AcceptanceRadius = InAcceptanceRadius;
-    StartLocation = OwnerCharacter->GetActorLocation();
-    bUsingManualNavigation = false;
-    bHasActiveNavMeshRequest = false;
-    ManualNavStuckTime = 0.f;
-    bIsReturnHomeActive = false;
+    InitializeNavigateRequest(Destination, InAcceptanceRadius);
     
     // 设置飞行控制器的平滑到达选项
     if (bIsFlying)
@@ -202,10 +147,7 @@ void UMANavigationService::CancelNavigation()
     FString OwnerName = OwnerCharacter ? OwnerCharacter->GetName() : TEXT("NULL");
     
     // 只有在活跃状态下才能取消
-    if (CurrentState == EMANavigationState::Idle || 
-        CurrentState == EMANavigationState::Arrived ||
-        CurrentState == EMANavigationState::Failed ||
-        CurrentState == EMANavigationState::Cancelled)
+    if (!HasActiveNavigationOperation())
     {
         return;
     }
@@ -224,9 +166,7 @@ void UMANavigationService::CancelNavigation()
 
 bool UMANavigationService::IsNavigating() const
 {
-    return CurrentState == EMANavigationState::Navigating ||
-           CurrentState == EMANavigationState::TakingOff ||
-           CurrentState == EMANavigationState::Landing;
+    return HasActiveNavigationOperation();
 }
 
 float UMANavigationService::GetNavigationProgress() const
@@ -261,179 +201,59 @@ void UMANavigationService::SetNavigationState(EMANavigationState NewState)
     }
 }
 
-EMANavigationPauseMode UMANavigationService::ResolvePauseMode() const
+bool UMANavigationService::HasActiveNavigationOperation() const
 {
-    if (bIsFollowingActor)
-    {
-        return EMANavigationPauseMode::Following;
-    }
-    if (bIsFlying)
-    {
-        return EMANavigationPauseMode::Flying;
-    }
-    if (bUsingManualNavigation)
-    {
-        return EMANavigationPauseMode::Manual;
-    }
-    return EMANavigationPauseMode::Ground;
+    return CurrentState == EMANavigationState::Navigating ||
+           CurrentState == EMANavigationState::TakingOff ||
+           CurrentState == EMANavigationState::Landing;
 }
 
-void UMANavigationService::CapturePauseSnapshot()
+bool UMANavigationService::IsNavigationTerminalState() const
 {
-    PauseSnapshot.TargetLocation = TargetLocation;
-    PauseSnapshot.AcceptanceRadius = AcceptanceRadius;
-    PauseSnapshot.Mode = ResolvePauseMode();
-    PauseSnapshot.State = CurrentState;
-    PauseSnapshot.FollowTarget = FollowTarget;
-    PauseSnapshot.FollowDistance = FollowDistance;
-    PauseSnapshot.bReturnHomeIsLanding = bReturnHomeIsLanding;
-    PauseSnapshot.bReturnHomeActive = bIsReturnHomeActive;
-    PauseSnapshot.ReturnHomeLandAltitude = ReturnHomeLandAltitude;
-    PauseSnapshot.bIsValid = true;
+    return CurrentState == EMANavigationState::Arrived ||
+           CurrentState == EMANavigationState::Failed ||
+           CurrentState == EMANavigationState::Cancelled;
 }
 
-void UMANavigationService::ClearPauseSnapshot()
+void UMANavigationService::InitializeNavigateRequest(const FVector& Destination, const float InAcceptanceRadius)
 {
-    PauseSnapshot.Reset();
+    TargetLocation = Destination;
+    AcceptanceRadius = InAcceptanceRadius;
+    StartLocation = OwnerCharacter ? OwnerCharacter->GetActorLocation() : FVector::ZeroVector;
+    bUsingManualNavigation = false;
+    bHasActiveNavMeshRequest = false;
+    ManualNavStuckTime = 0.f;
+    bIsReturnHomeActive = false;
 }
 
-void UMANavigationService::PauseActiveDrivers()
+void UMANavigationService::ScheduleResetToIdle()
 {
-    UWorld* World = OwnerCharacter ? OwnerCharacter->GetWorld() : nullptr;
-
-    // 停止飞行控制器（悬停）
-    if (bIsFlying && FlightController.IsValid())
-    {
-        FlightController->StopMovement();
-    }
-
-    // 停止地面 NavMesh 路径跟随
-    // 注意：必须先设 bHasActiveNavMeshRequest = false，再调用 StopMovement()
-    // 因为 StopMovement() 会同步触发 OnNavMeshMoveCompleted 回调
-    if (!bIsFlying && bHasActiveNavMeshRequest && OwnerCharacter)
-    {
-        bHasActiveNavMeshRequest = false;
-        if (AAIController* AICtrl = Cast<AAIController>(OwnerCharacter->GetController()))
-        {
-            AICtrl->StopMovement();
-        }
-    }
-
-    if (World && FollowModeTimerHandle.IsValid())
-    {
-        World->GetTimerManager().PauseTimer(FollowModeTimerHandle);
-    }
-    if (World && ManualNavTimerHandle.IsValid())
-    {
-        World->GetTimerManager().PauseTimer(ManualNavTimerHandle);
-    }
-    if (World && FlightCheckTimerHandle.IsValid())
-    {
-        World->GetTimerManager().PauseTimer(FlightCheckTimerHandle);
-    }
-}
-
-void UMANavigationService::ResumeFromPauseSnapshot()
-{
-    if (!PauseSnapshot.bIsValid)
+    if (!OwnerCharacter)
     {
         return;
     }
 
-    TargetLocation = PauseSnapshot.TargetLocation;
-    AcceptanceRadius = PauseSnapshot.AcceptanceRadius;
-    FollowDistance = PauseSnapshot.FollowDistance;
-    bReturnHomeIsLanding = PauseSnapshot.bReturnHomeIsLanding;
-    bIsReturnHomeActive = PauseSnapshot.bReturnHomeActive;
-    ReturnHomeLandAltitude = PauseSnapshot.ReturnHomeLandAltitude;
-
-    UWorld* World = OwnerCharacter ? OwnerCharacter->GetWorld() : nullptr;
-    switch (PauseSnapshot.Mode)
+    UWorld* World = OwnerCharacter->GetWorld();
+    if (!World)
     {
-        case EMANavigationPauseMode::Following:
-            if (World && FollowModeTimerHandle.IsValid())
-            {
-                World->GetTimerManager().UnPauseTimer(FollowModeTimerHandle);
-            }
-            else if (PauseSnapshot.FollowTarget.IsValid())
-            {
-                FollowActor(PauseSnapshot.FollowTarget.Get(), FollowDistance, AcceptanceRadius);
-            }
-            break;
-        case EMANavigationPauseMode::Flying:
-            ResumePausedFlyingOperation(World);
-            break;
-        case EMANavigationPauseMode::Manual:
-            if (World && ManualNavTimerHandle.IsValid())
-            {
-                World->GetTimerManager().UnPauseTimer(ManualNavTimerHandle);
-            }
-            else
-            {
-                StartManualNavigation();
-            }
-            break;
-        case EMANavigationPauseMode::Ground:
-            // 恢复地面 NavMesh 导航：重新发起导航请求
-            NavigateTo(TargetLocation, AcceptanceRadius);
-            break;
-        case EMANavigationPauseMode::None:
-        default:
-            break;
-    }
-}
-
-void UMANavigationService::ResumePausedFlyingOperation(UWorld* World)
-{
-    EnsureFlightControllerInitialized();
-    if (FlightController.IsValid())
-    {
-        FlightController->SetAcceptanceRadius(AcceptanceRadius);
-
-        if (PauseSnapshot.bReturnHomeActive)
-        {
-            if (PauseSnapshot.bReturnHomeIsLanding || PauseSnapshot.State == EMANavigationState::Landing)
-            {
-                FlightController->Land();
-            }
-            else
-            {
-                FlightController->FlyTo(TargetLocation);
-            }
-        }
-        else if (PauseSnapshot.State == EMANavigationState::TakingOff)
-        {
-            FlightController->TakeOff(TargetLocation.Z);
-        }
-        else if (PauseSnapshot.State == EMANavigationState::Landing)
-        {
-            FlightController->Land();
-        }
-        else
-        {
-            FlightController->FlyTo(TargetLocation);
-        }
-    }
-
-    if (World && FlightCheckTimerHandle.IsValid())
-    {
-        World->GetTimerManager().UnPauseTimer(FlightCheckTimerHandle);
         return;
     }
 
-    if (PauseSnapshot.bReturnHomeActive)
-    {
-        StartFlightTimer(&UMANavigationService::UpdateReturnHome);
-    }
-    else if (PauseSnapshot.State == EMANavigationState::TakingOff || PauseSnapshot.State == EMANavigationState::Landing)
-    {
-        StartFlightTimer(&UMANavigationService::UpdateFlightOperation);
-    }
-    else
-    {
-        StartFlightTimer(&UMANavigationService::UpdateFlightNavigation);
-    }
+    FTimerHandle ResetHandle;
+    World->GetTimerManager().SetTimer(
+        ResetHandle,
+        [this]()
+        {
+            if (IsNavigationTerminalState())
+            {
+                SetNavigationState(EMANavigationState::Idle);
+            }
+        },
+        0.1f,
+        false
+    );
 }
+
 
 void UMANavigationService::CompleteNavigateSuccess()
 {
@@ -456,26 +276,7 @@ void UMANavigationService::CompleteNavigation(bool bSuccess, const FString& Mess
     OnNavigationCompleted.Broadcast(bSuccess, Message);
     
     // 延迟重置状态为 Idle（仅在仍处于终态时才重置，避免覆盖新导航的状态）
-    if (OwnerCharacter && OwnerCharacter->GetWorld())
-    {
-        FTimerHandle ResetHandle;
-        OwnerCharacter->GetWorld()->GetTimerManager().SetTimer(
-            ResetHandle,
-            [this]()
-            {
-                // 只有当状态仍然是终态时才重置为 Idle
-                // 如果已经开始了新的导航（Navigating/TakingOff/Landing），不要覆盖
-                if (CurrentState == EMANavigationState::Arrived ||
-                    CurrentState == EMANavigationState::Failed ||
-                    CurrentState == EMANavigationState::Cancelled)
-                {
-                    SetNavigationState(EMANavigationState::Idle);
-                }
-            },
-            0.1f,
-            false
-        );
-    }
+    ScheduleResetToIdle();
 }
 
 void UMANavigationService::CleanupNavigation()
