@@ -3,27 +3,9 @@
 
 #include "MASTTask_Place.h"
 #include "Agent/StateTree/Application/MAStateTreeUseCases.h"
-#include "Agent/CharacterRuntime/Runtime/MACharacter.h"
 #include "Agent/Skill/Application/MASkillActivationUseCases.h"
-#include "Agent/Skill/Application/MASkillExecutionUseCases.h"
-#include "Agent/Skill/Runtime/MASkillComponent.h"
+#include "MASTTaskUtils.h"
 #include "StateTreeExecutionContext.h"
-
-namespace
-{
-EStateTreeRunStatus ToPlaceTaskRunStatus(const EMAStateTreeTaskDecision Decision)
-{
-    switch (Decision)
-    {
-        case EMAStateTreeTaskDecision::Succeeded:
-            return EStateTreeRunStatus::Succeeded;
-        case EMAStateTreeTaskDecision::Running:
-            return EStateTreeRunStatus::Running;
-        default:
-            return EStateTreeRunStatus::Failed;
-    }
-}
-}
 
 EStateTreeRunStatus FMASTTask_Place::EnterState(
     FStateTreeExecutionContext& Context,
@@ -32,11 +14,7 @@ EStateTreeRunStatus FMASTTask_Place::EnterState(
     FMASTTask_PlaceInstanceData& Data = Context.GetInstanceData<FMASTTask_PlaceInstanceData>(*this);
     Data.bSkillActivated = false;
 
-    AActor* Owner = Cast<AActor>(Context.GetOwner());
-    AMACharacter* Character = Cast<AMACharacter>(Owner);
-    if (!Character) return EStateTreeRunStatus::Failed;
-
-    UMASkillComponent* SkillComp = Character->GetSkillComponent();
+    UMASkillComponent* SkillComp = MASTTaskUtils::ResolveSkillComponent(Context);
     if (!SkillComp) return EStateTreeRunStatus::Failed;
 
     const FMASearchRuntimeResults& Results = SkillComp->GetSearchResults();
@@ -52,7 +30,7 @@ EStateTreeRunStatus FMASTTask_Place::EnterState(
     }
 
     Data.bSkillActivated = bActivated;
-    return ToPlaceTaskRunStatus(Decision);
+    return MASTTaskUtils::ToRunStatus(Decision);
 }
 
 EStateTreeRunStatus FMASTTask_Place::Tick(
@@ -61,16 +39,10 @@ EStateTreeRunStatus FMASTTask_Place::Tick(
 {
     FMASTTask_PlaceInstanceData& Data = Context.GetInstanceData<FMASTTask_PlaceInstanceData>(*this);
 
-    AActor* Owner = Cast<AActor>(Context.GetOwner());
-    AMACharacter* Character = Cast<AMACharacter>(Owner);
-    if (!Character) return EStateTreeRunStatus::Failed;
-
-    UMASkillComponent* SkillComp = Character->GetSkillComponent();
+    UMASkillComponent* SkillComp = MASTTaskUtils::ResolveSkillComponent(Context);
     if (!SkillComp) return EStateTreeRunStatus::Failed;
 
-    return ToPlaceTaskRunStatus(FMAStateTreeUseCases::BuildCommandTickDecision(
-        true,
-        FMASkillExecutionUseCases::HasCommandCompleted(*SkillComp, EMACommand::Place)));
+    return MASTTaskUtils::BuildCommandTickStatus(*SkillComp, EMACommand::Place);
 }
 
 void FMASTTask_Place::ExitState(
@@ -79,26 +51,6 @@ void FMASTTask_Place::ExitState(
 {
     FMASTTask_PlaceInstanceData& Data = Context.GetInstanceData<FMASTTask_PlaceInstanceData>(*this);
 
-    AActor* Owner = Cast<AActor>(Context.GetOwner());
-    if (!Owner) return;
-    
-    AMACharacter* Character = Cast<AMACharacter>(Owner);
-    if (Character)
-    {
-        Character->ShowStatus(TEXT(""), 0.f);
-    }
-    
-    const FMAStateTreeTaskExitFeedback Feedback =
-        FMAStateTreeUseCases::BuildActivatedCommandExit(Data.bSkillActivated, true);
-    if (Feedback.bShouldCancelCommand)
-    {
-        if (UMASkillComponent* SkillComp = Owner->FindComponentByClass<UMASkillComponent>())
-        {
-            FMASkillExecutionUseCases::CancelCommandIfActivated(*SkillComp, EMACommand::Place, Data.bSkillActivated);
-            if (Feedback.bShouldTransitionCommandToIdle)
-            {
-                FMASkillExecutionUseCases::TransitionCommandToIdle(*SkillComp, EMACommand::Place);
-            }
-        }
-    }
+    MASTTaskUtils::ClearOwnerStatus(Context);
+    MASTTaskUtils::HandleActivatedCommandExit(Context, Data.bSkillActivated, EMACommand::Place, true);
 }

@@ -3,75 +3,35 @@
 
 #include "MASTTask_Navigate.h"
 #include "Agent/StateTree/Application/MAStateTreeUseCases.h"
-#include "Agent/CharacterRuntime/Runtime/MACharacter.h"
 #include "Agent/Skill/Application/MASkillActivationUseCases.h"
-#include "Agent/Skill/Application/MASkillExecutionUseCases.h"
-#include "Agent/Skill/Runtime/MASkillComponent.h"
+#include "MASTTaskUtils.h"
 #include "StateTreeExecutionContext.h"
-
-namespace
-{
-EStateTreeRunStatus ToNavigateTaskRunStatus(const EMAStateTreeTaskDecision Decision)
-{
-    switch (Decision)
-    {
-        case EMAStateTreeTaskDecision::Succeeded:
-            return EStateTreeRunStatus::Succeeded;
-        case EMAStateTreeTaskDecision::Running:
-            return EStateTreeRunStatus::Running;
-        default:
-            return EStateTreeRunStatus::Failed;
-    }
-}
-}
 
 EStateTreeRunStatus FMASTTask_Navigate::EnterState(
     FStateTreeExecutionContext& Context, 
     const FStateTreeTransitionResult& Transition) const
 {
-    AActor* Owner = Cast<AActor>(Context.GetOwner());
-    AMACharacter* Character = Cast<AMACharacter>(Owner);
-    if (!Character) return EStateTreeRunStatus::Failed;
-
-    UMASkillComponent* SkillComp = Character->GetSkillComponent();
+    UMASkillComponent* SkillComp = MASTTaskUtils::ResolveSkillComponent(Context);
     if (!SkillComp) return EStateTreeRunStatus::Failed;
 
     const FMASkillParams& Params = SkillComp->GetSkillParams();
-    FVector TargetLocation = Params.TargetLocation;
-
-    return ToNavigateTaskRunStatus(FMAStateTreeUseCases::BuildCommandEnterDecision(
-        FMASkillActivationUseCases::PrepareAndActivateNavigate(*SkillComp, TargetLocation)));
+    return MASTTaskUtils::BuildCommandEnterStatus(
+        FMASkillActivationUseCases::PrepareAndActivateNavigate(*SkillComp, Params.TargetLocation));
 }
 
 EStateTreeRunStatus FMASTTask_Navigate::Tick(
     FStateTreeExecutionContext& Context, 
     const float DeltaTime) const
 {
-    AActor* Owner = Cast<AActor>(Context.GetOwner());
-    AMACharacter* Character = Cast<AMACharacter>(Owner);
-    if (!Character) return EStateTreeRunStatus::Failed;
-
-    UMASkillComponent* SkillComp = Character->GetSkillComponent();
+    UMASkillComponent* SkillComp = MASTTaskUtils::ResolveSkillComponent(Context);
     if (!SkillComp) return EStateTreeRunStatus::Failed;
 
-    return ToNavigateTaskRunStatus(FMAStateTreeUseCases::BuildCommandTickDecision(
-        true,
-        FMASkillExecutionUseCases::HasCommandCompleted(*SkillComp, EMACommand::Navigate)));
+    return MASTTaskUtils::BuildCommandTickStatus(*SkillComp, EMACommand::Navigate);
 }
 
 void FMASTTask_Navigate::ExitState(
     FStateTreeExecutionContext& Context, 
     const FStateTreeTransitionResult& Transition) const
 {
-    const FMAStateTreeTaskExitFeedback Feedback =
-        FMAStateTreeUseCases::BuildInterruptedCommandExit(
-            Transition.CurrentRunStatus == EStateTreeRunStatus::Running);
-    if (Feedback.bShouldCancelCommand)
-    {
-        AActor* Owner = Cast<AActor>(Context.GetOwner());
-        if (UMASkillComponent* SkillComp = Owner ? Owner->FindComponentByClass<UMASkillComponent>() : nullptr)
-        {
-            FMASkillExecutionUseCases::CancelCommandIfInterrupted(*SkillComp, EMACommand::Navigate, Transition.CurrentRunStatus);
-        }
-    }
+    MASTTaskUtils::HandleInterruptedCommandExit(Context, Transition, EMACommand::Navigate);
 }

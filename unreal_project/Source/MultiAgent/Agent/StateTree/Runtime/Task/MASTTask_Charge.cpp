@@ -4,9 +4,8 @@
 #include "MASTTask_Charge.h"
 #include "Agent/StateTree/Application/MAStateTreeUseCases.h"
 #include "Agent/StateTree/Infrastructure/MAStateTreeRuntimeBridge.h"
-#include "Agent/CharacterRuntime/Runtime/MACharacter.h"
 #include "Agent/Skill/Application/MASkillExecutionUseCases.h"
-#include "Agent/Skill/Runtime/MASkillComponent.h"
+#include "MASTTaskUtils.h"
 #include "StateTreeExecutionContext.h"
 
 EStateTreeRunStatus FMASTTask_Charge::EnterState(
@@ -18,15 +17,14 @@ EStateTreeRunStatus FMASTTask_Charge::EnterState(
     Data.bIsMoving = false;
     Data.bIsCharging = false;
 
-    AActor* Owner = Cast<AActor>(Context.GetOwner());
-    AMACharacter* Character = Cast<AMACharacter>(Owner);
+    AMACharacter* Character = MASTTaskUtils::ResolveCharacter(Context);
     if (!Character) return EStateTreeRunStatus::Failed;
 
-    UMASkillComponent* SkillComp = Character->GetSkillComponent();
+    UMASkillComponent* SkillComp = MASTTaskUtils::ResolveSkillComponent(Context);
     if (!SkillComp) return EStateTreeRunStatus::Failed;
 
     const FMAStateTreeChargeStationFeedback StationFeedback =
-        FMAStateTreeRuntimeBridge::ResolveNearestChargingStation(Owner, Character->GetActorLocation());
+        FMAStateTreeRuntimeBridge::ResolveNearestChargingStation(Character, Character->GetActorLocation());
     if (!StationFeedback.bFoundStation)
     {
         return EStateTreeRunStatus::Failed;
@@ -52,11 +50,10 @@ EStateTreeRunStatus FMASTTask_Charge::Tick(
 {
     FMASTTask_ChargeInstanceData& Data = Context.GetInstanceData<FMASTTask_ChargeInstanceData>(*this);
 
-    AActor* Owner = Cast<AActor>(Context.GetOwner());
-    AMACharacter* Character = Cast<AMACharacter>(Owner);
+    AMACharacter* Character = MASTTaskUtils::ResolveCharacter(Context);
     if (!Character) return EStateTreeRunStatus::Failed;
 
-    UMASkillComponent* SkillComp = Character->GetSkillComponent();
+    UMASkillComponent* SkillComp = MASTTaskUtils::ResolveSkillComponent(Context);
     if (!SkillComp) return EStateTreeRunStatus::Failed;
 
     const EMAStateTreeTaskDecision Decision =
@@ -84,16 +81,9 @@ void FMASTTask_Charge::ExitState(
 {
     FMASTTask_ChargeInstanceData& Data = Context.GetInstanceData<FMASTTask_ChargeInstanceData>(*this);
 
-    AActor* Owner = Cast<AActor>(Context.GetOwner());
-    if (!Owner) return;
-    
-    AMACharacter* Character = Cast<AMACharacter>(Owner);
-    if (Character)
-    {
-        Character->ShowStatus(TEXT(""), 0.f);
-    }
-    
-    if (UMASkillComponent* SkillComp = Owner->FindComponentByClass<UMASkillComponent>())
+    MASTTaskUtils::ClearOwnerStatus(Context);
+
+    if (UMASkillComponent* SkillComp = MASTTaskUtils::ResolveSkillComponent(Context))
     {
         const FMAStateTreeChargeExitFeedback Feedback =
             FMAStateTreeUseCases::BuildChargeExitFeedback(Data.bIsMoving, Data.bIsCharging);

@@ -63,10 +63,9 @@ flowchart LR
 - `Agent/Skill` 进一步收紧为 `Activation / Execution / Completion -> RuntimeGateway -> RuntimeHost`，并在 `Infrastructure` 里补了 `SceneGraph bridge`、`PIPCamera bridge`、`Config bridge`、`SearchPathBuilder`、`PlaceContextBuilder`，把对 `SceneGraphManager`、`PIPCameraManager`、`ConfigManager` 的直接访问压回少数桥文件，同时把 movement 参数处理拆成更窄的 `Navigate` / `AirOps` 文件，并把 `Search / Place` 的 runtime 实现再按 `Core / Waypoint / PIP`、`Core / Phases / Actions` 拆成多实现文件。
 - `Agent/Navigation` 现在已把地面导航、manual fallback、ground follow、follow-start lifecycle、navigate/cancel request state、flight follow update、takeoff/land/return-home update 的纯决策收回 `Application`；`Runtime` 已按 `Lifecycle / Request / Flight / FlightCommand / FlightUpdate / Follow / FollowGround / Ground / Manual / Pause` 拆成执行壳。
 - `Agent/CharacterRuntime` 现在已把 direct-control 状态迁移和 low-energy return 的暂停/恢复决策收回 `Application`；`Runtime` 已按 `Core / Control / Status / Sensor / Energy` 拆成执行壳，speech-bubble 的初始化、朝向和显示逻辑也已收回 `Infrastructure bridge`。
-- `Agent/Sensing` 现在开始把 action request 的参数解释收回 `Application`，`Runtime` 只负责 camera capture、socket stream 和具体执行。
-- `Agent/StateTree` 现在开始把 task lifecycle 的通用决策收回 `Application`，`Runtime/Task` 主要负责 owner/skill 访问和状态树节点入口。
+- `Agent/Sensing` 现在已把 action request 的参数解释收回 `Application`，`Runtime` 只保留 camera host；`MACameraSensorComponent` 也已按 `Core / Capture / Stream / Action` 拆成多个执行文件，stream start/stop 决策在 `Application`，listener socket create/cleanup/accept/send 在 `Infrastructure bridge`。
+- `Agent/StateTree` 现在已把 task lifecycle 的通用决策收回 `Application`，`Runtime/Task` 主要负责节点入口；重复的 command-task enter/tick/exit 骨架已经统一收进 `MASTTaskUtils`。
 - `Agent/StateTree` 的 `Charge` 任务现在不再自己做世界查询；最近充电站解析和导航投影已经下沉到 `Infrastructure bridge`。
-- `Agent/Sensing` 的 stream start/stop 现在由 `Application` 决策、由 `Infrastructure bridge` 承担 listener socket 的创建/清理以及 client accept/send。
 - `TaskGraph`、`SkillAllocation` 属于轻量 context：没有专属 `Runtime/`，运行时持久化与传输仍由 `TempData / Comm` 承担。
 - `Interaction` 也是轻量 context：没有专属 `Runtime/`，它负责编排其他 runtime context。
 
@@ -253,8 +252,8 @@ flowchart LR
 - `Agent/Skill` 的 `Search / Place` 现在也不再保留超大单实现文件；搜索已经拆成 `SK_Search.cpp + SK_Search.Waypoint.cpp + SK_Search.PIP.cpp`，搬运已经拆成 `SK_Place.cpp + SK_Place.Phases.cpp + SK_Place.Actions.cpp`，runtime 复杂度已落到按职责分块的状态。
 - `Agent/Navigation` 现在不再把地面导航和飞行操作策略塞在 `Runtime`；`MANavigationUseCases` 已接管 ground request、manual update、ground follow refresh、follow start lifecycle、flight follow update、takeoff/land/return-home update、navigate/cancel request state 这些纯决策，`MANavigationService` 已拆成按职责分离的多个 runtime 执行文件。
 - `Agent/CharacterRuntime` 现在不再把 direct-control、low-energy return 和 speech-bubble UI 联动塞在 `MACharacter.cpp`；状态迁移已经收回 `MACharacterRuntimeUseCases`，UI 组件细节也已收回 `MACharacterRuntimeBridge`，runtime 主壳已按 `Core / Control / Status / Sensor / Energy` 分离。
-- `Agent/Sensing` 现在不再让 `MACameraSensorComponent::ExecuteAction` 自己解析 action 参数；参数解释由 `MASensingUseCases` 承担。
-- `Agent/StateTree` 现在不再只把 begin-play 放在 `Application`；`MAStateTreeUseCases` 已接管 command task enter/tick/exit、follow tick、place enter 这些通用生命周期决策。
+- `Agent/Sensing` 现在不再让 `MACameraSensorComponent::ExecuteAction` 自己解析 action 参数；参数解释由 `MASensingUseCases` 承担，camera runtime 也已拆成 `MACameraSensorComponent.cpp + .Capture.cpp + .Stream.cpp + .Action.cpp`。
+- `Agent/StateTree` 现在不再只把 begin-play 放在 `Application`；`MAStateTreeUseCases` 已接管 command task enter/tick/exit、follow tick、place enter 这些通用生命周期决策，runtime task 的重复骨架也已集中到 `MASTTaskUtils`。
 - `Agent/StateTree` 的 `Charge` 任务已经把充电站解析从 task runtime 挪到 `FMAStateTreeRuntimeBridge`。
 - `Agent/Sensing` 的 stream lifecycle 已经开始拆成 `Application decision + Infrastructure bridge + Runtime host`；`MACameraSensorComponent` 不再自己处理 client accept/send。
 - `Agent/Skill` 的 movement 参数预处理已继续从单个大桶拆成 `MASkillParamsProcessor.Movement.cpp` 与 `MASkillParamsProcessor.AirOps.cpp`，运行期 `SK_Place` 也已把重复的导航/动画分支收成统一 helper。
