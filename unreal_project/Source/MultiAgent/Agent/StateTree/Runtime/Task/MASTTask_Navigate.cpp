@@ -2,11 +2,28 @@
 // StateTree 导航任务 - 只负责启动技能，完成由 GAS Ability 处理
 
 #include "MASTTask_Navigate.h"
+#include "Agent/StateTree/Application/MAStateTreeUseCases.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
 #include "Agent/Skill/Application/MASkillActivationUseCases.h"
 #include "Agent/Skill/Application/MASkillExecutionUseCases.h"
 #include "Agent/Skill/Runtime/MASkillComponent.h"
 #include "StateTreeExecutionContext.h"
+
+namespace
+{
+EStateTreeRunStatus ToNavigateTaskRunStatus(const EMAStateTreeTaskDecision Decision)
+{
+    switch (Decision)
+    {
+        case EMAStateTreeTaskDecision::Succeeded:
+            return EStateTreeRunStatus::Succeeded;
+        case EMAStateTreeTaskDecision::Running:
+            return EStateTreeRunStatus::Running;
+        default:
+            return EStateTreeRunStatus::Failed;
+    }
+}
+}
 
 EStateTreeRunStatus FMASTTask_Navigate::EnterState(
     FStateTreeExecutionContext& Context, 
@@ -22,12 +39,8 @@ EStateTreeRunStatus FMASTTask_Navigate::EnterState(
     const FMASkillParams& Params = SkillComp->GetSkillParams();
     FVector TargetLocation = Params.TargetLocation;
 
-    if (FMASkillActivationUseCases::PrepareAndActivateNavigate(*SkillComp, TargetLocation))
-    {
-        return EStateTreeRunStatus::Running;
-    }
-    
-    return EStateTreeRunStatus::Failed;
+    return ToNavigateTaskRunStatus(FMAStateTreeUseCases::BuildCommandEnterDecision(
+        FMASkillActivationUseCases::PrepareAndActivateNavigate(*SkillComp, TargetLocation)));
 }
 
 EStateTreeRunStatus FMASTTask_Navigate::Tick(
@@ -41,21 +54,19 @@ EStateTreeRunStatus FMASTTask_Navigate::Tick(
     UMASkillComponent* SkillComp = Character->GetSkillComponent();
     if (!SkillComp) return EStateTreeRunStatus::Failed;
 
-    // 检查命令 Tag 是否还存在（由 GAS Ability 完成时清除）
-    if (FMASkillExecutionUseCases::HasCommandCompleted(*SkillComp, EMACommand::Navigate))
-    {
-        return EStateTreeRunStatus::Succeeded;
-    }
-
-    return EStateTreeRunStatus::Running;
+    return ToNavigateTaskRunStatus(FMAStateTreeUseCases::BuildCommandTickDecision(
+        true,
+        FMASkillExecutionUseCases::HasCommandCompleted(*SkillComp, EMACommand::Navigate)));
 }
 
 void FMASTTask_Navigate::ExitState(
     FStateTreeExecutionContext& Context, 
     const FStateTreeTransitionResult& Transition) const
 {
-    // 如果是被中断（不是正常完成），取消导航
-    if (Transition.CurrentRunStatus == EStateTreeRunStatus::Running)
+    const FMAStateTreeTaskExitFeedback Feedback =
+        FMAStateTreeUseCases::BuildInterruptedCommandExit(
+            Transition.CurrentRunStatus == EStateTreeRunStatus::Running);
+    if (Feedback.bShouldCancelCommand)
     {
         AActor* Owner = Cast<AActor>(Context.GetOwner());
         if (UMASkillComponent* SkillComp = Owner ? Owner->FindComponentByClass<UMASkillComponent>() : nullptr)

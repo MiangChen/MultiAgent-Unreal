@@ -8,3 +8,10 @@ enum class EMAStateTreeLifecycleMode : uint8
     WaitingForAsset,
     Ready,
 };
+
+enum class EMAStateTreeTaskDecision : uint8
+{
+    Failed,
+    Running,
+    Succeeded,
+};

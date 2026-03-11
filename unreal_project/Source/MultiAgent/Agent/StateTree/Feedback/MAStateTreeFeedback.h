@@ -9,3 +9,9 @@ struct MULTIAGENT_API FMAStateTreeLifecycleFeedback
     EMAStateTreeLifecycleMode Mode = EMAStateTreeLifecycleMode::Disabled;
     FString Message;
 };
+
+struct MULTIAGENT_API FMAStateTreeTaskExitFeedback
+{
+    bool bShouldCancelCommand = false;
+    bool bShouldTransitionCommandToIdle = false;
+};

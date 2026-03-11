@@ -2,11 +2,28 @@
 // StateTree Place 任务
 
 #include "MASTTask_Place.h"
+#include "Agent/StateTree/Application/MAStateTreeUseCases.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
 #include "Agent/Skill/Application/MASkillActivationUseCases.h"
 #include "Agent/Skill/Application/MASkillExecutionUseCases.h"
 #include "Agent/Skill/Runtime/MASkillComponent.h"
 #include "StateTreeExecutionContext.h"
+
+namespace
+{
+EStateTreeRunStatus ToPlaceTaskRunStatus(const EMAStateTreeTaskDecision Decision)
+{
+    switch (Decision)
+    {
+        case EMAStateTreeTaskDecision::Succeeded:
+            return EStateTreeRunStatus::Succeeded;
+        case EMAStateTreeTaskDecision::Running:
+            return EStateTreeRunStatus::Running;
+        default:
+            return EStateTreeRunStatus::Failed;
+    }
+}
+}
 
 EStateTreeRunStatus FMASTTask_Place::EnterState(
     FStateTreeExecutionContext& Context,
@@ -22,21 +39,20 @@ EStateTreeRunStatus FMASTTask_Place::EnterState(
     UMASkillComponent* SkillComp = Character->GetSkillComponent();
     if (!SkillComp) return EStateTreeRunStatus::Failed;
 
-    // 检查搜索结果是否有效
     const FMASearchRuntimeResults& Results = SkillComp->GetSearchResults();
-    if (!Results.Object1Actor.IsValid())
+
+    const bool bActivated =
+        Results.Object1Actor.IsValid() &&
+        FMASkillActivationUseCases::ActivatePreparedCommand(*SkillComp, EMACommand::Place);
+    const EMAStateTreeTaskDecision Decision =
+        FMAStateTreeUseCases::BuildPlaceEnterDecision(Results.Object1Actor.IsValid(), bActivated);
+    if (Decision == EMAStateTreeTaskDecision::Failed)
     {
         return EStateTreeRunStatus::Failed;
     }
 
-    // 激活 Place 技能
-    if (!FMASkillActivationUseCases::ActivatePreparedCommand(*SkillComp, EMACommand::Place))
-    {
-        return EStateTreeRunStatus::Failed;
-    }
-    
-    Data.bSkillActivated = true;
-    return EStateTreeRunStatus::Running;
+    Data.bSkillActivated = bActivated;
+    return ToPlaceTaskRunStatus(Decision);
 }
 
 EStateTreeRunStatus FMASTTask_Place::Tick(
@@ -52,13 +68,9 @@ EStateTreeRunStatus FMASTTask_Place::Tick(
     UMASkillComponent* SkillComp = Character->GetSkillComponent();
     if (!SkillComp) return EStateTreeRunStatus::Failed;
 
-    // 检查命令是否被取消
-    if (FMASkillExecutionUseCases::HasCommandCompleted(*SkillComp, EMACommand::Place))
-    {
-        return EStateTreeRunStatus::Succeeded;
-    }
-
-    return EStateTreeRunStatus::Running;
+    return ToPlaceTaskRunStatus(FMAStateTreeUseCases::BuildCommandTickDecision(
+        true,
+        FMASkillExecutionUseCases::HasCommandCompleted(*SkillComp, EMACommand::Place)));
 }
 
 void FMASTTask_Place::ExitState(
@@ -76,9 +88,17 @@ void FMASTTask_Place::ExitState(
         Character->ShowStatus(TEXT(""), 0.f);
     }
     
-    if (UMASkillComponent* SkillComp = Owner->FindComponentByClass<UMASkillComponent>())
+    const FMAStateTreeTaskExitFeedback Feedback =
+        FMAStateTreeUseCases::BuildActivatedCommandExit(Data.bSkillActivated, true);
+    if (Feedback.bShouldCancelCommand)
     {
-        FMASkillExecutionUseCases::CancelCommandIfActivated(*SkillComp, EMACommand::Place, Data.bSkillActivated);
-        FMASkillExecutionUseCases::TransitionCommandToIdle(*SkillComp, EMACommand::Place);
+        if (UMASkillComponent* SkillComp = Owner->FindComponentByClass<UMASkillComponent>())
+        {
+            FMASkillExecutionUseCases::CancelCommandIfActivated(*SkillComp, EMACommand::Place, Data.bSkillActivated);
+            if (Feedback.bShouldTransitionCommandToIdle)
+            {
+                FMASkillExecutionUseCases::TransitionCommandToIdle(*SkillComp, EMACommand::Place);
+            }
+        }
     }
 }

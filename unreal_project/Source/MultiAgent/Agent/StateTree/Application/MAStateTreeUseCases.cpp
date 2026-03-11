@@ -34,3 +34,68 @@ FMAStateTreeLifecycleFeedback FMAStateTreeUseCases::BuildEnableFeedback(const bo
         : TEXT("StateTree enabled, waiting for asset");
     return Feedback;
 }
+
+EMAStateTreeTaskDecision FMAStateTreeUseCases::BuildCommandEnterDecision(const bool bActivationSucceeded)
+{
+    return bActivationSucceeded
+        ? EMAStateTreeTaskDecision::Running
+        : EMAStateTreeTaskDecision::Failed;
+}
+
+EMAStateTreeTaskDecision FMAStateTreeUseCases::BuildCommandTickDecision(
+    const bool bHasSkillComponent,
+    const bool bCommandCompleted)
+{
+    if (!bHasSkillComponent)
+    {
+        return EMAStateTreeTaskDecision::Failed;
+    }
+
+    return bCommandCompleted
+        ? EMAStateTreeTaskDecision::Succeeded
+        : EMAStateTreeTaskDecision::Running;
+}
+
+EMAStateTreeTaskDecision FMAStateTreeUseCases::BuildFollowTickDecision(
+    const bool bHasSkillComponent,
+    const bool bCommandCompleted,
+    const bool bHasValidTarget)
+{
+    if (!bHasSkillComponent || !bHasValidTarget)
+    {
+        return EMAStateTreeTaskDecision::Failed;
+    }
+
+    return bCommandCompleted
+        ? EMAStateTreeTaskDecision::Succeeded
+        : EMAStateTreeTaskDecision::Running;
+}
+
+EMAStateTreeTaskDecision FMAStateTreeUseCases::BuildPlaceEnterDecision(
+    const bool bHasSearchTarget,
+    const bool bActivationSucceeded)
+{
+    if (!bHasSearchTarget)
+    {
+        return EMAStateTreeTaskDecision::Failed;
+    }
+
+    return BuildCommandEnterDecision(bActivationSucceeded);
+}
+
+FMAStateTreeTaskExitFeedback FMAStateTreeUseCases::BuildInterruptedCommandExit(const bool bWasRunning)
+{
+    FMAStateTreeTaskExitFeedback Feedback;
+    Feedback.bShouldCancelCommand = bWasRunning;
+    return Feedback;
+}
+
+FMAStateTreeTaskExitFeedback FMAStateTreeUseCases::BuildActivatedCommandExit(
+    const bool bSkillActivated,
+    const bool bTransitionCommandToIdle)
+{
+    FMAStateTreeTaskExitFeedback Feedback;
+    Feedback.bShouldCancelCommand = bSkillActivated;
+    Feedback.bShouldTransitionCommandToIdle = bSkillActivated && bTransitionCommandToIdle;
+    return Feedback;
+}

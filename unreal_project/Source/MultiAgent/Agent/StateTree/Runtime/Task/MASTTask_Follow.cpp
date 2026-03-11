@@ -2,11 +2,28 @@
 // StateTree 跟随任务 - 从 SkillComponent 读取参数
 
 #include "MASTTask_Follow.h"
+#include "Agent/StateTree/Application/MAStateTreeUseCases.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
 #include "Agent/Skill/Application/MASkillActivationUseCases.h"
 #include "Agent/Skill/Application/MASkillExecutionUseCases.h"
 #include "Agent/Skill/Runtime/MASkillComponent.h"
 #include "StateTreeExecutionContext.h"
+
+namespace
+{
+EStateTreeRunStatus ToFollowTaskRunStatus(const EMAStateTreeTaskDecision Decision)
+{
+    switch (Decision)
+    {
+        case EMAStateTreeTaskDecision::Succeeded:
+            return EStateTreeRunStatus::Succeeded;
+        case EMAStateTreeTaskDecision::Running:
+            return EStateTreeRunStatus::Running;
+        default:
+            return EStateTreeRunStatus::Failed;
+    }
+}
+}
 
 EStateTreeRunStatus FMASTTask_Follow::EnterState(
     FStateTreeExecutionContext& Context,
@@ -35,16 +52,18 @@ EStateTreeRunStatus FMASTTask_Follow::EnterState(
     
     Data.TargetActor = TargetActor;
 
-    if (!FMASkillActivationUseCases::PrepareAndActivateFollow(*SkillComp, TargetActor, Params.FollowDistance))
+    const bool bActivated =
+        FMASkillActivationUseCases::PrepareAndActivateFollow(*SkillComp, TargetActor, Params.FollowDistance);
+    if (!bActivated)
     {
         return EStateTreeRunStatus::Failed;
     }
-    
+
     Data.bSkillActivated = true;
     UE_LOG(LogTemp, Log, TEXT("[STTask_Follow] %s following %s"), 
         *Character->AgentLabel, *TargetActor->GetName());
 
-    return EStateTreeRunStatus::Running;
+    return ToFollowTaskRunStatus(FMAStateTreeUseCases::BuildCommandEnterDecision(bActivated));
 }
 
 EStateTreeRunStatus FMASTTask_Follow::Tick(
@@ -58,17 +77,10 @@ EStateTreeRunStatus FMASTTask_Follow::Tick(
     if (!Character) return EStateTreeRunStatus::Failed;
 
     UMASkillComponent* SkillComp = Character->GetSkillComponent();
-    if (SkillComp && FMASkillExecutionUseCases::HasCommandCompleted(*SkillComp, EMACommand::Follow))
-    {
-        return EStateTreeRunStatus::Succeeded;
-    }
-
-    if (!Data.TargetActor.IsValid())
-    {
-        return EStateTreeRunStatus::Failed;
-    }
-
-    return EStateTreeRunStatus::Running;
+    return ToFollowTaskRunStatus(FMAStateTreeUseCases::BuildFollowTickDecision(
+        SkillComp != nullptr,
+        SkillComp && FMASkillExecutionUseCases::HasCommandCompleted(*SkillComp, EMACommand::Follow),
+        Data.TargetActor.IsValid()));
 }
 
 void FMASTTask_Follow::ExitState(
@@ -80,8 +92,13 @@ void FMASTTask_Follow::ExitState(
     AActor* Owner = Cast<AActor>(Context.GetOwner());
     if (!Owner) return;
     
-    if (UMASkillComponent* SkillComp = Owner->FindComponentByClass<UMASkillComponent>())
+    const FMAStateTreeTaskExitFeedback Feedback =
+        FMAStateTreeUseCases::BuildActivatedCommandExit(Data.bSkillActivated, false);
+    if (Feedback.bShouldCancelCommand)
     {
-        FMASkillExecutionUseCases::CancelCommandIfActivated(*SkillComp, EMACommand::Follow, Data.bSkillActivated);
+        if (UMASkillComponent* SkillComp = Owner->FindComponentByClass<UMASkillComponent>())
+        {
+            FMASkillExecutionUseCases::CancelCommandIfActivated(*SkillComp, EMACommand::Follow, Data.bSkillActivated);
+        }
     }
 }

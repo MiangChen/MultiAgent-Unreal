@@ -2,11 +2,28 @@
 // StateTree 降落任务 - 只负责启动技能，完成由 GAS Ability 处理
 
 #include "MASTTask_Land.h"
+#include "Agent/StateTree/Application/MAStateTreeUseCases.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
 #include "Agent/Skill/Application/MASkillActivationUseCases.h"
 #include "Agent/Skill/Application/MASkillExecutionUseCases.h"
 #include "Agent/Skill/Runtime/MASkillComponent.h"
 #include "StateTreeExecutionContext.h"
+
+namespace
+{
+EStateTreeRunStatus ToLandTaskRunStatus(const EMAStateTreeTaskDecision Decision)
+{
+    switch (Decision)
+    {
+        case EMAStateTreeTaskDecision::Succeeded:
+            return EStateTreeRunStatus::Succeeded;
+        case EMAStateTreeTaskDecision::Running:
+            return EStateTreeRunStatus::Running;
+        default:
+            return EStateTreeRunStatus::Failed;
+    }
+}
+}
 
 EStateTreeRunStatus FMASTTask_Land::EnterState(
     FStateTreeExecutionContext& Context, 
@@ -19,12 +36,8 @@ EStateTreeRunStatus FMASTTask_Land::EnterState(
     UMASkillComponent* SkillComp = Character->GetSkillComponent();
     if (!SkillComp) return EStateTreeRunStatus::Failed;
 
-    if (FMASkillActivationUseCases::ActivatePreparedCommand(*SkillComp, EMACommand::Land))
-    {
-        return EStateTreeRunStatus::Running;
-    }
-    
-    return EStateTreeRunStatus::Failed;
+    return ToLandTaskRunStatus(FMAStateTreeUseCases::BuildCommandEnterDecision(
+        FMASkillActivationUseCases::ActivatePreparedCommand(*SkillComp, EMACommand::Land)));
 }
 
 EStateTreeRunStatus FMASTTask_Land::Tick(
@@ -35,13 +48,9 @@ EStateTreeRunStatus FMASTTask_Land::Tick(
     UMASkillComponent* SkillComp = Owner ? Owner->FindComponentByClass<UMASkillComponent>() : nullptr;
     if (!SkillComp) return EStateTreeRunStatus::Failed;
 
-    // 检查命令 Tag 是否还存在（由 GAS Ability 完成时清除）
-    if (FMASkillExecutionUseCases::HasCommandCompleted(*SkillComp, EMACommand::Land))
-    {
-        return EStateTreeRunStatus::Succeeded;
-    }
-
-    return EStateTreeRunStatus::Running;
+    return ToLandTaskRunStatus(FMAStateTreeUseCases::BuildCommandTickDecision(
+        true,
+        FMASkillExecutionUseCases::HasCommandCompleted(*SkillComp, EMACommand::Land)));
 }
 
 void FMASTTask_Land::ExitState(

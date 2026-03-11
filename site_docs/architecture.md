@@ -64,6 +64,7 @@ flowchart LR
 - `Agent/Navigation` 现在开始把地面导航、manual fallback、ground follow 的纯决策收回 `Application`，`Runtime` 主要负责驱动 NavMesh、FlightController 和 Character movement。
 - `Agent/CharacterRuntime` 现在开始把 direct-control 状态迁移和 low-energy return 的暂停/恢复决策收回 `Application`，`Runtime` 只负责角色、技能和 UI 组件联动。
 - `Agent/Sensing` 现在开始把 action request 的参数解释收回 `Application`，`Runtime` 只负责 camera capture、socket stream 和具体执行。
+- `Agent/StateTree` 现在开始把 task lifecycle 的通用决策收回 `Application`，`Runtime/Task` 主要负责 owner/skill 访问和状态树节点入口。
 - `TaskGraph`、`SkillAllocation` 属于轻量 context：没有专属 `Runtime/`，运行时持久化与传输仍由 `TempData / Comm` 承担。
 - `Interaction` 也是轻量 context：没有专属 `Runtime/`，它负责编排其他 runtime context。
 
@@ -249,6 +250,7 @@ flowchart LR
 - `Agent/Navigation` 现在不再把地面导航策略完全塞在 `Runtime`；`MANavigationUseCases` 已接管 ground request、manual update、ground follow refresh、completion decision 这些纯决策。
 - `Agent/CharacterRuntime` 现在不再把 direct-control 和 low-energy return 的主要 if/else 决策塞在 `MACharacter.cpp`；这些状态迁移已经收回 `MACharacterRuntimeUseCases`。
 - `Agent/Sensing` 现在不再让 `MACameraSensorComponent::ExecuteAction` 自己解析 action 参数；参数解释由 `MASensingUseCases` 承担。
+- `Agent/StateTree` 现在不再只把 begin-play 放在 `Application`；`MAStateTreeUseCases` 已接管 command task enter/tick/exit、follow tick、place enter 这些通用生命周期决策。
 - `Bootstrap` 只允许被真正的入口壳或 bootstrap 层消费；`UI/*/Application/` 不再直接 include 其他 UI context 的 bootstrap。
 - 架构守卫文件是：
   - `scripts/check_interaction_architecture.py`
