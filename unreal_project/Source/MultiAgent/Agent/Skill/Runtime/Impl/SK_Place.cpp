@@ -19,155 +19,248 @@ USK_Place::USK_Place()
     PlaceResultMessage = TEXT("");
 }
 
+void USK_Place::ResetPlaceRuntimeState()
+{
+    bPlaceSucceeded = false;
+    PlaceResultMessage = TEXT("");
+    CurrentPhase = EPlacePhase::MoveToSource;
+}
+
+void USK_Place::FailPlace(const FString& ResultMessage, const FString& ErrorReason, const FString& StatusMessage)
+{
+    bPlaceSucceeded = false;
+    PlaceResultMessage = ResultMessage;
+
+    if (AMACharacter* Character = GetOwningCharacter())
+    {
+        if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
+        {
+            SkillComp->GetFeedbackContextMutable().PlaceErrorReason = ErrorReason;
+        }
+        if (!StatusMessage.IsEmpty())
+        {
+            Character->ShowStatus(StatusMessage, 2.f);
+        }
+    }
+
+    EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
+}
+
+bool USK_Place::ConfigureLoadToUGV(AMACharacter& Character, UMASkillComponent& SkillComp)
+{
+    const FMASearchRuntimeResults& Results = SkillComp.GetSearchResults();
+    CurrentMode = EPlaceMode::LoadToUGV;
+
+    if (!Results.Object1Actor.IsValid())
+    {
+        FailPlace(TEXT("Place failed: Source object not found"), TEXT("Source object not found"), TEXT("[Place] Source object not found"));
+        return false;
+    }
+
+    SourceObject = Results.Object1Actor;
+    SourceLocation = Results.Object1Location;
+
+    TargetUGV = Cast<AMAUGVCharacter>(Results.Object2Actor.Get());
+    if (!TargetUGV.IsValid())
+    {
+        FailPlace(TEXT("Place failed: Target UGV not found"), TEXT("Target UGV not found"), TEXT("[Place] UGV not found"));
+        return false;
+    }
+
+    TargetLocation = TargetUGV->GetActorLocation();
+    return true;
+}
+
+bool USK_Place::ConfigureUnloadToGround(AMACharacter& Character, UMASkillComponent& SkillComp)
+{
+    const FMASearchRuntimeResults& Results = SkillComp.GetSearchResults();
+    CurrentMode = EPlaceMode::UnloadToGround;
+
+    if (!Results.Object1Actor.IsValid())
+    {
+        FailPlace(TEXT("Place failed: Source object not found"), TEXT("Source object not found"), TEXT("[Place] Source object not found"));
+        return false;
+    }
+
+    SourceObject = Results.Object1Actor;
+    AActor* ParentActor = SourceObject->GetAttachParentActor();
+    TargetUGV = Cast<AMAUGVCharacter>(ParentActor);
+    SourceLocation = TargetUGV.IsValid() ? TargetUGV->GetActorLocation() : SourceObject->GetActorLocation();
+
+    DropLocation = Results.Object2Location;
+    if (DropLocation.IsZero())
+    {
+        DropLocation = Character.GetActorLocation() + Character.GetActorForwardVector() * 100.f;
+    }
+    TargetLocation = DropLocation;
+    return true;
+}
+
+bool USK_Place::ConfigureStackOnObject(AMACharacter& Character, UMASkillComponent& SkillComp)
+{
+    const FMASearchRuntimeResults& Results = SkillComp.GetSearchResults();
+    CurrentMode = EPlaceMode::StackOnObject;
+
+    if (!Results.Object1Actor.IsValid())
+    {
+        FailPlace(TEXT("Place failed: Source object not found"), TEXT("Source object (target) not found"), TEXT("[Place] Source object not found"));
+        return false;
+    }
+
+    if (!Results.Object2Actor.IsValid())
+    {
+        FailPlace(TEXT("Place failed: Target object not found"), TEXT("Target object (surface_target) not found"), TEXT("[Place] Target object not found"));
+        return false;
+    }
+
+    SourceObject = Results.Object1Actor;
+    SourceLocation = Results.Object1Location;
+    TargetObject = Results.Object2Actor;
+    TargetLocation = Results.Object2Location;
+    return true;
+}
+
+bool USK_Place::InitializePlaceContext(AMACharacter& Character, UMASkillComponent& SkillComp)
+{
+    const FMASkillParams& Params = SkillComp.GetSkillParams();
+
+    const bool bConfigured = Params.PlaceObject2.IsRobot()
+        ? ConfigureLoadToUGV(Character, SkillComp)
+        : (Params.PlaceObject2.IsGround()
+            ? ConfigureUnloadToGround(Character, SkillComp)
+            : ConfigureStackOnObject(Character, SkillComp));
+    if (!bConfigured)
+    {
+        return false;
+    }
+
+    if (FVector::Dist(Character.GetActorLocation(), SourceLocation) <= InteractionRadius)
+    {
+        CurrentPhase = EPlacePhase::BendDownPickup;
+    }
+
+    NavigationService = Character.GetNavigationService();
+    if (!NavigationService)
+    {
+        FailPlace(TEXT("Place failed: NavigationService not found"), TEXT("NavigationService not found"));
+        return false;
+    }
+
+    return true;
+}
+
+void USK_Place::AdvanceToPhase(const EPlacePhase NextPhase)
+{
+    CurrentPhase = NextPhase;
+    UpdatePhase();
+}
+
+void USK_Place::HandleNavigationFailure(const FString& Message)
+{
+    FailPlace(FString::Printf(TEXT("Place failed: %s"), *Message), Message);
+}
+
+FVector USK_Place::ResolveCurrentTargetLocation() const
+{
+    if (CurrentMode == EPlaceMode::LoadToUGV && TargetUGV.IsValid())
+    {
+        return TargetUGV->GetActorLocation();
+    }
+    if (CurrentMode == EPlaceMode::StackOnObject && TargetObject.IsValid())
+    {
+        return TargetObject->GetActorLocation();
+    }
+    return TargetLocation;
+}
+
+void USK_Place::CleanupPlaceRuntime(
+    AMACharacter* Character,
+    const bool bWasCancelled,
+    bool& bOutSuccessToNotify,
+    FString& InOutMessageToNotify)
+{
+    if (!Character)
+    {
+        NavigationService = nullptr;
+        SourceObject.Reset();
+        TargetObject.Reset();
+        HeldObject.Reset();
+        TargetUGV.Reset();
+        return;
+    }
+
+    if (AMAHumanoidCharacter* Humanoid = GetHumanoidCharacter())
+    {
+        Humanoid->OnBendAnimationComplete.RemoveDynamic(this, &USK_Place::OnBendDownComplete);
+        Humanoid->OnBendAnimationComplete.RemoveDynamic(this, &USK_Place::OnStandUpComplete);
+    }
+
+    if (NavigationService)
+    {
+        NavigationService->OnNavigationCompleted.RemoveDynamic(this, &USK_Place::OnNavigationToSourceCompleted);
+        NavigationService->OnNavigationCompleted.RemoveDynamic(this, &USK_Place::OnNavigationToTargetCompleted);
+        NavigationService->CancelNavigation();
+    }
+
+    if (UWorld* World = Character->GetWorld())
+    {
+        World->GetTimerManager().ClearTimer(PhaseTimerHandle);
+    }
+    PhaseTimerHandle.Invalidate();
+    Character->ShowStatus(TEXT(""), 0.f);
+
+    if (bWasCancelled && HeldObject.IsValid())
+    {
+        if (IMAPickupItem* Item = Cast<IMAPickupItem>(HeldObject.Get()))
+        {
+            Item->PlaceOnGround(Character->GetActorLocation());
+        }
+        HeldObject.Reset();
+    }
+
+    if (bWasCancelled && PlaceResultMessage.IsEmpty())
+    {
+        bOutSuccessToNotify = false;
+        const FString PhaseStr = GetPhaseString();
+        InOutMessageToNotify = FString::Printf(TEXT("Place cancelled: Stopped while %s"), *PhaseStr);
+
+        if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
+        {
+            SkillComp->GetFeedbackContextMutable().PlaceCancelledPhase = PhaseStr;
+        }
+    }
+
+    NavigationService = nullptr;
+    SourceObject.Reset();
+    TargetObject.Reset();
+    HeldObject.Reset();
+    TargetUGV.Reset();
+}
+
 void USK_Place::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
     Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
     
     CachedHandle = Handle;
     CachedActivationInfo = ActivationInfo;
-    
-    // 重置状态
-    bPlaceSucceeded = false;
-    PlaceResultMessage = TEXT("");
-    CurrentPhase = EPlacePhase::MoveToSource;
+    ResetPlaceRuntimeState();
     
     AMACharacter* Character = GetOwningCharacter();
     if (!Character)
     {
-        bPlaceSucceeded = false;
-        PlaceResultMessage = TEXT("Place failed: Character not found");
-        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+        FailPlace(TEXT("Place failed: Character not found"), TEXT("Character not found"));
         return;
     }
     
     UMASkillComponent* SkillComp = Character->GetSkillComponent();
     if (!SkillComp)
     {
-        bPlaceSucceeded = false;
-        PlaceResultMessage = TEXT("Place failed: SkillComponent not found");
-        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+        FailPlace(TEXT("Place failed: SkillComponent not found"), TEXT("SkillComponent not found"));
         return;
     }
-    
-    const FMASearchRuntimeResults& Results = SkillComp->GetSearchResults();
-    const FMASkillParams& Params = SkillComp->GetSkillParams();
-    
-    // 确定操作模式
-    if (Params.PlaceObject2.IsRobot())
+
+    if (!InitializePlaceContext(*Character, *SkillComp))
     {
-        // 装货模式：将 target 放到 UGV 上
-        CurrentMode = EPlaceMode::LoadToUGV;
-        
-        if (!Results.Object1Actor.IsValid())
-        {
-            bPlaceSucceeded = false;
-            PlaceResultMessage = TEXT("Place failed: Source object not found");
-            SkillComp->GetFeedbackContextMutable().PlaceErrorReason = TEXT("Source object not found");
-            Character->ShowStatus(TEXT("[Place] Source object not found"), 2.f);
-            EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-            return;
-        }
-        
-        SourceObject = Results.Object1Actor;
-        SourceLocation = Results.Object1Location;
-        
-        // 目标 UGV
-        TargetUGV = Cast<AMAUGVCharacter>(Results.Object2Actor.Get());
-        if (!TargetUGV.IsValid())
-        {
-            bPlaceSucceeded = false;
-            PlaceResultMessage = TEXT("Place failed: Target UGV not found");
-            SkillComp->GetFeedbackContextMutable().PlaceErrorReason = TEXT("Target UGV not found");
-            Character->ShowStatus(TEXT("[Place] UGV not found"), 2.f);
-            EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-            return;
-        }
-        TargetLocation = TargetUGV->GetActorLocation();
-    }
-    else if (Params.PlaceObject2.IsGround())
-    {
-        // 卸货模式：从 UGV 卸货到地面
-        CurrentMode = EPlaceMode::UnloadToGround;
-        
-        // 源对象在 UGV 上
-        if (!Results.Object1Actor.IsValid())
-        {
-            bPlaceSucceeded = false;
-            PlaceResultMessage = TEXT("Place failed: Source object not found");
-            SkillComp->GetFeedbackContextMutable().PlaceErrorReason = TEXT("Source object not found");
-            Character->ShowStatus(TEXT("[Place] Source object not found"), 2.f);
-            EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-            return;
-        }
-        
-        SourceObject = Results.Object1Actor;
-        
-        // 查找物体所在的 UGV
-        AActor* ParentActor = SourceObject->GetAttachParentActor();
-        TargetUGV = Cast<AMAUGVCharacter>(ParentActor);
-        if (TargetUGV.IsValid())
-        {
-            SourceLocation = TargetUGV->GetActorLocation();
-        }
-        else
-        {
-            // 物体不在 UGV 上，直接从当前位置拾取
-            SourceLocation = SourceObject->GetActorLocation();
-        }
-        
-        // 放置位置：角色当前位置附近的地面
-        DropLocation = Results.Object2Location;
-        if (DropLocation.IsZero())
-        {
-            DropLocation = Character->GetActorLocation() + Character->GetActorForwardVector() * 100.f;
-        }
-        TargetLocation = DropLocation;
-    }
-    else
-    {
-        // 堆叠模式：将 target 放到 surface_target 上
-        CurrentMode = EPlaceMode::StackOnObject;
-        
-        if (!Results.Object1Actor.IsValid())
-        {
-            bPlaceSucceeded = false;
-            PlaceResultMessage = TEXT("Place failed: Source object not found");
-            SkillComp->GetFeedbackContextMutable().PlaceErrorReason = TEXT("Source object (target) not found");
-            Character->ShowStatus(TEXT("[Place] Source object not found"), 2.f);
-            EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-            return;
-        }
-        
-        if (!Results.Object2Actor.IsValid())
-        {
-            bPlaceSucceeded = false;
-            PlaceResultMessage = TEXT("Place failed: Target object not found");
-            SkillComp->GetFeedbackContextMutable().PlaceErrorReason = TEXT("Target object (surface_target) not found");
-            Character->ShowStatus(TEXT("[Place] Target object not found"), 2.f);
-            EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-            return;
-        }
-        
-        SourceObject = Results.Object1Actor;
-        SourceLocation = Results.Object1Location;
-        TargetObject = Results.Object2Actor;
-        TargetLocation = Results.Object2Location;
-    }
-    
-    // 检查是否已经在源对象附近
-    float DistanceToSource = FVector::Dist(Character->GetActorLocation(), SourceLocation);
-    if (DistanceToSource <= InteractionRadius)
-    {
-        CurrentPhase = EPlacePhase::BendDownPickup;
-    }
-    
-    // 获取 NavigationService
-    NavigationService = Character->GetNavigationService();
-    if (!NavigationService)
-    {
-        bPlaceSucceeded = false;
-        PlaceResultMessage = TEXT("Place failed: NavigationService not found");
-        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
         return;
     }
 
@@ -208,17 +301,13 @@ void USK_Place::HandleMoveToSource()
     AMACharacter* Character = GetOwningCharacter();
     if (!Character)
     {
-        bPlaceSucceeded = false;
-        PlaceResultMessage = TEXT("Place failed: Character lost during operation");
-        EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
+        FailPlace(TEXT("Place failed: Character lost during operation"), TEXT("Character lost during operation"));
         return;
     }
     
     if (!NavigationService)
     {
-        bPlaceSucceeded = false;
-        PlaceResultMessage = TEXT("Place failed: NavigationService lost during operation");
-        EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
+        FailPlace(TEXT("Place failed: NavigationService lost during operation"), TEXT("NavigationService lost during operation"));
         return;
     }
     
@@ -231,14 +320,7 @@ void USK_Place::HandleMoveToSource()
     if (!NavigationService->NavigateTo(SourceLocation, InteractionRadius))
     {
         NavigationService->OnNavigationCompleted.RemoveDynamic(this, &USK_Place::OnNavigationToSourceCompleted);
-        bPlaceSucceeded = false;
-        PlaceResultMessage = TEXT("Place failed: Could not start navigation to source object");
-        
-        if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
-        {
-            SkillComp->GetFeedbackContextMutable().PlaceErrorReason = TEXT("Could not navigate to source object");
-        }
-        EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
+        FailPlace(TEXT("Place failed: Could not start navigation to source object"), TEXT("Could not navigate to source object"));
     }
 }
 
@@ -252,25 +334,11 @@ void USK_Place::OnNavigationToSourceCompleted(bool bSuccess, const FString& Mess
     
     if (bSuccess)
     {
-        // 导航成功，进入拾取阶段
-        CurrentPhase = EPlacePhase::BendDownPickup;
-        UpdatePhase();
+        AdvanceToPhase(EPlacePhase::BendDownPickup);
     }
     else
     {
-        // 导航失败
-        AMACharacter* Character = GetOwningCharacter();
-        bPlaceSucceeded = false;
-        PlaceResultMessage = FString::Printf(TEXT("Place failed: %s"), *Message);
-        
-        if (Character)
-        {
-            if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
-            {
-                SkillComp->GetFeedbackContextMutable().PlaceErrorReason = Message;
-            }
-        }
-        EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
+        HandleNavigationFailure(Message);
     }
 }
 
@@ -286,8 +354,7 @@ void USK_Place::HandleBendDownPickup()
     if (CurrentMode == EPlaceMode::UnloadToGround)
     {
         PerformPickupFromUGV();
-        CurrentPhase = EPlacePhase::MoveToTarget;
-        UpdatePhase();
+        AdvanceToPhase(EPlacePhase::MoveToTarget);
         return;
     }
     
@@ -302,10 +369,8 @@ void USK_Place::HandleBendDownPickup()
     }
     else
     {
-        // 非 Humanoid 角色，直接执行拾取并进入下一阶段
         PerformPickup();
-        CurrentPhase = EPlacePhase::StandUpWithItem;
-        UpdatePhase();
+        AdvanceToPhase(EPlacePhase::StandUpWithItem);
     }
 }
 
@@ -320,21 +385,13 @@ void USK_Place::OnBendDownComplete()
     // 俯身完成，执行拾取或放置
     if (CurrentPhase == EPlacePhase::BendDownPickup)
     {
-        // 装货模式和堆叠模式：从地面拾取
         PerformPickup();
-        
-        // 进入起身阶段
-        CurrentPhase = EPlacePhase::StandUpWithItem;
-        UpdatePhase();
+        AdvanceToPhase(EPlacePhase::StandUpWithItem);
     }
     else if (CurrentPhase == EPlacePhase::BendDownPlace)
     {
-        // 卸货模式：放置到地面
         PerformPlaceOnGround();
-        
-        // 进入起身阶段
-        CurrentPhase = EPlacePhase::StandUpEmpty;
-        UpdatePhase();
+        AdvanceToPhase(EPlacePhase::StandUpEmpty);
     }
 }
 
@@ -354,9 +411,7 @@ void USK_Place::HandleStandUpWithItem()
     }
     else
     {
-        // 非 Humanoid 角色，直接进入下一阶段
-        CurrentPhase = EPlacePhase::MoveToTarget;
-        UpdatePhase();
+        AdvanceToPhase(EPlacePhase::MoveToTarget);
     }
 }
 
@@ -370,15 +425,11 @@ void USK_Place::OnStandUpComplete()
     
     if (CurrentPhase == EPlacePhase::StandUpWithItem)
     {
-        // 起身后移动到目标
-        CurrentPhase = EPlacePhase::MoveToTarget;
-        UpdatePhase();
+        AdvanceToPhase(EPlacePhase::MoveToTarget);
     }
     else if (CurrentPhase == EPlacePhase::StandUpEmpty)
     {
-        // 完成
-        CurrentPhase = EPlacePhase::Complete;
-        UpdatePhase();
+        AdvanceToPhase(EPlacePhase::Complete);
     }
 }
 
@@ -387,39 +438,26 @@ void USK_Place::HandleMoveToTarget()
     AMACharacter* Character = GetOwningCharacter();
     if (!Character)
     {
-        bPlaceSucceeded = false;
-        PlaceResultMessage = TEXT("Place failed: Character lost during operation");
-        EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
+        FailPlace(TEXT("Place failed: Character lost during operation"), TEXT("Character lost during operation"));
         return;
     }
     
     if (!NavigationService)
     {
-        bPlaceSucceeded = false;
-        PlaceResultMessage = TEXT("Place failed: NavigationService lost during operation");
-        EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
+        FailPlace(TEXT("Place failed: NavigationService lost during operation"), TEXT("NavigationService lost during operation"));
         return;
     }
     
     Character->ShowAbilityStatus(TEXT("Place"), TEXT("Moving to target..."));
     
     // 更新目标位置（UGV 可能已移动）
-    FVector CurrentTargetLocation = TargetLocation;
-    if (CurrentMode == EPlaceMode::LoadToUGV && TargetUGV.IsValid())
-    {
-        CurrentTargetLocation = TargetUGV->GetActorLocation();
-    }
-    else if (CurrentMode == EPlaceMode::StackOnObject && TargetObject.IsValid())
-    {
-        CurrentTargetLocation = TargetObject->GetActorLocation();
-    }
+    const FVector CurrentTargetLocation = ResolveCurrentTargetLocation();
     
     // 检查是否已经在目标附近
     float DistanceToTarget = FVector::Dist(Character->GetActorLocation(), CurrentTargetLocation);
     if (DistanceToTarget <= InteractionRadius)
     {
-        CurrentPhase = EPlacePhase::BendDownPlace;
-        UpdatePhase();
+        AdvanceToPhase(EPlacePhase::BendDownPlace);
         return;
     }
     
@@ -430,14 +468,7 @@ void USK_Place::HandleMoveToTarget()
     if (!NavigationService->NavigateTo(CurrentTargetLocation, InteractionRadius))
     {
         NavigationService->OnNavigationCompleted.RemoveDynamic(this, &USK_Place::OnNavigationToTargetCompleted);
-        bPlaceSucceeded = false;
-        PlaceResultMessage = TEXT("Place failed: Could not start navigation to target location");
-        
-        if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
-        {
-            SkillComp->GetFeedbackContextMutable().PlaceErrorReason = TEXT("Could not navigate to target location");
-        }
-        EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
+        FailPlace(TEXT("Place failed: Could not start navigation to target location"), TEXT("Could not navigate to target location"));
     }
 }
 
@@ -451,25 +482,11 @@ void USK_Place::OnNavigationToTargetCompleted(bool bSuccess, const FString& Mess
     
     if (bSuccess)
     {
-        // 导航成功，进入放置阶段
-        CurrentPhase = EPlacePhase::BendDownPlace;
-        UpdatePhase();
+        AdvanceToPhase(EPlacePhase::BendDownPlace);
     }
     else
     {
-        // 导航失败
-        AMACharacter* Character = GetOwningCharacter();
-        bPlaceSucceeded = false;
-        PlaceResultMessage = FString::Printf(TEXT("Place failed: %s"), *Message);
-        
-        if (Character)
-        {
-            if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
-            {
-                SkillComp->GetFeedbackContextMutable().PlaceErrorReason = Message;
-            }
-        }
-        EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
+        HandleNavigationFailure(Message);
     }
 }
 
@@ -485,15 +502,13 @@ void USK_Place::HandleBendDownPlace()
     if (CurrentMode == EPlaceMode::LoadToUGV)
     {
         PerformPlaceOnUGV();
-        CurrentPhase = EPlacePhase::Complete;
-        UpdatePhase();
+        AdvanceToPhase(EPlacePhase::Complete);
         return;
     }
     else if (CurrentMode == EPlaceMode::StackOnObject)
     {
         PerformPlaceOnObject();
-        CurrentPhase = EPlacePhase::Complete;
-        UpdatePhase();
+        AdvanceToPhase(EPlacePhase::Complete);
         return;
     }
     
@@ -506,10 +521,8 @@ void USK_Place::HandleBendDownPlace()
     }
     else
     {
-        // 非 Humanoid 角色，直接执行放置并完成
         PerformPlaceOnGround();
-        CurrentPhase = EPlacePhase::Complete;
-        UpdatePhase();
+        AdvanceToPhase(EPlacePhase::Complete);
     }
 }
 
@@ -529,9 +542,7 @@ void USK_Place::HandleStandUpEmpty()
     }
     else
     {
-        // 非 Humanoid 角色，直接完成
-        CurrentPhase = EPlacePhase::Complete;
-        UpdatePhase();
+        AdvanceToPhase(EPlacePhase::Complete);
     }
 }
 
@@ -704,63 +715,7 @@ void USK_Place::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGamep
     bool bSuccessToNotify = bPlaceSucceeded;
     FString MessageToNotify = PlaceResultMessage;
     
-    if (Character)
-    {
-        // 清理动画回调
-        AMAHumanoidCharacter* Humanoid = GetHumanoidCharacter();
-        if (Humanoid)
-        {
-            Humanoid->OnBendAnimationComplete.RemoveDynamic(this, &USK_Place::OnBendDownComplete);
-            Humanoid->OnBendAnimationComplete.RemoveDynamic(this, &USK_Place::OnStandUpComplete);
-        }
-        
-        // 清理导航服务回调并取消导航
-        if (NavigationService)
-        {
-            NavigationService->OnNavigationCompleted.RemoveDynamic(this, &USK_Place::OnNavigationToSourceCompleted);
-            NavigationService->OnNavigationCompleted.RemoveDynamic(this, &USK_Place::OnNavigationToTargetCompleted);
-            NavigationService->CancelNavigation();
-        }
-        
-        if (UWorld* World = Character->GetWorld())
-        {
-            World->GetTimerManager().ClearTimer(PhaseTimerHandle);
-        }
-        PhaseTimerHandle.Invalidate();
-        
-        Character->ShowStatus(TEXT(""), 0.f);
-        
-        if (bWasCancelled && HeldObject.IsValid())
-        {
-            IMAPickupItem* Item = Cast<IMAPickupItem>(HeldObject.Get());
-            if (Item)
-            {
-                FVector DropPos = Character->GetActorLocation();
-                Item->PlaceOnGround(DropPos);
-            }
-            HeldObject.Reset();
-        }
-        
-        if (bWasCancelled && PlaceResultMessage.IsEmpty())
-        {
-            bSuccessToNotify = false;
-            FString PhaseStr = GetPhaseString();
-            MessageToNotify = FString::Printf(TEXT("Place cancelled: Stopped while %s"), *PhaseStr);
-            
-            if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
-            {
-                SkillComp->GetFeedbackContextMutable().PlaceCancelledPhase = PhaseStr;
-            }
-        }
-        
-    }
-    
-    // 清理引用
-    NavigationService = nullptr;
-    SourceObject.Reset();
-    TargetObject.Reset();
-    HeldObject.Reset();
-    TargetUGV.Reset();
+    CleanupPlaceRuntime(Character, bWasCancelled, bSuccessToNotify, MessageToNotify);
     
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
     

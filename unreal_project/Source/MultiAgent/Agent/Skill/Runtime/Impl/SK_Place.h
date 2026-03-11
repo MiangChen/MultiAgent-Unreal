@@ -10,9 +10,11 @@
 #include "SK_Place.generated.h"
 
 class IMAPickupItem;
+class AMACharacter;
 class AMAUGVCharacter;
 class AMAHumanoidCharacter;
 class UMANavigationService;
+class UMASkillComponent;
 
 // Place 执行阶段（扩展状态机）
 UENUM(BlueprintType)
@@ -54,6 +56,17 @@ protected:
     virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 
 private:
+    void ResetPlaceRuntimeState();
+    void FailPlace(const FString& ResultMessage, const FString& ErrorReason, const FString& StatusMessage = FString());
+    bool InitializePlaceContext(AMACharacter& Character, UMASkillComponent& SkillComp);
+    bool ConfigureLoadToUGV(AMACharacter& Character, UMASkillComponent& SkillComp);
+    bool ConfigureUnloadToGround(AMACharacter& Character, UMASkillComponent& SkillComp);
+    bool ConfigureStackOnObject(AMACharacter& Character, UMASkillComponent& SkillComp);
+    void AdvanceToPhase(EPlacePhase NextPhase);
+    void HandleNavigationFailure(const FString& Message);
+    FVector ResolveCurrentTargetLocation() const;
+    void CleanupPlaceRuntime(AMACharacter* Character, bool bWasCancelled, bool& bOutSuccessToNotify, FString& InOutMessageToNotify);
+
     // ========== 状态机 ==========
     void UpdatePhase();
     
