@@ -1,14 +1,14 @@
 #include "MAFeedbackGenerator.h"
 
+#include "Agent/Skill/Infrastructure/MASkillSceneGraphBridge.h"
 #include "Agent/Skill/Infrastructure/MASkillRuntimeBridge.h"
 #include "Agent/Skill/Runtime/MASkillComponent.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
-#include "Core/SceneGraph/Runtime/MASceneGraphManager.h"
 #include "Core/SceneGraph/Application/MASceneGraphQueryUseCases.h"
 
-UMASceneGraphManager* FMAFeedbackGenerator::GetSceneGraphManager(AMACharacter* Agent)
+TArray<FMASceneGraphNode> FMAFeedbackGenerator::LoadSceneGraphNodes(AMACharacter* Agent)
 {
-    return FMASkillRuntimeBridge::ResolveSceneGraphManager(Agent);
+    return FMASkillSceneGraphBridge::LoadAllNodes(Agent);
 }
 
 void FMAFeedbackGenerator::AddCommonFieldsToFeedback(
@@ -27,9 +27,9 @@ void FMAFeedbackGenerator::AddCommonFieldsToFeedback(
         Feedback.Data.Add(TEXT("task_id"), Context.TaskId);
     }
 
-    if (UMASceneGraphManager* SceneGraphMgr = GetSceneGraphManager(Agent))
+    const TArray<FMASceneGraphNode> AllNodes = LoadSceneGraphNodes(Agent);
+    if (AllNodes.Num() > 0)
     {
-        const TArray<FMASceneGraphNode> AllNodes = SceneGraphMgr->GetAllNodes();
         FString RobotId = FMASceneGraphQueryUseCases::GetIdByLabel(AllNodes, Agent->AgentID);
         if (RobotId.IsEmpty())
         {

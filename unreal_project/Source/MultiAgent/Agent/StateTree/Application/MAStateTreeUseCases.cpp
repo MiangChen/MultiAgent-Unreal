@@ -99,3 +99,13 @@ FMAStateTreeTaskExitFeedback FMAStateTreeUseCases::BuildActivatedCommandExit(
     Feedback.bShouldTransitionCommandToIdle = bSkillActivated && bTransitionCommandToIdle;
     return Feedback;
 }
+
+FMAStateTreeChargeExitFeedback FMAStateTreeUseCases::BuildChargeExitFeedback(
+    const bool bIsMoving,
+    const bool bIsCharging)
+{
+    FMAStateTreeChargeExitFeedback Feedback;
+    Feedback.bShouldCancelNavigate = bIsMoving;
+    Feedback.bShouldCancelCharge = bIsCharging;
+    return Feedback;
+}

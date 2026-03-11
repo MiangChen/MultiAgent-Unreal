@@ -1,10 +1,10 @@
 #include "Agent/Skill/Infrastructure/MASkillTargetResolver.h"
 
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
+#include "Agent/Skill/Infrastructure/MASkillSceneGraphBridge.h"
 #include "Agent/Skill/Infrastructure/MASkillRuntimeBridge.h"
 #include "Agent/Skill/Infrastructure/MAUESceneQuery.h"
 #include "Core/SceneGraph/Application/MASceneGraphQueryUseCases.h"
-#include "Core/SceneGraph/Runtime/MASceneGraphManager.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 
@@ -156,9 +156,9 @@ FMAResolvedSkillTarget FMASkillTargetResolver::ResolveTarget(
         }
     }
 
-    if (UMASceneGraphManager* SceneGraphManager = FMASkillRuntimeBridge::ResolveSceneGraphManager(&Agent))
+    const TArray<FMASceneGraphNode> AllNodes = FMASkillSceneGraphBridge::LoadAllNodes(&Agent);
+    if (AllNodes.Num() > 0)
     {
-        const TArray<FMASceneGraphNode> AllNodes = SceneGraphManager->GetAllNodes();
         FMASceneGraphNode TargetNode;
 
         if (!ObjectId.IsEmpty())

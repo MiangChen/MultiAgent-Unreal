@@ -245,6 +245,18 @@ private:
     /** 处理跟随失败并统一发事件 */
     void HandleFollowFailure(const TCHAR* FailureReason);
 
+    /** 初始化一次跟随会话的运行时状态 */
+    void InitializeFollowSession(AActor& Target, float InFollowDistance, float InAcceptanceRadius);
+
+    /** 清理一次跟随会话的运行时状态 */
+    void CleanupFollowSession();
+
+    /** 将角色朝向指定位置 */
+    void RotateOwnerToward(const FVector& TargetLocation, float DeltaTime, float InterpSpeed);
+
+    /** 飞行跟随回退：无控制器时用简单直线移动 */
+    void ApplyFallbackFlightFollowMovement(const FVector& FollowPos, const FVector& CurrentLocation, float DeltaTime);
+
     /** 地面远距离跟随：通过 NavMesh 驱动 */
     void UpdateGroundFollowNavMesh(AAIController* AICtrl, const FVector& FollowPos, float CurrentTimeSeconds);
 

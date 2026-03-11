@@ -2,7 +2,6 @@
 
 #include "Agent/Skill/Runtime/MASkillComponent.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
-#include "Core/SceneGraph/Runtime/MASceneGraphManager.h"
 
 void FMAFeedbackGenerator::GenerateTakePhotoFeedback(
     FMASkillExecutionFeedback& Feedback,
@@ -16,8 +15,7 @@ void FMAFeedbackGenerator::GenerateTakePhotoFeedback(
     if (SkillComp)
     {
         const FMAFeedbackContext& Context = SkillComp->GetFeedbackContext();
-        UMASceneGraphManager* SceneGraphMgr = GetSceneGraphManager(Agent);
-        const TArray<FMASceneGraphNode> AllNodes = SceneGraphMgr ? SceneGraphMgr->GetAllNodes() : TArray<FMASceneGraphNode>();
+        const TArray<FMASceneGraphNode> AllNodes = LoadSceneGraphNodes(Agent);
 
         Feedback.Data.Add(TEXT("target_found"), Context.bPhotoTargetFound ? TEXT("true") : TEXT("false"));
 
@@ -121,8 +119,7 @@ void FMAFeedbackGenerator::GenerateHandleHazardFeedback(
     if (SkillComp)
     {
         const FMAFeedbackContext& Context = SkillComp->GetFeedbackContext();
-        UMASceneGraphManager* SceneGraphMgr = GetSceneGraphManager(Agent);
-        const TArray<FMASceneGraphNode> AllNodes = SceneGraphMgr ? SceneGraphMgr->GetAllNodes() : TArray<FMASceneGraphNode>();
+        const TArray<FMASceneGraphNode> AllNodes = LoadSceneGraphNodes(Agent);
 
         Feedback.Data.Add(TEXT("target_found"), Context.bHazardTargetFound ? TEXT("true") : TEXT("false"));
 
@@ -157,8 +154,7 @@ void FMAFeedbackGenerator::GenerateGuideFeedback(
     if (SkillComp)
     {
         const FMAFeedbackContext& Context = SkillComp->GetFeedbackContext();
-        UMASceneGraphManager* SceneGraphMgr = GetSceneGraphManager(Agent);
-        const TArray<FMASceneGraphNode> AllNodes = SceneGraphMgr ? SceneGraphMgr->GetAllNodes() : TArray<FMASceneGraphNode>();
+        const TArray<FMASceneGraphNode> AllNodes = LoadSceneGraphNodes(Agent);
 
         Feedback.Data.Add(TEXT("target_found"), Context.bGuideTargetFound ? TEXT("true") : TEXT("false"));
 

@@ -13,4 +13,5 @@ struct MULTIAGENT_API FMAStateTreeUseCases
     static EMAStateTreeTaskDecision BuildPlaceEnterDecision(bool bHasSearchTarget, bool bActivationSucceeded);
     static FMAStateTreeTaskExitFeedback BuildInterruptedCommandExit(bool bWasRunning);
     static FMAStateTreeTaskExitFeedback BuildActivatedCommandExit(bool bSkillActivated, bool bTransitionCommandToIdle);
+    static FMAStateTreeChargeExitFeedback BuildChargeExitFeedback(bool bIsMoving, bool bIsCharging);
 };

@@ -15,6 +15,8 @@ class AMAUGVCharacter;
 class AMAHumanoidCharacter;
 class UMANavigationService;
 class UMASkillComponent;
+struct FMAPlaceContextBuildFeedback;
+struct FMAPlaceContextConfig;
 
 // Place 执行阶段（扩展状态机）
 UENUM(BlueprintType)
@@ -59,11 +61,15 @@ private:
     void ResetPlaceRuntimeState();
     void FailPlace(const FString& ResultMessage, const FString& ErrorReason, const FString& StatusMessage = FString());
     bool InitializePlaceContext(AMACharacter& Character, UMASkillComponent& SkillComp);
-    bool ConfigureLoadToUGV(AMACharacter& Character, UMASkillComponent& SkillComp);
-    bool ConfigureUnloadToGround(AMACharacter& Character, UMASkillComponent& SkillComp);
-    bool ConfigureStackOnObject(AMACharacter& Character, UMASkillComponent& SkillComp);
+    void ApplyPlaceContextConfig(const FMAPlaceContextConfig& Config);
     void AdvanceToPhase(EPlacePhase NextPhase);
     void HandleNavigationFailure(const FString& Message);
+    bool StartPhaseNavigation(const FVector& Destination, const TCHAR* StatusText, const TCHAR* FailureReason, bool bToSource);
+    void HandlePhaseNavigationCompleted(bool bSuccess, const FString& Message, EPlacePhase SuccessPhase, bool bToSource);
+    bool TryPlayBendAnimation();
+    bool TryPlayStandUpAnimation();
+    void HandleBendCompletionTransition();
+    void HandleStandUpTransition();
     FVector ResolveCurrentTargetLocation() const;
     void CleanupPlaceRuntime(AMACharacter* Character, bool bWasCancelled, bool& bOutSuccessToNotify, FString& InOutMessageToNotify);
 

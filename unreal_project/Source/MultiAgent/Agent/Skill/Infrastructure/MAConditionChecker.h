@@ -9,7 +9,6 @@
 
 class AMACharacter;
 class UMASkillComponent;
-class UMASceneGraphManager;
 enum class EMAAgentType : uint8;
 
 /**
@@ -36,8 +35,7 @@ public:
 	static FMAPrecheckResult RunPrecheck(
 		AMACharacter* Agent,
 		EMACommand Command,
-		UMASkillComponent* SkillComp,
-		UMASceneGraphManager* SceneGraphMgr);
+		UMASkillComponent* SkillComp);
 
 	/**
 	 * 运行时检查入口 - 遍历所有适用的运行时检查项，收集结果
@@ -45,37 +43,36 @@ public:
 	static FMAPrecheckResult RunRuntimeCheck(
 		AMACharacter* Agent,
 		EMACommand Command,
-		UMASkillComponent* SkillComp,
-		UMASceneGraphManager* SceneGraphMgr);
+		UMASkillComponent* SkillComp);
 
 	//=========================================================================
 	// 环境检查
 	//=========================================================================
 
 	/** 检查低可见度 - 查询场景图中 "smoke" 节点，判断 Agent 是否在影响半径内 */
-	static FMACheckResult CheckLowVisibility(AMACharacter* Agent, UMASceneGraphManager* SceneGraphMgr);
+	static FMACheckResult CheckLowVisibility(AMACharacter* Agent);
 
 	/** 检查强风 - 查询场景图中 "wind" 节点，判断 Agent 是否在影响半径内 */
-	static FMACheckResult CheckStrongWind(AMACharacter* Agent, UMASceneGraphManager* SceneGraphMgr);
+	static FMACheckResult CheckStrongWind(AMACharacter* Agent);
 
 	//=========================================================================
 	// 目标检查
 	//=========================================================================
 
 	/** 检查目标对象是否存在 */
-	static FMACheckResult CheckTargetExists(AMACharacter* Agent, UMASkillComponent* SkillComp, EMACommand Command, UMASceneGraphManager* SceneGraphMgr);
+	static FMACheckResult CheckTargetExists(AMACharacter* Agent, UMASkillComponent* SkillComp, EMACommand Command);
 
 	/** 检查目标对象是否在附近 */
-	static FMACheckResult CheckTargetNearby(AMACharacter* Agent, UMASkillComponent* SkillComp, EMACommand Command, UMASceneGraphManager* SceneGraphMgr);
+	static FMACheckResult CheckTargetNearby(AMACharacter* Agent, UMASkillComponent* SkillComp, EMACommand Command);
 
 	/** 检查放置面是否存在 (Place) - 也用于装货模式下的承载者检查 */
-	static FMACheckResult CheckSurfaceTargetExists(AMACharacter* Agent, UMASkillComponent* SkillComp, UMASceneGraphManager* SceneGraphMgr);
+	static FMACheckResult CheckSurfaceTargetExists(AMACharacter* Agent, UMASkillComponent* SkillComp);
 
 	/** 检查放置面是否在附近 (Place) - 也用于装货模式下的承载者检查 */
-	static FMACheckResult CheckSurfaceTargetNearby(AMACharacter* Agent, UMASkillComponent* SkillComp, UMASceneGraphManager* SceneGraphMgr);
+	static FMACheckResult CheckSurfaceTargetNearby(AMACharacter* Agent, UMASkillComponent* SkillComp);
 
 	/** 检查高优先级目标发现 (Search 运行时) */
-	static FMACheckResult CheckHighPriorityTargetDiscovery(AMACharacter* Agent, UMASkillComponent* SkillComp, UMASceneGraphManager* SceneGraphMgr);
+	static FMACheckResult CheckHighPriorityTargetDiscovery(AMACharacter* Agent, UMASkillComponent* SkillComp);
 
 	//=========================================================================
 	// 机器人检查
@@ -85,7 +82,7 @@ public:
 	static FMACheckResult CheckBatteryLow(AMACharacter* Agent, UMASkillComponent* SkillComp);
 
 	/** 检查机器人是否故障 - 通过场景图节点的status属性判断 */
-	static FMACheckResult CheckRobotFault(AMACharacter* Agent, UMASceneGraphManager* SceneGraphMgr);
+	static FMACheckResult CheckRobotFault(AMACharacter* Agent);
 
 	//=========================================================================
 	// 辅助方法
@@ -108,16 +105,14 @@ private:
 		const TArray<EMAConditionCheckItem>& Items,
 		AMACharacter* Agent,
 		EMACommand Command,
-		UMASkillComponent* SkillComp,
-		UMASceneGraphManager* SceneGraphMgr);
+		UMASkillComponent* SkillComp);
 
 	/** 执行单个检查项 */
 	static FMACheckResult ExecuteCheckItem(
 		EMAConditionCheckItem Item,
 		AMACharacter* Agent,
 		EMACommand Command,
-		UMASkillComponent* SkillComp,
-		UMASceneGraphManager* SceneGraphMgr);
+		UMASkillComponent* SkillComp);
 
 	/**
 	 * 环境危险区域检查通用方法
@@ -127,7 +122,6 @@ private:
 	 */
 	static FMACheckResult CheckEnvironmentHazard(
 		AMACharacter* Agent,
-		UMASceneGraphManager* SceneGraphMgr,
 		const FString& NodeType,
 		float DefaultRadius,
 		const FString& EventKey);
@@ -139,8 +133,8 @@ private:
 	 * @param LabelParamKey 事件参数中的标签 key (如 "target_label", "carrier_label")
 	 */
 	static FMACheckResult CheckObjectExists(
+		AMACharacter* Agent,
 		const FString& ObjectId,
-		UMASceneGraphManager* SceneGraphMgr,
 		const FString& EventKey,
 		const FString& LabelParamKey);
 
@@ -153,7 +147,6 @@ private:
 	static FMACheckResult CheckObjectNearby(
 		AMACharacter* Agent,
 		const FString& ObjectId,
-		UMASceneGraphManager* SceneGraphMgr,
 		const FString& EventKey,
 		const FString& LabelParamKey);
 };

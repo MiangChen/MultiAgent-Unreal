@@ -2,11 +2,10 @@
 #include "Agent/Skill/Infrastructure/MASkillParamsProcessorInternal.h"
 
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
-#include "Agent/Skill/Infrastructure/MASkillRuntimeBridge.h"
+#include "Agent/Skill/Infrastructure/MASkillSceneGraphBridge.h"
 #include "Agent/Skill/Infrastructure/MAUESceneQuery.h"
 #include "Agent/Skill/Runtime/MASkillComponent.h"
 #include "Core/SceneGraph/Application/MASceneGraphQueryUseCases.h"
-#include "Core/SceneGraph/Runtime/MASceneGraphManager.h"
 #include "Utils/MAGeometryUtils.h"
 
 void FMASkillParamsProcessor::ProcessSearch(AMACharacter* Agent, UMASkillComponent* SkillComp, const FMAAgentSkillCommand* Cmd)
@@ -82,12 +81,11 @@ void FMASkillParamsProcessor::ProcessSearch(AMACharacter* Agent, UMASkillCompone
     UWorld* World = Agent->GetWorld();
     if (!World) return;
 
-    UMASceneGraphManager* SceneGraphManager = FMASkillRuntimeBridge::ResolveSceneGraphManager(Agent);
+    const TArray<FMASceneGraphNode> AllNodes = FMASkillSceneGraphBridge::LoadAllNodes(Agent);
     bool bFoundInSceneGraph = false;
 
-    if (SceneGraphManager && Params.SearchBoundary.Num() >= 3)
+    if (AllNodes.Num() > 0 && Params.SearchBoundary.Num() >= 3)
     {
-        const TArray<FMASceneGraphNode> AllNodes = SceneGraphManager->GetAllNodes();
         const TArray<FMASceneGraphNode> FoundNodes = FMASceneGraphQueryUseCases::FindNodesInBoundary(
             AllNodes, SearchLabel, Params.SearchBoundary);
 
@@ -183,12 +181,7 @@ void FMASkillParamsProcessor::ProcessPlace(AMACharacter* Agent, UMASkillComponen
     UWorld* World = Agent->GetWorld();
     if (!World) return;
 
-    UMASceneGraphManager* SceneGraphManager = FMASkillRuntimeBridge::ResolveSceneGraphManager(Agent);
-    TArray<FMASceneGraphNode> AllNodes;
-    if (SceneGraphManager)
-    {
-        AllNodes = SceneGraphManager->GetAllNodes();
-    }
+    const TArray<FMASceneGraphNode> AllNodes = FMASkillSceneGraphBridge::LoadAllNodes(Agent);
 
     FMASemanticLabel Label1;
     Label1.Class = Params.PlaceObject1.Class;
@@ -198,7 +191,7 @@ void FMASkillParamsProcessor::ProcessPlace(AMACharacter* Agent, UMASkillComponen
     if (!Label1.IsEmpty())
     {
         bool bFoundInSceneGraph = false;
-        if (SceneGraphManager && AllNodes.Num() > 0)
+        if (AllNodes.Num() > 0)
         {
             const FMASceneGraphNode Object1Node = FMASceneGraphQueryUseCases::FindNodeByLabel(AllNodes, Label1);
             if (Object1Node.IsValid() && Object1Node.IsPickupItem())
@@ -246,7 +239,7 @@ void FMASkillParamsProcessor::ProcessPlace(AMACharacter* Agent, UMASkillComponen
             const FString TargetRobotLabel = Label2.Features.Contains(TEXT("label")) ? Label2.Features[TEXT("label")] : TEXT("");
             bool bFoundInSceneGraph = false;
 
-            if (SceneGraphManager && AllNodes.Num() > 0 && !TargetRobotLabel.IsEmpty())
+            if (AllNodes.Num() > 0 && !TargetRobotLabel.IsEmpty())
             {
                 const FMASemanticLabel RobotSemanticLabel = FMASemanticLabel::MakeRobot(TargetRobotLabel);
                 const FMASceneGraphNode RobotNode = FMASceneGraphQueryUseCases::FindNodeByLabel(AllNodes, RobotSemanticLabel);
@@ -281,7 +274,7 @@ void FMASkillParamsProcessor::ProcessPlace(AMACharacter* Agent, UMASkillComponen
         case EPlaceMode::StackOnObject:
         {
             bool bFoundInSceneGraph = false;
-            if (SceneGraphManager && AllNodes.Num() > 0)
+            if (AllNodes.Num() > 0)
             {
                 const FMASceneGraphNode Object2Node = FMASceneGraphQueryUseCases::FindNodeByLabel(AllNodes, Label2);
                 if (Object2Node.IsValid() && Object2Node.IsPickupItem())

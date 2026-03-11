@@ -2,10 +2,10 @@
 // ========== 指令调度层实现 ==========
 
 #include "MACommandManager.h"
+#include "Core/Command/Domain/MACommandNames.h"
+#include "Core/Command/Domain/MACommandTags.h"
 #include "Core/AgentRuntime/Runtime/MAAgentManager.h"
 #include "Core/TempData/Runtime/MATempDataManager.h"
-#include "Core/SceneGraph/Runtime/MASceneGraphManager.h"
-#include "Core/SceneGraph/Bootstrap/MASceneGraphBootstrap.h"
 #include "Core/Config/MAConfigManager.h"
 #include "Core/Comm/Runtime/MACommSubsystem.h"
 #include "Core/Comm/Domain/MACommTypes.h"
@@ -50,19 +50,19 @@ void UMACommandManager::Initialize(FSubsystemCollectionBase& Collection)
 
 void UMACommandManager::InitializeCommandTags()
 {
-    CommandTagCache.Add(EMACommand::Idle, FGameplayTag::RequestGameplayTag(FName("Command.Idle")));
-    CommandTagCache.Add(EMACommand::Navigate, FGameplayTag::RequestGameplayTag(FName("Command.Navigate")));
-    CommandTagCache.Add(EMACommand::Follow, FGameplayTag::RequestGameplayTag(FName("Command.Follow")));
-    CommandTagCache.Add(EMACommand::Charge, FGameplayTag::RequestGameplayTag(FName("Command.Charge")));
-    CommandTagCache.Add(EMACommand::Search, FGameplayTag::RequestGameplayTag(FName("Command.Search")));
-    CommandTagCache.Add(EMACommand::Place, FGameplayTag::RequestGameplayTag(FName("Command.Place")));
-    CommandTagCache.Add(EMACommand::TakeOff, FGameplayTag::RequestGameplayTag(FName("Command.TakeOff")));
-    CommandTagCache.Add(EMACommand::Land, FGameplayTag::RequestGameplayTag(FName("Command.Land")));
-    CommandTagCache.Add(EMACommand::ReturnHome, FGameplayTag::RequestGameplayTag(FName("Command.ReturnHome")));
-    CommandTagCache.Add(EMACommand::TakePhoto, FGameplayTag::RequestGameplayTag(FName("Command.TakePhoto")));
-    CommandTagCache.Add(EMACommand::Broadcast, FGameplayTag::RequestGameplayTag(FName("Command.Broadcast")));
-    CommandTagCache.Add(EMACommand::HandleHazard, FGameplayTag::RequestGameplayTag(FName("Command.HandleHazard")));
-    CommandTagCache.Add(EMACommand::Guide, FGameplayTag::RequestGameplayTag(FName("Command.Guide")));
+    CommandTagCache.Add(EMACommand::Idle, FMACommandTags::ToTag(EMACommand::Idle));
+    CommandTagCache.Add(EMACommand::Navigate, FMACommandTags::ToTag(EMACommand::Navigate));
+    CommandTagCache.Add(EMACommand::Follow, FMACommandTags::ToTag(EMACommand::Follow));
+    CommandTagCache.Add(EMACommand::Charge, FMACommandTags::ToTag(EMACommand::Charge));
+    CommandTagCache.Add(EMACommand::Search, FMACommandTags::ToTag(EMACommand::Search));
+    CommandTagCache.Add(EMACommand::Place, FMACommandTags::ToTag(EMACommand::Place));
+    CommandTagCache.Add(EMACommand::TakeOff, FMACommandTags::ToTag(EMACommand::TakeOff));
+    CommandTagCache.Add(EMACommand::Land, FMACommandTags::ToTag(EMACommand::Land));
+    CommandTagCache.Add(EMACommand::ReturnHome, FMACommandTags::ToTag(EMACommand::ReturnHome));
+    CommandTagCache.Add(EMACommand::TakePhoto, FMACommandTags::ToTag(EMACommand::TakePhoto));
+    CommandTagCache.Add(EMACommand::Broadcast, FMACommandTags::ToTag(EMACommand::Broadcast));
+    CommandTagCache.Add(EMACommand::HandleHazard, FMACommandTags::ToTag(EMACommand::HandleHazard));
+    CommandTagCache.Add(EMACommand::Guide, FMACommandTags::ToTag(EMACommand::Guide));
 }
 
 // ========== 技能列表执行 ==========
@@ -459,8 +459,7 @@ void UMACommandManager::SendCommandToAgent(AMACharacter* Agent, EMACommand Comma
     FMASkillParamsProcessor::Process(Agent, Command, Cmd);
     
     // 2) 条件预检查
-    UMASceneGraphManager* SceneGraphMgr = GetSceneGraphManager();
-    FMAPrecheckResult PrecheckResult = FMAConditionChecker::RunPrecheck(Agent, Command, SkillComp, SceneGraphMgr);
+    FMAPrecheckResult PrecheckResult = FMAConditionChecker::RunPrecheck(Agent, Command, SkillComp);
     
     if (!PrecheckResult.bAllPassed)
     {
@@ -535,41 +534,12 @@ bool UMACommandManager::ActivateSkillDirectly(AMACharacter* Agent, UMASkillCompo
 
 FString UMACommandManager::CommandToString(EMACommand Command)
 {
-    switch (Command)
-    {
-        case EMACommand::Idle: return TEXT("idle");
-        case EMACommand::Navigate: return TEXT("navigate");
-        case EMACommand::Follow: return TEXT("follow");
-        case EMACommand::Charge: return TEXT("charge");
-        case EMACommand::Search: return TEXT("search");
-        case EMACommand::Place: return TEXT("place");
-        case EMACommand::TakeOff: return TEXT("take_off");
-        case EMACommand::Land: return TEXT("land");
-        case EMACommand::ReturnHome: return TEXT("return_home");
-        case EMACommand::TakePhoto: return TEXT("take_photo");
-        case EMACommand::Broadcast: return TEXT("broadcast");
-        case EMACommand::HandleHazard: return TEXT("handle_hazard");
-        case EMACommand::Guide: return TEXT("guide");
-        default: return TEXT("None");
-    }
+    return FMACommandNames::ToString(Command);
 }
 
 EMACommand UMACommandManager::StringToCommand(const FString& CommandString)
 {
-    if (CommandString.Equals(TEXT("idle"), ESearchCase::IgnoreCase)) return EMACommand::Idle;
-    if (CommandString.Equals(TEXT("navigate"), ESearchCase::IgnoreCase)) return EMACommand::Navigate;
-    if (CommandString.Equals(TEXT("follow"), ESearchCase::IgnoreCase)) return EMACommand::Follow;
-    if (CommandString.Equals(TEXT("charge"), ESearchCase::IgnoreCase)) return EMACommand::Charge;
-    if (CommandString.Equals(TEXT("search"), ESearchCase::IgnoreCase)) return EMACommand::Search;
-    if (CommandString.Equals(TEXT("place"), ESearchCase::IgnoreCase)) return EMACommand::Place;
-    if (CommandString.Equals(TEXT("take_off"), ESearchCase::IgnoreCase)) return EMACommand::TakeOff;
-    if (CommandString.Equals(TEXT("land"), ESearchCase::IgnoreCase)) return EMACommand::Land;
-    if (CommandString.Equals(TEXT("return_home"), ESearchCase::IgnoreCase)) return EMACommand::ReturnHome;
-    if (CommandString.Equals(TEXT("take_photo"), ESearchCase::IgnoreCase)) return EMACommand::TakePhoto;
-    if (CommandString.Equals(TEXT("broadcast"), ESearchCase::IgnoreCase)) return EMACommand::Broadcast;
-    if (CommandString.Equals(TEXT("handle_hazard"), ESearchCase::IgnoreCase)) return EMACommand::HandleHazard;
-    if (CommandString.Equals(TEXT("guide"), ESearchCase::IgnoreCase)) return EMACommand::Guide;
-    return EMACommand::None;
+    return FMACommandNames::FromString(CommandString);
 }
 
 FGameplayTag UMACommandManager::CommandToTag(EMACommand Command) const
@@ -591,11 +561,6 @@ UMATempDataManager* UMACommandManager::GetTempDataManager() const
         }
     }
     return nullptr;
-}
-
-UMASceneGraphManager* UMACommandManager::GetSceneGraphManager() const
-{
-    return FMASceneGraphBootstrap::Resolve(GetWorld());
 }
 
 void UMACommandManager::HandlePrecheckFailure(AMACharacter* Agent, EMACommand Command, const FMAAgentSkillCommand* Cmd, const FMAPrecheckResult& Result)
@@ -702,8 +667,7 @@ void UMACommandManager::OnRuntimeCheckTick(AMACharacter* Agent, EMACommand Comma
     UMASkillComponent* SkillComp = Agent->GetSkillComponent();
     if (!SkillComp) return;
     
-    UMASceneGraphManager* SceneGraphMgr = GetSceneGraphManager();
-    FMAPrecheckResult RuntimeResult = FMAConditionChecker::RunRuntimeCheck(Agent, Command, SkillComp, SceneGraphMgr);
+    FMAPrecheckResult RuntimeResult = FMAConditionChecker::RunRuntimeCheck(Agent, Command, SkillComp);
     
     // 收集 info 事件（如 HighPriorityTargetDiscovery）到 PendingInfoEvents
     // 按 event_key 去重：运行时检查是周期性的，同一事件可能被多次检测到

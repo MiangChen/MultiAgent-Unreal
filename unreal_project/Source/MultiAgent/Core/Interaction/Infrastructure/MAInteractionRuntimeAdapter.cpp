@@ -4,6 +4,7 @@
 
 #include "../../../Input/MAPlayerController.h"
 #include "../../AgentRuntime/Runtime/MAAgentManager.h"
+#include "../../Command/Domain/MACommandNames.h"
 #include "../../Command/Runtime/MACommandManager.h"
 #include "../../Editing/Runtime/MAEditModeManager.h"
 #include "../../Selection/Runtime/MASelectionManager.h"
@@ -301,7 +302,7 @@ FMAFeedback54 FMAInteractionRuntimeAdapter::SendCommandToSelection(
 
 FString FMAInteractionRuntimeAdapter::GetCommandDisplayName(const EMACommand Command) const
 {
-    return UMACommandManager::CommandToString(Command);
+    return FMACommandNames::ToString(Command);
 }
 
 FMAFeedback54 FMAInteractionRuntimeAdapter::TogglePauseExecution(AMAPlayerController* PlayerController) const

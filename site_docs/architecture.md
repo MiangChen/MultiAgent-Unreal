@@ -60,9 +60,9 @@ flowchart LR
 - `UI` 现在也按 context 收口：`Core / HUD / SceneEditing / TaskGraph / SkillAllocation / Components / Setup`，共享 modal 机制并入 `UI/Core/Modal/`。
 - `UI` 现在和 `Core` 使用同一套结构语言：`Presentation/` 表示 UI 的 `L1` 展示壳，`Runtime/` 表示 UI 的 `L5` 入口壳。
 - `Agent` 现在按 `CharacterRuntime / Navigation / Sensing / Skill / StateTree` 五个 context 收口，使用与 `Core/UI` 同一套层语义，但不包含 `Presentation/`。
-- `Agent/Skill` 进一步收紧为 `Activation / Execution / Completion -> RuntimeGateway -> RuntimeHost`，Application 不再直接认识 `UMASkillComponent` 的 handle/prepare 细节。
-- `Agent/Navigation` 现在开始把地面导航、manual fallback、ground follow 的纯决策收回 `Application`，`Runtime` 主要负责驱动 NavMesh、FlightController 和 Character movement。
-- `Agent/CharacterRuntime` 现在开始把 direct-control 状态迁移和 low-energy return 的暂停/恢复决策收回 `Application`，`Runtime` 只负责角色、技能和 UI 组件联动。
+- `Agent/Skill` 进一步收紧为 `Activation / Execution / Completion -> RuntimeGateway -> RuntimeHost`，并在 `Infrastructure` 里补了 `SceneGraph bridge`、`PIPCamera bridge`、`Config bridge`、`SearchPathBuilder`、`PlaceContextBuilder`，把对 `SceneGraphManager`、`PIPCameraManager`、`ConfigManager` 的直接访问压回少数桥文件，同时把 movement 参数处理拆成更窄的 `Navigate` / `AirOps` 文件，并把 `Search / Place` 的 runtime 实现再按 `Core / Waypoint / PIP`、`Core / Phases / Actions` 拆成多实现文件。
+- `Agent/Navigation` 现在已把地面导航、manual fallback、ground follow、follow-start lifecycle、navigate/cancel request state、flight follow update、takeoff/land/return-home update 的纯决策收回 `Application`；`Runtime` 已按 `Lifecycle / Request / Flight / FlightCommand / FlightUpdate / Follow / FollowGround / Ground / Manual / Pause` 拆成执行壳。
+- `Agent/CharacterRuntime` 现在已把 direct-control 状态迁移和 low-energy return 的暂停/恢复决策收回 `Application`；`Runtime` 已按 `Core / Control / Status / Sensor / Energy` 拆成执行壳，speech-bubble 的初始化、朝向和显示逻辑也已收回 `Infrastructure bridge`。
 - `Agent/Sensing` 现在开始把 action request 的参数解释收回 `Application`，`Runtime` 只负责 camera capture、socket stream 和具体执行。
 - `Agent/StateTree` 现在开始把 task lifecycle 的通用决策收回 `Application`，`Runtime/Task` 主要负责 owner/skill 访问和状态树节点入口。
 - `Agent/StateTree` 的 `Charge` 任务现在不再自己做世界查询；最近充电站解析和导航投影已经下沉到 `Infrastructure bridge`。
@@ -210,7 +210,7 @@ flowchart LR
     GATE["Skill/Runtime\nMASkillRuntimeGateway"]:::gateway
     HOST["Skill/Runtime\nUMASkillComponent"]:::runtime
     ABILITY["Skill/Runtime/Impl\nSK_* abilities"]:::ability
-    INFRA["Skill/Infrastructure\nFeedbackGenerator / SceneGraphUpdater"]:::infra
+    INFRA["Skill/Infrastructure\nSceneGraphBridge / PIPCameraBridge /\nConfigBridge / FeedbackGenerator /\nSceneGraphUpdater"]:::infra
 
     CALLERS --> ACT
     CALLERS --> EXEC
@@ -234,7 +234,7 @@ flowchart LR
 | `Completion` | `Agent/Skill/Application/MASkillCompletionUseCases.*` |
 | `Runtime Gateway` | `Agent/Skill/Runtime/MASkillRuntimeGateway.*` |
 | `Runtime Host` | `Agent/Skill/Runtime/MASkillComponent.*` |
-| `Feedback / SceneGraph` | `Agent/Skill/Infrastructure/MAFeedbackGenerator.*`、`Agent/Skill/Infrastructure/MASceneGraphUpdater.*` |
+| `Feedback / SceneGraph / Camera / Config` | `Agent/Skill/Infrastructure/MASkillSceneGraphBridge.*`、`Agent/Skill/Infrastructure/MASkillPIPCameraBridge.*`、`Agent/Skill/Infrastructure/MASkillConfigBridge.*`、`Agent/Skill/Infrastructure/MAFeedbackGenerator.*`、`Agent/Skill/Infrastructure/MASceneGraphUpdater.*` |
 | `Ability 实现` | `Agent/Skill/Runtime/Impl/SK_*` |
 
 当前约束：
@@ -243,18 +243,21 @@ flowchart LR
 - `CompletionUseCases` 负责收尾，例如 command tag 清理、统一 `NotifySkillCompleted`、以及生成 completion feedback。
 - `Runtime Gateway` 负责把命令翻译为 runtime 参数写入、ability handle 选择、底层激活与取消。
 - `UMASkillComponent` 的 `Prepare*`、ability handle、底层 activate/cancel helper 已收回 `private`，只允许 `Bootstrap` 和 `RuntimeGateway` 通过 `friend` 访问。
+- `Infrastructure` 现在通过 `MASkillSceneGraphBridge` 读取 scene graph snapshot / node lookup / landmark 查询，通过 `MASkillPIPCameraBridge` 访问 PIP camera runtime，并通过 `MASkillConfigBridge` 读取 follow/guide/observation skill 配置，避免把 `SceneGraphManager`、`PIPCameraManager`、`ConfigManager` 直接散落到 skill 文件里。
 
 ## 4. 当前结论
 
 - `Core` 已经完成 context 化与 layer 化。
 - `UI` 现在也已经完成同样的 context 化与 layer 化；剩余 runtime 边界只保留在刻意允许的入口壳，例如 `AMAHUD`、`AMASelectionHUD`。
 - `Agent/Skill` 现在已经从“兼容包装壳”推进到“Activation / Execution / Completion + Gateway + RuntimeHost”结构，`Application` 不再直接触碰 runtime 内部句柄。
-- `Agent/Navigation` 现在不再把地面导航策略完全塞在 `Runtime`；`MANavigationUseCases` 已接管 ground request、manual update、ground follow refresh、completion decision 这些纯决策。
-- `Agent/CharacterRuntime` 现在不再把 direct-control 和 low-energy return 的主要 if/else 决策塞在 `MACharacter.cpp`；这些状态迁移已经收回 `MACharacterRuntimeUseCases`。
+- `Agent/Skill` 的 `Search / Place` 现在也不再保留超大单实现文件；搜索已经拆成 `SK_Search.cpp + SK_Search.Waypoint.cpp + SK_Search.PIP.cpp`，搬运已经拆成 `SK_Place.cpp + SK_Place.Phases.cpp + SK_Place.Actions.cpp`，runtime 复杂度已落到按职责分块的状态。
+- `Agent/Navigation` 现在不再把地面导航和飞行操作策略塞在 `Runtime`；`MANavigationUseCases` 已接管 ground request、manual update、ground follow refresh、follow start lifecycle、flight follow update、takeoff/land/return-home update、navigate/cancel request state 这些纯决策，`MANavigationService` 已拆成按职责分离的多个 runtime 执行文件。
+- `Agent/CharacterRuntime` 现在不再把 direct-control、low-energy return 和 speech-bubble UI 联动塞在 `MACharacter.cpp`；状态迁移已经收回 `MACharacterRuntimeUseCases`，UI 组件细节也已收回 `MACharacterRuntimeBridge`，runtime 主壳已按 `Core / Control / Status / Sensor / Energy` 分离。
 - `Agent/Sensing` 现在不再让 `MACameraSensorComponent::ExecuteAction` 自己解析 action 参数；参数解释由 `MASensingUseCases` 承担。
 - `Agent/StateTree` 现在不再只把 begin-play 放在 `Application`；`MAStateTreeUseCases` 已接管 command task enter/tick/exit、follow tick、place enter 这些通用生命周期决策。
 - `Agent/StateTree` 的 `Charge` 任务已经把充电站解析从 task runtime 挪到 `FMAStateTreeRuntimeBridge`。
 - `Agent/Sensing` 的 stream lifecycle 已经开始拆成 `Application decision + Infrastructure bridge + Runtime host`；`MACameraSensorComponent` 不再自己处理 client accept/send。
+- `Agent/Skill` 的 movement 参数预处理已继续从单个大桶拆成 `MASkillParamsProcessor.Movement.cpp` 与 `MASkillParamsProcessor.AirOps.cpp`，运行期 `SK_Place` 也已把重复的导航/动画分支收成统一 helper。
 - `Bootstrap` 只允许被真正的入口壳或 bootstrap 层消费；`UI/*/Application/` 不再直接 include 其他 UI context 的 bootstrap。
 - 架构守卫文件是：
   - `scripts/check_interaction_architecture.py`

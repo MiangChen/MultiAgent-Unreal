@@ -1,9 +1,7 @@
 #include "Agent/Skill/Infrastructure/MASkillRuntimeBridge.h"
 
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
-#include "Core/Command/Runtime/MACommandManager.h"
-#include "Core/SceneGraph/Bootstrap/MASceneGraphBootstrap.h"
-#include "Core/SceneGraph/Runtime/MASceneGraphManager.h"
+#include "Core/Command/Domain/MACommandNames.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 
@@ -22,12 +20,7 @@ UGameInstance* FMASkillRuntimeBridge::ResolveGameInstance(const AMACharacter* Ag
     return nullptr;
 }
 
-UMASceneGraphManager* FMASkillRuntimeBridge::ResolveSceneGraphManager(const AMACharacter* Agent)
-{
-    return Agent ? FMASceneGraphBootstrap::Resolve(Agent) : nullptr;
-}
-
 FString FMASkillRuntimeBridge::DescribeCommand(const EMACommand Command)
 {
-    return UMACommandManager::CommandToString(Command);
+    return FMACommandNames::ToString(Command);
 }

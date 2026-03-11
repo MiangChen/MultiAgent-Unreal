@@ -4,6 +4,7 @@
 #include "SK_HandleHazard.h"
 #include "MAObservationSkillRuntimeHelpers.h"
 #include "Agent/Skill/Application/MASkillCompletionUseCases.h"
+#include "Agent/Skill/Infrastructure/MASkillConfigBridge.h"
 #include "../../Domain/MASkillTags.h"
 #include "../MASkillComponent.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
@@ -11,7 +12,6 @@
 #include "../../../Environment/Effect/MAWaterSpray.h"
 #include "../../../Environment/Effect/MAFire.h"
 #include "../../../Environment/IMAEnvironmentObject.h"
-#include "Core/Config/MAConfigManager.h"
 #include "TimerManager.h"
 
 USK_HandleHazard::USK_HandleHazard()
@@ -59,20 +59,15 @@ void USK_HandleHazard::FailHandleHazard(
 
 bool USK_HandleHazard::InitializeHandleHazardContext(AMACharacter& Character, UMASkillComponent& SkillComp)
 {
-    if (UGameInstance* GameInstance = Character.GetGameInstance())
-    {
-        if (UMAConfigManager* ConfigManager = GameInstance->GetSubsystem<UMAConfigManager>())
-        {
-            const FMAHandleHazardConfig& Config = ConfigManager->GetHandleHazardConfig();
-            SafeDistance = Config.SafeDistance;
-            HandleDuration = Config.Duration;
-            SpraySpeed = Config.SpraySpeed;
-            SprayWidth = Config.SprayWidth;
+    FMASkillConfigBridge::ApplyHandleHazardConfig(
+        Character,
+        SafeDistance,
+        HandleDuration,
+        SpraySpeed,
+        SprayWidth);
 
-            UE_LOG(LogTemp, Log, TEXT("[SK_HandleHazard] Loaded config: SafeDistance=%.0f, Duration=%.1f, SpraySpeed=%.0f, SprayWidth=%.0f"),
-                SafeDistance, HandleDuration, SpraySpeed, SprayWidth);
-        }
-    }
+    UE_LOG(LogTemp, Log, TEXT("[SK_HandleHazard] Loaded config: SafeDistance=%.0f, Duration=%.1f, SpraySpeed=%.0f, SprayWidth=%.0f"),
+        SafeDistance, HandleDuration, SpraySpeed, SprayWidth);
 
     const FMAFeedbackContext& Context = SkillComp.GetFeedbackContext();
     AActor* HazardActor = SkillComp.GetSkillRuntimeTargets().HazardTargetActor.Get();

@@ -35,6 +35,9 @@ public:
     FGameplayTag Command_Charge;
     FGameplayTag Command_Search;
     FGameplayTag Command_Place;
+    FGameplayTag Command_TakeOff;
+    FGameplayTag Command_Land;
+    FGameplayTag Command_ReturnHome;
     FGameplayTag Command_TakePhoto;
     FGameplayTag Command_Broadcast;
     FGameplayTag Command_HandleHazard;

@@ -4,13 +4,12 @@
 #include "SK_TakePhoto.h"
 #include "MAObservationSkillRuntimeHelpers.h"
 #include "Agent/Skill/Application/MASkillCompletionUseCases.h"
+#include "Agent/Skill/Infrastructure/MASkillConfigBridge.h"
+#include "Agent/Skill/Infrastructure/MASkillPIPCameraBridge.h"
 #include "../../Domain/MASkillTags.h"
 #include "../MASkillComponent.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
 #include "Agent/Navigation/Runtime/MANavigationService.h"
-#include "Core/Config/MAConfigManager.h"
-#include "Core/Camera/Runtime/MAPIPCameraManager.h"
-#include "Core/Camera/Domain/MAPIPCameraTypes.h"
 #include "TimerManager.h"
 
 USK_TakePhoto::USK_TakePhoto()
@@ -26,7 +25,6 @@ void USK_TakePhoto::ResetTakePhotoRuntimeState()
     bIsAircraft = false;
     MinFlightAltitude = 800.f;
     NavigationService = nullptr;
-    PIPCameraManager = nullptr;
     PIPCameraId.Invalidate();
     TargetActor.Reset();
     TargetLocation = FVector::ZeroVector;
@@ -56,20 +54,15 @@ void USK_TakePhoto::FailTakePhoto(
 
 bool USK_TakePhoto::InitializeTakePhotoContext(AMACharacter& Character, UMASkillComponent& SkillComp)
 {
-    if (UGameInstance* GameInstance = Character.GetGameInstance())
-    {
-        if (UMAConfigManager* ConfigManager = GameInstance->GetSubsystem<UMAConfigManager>())
-        {
-            const FMATakePhotoConfig& Config = ConfigManager->GetTakePhotoConfig();
-            PhotoDistance = Config.PhotoDistance;
-            PhotoDuration = Config.PhotoDuration;
-            CameraFOV = Config.CameraFOV;
-            CameraForwardOffset = Config.CameraForwardOffset;
+    FMASkillConfigBridge::ApplyTakePhotoConfig(
+        Character,
+        PhotoDistance,
+        PhotoDuration,
+        CameraFOV,
+        CameraForwardOffset);
 
-            UE_LOG(LogTemp, Log, TEXT("[SK_TakePhoto] Loaded config: PhotoDistance=%.0f, Duration=%.1f, FOV=%.0f"),
-                PhotoDistance, PhotoDuration, CameraFOV);
-        }
-    }
+    UE_LOG(LogTemp, Log, TEXT("[SK_TakePhoto] Loaded config: PhotoDistance=%.0f, Duration=%.1f, FOV=%.0f"),
+        PhotoDistance, PhotoDuration, CameraFOV);
 
     const FMASkillParams& Params = SkillComp.GetSkillParams();
     const FMAFeedbackContext& Context = SkillComp.GetFeedbackContext();
@@ -112,12 +105,7 @@ bool USK_TakePhoto::InitializeTakePhotoContext(AMACharacter& Character, UMASkill
     bIsAircraft = MAObservationSkillRuntime::IsAircraft(Character);
     MinFlightAltitude = MAObservationSkillRuntime::ResolveMinFlightAltitude(Character, MinFlightAltitude);
 
-    if (UWorld* World = Character.GetWorld())
-    {
-        PIPCameraManager = World->GetSubsystem<UMAPIPCameraManager>();
-    }
-
-    if (!PIPCameraManager)
+    if (!FMASkillPIPCameraBridge::IsAvailable(Character.GetWorld()))
     {
         UE_LOG(LogTemp, Warning, TEXT("[SK_TakePhoto] %s: PIPCameraManager not found, will create camera on demand"),
             *Character.AgentLabel);
@@ -191,7 +179,6 @@ void USK_TakePhoto::CleanupTakePhotoRuntime(
     }
 
     NavigationService = nullptr;
-    PIPCameraManager = nullptr;
     PIPCameraId.Invalidate();
     TargetActor.Reset();
     TargetLocation = FVector::ZeroVector;
@@ -439,21 +426,16 @@ void USK_TakePhoto::CreatePIPCamera()
     if (!Character || !Character->GetWorld()) return;
     
     // 获取管理器
-    if (!PIPCameraManager)
-    {
-        PIPCameraManager = Character->GetWorld()->GetSubsystem<UMAPIPCameraManager>();
-    }
-    
-    if (!PIPCameraManager)
+    if (!FMASkillPIPCameraBridge::IsAvailable(Character->GetWorld()))
     {
         UE_LOG(LogTemp, Error, TEXT("[SK_TakePhoto] PIPCameraManager not available"));
         return;
     }
     
     // 如果已有相机，先销毁
-    if (PIPCameraId.IsValid() && PIPCameraManager->DoesPIPCameraExist(PIPCameraId))
+    if (FMASkillPIPCameraBridge::DoesPIPCameraExist(Character->GetWorld(), PIPCameraId))
     {
-        PIPCameraManager->DestroyPIPCamera(PIPCameraId);
+        FMASkillPIPCameraBridge::DestroyPIPCamera(Character->GetWorld(), PIPCameraId);
     }
 
     // 计算相机位置：机器人位置 + 前方偏移
@@ -471,7 +453,7 @@ void USK_TakePhoto::CreatePIPCamera()
     CameraConfig.Resolution = FIntPoint(640, 480);
     
     // 创建画中画相机
-    PIPCameraId = PIPCameraManager->CreatePIPCamera(CameraConfig);
+    PIPCameraId = FMASkillPIPCameraBridge::CreatePIPCamera(Character->GetWorld(), CameraConfig);
     
     UE_LOG(LogTemp, Log, TEXT("[SK_TakePhoto] %s: Created PIP camera at %s, looking at %s"),
         *Character->AgentLabel, *CameraLocation.ToString(), *TargetLocation.ToString());
@@ -480,7 +462,7 @@ void USK_TakePhoto::CreatePIPCamera()
 void USK_TakePhoto::ShowPIPCamera()
 {
     AMACharacter* Character = GetOwningCharacter();
-    if (!Character || !PIPCameraManager || !PIPCameraId.IsValid()) return;
+    if (!Character || !Character->GetWorld() || !PIPCameraId.IsValid()) return;
     
     // 显示配置
     FMAPIPDisplayConfig DisplayConfig;
@@ -501,7 +483,7 @@ void USK_TakePhoto::ShowPIPCamera()
         DisplayConfig.Title = FString::Printf(TEXT("[Photo] %s"), *Character->AgentLabel);
     }
     
-    PIPCameraManager->ShowPIPCamera(PIPCameraId, DisplayConfig);
+    FMASkillPIPCameraBridge::ShowPIPCamera(Character->GetWorld(), PIPCameraId, DisplayConfig);
     
     UE_LOG(LogTemp, Log, TEXT("[SK_TakePhoto] %s: Showing PIP camera view"),
         *Character->AgentLabel);
@@ -509,19 +491,20 @@ void USK_TakePhoto::ShowPIPCamera()
 
 void USK_TakePhoto::HidePIPCamera()
 {
-    if (!PIPCameraManager || !PIPCameraId.IsValid()) return;
-    
-    PIPCameraManager->HidePIPCamera(PIPCameraId);
+    AMACharacter* Character = GetOwningCharacter();
+    if (!Character || !Character->GetWorld() || !PIPCameraId.IsValid()) return;
+
+    FMASkillPIPCameraBridge::HidePIPCamera(Character->GetWorld(), PIPCameraId);
     
     UE_LOG(LogTemp, Log, TEXT("[SK_TakePhoto] Hiding PIP camera"));
 }
 
 void USK_TakePhoto::CleanupPIPCamera()
 {
-    if (!PIPCameraManager || !PIPCameraId.IsValid()) return;
-    
-    PIPCameraManager->DestroyPIPCamera(PIPCameraId);
-    PIPCameraId.Invalidate();
+    AMACharacter* Character = GetOwningCharacter();
+    if (!Character || !Character->GetWorld() || !PIPCameraId.IsValid()) return;
+
+    FMASkillPIPCameraBridge::DestroyPIPCamera(Character->GetWorld(), PIPCameraId);
     
     UE_LOG(LogTemp, Log, TEXT("[SK_TakePhoto] Cleaned up PIP camera"));
 }

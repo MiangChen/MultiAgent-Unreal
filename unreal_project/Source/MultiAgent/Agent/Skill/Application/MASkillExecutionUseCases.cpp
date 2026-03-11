@@ -2,36 +2,11 @@
 
 #include "Agent/Skill/Application/MASkillActivationUseCases.h"
 #include "Agent/Skill/Runtime/MASkillComponent.h"
-
-namespace
-{
-FGameplayTag ExecutionCommandToTag(const EMACommand Command)
-{
-    switch (Command)
-    {
-        case EMACommand::Idle: return FGameplayTag::RequestGameplayTag(FName("Command.Idle"));
-        case EMACommand::Navigate: return FGameplayTag::RequestGameplayTag(FName("Command.Navigate"));
-        case EMACommand::Follow: return FGameplayTag::RequestGameplayTag(FName("Command.Follow"));
-        case EMACommand::Charge: return FGameplayTag::RequestGameplayTag(FName("Command.Charge"));
-        case EMACommand::Search: return FGameplayTag::RequestGameplayTag(FName("Command.Search"));
-        case EMACommand::Place: return FGameplayTag::RequestGameplayTag(FName("Command.Place"));
-        case EMACommand::TakeOff: return FGameplayTag::RequestGameplayTag(FName("Command.TakeOff"));
-        case EMACommand::Land: return FGameplayTag::RequestGameplayTag(FName("Command.Land"));
-        case EMACommand::ReturnHome: return FGameplayTag::RequestGameplayTag(FName("Command.ReturnHome"));
-        case EMACommand::TakePhoto: return FGameplayTag::RequestGameplayTag(FName("Command.TakePhoto"));
-        case EMACommand::Broadcast: return FGameplayTag::RequestGameplayTag(FName("Command.Broadcast"));
-        case EMACommand::HandleHazard: return FGameplayTag::RequestGameplayTag(FName("Command.HandleHazard"));
-        case EMACommand::Guide: return FGameplayTag::RequestGameplayTag(FName("Command.Guide"));
-        case EMACommand::None:
-        default:
-            return FGameplayTag();
-    }
-}
-}
+#include "Core/Command/Domain/MACommandTags.h"
 
 bool FMASkillExecutionUseCases::HasCommandCompleted(const UMASkillComponent& SkillComponent, const EMACommand Command)
 {
-    const FGameplayTag CommandTag = ExecutionCommandToTag(Command);
+    const FGameplayTag CommandTag = FMACommandTags::ToTag(Command);
     return !CommandTag.IsValid() || !SkillComponent.HasMatchingGameplayTag(CommandTag);
 }
 
@@ -56,12 +31,12 @@ void FMASkillExecutionUseCases::CancelCommandIfInterrupted(
 
 void FMASkillExecutionUseCases::TransitionCommandToIdle(UMASkillComponent& SkillComponent, const EMACommand Command)
 {
-    const FGameplayTag CommandTag = ExecutionCommandToTag(Command);
+    const FGameplayTag CommandTag = FMACommandTags::ToTag(Command);
     if (CommandTag.IsValid())
     {
         SkillComponent.RemoveLooseGameplayTag(CommandTag);
     }
-    SkillComponent.AddLooseGameplayTag(FGameplayTag::RequestGameplayTag(FName("Command.Idle")));
+    SkillComponent.AddLooseGameplayTag(FMACommandTags::ToTag(EMACommand::Idle));
 }
 
 EStateTreeRunStatus FMASkillExecutionUseCases::StartChargeFlow(

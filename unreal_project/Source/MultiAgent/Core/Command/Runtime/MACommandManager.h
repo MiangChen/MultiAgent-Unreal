@@ -17,7 +17,6 @@
 class AMACharacter;
 struct FMAAgentSkillCommand;
 class UMATempDataManager;
-class UMASceneGraphManager;
 
 // ========== 时间步执行反馈 ==========
 USTRUCT(BlueprintType)
@@ -130,9 +129,6 @@ private:
     
     /** 发送技能列表执行完成/中断反馈到 Python 端 */
     void SendSkillListCompletedFeedbackToPython(bool bCompleted, bool bInterrupted, int32 CompletedSteps, int32 TotalSteps);
-
-    /** 获取 SceneGraphManager */
-    UMASceneGraphManager* GetSceneGraphManager() const;
 
     /** 处理预检查失败：生成突发事件反馈，终止技能列表 */
     void HandlePrecheckFailure(AMACharacter* Agent, EMACommand Command, const FMAAgentSkillCommand* Cmd, const FMAPrecheckResult& Result);

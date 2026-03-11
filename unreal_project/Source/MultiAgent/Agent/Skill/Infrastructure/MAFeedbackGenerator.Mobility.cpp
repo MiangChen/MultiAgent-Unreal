@@ -2,7 +2,6 @@
 
 #include "Agent/Skill/Runtime/MASkillComponent.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
-#include "Core/SceneGraph/Runtime/MASceneGraphManager.h"
 
 void FMAFeedbackGenerator::GenerateNavigateFeedback(
     FMASkillExecutionFeedback& Feedback,
@@ -71,8 +70,7 @@ void FMAFeedbackGenerator::GenerateFollowFeedback(
     if (SkillComp)
     {
         const FMAFeedbackContext& Context = SkillComp->GetFeedbackContext();
-        UMASceneGraphManager* SceneGraphMgr = GetSceneGraphManager(Agent);
-        const TArray<FMASceneGraphNode> AllNodes = SceneGraphMgr ? SceneGraphMgr->GetAllNodes() : TArray<FMASceneGraphNode>();
+        const TArray<FMASceneGraphNode> AllNodes = LoadSceneGraphNodes(Agent);
 
         if (!Context.FollowTargetId.IsEmpty())
         {
@@ -171,8 +169,7 @@ void FMAFeedbackGenerator::GenerateChargeFeedback(
 
         if (!Context.ChargingStationId.IsEmpty())
         {
-            UMASceneGraphManager* SceneGraphMgr = GetSceneGraphManager(Agent);
-            const TArray<FMASceneGraphNode> AllNodes = SceneGraphMgr ? SceneGraphMgr->GetAllNodes() : TArray<FMASceneGraphNode>();
+            const TArray<FMASceneGraphNode> AllNodes = LoadSceneGraphNodes(Agent);
             MAFeedbackGeneratorInternal::AddSceneGraphNodeFields(
                 Feedback, AllNodes, TEXT("station_id"), TEXT("station_label"), Context.ChargingStationId);
         }
@@ -232,8 +229,7 @@ void FMAFeedbackGenerator::GeneratePlaceFeedback(
     if (SkillComp)
     {
         const FMAFeedbackContext& Context = SkillComp->GetFeedbackContext();
-        UMASceneGraphManager* SceneGraphMgr = GetSceneGraphManager(Agent);
-        const TArray<FMASceneGraphNode> AllNodes = SceneGraphMgr ? SceneGraphMgr->GetAllNodes() : TArray<FMASceneGraphNode>();
+        const TArray<FMASceneGraphNode> AllNodes = LoadSceneGraphNodes(Agent);
 
         MAFeedbackGeneratorInternal::AddSceneGraphNodeFields(
             Feedback,

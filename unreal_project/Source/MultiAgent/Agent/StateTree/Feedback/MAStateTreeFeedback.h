@@ -18,6 +18,12 @@ struct MULTIAGENT_API FMAStateTreeTaskExitFeedback
     bool bShouldTransitionCommandToIdle = false;
 };
 
+struct MULTIAGENT_API FMAStateTreeChargeExitFeedback
+{
+    bool bShouldCancelNavigate = false;
+    bool bShouldCancelCharge = false;
+};
+
 struct MULTIAGENT_API FMAStateTreeChargeStationFeedback
 {
     bool bFoundStation = false;

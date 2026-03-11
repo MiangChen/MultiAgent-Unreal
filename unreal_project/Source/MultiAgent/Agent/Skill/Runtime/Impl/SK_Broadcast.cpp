@@ -4,11 +4,11 @@
 #include "SK_Broadcast.h"
 #include "MAObservationSkillRuntimeHelpers.h"
 #include "Agent/Skill/Application/MASkillCompletionUseCases.h"
+#include "Agent/Skill/Infrastructure/MASkillConfigBridge.h"
 #include "../../Domain/MASkillTags.h"
 #include "../MASkillComponent.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
 #include "Agent/Navigation/Runtime/MANavigationService.h"
-#include "Core/Config/MAConfigManager.h"
 #include "../../../Environment/Effect/MAShockWave.h"
 #include "../../../Environment/Effect/MATextDisplay.h"
 #include "Components/TextRenderComponent.h"
@@ -61,21 +61,16 @@ void USK_Broadcast::FailBroadcast(
 
 bool USK_Broadcast::InitializeBroadcastContext(AMACharacter& Character, UMASkillComponent& SkillComp)
 {
-    if (UGameInstance* GameInstance = Character.GetGameInstance())
-    {
-        if (UMAConfigManager* ConfigManager = GameInstance->GetSubsystem<UMAConfigManager>())
-        {
-            const FMABroadcastConfig& Config = ConfigManager->GetBroadcastConfig();
-            BroadcastDistance = Config.BroadcastDistance;
-            BroadcastDuration = Config.BroadcastDuration;
-            EffectSpeed = Config.EffectSpeed;
-            EffectWidth = Config.EffectWidth;
-            EffectRate = Config.ShockRate;
+    FMASkillConfigBridge::ApplyBroadcastConfig(
+        Character,
+        BroadcastDistance,
+        BroadcastDuration,
+        EffectSpeed,
+        EffectWidth,
+        EffectRate);
 
-            UE_LOG(LogTemp, Log, TEXT("[SK_Broadcast] Loaded config: BroadcastDistance=%.0f, Duration=%.1f, ShockRate=%.1f"),
-                BroadcastDistance, BroadcastDuration, EffectRate);
-        }
-    }
+    UE_LOG(LogTemp, Log, TEXT("[SK_Broadcast] Loaded config: BroadcastDistance=%.0f, Duration=%.1f, ShockRate=%.1f"),
+        BroadcastDistance, BroadcastDuration, EffectRate);
 
     const FMASkillParams& Params = SkillComp.GetSkillParams();
     const FMAFeedbackContext& Context = SkillComp.GetFeedbackContext();

@@ -7,11 +7,10 @@
 #include "Dom/JsonObject.h"
 #include "Agent/Skill/Feedback/MASkillFeedbackTypes.h"
 #include "Core/Command/Domain/MACommandTypes.h"
+#include "Core/SceneGraph/Domain/MASceneGraphNodeTypes.h"
 
 class AMACharacter;
 class UMASkillComponent;
-class UMASceneGraphManager;
-struct FMASceneGraphNode;
 
 class MULTIAGENT_API FMAFeedbackGenerator
 {
@@ -43,6 +42,6 @@ private:
     static void GenerateHandleHazardFeedback(FMASkillExecutionFeedback& Feedback, AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message);
     static void GenerateGuideFeedback(FMASkillExecutionFeedback& Feedback, AMACharacter* Agent, UMASkillComponent* SkillComp, bool bSuccess, const FString& Message);
 
-    static UMASceneGraphManager* GetSceneGraphManager(AMACharacter* Agent);
+    static TArray<FMASceneGraphNode> LoadSceneGraphNodes(AMACharacter* Agent);
     static void AddCommonFieldsToFeedback(FMASkillExecutionFeedback& Feedback, UMASkillComponent* SkillComp, AMACharacter* Agent);
 };

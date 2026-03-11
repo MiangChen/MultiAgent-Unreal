@@ -2,7 +2,7 @@
 // 位置计算辅助类实现
 
 #include "MALocationUtils.h"
-#include "Core/SceneGraph/Runtime/MASceneGraphManager.h"
+#include "Core/SceneGraph/Domain/MASceneGraphNodeTypes.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMALocationUtils, Log, All);
 

@@ -4,14 +4,13 @@
 
 #include "SK_Follow.h"
 #include "Agent/Skill/Application/MASkillCompletionUseCases.h"
+#include "Agent/Skill/Infrastructure/MASkillConfigBridge.h"
+#include "Agent/Skill/Infrastructure/MASkillPIPCameraBridge.h"
 #include "../../Domain/MASkillTags.h"
 #include "../MASkillComponent.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
 #include "Agent/Navigation/Runtime/MANavigationService.h"
 #include "Core/Shared/Types/MATypes.h"
-#include "Core/Config/MAConfigManager.h"
-#include "Core/Camera/Runtime/MAPIPCameraManager.h"
-#include "Core/Camera/Domain/MAPIPCameraTypes.h"
 #include "AIController.h"
 #include "TimerManager.h"
 
@@ -53,22 +52,14 @@ void USK_Follow::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const 
     TargetActor = SkillComp->GetSkillRuntimeTargets().FollowTarget;
     FollowDistance = SkillComp->GetSkillParams().FollowDistance;
     
-    // 从 ConfigManager 加载跟随配置参数
+    // 加载 skill 配置
     if (Character)
     {
-        if (UWorld* World = Character->GetWorld())
-        {
-            if (UGameInstance* GI = World->GetGameInstance())
-            {
-                if (UMAConfigManager* ConfigMgr = GI->GetSubsystem<UMAConfigManager>())
-                {
-                    const FMAFollowConfig& FollowCfg = ConfigMgr->GetFollowConfig();
-                    FollowDistance = FollowCfg.Distance;
-                    FollowPositionTolerance = FollowCfg.PositionTolerance;
-                    ContinuousFollowTimeThreshold = FollowCfg.ContinuousTimeThreshold;
-                }
-            }
-        }
+        FMASkillConfigBridge::ApplyFollowConfig(
+            *Character,
+            FollowDistance,
+            FollowPositionTolerance,
+            ContinuousFollowTimeThreshold);
     }
     
     if (!TargetActor.IsValid())
@@ -108,7 +99,6 @@ void USK_Follow::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const 
     NavigationService->FollowActor(TargetActor.Get(), FollowDistance, NavAcceptance);
     
     // 创建画中画相机展示目标
-    PIPCameraManager = Character->GetWorld()->GetSubsystem<UMAPIPCameraManager>();
     CreateFollowPIPCamera();
     
     // 启动状态检查定时器
@@ -257,7 +247,7 @@ void USK_Follow::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGame
 void USK_Follow::CreateFollowPIPCamera()
 {
     AMACharacter* Character = GetOwningCharacter();
-    if (!Character || !PIPCameraManager || !TargetActor.IsValid()) return;
+    if (!Character || !Character->GetWorld() || !TargetActor.IsValid()) return;
 
     bool bIsFlying = NavigationService && NavigationService->bIsFlying;
     
@@ -270,20 +260,20 @@ void USK_Follow::CreateFollowPIPCamera()
     CameraConfig.Resolution = FIntPoint(640, 480);
     CameraConfig.SmoothSpeed = 3.f;  // 平滑插值，避免画面抖动
     
-    PIPCameraId = PIPCameraManager->CreatePIPCamera(CameraConfig);
+    PIPCameraId = FMASkillPIPCameraBridge::CreatePIPCamera(Character->GetWorld(), CameraConfig);
     if (!PIPCameraId.IsValid()) return;
     
     // 显示配置
     FMAPIPDisplayConfig DisplayConfig;
     DisplayConfig.Size = FVector2D(800.f, 450.f);
-    DisplayConfig.ScreenPosition = PIPCameraManager->AllocateScreenPosition(DisplayConfig.Size);  // 右上角
+    DisplayConfig.ScreenPosition = FMASkillPIPCameraBridge::AllocateScreenPosition(Character->GetWorld(), DisplayConfig.Size);  // 右上角
     DisplayConfig.bShowBorder = true;
     DisplayConfig.bShowShadow = true;
     DisplayConfig.BorderColor = FLinearColor(0.2f, 0.6f, 0.2f, 1.f);  // 绿色边框
     DisplayConfig.BorderThickness = 3.f;
     DisplayConfig.Title = FString::Printf(TEXT("[Follow] %s"), *TargetActor->GetName());
     
-    PIPCameraManager->ShowPIPCamera(PIPCameraId, DisplayConfig);
+    FMASkillPIPCameraBridge::ShowPIPCamera(Character->GetWorld(), PIPCameraId, DisplayConfig);
     
     UE_LOG(LogTemp, Log, TEXT("[SK_Follow] %s: Created PIP camera tracking %s"),
         *Character->AgentLabel, *TargetActor->GetName());
@@ -291,10 +281,9 @@ void USK_Follow::CreateFollowPIPCamera()
 
 void USK_Follow::CleanupPIPCamera()
 {
-    if (PIPCameraManager && PIPCameraId.IsValid())
+    if (AMACharacter* Character = GetOwningCharacter())
     {
-        PIPCameraManager->HidePIPCamera(PIPCameraId);
-        PIPCameraManager->DestroyPIPCamera(PIPCameraId);
-        PIPCameraId.Invalidate();
+        FMASkillPIPCameraBridge::HidePIPCamera(Character->GetWorld(), PIPCameraId);
+        FMASkillPIPCameraBridge::DestroyPIPCamera(Character->GetWorld(), PIPCameraId);
     }
 }

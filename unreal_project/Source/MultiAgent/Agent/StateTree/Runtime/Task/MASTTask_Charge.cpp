@@ -95,11 +95,15 @@ void FMASTTask_Charge::ExitState(
     
     if (UMASkillComponent* SkillComp = Owner->FindComponentByClass<UMASkillComponent>())
     {
-        const FMAStateTreeTaskExitFeedback Feedback =
-            FMAStateTreeUseCases::BuildActivatedCommandExit(Data.bIsMoving, false);
-        if (Feedback.bShouldCancelCommand)
+        const FMAStateTreeChargeExitFeedback Feedback =
+            FMAStateTreeUseCases::BuildChargeExitFeedback(Data.bIsMoving, Data.bIsCharging);
+        if (Feedback.bShouldCancelNavigate)
         {
             FMASkillExecutionUseCases::CancelCommandIfActivated(*SkillComp, EMACommand::Navigate, Data.bIsMoving);
+        }
+        if (Feedback.bShouldCancelCharge)
+        {
+            FMASkillExecutionUseCases::CancelCommandIfActivated(*SkillComp, EMACommand::Charge, Data.bIsCharging);
         }
     }
 }

@@ -2,6 +2,7 @@
 // 跟随模式相关实现
 
 #include "MANavigationService.h"
+#include "Agent/Navigation/Application/MANavigationUseCases.h"
 #include "../Infrastructure/MAFlightController.h"
 #include "AIController.h"
 #include "GameFramework/Character.h"
@@ -37,27 +38,96 @@ void UMANavigationService::HandleFollowFailure(const TCHAR* FailureReason)
     OnNavigationCompleted.Broadcast(false, FailureReason);
 }
 
-bool UMANavigationService::FollowActor(AActor* Target, float InFollowDistance, float InAcceptanceRadius)
+void UMANavigationService::InitializeFollowSession(AActor& Target, const float InFollowDistance, const float InAcceptanceRadius)
 {
-    if (!OwnerCharacter || !Target)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[MANavigationService] FollowActor failed: Invalid owner or target"));
-        return false;
-    }
-    
-    // 停止之前的导航/跟随
-    if (bIsFollowingActor) StopFollowing();
-    if (CurrentState == EMANavigationState::Navigating) CancelNavigation();
-    
-    // 初始化跟随参数
-    FollowTarget = Target;
+    FollowTarget = &Target;
     FollowDistance = InFollowDistance;
     AcceptanceRadius = InAcceptanceRadius;
     bIsFollowingActor = true;
     LastNavMeshNavigateTime = 0.f;
     LastFollowTargetPos = FVector::ZeroVector;
-    
-    // 初始化路径规划器（用于地面近距离避障）
+}
+
+void UMANavigationService::CleanupFollowSession()
+{
+    bIsFollowingActor = false;
+    FollowTarget.Reset();
+    LastFollowTargetPos = FVector::ZeroVector;
+    LastNavMeshNavigateTime = 0.f;
+
+    if (UWorld* World = OwnerCharacter ? OwnerCharacter->GetWorld() : nullptr)
+    {
+        World->GetTimerManager().ClearTimer(FollowModeTimerHandle);
+        FollowModeTimerHandle.Invalidate();
+    }
+}
+
+void UMANavigationService::RotateOwnerToward(const FVector& DesiredLocation, const float DeltaTime, const float InterpSpeed)
+{
+    if (!OwnerCharacter)
+    {
+        return;
+    }
+
+    const FVector DirToTarget = (DesiredLocation - OwnerCharacter->GetActorLocation()).GetSafeNormal2D();
+    if (DirToTarget.IsNearlyZero())
+    {
+        return;
+    }
+
+    FRotator TargetRot = DirToTarget.Rotation();
+    TargetRot.Pitch = 0.f;
+    TargetRot.Roll = 0.f;
+    const FRotator NewRot = FMath::RInterpTo(OwnerCharacter->GetActorRotation(), TargetRot, DeltaTime, InterpSpeed);
+    OwnerCharacter->SetActorRotation(NewRot);
+}
+
+void UMANavigationService::ApplyFallbackFlightFollowMovement(
+    const FVector& FollowPos,
+    const FVector& CurrentLocation,
+    const float DeltaTime)
+{
+    if (!OwnerCharacter)
+    {
+        return;
+    }
+
+    const FVector MoveDir = (FollowPos - CurrentLocation).GetSafeNormal();
+    OwnerCharacter->AddMovementInput(MoveDir, 1.0f);
+
+    if (!MoveDir.IsNearlyZero())
+    {
+        FRotator TargetRot = MoveDir.Rotation();
+        const FRotator NewRot = FMath::RInterpTo(OwnerCharacter->GetActorRotation(), TargetRot, DeltaTime, 5.f);
+        OwnerCharacter->SetActorRotation(NewRot);
+    }
+}
+
+bool UMANavigationService::FollowActor(AActor* Target, float InFollowDistance, float InAcceptanceRadius)
+{
+    const FMANavigationFollowLifecycleFeedback Feedback =
+        FMANavigationUseCases::BuildFollowStartLifecycle(
+            OwnerCharacter != nullptr,
+            Target != nullptr,
+            bIsFollowingActor,
+            CurrentState);
+    if (!Feedback.bCanStart)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[MANavigationService] %s"), *Feedback.FailureMessage);
+        return false;
+    }
+
+    if (Feedback.bShouldStopPreviousFollow)
+    {
+        StopFollowing();
+    }
+    if (Feedback.bShouldCancelActiveNavigation)
+    {
+        CancelNavigation();
+    }
+
+    InitializeFollowSession(*Target, InFollowDistance, InAcceptanceRadius);
+
     if (!bIsFlying && !PathPlanner.IsValid())
     {
         PathPlanner = MakeUnique<FMAMultiLayerRaycast>(PathPlannerConfig);
@@ -72,7 +142,7 @@ bool UMANavigationService::FollowActor(AActor* Target, float InFollowDistance, f
         }
     }
     
-    SetNavigationState(EMANavigationState::Navigating);
+    SetNavigationState(Feedback.NextState);
     StartFollowUpdateTimer();
     
     UE_LOG(LogTemp, Log, TEXT("[MANavigationService] %s: Started following %s (distance=%.0f, flying=%s)"),
@@ -83,28 +153,19 @@ bool UMANavigationService::FollowActor(AActor* Target, float InFollowDistance, f
 
 void UMANavigationService::StopFollowing()
 {
-    if (!bIsFollowingActor) return;
-    
-    bIsFollowingActor = false;
-    FollowTarget.Reset();
-    LastFollowTargetPos = FVector::ZeroVector;
-    LastNavMeshNavigateTime = 0.f;
-    
-    // 清理跟随定时器
-    if (UWorld* World = OwnerCharacter ? OwnerCharacter->GetWorld() : nullptr)
+    if (!bIsFollowingActor)
     {
-        World->GetTimerManager().ClearTimer(FollowModeTimerHandle);
-        FollowModeTimerHandle.Invalidate();
+        return;
     }
-    
-    // 停止飞行控制器
+
+    CleanupFollowSession();
+
     if (FlightController.IsValid())
     {
         FlightController->CancelFlight();
         FlightController->StopMovement();
     }
-    
-    // 停止 AIController 移动
+
     if (OwnerCharacter)
     {
         if (AAIController* AICtrl = Cast<AAIController>(OwnerCharacter->GetController()))
@@ -118,33 +179,29 @@ void UMANavigationService::StopFollowing()
 
 void UMANavigationService::UpdateFlightFollowMode(float DeltaTime)
 {
-    if (!bIsFollowingActor || !OwnerCharacter || !FollowTarget.IsValid())
+    const FVector FollowPos = CalculateFollowPosition();
+    const FVector MyLoc = OwnerCharacter ? OwnerCharacter->GetActorLocation() : FVector::ZeroVector;
+    const float DistanceToFollowPos = FVector::Dist(MyLoc, FollowPos);
+    const FMANavigationFollowUpdateFeedback Feedback =
+        FMANavigationUseCases::BuildFlightFollowUpdate(
+            bIsFollowingActor,
+            OwnerCharacter != nullptr,
+            FollowTarget.IsValid(),
+            DistanceToFollowPos,
+            AcceptanceRadius);
+
+    if (Feedback.Action == EMANavigationFollowUpdateAction::HandleLostTarget)
     {
-        HandleFollowFailure(TEXT("Follow failed: Target lost"));
+        HandleFollowFailure(*Feedback.FailureMessage);
         return;
     }
-    
-    FVector FollowPos = CalculateFollowPosition();
-    FVector MyLoc = OwnerCharacter->GetActorLocation();
-    float DistanceToFollowPos = FVector::Dist(MyLoc, FollowPos);
-    
-    // 如果已经在跟随位置附近，只做轻微调整，避免抖动
-    if (DistanceToFollowPos < AcceptanceRadius)
+
+    if (Feedback.Action == EMANavigationFollowUpdateAction::RotateOnly)
     {
-        // 在容差范围内，只更新朝向，不移动
-        FVector DirToTarget = (FollowTarget->GetActorLocation() - MyLoc).GetSafeNormal2D();
-        if (!DirToTarget.IsNearlyZero())
-        {
-            FRotator TargetRot = DirToTarget.Rotation();
-            TargetRot.Pitch = 0.f;
-            TargetRot.Roll = 0.f;
-            FRotator NewRot = FMath::RInterpTo(OwnerCharacter->GetActorRotation(), TargetRot, DeltaTime, 2.f);
-            OwnerCharacter->SetActorRotation(NewRot);
-        }
+        RotateOwnerToward(FollowTarget->GetActorLocation(), DeltaTime, 2.f);
         return;
     }
-    
-    // 使用飞行控制器
+
     if (FlightController.IsValid())
     {
         FlightController->UpdateFollowTarget(FollowPos);
@@ -152,17 +209,7 @@ void UMANavigationService::UpdateFlightFollowMode(float DeltaTime)
     }
     else
     {
-        // 回退：简单直线跟随
-        FVector MoveDir = (FollowPos - MyLoc).GetSafeNormal();
-        
-        OwnerCharacter->AddMovementInput(MoveDir, 1.0f);
-        
-        if (!MoveDir.IsNearlyZero())
-        {
-            FRotator TargetRot = MoveDir.Rotation();
-            FRotator NewRot = FMath::RInterpTo(OwnerCharacter->GetActorRotation(), TargetRot, DeltaTime, 5.f);
-            OwnerCharacter->SetActorRotation(NewRot);
-        }
+        ApplyFallbackFlightFollowMovement(FollowPos, MyLoc, DeltaTime);
     }
 }
 

@@ -11,7 +11,6 @@
 #include "SK_Search.generated.h"
 
 class UMANavigationService;
-class UMAPIPCameraManager;
 class UMASkillComponent;
 class AMACharacter;
 
@@ -108,8 +107,6 @@ private:
     FTimerHandle WaitTimerHandle;
     
     // 画中画相机
-    UPROPERTY()
-    TObjectPtr<UMAPIPCameraManager> PIPCameraManager;
     FGuid PIPCameraId;
     TArray<FRotator> PendingCameraDirections;  // 待展示的相机方向队列
     int32 CurrentPIPIndex = 0;                 // 当前展示的画中画索引

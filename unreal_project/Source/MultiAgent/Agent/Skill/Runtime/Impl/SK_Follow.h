@@ -9,7 +9,6 @@
 #include "SK_Follow.generated.h"
 
 class UMANavigationService;
-class UMAPIPCameraManager;
 
 UCLASS()
 class MULTIAGENT_API USK_Follow : public UMASkillBase
@@ -67,8 +66,6 @@ private:
     FString FollowResultMessage;
     
     // 画中画相机
-    UPROPERTY()
-    TObjectPtr<UMAPIPCameraManager> PIPCameraManager;
     FGuid PIPCameraId;
     
     void CreateFollowPIPCamera();

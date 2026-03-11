@@ -2,7 +2,7 @@
 // 拍照技能 - 多阶段实现
 // 1. 移动到安全距离
 // 2. 转向目标
-// 3. 显示相机画中画 (使用 MAPIPCameraManager)
+// 3. 显示相机画中画 (通过 Skill PIP bridge)
 // 4. 拍照完成
 
 #pragma once
@@ -12,7 +12,6 @@
 #include "SK_TakePhoto.generated.h"
 
 class UMANavigationService;
-class UMAPIPCameraManager;
 class UMASkillComponent;
 class AMACharacter;
 
@@ -99,10 +98,6 @@ private:
     
     UPROPERTY()
     TObjectPtr<UMANavigationService> NavigationService;
-
-    /** 画中画相机管理器 */
-    UPROPERTY()
-    TObjectPtr<UMAPIPCameraManager> PIPCameraManager;
 
     /** 画中画相机 ID */
     FGuid PIPCameraId;

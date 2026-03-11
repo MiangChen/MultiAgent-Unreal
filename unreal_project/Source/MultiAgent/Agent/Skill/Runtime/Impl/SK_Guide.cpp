@@ -5,11 +5,11 @@
 
 #include "SK_Guide.h"
 #include "Agent/Skill/Application/MASkillCompletionUseCases.h"
+#include "Agent/Skill/Infrastructure/MASkillConfigBridge.h"
 #include "../../Domain/MASkillTags.h"
 #include "../MASkillComponent.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
 #include "Agent/Navigation/Runtime/MANavigationService.h"
-#include "Core/Config/MAConfigManager.h"
 #include "../../../Environment/Entity/MAPerson.h"
 #include "Containers/Ticker.h"
 #include "GameFramework/Character.h"
@@ -43,26 +43,14 @@ void USK_Guide::FailGuide(const FString& Message)
 
 bool USK_Guide::InitializeGuideContext(AMACharacter& Character, UMASkillComponent& SkillComp)
 {
-    if (UWorld* World = Character.GetWorld())
-    {
-        if (UGameInstance* GI = World->GetGameInstance())
-        {
-            if (UMAConfigManager* ConfigMgr = GI->GetSubsystem<UMAConfigManager>())
-            {
-                const FMAFollowConfig& FollowCfg = ConfigMgr->GetFollowConfig();
-                FollowDistance = FollowCfg.Distance * 0.4f;
-
-                const FMAGroundNavigationConfig& GroundCfg = ConfigMgr->GetGroundNavigationConfig();
-                AcceptanceRadius = GroundCfg.AcceptanceRadius;
-
-                const FMAGuideConfig& GuideCfg = ConfigMgr->GetGuideConfig();
-                WaitDistanceThreshold = GuideCfg.WaitDistanceThreshold;
-                TargetMoveMode = GuideCfg.TargetMoveMode.Equals(TEXT("direct"), ESearchCase::IgnoreCase)
-                    ? EMAGuideTargetMoveMode::Direct
-                    : EMAGuideTargetMoveMode::NavMesh;
-            }
-        }
-    }
+    bool bUseNavMeshTargetMode = (TargetMoveMode == EMAGuideTargetMoveMode::NavMesh);
+    FMASkillConfigBridge::ApplyGuideConfig(
+        Character,
+        FollowDistance,
+        AcceptanceRadius,
+        WaitDistanceThreshold,
+        bUseNavMeshTargetMode);
+    TargetMoveMode = bUseNavMeshTargetMode ? EMAGuideTargetMoveMode::NavMesh : EMAGuideTargetMoveMode::Direct;
 
     const FMASkillParams& Params = SkillComp.GetSkillParams();
     GuideTargetActor = SkillComp.GetSkillRuntimeTargets().GuideTargetActor;

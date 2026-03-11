@@ -2,7 +2,6 @@
 
 #include "Agent/Skill/Runtime/MASkillComponent.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
-#include "Core/SceneGraph/Runtime/MASceneGraphManager.h"
 #include "Serialization/JsonSerializer.h"
 
 void FMAFeedbackGenerator::GenerateSearchFeedback(
@@ -31,8 +30,7 @@ void FMAFeedbackGenerator::GenerateSearchFeedback(
 
         if (FoundCount > 0)
         {
-            UMASceneGraphManager* SceneGraphMgr = GetSceneGraphManager(Agent);
-            const TArray<FMASceneGraphNode> AllNodes = SceneGraphMgr ? SceneGraphMgr->GetAllNodes() : TArray<FMASceneGraphNode>();
+            const TArray<FMASceneGraphNode> AllNodes = LoadSceneGraphNodes(Agent);
 
             TArray<TSharedPtr<FJsonValue>> DiscoveredNodesArray;
             TArray<TSharedPtr<FJsonValue>> FoundIdsArray;

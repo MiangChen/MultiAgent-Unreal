@@ -2,17 +2,15 @@
 // 场景图更新器 - 将 UE 场景状态同步到场景图
 
 #include "MASceneGraphUpdater.h"
-#include "MASkillRuntimeBridge.h"
+#include "MASkillSceneGraphBridge.h"
 #include "MAUESceneQuery.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
 #include "Agent/CharacterRuntime/Runtime/MAUGVCharacter.h"
 #include "../Runtime/MASkillComponent.h"
-#include "Core/Command/Runtime/MACommandManager.h"
+#include "Core/Command/Domain/MACommandTypes.h"
 #include "Core/SceneGraph/Runtime/MASceneGraphManager.h"
 #include "Core/SceneGraph/Infrastructure/Adapters/MASceneGraphRuntimeSyncAdapter.h"
 #include "Core/SceneGraph/Application/MASceneGraphRuntimeSyncUseCases.h"
-#include "Engine/GameInstance.h"
-
 DEFINE_LOG_CATEGORY_STATIC(LogMASceneGraphUpdater, Log, All);
 
 //=============================================================================
@@ -22,13 +20,12 @@ DEFINE_LOG_CATEGORY_STATIC(LogMASceneGraphUpdater, Log, All);
 UMASceneGraphManager* FMASceneGraphUpdater::GetSceneGraphManager(AMACharacter* Agent)
 {
     if (!Agent) return nullptr;
-    return FMASkillRuntimeBridge::ResolveSceneGraphManager(Agent);
+    return FMASkillSceneGraphBridge::ResolveManager(Agent);
 }
 
 UMASceneGraphManager* FMASceneGraphUpdater::GetSceneGraphManager(UWorld* World)
 {
-    UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
-    return GameInstance ? GameInstance->GetSubsystem<UMASceneGraphManager>() : nullptr;
+    return FMASkillSceneGraphBridge::ResolveManager(World);
 }
 
 void FMASceneGraphUpdater::UpdateRobotPosition(AMACharacter* Agent)
