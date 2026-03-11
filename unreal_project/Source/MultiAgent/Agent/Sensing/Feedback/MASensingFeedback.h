@@ -20,3 +20,12 @@ struct MULTIAGENT_API FMASensingActionRequest
     float FPS = 30.f;
     int32 Quality = 85;
 };
+
+struct MULTIAGENT_API FMASensingStreamFeedback
+{
+    bool bSuccess = false;
+    bool bShouldStartTimer = false;
+    bool bShouldCleanup = false;
+    float IntervalSeconds = 0.f;
+    FString Message;
+};

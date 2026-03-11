@@ -12,8 +12,6 @@
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
 #include "Modules/ModuleManager.h"
-#include "Common/TcpSocketBuilder.h"
-#include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "TimerManager.h"
 #include "RenderingThread.h"
 
@@ -158,65 +156,30 @@ TArray<uint8> UMACameraSensorComponent::GetFrameAsJPEG(int32 Quality)
 // ========== TCP 流 ==========
 bool UMACameraSensorComponent::StartTCPStream(int32 Port, float FPS)
 {
-    if (bIsStreaming)
+    const FMASensingStreamFeedback Feedback =
+        FMASensingUseCases::BuildStartStreamFeedback(bIsStreaming, FPS);
+    if (!Feedback.bSuccess)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[Camera] %s already streaming"), *SensorName);
+        UE_LOG(LogTemp, Warning, TEXT("[Camera] %s: %s"), *SensorName, *Feedback.Message);
         return false;
     }
-    
+
     StreamPort = Port;
     
     UE_LOG(LogTemp, Log, TEXT("[Camera] %s attempting to create TCP listener on port %d..."), *SensorName, Port);
-    
-    // 使用底层 Socket API
-    ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
-    if (!SocketSubsystem)
+
+    if (!FMASensingRuntimeBridge::CreateListenSocket(*this, Port))
     {
-        UE_LOG(LogTemp, Error, TEXT("[Camera] %s failed to get socket subsystem"), *SensorName);
+        UE_LOG(LogTemp, Error, TEXT("[Camera] %s failed to create/bind/listen on port %d"), *SensorName, Port);
         return false;
     }
-    
-    // 创建 TCP Socket
-    ListenSocket = SocketSubsystem->CreateSocket(NAME_Stream, TEXT("CameraStreamListener"), false);
-    if (!ListenSocket)
-    {
-        UE_LOG(LogTemp, Error, TEXT("[Camera] %s failed to create socket"), *SensorName);
-        return false;
-    }
-    
-    // 设置 Socket 选项
-    ListenSocket->SetReuseAddr(true);
-    ListenSocket->SetNonBlocking(true);
-    
-    // 绑定到端口
-    TSharedRef<FInternetAddr> Addr = SocketSubsystem->CreateInternetAddr();
-    Addr->SetAnyAddress();
-    Addr->SetPort(Port);
-    
-    if (!ListenSocket->Bind(*Addr))
-    {
-        UE_LOG(LogTemp, Error, TEXT("[Camera] %s failed to bind to port %d. Port may be in use."), *SensorName, Port);
-        SocketSubsystem->DestroySocket(ListenSocket);
-        ListenSocket = nullptr;
-        return false;
-    }
-    
-    // 开始监听
-    if (!ListenSocket->Listen(8))
-    {
-        UE_LOG(LogTemp, Error, TEXT("[Camera] %s failed to listen on port %d"), *SensorName, Port);
-        SocketSubsystem->DestroySocket(ListenSocket);
-        ListenSocket = nullptr;
-        return false;
-    }
-    
+
     bIsStreaming = true;
-    
-    const float Interval = 1.0f / FPS;
-    if (!FMASensingRuntimeBridge::StartStreamTimer(*this, StreamTimerHandle, Interval))
+
+    if (!FMASensingRuntimeBridge::StartStreamTimer(*this, StreamTimerHandle, Feedback.IntervalSeconds))
     {
         bIsStreaming = false;
-        CleanupSockets();
+        FMASensingRuntimeBridge::CleanupSockets(*this);
         UE_LOG(LogTemp, Error, TEXT("[Camera] %s failed to start stream timer"), *SensorName);
         return false;
     }
@@ -227,10 +190,15 @@ bool UMACameraSensorComponent::StartTCPStream(int32 Port, float FPS)
 
 void UMACameraSensorComponent::StopTCPStream()
 {
-    if (!bIsStreaming) return;
-    
+    const FMASensingStreamFeedback Feedback =
+        FMASensingUseCases::BuildStopStreamFeedback(bIsStreaming);
+    if (!Feedback.bShouldCleanup)
+    {
+        return;
+    }
+
     FMASensingRuntimeBridge::ClearStreamTimer(*this, StreamTimerHandle);
-    CleanupSockets();
+    FMASensingRuntimeBridge::CleanupSockets(*this);
     bIsStreaming = false;
     
     UE_LOG(LogTemp, Log, TEXT("[Camera] %s stopped TCP stream"), *SensorName);
@@ -300,24 +268,6 @@ void UMACameraSensorComponent::SendFrameToClients(const TArray<uint8>& JPEGData)
         ClientSockets.Remove(Client);
         ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->DestroySocket(Client);
         UE_LOG(LogTemp, Log, TEXT("[Camera] %s client disconnected. Remaining: %d"), *SensorName, ClientSockets.Num());
-    }
-}
-
-void UMACameraSensorComponent::CleanupSockets()
-{
-    for (FSocket* Client : ClientSockets)
-    {
-        if (Client)
-        {
-            ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->DestroySocket(Client);
-        }
-    }
-    ClientSockets.Empty();
-    
-    if (ListenSocket)
-    {
-        ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->DestroySocket(ListenSocket);
-        ListenSocket = nullptr;
     }
 }
 

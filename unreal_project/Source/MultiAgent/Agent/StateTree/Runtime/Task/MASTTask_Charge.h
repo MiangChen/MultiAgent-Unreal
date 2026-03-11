@@ -51,8 +51,4 @@ protected:
     virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
     virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const override;
     virtual void ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
-
-private:
-    // 查找最近的充电站，返回充电站指针和投影后的位置
-    class AMAChargingStation* FindNearestChargingStation(UWorld* World, const FVector& FromLocation, FVector& OutStationLocation) const;
 };

@@ -73,3 +73,30 @@ FMASensingActionRequest FMASensingUseCases::BuildActionRequest(
     Request.Message = TEXT("Unknown sensing action");
     return Request;
 }
+
+FMASensingStreamFeedback FMASensingUseCases::BuildStartStreamFeedback(const bool bIsStreaming, const float FPS)
+{
+    FMASensingStreamFeedback Feedback;
+    if (bIsStreaming)
+    {
+        Feedback.Message = TEXT("Camera stream already active");
+        return Feedback;
+    }
+
+    Feedback.bSuccess = true;
+    Feedback.bShouldStartTimer = true;
+    Feedback.IntervalSeconds = 1.0f / FPS;
+    Feedback.Message = TEXT("Camera stream ready to start");
+    return Feedback;
+}
+
+FMASensingStreamFeedback FMASensingUseCases::BuildStopStreamFeedback(const bool bIsStreaming)
+{
+    FMASensingStreamFeedback Feedback;
+    Feedback.bSuccess = true;
+    Feedback.bShouldCleanup = bIsStreaming;
+    Feedback.Message = bIsStreaming
+        ? TEXT("Camera stream ready to stop")
+        : TEXT("Camera stream already stopped");
+    return Feedback;
+}

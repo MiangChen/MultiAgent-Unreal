@@ -104,5 +104,4 @@ private:
     void OnStreamTick();
     void AcceptNewClients();
     void SendFrameToClients(const TArray<uint8>& JPEGData);
-    void CleanupSockets();
 };
