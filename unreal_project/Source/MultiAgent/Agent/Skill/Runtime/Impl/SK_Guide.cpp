@@ -20,98 +20,73 @@ USK_Guide::USK_Guide()
     ActivationOwnedTags.AddTag(FMASkillTags::Get().Status_Moving);
 }
 
-void USK_Guide::ActivateAbility(
-    const FGameplayAbilitySpecHandle Handle,
-    const FGameplayAbilityActorInfo* ActorInfo,
-    const FGameplayAbilityActivationInfo ActivationInfo,
-    const FGameplayEventData* TriggerEventData)
+void USK_Guide::ResetGuideRuntimeState()
 {
-    Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
-
-    CachedHandle = Handle;
-    CachedActivationInfo = ActivationInfo;
     bAgentArrived = false;
     bAgentWaiting = false;
     bGuideSucceeded = false;
-    GuideResultMessage = TEXT("");
+    GuideResultMessage.Reset();
+    GuideTargetActor.Reset();
+    GuideDestination = FVector::ZeroVector;
+    StartLocation = FVector::ZeroVector;
+    StartTime = 0.f;
+    NavigationService = nullptr;
+    TargetNavigationService = nullptr;
     LastTargetNavPos = FVector::ZeroVector;
+    TargetMoveSpeed = 0.f;
+}
 
-    AMACharacter* Character = GetOwningCharacter();
-    if (!Character)
-    {
-        bGuideSucceeded = false;
-        GuideResultMessage = TEXT("Guide failed: Owner character not found");
-        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-        return;
-    }
+void USK_Guide::FailGuide(const FString& Message)
+{
+    CompleteGuide(false, Message);
+}
 
-    // 从 ConfigManager 加载配置
-    if (UWorld* World = Character->GetWorld())
+bool USK_Guide::InitializeGuideContext(AMACharacter& Character, UMASkillComponent& SkillComp)
+{
+    if (UWorld* World = Character.GetWorld())
     {
         if (UGameInstance* GI = World->GetGameInstance())
         {
             if (UMAConfigManager* ConfigMgr = GI->GetSubsystem<UMAConfigManager>())
             {
-                MinFlightAltitude = ConfigMgr->GetFlightConfig().MinAltitude;
-                
                 const FMAFollowConfig& FollowCfg = ConfigMgr->GetFollowConfig();
                 FollowDistance = FollowCfg.Distance * 0.4f;
-                
+
                 const FMAGroundNavigationConfig& GroundCfg = ConfigMgr->GetGroundNavigationConfig();
                 AcceptanceRadius = GroundCfg.AcceptanceRadius;
 
-                // 加载 Guide 配置
                 const FMAGuideConfig& GuideCfg = ConfigMgr->GetGuideConfig();
                 WaitDistanceThreshold = GuideCfg.WaitDistanceThreshold;
-                if (GuideCfg.TargetMoveMode.Equals(TEXT("direct"), ESearchCase::IgnoreCase))
-                {
-                    TargetMoveMode = EMAGuideTargetMoveMode::Direct;
-                }
-                else
-                {
-                    TargetMoveMode = EMAGuideTargetMoveMode::NavMesh;
-                }
+                TargetMoveMode = GuideCfg.TargetMoveMode.Equals(TEXT("direct"), ESearchCase::IgnoreCase)
+                    ? EMAGuideTargetMoveMode::Direct
+                    : EMAGuideTargetMoveMode::NavMesh;
             }
         }
     }
 
+    const FMASkillParams& Params = SkillComp.GetSkillParams();
+    GuideTargetActor = SkillComp.GetSkillRuntimeTargets().GuideTargetActor;
+    GuideDestination = Params.GuideDestination;
 
-    // 获取引导参数
-    if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
-    {
-        const FMASkillParams& Params = SkillComp->GetSkillParams();
-        GuideTargetActor = SkillComp->GetSkillRuntimeTargets().GuideTargetActor;
-        GuideDestination = Params.GuideDestination;
-    }
-
-    // 验证参数
     if (!GuideTargetActor.IsValid())
     {
-        bGuideSucceeded = false;
-        GuideResultMessage = TEXT("Guide failed: Target not found");
-        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-        return;
+        FailGuide(TEXT("Guide failed: Target not found"));
+        return false;
     }
 
     if (GuideDestination.IsZero())
     {
-        bGuideSucceeded = false;
-        GuideResultMessage = TEXT("Guide failed: No valid destination");
-        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-        return;
+        FailGuide(TEXT("Guide failed: No valid destination"));
+        return false;
     }
 
-    // 获取机器人 NavigationService
-    NavigationService = Character->GetNavigationService();
+    NavigationService = Character.GetNavigationService();
     if (!NavigationService)
     {
-        bGuideSucceeded = false;
-        GuideResultMessage = TEXT("Guide failed: NavigationService not found");
-        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-        return;
+        FailGuide(TEXT("Guide failed: NavigationService not found"));
+        return false;
     }
 
-    // NavMesh 模式：尝试获取被引导对象的导航服务
     if (TargetMoveMode == EMAGuideTargetMoveMode::NavMesh)
     {
         TargetNavigationService = GetTargetNavigationService();
@@ -122,25 +97,19 @@ void USK_Guide::ActivateAbility(
         }
     }
 
-    // 初始化状态
-    StartTime = Character->GetWorld()->GetTimeSeconds();
-    StartLocation = Character->GetActorLocation();
-    Character->bIsMoving = true;
+    StartTime = Character.GetWorld() ? Character.GetWorld()->GetTimeSeconds() : 0.f;
+    StartLocation = Character.GetActorLocation();
+    Character.bIsMoving = true;
 
-    // 绑定导航完成回调
     NavigationService->OnNavigationCompleted.AddDynamic(this, &USK_Guide::OnAgentNavigationCompleted);
 
-    // 获取被引导对象的移动速度，让机器人匹配
     TargetMoveSpeed = GetTargetMoveSpeed();
     if (TargetMoveSpeed > 0.f && !IsFlying())
     {
         NavigationService->SetMoveSpeed(TargetMoveSpeed * 1.05f);
     }
 
-    // 启动机器人导航到目的地
     NavigationService->NavigateTo(GuideDestination, AcceptanceRadius);
-
-    // 启动 Ticker 更新引导逻辑
     TickDelegateHandle = FTSTicker::GetCoreTicker().AddTicker(
         FTickerDelegate::CreateUObject(this, &USK_Guide::TickGuide), 0.0f);
 
@@ -148,6 +117,99 @@ void USK_Guide::ActivateAbility(
         *GuideTargetActor->GetName(), GuideDestination.X, GuideDestination.Y, GuideDestination.Z,
         TargetMoveMode == EMAGuideTargetMoveMode::NavMesh ? TEXT("NavMesh") : TEXT("Direct"),
         WaitDistanceThreshold);
+    return true;
+}
+
+void USK_Guide::CompleteGuide(const bool bSuccess, const FString& Message)
+{
+    bGuideSucceeded = bSuccess;
+    GuideResultMessage = Message;
+
+    AMACharacter* Character = GetOwningCharacter();
+    if (Character)
+    {
+        Character->bIsMoving = false;
+        Character->ShowStatus(TEXT(""), 0.f);
+
+        if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
+        {
+            const float Duration = Character->GetWorld() ? (Character->GetWorld()->GetTimeSeconds() - StartTime) : 0.f;
+            FMAFeedbackContext& FeedbackCtx = SkillComp->GetFeedbackContextMutable();
+            FeedbackCtx.GuideDurationSeconds = Duration;
+        }
+    }
+
+    EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, !bSuccess);
+
+    if (Character)
+    {
+        if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
+        {
+            FMASkillCompletionUseCases::NotifyAbilityFinished(*SkillComp, EMACommand::Guide, bGuideSucceeded, GuideResultMessage);
+        }
+    }
+}
+
+void USK_Guide::CleanupGuideRuntime(AMACharacter* Character)
+{
+    if (TickDelegateHandle.IsValid())
+    {
+        FTSTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
+        TickDelegateHandle.Reset();
+    }
+
+    if (Character)
+    {
+        Character->bIsMoving = false;
+
+        if (NavigationService)
+        {
+            NavigationService->OnNavigationCompleted.RemoveDynamic(this, &USK_Guide::OnAgentNavigationCompleted);
+            NavigationService->CancelNavigation();
+            NavigationService->RestoreDefaultSpeed();
+        }
+    }
+
+    if (TargetNavigationService)
+    {
+        TargetNavigationService->CancelNavigation();
+    }
+
+    NavigationService = nullptr;
+    TargetNavigationService = nullptr;
+    LastTargetNavPos = FVector::ZeroVector;
+}
+
+void USK_Guide::ActivateAbility(
+    const FGameplayAbilitySpecHandle Handle,
+    const FGameplayAbilityActorInfo* ActorInfo,
+    const FGameplayAbilityActivationInfo ActivationInfo,
+    const FGameplayEventData* TriggerEventData)
+{
+    Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
+
+    CachedHandle = Handle;
+    CachedActivationInfo = ActivationInfo;
+    ResetGuideRuntimeState();
+
+    AMACharacter* Character = GetOwningCharacter();
+    if (!Character)
+    {
+        FailGuide(TEXT("Guide failed: Owner character not found"));
+        return;
+    }
+
+    UMASkillComponent* SkillComp = Character->GetSkillComponent();
+    if (!SkillComp)
+    {
+        FailGuide(TEXT("Guide failed: SkillComponent not found"));
+        return;
+    }
+
+    if (!InitializeGuideContext(*Character, *SkillComp))
+    {
+        return;
+    }
 }
 
 void USK_Guide::OnAgentNavigationCompleted(bool bSuccess, const FString& Message)
@@ -160,7 +222,7 @@ void USK_Guide::OnAgentNavigationCompleted(bool bSuccess, const FString& Message
     else if (!bAgentWaiting)
     {
         // 只有非等待状态下的导航失败才算真正失败
-        OnGuideComplete(false, FString::Printf(TEXT("Guide failed: %s"), *Message));
+        CompleteGuide(false, FString::Printf(TEXT("Guide failed: %s"), *Message));
     }
 }
 
@@ -169,13 +231,13 @@ bool USK_Guide::TickGuide(float DeltaTime)
     AMACharacter* Character = GetOwningCharacter();
     if (!Character)
     {
-        OnGuideComplete(false, TEXT("Guide failed: Owner character lost"));
+        CompleteGuide(false, TEXT("Guide failed: Owner character lost"));
         return false;
     }
 
     if (!GuideTargetActor.IsValid())
     {
-        OnGuideComplete(false, TEXT("Guide failed: Target lost"));
+        CompleteGuide(false, TEXT("Guide failed: Target lost"));
         return false;
     }
 
@@ -195,7 +257,7 @@ bool USK_Guide::TickGuide(float DeltaTime)
 
         if (DistanceToFollowPos < TargetAcceptanceRadius)
         {
-            OnGuideComplete(true, FString::Printf(
+            CompleteGuide(true, FString::Printf(
                 TEXT("Guide succeeded: Target guided to (%.0f, %.0f, %.0f)"),
                 GuideDestination.X, GuideDestination.Y, GuideDestination.Z));
             return false;
@@ -384,39 +446,6 @@ UMANavigationService* USK_Guide::GetTargetNavigationService() const
     return nullptr;
 }
 
-void USK_Guide::OnGuideComplete(bool bSuccess, const FString& Message)
-{
-    bGuideSucceeded = bSuccess;
-    GuideResultMessage = Message;
-
-    AMACharacter* Character = GetOwningCharacter();
-    if (Character)
-    {
-        Character->bIsMoving = false;
-        Character->ShowStatus(TEXT(""), 0.f);
-    }
-
-    if (Character)
-    {
-        if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
-        {
-            float Duration = Character->GetWorld()->GetTimeSeconds() - StartTime;
-            FMAFeedbackContext& FeedbackCtx = SkillComp->GetFeedbackContextMutable();
-            FeedbackCtx.GuideDurationSeconds = Duration;
-        }
-    }
-
-    EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, !bSuccess);
-
-    if (Character)
-    {
-        if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
-        {
-            FMASkillCompletionUseCases::NotifyAbilityFinished(*SkillComp, EMACommand::Guide, bGuideSucceeded, GuideResultMessage);
-        }
-    }
-}
-
 void USK_Guide::EndAbility(
     const FGameplayAbilitySpecHandle Handle,
     const FGameplayAbilityActorInfo* ActorInfo,
@@ -424,32 +453,8 @@ void USK_Guide::EndAbility(
     bool bReplicateEndAbility,
     bool bWasCancelled)
 {
-    if (TickDelegateHandle.IsValid())
-    {
-        FTSTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
-        TickDelegateHandle.Reset();
-    }
-
     AMACharacter* Character = GetOwningCharacter();
-    if (Character)
-    {
-        Character->bIsMoving = false;
-
-        if (NavigationService)
-        {
-            NavigationService->OnNavigationCompleted.RemoveDynamic(this, &USK_Guide::OnAgentNavigationCompleted);
-            NavigationService->CancelNavigation();
-            NavigationService->RestoreDefaultSpeed();
-        }
-    }
-
-    if (TargetNavigationService)
-    {
-        TargetNavigationService->CancelNavigation();
-    }
-
-    NavigationService = nullptr;
-    TargetNavigationService = nullptr;
+    CleanupGuideRuntime(Character);
 
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }

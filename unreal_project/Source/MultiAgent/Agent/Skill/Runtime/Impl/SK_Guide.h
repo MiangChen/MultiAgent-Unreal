@@ -9,6 +9,8 @@
 #include "SK_Guide.generated.h"
 
 class UMANavigationService;
+class UMASkillComponent;
+class AMACharacter;
 
 /** 被引导对象的移动模式 */
 UENUM(BlueprintType)
@@ -60,6 +62,12 @@ protected:
         bool bReplicateEndAbility,
         bool bWasCancelled) override;
 
+    void ResetGuideRuntimeState();
+    void FailGuide(const FString& Message);
+    bool InitializeGuideContext(AMACharacter& Character, UMASkillComponent& SkillComp);
+    void CompleteGuide(bool bSuccess, const FString& Message);
+    void CleanupGuideRuntime(AMACharacter* Character);
+
 private:
     FTSTicker::FDelegateHandle TickDelegateHandle;
     TWeakObjectPtr<AActor> GuideTargetActor;
@@ -83,7 +91,6 @@ private:
     bool bGuideSucceeded = false;
     FString GuideResultMessage;
     float TargetMoveSpeed = 0.f;
-    float MinFlightAltitude = 800.f;
 
     static constexpr float NavUpdateThreshold = 200.f;
 
@@ -98,8 +105,6 @@ private:
 
     UFUNCTION()
     void OnAgentNavigationCompleted(bool bSuccess, const FString& Message);
-
-    void OnGuideComplete(bool bSuccess, const FString& Message);
     bool IsFlying() const;
     float GetTargetMoveSpeed() const;
     UMANavigationService* GetTargetNavigationService() const;
