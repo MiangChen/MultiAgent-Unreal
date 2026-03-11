@@ -9,8 +9,43 @@
 #include "Core/SceneGraph/Application/MASceneGraphQueryUseCases.h"
 #include "Serialization/JsonSerializer.h"
 
-// 辅助宏：cm 转 m
-#define CM_TO_M(x) ((x) / 100.0f)
+namespace
+{
+float FeedbackDistanceMeters(const float DistanceCm)
+{
+    return DistanceCm / 100.0f;
+}
+
+void AddDurationSecondsField(FMASkillExecutionFeedback& Feedback, const float DurationSeconds)
+{
+    if (DurationSeconds > 0.f)
+    {
+        Feedback.Data.Add(TEXT("duration_s"), FString::Printf(TEXT("%.1f"), DurationSeconds));
+    }
+}
+
+void AddSceneGraphNodeFields(
+    FMASkillExecutionFeedback& Feedback,
+    const TArray<FMASceneGraphNode>& AllNodes,
+    const TCHAR* IdField,
+    const TCHAR* LabelField,
+    const FString& NodeId,
+    const FString& FallbackLabel = FString())
+{
+    if (!NodeId.IsEmpty())
+    {
+        Feedback.Data.Add(IdField, NodeId);
+        const FString NodeLabel = FMASceneGraphQueryUseCases::GetLabelById(AllNodes, NodeId);
+        Feedback.Data.Add(LabelField, NodeLabel.IsEmpty() ? FallbackLabel : NodeLabel);
+        return;
+    }
+
+    if (!FallbackLabel.IsEmpty())
+    {
+        Feedback.Data.Add(LabelField, FallbackLabel);
+    }
+}
+}
 
 //=============================================================================
 // 场景图节点 JSON 构建
@@ -186,7 +221,7 @@ void FMAFeedbackGenerator::GenerateNavigateFeedback(FMASkillExecutionFeedback& F
         if (!Context.NearbyLandmarkLabel.IsEmpty())
         {
             Feedback.Data.Add(TEXT("nearby_landmark_label"), Context.NearbyLandmarkLabel);
-            Feedback.Data.Add(TEXT("nearby_landmark_distance"), FString::Printf(TEXT("%.1f"), CM_TO_M(Context.NearbyLandmarkDistance)));
+            Feedback.Data.Add(TEXT("nearby_landmark_distance"), FString::Printf(TEXT("%.1f"), FeedbackDistanceMeters(Context.NearbyLandmarkDistance)));
         }
     }
     
@@ -321,34 +356,26 @@ void FMAFeedbackGenerator::GenerateFollowFeedback(FMASkillExecutionFeedback& Fee
         UMASceneGraphManager* SceneGraphMgr = GetSceneGraphManager(Agent);
         TArray<FMASceneGraphNode> AllNodes = SceneGraphMgr ? SceneGraphMgr->GetAllNodes() : TArray<FMASceneGraphNode>();
         
-        // target_id 和 target_label
         if (!Context.FollowTargetId.IsEmpty())
         {
-            Feedback.Data.Add(TEXT("target_id"), Context.FollowTargetId);
-            FString TargetLabel = FMASceneGraphQueryUseCases::GetLabelById(AllNodes, Context.FollowTargetId);
-            Feedback.Data.Add(TEXT("target_label"), TargetLabel);
+            AddSceneGraphNodeFields(Feedback, AllNodes, TEXT("target_id"), TEXT("target_label"), Context.FollowTargetId);
         }
         else if (!Context.FollowTargetName.IsEmpty())
         {
-            FString TargetId = FMASceneGraphQueryUseCases::GetIdByLabel(AllNodes, Context.FollowTargetName);
-            if (!TargetId.IsEmpty())
-            {
-                Feedback.Data.Add(TEXT("target_id"), TargetId);
-                Feedback.Data.Add(TEXT("target_label"), Context.FollowTargetName);
-            }
-            else
-            {
-                Feedback.Data.Add(TEXT("target_label"), Context.FollowTargetName);
-            }
+            AddSceneGraphNodeFields(
+                Feedback,
+                AllNodes,
+                TEXT("target_id"),
+                TEXT("target_label"),
+                FMASceneGraphQueryUseCases::GetIdByLabel(AllNodes, Context.FollowTargetName),
+                Context.FollowTargetName);
         }
         
-        // duration_s
-        if (Context.FollowDurationSeconds > 0.f)
-            Feedback.Data.Add(TEXT("duration_s"), FString::Printf(TEXT("%.1f"), Context.FollowDurationSeconds));
+        AddDurationSecondsField(Feedback, Context.FollowDurationSeconds);
         
         // distance (cm -> m)
         if (Context.FollowTargetDistance > 0.f)
-            Feedback.Data.Add(TEXT("distance"), FString::Printf(TEXT("%.1f"), CM_TO_M(Context.FollowTargetDistance)));
+            Feedback.Data.Add(TEXT("distance"), FString::Printf(TEXT("%.1f"), FeedbackDistanceMeters(Context.FollowTargetDistance)));
         
         Feedback.Data.Add(TEXT("target_found"), Context.bFollowTargetFound ? TEXT("true") : TEXT("false"));
         
@@ -375,7 +402,7 @@ void FMAFeedbackGenerator::GenerateFollowFeedback(FMASkillExecutionFeedback& Fee
         {
             if (!TargetLabel.IsEmpty() && Context.FollowTargetDistance > 0.f)
                 Feedback.Message = FString::Printf(TEXT("Follow completed: followed %s, final distance %.1fm"),
-                    *TargetLabel, CM_TO_M(Context.FollowTargetDistance));
+                    *TargetLabel, FeedbackDistanceMeters(Context.FollowTargetDistance));
             else if (!TargetLabel.IsEmpty())
                 Feedback.Message = FString::Printf(TEXT("Follow completed: followed %s"), *TargetLabel);
             else
@@ -408,9 +435,7 @@ void FMAFeedbackGenerator::GenerateChargeFeedback(FMASkillExecutionFeedback& Fee
             UMASceneGraphManager* SceneGraphMgr = GetSceneGraphManager(Agent);
             TArray<FMASceneGraphNode> AllNodes = SceneGraphMgr ? SceneGraphMgr->GetAllNodes() : TArray<FMASceneGraphNode>();
             
-            Feedback.Data.Add(TEXT("station_id"), Context.ChargingStationId);
-            FString StationLabel = FMASceneGraphQueryUseCases::GetLabelById(AllNodes, Context.ChargingStationId);
-            Feedback.Data.Add(TEXT("station_label"), StationLabel);
+            AddSceneGraphNodeFields(Feedback, AllNodes, TEXT("station_id"), TEXT("station_label"), Context.ChargingStationId);
         }
         
         Feedback.Data.Add(TEXT("station_found"), Context.bChargingStationFound ? TEXT("true") : TEXT("false"));
@@ -465,24 +490,22 @@ void FMAFeedbackGenerator::GeneratePlaceFeedback(FMASkillExecutionFeedback& Feed
         TArray<FMASceneGraphNode> AllNodes = SceneGraphMgr ? SceneGraphMgr->GetAllNodes() : TArray<FMASceneGraphNode>();
         
         // object (被放置的物品)
-        FString Object1NodeId = Context.ObjectAttributes.FindRef(TEXT("object1_node_id"));
-        if (!Object1NodeId.IsEmpty())
-        {
-            Feedback.Data.Add(TEXT("object_id"), Object1NodeId);
-            Feedback.Data.Add(TEXT("object_label"), FMASceneGraphQueryUseCases::GetLabelById(AllNodes, Object1NodeId));
-        }
-        else if (!Context.PlacedObjectName.IsEmpty())
-            Feedback.Data.Add(TEXT("object_label"), Context.PlacedObjectName);
+        AddSceneGraphNodeFields(
+            Feedback,
+            AllNodes,
+            TEXT("object_id"),
+            TEXT("object_label"),
+            Context.ObjectAttributes.FindRef(TEXT("object1_node_id")),
+            Context.PlacedObjectName);
         
         // target (放置目标)
-        FString Object2NodeId = Context.ObjectAttributes.FindRef(TEXT("object2_node_id"));
-        if (!Object2NodeId.IsEmpty())
-        {
-            Feedback.Data.Add(TEXT("target_id"), Object2NodeId);
-            Feedback.Data.Add(TEXT("target_label"), FMASceneGraphQueryUseCases::GetLabelById(AllNodes, Object2NodeId));
-        }
-        else if (!Context.PlaceTargetName.IsEmpty())
-            Feedback.Data.Add(TEXT("target_label"), Context.PlaceTargetName);
+        AddSceneGraphNodeFields(
+            Feedback,
+            AllNodes,
+            TEXT("target_id"),
+            TEXT("target_label"),
+            Context.ObjectAttributes.FindRef(TEXT("object2_node_id")),
+            Context.PlaceTargetName);
         
         if (!Context.PlaceFinalLocation.IsZero())
             Feedback.Data.Add(TEXT("final_location"), FString::Printf(TEXT("(%.1f, %.1f, %.1f)"), 
@@ -532,13 +555,13 @@ void FMAFeedbackGenerator::GenerateTakeOffFeedback(FMASkillExecutionFeedback& Fe
         const FMASkillParams& Params = SkillComp->GetSkillParams();
         const FMAFeedbackContext& Context = SkillComp->GetFeedbackContext();
         
-        Feedback.Data.Add(TEXT("target_height"), FString::Printf(TEXT("%.1f"), CM_TO_M(Params.TakeOffHeight)));
+        Feedback.Data.Add(TEXT("target_height"), FString::Printf(TEXT("%.1f"), FeedbackDistanceMeters(Params.TakeOffHeight)));
         Feedback.Data.Add(TEXT("height_adjusted"), Context.bTakeOffHeightAdjusted ? TEXT("true") : TEXT("false"));
         
         if (!Context.TakeOffNearbyBuildingLabel.IsEmpty())
         {
             Feedback.Data.Add(TEXT("nearby_building_label"), Context.TakeOffNearbyBuildingLabel);
-            Feedback.Data.Add(TEXT("nearby_building_height"), FString::Printf(TEXT("%.1f"), CM_TO_M(Context.TakeOffNearbyBuildingHeight)));
+            Feedback.Data.Add(TEXT("nearby_building_height"), FString::Printf(TEXT("%.1f"), FeedbackDistanceMeters(Context.TakeOffNearbyBuildingHeight)));
         }
     }
     
@@ -553,9 +576,9 @@ void FMAFeedbackGenerator::GenerateTakeOffFeedback(FMASkillExecutionFeedback& Fe
         {
             if (Context.bTakeOffHeightAdjusted && !Context.TakeOffNearbyBuildingLabel.IsEmpty())
                 Feedback.Message = FString::Printf(TEXT("TakeOff completed at height %.0fm (adjusted above %s)"),
-                    CM_TO_M(Params.TakeOffHeight), *Context.TakeOffNearbyBuildingLabel);
+                    FeedbackDistanceMeters(Params.TakeOffHeight), *Context.TakeOffNearbyBuildingLabel);
             else
-                Feedback.Message = FString::Printf(TEXT("TakeOff completed at height %.0fm"), CM_TO_M(Params.TakeOffHeight));
+                Feedback.Message = FString::Printf(TEXT("TakeOff completed at height %.0fm"), FeedbackDistanceMeters(Params.TakeOffHeight));
         }
         else
             Feedback.Message = TEXT("TakeOff failed");
@@ -672,13 +695,13 @@ void FMAFeedbackGenerator::GenerateTakePhotoFeedback(FMASkillExecutionFeedback& 
         
         if (Context.bPhotoTargetFound)
         {
-            if (!Context.PhotoTargetId.IsEmpty())
-            {
-                Feedback.Data.Add(TEXT("target_id"), Context.PhotoTargetId);
-                Feedback.Data.Add(TEXT("target_label"), FMASceneGraphQueryUseCases::GetLabelById(AllNodes, Context.PhotoTargetId));
-            }
-            else if (!Context.PhotoTargetName.IsEmpty())
-                Feedback.Data.Add(TEXT("target_label"), Context.PhotoTargetName);
+            AddSceneGraphNodeFields(
+                Feedback,
+                AllNodes,
+                TEXT("target_id"),
+                TEXT("target_label"),
+                Context.PhotoTargetId,
+                Context.PhotoTargetName);
             
             if (Context.PhotoRobotTargetDistance >= 0.f)
                 Feedback.Data.Add(TEXT("robot_target_distance"), FString::Printf(TEXT("%.2f"), Context.PhotoRobotTargetDistance));
@@ -731,8 +754,7 @@ void FMAFeedbackGenerator::GenerateBroadcastFeedback(FMASkillExecutionFeedback& 
         if (Context.BroadcastRobotTargetDistance >= 0.f)
             Feedback.Data.Add(TEXT("robot_target_distance"), FString::Printf(TEXT("%.2f"), Context.BroadcastRobotTargetDistance));
         
-        if (Context.BroadcastDurationSeconds > 0.f)
-            Feedback.Data.Add(TEXT("duration_s"), FString::Printf(TEXT("%.1f"), Context.BroadcastDurationSeconds));
+        AddDurationSecondsField(Feedback, Context.BroadcastDurationSeconds);
     }
     
     Feedback.Message = Message.IsEmpty() ? (bSuccess ? TEXT("Broadcast succeeded") : TEXT("Broadcast failed")) : Message;
@@ -756,17 +778,16 @@ void FMAFeedbackGenerator::GenerateHandleHazardFeedback(FMASkillExecutionFeedbac
         
         if (Context.bHazardTargetFound)
         {
-            if (!Context.HazardTargetId.IsEmpty())
-            {
-                Feedback.Data.Add(TEXT("target_id"), Context.HazardTargetId);
-                Feedback.Data.Add(TEXT("target_label"), FMASceneGraphQueryUseCases::GetLabelById(AllNodes, Context.HazardTargetId));
-            }
-            else if (!Context.HazardTargetName.IsEmpty())
-                Feedback.Data.Add(TEXT("target_label"), Context.HazardTargetName);
+            AddSceneGraphNodeFields(
+                Feedback,
+                AllNodes,
+                TEXT("target_id"),
+                TEXT("target_label"),
+                Context.HazardTargetId,
+                Context.HazardTargetName);
         }
         
-        if (Context.HazardHandleDurationSeconds > 0.f)
-            Feedback.Data.Add(TEXT("duration_s"), FString::Printf(TEXT("%.1f"), Context.HazardHandleDurationSeconds));
+        AddDurationSecondsField(Feedback, Context.HazardHandleDurationSeconds);
     }
     
     Feedback.Message = Message.IsEmpty() ? (bSuccess ? TEXT("Hazard handled successfully") : TEXT("Hazard handling failed")) : Message;
@@ -790,21 +811,20 @@ void FMAFeedbackGenerator::GenerateGuideFeedback(FMASkillExecutionFeedback& Feed
         
         if (Context.bGuideTargetFound)
         {
-            if (!Context.GuideTargetId.IsEmpty())
-            {
-                Feedback.Data.Add(TEXT("target_id"), Context.GuideTargetId);
-                Feedback.Data.Add(TEXT("target_label"), FMASceneGraphQueryUseCases::GetLabelById(AllNodes, Context.GuideTargetId));
-            }
-            else if (!Context.GuideTargetName.IsEmpty())
-                Feedback.Data.Add(TEXT("target_label"), Context.GuideTargetName);
+            AddSceneGraphNodeFields(
+                Feedback,
+                AllNodes,
+                TEXT("target_id"),
+                TEXT("target_label"),
+                Context.GuideTargetId,
+                Context.GuideTargetName);
         }
         
         if (!Context.GuideDestination.IsZero())
             Feedback.Data.Add(TEXT("destination"), FString::Printf(TEXT("(%.1f, %.1f, %.1f)"), 
                 Context.GuideDestination.X, Context.GuideDestination.Y, Context.GuideDestination.Z));
         
-        if (Context.GuideDurationSeconds > 0.f)
-            Feedback.Data.Add(TEXT("duration_s"), FString::Printf(TEXT("%.1f"), Context.GuideDurationSeconds));
+        AddDurationSecondsField(Feedback, Context.GuideDurationSeconds);
     }
     
     if (!Message.IsEmpty())

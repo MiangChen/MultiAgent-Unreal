@@ -10,6 +10,14 @@ enum class ESearchMode : uint8
     Patrol UMETA(DisplayName = "Patrol")
 };
 
+UENUM(BlueprintType)
+enum class EPlaceMode : uint8
+{
+    LoadToUGV UMETA(DisplayName = "Load To UGV"),
+    UnloadToGround UMETA(DisplayName = "Unload To Ground"),
+    StackOnObject UMETA(DisplayName = "Stack On Object")
+};
+
 USTRUCT(BlueprintType)
 struct FMASemanticTarget
 {

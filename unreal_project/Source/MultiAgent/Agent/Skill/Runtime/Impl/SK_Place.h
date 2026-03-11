@@ -5,6 +5,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "../../Domain/MASkillTypes.h"
 #include "../MASkillBase.h"
 #include "SK_Place.generated.h"
 
@@ -12,15 +13,6 @@ class IMAPickupItem;
 class AMAUGVCharacter;
 class AMAHumanoidCharacter;
 class UMANavigationService;
-
-// Place 操作模式
-UENUM(BlueprintType)
-enum class EPlaceMode : uint8
-{
-    LoadToUGV,        // 装货到 UGV
-    UnloadToGround,   // 从 UGV 卸货到地面
-    StackOnObject     // 堆叠到另一个物体
-};
 
 // Place 执行阶段（扩展状态机）
 UENUM(BlueprintType)

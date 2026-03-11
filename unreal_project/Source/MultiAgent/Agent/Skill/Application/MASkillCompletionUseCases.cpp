@@ -6,7 +6,7 @@
 
 namespace
 {
-FGameplayTag CommandToTag(const EMACommand Command)
+FGameplayTag CompletionCommandToTag(const EMACommand Command)
 {
     switch (Command)
     {
@@ -37,7 +37,7 @@ bool FMASkillCompletionUseCases::NotifyAbilityFinished(
     const FString& Message,
     const bool bSwitchToIdle)
 {
-    const FGameplayTag CommandTag = CommandToTag(Command);
+    const FGameplayTag CommandTag = CompletionCommandToTag(Command);
     if (CommandTag.IsValid())
     {
         if (!SkillComponent.HasMatchingGameplayTag(CommandTag))

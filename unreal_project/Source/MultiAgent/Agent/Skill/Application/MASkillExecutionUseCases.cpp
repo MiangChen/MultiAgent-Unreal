@@ -5,7 +5,7 @@
 
 namespace
 {
-FGameplayTag CommandToTag(const EMACommand Command)
+FGameplayTag ExecutionCommandToTag(const EMACommand Command)
 {
     switch (Command)
     {
@@ -31,7 +31,7 @@ FGameplayTag CommandToTag(const EMACommand Command)
 
 bool FMASkillExecutionUseCases::HasCommandCompleted(const UMASkillComponent& SkillComponent, const EMACommand Command)
 {
-    const FGameplayTag CommandTag = CommandToTag(Command);
+    const FGameplayTag CommandTag = ExecutionCommandToTag(Command);
     return !CommandTag.IsValid() || !SkillComponent.HasMatchingGameplayTag(CommandTag);
 }
 
@@ -56,7 +56,7 @@ void FMASkillExecutionUseCases::CancelCommandIfInterrupted(
 
 void FMASkillExecutionUseCases::TransitionCommandToIdle(UMASkillComponent& SkillComponent, const EMACommand Command)
 {
-    const FGameplayTag CommandTag = CommandToTag(Command);
+    const FGameplayTag CommandTag = ExecutionCommandToTag(Command);
     if (CommandTag.IsValid())
     {
         SkillComponent.RemoveLooseGameplayTag(CommandTag);
