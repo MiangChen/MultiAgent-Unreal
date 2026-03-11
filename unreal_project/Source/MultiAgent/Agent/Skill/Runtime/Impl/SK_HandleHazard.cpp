@@ -2,11 +2,11 @@
 // 处理危险技能实现
 
 #include "SK_HandleHazard.h"
+#include "MAObservationSkillRuntimeHelpers.h"
 #include "Agent/Skill/Application/MASkillCompletionUseCases.h"
 #include "../../Domain/MASkillTags.h"
 #include "../MASkillComponent.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
-#include "Agent/CharacterRuntime/Runtime/MAUAVCharacter.h"
 #include "Agent/Navigation/Runtime/MANavigationService.h"
 #include "../../../Environment/Effect/MAWaterSpray.h"
 #include "../../../Environment/Effect/MAFire.h"
@@ -140,16 +140,8 @@ bool USK_HandleHazard::InitializeHandleHazardContext(AMACharacter& Character, UM
         return false;
     }
 
-    bIsAircraft = (Character.AgentType == EMAAgentType::UAV ||
-                   Character.AgentType == EMAAgentType::FixedWingUAV);
-
-    if (bIsAircraft)
-    {
-        if (AMAUAVCharacter* UAV = Cast<AMAUAVCharacter>(&Character))
-        {
-            MinFlightAltitude = UAV->MinFlightAltitude;
-        }
-    }
+    bIsAircraft = MAObservationSkillRuntime::IsAircraft(Character);
+    MinFlightAltitude = MAObservationSkillRuntime::ResolveMinFlightAltitude(Character, MinFlightAltitude);
 
     const float HorizontalDistance = FVector::Dist2D(Character.GetActorLocation(), TargetLocation);
     UE_LOG(LogTemp, Log, TEXT("[SK_HandleHazard] %s: HorizontalDistance=%.0f, SafeDistance=%.0f, IsAircraft=%s"),
@@ -423,12 +415,10 @@ void USK_HandleHazard::OnTurnTick()
 
     const float DeltaTime = World->GetDeltaSeconds();
     
-    // 计算目标朝向（只考虑水平方向）
-    FVector DirectionToTarget = TargetLocation - Character->GetActorLocation();
-    DirectionToTarget.Z = 0.f;
-    DirectionToTarget = DirectionToTarget.GetSafeNormal();
-    
-    if (DirectionToTarget.IsNearlyZero())
+    const MAObservationSkillRuntime::FTurnTowardTargetResult TurnResult =
+        MAObservationSkillRuntime::StepTurnTowardTarget(*Character, TargetLocation, DeltaTime);
+
+    if (TurnResult.bReachedTargetYaw && TurnResult.YawDiff <= KINDA_SMALL_NUMBER)
     {
         // 已经在目标位置，直接开始喷水
         World->GetTimerManager().ClearTimer(TurnTimerHandle);
@@ -436,22 +426,11 @@ void USK_HandleHazard::OnTurnTick()
         UpdatePhase();
         return;
     }
-    
-    FRotator CurrentRotation = Character->GetActorRotation();
-    FRotator TargetRotation = DirectionToTarget.Rotation();
-    TargetRotation.Pitch = 0.f;
-    TargetRotation.Roll = 0.f;
-    
-    // 平滑插值转向
-    FRotator NewRotation = FMath::RInterpTo(CurrentRotation, TargetRotation, DeltaTime, 5.f);
-    Character->SetActorRotation(NewRotation);
-    
-    // 检查是否已经对准目标（角度差小于5度）
-    float YawDiff = FMath::Abs(FMath::FindDeltaAngleDegrees(NewRotation.Yaw, TargetRotation.Yaw));
-    if (YawDiff < 5.f)
+
+    if (TurnResult.bReachedTargetYaw)
     {
         UE_LOG(LogTemp, Log, TEXT("[SK_HandleHazard] %s: Turn complete, YawDiff=%.1f"),
-            *Character->AgentLabel, YawDiff);
+            *Character->AgentLabel, TurnResult.YawDiff);
 
         World->GetTimerManager().ClearTimer(TurnTimerHandle);
         CurrentPhase = EHandleHazardPhase::StartSpray;
@@ -545,34 +524,19 @@ void USK_HandleHazard::HandleComplete()
 
 FVector USK_HandleHazard::CalculateSafePosition() const
 {
-    AMACharacter* Character = GetOwningCharacter();
+    const AMACharacter* Character = GetOwningCharacter();
     if (!Character) return TargetLocation;
 
-    FVector RobotLocation = Character->GetActorLocation();
-    
+    const FVector SafePos = MAObservationSkillRuntime::CalculateStandOffPosition(
+        *Character, TargetLocation, SafeDistance, bIsAircraft, MinFlightAltitude);
+
     if (bIsAircraft)
     {
-        // 飞行机器人：计算水平方向的安全位置，保持当前高度或最小飞行高度
-        FVector HorizontalDirection = (TargetLocation - RobotLocation);
-        HorizontalDirection.Z = 0.f;
-        HorizontalDirection = HorizontalDirection.GetSafeNormal();
-        
-        FVector SafePos = TargetLocation - HorizontalDirection * SafeDistance;
-        
-        // 确保高度不低于最小飞行高度
-        SafePos.Z = FMath::Max(RobotLocation.Z, MinFlightAltitude);
-        
         UE_LOG(LogTemp, Log, TEXT("[SK_HandleHazard] Aircraft safe position: %s (MinAltitude=%.0f)"),
             *SafePos.ToString(), MinFlightAltitude);
-        
-        return SafePos;
     }
-    else
-    {
-        // 地面机器人：沿水平方向后退到安全距离
-        FVector Direction = (TargetLocation - RobotLocation).GetSafeNormal();
-        return TargetLocation - Direction * SafeDistance;
-    }
+
+    return SafePos;
 }
 
 void USK_HandleHazard::SpawnWaterSpray()

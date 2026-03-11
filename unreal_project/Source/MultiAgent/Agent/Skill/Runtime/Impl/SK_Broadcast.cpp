@@ -2,11 +2,11 @@
 // 喊话技能 - 多阶段实现
 
 #include "SK_Broadcast.h"
+#include "MAObservationSkillRuntimeHelpers.h"
 #include "Agent/Skill/Application/MASkillCompletionUseCases.h"
 #include "../../Domain/MASkillTags.h"
 #include "../MASkillComponent.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
-#include "Agent/CharacterRuntime/Runtime/MAUAVCharacter.h"
 #include "Agent/Navigation/Runtime/MANavigationService.h"
 #include "Core/Config/MAConfigManager.h"
 #include "../../../Environment/Effect/MAShockWave.h"
@@ -114,16 +114,8 @@ bool USK_Broadcast::InitializeBroadcastContext(AMACharacter& Character, UMASkill
         return false;
     }
 
-    bIsAircraft = (Character.AgentType == EMAAgentType::UAV ||
-                   Character.AgentType == EMAAgentType::FixedWingUAV);
-
-    if (bIsAircraft)
-    {
-        if (AMAUAVCharacter* UAV = Cast<AMAUAVCharacter>(&Character))
-        {
-            MinFlightAltitude = UAV->MinFlightAltitude;
-        }
-    }
+    bIsAircraft = MAObservationSkillRuntime::IsAircraft(Character);
+    MinFlightAltitude = MAObservationSkillRuntime::ResolveMinFlightAltitude(Character, MinFlightAltitude);
 
     const float HorizontalDistance = FVector::Dist2D(Character.GetActorLocation(), TargetLocation);
     UE_LOG(LogTemp, Log, TEXT("[SK_Broadcast] %s: HorizontalDistance=%.0f, BroadcastDistance=%.0f"),
@@ -351,34 +343,21 @@ void USK_Broadcast::OnTurnTick()
 
     const float DeltaTime = World->GetDeltaSeconds();
     
-    // 计算目标朝向（只考虑水平方向）
-    FVector DirectionToTarget = TargetLocation - Character->GetActorLocation();
-    DirectionToTarget.Z = 0.f;
-    DirectionToTarget = DirectionToTarget.GetSafeNormal();
-    
-    if (DirectionToTarget.IsNearlyZero())
+    const MAObservationSkillRuntime::FTurnTowardTargetResult TurnResult =
+        MAObservationSkillRuntime::StepTurnTowardTarget(*Character, TargetLocation, DeltaTime);
+
+    if (TurnResult.bReachedTargetYaw && TurnResult.YawDiff <= KINDA_SMALL_NUMBER)
     {
         World->GetTimerManager().ClearTimer(TurnTimerHandle);
         CurrentPhase = EBroadcastPhase::Broadcasting;
         UpdatePhase();
         return;
     }
-    
-    FRotator CurrentRotation = Character->GetActorRotation();
-    FRotator TargetRotation = DirectionToTarget.Rotation();
-    TargetRotation.Pitch = 0.f;
-    TargetRotation.Roll = 0.f;
-    
-    // 平滑插值转向
-    FRotator NewRotation = FMath::RInterpTo(CurrentRotation, TargetRotation, DeltaTime, 5.f);
-    Character->SetActorRotation(NewRotation);
-    
-    // 检查是否已经对准目标（角度差小于5度）
-    float YawDiff = FMath::Abs(FMath::FindDeltaAngleDegrees(NewRotation.Yaw, TargetRotation.Yaw));
-    if (YawDiff < 5.f)
+
+    if (TurnResult.bReachedTargetYaw)
     {
         UE_LOG(LogTemp, Log, TEXT("[SK_Broadcast] %s: Turn complete, YawDiff=%.1f"),
-            *Character->AgentLabel, YawDiff);
+            *Character->AgentLabel, TurnResult.YawDiff);
 
         World->GetTimerManager().ClearTimer(TurnTimerHandle);
         CurrentPhase = EBroadcastPhase::Broadcasting;
@@ -464,34 +443,19 @@ void USK_Broadcast::HandleComplete()
 
 FVector USK_Broadcast::CalculateBroadcastPosition() const
 {
-    AMACharacter* Character = const_cast<USK_Broadcast*>(this)->GetOwningCharacter();
+    const AMACharacter* Character = GetOwningCharacter();
     if (!Character) return TargetLocation;
 
-    FVector RobotLocation = Character->GetActorLocation();
-    
+    const FVector BroadcastPos = MAObservationSkillRuntime::CalculateStandOffPosition(
+        *Character, TargetLocation, BroadcastDistance, bIsAircraft, MinFlightAltitude);
+
     if (bIsAircraft)
     {
-        // 飞行机器人：计算水平方向的喊话位置，保持当前高度或最小飞行高度
-        FVector HorizontalDirection = (TargetLocation - RobotLocation);
-        HorizontalDirection.Z = 0.f;
-        HorizontalDirection = HorizontalDirection.GetSafeNormal();
-        
-        FVector BroadcastPos = TargetLocation - HorizontalDirection * BroadcastDistance;
-        
-        // 确保高度不低于最小飞行高度
-        BroadcastPos.Z = FMath::Max(RobotLocation.Z, MinFlightAltitude);
-        
         UE_LOG(LogTemp, Log, TEXT("[SK_Broadcast] Aircraft broadcast position: %s (MinAltitude=%.0f)"),
             *BroadcastPos.ToString(), MinFlightAltitude);
-        
-        return BroadcastPos;
     }
-    else
-    {
-        // 地面机器人：沿水平方向后退到喊话距离
-        FVector Direction = (TargetLocation - RobotLocation).GetSafeNormal();
-        return TargetLocation - Direction * BroadcastDistance;
-    }
+
+    return BroadcastPos;
 }
 
 void USK_Broadcast::SpawnBroadcastEffect()

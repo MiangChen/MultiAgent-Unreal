@@ -2,11 +2,11 @@
 // 拍照技能 - 多阶段实现
 
 #include "SK_TakePhoto.h"
+#include "MAObservationSkillRuntimeHelpers.h"
 #include "Agent/Skill/Application/MASkillCompletionUseCases.h"
 #include "../../Domain/MASkillTags.h"
 #include "../MASkillComponent.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
-#include "Agent/CharacterRuntime/Runtime/MAUAVCharacter.h"
 #include "Agent/Navigation/Runtime/MANavigationService.h"
 #include "Core/Config/MAConfigManager.h"
 #include "Core/Camera/Runtime/MAPIPCameraManager.h"
@@ -109,16 +109,8 @@ bool USK_TakePhoto::InitializeTakePhotoContext(AMACharacter& Character, UMASkill
         return false;
     }
 
-    bIsAircraft = (Character.AgentType == EMAAgentType::UAV ||
-                   Character.AgentType == EMAAgentType::FixedWingUAV);
-
-    if (bIsAircraft)
-    {
-        if (AMAUAVCharacter* UAV = Cast<AMAUAVCharacter>(&Character))
-        {
-            MinFlightAltitude = UAV->MinFlightAltitude;
-        }
-    }
+    bIsAircraft = MAObservationSkillRuntime::IsAircraft(Character);
+    MinFlightAltitude = MAObservationSkillRuntime::ResolveMinFlightAltitude(Character, MinFlightAltitude);
 
     if (UWorld* World = Character.GetWorld())
     {
@@ -349,34 +341,21 @@ void USK_TakePhoto::OnTurnTick()
 
     const float DeltaTime = World->GetDeltaSeconds();
     
-    // 计算目标朝向（只考虑水平方向）
-    FVector DirectionToTarget = TargetLocation - Character->GetActorLocation();
-    DirectionToTarget.Z = 0.f;
-    DirectionToTarget = DirectionToTarget.GetSafeNormal();
-    
-    if (DirectionToTarget.IsNearlyZero())
+    const MAObservationSkillRuntime::FTurnTowardTargetResult TurnResult =
+        MAObservationSkillRuntime::StepTurnTowardTarget(*Character, TargetLocation, DeltaTime);
+
+    if (TurnResult.bReachedTargetYaw && TurnResult.YawDiff <= KINDA_SMALL_NUMBER)
     {
         World->GetTimerManager().ClearTimer(TurnTimerHandle);
         CurrentPhase = ETakePhotoPhase::TakePhoto;
         UpdatePhase();
         return;
     }
-    
-    FRotator CurrentRotation = Character->GetActorRotation();
-    FRotator TargetRotation = DirectionToTarget.Rotation();
-    TargetRotation.Pitch = 0.f;
-    TargetRotation.Roll = 0.f;
-    
-    // 平滑插值转向
-    FRotator NewRotation = FMath::RInterpTo(CurrentRotation, TargetRotation, DeltaTime, 5.f);
-    Character->SetActorRotation(NewRotation);
-    
-    // 检查是否已经对准目标（角度差小于5度）
-    float YawDiff = FMath::Abs(FMath::FindDeltaAngleDegrees(NewRotation.Yaw, TargetRotation.Yaw));
-    if (YawDiff < 5.f)
+
+    if (TurnResult.bReachedTargetYaw)
     {
         UE_LOG(LogTemp, Log, TEXT("[SK_TakePhoto] %s: Turn complete, YawDiff=%.1f"),
-            *Character->AgentLabel, YawDiff);
+            *Character->AgentLabel, TurnResult.YawDiff);
 
         World->GetTimerManager().ClearTimer(TurnTimerHandle);
         CurrentPhase = ETakePhotoPhase::TakePhoto;
@@ -439,34 +418,19 @@ void USK_TakePhoto::HandleComplete()
 
 FVector USK_TakePhoto::CalculatePhotoPosition() const
 {
-    AMACharacter* Character = const_cast<USK_TakePhoto*>(this)->GetOwningCharacter();
+    const AMACharacter* Character = GetOwningCharacter();
     if (!Character) return TargetLocation;
 
-    FVector RobotLocation = Character->GetActorLocation();
-    
+    const FVector PhotoPos = MAObservationSkillRuntime::CalculateStandOffPosition(
+        *Character, TargetLocation, PhotoDistance, bIsAircraft, MinFlightAltitude);
+
     if (bIsAircraft)
     {
-        // 飞行机器人：计算水平方向的拍照位置，保持当前高度或最小飞行高度
-        FVector HorizontalDirection = (TargetLocation - RobotLocation);
-        HorizontalDirection.Z = 0.f;
-        HorizontalDirection = HorizontalDirection.GetSafeNormal();
-        
-        FVector PhotoPos = TargetLocation - HorizontalDirection * PhotoDistance;
-        
-        // 确保高度不低于最小飞行高度
-        PhotoPos.Z = FMath::Max(RobotLocation.Z, MinFlightAltitude);
-        
         UE_LOG(LogTemp, Log, TEXT("[SK_TakePhoto] Aircraft photo position: %s (MinAltitude=%.0f)"),
             *PhotoPos.ToString(), MinFlightAltitude);
-        
-        return PhotoPos;
     }
-    else
-    {
-        // 地面机器人：沿水平方向后退到拍照距离
-        FVector Direction = (TargetLocation - RobotLocation).GetSafeNormal();
-        return TargetLocation - Direction * PhotoDistance;
-    }
+
+    return PhotoPos;
 }
 
 void USK_TakePhoto::CreatePIPCamera()
