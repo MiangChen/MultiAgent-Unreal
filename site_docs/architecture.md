@@ -62,6 +62,8 @@ flowchart LR
 - `Agent` 现在按 `CharacterRuntime / Navigation / Sensing / Skill / StateTree` 五个 context 收口，使用与 `Core/UI` 同一套层语义，但不包含 `Presentation/`。
 - `Agent/Skill` 进一步收紧为 `Activation / Execution / Completion -> RuntimeGateway -> RuntimeHost`，Application 不再直接认识 `UMASkillComponent` 的 handle/prepare 细节。
 - `Agent/Navigation` 现在开始把地面导航、manual fallback、ground follow 的纯决策收回 `Application`，`Runtime` 主要负责驱动 NavMesh、FlightController 和 Character movement。
+- `Agent/CharacterRuntime` 现在开始把 direct-control 状态迁移和 low-energy return 的暂停/恢复决策收回 `Application`，`Runtime` 只负责角色、技能和 UI 组件联动。
+- `Agent/Sensing` 现在开始把 action request 的参数解释收回 `Application`，`Runtime` 只负责 camera capture、socket stream 和具体执行。
 - `TaskGraph`、`SkillAllocation` 属于轻量 context：没有专属 `Runtime/`，运行时持久化与传输仍由 `TempData / Comm` 承担。
 - `Interaction` 也是轻量 context：没有专属 `Runtime/`，它负责编排其他 runtime context。
 
@@ -245,6 +247,8 @@ flowchart LR
 - `UI` 现在也已经完成同样的 context 化与 layer 化；剩余 runtime 边界只保留在刻意允许的入口壳，例如 `AMAHUD`、`AMASelectionHUD`。
 - `Agent/Skill` 现在已经从“兼容包装壳”推进到“Activation / Execution / Completion + Gateway + RuntimeHost”结构，`Application` 不再直接触碰 runtime 内部句柄。
 - `Agent/Navigation` 现在不再把地面导航策略完全塞在 `Runtime`；`MANavigationUseCases` 已接管 ground request、manual update、ground follow refresh、completion decision 这些纯决策。
+- `Agent/CharacterRuntime` 现在不再把 direct-control 和 low-energy return 的主要 if/else 决策塞在 `MACharacter.cpp`；这些状态迁移已经收回 `MACharacterRuntimeUseCases`。
+- `Agent/Sensing` 现在不再让 `MACameraSensorComponent::ExecuteAction` 自己解析 action 参数；参数解释由 `MASensingUseCases` 承担。
 - `Bootstrap` 只允许被真正的入口壳或 bootstrap 层消费；`UI/*/Application/` 不再直接 include 其他 UI context 的 bootstrap。
 - 架构守卫文件是：
   - `scripts/check_interaction_architecture.py`

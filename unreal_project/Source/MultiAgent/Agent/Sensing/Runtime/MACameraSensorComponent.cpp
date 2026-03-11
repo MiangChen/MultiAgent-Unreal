@@ -342,48 +342,36 @@ TArray<FString> UMACameraSensorComponent::GetAvailableActions() const
 
 bool UMACameraSensorComponent::ExecuteAction(const FString& ActionName, const TMap<FString, FString>& Params)
 {
-    if (ActionName == TEXT("Camera.TakePhoto"))
+    const FMASensingActionRequest Request =
+        FMASensingUseCases::BuildActionRequest(ActionName, Params);
+    if (!Request.bSuccess)
     {
-        FString FilePath;
-        if (const FString* PathParam = Params.Find(TEXT("path")))
-        {
-            FilePath = *PathParam;
-        }
-        return TakePhoto(FilePath);
+        UE_LOG(LogTemp, Warning, TEXT("[Camera] Unknown action: %s"), *ActionName);
+        return false;
     }
-    
-    if (ActionName == TEXT("Camera.StartTCPStream"))
+
+    if (Request.Action == EMASensingActionKind::TakePhoto)
     {
-        int32 Port = 9000;
-        float FPS = 30.f;
-        if (const FString* PortParam = Params.Find(TEXT("port")))
-        {
-            Port = FCString::Atoi(**PortParam);
-        }
-        if (const FString* FPSParam = Params.Find(TEXT("fps")))
-        {
-            FPS = FCString::Atof(**FPSParam);
-        }
-        return StartTCPStream(Port, FPS);
+        return TakePhoto(Request.FilePath);
     }
-    
-    if (ActionName == TEXT("Camera.StopTCPStream"))
+
+    if (Request.Action == EMASensingActionKind::StartTCPStream)
+    {
+        return StartTCPStream(Request.Port, Request.FPS);
+    }
+
+    if (Request.Action == EMASensingActionKind::StopTCPStream)
     {
         StopTCPStream();
         return true;
     }
-    
-    if (ActionName == TEXT("Camera.GetFrameAsJPEG"))
+
+    if (Request.Action == EMASensingActionKind::GetFrameAsJPEG)
     {
-        int32 Quality = 85;
-        if (const FString* QualityParam = Params.Find(TEXT("quality")))
-        {
-            Quality = FCString::Atoi(**QualityParam);
-        }
-        TArray<uint8> Data = GetFrameAsJPEG(Quality);
+        TArray<uint8> Data = GetFrameAsJPEG(Request.Quality);
         return Data.Num() > 0;
     }
-    
-    UE_LOG(LogTemp, Warning, TEXT("[Camera] Unknown action: %s"), *ActionName);
+
+    UE_LOG(LogTemp, Warning, TEXT("[Camera] Unsupported action: %s"), *ActionName);
     return false;
 }

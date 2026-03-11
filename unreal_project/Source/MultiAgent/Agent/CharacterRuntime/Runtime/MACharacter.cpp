@@ -148,19 +148,19 @@ void AMACharacter::StopFollowing()
 
 void AMACharacter::SetDirectControl(bool bEnabled)
 {
-    if (bIsUnderDirectControl == bEnabled) return;
-    
-    bIsUnderDirectControl = bEnabled;
-    
-    if (bEnabled)
+    const FMACharacterDirectControlFeedback Feedback =
+        FMACharacterRuntimeUseCases::BuildDirectControlTransition(bIsUnderDirectControl, bEnabled);
+    if (Feedback.Transition == EMACharacterDirectControlTransition::None)
+    {
+        return;
+    }
+
+    bIsUnderDirectControl = Feedback.Transition == EMACharacterDirectControlTransition::Enable;
+    if (Feedback.bShouldCancelAIMovement)
     {
         CancelAIMovement();
-        GetCharacterMovement()->bOrientRotationToMovement = false;
     }
-    else
-    {
-        GetCharacterMovement()->bOrientRotationToMovement = true;
-    }
+    GetCharacterMovement()->bOrientRotationToMovement = Feedback.bOrientRotationToMovement;
 }
 
 void AMACharacter::CancelAIMovement()
@@ -301,17 +301,38 @@ void AMACharacter::OnLowEnergyReturn()
     
     UE_LOG(LogTemp, Warning, TEXT("[%s] Low energy (%.0f%%), initiating return to base"),
         *AgentLabel, SkillComponent->GetEnergyPercent());
-    
-    ShowStatus(TEXT("[Low Battery] Returning to base..."), 5.f);
-    
-    // 检查是否处于暂停状态
-    if (FMACharacterRuntimeBridge::IsExecutionPaused(this))
+
+    const FMACharacterLowEnergyTriggerFeedback Feedback =
+        FMACharacterRuntimeUseCases::BuildLowEnergyTrigger(
+            FMACharacterRuntimeBridge::IsExecutionPaused(this));
+
+    if (!Feedback.StatusMessage.IsEmpty())
     {
-        // 暂停中：先取消当前技能，标记待返航，等恢复后执行
+        ShowStatus(Feedback.StatusMessage, Feedback.StatusDuration);
+    }
+
+    if (Feedback.bShouldCancelSkills)
+    {
         SkillComponent->CancelAllSkills();
+    }
+
+    if (Feedback.Action == EMACharacterLowEnergyAction::DeferUntilResume)
+    {
         bPendingLowEnergyReturn = true;
+    }
+
+    if (Feedback.bShouldBindPauseStateChanged)
+    {
         FMACharacterRuntimeBridge::BindPauseStateChanged(*this);
-        UE_LOG(LogTemp, Log, TEXT("[%s] Paused, deferring low-energy return until resume"), *AgentLabel);
+    }
+
+    if (!Feedback.LogMessage.IsEmpty())
+    {
+        UE_LOG(LogTemp, Log, TEXT("[%s] %s"), *AgentLabel, *Feedback.LogMessage);
+    }
+
+    if (Feedback.Action == EMACharacterLowEnergyAction::DeferUntilResume)
+    {
         return;
     }
     
@@ -320,15 +341,24 @@ void AMACharacter::OnLowEnergyReturn()
 
 void AMACharacter::OnPauseStateChanged(bool bPaused)
 {
-    if (!bPaused && bPendingLowEnergyReturn)
+    const FMACharacterLowEnergyTriggerFeedback Feedback =
+        FMACharacterRuntimeUseCases::BuildPauseResumeReaction(bPaused, bPendingLowEnergyReturn);
+    if (Feedback.Action != EMACharacterLowEnergyAction::ExecuteReturn)
+    {
+        return;
+    }
+
+    if (Feedback.bShouldClearPendingReturn)
     {
         bPendingLowEnergyReturn = false;
-        
-        // 解绑，只需要触发一次
-        FMACharacterRuntimeBridge::UnbindPauseStateChanged(*this);
-        
-        ExecuteLowEnergyReturn();
     }
+
+    if (Feedback.bShouldUnbindPauseStateChanged)
+    {
+        FMACharacterRuntimeBridge::UnbindPauseStateChanged(*this);
+    }
+
+    ExecuteLowEnergyReturn();
 }
 
 void AMACharacter::ExecuteLowEnergyReturn()

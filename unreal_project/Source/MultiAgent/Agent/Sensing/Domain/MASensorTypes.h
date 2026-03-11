@@ -11,3 +11,13 @@ enum class EMASensorType : uint8
     Depth,
     IMU
 };
+
+UENUM()
+enum class EMASensingActionKind : uint8
+{
+    Invalid,
+    TakePhoto,
+    StartTCPStream,
+    StopTCPStream,
+    GetFrameAsJPEG,
+};

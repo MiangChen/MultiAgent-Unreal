@@ -14,3 +14,17 @@ enum class EMACharacterRuntimeSeverity : uint8
     Warning,
     Error,
 };
+
+enum class EMACharacterDirectControlTransition : uint8
+{
+    None,
+    Enable,
+    Disable,
+};
+
+enum class EMACharacterLowEnergyAction : uint8
+{
+    None,
+    DeferUntilResume,
+    ExecuteReturn,
+};
