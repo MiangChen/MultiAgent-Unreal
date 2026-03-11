@@ -20,89 +20,256 @@ USK_Search::USK_Search()
     SearchResultMessage = TEXT("");
 }
 
+void USK_Search::ResetSearchRuntimeState()
+{
+    CurrentWaypointIndex = 0;
+    LastUIUpdateIndex = -1;
+    PatrolCycleCount = 0;
+    ConsecutiveNavFailures = 0;
+    bSearchSucceeded = false;
+    SearchResultMessage = TEXT("");
+}
+
+bool USK_Search::InitializeSearchContext(AMACharacter& Character, UMASkillComponent& SkillComp)
+{
+    NavigationService = Character.GetNavigationService();
+    if (!NavigationService.IsValid())
+    {
+        UE_LOG(LogTemp, Error, TEXT("[SK_Search] %s: NavigationService not found"), *Character.AgentLabel);
+        SearchResultMessage = TEXT("Search failed: NavigationService not available");
+        return false;
+    }
+
+    const FMASkillParams& Params = SkillComp.GetSkillParams();
+    ScanWidth = Params.SearchScanWidth > 0.f ? Params.SearchScanWidth : 800.f;
+    CurrentSearchMode = Params.SearchMode;
+    PatrolWaitTime = Params.PatrolWaitTime > 0.f ? Params.PatrolWaitTime : 2.0f;
+    PatrolCycleLimit = Params.PatrolCycleLimit > 0 ? Params.PatrolCycleLimit : 1;
+
+    const FMAFeedbackContext& Context = SkillComp.GetFeedbackContext();
+    FoundTargetLocations = Context.FoundLocations;
+    bHasFoundTarget = FoundTargetLocations.Num() > 0;
+
+    if (bHasFoundTarget)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[SK_Search] %s: Found %d targets, will end early when reaching nearest target"),
+            *Character.AgentLabel, FoundTargetLocations.Num());
+    }
+
+    PIPCameraManager = Character.GetWorld()->GetSubsystem<UMAPIPCameraManager>();
+    GenerateSearchPath();
+
+    if (SearchPath.Num() == 0)
+    {
+        SearchResultMessage = TEXT("Search failed: No valid search path generated");
+        Character.ShowStatus(TEXT("[Search] No valid path"), 2.f);
+        return false;
+    }
+
+    return true;
+}
+
+void USK_Search::CompleteSearch(const bool bSuccess, const FString& Message, const bool bCancelAbility)
+{
+    bSearchSucceeded = bSuccess;
+    SearchResultMessage = Message;
+    EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, bCancelAbility);
+}
+
+int32 USK_Search::GetFoundObjectCount(const UMASkillComponent* SkillComp) const
+{
+    return SkillComp ? SkillComp->GetFeedbackContext().FoundObjects.Num() : 0;
+}
+
+FString USK_Search::GetRobotTypeLabel() const
+{
+    return NavigationService.IsValid()
+        ? (NavigationService->bIsFlying ? TEXT("Flying") : TEXT("Ground"))
+        : TEXT("Unknown");
+}
+
+bool USK_Search::HasReachedFoundTargetArea(const AMACharacter& Character) const
+{
+    if (!bHasFoundTarget)
+    {
+        return false;
+    }
+
+    const FVector CurrentLocation = Character.GetActorLocation();
+    for (const FVector& TargetLoc : FoundTargetLocations)
+    {
+        if (FVector::Dist2D(CurrentLocation, TargetLoc) < 1000.f)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void USK_Search::HandleCoverageWaypointArrival(AMACharacter& Character, UMASkillComponent* SkillComp)
+{
+    if (HasReachedFoundTargetArea(Character))
+    {
+        UE_LOG(LogTemp, Log, TEXT("[SK_Search] %s: Reached target area, ending search"), *Character.AgentLabel);
+        Character.ShowAbilityStatus(TEXT("Search"), TEXT("Target Found!"));
+        CompleteSearch(
+            true,
+            FString::Printf(TEXT("Search succeeded: Found %d objects at waypoint %d/%d"),
+                GetFoundObjectCount(SkillComp), CurrentWaypointIndex + 1, SearchPath.Num()),
+            false);
+        return;
+    }
+
+    CurrentWaypointIndex++;
+    if (CurrentWaypointIndex >= SearchPath.Num())
+    {
+        const int32 FoundCount = GetFoundObjectCount(SkillComp);
+        Character.ShowAbilityStatus(TEXT("Search"), TEXT("Complete!"));
+        CompleteSearch(
+            true,
+            FoundCount > 0
+                ? FString::Printf(TEXT("Search succeeded: Completed %d waypoints, found %d objects"), SearchPath.Num(), FoundCount)
+                : FString::Printf(TEXT("Search succeeded: Completed %d waypoints, no objects found"), SearchPath.Num()),
+            false);
+        return;
+    }
+
+    NavigateToNextWaypoint();
+}
+
+void USK_Search::HandlePatrolWaypointArrival(AMACharacter& Character, UMASkillComponent* SkillComp)
+{
+    CurrentWaypointIndex++;
+    if (CurrentWaypointIndex >= SearchPath.Num())
+    {
+        PatrolCycleCount++;
+
+        UE_LOG(LogTemp, Log, TEXT("[SK_Search] %s (%s): Patrol cycle %d/%d completed"),
+            *Character.AgentLabel, *GetRobotTypeLabel(), PatrolCycleCount, PatrolCycleLimit);
+
+        if (PatrolCycleCount >= PatrolCycleLimit)
+        {
+            Character.ShowAbilityStatus(TEXT("Search"), TEXT("Patrol Complete!"));
+            CompleteSearch(
+                true,
+                FString::Printf(TEXT("Patrol completed: %d cycles, %d waypoints per cycle, found %d objects"),
+                    PatrolCycleCount, SearchPath.Num(), GetFoundObjectCount(SkillComp)),
+                false);
+            return;
+        }
+
+        CurrentWaypointIndex = 0;
+        NavigateToNextWaypoint();
+        return;
+    }
+
+    StartPIPCapture();
+}
+
+void USK_Search::HandleNavigationFailure(const FString& Message)
+{
+    AMACharacter* Character = GetOwningCharacter();
+    ConsecutiveNavFailures++;
+
+    UE_LOG(LogTemp, Warning, TEXT("[SK_Search] %s (%s): Navigation failed (%d/%d): %s"),
+        Character ? *Character->AgentLabel : TEXT("NULL"),
+        *GetRobotTypeLabel(),
+        ConsecutiveNavFailures, MaxConsecutiveNavFailures,
+        *Message);
+
+    if (ConsecutiveNavFailures >= MaxConsecutiveNavFailures)
+    {
+        CompleteSearch(
+            false,
+            FString::Printf(TEXT("Search failed: Navigation failed %d times consecutively at waypoint %d/%d"),
+                ConsecutiveNavFailures, CurrentWaypointIndex, SearchPath.Num()),
+            true);
+        return;
+    }
+
+    CurrentWaypointIndex++;
+    NavigateToNextWaypoint();
+}
+
+void USK_Search::CleanupSearchRuntime(
+    AMACharacter* Character,
+    const bool bWasCancelled,
+    bool& bOutSuccessToNotify,
+    FString& InOutMessageToNotify)
+{
+    if (NavigationService.IsValid())
+    {
+        NavigationService->OnNavigationCompleted.RemoveDynamic(this, &USK_Search::OnNavigationCompleted);
+        if (bWasCancelled && NavigationService->IsNavigating())
+        {
+            NavigationService->CancelNavigation();
+        }
+        NavigationService.Reset();
+    }
+
+    if (!Character)
+    {
+        return;
+    }
+
+    if (UWorld* World = Character->GetWorld())
+    {
+        World->GetTimerManager().ClearTimer(WaitTimerHandle);
+        World->GetTimerManager().ClearTimer(TurnTimerHandle);
+        World->GetTimerManager().ClearTimer(PIPDisplayTimerHandle);
+    }
+    WaitTimerHandle.Invalidate();
+    TurnTimerHandle.Invalidate();
+    PIPDisplayTimerHandle.Invalidate();
+
+    CleanupPIP();
+
+    Character->bIsMoving = false;
+    Character->ShowStatus(TEXT(""), 0.f);
+
+    if (bWasCancelled && SearchResultMessage.IsEmpty())
+    {
+        bOutSuccessToNotify = false;
+        InOutMessageToNotify = CurrentSearchMode == ESearchMode::Patrol
+            ? FString::Printf(TEXT("Patrol cancelled: Completed %d cycles, stopped at waypoint %d/%d"),
+                PatrolCycleCount, CurrentWaypointIndex, SearchPath.Num())
+            : FString::Printf(TEXT("Search cancelled: Stopped at waypoint %d/%d"),
+                CurrentWaypointIndex, SearchPath.Num());
+    }
+}
+
 void USK_Search::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
     Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
     
     CachedHandle = Handle;
     CachedActivationInfo = ActivationInfo;
-    CurrentWaypointIndex = 0;
-    LastUIUpdateIndex = -1;
-    PatrolCycleCount = 0;
-    ConsecutiveNavFailures = 0;
-    
-    // 重置结果状态
-    bSearchSucceeded = false;
-    SearchResultMessage = TEXT("");
+    ResetSearchRuntimeState();
     
     AMACharacter* Character = GetOwningCharacter();
     if (!Character)
     {
-        bSearchSucceeded = false;
-        SearchResultMessage = TEXT("Search failed: Character not found");
-        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+        CompleteSearch(false, TEXT("Search failed: Character not found"), true);
         return;
     }
     
     UMASkillComponent* SkillComp = Character->GetSkillComponent();
     if (!SkillComp)
     {
-        bSearchSucceeded = false;
-        SearchResultMessage = TEXT("Search failed: SkillComponent not found");
-        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+        CompleteSearch(false, TEXT("Search failed: SkillComponent not found"), true);
         return;
     }
-    
-    // 获取 NavigationService
-    NavigationService = Character->GetNavigationService();
-    if (!NavigationService.IsValid())
+
+    if (!InitializeSearchContext(*Character, *SkillComp))
     {
-        UE_LOG(LogTemp, Error, TEXT("[SK_Search] %s: NavigationService not found"), *Character->AgentLabel);
-        bSearchSucceeded = false;
-        SearchResultMessage = TEXT("Search failed: NavigationService not available");
-        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+        CompleteSearch(false, SearchResultMessage, true);
         return;
     }
-    
-    // 获取搜索参数
-    const FMASkillParams& Params = SkillComp->GetSkillParams();
-    ScanWidth = Params.SearchScanWidth > 0.f ? Params.SearchScanWidth : 800.f;
-    CurrentSearchMode = Params.SearchMode;
-    PatrolWaitTime = Params.PatrolWaitTime > 0.f ? Params.PatrolWaitTime : 2.0f;
-    PatrolCycleLimit = Params.PatrolCycleLimit > 0 ? Params.PatrolCycleLimit : 1;
-    
-    // 获取已找到的目标位置（用于提前结束）
-    const FMAFeedbackContext& Context = SkillComp->GetFeedbackContext();
-    FoundTargetLocations = Context.FoundLocations;
-    bHasFoundTarget = FoundTargetLocations.Num() > 0;
-    
-    if (bHasFoundTarget)
-    {
-        UE_LOG(LogTemp, Log, TEXT("[SK_Search] %s: Found %d targets, will end early when reaching nearest target"),
-            *Character->AgentLabel, FoundTargetLocations.Num());
-    }
-    
-    // 获取画中画相机管理器
-    PIPCameraManager = Character->GetWorld()->GetSubsystem<UMAPIPCameraManager>();
-    
-    // 生成搜索航线
-    GenerateSearchPath();
-    
-    if (SearchPath.Num() == 0)
-    {
-        bSearchSucceeded = false;
-        SearchResultMessage = TEXT("Search failed: No valid search path generated");
-        Character->ShowStatus(TEXT("[Search] No valid path"), 2.f);
-        EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
-        return;
-    }
-    
-    // 获取机器人类型信息
-    FString RobotTypeStr = NavigationService->bIsFlying ? TEXT("Flying") : TEXT("Ground");
     
     UE_LOG(LogTemp, Log, TEXT("[SK_Search] %s (%s): Starting %s search with %d waypoints%s"),
         *Character->AgentLabel,
-        *RobotTypeStr,
+        *GetRobotTypeLabel(),
         CurrentSearchMode == ESearchMode::Coverage ? TEXT("Coverage") : TEXT("Patrol"),
         SearchPath.Num(),
         CurrentSearchMode == ESearchMode::Patrol ? *FString::Printf(TEXT(", %d cycles"), PatrolCycleLimit) : TEXT(""));
@@ -202,11 +369,10 @@ void USK_Search::GenerateSearchPath()
 void USK_Search::OnNavigationCompleted(bool bSuccess, const FString& Message)
 {
     AMACharacter* Character = GetOwningCharacter();
-    FString RobotTypeStr = NavigationService.IsValid() ? (NavigationService->bIsFlying ? TEXT("Flying") : TEXT("Ground")) : TEXT("Unknown");
     
     UE_LOG(LogTemp, Log, TEXT("[SK_Search] %s (%s, %s): OnNavigationCompleted - Success=%s, Waypoint=%d/%d, Message=%s"),
         Character ? *Character->AgentLabel : TEXT("NULL"),
-        *RobotTypeStr,
+        *GetRobotTypeLabel(),
         CurrentSearchMode == ESearchMode::Coverage ? TEXT("Coverage") : TEXT("Patrol"),
         bSuccess ? TEXT("true") : TEXT("false"),
         CurrentWaypointIndex, SearchPath.Num(),
@@ -214,38 +380,12 @@ void USK_Search::OnNavigationCompleted(bool bSuccess, const FString& Message)
     
     if (bSuccess)
     {
-        // 导航成功，重置失败计数
         ConsecutiveNavFailures = 0;
-        
-        // 处理航点到达
         HandleWaypointArrival();
     }
     else
     {
-        // 导航失败，增加失败计数
-        ConsecutiveNavFailures++;
-        
-        UE_LOG(LogTemp, Warning, TEXT("[SK_Search] %s (%s): Navigation failed (%d/%d): %s"),
-            Character ? *Character->AgentLabel : TEXT("NULL"),
-            *RobotTypeStr,
-            ConsecutiveNavFailures, MaxConsecutiveNavFailures,
-            *Message);
-        
-        if (ConsecutiveNavFailures >= MaxConsecutiveNavFailures)
-        {
-            // 连续失败次数过多，结束搜索
-            bSearchSucceeded = false;
-            SearchResultMessage = FString::Printf(TEXT("Search failed: Navigation failed %d times consecutively at waypoint %d/%d"),
-                ConsecutiveNavFailures, CurrentWaypointIndex, SearchPath.Num());
-            
-            EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
-        }
-        else
-        {
-            // 尝试跳过当前航点，继续下一个
-            CurrentWaypointIndex++;
-            NavigateToNextWaypoint();
-        }
+        HandleNavigationFailure(Message);
     }
 }
 
@@ -268,91 +408,13 @@ void USK_Search::HandleWaypointArrival()
             FString::Printf(TEXT("%d/%d waypoints"), CurrentWaypointIndex + 1, SearchPath.Num()));
     }
     
-    // Coverage 模式：检查提前结束条件
-    if (CurrentSearchMode == ESearchMode::Coverage && bHasFoundTarget)
-    {
-        FVector CurrentLocation = Character->GetActorLocation();
-        for (const FVector& TargetLoc : FoundTargetLocations)
-        {
-            float DistToTarget = FVector::Dist2D(CurrentLocation, TargetLoc);
-            if (DistToTarget < 1000.f)  // 距离目标 10m 以内
-            {
-                int32 FoundCount = SkillComp ? SkillComp->GetFeedbackContext().FoundObjects.Num() : 0;
-                
-                bSearchSucceeded = true;
-                SearchResultMessage = FString::Printf(TEXT("Search succeeded: Found %d objects at waypoint %d/%d"), 
-                    FoundCount, CurrentWaypointIndex + 1, SearchPath.Num());
-                
-                UE_LOG(LogTemp, Log, TEXT("[SK_Search] %s: Reached target area, ending search"), 
-                    *Character->AgentLabel);
-                Character->ShowAbilityStatus(TEXT("Search"), TEXT("Target Found!"));
-                EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, false);
-                return;
-            }
-        }
-    }
-    
-    // 移动到下一个航点
-    CurrentWaypointIndex++;
-    
-    // 检查是否完成所有航点
-    if (CurrentWaypointIndex >= SearchPath.Num())
-    {
-        if (CurrentSearchMode == ESearchMode::Patrol)
-        {
-            // Patrol 模式：循环回到第一个航点
-            PatrolCycleCount++;
-            
-            UE_LOG(LogTemp, Log, TEXT("[SK_Search] %s (%s): Patrol cycle %d/%d completed"),
-                *Character->AgentLabel,
-                NavigationService.IsValid() ? (NavigationService->bIsFlying ? TEXT("Flying") : TEXT("Ground")) : TEXT("Unknown"),
-                PatrolCycleCount, PatrolCycleLimit);
-            
-            // 检查是否达到巡逻次数限制
-            if (PatrolCycleCount >= PatrolCycleLimit)
-            {
-                // 达到限制，结束巡逻
-                int32 FoundCount = SkillComp ? SkillComp->GetFeedbackContext().FoundObjects.Num() : 0;
-                
-                bSearchSucceeded = true;
-                SearchResultMessage = FString::Printf(TEXT("Patrol completed: %d cycles, %d waypoints per cycle, found %d objects"),
-                    PatrolCycleCount, SearchPath.Num(), FoundCount);
-                
-                Character->ShowAbilityStatus(TEXT("Search"), TEXT("Patrol Complete!"));
-                EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, false);
-                return;
-            }
-            
-            // 继续下一轮巡逻
-            CurrentWaypointIndex = 0;
-            NavigateToNextWaypoint();
-        }
-        else
-        {
-            // Coverage 模式：搜索完成
-            int32 FoundCount = SkillComp ? SkillComp->GetFeedbackContext().FoundObjects.Num() : 0;
-            
-            bSearchSucceeded = true;
-            SearchResultMessage = FoundCount > 0 ? 
-                FString::Printf(TEXT("Search succeeded: Completed %d waypoints, found %d objects"), SearchPath.Num(), FoundCount) :
-                FString::Printf(TEXT("Search succeeded: Completed %d waypoints, no objects found"), SearchPath.Num());
-            
-            Character->ShowAbilityStatus(TEXT("Search"), TEXT("Complete!"));
-            EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, false);
-        }
-        return;
-    }
-    
-    // Patrol 模式：在每个航点展示画中画
     if (CurrentSearchMode == ESearchMode::Patrol)
     {
-        StartPIPCapture();
+        HandlePatrolWaypointArrival(*Character, SkillComp);
+        return;
     }
-    else
-    {
-        // Coverage 模式：直接导航到下一个航点
-        NavigateToNextWaypoint();
-    }
+
+    HandleCoverageWaypointArrival(*Character, SkillComp);
 }
 
 void USK_Search::NavigateToNextWaypoint()
@@ -360,9 +422,7 @@ void USK_Search::NavigateToNextWaypoint()
     AMACharacter* Character = GetOwningCharacter();
     if (!Character || !NavigationService.IsValid())
     {
-        bSearchSucceeded = false;
-        SearchResultMessage = TEXT("Search failed: Character or NavigationService lost");
-        EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
+        CompleteSearch(false, TEXT("Search failed: Character or NavigationService lost"), true);
         return;
     }
     
@@ -396,15 +456,15 @@ void USK_Search::NavigateToNextWaypoint()
     {
         UE_LOG(LogTemp, Warning, TEXT("[SK_Search] %s: Failed to start navigation to waypoint %d"),
             *Character->AgentLabel, CurrentWaypointIndex + 1);
-        
-        // 导航启动失败，尝试下一个航点
+
         ConsecutiveNavFailures++;
         if (ConsecutiveNavFailures >= MaxConsecutiveNavFailures)
         {
-            bSearchSucceeded = false;
-            SearchResultMessage = FString::Printf(TEXT("Search failed: Could not start navigation after %d attempts"),
-                ConsecutiveNavFailures);
-            EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, true);
+            CompleteSearch(
+                false,
+                FString::Printf(TEXT("Search failed: Could not start navigation after %d attempts"),
+                    ConsecutiveNavFailures),
+                true);
         }
         else
         {
@@ -537,19 +597,16 @@ void USK_Search::ShowNextPIPView()
         // Coverage 模式发现目标后结束，Patrol 模式继续导航
         if (CurrentSearchMode == ESearchMode::Coverage && bHasFoundTarget)
         {
-            AMACharacter* Character = GetOwningCharacter();
-            UMASkillComponent* SkillComp = Character ? Character->GetSkillComponent() : nullptr;
-            int32 FoundCount = SkillComp ? SkillComp->GetFeedbackContext().FoundObjects.Num() : 0;
-            
-            bSearchSucceeded = true;
-            SearchResultMessage = FString::Printf(TEXT("Search succeeded: Found %d objects at waypoint %d/%d"), 
-                FoundCount, CurrentWaypointIndex + 1, SearchPath.Num());
-            EndAbility(CachedHandle, GetCurrentActorInfo(), CachedActivationInfo, true, false);
+            CompleteSearch(
+                true,
+                FString::Printf(TEXT("Search succeeded: Found %d objects at waypoint %d/%d"),
+                    GetFoundObjectCount(GetOwningCharacter() ? GetOwningCharacter()->GetSkillComponent() : nullptr),
+                    CurrentWaypointIndex + 1, SearchPath.Num()),
+                false);
+            return;
         }
-        else
-        {
-            NavigateToNextWaypoint();
-        }
+
+        NavigateToNextWaypoint();
         return;
     }
     
@@ -738,56 +795,7 @@ void USK_Search::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGame
     bool bSuccessToNotify = bSearchSucceeded;
     FString MessageToNotify = SearchResultMessage;
     
-    // 解绑 NavigationService 委托并取消导航
-    if (NavigationService.IsValid())
-    {
-        NavigationService->OnNavigationCompleted.RemoveDynamic(this, &USK_Search::OnNavigationCompleted);
-        
-        // 如果被取消，取消导航
-        if (bWasCancelled && NavigationService->IsNavigating())
-        {
-            NavigationService->CancelNavigation();
-        }
-        
-        NavigationService.Reset();
-    }
-    
-    if (Character)
-    {
-        // 清理等待定时器
-        if (UWorld* World = Character->GetWorld())
-        {
-            World->GetTimerManager().ClearTimer(WaitTimerHandle);
-            World->GetTimerManager().ClearTimer(TurnTimerHandle);
-            World->GetTimerManager().ClearTimer(PIPDisplayTimerHandle);
-        }
-        WaitTimerHandle.Invalidate();
-        TurnTimerHandle.Invalidate();
-        PIPDisplayTimerHandle.Invalidate();
-        
-        // 清理画中画
-        CleanupPIP();
-        
-        Character->bIsMoving = false;
-        Character->ShowStatus(TEXT(""), 0.f);
-        
-        // 如果被取消且没有设置结果消息，说明是外部取消
-        if (bWasCancelled && SearchResultMessage.IsEmpty())
-        {
-            bSuccessToNotify = false;
-            if (CurrentSearchMode == ESearchMode::Patrol)
-            {
-                MessageToNotify = FString::Printf(TEXT("Patrol cancelled: Completed %d cycles, stopped at waypoint %d/%d"), 
-                    PatrolCycleCount, CurrentWaypointIndex, SearchPath.Num());
-            }
-            else
-            {
-                MessageToNotify = FString::Printf(TEXT("Search cancelled: Stopped at waypoint %d/%d"), 
-                    CurrentWaypointIndex, SearchPath.Num());
-            }
-        }
-        
-    }
+    CleanupSearchRuntime(Character, bWasCancelled, bSuccessToNotify, MessageToNotify);
     
     UE_LOG(LogTemp, Log, TEXT("[SK_Search] %s: EndAbility - Mode=%s, Success=%s, Cycles=%d, Message=%s"),
         Character ? *Character->AgentLabel : TEXT("NULL"),

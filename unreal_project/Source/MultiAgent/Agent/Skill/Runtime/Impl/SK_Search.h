@@ -12,6 +12,8 @@
 
 class UMANavigationService;
 class UMAPIPCameraManager;
+class UMASkillComponent;
+class AMACharacter;
 
 /**
  * 搜索模式枚举
@@ -30,6 +32,17 @@ public:
     virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 
 protected:
+    void ResetSearchRuntimeState();
+    bool InitializeSearchContext(AMACharacter& Character, UMASkillComponent& SkillComp);
+    void CompleteSearch(bool bSuccess, const FString& Message, bool bCancelAbility);
+    int32 GetFoundObjectCount(const UMASkillComponent* SkillComp) const;
+    FString GetRobotTypeLabel() const;
+    bool HasReachedFoundTargetArea(const AMACharacter& Character) const;
+    void HandleCoverageWaypointArrival(AMACharacter& Character, UMASkillComponent* SkillComp);
+    void HandlePatrolWaypointArrival(AMACharacter& Character, UMASkillComponent* SkillComp);
+    void HandleNavigationFailure(const FString& Message);
+    void CleanupSearchRuntime(AMACharacter* Character, bool bWasCancelled, bool& bOutSuccessToNotify, FString& InOutMessageToNotify);
+
     // 生成搜索路径 (根据模式和机器人类型)
     void GenerateSearchPath();
     
