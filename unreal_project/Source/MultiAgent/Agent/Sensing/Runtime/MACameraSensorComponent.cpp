@@ -221,19 +221,7 @@ void UMACameraSensorComponent::OnStreamTick()
 
 TArray<FString> UMACameraSensorComponent::GetAvailableActions() const
 {
-    TArray<FString> Actions;
-    
-    // 拍照
-    Actions.Add(TEXT("Camera.TakePhoto"));
-    
-    // TCP 流
-    Actions.Add(TEXT("Camera.StartTCPStream"));
-    Actions.Add(TEXT("Camera.StopTCPStream"));
-    
-    // 获取帧
-    Actions.Add(TEXT("Camera.GetFrameAsJPEG"));
-    
-    return Actions;
+    return FMASensingUseCases::BuildAvailableCameraActions();
 }
 
 bool UMACameraSensorComponent::ExecuteAction(const FString& ActionName, const TMap<FString, FString>& Params)

@@ -3,6 +3,16 @@
 #include "Misc/DateTime.h"
 #include "Misc/Paths.h"
 
+TArray<FString> FMASensingUseCases::BuildAvailableCameraActions()
+{
+    return {
+        FMASensingActionNames::TakePhoto,
+        FMASensingActionNames::StartTCPStream,
+        FMASensingActionNames::StopTCPStream,
+        FMASensingActionNames::GetFrameAsJPEG,
+    };
+}
+
 FMASensingOperationFeedback FMASensingUseCases::BuildPhotoSaveTarget(const FString& SensorName, const FString& RequestedPath)
 {
     FMASensingOperationFeedback Feedback;
@@ -28,7 +38,7 @@ FMASensingActionRequest FMASensingUseCases::BuildActionRequest(
     FMASensingActionRequest Request;
     Request.bSuccess = true;
 
-    if (ActionName == TEXT("Camera.TakePhoto"))
+    if (ActionName == FMASensingActionNames::TakePhoto)
     {
         Request.Action = EMASensingActionKind::TakePhoto;
         if (const FString* PathParam = Params.Find(TEXT("path")))
@@ -38,7 +48,7 @@ FMASensingActionRequest FMASensingUseCases::BuildActionRequest(
         return Request;
     }
 
-    if (ActionName == TEXT("Camera.StartTCPStream"))
+    if (ActionName == FMASensingActionNames::StartTCPStream)
     {
         Request.Action = EMASensingActionKind::StartTCPStream;
         if (const FString* PortParam = Params.Find(TEXT("port")))
@@ -52,13 +62,13 @@ FMASensingActionRequest FMASensingUseCases::BuildActionRequest(
         return Request;
     }
 
-    if (ActionName == TEXT("Camera.StopTCPStream"))
+    if (ActionName == FMASensingActionNames::StopTCPStream)
     {
         Request.Action = EMASensingActionKind::StopTCPStream;
         return Request;
     }
 
-    if (ActionName == TEXT("Camera.GetFrameAsJPEG"))
+    if (ActionName == FMASensingActionNames::GetFrameAsJPEG)
     {
         Request.Action = EMASensingActionKind::GetFrameAsJPEG;
         if (const FString* QualityParam = Params.Find(TEXT("quality")))

@@ -21,3 +21,11 @@ enum class EMASensingActionKind : uint8
     StopTCPStream,
     GetFrameAsJPEG,
 };
+
+struct MULTIAGENT_API FMASensingActionNames
+{
+    static constexpr const TCHAR* TakePhoto = TEXT("Camera.TakePhoto");
+    static constexpr const TCHAR* StartTCPStream = TEXT("Camera.StartTCPStream");
+    static constexpr const TCHAR* StopTCPStream = TEXT("Camera.StopTCPStream");
+    static constexpr const TCHAR* GetFrameAsJPEG = TEXT("Camera.GetFrameAsJPEG");
+};
