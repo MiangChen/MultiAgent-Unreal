@@ -23,7 +23,7 @@ python3 scripts/mock_backend.py --port 8081
 
 | 系统 | 编译与运行指令 |
 |---|---|
-| Linux | `cd PathTo/MultiAgent-Unreal`<br>`cp example_compile.sh compile.sh && cp example_start_linux.sh start.sh && chmod +x compile.sh start.sh`<br>`./compile.sh`<br>`./start.sh` |
+| Linux | `cd PathTo/MultiAgent-Unreal`<br>`cp example_linux_compile_and_start.sh linux_compile_and_start.sh && chmod +x linux_compile_and_start.sh`<br>`./linux_compile_and_start.sh` |
 | mac | `cd PathTo/MultiAgent-Unreal`<br>`./mac_compile_and_start.sh`<br>`./mac_compile_and_start.sh -c Debug`<br>`./mac_compile_and_start.sh -r`<br>`./mac_compile_and_start.sh -- -ResX=1920 -ResY=1080` |
 | Windows | `cd PathTo/MultiAgent-Unreal`<br>`\"PathToUE/Engine/Build/BatchFiles/Build.bat\" MultiAgentEditor Win64 Development -Project=\"%cd%/unreal_project/MultiAgent.uproject\" -WaitMutex`<br>`\"PathToUE/Engine/Binaries/Win64/UnrealEditor.exe\" \"%cd%/unreal_project/MultiAgent.uproject\"` |
 
