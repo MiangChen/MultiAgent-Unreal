@@ -43,6 +43,7 @@ void FMASkillParamsProcessor::ProcessNavigate(UMASkillComponent* SkillComp, cons
     const float ProbeRadius = 50.f;
     const float PushMargin = 200.f;
 
+    if (bIsFlying)
     {
         TArray<FOverlapResult> Overlaps;
         if (World->OverlapMultiByChannel(
@@ -62,24 +63,7 @@ void FMASkillParamsProcessor::ProcessNavigate(UMASkillComponent* SkillComp, cons
                     continue;
                 }
 
-                FVector Push = MTD.Direction * (MTD.Distance + PushMargin);
-
-                if (!bIsFlying)
-                {
-                    Push.Z = 0.f;
-                    if (Push.IsNearlyZero())
-                    {
-                        FVector Away = TargetLocation - Comp->GetComponentLocation();
-                        Away.Z = 0.f;
-                        if (Away.IsNearlyZero())
-                        {
-                            Away = FVector(1.f, 0.f, 0.f);
-                        }
-                        Push = Away.GetSafeNormal() * (MTD.Distance + PushMargin);
-                    }
-                }
-
-                AccumulatedPush += Push;
+                AccumulatedPush += MTD.Direction * (MTD.Distance + PushMargin);
             }
 
             if (!AccumulatedPush.IsNearlyZero())
