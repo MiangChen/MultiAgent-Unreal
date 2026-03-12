@@ -1357,7 +1357,7 @@ class MockBackendHandler(BaseHTTPRequestHandler):
 
     def handle_demo_send_step(self, body):
         """Handle demo action - delegates to demo_guided module"""
-        global pending_messages, hitl_messages
+        global pending_messages, hitl_messages, pending_task_graphs, pending_skill_allocations
         try:
             data = json.loads(body)
             status, response = demo_guided.handle_demo_action(
@@ -1374,6 +1374,14 @@ class MockBackendHandler(BaseHTTPRequestHandler):
                 create_task_graph_message=create_task_graph_message,
                 create_skill_allocation_message=create_skill_allocation_message
             )
+            if status == 200:
+                message_id = response.get('message_id')
+                action_type = data.get('action_type', '')
+                action_key = data.get('action_key', '')
+                if message_id and action_type == 'task_graph':
+                    pending_task_graphs[message_id] = action_key
+                elif message_id and action_type == 'skill_allocation':
+                    pending_skill_allocations[message_id] = action_key
             self.send_json_response(status, response)
         except json.JSONDecodeError as e:
             self.send_json_response(400, {"error": str(e)})
@@ -1505,9 +1513,16 @@ class MockBackendHandler(BaseHTTPRequestHandler):
 
             broadcast_message('hitl_response', f'HITL ({msg_category}): {msg_type}{status_str}', data, 'incoming')
             
+            original_msg_id = payload.get('original_message_id')
+            is_review_approval = (
+                approved is True
+                and bool(original_msg_id)
+                and msg_type in ('review_response', 'decision_response')
+                and msg_category in ('review', 'decision')
+            )
+
             # 自动推演逻辑: 如果 Task Graph 获批，自动下发对应的 Skill Allocation
-            if msg_category == 'review' and msg_type == 'decision_response' and approved:
-                original_msg_id = payload.get('original_message_id')
+            if is_review_approval:
                 if original_msg_id in pending_task_graphs:
                     task_key = pending_task_graphs[original_msg_id]
                     # 我们这里简单假设 task_key 与 SKILL_ALLOCATIONS 里的 key 一致 (例如 'fire_rescue')
@@ -1525,20 +1540,16 @@ class MockBackendHandler(BaseHTTPRequestHandler):
 
                 elif original_msg_id in pending_skill_allocations:
                     allocation_key = pending_skill_allocations[original_msg_id]
-                    # 我们简单假设 allocation_key 与 SKILL_LISTS (demo 中的预设 ID) 一致
-                    from demo_guided import demoScenarios
-                    if allocation_key in demoScenarios:
-                        # 对于 demo 中的全流程和消防，可能需要找到实际的 skill_list key
-                        skill_key = allocation_key
-                        if skill_key in SKILL_LISTS:
-                            skill_data = SKILL_LISTS[skill_key]['data']
-                            auto_exec_msg = create_skill_list_message(skill_data)
-                            
-                            with message_lock:
-                                pending_messages.append(auto_exec_msg)
-                                
-                            broadcast_message('sent', f'Auto Execute Skill List: {skill_key}', auto_exec_msg, 'outgoing')
-                            print(f"[HITL Auto-Trigger] Automatically queued Skill List execution for approved Skill Allocation '{skill_key}'")
+                    # 假设 allocation_key 与 SKILL_LISTS 里的 key 一致
+                    if allocation_key in SKILL_LISTS:
+                        skill_data = SKILL_LISTS[allocation_key]['data']
+                        auto_exec_msg = create_skill_list_message(skill_data)
+
+                        with message_lock:
+                            pending_messages.append(auto_exec_msg)
+
+                        broadcast_message('sent', f'Auto Execute Skill List: {allocation_key}', auto_exec_msg, 'outgoing')
+                        print(f"[HITL Auto-Trigger] Automatically queued Skill List execution for approved Skill Allocation '{allocation_key}'")
 
 
             self.send_json_response(200, {"status": "received"})

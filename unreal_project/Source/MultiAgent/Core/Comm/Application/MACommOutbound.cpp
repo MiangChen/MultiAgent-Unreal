@@ -247,7 +247,7 @@ void FMACommOutbound::SendReviewResponse(const FMAReviewResponseMessage& Respons
         Response.bApproved ? TEXT("true") : TEXT("false"));
 
     const FMAMessageEnvelope Envelope = MACommJsonCodec::MakeOutboundEnvelope(
-        EMACommMessageType::SkillAllocation,
+        EMACommMessageType::ReviewResponse,
         EMAMessageCategory::Review,
         MACommJsonCodec::SerializeReviewResponse(Response),
         Response.Timestamp,
@@ -258,9 +258,11 @@ void FMACommOutbound::SendReviewResponse(const FMAReviewResponseMessage& Respons
 }
 
 void FMACommOutbound::SendReviewResponseSimple(bool bApproved,
-    const FString& ModifiedDataJson, const FString& RejectionReason)
+    const FString& ModifiedDataJson,
+    const FString& RejectionReason,
+    const FString& OriginalMessageId)
 {
-    FMAReviewResponseMessage Response(bApproved, ModifiedDataJson, RejectionReason);
+    FMAReviewResponseMessage Response(bApproved, ModifiedDataJson, RejectionReason, OriginalMessageId);
     SendReviewResponse(Response);
 }
 
@@ -275,7 +277,7 @@ void FMACommOutbound::SendDecisionResponse(const FMADecisionResponseMessage& Res
         *Response.Decision);
 
     const FMAMessageEnvelope Envelope = MACommJsonCodec::MakeOutboundEnvelope(
-        EMACommMessageType::Custom,
+        EMACommMessageType::DecisionResponse,
         EMAMessageCategory::Decision,
         MACommJsonCodec::SerializeDecisionResponse(Response),
         Response.Timestamp,
@@ -286,8 +288,10 @@ void FMACommOutbound::SendDecisionResponse(const FMADecisionResponseMessage& Res
 }
 
 void FMACommOutbound::SendDecisionResponseSimple(const FString& Decision,
-    const FString& DecisionDataJson, const FString& UserFeedback)
+    const FString& DecisionDataJson,
+    const FString& UserFeedback,
+    const FString& OriginalMessageId)
 {
-    FMADecisionResponseMessage Response(Decision, DecisionDataJson, UserFeedback);
+    FMADecisionResponseMessage Response(Decision, DecisionDataJson, UserFeedback, OriginalMessageId);
     SendDecisionResponse(Response);
 }

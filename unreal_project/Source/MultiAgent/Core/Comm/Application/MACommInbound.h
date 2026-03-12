@@ -84,13 +84,13 @@ private:
     //=========================================================================
 
     /** 处理任务图消息 (来自 mock_backend) */
-    void HandleTaskGraph(const TSharedPtr<FJsonObject>& PayloadObject);
+    void HandleTaskGraph(const TSharedPtr<FJsonObject>& PayloadObject, const FString& SourceMessageId);
 
     /** 处理技能列表消息 (PLATFORM 类别 - 直接执行) */
     void HandleSkillList(const TSharedPtr<FJsonObject>& PayloadObject, bool bExecutable);
 
     /** 处理技能分配消息 (REVIEW 类别 - UI 交互流程) */
-    void HandleSkillAllocation(const TSharedPtr<FJsonObject>& PayloadObject);
+    void HandleSkillAllocation(const TSharedPtr<FJsonObject>& PayloadObject, const FString& SourceMessageId);
 
     /** 处理索要用户指令消息 */
     void HandleRequestUserCommand(const TSharedPtr<FJsonObject>& PayloadObject);

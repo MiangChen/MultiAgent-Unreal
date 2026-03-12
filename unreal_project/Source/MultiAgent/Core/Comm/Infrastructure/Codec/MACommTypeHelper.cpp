@@ -21,6 +21,8 @@ namespace MACommTypeHelpers
         case EMACommMessageType::SkillList:       return TEXT("skill_list");
         case EMACommMessageType::QueryRequest:    return TEXT("query_request");
         case EMACommMessageType::SkillAllocation: return TEXT("skill_allocation");
+        case EMACommMessageType::ReviewResponse:  return TEXT("review_response");
+        case EMACommMessageType::DecisionResponse:return TEXT("decision_response");
         case EMACommMessageType::SkillStatusUpdate: return TEXT("skill_status_update");
         case EMACommMessageType::Custom:
         default:                                  return TEXT("custom");
@@ -40,6 +42,8 @@ namespace MACommTypeHelpers
         if (TypeStr == TEXT("skill_list"))         return EMACommMessageType::SkillList;
         if (TypeStr == TEXT("query_request"))      return EMACommMessageType::QueryRequest;
         if (TypeStr == TEXT("skill_allocation"))   return EMACommMessageType::SkillAllocation;
+        if (TypeStr == TEXT("review_response"))    return EMACommMessageType::ReviewResponse;
+        if (TypeStr == TEXT("decision_response"))  return EMACommMessageType::DecisionResponse;
         if (TypeStr == TEXT("skill_status_update")) return EMACommMessageType::SkillStatusUpdate;
         return EMACommMessageType::Custom;
     }
@@ -107,7 +111,11 @@ namespace MACommTypeHelpers
         // Review 类别: 计划审阅请求/响应
         case EMACommMessageType::TaskGraph:
         case EMACommMessageType::SkillAllocation:
+        case EMACommMessageType::ReviewResponse:
             return EMAMessageCategory::Review;
+
+        case EMACommMessageType::DecisionResponse:
+            return EMAMessageCategory::Decision;
 
         // Platform 类别: 平台消息 (默认)
         case EMACommMessageType::TaskFeedback:

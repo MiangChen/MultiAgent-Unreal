@@ -86,7 +86,9 @@ public:
      * @param RejectionReason 拒绝原因 (可选，拒绝时填写)
      */
     void SendReviewResponseSimple(bool bApproved, 
-        const FString& ModifiedDataJson = TEXT(""), const FString& RejectionReason = TEXT(""));
+        const FString& ModifiedDataJson = TEXT(""),
+        const FString& RejectionReason = TEXT(""),
+        const FString& OriginalMessageId = TEXT(""));
 
     /**
      * 发送决策响应消息
@@ -102,7 +104,9 @@ public:
      * @param UserFeedback 用户反馈 (可选)
      */
     void SendDecisionResponseSimple(const FString& Decision,
-        const FString& DecisionDataJson = TEXT(""), const FString& UserFeedback = TEXT(""));
+        const FString& DecisionDataJson = TEXT(""),
+        const FString& UserFeedback = TEXT(""),
+        const FString& OriginalMessageId = TEXT(""));
 
     //=========================================================================
 

@@ -131,7 +131,9 @@ public:
     /** 发送审阅响应消息 (便捷方法) */
     UFUNCTION(BlueprintCallable, Category = "Communication|HITL")
     void SendReviewResponseSimple(bool bApproved,
-        const FString& ModifiedDataJson = TEXT(""), const FString& RejectionReason = TEXT(""));
+        const FString& ModifiedDataJson = TEXT(""),
+        const FString& RejectionReason = TEXT(""),
+        const FString& OriginalMessageId = TEXT(""));
 
     /** 发送决策响应消息 */
     UFUNCTION(BlueprintCallable, Category = "Communication|HITL")
@@ -140,7 +142,9 @@ public:
     /** 发送决策响应消息 (便捷方法) */
     UFUNCTION(BlueprintCallable, Category = "Communication|HITL")
     void SendDecisionResponseSimple(const FString& Decision,
-        const FString& DecisionDataJson = TEXT(""), const FString& UserFeedback = TEXT(""));
+        const FString& DecisionDataJson = TEXT(""),
+        const FString& UserFeedback = TEXT(""),
+        const FString& OriginalMessageId = TEXT(""));
 
     //=========================================================================
     // 轮询控制接口 (委托给 MACommInbound)

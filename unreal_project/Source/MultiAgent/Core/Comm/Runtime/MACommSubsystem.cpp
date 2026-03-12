@@ -215,11 +215,13 @@ void UMACommSubsystem::SendReviewResponse(const FMAReviewResponseMessage& Respon
 }
 
 void UMACommSubsystem::SendReviewResponseSimple(bool bApproved,
-    const FString& ModifiedDataJson, const FString& RejectionReason)
+    const FString& ModifiedDataJson,
+    const FString& RejectionReason,
+    const FString& OriginalMessageId)
 {
     if (Outbound)
     {
-        Outbound->SendReviewResponseSimple(bApproved, ModifiedDataJson, RejectionReason);
+        Outbound->SendReviewResponseSimple(bApproved, ModifiedDataJson, RejectionReason, OriginalMessageId);
     }
 }
 
@@ -232,11 +234,13 @@ void UMACommSubsystem::SendDecisionResponse(const FMADecisionResponseMessage& Re
 }
 
 void UMACommSubsystem::SendDecisionResponseSimple(const FString& Decision,
-    const FString& DecisionDataJson, const FString& UserFeedback)
+    const FString& DecisionDataJson,
+    const FString& UserFeedback,
+    const FString& OriginalMessageId)
 {
     if (Outbound)
     {
-        Outbound->SendDecisionResponseSimple(Decision, DecisionDataJson, UserFeedback);
+        Outbound->SendDecisionResponseSimple(Decision, DecisionDataJson, UserFeedback, OriginalMessageId);
     }
 }
 

@@ -4,6 +4,7 @@
 
 #include "../Runtime/MAHUD.h"
 #include "../../../Core/Comm/Runtime/MACommSubsystem.h"
+#include "../../../Core/TempData/Runtime/MATempDataManager.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 
@@ -90,11 +91,12 @@ bool FMAHUDBackendRuntimeAdapter::SendReviewResponse(
     UWorld* World,
     const bool bApproved,
     const FString& DataJson,
-    const FString& RejectionReason) const
+    const FString& RejectionReason,
+    const FString& OriginalMessageId) const
 {
     if (UMACommSubsystem* CommSubsystem = ResolveCommSubsystem(World))
     {
-        CommSubsystem->SendReviewResponseSimple(bApproved, DataJson, RejectionReason);
+        CommSubsystem->SendReviewResponseSimple(bApproved, DataJson, RejectionReason, OriginalMessageId);
         return true;
     }
 
@@ -114,4 +116,30 @@ bool FMAHUDBackendRuntimeAdapter::SendButtonEvent(
     }
 
     return false;
+}
+
+FString FMAHUDBackendRuntimeAdapter::GetTaskGraphReviewMessageId(UWorld* World) const
+{
+    if (UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr)
+    {
+        if (UMATempDataManager* TempDataManager = GameInstance->GetSubsystem<UMATempDataManager>())
+        {
+            return TempDataManager->GetTaskGraphReviewMessageId();
+        }
+    }
+
+    return FString();
+}
+
+FString FMAHUDBackendRuntimeAdapter::GetSkillAllocationReviewMessageId(UWorld* World) const
+{
+    if (UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr)
+    {
+        if (UMATempDataManager* TempDataManager = GameInstance->GetSubsystem<UMATempDataManager>())
+        {
+            return TempDataManager->GetSkillAllocationReviewMessageId();
+        }
+    }
+
+    return FString();
 }

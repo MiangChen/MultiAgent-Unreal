@@ -19,6 +19,9 @@ struct MULTIAGENT_API FMAReviewResponseMessage
     FString RejectionReason;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ReviewResponse")
+    FString OriginalMessageId;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ReviewResponse")
     int64 Timestamp = 0;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ReviewResponse", Meta = (IgnoreForMemberInitializationTest))
@@ -30,10 +33,15 @@ struct MULTIAGENT_API FMAReviewResponseMessage
     {
     }
 
-    FMAReviewResponseMessage(bool bInApproved, const FString& InModifiedDataJson = TEXT(""), const FString& InRejectionReason = TEXT(""))
+    FMAReviewResponseMessage(
+        bool bInApproved,
+        const FString& InModifiedDataJson = TEXT(""),
+        const FString& InRejectionReason = TEXT(""),
+        const FString& InOriginalMessageId = TEXT(""))
         : bApproved(bInApproved)
         , ModifiedDataJson(InModifiedDataJson)
         , RejectionReason(InRejectionReason)
+        , OriginalMessageId(InOriginalMessageId)
         , Timestamp(MACommDomainDefaults::CurrentTimestampMs())
         , MessageId(MACommDomainDefaults::NewMessageId())
     {
@@ -55,6 +63,9 @@ struct MULTIAGENT_API FMADecisionResponseMessage
     FString UserFeedback;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DecisionResponse")
+    FString OriginalMessageId;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DecisionResponse")
     int64 Timestamp = 0;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DecisionResponse", Meta = (IgnoreForMemberInitializationTest))
@@ -66,10 +77,15 @@ struct MULTIAGENT_API FMADecisionResponseMessage
     {
     }
 
-    FMADecisionResponseMessage(const FString& InDecision, const FString& InDecisionDataJson = TEXT(""), const FString& InUserFeedback = TEXT(""))
+    FMADecisionResponseMessage(
+        const FString& InDecision,
+        const FString& InDecisionDataJson = TEXT(""),
+        const FString& InUserFeedback = TEXT(""),
+        const FString& InOriginalMessageId = TEXT(""))
         : Decision(InDecision)
         , DecisionDataJson(InDecisionDataJson)
         , UserFeedback(InUserFeedback)
+        , OriginalMessageId(InOriginalMessageId)
         , Timestamp(MACommDomainDefaults::CurrentTimestampMs())
         , MessageId(MACommDomainDefaults::NewMessageId())
     {

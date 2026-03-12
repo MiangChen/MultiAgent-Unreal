@@ -97,7 +97,7 @@ public:
      * @return 是否保存成功
      */
     UFUNCTION(BlueprintCallable, Category = "TempData|TaskGraph")
-    bool SaveTaskGraph(const FMATaskGraphData& Data);
+    bool SaveTaskGraph(const FMATaskGraphData& Data, const FString& ReviewMessageId = TEXT(""));
 
     /**
      * 从临时文件加载任务图数据
@@ -113,6 +113,9 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "TempData|TaskGraph")
     FString GetTaskGraphJson() const;
+
+    UFUNCTION(BlueprintPure, Category = "TempData|TaskGraph")
+    FString GetTaskGraphReviewMessageId() const { return CachedTaskGraphReviewMessageId; }
 
     /**
      * 检查任务图临时文件是否存在
@@ -131,7 +134,7 @@ public:
      * @return 是否保存成功
      */
     UFUNCTION(BlueprintCallable, Category = "TempData|SkillAllocation")
-    bool SaveSkillAllocation(const FMASkillAllocationData& Data);
+    bool SaveSkillAllocation(const FMASkillAllocationData& Data, const FString& ReviewMessageId = TEXT(""));
 
     /**
      * 从临时文件加载技能分配数据
@@ -147,6 +150,9 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "TempData|SkillAllocation")
     FString GetSkillAllocationJson() const;
+
+    UFUNCTION(BlueprintPure, Category = "TempData|SkillAllocation")
+    FString GetSkillAllocationReviewMessageId() const { return CachedSkillAllocationReviewMessageId; }
 
     /**
      * 检查技能分配临时文件是否存在
@@ -282,8 +288,14 @@ private:
     /** 任务图文件路径 (缓存) */
     FString CachedTaskGraphFilePath;
 
+    /** 当前任务图对应的审阅消息 ID */
+    FString CachedTaskGraphReviewMessageId;
+
     /** 技能分配文件路径 (缓存) */
     FString CachedSkillAllocationFilePath;
+
+    /** 当前技能分配对应的审阅消息 ID */
+    FString CachedSkillAllocationReviewMessageId;
 
     /** 是否正在监听文件变化 */
     bool bIsFileWatching = false;

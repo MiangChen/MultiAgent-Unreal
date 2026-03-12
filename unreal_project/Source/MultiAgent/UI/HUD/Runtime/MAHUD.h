@@ -480,8 +480,10 @@ private:
     bool RuntimeSendNaturalLanguageCommand(const FString& Command);
     bool RuntimeHasCommSubsystem() const;
     void RuntimeSendTaskGraphSubmit(const FString& TaskGraphJson);
-    void RuntimeSendReviewResponse(bool bApproved, const FString& DataJson, const FString& RejectionReason);
+    void RuntimeSendReviewResponse(bool bApproved, const FString& DataJson, const FString& RejectionReason, const FString& OriginalMessageId = TEXT(""));
     void RuntimeSendButtonEvent(const FString& WidgetName, const FString& EventType, const FString& Label);
+    FString RuntimeGetTaskGraphReviewMessageId() const;
+    FString RuntimeGetSkillAllocationReviewMessageId() const;
     bool RuntimeLoadSceneGraphNodes(TArray<FMASceneGraphNode>& OutNodes);
     void RuntimeDrawSceneLabels(const TArray<FMASceneGraphNode>& Nodes);
     void RuntimeDrawPIPCameras();

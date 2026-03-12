@@ -66,7 +66,7 @@ void UMATempDataManager::Deinitialize()
 // 任务图操作
 //=============================================================================
 
-bool UMATempDataManager::SaveTaskGraph(const FMATaskGraphData& Data)
+bool UMATempDataManager::SaveTaskGraph(const FMATaskGraphData& Data, const FString& ReviewMessageId)
 {
     // 确保目录存在
     if (!EnsureDataDirectoryExists())
@@ -86,6 +86,8 @@ bool UMATempDataManager::SaveTaskGraph(const FMATaskGraphData& Data)
     }
 
     UE_LOG(LogMATempData, Log, TEXT("SaveTaskGraph: Successfully saved to %s"), *CachedTaskGraphFilePath);
+
+    CachedTaskGraphReviewMessageId = ReviewMessageId;
 
     // 广播数据变更事件
     OnTaskGraphChanged.Broadcast(Data);
@@ -146,7 +148,7 @@ bool UMATempDataManager::TaskGraphFileExists() const
 // 技能分配操作
 //=============================================================================
 
-bool UMATempDataManager::SaveSkillAllocation(const FMASkillAllocationData& Data)
+bool UMATempDataManager::SaveSkillAllocation(const FMASkillAllocationData& Data, const FString& ReviewMessageId)
 {
     // 确保目录存在
     if (!EnsureDataDirectoryExists())
@@ -170,6 +172,7 @@ bool UMATempDataManager::SaveSkillAllocation(const FMASkillAllocationData& Data)
     // Update cache
     CachedSkillAllocationData = Data;
     bSkillAllocationCacheValid = true;
+    CachedSkillAllocationReviewMessageId = ReviewMessageId;
 
     // 广播数据变更事件
     OnSkillAllocationChanged.Broadcast(Data);

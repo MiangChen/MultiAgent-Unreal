@@ -34,6 +34,8 @@ enum class EMACommMessageType : uint8
     SkillList       UMETA(DisplayName = "Skill List"),
     QueryRequest    UMETA(DisplayName = "Query Request"),
     SkillAllocation UMETA(DisplayName = "Skill Allocation"),
+    ReviewResponse  UMETA(DisplayName = "Review Response"),
+    DecisionResponse UMETA(DisplayName = "Decision Response"),
     SkillStatusUpdate UMETA(DisplayName = "Skill Status Update"),
 
     Custom          UMETA(DisplayName = "Custom")

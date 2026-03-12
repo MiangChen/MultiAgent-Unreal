@@ -237,6 +237,11 @@ FString MACommJsonCodec::SerializeReviewResponse(const FMAReviewResponseMessage&
         JsonObject->SetStringField(TEXT("rejection_reason"), Message.RejectionReason);
     }
 
+    if (!Message.OriginalMessageId.IsEmpty())
+    {
+        JsonObject->SetStringField(TEXT("original_message_id"), Message.OriginalMessageId);
+    }
+
     FString OutputString;
     TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);
     FJsonSerializer::Serialize(JsonObject.ToSharedRef(), Writer);
@@ -270,6 +275,7 @@ bool MACommJsonCodec::DeserializeReviewResponse(const FString& Json, FMAReviewRe
     }
 
     JsonObject->TryGetStringField(TEXT("rejection_reason"), OutMessage.RejectionReason);
+    JsonObject->TryGetStringField(TEXT("original_message_id"), OutMessage.OriginalMessageId);
     return true;
 }
 
@@ -295,6 +301,11 @@ FString MACommJsonCodec::SerializeDecisionResponse(const FMADecisionResponseMess
     if (!Message.UserFeedback.IsEmpty())
     {
         JsonObject->SetStringField(TEXT("user_feedback"), Message.UserFeedback);
+    }
+
+    if (!Message.OriginalMessageId.IsEmpty())
+    {
+        JsonObject->SetStringField(TEXT("original_message_id"), Message.OriginalMessageId);
     }
 
     FString OutputString;
@@ -330,5 +341,6 @@ bool MACommJsonCodec::DeserializeDecisionResponse(const FString& Json, FMADecisi
     }
 
     JsonObject->TryGetStringField(TEXT("user_feedback"), OutMessage.UserFeedback);
+    JsonObject->TryGetStringField(TEXT("original_message_id"), OutMessage.OriginalMessageId);
     return true;
 }

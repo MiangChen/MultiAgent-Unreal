@@ -397,6 +397,8 @@ void FMACommInbound::HandleHITLMessage(const TSharedPtr<FJsonObject>& MsgObject,
 
     FString MessageTypeStr;
     MsgObject->TryGetStringField(TEXT("message_type"), MessageTypeStr);
+    FString SourceMessageId;
+    MsgObject->TryGetStringField(TEXT("message_id"), SourceMessageId);
 
     UE_LOG(LogMACommInbound, Log, TEXT("HandleHITLMessage: Processing HITL message type: %s, category: %d"), 
         *MessageTypeStr, static_cast<int32>(Category));
@@ -429,12 +431,12 @@ void FMACommInbound::HandleHITLMessage(const TSharedPtr<FJsonObject>& MsgObject,
         // Review 类别: 计划审阅请求
         if (MessageTypeStr == TEXT("task_graph"))
         {
-            HandleTaskGraph(*PayloadObject);
+            HandleTaskGraph(*PayloadObject, SourceMessageId);
         }
         else if (MessageTypeStr == TEXT("skill_allocation"))
         {
             // skill_allocation (REVIEW 类别) - 触发 UI 显示，用户审阅
-            HandleSkillAllocation(*PayloadObject);
+            HandleSkillAllocation(*PayloadObject, SourceMessageId);
         }
         else
         {
@@ -490,7 +492,7 @@ void FMACommInbound::HandlePlatformMessage(const TSharedPtr<FJsonObject>& MsgObj
 // 具体消息类型处理
 //=============================================================================
 
-void FMACommInbound::HandleTaskGraph(const TSharedPtr<FJsonObject>& PayloadObject)
+void FMACommInbound::HandleTaskGraph(const TSharedPtr<FJsonObject>& PayloadObject, const FString& SourceMessageId)
 {
     if (!Owner)
     {
@@ -551,7 +553,7 @@ void FMACommInbound::HandleTaskGraph(const TSharedPtr<FJsonObject>& PayloadObjec
             {
                 if (UMATempDataManager* TempDataMgr = GameInstance->GetSubsystem<UMATempDataManager>())
                 {
-                    if (TempDataMgr->SaveTaskGraph(TaskGraphData))
+                    if (TempDataMgr->SaveTaskGraph(TaskGraphData, SourceMessageId))
                     {
                         UE_LOG(LogMACommInbound, Log, TEXT("HandleTaskGraph: Saved task graph to temp file"));
                     }
@@ -636,7 +638,7 @@ void FMACommInbound::HandleSkillList(const TSharedPtr<FJsonObject>& PayloadObjec
     }
 }
 
-void FMACommInbound::HandleSkillAllocation(const TSharedPtr<FJsonObject>& PayloadObject)
+void FMACommInbound::HandleSkillAllocation(const TSharedPtr<FJsonObject>& PayloadObject, const FString& SourceMessageId)
 {
     if (!Owner)
     {
@@ -678,7 +680,7 @@ void FMACommInbound::HandleSkillAllocation(const TSharedPtr<FJsonObject>& Payloa
     {
         if (UMATempDataManager* TempDataMgr = GameInstance->GetSubsystem<UMATempDataManager>())
         {
-            if (TempDataMgr->SaveSkillAllocation(AllocationData))
+            if (TempDataMgr->SaveSkillAllocation(AllocationData, SourceMessageId))
             {
                 UE_LOG(LogMACommInbound, Log, TEXT("HandleSkillAllocation: Saved skill allocation to temp file"));
             }

@@ -224,9 +224,10 @@ void AMAHUD::RuntimeSendTaskGraphSubmit(const FString& TaskGraphJson)
 void AMAHUD::RuntimeSendReviewResponse(
     const bool bApproved,
     const FString& DataJson,
-    const FString& RejectionReason)
+    const FString& RejectionReason,
+    const FString& OriginalMessageId)
 {
-    HUDBackendRuntimeAdapter().SendReviewResponse(GetWorld(), bApproved, DataJson, RejectionReason);
+    HUDBackendRuntimeAdapter().SendReviewResponse(GetWorld(), bApproved, DataJson, RejectionReason, OriginalMessageId);
 }
 
 void AMAHUD::RuntimeSendButtonEvent(
@@ -235,6 +236,16 @@ void AMAHUD::RuntimeSendButtonEvent(
     const FString& Label)
 {
     HUDBackendRuntimeAdapter().SendButtonEvent(GetWorld(), WidgetName, EventType, Label);
+}
+
+FString AMAHUD::RuntimeGetTaskGraphReviewMessageId() const
+{
+    return HUDBackendRuntimeAdapter().GetTaskGraphReviewMessageId(GetWorld());
+}
+
+FString AMAHUD::RuntimeGetSkillAllocationReviewMessageId() const
+{
+    return HUDBackendRuntimeAdapter().GetSkillAllocationReviewMessageId(GetWorld());
 }
 
 bool AMAHUD::RuntimeLoadSceneGraphNodes(TArray<FMASceneGraphNode>& OutNodes)

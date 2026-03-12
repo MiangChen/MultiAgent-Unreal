@@ -180,8 +180,17 @@ void FMAHUDBackendCoordinator::HandleModalConfirmed(AMAHUD* HUD, UMAUIManager* U
                 break;
             }
 
-            HUD->RuntimeSendTaskGraphSubmit(TaskGraphJson);
-            UE_LOG(LogMAHUDBackendCoordinator, Log, TEXT("HandleModalConfirmed: Task graph submitted"));
+            const FString OriginalMessageId = HUD->RuntimeGetTaskGraphReviewMessageId();
+            if (OriginalMessageId.IsEmpty())
+            {
+                HUD->RuntimeSendTaskGraphSubmit(TaskGraphJson);
+                UE_LOG(LogMAHUDBackendCoordinator, Log, TEXT("HandleModalConfirmed: Task graph submitted without review context"));
+            }
+            else
+            {
+                HUD->RuntimeSendReviewResponse(true, TaskGraphJson, TEXT(""), OriginalMessageId);
+                UE_LOG(LogMAHUDBackendCoordinator, Log, TEXT("HandleModalConfirmed: Task graph approved"));
+            }
         }
         break;
 
@@ -195,7 +204,8 @@ void FMAHUDBackendCoordinator::HandleModalConfirmed(AMAHUD* HUD, UMAUIManager* U
 
             const FMASkillAllocationData Data = SkillModal->GetSkillAllocationData();
             const FString ModifiedDataJson = FMASkillAllocationUseCases::SerializeJson(Data);
-            HUD->RuntimeSendReviewResponse(true, ModifiedDataJson, TEXT(""));
+            const FString OriginalMessageId = HUD->RuntimeGetSkillAllocationReviewMessageId();
+            HUD->RuntimeSendReviewResponse(true, ModifiedDataJson, TEXT(""), OriginalMessageId);
             UE_LOG(LogMAHUDBackendCoordinator, Log, TEXT("HandleModalConfirmed: Skill allocation approved"));
         }
         break;
@@ -214,6 +224,21 @@ bool FMAHUDBackendCoordinator::HandleModalRejected(AMAHUD* HUD, UMAUIManager* UI
 
     switch (ModalType)
     {
+    case EMAModalType::TaskGraph:
+        {
+            const FString OriginalMessageId = HUD->RuntimeGetTaskGraphReviewMessageId();
+            if (!OriginalMessageId.IsEmpty())
+            {
+                HUD->RuntimeSendReviewResponse(false, TEXT(""), TEXT("User rejected the task graph"), OriginalMessageId);
+                UE_LOG(LogMAHUDBackendCoordinator, Log, TEXT("HandleModalRejected: Task graph rejected"));
+                break;
+            }
+
+            HUD->RuntimeSendButtonEvent(TEXT("TaskGraphModal"), TEXT("reject"), TEXT("Reject"));
+            UE_LOG(LogMAHUDBackendCoordinator, Log, TEXT("HandleModalRejected: Reject event sent for TaskGraphModal"));
+        }
+        break;
+
     case EMAModalType::SkillAllocation:
         {
             if (!UIManager)
@@ -227,7 +252,8 @@ bool FMAHUDBackendCoordinator::HandleModalRejected(AMAHUD* HUD, UMAUIManager* UI
                 break;
             }
 
-            HUD->RuntimeSendReviewResponse(false, TEXT(""), TEXT("User rejected the skill allocation"));
+            const FString OriginalMessageId = HUD->RuntimeGetSkillAllocationReviewMessageId();
+            HUD->RuntimeSendReviewResponse(false, TEXT(""), TEXT("User rejected the skill allocation"), OriginalMessageId);
             UE_LOG(LogMAHUDBackendCoordinator, Log, TEXT("HandleModalRejected: Skill allocation rejected"));
         }
         break;
@@ -237,9 +263,6 @@ bool FMAHUDBackendCoordinator::HandleModalRejected(AMAHUD* HUD, UMAUIManager* UI
             FString WidgetName;
             switch (ModalType)
             {
-            case EMAModalType::TaskGraph:
-                WidgetName = TEXT("TaskGraphModal");
-                break;
             default:
                 WidgetName = TEXT("UnknownModal");
                 break;
