@@ -84,6 +84,11 @@ void UMANavigationService::UpdateReturnHome(float DeltaTime)
         FlightController->UpdateFlight(DeltaTime);
     }
 
+    const float DistanceToHome2D =
+        OwnerCharacter ? FVector::Dist2D(OwnerCharacter->GetActorLocation(), TargetLocation) : TNumericLimits<float>::Max();
+    // ReturnHome 的最终目标是“回到 home 附近后降落”，不是必须先精确悬停在 home 点正上方。
+    // 这里放宽 landing trigger，可避免飞控近目标避障导致的长期盘旋。
+    const float LandingTriggerRadius = FMath::Max(AcceptanceRadius, 200.f);
     const bool bHasArrivedAtHome = FlightController.IsValid() && !bReturnHomeIsLanding && FlightController->HasArrived();
     const bool bHasFinishedLanding = FlightController.IsValid() && bReturnHomeIsLanding && FlightController->GetState() == EMAFlightControlState::Idle;
     const FMANavigationReturnHomeFeedback Feedback =
@@ -92,6 +97,8 @@ void UMANavigationService::UpdateReturnHome(float DeltaTime)
             FlightController.IsValid(),
             bReturnHomeIsLanding,
             bHasArrivedAtHome,
+            DistanceToHome2D,
+            LandingTriggerRadius,
             bHasFinishedLanding,
             OwnerCharacter ? OwnerCharacter->GetActorLocation() : FVector::ZeroVector);
 
@@ -107,7 +114,8 @@ void UMANavigationService::UpdateReturnHome(float DeltaTime)
         SetNavigationState(Feedback.NextState);
         if (FlightController.IsValid())
         {
-            FlightController->Land();
+            TargetLocation.Z = ReturnHomeLandAltitude;
+            FlightController->Land(TargetLocation);
         }
         UE_LOG(LogTemp, Log, TEXT("[MANavigationService] %s: %s"),
             OwnerCharacter ? *OwnerCharacter->GetName() : TEXT("NULL"),

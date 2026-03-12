@@ -269,27 +269,17 @@ void FMASkillParamsProcessor::ProcessReturnHome(UMASkillComponent* SkillComp, co
     if (!SkillComp) return;
 
     AMACharacter* Agent = Cast<AMACharacter>(SkillComp->GetOwner());
-    if (!Agent || !Agent->GetWorld()) return;
+    if (!Agent) return;
 
     FMASkillParams& Params = SkillComp->GetSkillParamsMutable();
     FMAFeedbackContext& Context = SkillComp->GetFeedbackContextMutable();
 
-    UWorld* World = Agent->GetWorld();
     FVector HomeLocation = Agent->InitialLocation;
     FString HomeLandmark;
 
-    if (Cmd)
-    {
-        TSharedPtr<FJsonObject> ParamsJson;
-        if (MAParamsHelper::ParseRawParams(Cmd->Params.RawParamsJson, ParamsJson))
-        {
-            FVector DestPosition;
-            if (MAParamsHelper::ExtractDestPosition(ParamsJson, DestPosition))
-            {
-                HomeLocation = DestPosition;
-            }
-        }
-    }
+    // ReturnHome 的 home anchor 采用角色开始游戏时记录的初始位置。
+    // 当前语义下不再对 return_home 做运行期目标覆写或动态测高。
+    (void)Cmd;
 
     const FMASceneGraphNode HomeNearestLandmark = FMASkillSceneGraphBridge::FindNearestLandmark(Agent, HomeLocation, 2000.f);
     if (HomeNearestLandmark.IsValid())
@@ -297,23 +287,11 @@ void FMASkillParamsProcessor::ProcessReturnHome(UMASkillComponent* SkillComp, co
         HomeLandmark = HomeNearestLandmark.Label;
     }
 
-    float LandHeight = 50.f;
-    const FVector Start(HomeLocation.X, HomeLocation.Y, 50000.f);
-    const FVector End(HomeLocation.X, HomeLocation.Y, -10000.f);
-
-    FHitResult HitResult;
-    FCollisionQueryParams QueryParams;
-    QueryParams.AddIgnoredActor(Agent);
-
-    if (World->LineTraceSingleByChannel(HitResult, Start, End, ECC_WorldStatic, QueryParams))
-    {
-        LandHeight = HitResult.Location.Z + 50.f;
-    }
-
     Params.HomeLocation = HomeLocation;
-    Params.LandHeight = LandHeight;
+    Params.LandHeight = HomeLocation.Z;
     Context.HomeLocationFromSceneGraph = HomeLocation;
     Context.HomeLandmarkLabel = HomeLandmark;
+    Context.bHomeLocationFromSceneGraph = false;
 }
 
 void FMASkillParamsProcessor::ProcessCharge(UMASkillComponent* SkillComp, const FMAAgentSkillCommand* Cmd)

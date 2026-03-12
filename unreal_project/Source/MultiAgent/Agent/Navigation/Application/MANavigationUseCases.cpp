@@ -324,6 +324,8 @@ FMANavigationReturnHomeFeedback FMANavigationUseCases::BuildReturnHomeUpdate(
     const bool bHasFlightController,
     const bool bIsLandingPhase,
     const bool bHasArrivedAtHome,
+    const float DistanceToHome2D,
+    const float LandingTriggerRadius,
     const bool bHasFinishedLanding,
     const FVector& CurrentLocation)
 {
@@ -350,14 +352,18 @@ FMANavigationReturnHomeFeedback FMANavigationUseCases::BuildReturnHomeUpdate(
         return Feedback;
     }
 
-    if (!bHasArrivedAtHome)
+    const bool bReachedLandingZone = bHasArrivedAtHome || DistanceToHome2D <= LandingTriggerRadius;
+    if (!bReachedLandingZone)
     {
         return Feedback;
     }
 
     Feedback.Action = EMANavigationReturnHomeAction::StartLanding;
     Feedback.NextState = EMANavigationState::Landing;
-    Feedback.LogMessage = TEXT("ReturnHome - Arrived at home, starting landing");
+    Feedback.LogMessage = FString::Printf(
+        TEXT("ReturnHome - Reached landing zone (distance=%.0fcm, trigger=%.0fcm), starting landing"),
+        DistanceToHome2D,
+        LandingTriggerRadius);
     return Feedback;
 }
 

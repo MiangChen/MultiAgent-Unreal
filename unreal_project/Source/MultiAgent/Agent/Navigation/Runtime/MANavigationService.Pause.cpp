@@ -185,7 +185,7 @@ void UMANavigationService::ResumePausedFlyingOperation(UWorld* World)
         {
             if (PauseSnapshot.bReturnHomeIsLanding || PauseSnapshot.State == EMANavigationState::Landing)
             {
-                FlightController->Land();
+                FlightController->Land(TargetLocation);
             }
             else
             {
@@ -198,7 +198,7 @@ void UMANavigationService::ResumePausedFlyingOperation(UWorld* World)
         }
         else if (PauseSnapshot.State == EMANavigationState::Landing)
         {
-            FlightController->Land();
+            FlightController->Land(TargetLocation);
         }
         else
         {

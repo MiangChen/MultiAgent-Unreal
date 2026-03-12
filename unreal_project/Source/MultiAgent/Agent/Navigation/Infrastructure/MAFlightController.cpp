@@ -30,13 +30,17 @@ bool FMAMultiRotorFlightController::TakeOff(float TargetAltitude)
     return true;
 }
 
-bool FMAMultiRotorFlightController::Land()
+bool FMAMultiRotorFlightController::Land(const FVector& LandingTarget)
 {
     if (!Owner || State == EMAFlightControlState::Idle) return false;
 
-    FVector CurrentLocation = Owner->GetActorLocation();
-    float GroundZ = GetGroundHeight();
-    TargetLocation = FVector(CurrentLocation.X, CurrentLocation.Y, GroundZ + 50.f);
+    FVector DesiredLandingTarget = LandingTarget;
+    if (DesiredLandingTarget.IsNearlyZero())
+    {
+        DesiredLandingTarget = Owner->GetActorLocation();
+    }
+
+    TargetLocation = DesiredLandingTarget;
     SetState(EMAFlightControlState::Landing);
     return true;
 }
@@ -116,6 +120,45 @@ void FMAMultiRotorFlightController::UpdateFlight(float DeltaTime)
     FVector CurrentLocation = Owner->GetActorLocation();
     FVector ToTarget = TargetLocation - CurrentLocation;
     float Distance = ToTarget.Size();
+    if (State == EMAFlightControlState::Landing)
+    {
+        const FVector HorizontalOffset(ToTarget.X, ToTarget.Y, 0.f);
+        const float HorizontalDistance = HorizontalOffset.Size();
+        const float VerticalDistance = FMath::Abs(ToTarget.Z);
+        const float HorizontalCompleteThreshold = FMath::Max(25.f, AcceptanceRadius * 0.4f);
+        constexpr float VerticalCompleteThreshold = 60.f;
+
+        if (HorizontalDistance <= HorizontalCompleteThreshold && VerticalDistance <= VerticalCompleteThreshold)
+        {
+            CurrentSpeed = 0.f;
+            SetState(EMAFlightControlState::Idle);
+            return;
+        }
+
+        constexpr float HorizontalLandingSpeed = 220.f;
+        constexpr float VerticalLandingSpeed = 420.f;
+        FVector NewLocation = CurrentLocation;
+
+        if (HorizontalDistance > KINDA_SMALL_NUMBER)
+        {
+            const float HorizontalStep = FMath::Min(HorizontalDistance, HorizontalLandingSpeed * DeltaTime);
+            NewLocation += HorizontalOffset.GetSafeNormal() * HorizontalStep;
+        }
+
+        NewLocation.Z = FMath::FInterpConstantTo(CurrentLocation.Z, TargetLocation.Z, DeltaTime, VerticalLandingSpeed);
+        Owner->SetActorLocation(NewLocation);
+
+        CurrentSpeed = HorizontalDistance > KINDA_SMALL_NUMBER ? HorizontalLandingSpeed : 0.f;
+
+        if (HorizontalDistance > 5.f)
+        {
+            FRotator TargetRotation = HorizontalOffset.Rotation();
+            TargetRotation.Pitch = 0.f;
+            TargetRotation.Roll = 0.f;
+            Owner->SetActorRotation(FMath::RInterpTo(Owner->GetActorRotation(), TargetRotation, DeltaTime, 5.f));
+        }
+        return;
+    }
 
     // 检查是否到达
     if (Distance < AcceptanceRadius)
@@ -191,14 +234,19 @@ float FMAMultiRotorFlightController::GetGroundHeight() const
 {
     if (!Owner) return 0.f;
 
-    FVector Start = Owner->GetActorLocation();
-    FVector End = Start - FVector(0.f, 0.f, 10000.f);
+    const FVector SampleLocation = Owner->GetActorLocation();
+    const FVector Start(SampleLocation.X, SampleLocation.Y, FMath::Max(SampleLocation.Z + 5000.f, 50000.f));
+    const FVector End(SampleLocation.X, SampleLocation.Y, SampleLocation.Z - 10000.f);
 
     FHitResult HitResult;
     FCollisionQueryParams Params;
     Params.AddIgnoredActor(Owner);
+    Params.bTraceComplex = true;
 
-    if (Owner->GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility, Params))
+    FCollisionObjectQueryParams ObjectParams;
+    ObjectParams.AddObjectTypesToQuery(ECC_WorldStatic);
+
+    if (Owner->GetWorld()->LineTraceSingleByObjectType(HitResult, Start, End, ObjectParams, Params))
     {
         return HitResult.Location.Z;
     }
@@ -364,14 +412,15 @@ bool FMAFixedWingFlightController::TakeOff(float InTargetAltitude)
     return true;
 }
 
-bool FMAFixedWingFlightController::Land()
+bool FMAFixedWingFlightController::Land(const FVector& LandingTarget)
 {
     // 固定翼不支持垂直降落，进入盘旋模式
     if (!Owner) return false;
-    
-    StartOrbit(Owner->GetActorLocation());
+
+    TargetLocation = LandingTarget.IsNearlyZero() ? Owner->GetActorLocation() : LandingTarget;
     // 固定翼降落需要跑道，这里只是进入低空盘旋
-    TargetAltitude = 500.f;  // 低空盘旋
+    TargetAltitude = FMath::Max(TargetLocation.Z, 500.f);  // 低空盘旋
+    StartOrbit(TargetLocation);
     SetState(EMAFlightControlState::Landing);
     return true;
 }

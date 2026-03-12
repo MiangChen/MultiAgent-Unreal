@@ -48,7 +48,7 @@ bool UMANavigationService::Land(float TargetAltitude)
     UE_LOG(LogTemp, Log, TEXT("[MANavigationService] %s: Land to altitude %.0f"),
         *OwnerCharacter->GetName(), TargetAltitude);
 
-    if (!FlightController->Land())
+    if (!FlightController->Land(TargetLocation))
     {
         SetNavigationState(EMANavigationState::Failed);
         CompleteNavigation(false, TEXT("Land failed: FlightController rejected request"));

@@ -35,8 +35,8 @@ public:
     /** 起飞到指定高度 */
     virtual bool TakeOff(float TargetAltitude = 0.f) = 0;
 
-    /** 降落 */
-    virtual bool Land() = 0;
+    /** 降落到指定目标点 */
+    virtual bool Land(const FVector& LandingTarget) = 0;
 
     /** 飞向目标位置 */
     virtual bool FlyTo(const FVector& Destination) = 0;
@@ -81,7 +81,7 @@ class FMAMultiRotorFlightController : public IMAFlightController
 public:
     virtual void Initialize(ACharacter* InOwner) override;
     virtual bool TakeOff(float TargetAltitude = 0.f) override;
-    virtual bool Land() override;
+    virtual bool Land(const FVector& LandingTarget) override;
     virtual bool FlyTo(const FVector& Destination) override;
     virtual void UpdateFollowTarget(const FVector& TargetLocation) override;
     virtual void UpdateFlight(float DeltaTime) override;
@@ -142,7 +142,7 @@ class FMAFixedWingFlightController : public IMAFlightController
 public:
     virtual void Initialize(ACharacter* InOwner) override;
     virtual bool TakeOff(float TargetAltitude = 0.f) override;
-    virtual bool Land() override;
+    virtual bool Land(const FVector& LandingTarget) override;
     virtual bool FlyTo(const FVector& Destination) override;
     virtual void UpdateFollowTarget(const FVector& TargetLocation) override;
     virtual void UpdateFlight(float DeltaTime) override;

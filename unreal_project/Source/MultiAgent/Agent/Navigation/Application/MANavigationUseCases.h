@@ -84,6 +84,8 @@ struct MULTIAGENT_API FMANavigationUseCases
         bool bHasFlightController,
         bool bIsLandingPhase,
         bool bHasArrivedAtHome,
+        float DistanceToHome2D,
+        float LandingTriggerRadius,
         bool bHasFinishedLanding,
         const FVector& CurrentLocation);
 
