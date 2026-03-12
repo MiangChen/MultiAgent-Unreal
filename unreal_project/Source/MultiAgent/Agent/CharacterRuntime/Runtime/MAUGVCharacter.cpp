@@ -43,7 +43,7 @@ AMAUGVCharacter::AMAUGVCharacter()
     UCharacterMovementComponent* MovementComp = GetCharacterMovement();
     MovementComp->MaxWalkSpeed = 500.f;
     MovementComp->bOrientRotationToMovement = true;
-    MovementComp->RotationRate = FRotator(0.f, 120.f, 0.f);
+    MovementComp->RotationRate = FRotator(0.f, 360.f, 0.f);
     
     // 加载 UGV 模型
     static ConstructorHelpers::FObjectFinder<UStaticMesh> MeshAsset(

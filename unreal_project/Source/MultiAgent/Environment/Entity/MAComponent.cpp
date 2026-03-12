@@ -158,7 +158,13 @@ void AMAComponent::AttachToUGV(AMAUGVCharacter* UGV)
         DetachFromCarrier();
     }
     
+    // Carrying on UGV should be visual only; keep the deck load from blocking
+    // movement/navigation the same way hand-carried items do.
     SetPhysicsEnabled(false);
+    if (MeshComponent)
+    {
+        MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    }
     
     if (UGV->LoadCargo(this))
     {
