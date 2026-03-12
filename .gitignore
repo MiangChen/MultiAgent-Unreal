@@ -55,6 +55,8 @@ unrealcv/
 # 本地脚本 (使用 *_example.sh 作为模板)
 compile.sh
 start.sh
+linux_compile_and_start.sh
+mac_compile_and_start.sh
 
 # UE5 大文件 (可本地重新生成)
 *_BuiltData.uasset
