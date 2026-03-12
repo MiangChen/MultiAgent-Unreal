@@ -123,6 +123,9 @@ private:
     
     /** 直接激活技能（兼容模式，无 StateTree 时使用），返回是否激活成功 */
     bool ActivateSkillDirectly(AMACharacter* Agent, class UMASkillComponent* SkillComp, EMACommand Command);
+
+    /** 通过 Command Tag 将命令下发给 StateTree，返回是否成功派发 */
+    bool DispatchCommandToStateTree(class UMASkillComponent* SkillComp, EMACommand Command) const;
     
     /** 发送时间步反馈到 Python 端 */
     void SendTimeStepFeedbackToPython(const FMATimeStepFeedback& Feedback);

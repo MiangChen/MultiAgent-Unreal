@@ -185,7 +185,14 @@ void UMACommandManager::ExecuteCurrentTimeStep()
     }
     
     // 收集有效命令
-    TArray<TPair<AMACharacter*, const FMAAgentSkillCommand*>> ValidCommands;
+    struct FValidatedCommand
+    {
+        AMACharacter* Agent = nullptr;
+        const FMAAgentSkillCommand* SkillCommand = nullptr;
+        EMACommand Command = EMACommand::None;
+    };
+
+    TArray<FValidatedCommand> ValidCommands;
     
     for (const FMAAgentSkillCommand& Cmd : TimeStep->Commands)
     {
@@ -201,10 +208,24 @@ void UMACommandManager::ExecuteCurrentTimeStep()
             CurrentTimeStepFeedback.SkillFeedbacks.Add(Feedback);
             continue;
         }
+
+        const EMACommand Command = StringToCommand(Cmd.SkillName);
+        if (Command == EMACommand::None && !Cmd.SkillName.Equals(TEXT("none"), ESearchCase::IgnoreCase))
+        {
+            UE_LOG(LogMACommandManager, Warning, TEXT("    Skill '%s' is not mapped to any command"), *Cmd.SkillName);
+
+            FMASkillExecutionFeedback Feedback;
+            Feedback.AgentId = Cmd.AgentId;
+            Feedback.SkillName = Cmd.SkillName;
+            Feedback.bSuccess = false;
+            Feedback.Message = TEXT("Unknown skill name");
+            CurrentTimeStepFeedback.SkillFeedbacks.Add(Feedback);
+            continue;
+        }
         
         if (Agent->GetSkillComponent())
         {
-            ValidCommands.Add(TPair<AMACharacter*, const FMAAgentSkillCommand*>(Agent, &Cmd));
+            ValidCommands.Add({Agent, &Cmd, Command});
         }
     }
     
@@ -221,10 +242,12 @@ void UMACommandManager::ExecuteCurrentTimeStep()
     UMATempDataManager* TempDataMgr = GetTempDataManager();
     if (TempDataMgr)
     {
-        for (const auto& Pair : ValidCommands)
+        for (const FValidatedCommand& ValidCommand : ValidCommands)
         {
-            const FMAAgentSkillCommand* Cmd = Pair.Value;
-            TempDataMgr->BroadcastSkillStatusUpdate(CurrentTimeStep, Cmd->AgentId, ESkillExecutionStatus::InProgress);
+            TempDataMgr->BroadcastSkillStatusUpdate(
+                CurrentTimeStep,
+                ValidCommand.SkillCommand->AgentId,
+                ESkillExecutionStatus::InProgress);
         }
     }
     else
@@ -233,11 +256,11 @@ void UMACommandManager::ExecuteCurrentTimeStep()
     }
     
     // 绑定委托并激活技能
-    for (const auto& Pair : ValidCommands)
+    for (const FValidatedCommand& ValidCommand : ValidCommands)
     {
-        AMACharacter* Agent = Pair.Key;
-        const FMAAgentSkillCommand* Cmd = Pair.Value;
-        EMACommand Command = StringToCommand(Cmd->SkillName);
+        AMACharacter* Agent = ValidCommand.Agent;
+        const FMAAgentSkillCommand* Cmd = ValidCommand.SkillCommand;
+        const EMACommand Command = ValidCommand.Command;
         
         UE_LOG(LogMACommandManager, Log, TEXT("    %s -> %s"), *Cmd->AgentId, *Cmd->SkillName);
         
@@ -249,12 +272,9 @@ void UMACommandManager::ExecuteCurrentTimeStep()
         }
     }
     
-    for (const auto& Pair : ValidCommands)
+    for (const FValidatedCommand& ValidCommand : ValidCommands)
     {
-        AMACharacter* Agent = Pair.Key;
-        const FMAAgentSkillCommand* Cmd = Pair.Value;
-        EMACommand Command = StringToCommand(Cmd->SkillName);
-        SendCommandToAgent(Agent, Command, Cmd);
+        SendCommandToAgent(ValidCommand.Agent, ValidCommand.Command, ValidCommand.SkillCommand);
     }
 }
 
@@ -479,24 +499,26 @@ void UMACommandManager::SendCommandToAgent(AMACharacter* Agent, EMACommand Comma
     // 4) 清除旧命令 Tag（旧技能的 EndAbility 检测不到 Tag，不会通知完成）
     SkillComp->ClearAllCommands();
     
-    // 5) 激活技能（内部会先取消旧技能，此时 Tag 已清除，不会错误通知）
+    // 5) 下发命令。Direct 模式直接激活技能；StateTree 模式仅挂载命令 Tag，由 StateTree 任务接管执行。
     bool bHasStateTree = HasActiveStateTree(Agent);
-    bool bActivated = false;
+    const FGameplayTag CommandTag = CommandToTag(Command);
+    bool bCommandDispatched = false;
     
     if (!bUseStateTree || !bHasStateTree)
     {
-        bActivated = ActivateSkillDirectly(Agent, SkillComp, Command);
+        bCommandDispatched = ActivateSkillDirectly(Agent, SkillComp, Command);
+        if (bCommandDispatched && CommandTag.IsValid())
+        {
+            SkillComp->AddLooseGameplayTag(CommandTag);
+        }
     }
-    
-    // 6) 激活成功后再设置命令 Tag（用于技能完成时的通知判断）
-    FGameplayTag CommandTag = CommandToTag(Command);
-    if (bActivated && CommandTag.IsValid())
+    else
     {
-        SkillComp->AddLooseGameplayTag(CommandTag);
+        bCommandDispatched = DispatchCommandToStateTree(SkillComp, Command);
     }
     
-    // 7) 启动运行时检查定时器（技能激活成功后）
-    if (bActivated && Command != EMACommand::Idle && Command != EMACommand::None)
+    // 6) 命令派发成功后启动运行时检查定时器。
+    if (bCommandDispatched && Command != EMACommand::Idle && Command != EMACommand::None)
     {
         StartRuntimeCheckTimer(Agent, Command);
     }
@@ -528,6 +550,27 @@ bool UMACommandManager::ActivateSkillDirectly(AMACharacter* Agent, UMASkillCompo
     }
     
     return bActivated;
+}
+
+bool UMACommandManager::DispatchCommandToStateTree(UMASkillComponent* SkillComp, const EMACommand Command) const
+{
+    if (!SkillComp || Command == EMACommand::None)
+    {
+        return false;
+    }
+
+    const FGameplayTag CommandTag = CommandToTag(Command);
+    if (!CommandTag.IsValid())
+    {
+        UE_LOG(LogMACommandManager, Warning, TEXT("    Failed to dispatch command to StateTree: invalid tag for %s"),
+            *CommandToString(Command));
+        return false;
+    }
+
+    SkillComp->AddLooseGameplayTag(CommandTag);
+    UE_LOG(LogMACommandManager, Log, TEXT("    Dispatched %s to StateTree via tag %s"),
+        *CommandToString(Command), *CommandTag.ToString());
+    return true;
 }
 
 // ========== 辅助方法 ==========
