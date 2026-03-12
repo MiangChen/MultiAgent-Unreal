@@ -115,16 +115,23 @@ DEMO_SCENARIOS = {
                 "action_label": "在 UE5 中按 Z 查看"
             },
             {
-                "title": "审核决策",
-                "description": "这就是 HITL（Human-In-The-Loop）流程：AI 生成方案，人类审核后确认或拒绝。确认后系统才会生成具体的技能分配。",
-                "ue_tip": "在模态窗口中点击 Confirm（确认）或 Reject（拒绝）按钮。",
+                "title": "审核任务图",
+                "description": "这就是 HITL（Human-In-The-Loop）流程第一步：AI 生成粗略方案，人类首轮审核。确认后，后端系统会自动将这个排班翻译成具备时序和指定机器人的「技能分配 (Skill Allocation)」。",
+                "ue_tip": "在模态窗口中点击 Confirm（确认）。（由于我们在使用模拟后端，按下确认后后台会假装计算完毕，自动把技能分配推给 UE5）",
                 "action_type": "info",
-                "action_label": "在 UE5 中审核"
+                "action_label": "在 UE5 中确认 Task Graph"
+            },
+            {
+                "title": "审核技能分配 (自动触发)",
+                "description": "你看！因为你刚才审批通过了任务图，后端已经自动计算出了每台机器人的执行细节（时间线甘特图）并推送过来了。",
+                "ue_tip": "按 N 打开 Skill Allocation 模态窗口，查看甘特图。点击 Confirm 会让无人机直接起飞开始执行！",
+                "action_type": "info",
+                "action_label": "在 UE5 中按 N 审核甘特图"
             },
             {
                 "title": "📋 总结",
-                "description": "你已体验了「HITL 审核」流程！在实际应用中，AI 规划器会自动生成任务图，人类操作员通过可视化界面审核后批准执行。",
-                "ue_tip": "按 Z 关闭任务图。试试发送其他任务图（Warehouse Patrol, Cargo Delivery 等）。",
+                "description": "恭喜你走通了完整的连贯决策流！\n下发 Task Graph -> 人类审批 -> 自动计算甘特图 -> 下发 Skill Allocation -> 人类二次审批 -> 实际执行。",
+                "ue_tip": "按 N 关闭甘特图窗口。接下来你可以去体验右下角的「全流程协作」感受更多机器人的大场面。",
                 "action_type": "info",
                 "action_label": "演示完成 ✓"
             }

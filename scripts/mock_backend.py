@@ -49,6 +49,10 @@ message_queue = queue.Queue()  # For SSE streaming
 hitl_responses = []
 hitl_responses_lock = threading.Lock()
 
+# 自动推演状态存储 (用于 Task Graph 获批后自动下发 Skill Allocation)
+pending_task_graphs = {}  # { message_id: task_key }
+pending_skill_allocations = {} # { message_id: allocation_key }
+
 # UE5 连接状态 (基于轮询心跳)
 UE_CONNECTION_TIMEOUT_SECONDS = 5.0
 last_ue_poll_timestamp = 0.0
@@ -135,6 +139,23 @@ SKILL_ALLOCATIONS = {
                 "UAV-2": {"skill": "search", "params": {
                     "search_area": [[-1000, 1000], [-2000, 1000], [-2000, 2500], [-500, 2500]],
                     "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}}
+                }}
+            }
+        }
+    },
+    "fire_rescue": {
+        "name": "Fire Rescue Execution (Gantt)",
+        "description": "消防救援的技能分配结果",
+        "data": {
+            "0": {
+                "UAV-1": {"skill": "take_off", "params": {}},
+                "RobotDog-1": {"skill": "navigate", "params": {"dest": {"x": 1000, "y": 2000, "z": 0}}},
+                "Humanoid-1": {"skill": "navigate", "params": {"dest": {"x": -1000, "y": 2000, "z": 0}}}
+            },
+            "1": {
+                "UAV-1": {"skill": "search", "params": {
+                    "search_area": [[0, 0], [2000, 0], [2000, 2000], [0, 2000]],
+                    "target": {"class": "event", "type": "fire", "features": {}}
                 }}
             }
         }
@@ -270,6 +291,23 @@ SKILL_LISTS = {
                 "UAV-2": {"skill": "search", "params": {
                     "search_area": [[-1000, 1000], [-2000, 1000], [-2000, 2500], [-500, 2500]],
                     "target": {"class": "object", "type": "cargo", "features": {"color": "red", "label": "RedBox"}}
+                }}
+            }
+        }
+    },
+    "fire_rescue": {
+        "name": "Fire Rescue Execution",
+        "description": "消防救援直接执行指令",
+        "data": {
+            "0": {
+                "UAV-1": {"skill": "take_off", "params": {}},
+                "RobotDog-1": {"skill": "navigate", "params": {"dest": {"x": 1000, "y": 2000, "z": 0}}},
+                "Humanoid-1": {"skill": "navigate", "params": {"dest": {"x": -1000, "y": 2000, "z": 0}}}
+            },
+            "1": {
+                "UAV-1": {"skill": "search", "params": {
+                    "search_area": [[0, 0], [2000, 0], [2000, 2000], [0, 2000]],
+                    "target": {"class": "event", "type": "fire", "features": {}}
                 }}
             }
         }
@@ -1448,7 +1486,7 @@ class MockBackendHandler(BaseHTTPRequestHandler):
             }
         }
         """
-        global hitl_responses
+        global hitl_responses, hitl_messages, pending_task_graphs
         try:
             data = json.loads(body)
             msg_type = data.get('message_type', 'unknown')
@@ -1466,6 +1504,43 @@ class MockBackendHandler(BaseHTTPRequestHandler):
                 status_str = " ✓ APPROVED" if approved else " ✗ REJECTED"
 
             broadcast_message('hitl_response', f'HITL ({msg_category}): {msg_type}{status_str}', data, 'incoming')
+            
+            # 自动推演逻辑: 如果 Task Graph 获批，自动下发对应的 Skill Allocation
+            if msg_category == 'review' and msg_type == 'decision_response' and approved:
+                original_msg_id = payload.get('original_message_id')
+                if original_msg_id in pending_task_graphs:
+                    task_key = pending_task_graphs[original_msg_id]
+                    # 我们这里简单假设 task_key 与 SKILL_ALLOCATIONS 里的 key 一致 (例如 'fire_rescue')
+                    if task_key in SKILL_ALLOCATIONS:
+                        allocation_data = SKILL_ALLOCATIONS[task_key]
+                        auto_msg = create_skill_allocation_message(allocation_data, category="review")
+                        
+                        with hitl_lock:
+                            hitl_messages.append(auto_msg)
+                            pending_skill_allocations[auto_msg['message_id']] = task_key
+                            
+                        # 通知 Web UI
+                        broadcast_message('sent', f'Auto Skill Allocation: {task_key}', auto_msg, 'outgoing')
+                        print(f"[HITL Auto-Trigger] Automatically queued Skill Allocation for approved Task Graph '{task_key}'")
+
+                elif original_msg_id in pending_skill_allocations:
+                    allocation_key = pending_skill_allocations[original_msg_id]
+                    # 我们简单假设 allocation_key 与 SKILL_LISTS (demo 中的预设 ID) 一致
+                    from demo_guided import demoScenarios
+                    if allocation_key in demoScenarios:
+                        # 对于 demo 中的全流程和消防，可能需要找到实际的 skill_list key
+                        skill_key = allocation_key
+                        if skill_key in SKILL_LISTS:
+                            skill_data = SKILL_LISTS[skill_key]['data']
+                            auto_exec_msg = create_skill_list_message(skill_data)
+                            
+                            with message_lock:
+                                pending_messages.append(auto_exec_msg)
+                                
+                            broadcast_message('sent', f'Auto Execute Skill List: {skill_key}', auto_exec_msg, 'outgoing')
+                            print(f"[HITL Auto-Trigger] Automatically queued Skill List execution for approved Skill Allocation '{skill_key}'")
+
+
             self.send_json_response(200, {"status": "received"})
 
         except json.JSONDecodeError as e:
@@ -1519,7 +1594,7 @@ class MockBackendHandler(BaseHTTPRequestHandler):
         The skill allocation will be saved to skill_allocation_temp.json by TempDataManager.
         A notification will appear in UE5, and users must confirm before execution.
         """
-        global hitl_messages
+        global hitl_messages, pending_skill_allocations
         try:
             data = json.loads(body)
             allocation_key = data.get('allocation_key', '')
@@ -1530,6 +1605,7 @@ class MockBackendHandler(BaseHTTPRequestHandler):
 
                 with hitl_lock:
                     hitl_messages.append(msg)
+                    pending_skill_allocations[msg['message_id']] = allocation_key
 
                 self.send_json_response(200, {
                     "status": "queued",
@@ -1551,7 +1627,7 @@ class MockBackendHandler(BaseHTTPRequestHandler):
         The task graph will be saved to task_graph_temp.json by UE5's TempDataManager.
         The task graph will be displayed in the Task Planner Widget.
         """
-        global hitl_messages
+        global hitl_messages, pending_task_graphs
         try:
             data = json.loads(body)
             task_key = data.get('task_key', '')
@@ -1562,6 +1638,7 @@ class MockBackendHandler(BaseHTTPRequestHandler):
                 
                 with hitl_lock:
                     hitl_messages.append(msg)
+                    pending_task_graphs[msg['message_id']] = task_key
                 
                 self.send_json_response(200, {
                     "status": "queued",
