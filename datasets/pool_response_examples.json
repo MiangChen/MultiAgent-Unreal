@@ -43,7 +43,7 @@
           "required_skills": [
             {
               "skill_name": "navigate_to(building_A_entrance)",
-              "assigned_robot_type": ["RobotDog"],
+              "assigned_robot_type": ["Quadruped"],
               "assigned_robot_count": 2
             }
           ],
@@ -69,7 +69,7 @@
           "required_skills": [
             {
               "skill_name": "manipulate(fire_extinguisher)",
-              "assigned_robot_type": ["RobotDog"],
+              "assigned_robot_type": ["Quadruped"],
               "assigned_robot_count": 2
             }
           ],
@@ -160,7 +160,7 @@
           "required_skills": [
             {
               "skill_name": "navigate_to(target_location)",
-              "assigned_robot_type": ["RobotDog"],
+              "assigned_robot_type": ["Quadruped"],
               "assigned_robot_count": 2
             }
           ],
@@ -173,7 +173,7 @@
           "required_skills": [
             {
               "skill_name": "perceive(face_recognition)",
-              "assigned_robot_type": ["RobotDog"],
+              "assigned_robot_type": ["Quadruped"],
               "assigned_robot_count": 1
             }
           ],
@@ -186,7 +186,7 @@
           "required_skills": [
             {
               "skill_name": "Broadcast(rescue_request)",
-              "assigned_robot_type": ["RobotDog"],
+              "assigned_robot_type": ["Quadruped"],
               "assigned_robot_count": 1
             }
           ],
@@ -238,7 +238,7 @@
           "required_skills": [
             {
               "skill_name": "navigate_to(patrol_waypoint_1)",
-              "assigned_robot_type": ["RobotDog"],
+              "assigned_robot_type": ["Quadruped"],
               "assigned_robot_count": 3
             }
           ],
@@ -251,7 +251,7 @@
           "required_skills": [
             {
               "skill_name": "perceive(anomaly_detection)",
-              "assigned_robot_type": ["RobotDog"],
+              "assigned_robot_type": ["Quadruped"],
               "assigned_robot_count": 3
             }
           ],
@@ -290,7 +290,7 @@
           "required_skills": [
             {
               "skill_name": "Broadcast(security_alert)",
-              "assigned_robot_type": ["RobotDog"],
+              "assigned_robot_type": ["Quadruped"],
               "assigned_robot_count": 1
             }
           ],
@@ -432,7 +432,7 @@
           "required_skills": [
             {
               "skill_name": "navigate_to(building_C_floor_1)",
-              "assigned_robot_type": ["RobotDog"],
+              "assigned_robot_type": ["Quadruped"],
               "assigned_robot_count": 2
             }
           ],
@@ -445,7 +445,7 @@
           "required_skills": [
             {
               "skill_name": "perceive(interior_inspection)",
-              "assigned_robot_type": ["RobotDog"],
+              "assigned_robot_type": ["Quadruped"],
               "assigned_robot_count": 2
             }
           ],

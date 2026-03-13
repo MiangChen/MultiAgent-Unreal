@@ -1,6 +1,6 @@
 {
-	"name": "GSI Allocation",
-	"description": "Skill allocation from GSI planner",
+	"name": "Fire Rescue Execution (Gantt)",
+	"description": "消防救援的技能分配结果",
 	"data":
 	{
 		"0":
@@ -10,7 +10,32 @@
 				"skill": "take_off",
 				"params":
 				{
-					"task_id": "T1"
+				}
+			},
+			"Quadruped-1":
+			{
+				"skill": "navigate",
+				"params":
+				{
+					"dest":
+					{
+						"x": 1000,
+						"y": 2000,
+						"z": 0
+					}
+				}
+			},
+			"Humanoid-1":
+			{
+				"skill": "navigate",
+				"params":
+				{
+					"dest":
+					{
+						"x": -1000,
+						"y": 2000,
+						"z": 0
+					}
 				}
 			}
 		},
@@ -18,21 +43,35 @@
 		{
 			"UAV-1":
 			{
-				"skill": "navigate<Intersection-1>",
+				"skill": "search",
 				"params":
 				{
-					"task_id": "T1"
-				}
-			}
-		},
-		"2":
-		{
-			"UAV-1":
-			{
-				"skill": "search<Intersection-1>_for<traffic_violation>",
-				"params":
-				{
-					"task_id": "T1"
+					"search_area": [
+						[
+							0,
+							0
+						],
+						[
+							2000,
+							0
+						],
+						[
+							2000,
+							2000
+						],
+						[
+							0,
+							2000
+						]
+					],
+					"target":
+					{
+						"class": "event",
+						"type": "fire",
+						"features":
+						{
+						}
+					}
 				}
 			}
 		}

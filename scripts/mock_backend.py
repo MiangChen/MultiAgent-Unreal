@@ -149,7 +149,7 @@ SKILL_ALLOCATIONS = {
         "data": {
             "0": {
                 "UAV-1": {"skill": "take_off", "params": {}},
-                "RobotDog-1": {"skill": "navigate", "params": {"dest": {"x": 1000, "y": 2000, "z": 0}}},
+                "Quadruped-1": {"skill": "navigate", "params": {"dest": {"x": 1000, "y": 2000, "z": 0}}},
                 "Humanoid-1": {"skill": "navigate", "params": {"dest": {"x": -1000, "y": 2000, "z": 0}}}
             },
             "1": {
@@ -301,7 +301,7 @@ SKILL_LISTS = {
         "data": {
             "0": {
                 "UAV-1": {"skill": "take_off", "params": {}},
-                "RobotDog-1": {"skill": "navigate", "params": {"dest": {"x": 1000, "y": 2000, "z": 0}}},
+                "Quadruped-1": {"skill": "navigate", "params": {"dest": {"x": 1000, "y": 2000, "z": 0}}},
                 "Humanoid-1": {"skill": "navigate", "params": {"dest": {"x": -1000, "y": 2000, "z": 0}}}
             },
             "1": {
@@ -451,13 +451,13 @@ TASK_GRAPHS = {
                      "required_skills": [{"skill_name": "perceive(thermal_scan)", "assigned_robot_type": ["UAV"], "assigned_robot_count": 1}],
                      "produces": ["fire_location_data", "victim_locations"]},
                     {"task_id": "T3", "description": "机器狗导航至火灾现场入口", "location": "building_A_entrance",
-                     "required_skills": [{"skill_name": "navigate_to(building_A_entrance)", "assigned_robot_type": ["RobotDog"], "assigned_robot_count": 2}],
+                     "required_skills": [{"skill_name": "navigate_to(building_A_entrance)", "assigned_robot_type": ["Quadruped"], "assigned_robot_count": 2}],
                      "produces": ["dogs_at_entrance"]},
                     {"task_id": "T4", "description": "无人机广播火灾位置给地面机器人", "location": "building_A_roof",
                      "required_skills": [{"skill_name": "broadcast(fire_location_data)", "assigned_robot_type": ["UAV"], "assigned_robot_count": 1}],
                      "produces": ["fire_info_shared"]},
                     {"task_id": "T5", "description": "机器狗执行灭火操作", "location": "tbd:fire_point",
-                     "required_skills": [{"skill_name": "manipulate(fire_extinguisher)", "assigned_robot_type": ["RobotDog"], "assigned_robot_count": 2}],
+                     "required_skills": [{"skill_name": "manipulate(fire_extinguisher)", "assigned_robot_type": ["Quadruped"], "assigned_robot_count": 2}],
                      "produces": ["fire_suppressed"]},
                     {"task_id": "T6", "description": "人形机器人疏散被困人员", "location": "tbd:victim_location",
                      "required_skills": [
@@ -479,10 +479,10 @@ TASK_GRAPHS = {
     },
     "warehouse_patrol": {
         "name": "Warehouse Patrol",
-        "description": "仓库巡逻任务：UAV 空中监控，RobotDog 地面巡逻",
+        "description": "仓库巡逻任务：UAV 空中监控，Quadruped 地面巡逻",
         "data": {
             "meta": {
-                "description": "仓库安全巡逻任务，UAV 进行空中监控，RobotDog 进行地面巡逻检查。",
+                "description": "仓库安全巡逻任务，UAV 进行空中监控，Quadruped 进行地面巡逻检查。",
                 "shared_skill_groups": [["T1.0", "T2.0"]]
             },
             "task_graph": {
@@ -493,11 +493,11 @@ TASK_GRAPHS = {
                     {"task_id": "T2", "description": "UAV 执行区域监控扫描", "location": "warehouse_center",
                      "required_skills": [{"skill_name": "perceive(area_scan)", "assigned_robot_type": ["UAV"], "assigned_robot_count": 1}],
                      "produces": ["surveillance_data"]},
-                    {"task_id": "T3", "description": "RobotDog 导航至仓库入口", "location": "warehouse_entrance",
-                     "required_skills": [{"skill_name": "navigate_to(warehouse_entrance)", "assigned_robot_type": ["RobotDog"], "assigned_robot_count": 1}],
+                    {"task_id": "T3", "description": "Quadruped 导航至仓库入口", "location": "warehouse_entrance",
+                     "required_skills": [{"skill_name": "navigate_to(warehouse_entrance)", "assigned_robot_type": ["Quadruped"], "assigned_robot_count": 1}],
                      "produces": ["dog_at_entrance"]},
-                    {"task_id": "T4", "description": "RobotDog 执行地面巡逻", "location": "warehouse_interior",
-                     "required_skills": [{"skill_name": "patrol(warehouse_route)", "assigned_robot_type": ["RobotDog"], "assigned_robot_count": 1}],
+                    {"task_id": "T4", "description": "Quadruped 执行地面巡逻", "location": "warehouse_interior",
+                     "required_skills": [{"skill_name": "patrol(warehouse_route)", "assigned_robot_type": ["Quadruped"], "assigned_robot_count": 1}],
                      "produces": ["patrol_complete"]}
                 ],
                 "edges": [
@@ -550,10 +550,10 @@ TASK_GRAPHS = {
     },
     "search_rescue": {
         "name": "Search and Rescue",
-        "description": "搜救任务：多 UAV 协同搜索，RobotDog 救援",
+        "description": "搜救任务：多 UAV 协同搜索，Quadruped 救援",
         "data": {
             "meta": {
-                "description": "搜救任务，多架 UAV 协同搜索失踪人员，RobotDog 前往救援。",
+                "description": "搜救任务，多架 UAV 协同搜索失踪人员，Quadruped 前往救援。",
                 "shared_skill_groups": [["T1.0", "T2.0"], ["T3.0", "T4.0"]]
             },
             "task_graph": {
@@ -567,11 +567,11 @@ TASK_GRAPHS = {
                     {"task_id": "T3", "description": "汇总搜索结果确定目标位置", "location": "command_center",
                      "required_skills": [{"skill_name": "analyze(search_results)", "assigned_robot_type": ["UAV"], "assigned_robot_count": 1}],
                      "produces": ["target_location"]},
-                    {"task_id": "T4", "description": "RobotDog 导航至目标位置", "location": "tbd:target_location",
-                     "required_skills": [{"skill_name": "navigate_to(target_location)", "assigned_robot_type": ["RobotDog"], "assigned_robot_count": 2}],
+                    {"task_id": "T4", "description": "Quadruped 导航至目标位置", "location": "tbd:target_location",
+                     "required_skills": [{"skill_name": "navigate_to(target_location)", "assigned_robot_type": ["Quadruped"], "assigned_robot_count": 2}],
                      "produces": ["dogs_at_target"]},
-                    {"task_id": "T5", "description": "RobotDog 执行救援操作", "location": "tbd:target_location",
-                     "required_skills": [{"skill_name": "rescue(target)", "assigned_robot_type": ["RobotDog"], "assigned_robot_count": 2}],
+                    {"task_id": "T5", "description": "Quadruped 执行救援操作", "location": "tbd:target_location",
+                     "required_skills": [{"skill_name": "rescue(target)", "assigned_robot_type": ["Quadruped"], "assigned_robot_count": 2}],
                      "produces": ["rescue_complete"]}
                 ],
                 "edges": [
@@ -585,10 +585,10 @@ TASK_GRAPHS = {
     },
     "perimeter_security": {
         "name": "Perimeter Security",
-        "description": "周界安防任务：UAV 高空监控，多 RobotDog 分区巡逻",
+        "description": "周界安防任务：UAV 高空监控，多 Quadruped 分区巡逻",
         "data": {
             "meta": {
-                "description": "周界安防任务，UAV 进行高空全局监控，多个 RobotDog 分区域进行地面巡逻。",
+                "description": "周界安防任务，UAV 进行高空全局监控，多个 Quadruped 分区域进行地面巡逻。",
                 "shared_skill_groups": [["T1.0"], ["T2.0", "T3.0", "T4.0"]]
             },
             "task_graph": {
@@ -596,14 +596,14 @@ TASK_GRAPHS = {
                     {"task_id": "T1", "description": "UAV 起飞至监控高度", "location": "perimeter_center",
                      "required_skills": [{"skill_name": "navigate_to(altitude_100m)", "assigned_robot_type": ["UAV"], "assigned_robot_count": 1}],
                      "produces": ["uav_monitoring"]},
-                    {"task_id": "T2", "description": "RobotDog_01 巡逻北区", "location": "north_sector",
-                     "required_skills": [{"skill_name": "patrol(north_route)", "assigned_robot_type": ["RobotDog"], "assigned_robot_count": 1}],
+                    {"task_id": "T2", "description": "Quadruped_01 巡逻北区", "location": "north_sector",
+                     "required_skills": [{"skill_name": "patrol(north_route)", "assigned_robot_type": ["Quadruped"], "assigned_robot_count": 1}],
                      "produces": ["north_patrolled"]},
-                    {"task_id": "T3", "description": "RobotDog_02 巡逻东区", "location": "east_sector",
-                     "required_skills": [{"skill_name": "patrol(east_route)", "assigned_robot_type": ["RobotDog"], "assigned_robot_count": 1}],
+                    {"task_id": "T3", "description": "Quadruped_02 巡逻东区", "location": "east_sector",
+                     "required_skills": [{"skill_name": "patrol(east_route)", "assigned_robot_type": ["Quadruped"], "assigned_robot_count": 1}],
                      "produces": ["east_patrolled"]},
-                    {"task_id": "T4", "description": "RobotDog_03 巡逻南区", "location": "south_sector",
-                     "required_skills": [{"skill_name": "patrol(south_route)", "assigned_robot_type": ["RobotDog"], "assigned_robot_count": 1}],
+                    {"task_id": "T4", "description": "Quadruped_03 巡逻南区", "location": "south_sector",
+                     "required_skills": [{"skill_name": "patrol(south_route)", "assigned_robot_type": ["Quadruped"], "assigned_robot_count": 1}],
                      "produces": ["south_patrolled"]},
                     {"task_id": "T5", "description": "汇报巡逻结果", "location": "command_center",
                      "required_skills": [{"skill_name": "report(patrol_status)", "assigned_robot_type": ["UAV"], "assigned_robot_count": 1}],

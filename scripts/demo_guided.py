@@ -71,13 +71,13 @@ DEMO_SCENARIOS = {
         "difficulty": 2,
         "difficulty_label": "进阶",
         "description": "查看火灾救援任务图 (Task Graph)，学习 DAG 可视化和人工审核 (HITL) 流程。",
-        "robot_types": ["UAV", "RobotDog", "Humanoid"],
+        "robot_types": ["UAV", "Quadruped", "Humanoid"],
         "mermaid": """graph TD
     T1["T1: 无人机飞往火灾区域<br/>UAV → building_A_roof"]
     T2["T2: 扫描获取热成像数据<br/>UAV perceive(thermal_scan)"]
-    T3["T3: 机器狗导航至入口<br/>RobotDog ×2"]
+    T3["T3: 机器狗导航至入口<br/>Quadruped ×2"]
     T4["T4: 广播火灾位置<br/>UAV broadcast"]
-    T5["T5: 执行灭火操作<br/>RobotDog ×2"]
+    T5["T5: 执行灭火操作<br/>Quadruped ×2"]
     T6["T6: 疏散被困人员<br/>Humanoid"]
     T1 -->|sequential| T2
     T2 -->|sequential| T4
