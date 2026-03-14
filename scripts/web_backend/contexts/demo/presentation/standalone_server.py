@@ -9,46 +9,11 @@ from urllib.request import Request, urlopen
 
 from web_backend.contexts.demo.domain.demo_scenarios import DEMO_SCENARIOS
 from web_backend.contexts.demo.presentation.demo_body import get_demo_body_html
+from web_backend.presentation.template_loader import load_text_template
 from webui_asset_helpers import read_asset_bytes
 
 
-STANDALONE_HTML = '''<!DOCTYPE html>
-<html lang="zh-CN"><head><meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MultiAgent Interactive Demo</title>
-<link rel="stylesheet" href="/assets/shared.css">
-<link rel="stylesheet" href="/assets/demo.css">
-<style>
-    .sa-header { height: 50px; background: var(--panel-bg); border-bottom: 1px solid var(--border);
-                 display: flex; align-items: center; padding: 0 24px; gap: 12px; }
-    .sa-title { font-size: 16px; font-weight: 700; color: var(--amber); }
-    .sa-status { margin-left: auto; font-size: 12px; color: var(--muted); }
-    .sa-dot { width: 8px; height: 8px; border-radius: 50%; background: #f44; display: inline-block; margin-right: 6px; }
-    .sa-dot.ok { background: var(--green); }
-    .sa-wrap { height: calc(100vh - 50px); overflow: hidden; }
-</style></head><body>
-<div class="sa-header">
-    <span>🎮</span> <span class="sa-title">MultiAgent Interactive Demo (Standalone)</span>
-    <div class="sa-status"><span class="sa-dot" id="sa-dot"></span><span id="sa-st">...</span></div>
-</div>
-<div class="sa-wrap">''' + get_demo_body_html() + '''</div>
-<script>
-window.MA_DEMO_DATA = {
-    scenarios: {{DEMO_SCENARIOS}},
-    skillLists: {},
-    skillAllocations: {}
-};
-</script>
-<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-<script src="/assets/shared_ui.js"></script>
-<script src="/assets/demo.js"></script>
-<script>
-async function checkBk(){try{const r=await fetch('/api/health_proxy');const d=await r.json();
-const ok=d.status==='healthy';document.getElementById('sa-dot').className='sa-dot'+(ok?' ok':'');
-document.getElementById('sa-st').textContent=ok?'Backend OK':'Error';}catch(e){
-document.getElementById('sa-dot').className='sa-dot';document.getElementById('sa-st').textContent='Offline';}}
-checkBk();setInterval(checkBk,3000);
-</script></body></html>'''
+STANDALONE_TEMPLATE = load_text_template(__file__, 'standalone_page.html')
 
 
 def run_standalone_demo_server(port: int, backend_url: str) -> None:
@@ -81,7 +46,8 @@ def run_standalone_demo_server(port: int, backend_url: str) -> None:
         def do_GET(self):
             path = urlparse(self.path).path
             if path in ('/', '/index.html'):
-                html = STANDALONE_HTML.replace('{{DEMO_SCENARIOS}}', json.dumps(DEMO_SCENARIOS, ensure_ascii=False))
+                html = STANDALONE_TEMPLATE.replace('{{DEMO_CONTENT}}', get_demo_body_html())
+                html = html.replace('{{DEMO_SCENARIOS}}', json.dumps(DEMO_SCENARIOS, ensure_ascii=False))
                 self.send_response(200)
                 self.send_header('Content-Type', 'text/html; charset=utf-8')
                 self.end_headers()

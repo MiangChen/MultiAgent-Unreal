@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MultiAgent Mock Backend</title>
+    <link rel="stylesheet" href="/assets/shared.css">
+    <link rel="stylesheet" href="/assets/console.css">
+</head>
+<body>
+    <div class="top-tabs">
+        <a class="top-tab active" href="/">🎮 控制台</a>
+        <a class="top-tab" href="/demo">📖 引导演示 <span class="new-badge">NEW</span></a>
+    </div>
+    <div class="page active" id="page-console">
+        <div class="container">
+            <div class="left-panel">
+                <h2>🎮 Mock Backend Control</h2>
+
+                <div class="hint-box">
+                    <span class="hint-icon">💡</span>
+                    <span>当前控制台按 4 类入口组织：审核计划、审核排班、直接执行示例、完整流程 Demo。</span><br>
+                    <strong>前两类走 HITL 审核链路；直接执行示例会立即下发；完整流程 Demo 用于串起端到端演示。</strong>
+                </div>
+
+                <div class="workflow-overview">
+                    <div class="workflow-step plan">
+                        <span class="workflow-step-index">1</span>
+                        <div>
+                            <div class="workflow-step-title">待审核计划</div>
+                            <div class="workflow-step-desc">Task Graph / 任务依赖</div>
+                        </div>
+                    </div>
+                    <div class="workflow-step allocation">
+                        <span class="workflow-step-index">2</span>
+                        <div>
+                            <div class="workflow-step-title">待审核排班</div>
+                            <div class="workflow-step-desc">Skill Allocation / 机器人时间分配</div>
+                        </div>
+                    </div>
+                    <div class="workflow-step execute">
+                        <span class="workflow-step-index">3</span>
+                        <div>
+                            <div class="workflow-step-title">直接执行示例</div>
+                            <div class="workflow-step-desc">Skill List / 无需人工确认</div>
+                        </div>
+                    </div>
+                    <div class="workflow-step demo">
+                        <span class="workflow-step-index">4</span>
+                        <div>
+                            <div class="workflow-step-title">完整流程 Demo</div>
+                            <div class="workflow-step-desc">端到端演示快捷入口</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-title plan">📊 待审核计划</div>
+                <div class="section-note">高层任务依赖图。发送后进入 HITL，由 UE 中的任务图审核界面确认。</div>
+                <div id="task-buttons"></div>
+
+                <div class="section-title allocation">🎯 待审核排班</div>
+                <div class="section-note">机器人与时间步的排班结果。发送后进入 HITL，由 UE 中的甘特图审核界面确认。</div>
+                <div id="allocation-buttons"></div>
+
+                <div class="section-title execute">⚡ 直接执行示例</div>
+                <div class="section-note">可直接下发的 skill list，用于 smoke test、联调和快速演示。</div>
+                <div id="skill-buttons"></div>
+
+                <div class="section-title demo">🎬 完整流程 Demo</div>
+                <div class="section-note">进入引导演示页，按步骤体验任务图审核、排班审核和最终执行的完整工作流。</div>
+                <div id="demo-flow-buttons"></div>
+
+                <div class="section-title request-cmd">🛠 辅助工具</div>
+                <div class="section-note">与主流程无关的调试入口。</div>
+                <div id="request-cmd-buttons">
+                    <button class="request-cmd-btn" onclick="sendRequestUserCommand()">
+                        <div class="name">📢 一键索要用户指令</div>
+                        <div class="desc">请求 UE5 用户输入指令</div>
+                    </button>
+                </div>
+
+                <div class="status">
+                    <span class="dot disconnected" id="status-dot"></span>
+                    <span id="status-text">Server Running on :{{PORT}} | 等待 UE5 连接...</span>
+                </div>
+            </div>
+
+            <div class="right-panel">
+                <div class="right-header">
+                    <div>
+                        <h2>📐 Visualization</h2>
+                        <div class="preview-panel-status" id="selection-status">点击左侧 4 类入口中的任意条目，直接在这里查看</div>
+                    </div>
+                </div>
+                <div class="preview-panel">
+                    <div class="preview-panel-card">
+                        <div class="preview-panel-kind" id="selection-kind">未选择</div>
+                        <div class="preview-panel-title" id="selection-title">选择左侧条目</div>
+                        <div class="preview-panel-desc" id="selection-desc">左侧负责组织 4 类入口，中间负责可视化预览。点击左侧任意卡片，即可在这里直接查看结构。</div>
+                        <div class="preview-panel-meta" id="selection-meta"></div>
+                        <div class="preview-panel-hint" id="selection-hint">点卡片查看结构，点按钮才触发发送或跳转。</div>
+                    </div>
+                    <div class="preview-diagram-wrap" id="selection-diagram-wrap">
+                        <div class="preview-empty">
+                            <strong>还没有选中任何条目</strong>
+                            <span>左侧点击审核计划、审核排班、直接执行示例或 Demo 入口，中间会直接渲染可视化。</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="log-panel">
+                <div class="log-header">
+                    <div class="log-header-main">
+                        <h2>📝 Send Status</h2>
+                        <p>只保留连接状态、任务名、发送时间和 UE 回传摘要</p>
+                    </div>
+                    <div class="log-header-actions">
+                        <div class="log-connection" id="log-connection">
+                            <span class="log-connection-dot"></span>
+                            <span id="log-connection-text">等待 UE5 连接</span>
+                        </div>
+                        <button class="clear-btn" onclick="clearMessages()">Clear All</button>
+                    </div>
+                </div>
+                <div class="messages" id="messages">
+                    <div class="empty-state" id="empty-state">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
+                        </svg>
+                        <p id="empty-state-title">等待 UE5 仿真端连接...</p>
+                        <p id="empty-state-subtitle" style="font-size: 12px; margin-top: 10px;">右侧只显示精简状态日志，不再展示完整数据</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.MA_CONSOLE_DATA = {
+            port: {{PORT}},
+            skillLists: {{SKILL_LISTS}},
+            taskGraphs: {{TASK_GRAPHS}},
+            skillAllocations: {{SKILL_ALLOCATIONS}}
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script src="/assets/shared_ui.js"></script>
+    <script src="/assets/console.js"></script>
+</body>
+</html>

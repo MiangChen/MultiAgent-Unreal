@@ -3,9 +3,9 @@ from __future__ import annotations
 import json
 import queue
 from http.server import BaseHTTPRequestHandler
+from typing import Any, Callable
 from urllib.parse import urlparse
 
-from web_backend.bootstrap.app_context import MockBackendAppContext
 from web_backend.contexts.console.presentation.console_page import build_console_html
 from web_backend.contexts.demo.presentation.demo_page import build_demo_page_html
 from webui_asset_helpers import read_asset_bytes
@@ -15,7 +15,7 @@ class MockBackendHandler(BaseHTTPRequestHandler):
     """Presentation adapter for the mock backend HTTP API."""
 
     @property
-    def app_context(self) -> MockBackendAppContext:
+    def app_context(self) -> Any:
         return self.server.app_context  # type: ignore[attr-defined]
 
     @property
@@ -39,6 +39,22 @@ class MockBackendHandler(BaseHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Origin', '*')
         self.end_headers()
         self.wfile.write(json.dumps(data, ensure_ascii=False).encode('utf-8'))
+
+    def send_no_content(self):
+        self.send_response(204)
+        self.end_headers()
+
+    @staticmethod
+    def parse_json_body(body: str) -> dict:
+        return json.loads(body)
+
+    def handle_dispatch_request(self, body: str, key_name: str, dispatcher: Callable[[str], tuple[int, dict]]):
+        try:
+            data = self.parse_json_body(body)
+            status, response = dispatcher(data.get(key_name, ''))
+            self.send_json_response(status, response)
+        except json.JSONDecodeError as exc:
+            self.send_json_response(400, {'error': str(exc)})
 
     def do_OPTIONS(self):
         self.send_response(200)
@@ -145,8 +161,7 @@ class MockBackendHandler(BaseHTTPRequestHandler):
         self.runtime.mark_ue_heartbeat()
         message = self.runtime.dequeue_platform_message()
         if message is None:
-            self.send_response(204)
-            self.end_headers()
+            self.send_no_content()
             return
 
         self.send_response(200)
@@ -161,8 +176,7 @@ class MockBackendHandler(BaseHTTPRequestHandler):
         print(f"[HITL Poll] UE5 polling HITL endpoint, queue size: {self.runtime.hitl_queue_size()}")
         message = self.runtime.dequeue_hitl_message()
         if message is None:
-            self.send_response(204)
-            self.end_headers()
+            self.send_no_content()
             return
 
         self.send_response(200)
@@ -207,7 +221,7 @@ class MockBackendHandler(BaseHTTPRequestHandler):
 
     def handle_message(self, body: str):
         try:
-            data = json.loads(body)
+            data = self.parse_json_body(body)
             message_type = data.get('message_type', 'unknown')
             self.runtime.broadcast_message('message', f'Platform: {message_type}', data, 'incoming')
             self.send_json_response(200, {'status': 'received'})
@@ -217,7 +231,7 @@ class MockBackendHandler(BaseHTTPRequestHandler):
 
     def handle_hitl_message(self, body: str):
         try:
-            data = json.loads(body)
+            data = self.parse_json_body(body)
             message_type = data.get('message_type', 'unknown')
             message_category = data.get('message_category', 'unknown')
             payload = data.get('payload', {})
@@ -238,7 +252,7 @@ class MockBackendHandler(BaseHTTPRequestHandler):
 
     def handle_scene_change(self, body: str):
         try:
-            data = json.loads(body)
+            data = self.parse_json_body(body)
             change_type = data.get('change_type', 'unknown')
             self.runtime.broadcast_message('scene_change', f'scene_change: {change_type}', data, 'incoming')
             self.send_json_response(200, {'status': 'received'})
@@ -246,28 +260,13 @@ class MockBackendHandler(BaseHTTPRequestHandler):
             self.send_json_response(400, {'error': str(exc)})
 
     def handle_send_skill(self, body: str):
-        try:
-            data = json.loads(body)
-            status, response = self.command_dispatch.queue_skill_list(data.get('skill_key', ''))
-            self.send_json_response(status, response)
-        except json.JSONDecodeError as exc:
-            self.send_json_response(400, {'error': str(exc)})
+        self.handle_dispatch_request(body, 'skill_key', self.command_dispatch.queue_skill_list)
 
     def handle_send_skill_allocation(self, body: str):
-        try:
-            data = json.loads(body)
-            status, response = self.command_dispatch.queue_skill_allocation(data.get('allocation_key', ''))
-            self.send_json_response(status, response)
-        except json.JSONDecodeError as exc:
-            self.send_json_response(400, {'error': str(exc)})
+        self.handle_dispatch_request(body, 'allocation_key', self.command_dispatch.queue_skill_allocation)
 
     def handle_send_task_graph(self, body: str):
-        try:
-            data = json.loads(body)
-            status, response = self.command_dispatch.queue_task_graph(data.get('task_key', ''))
-            self.send_json_response(status, response)
-        except json.JSONDecodeError as exc:
-            self.send_json_response(400, {'error': str(exc)})
+        self.handle_dispatch_request(body, 'task_key', self.command_dispatch.queue_task_graph)
 
     def handle_send_request_user_command(self):
         status, response = self.command_dispatch.queue_request_user_command()
