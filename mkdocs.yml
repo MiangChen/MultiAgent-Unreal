@@ -11,6 +11,7 @@ docs_dir: site_docs
 nav:
   - 功能性介绍: index.md
   - 架构: architecture.md
+  - 科研选型: research-platforms-minecraft-vs-ue.md
   - ⌨️ 按键说明: keybindings.md
   - 启动与 Example: startup-and-examples.md
   - API 参考: api-reference.md
