@@ -69,6 +69,9 @@ struct MULTIAGENT_API FMARequiredSkill
     /** 从 JSON 对象解析 */
     static bool FromJson(const TSharedPtr<FJsonObject>& JsonObject, FMARequiredSkill& Out);
 
+    /** 从紧凑字符串解析 (格式: "robot_type:skill_str:count") */
+    static bool FromCompactString(const FString& CompactStr, FMARequiredSkill& Out);
+
     /** 相等比较 */
     bool operator==(const FMARequiredSkill& Other) const;
 };
@@ -168,6 +171,9 @@ struct MULTIAGENT_API FMATaskEdgeData
 
     /** 从 JSON 对象解析 */
     static bool FromJson(const TSharedPtr<FJsonObject>& JsonObject, FMATaskEdgeData& Out);
+
+    /** 从紧凑字符串解析 (格式: "T1->T2" 或 "T1->T2:condition") */
+    static bool FromCompactString(const FString& CompactStr, FMATaskEdgeData& Out);
 
     /** 相等比较 */
     bool operator==(const FMATaskEdgeData& Other) const;

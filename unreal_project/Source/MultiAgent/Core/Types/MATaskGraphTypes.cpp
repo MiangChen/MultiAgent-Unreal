@@ -55,6 +55,87 @@ bool FMARequiredSkill::FromJson(const TSharedPtr<FJsonObject>& JsonObject, FMARe
     return true;
 }
 
+bool FMARequiredSkill::FromCompactString(const FString& CompactStr, FMARequiredSkill& Out)
+{
+    // 解析紧凑格式: "robot_type:skill_str:count"
+    // 或多类型: "UAV|UGV:skill_str:count"
+    // 技能名中可能包含冒号 (如 tbd:xxx)，所以需要特殊处理
+    
+    TArray<FString> Parts;
+    CompactStr.ParseIntoArray(Parts, TEXT(":"));
+    
+    if (Parts.Num() < 3)
+    {
+        // 不符合紧凑格式，作为纯 skill_name
+        Out.SkillName = CompactStr.TrimStartAndEnd();
+        Out.AssignedRobotCount = 1;
+        return true;
+    }
+    
+    // 第一段是机器人类型 (可能用 | 分隔多类型)
+    FString RobotTypesStr = Parts[0];
+    
+    // 最后一段是数量 (但可能是 "tbd:xxx" 形式)
+    // 检查倒数第二段是否为 "tbd"
+    FString CountStr;
+    FString SkillName;
+    
+    if (Parts.Num() >= 4 && Parts[Parts.Num() - 2] == TEXT("tbd"))
+    {
+        // count 是 "tbd:xxx" 形式
+        CountStr = FString::Printf(TEXT("tbd:%s"), *Parts[Parts.Num() - 1]);
+        // skill_name 是中间部分
+        TArray<FString> SkillParts;
+        for (int32 i = 1; i < Parts.Num() - 2; ++i)
+        {
+            SkillParts.Add(Parts[i]);
+        }
+        SkillName = FString::Join(SkillParts, TEXT(":"));
+    }
+    else
+    {
+        CountStr = Parts[Parts.Num() - 1];
+        // skill_name 是中间部分
+        TArray<FString> SkillParts;
+        for (int32 i = 1; i < Parts.Num() - 1; ++i)
+        {
+            SkillParts.Add(Parts[i]);
+        }
+        SkillName = FString::Join(SkillParts, TEXT(":"));
+    }
+    
+    Out.SkillName = SkillName.TrimStartAndEnd();
+    
+    // 解析机器人类型
+    Out.AssignedRobotType.Empty();
+    TArray<FString> RobotTypes;
+    RobotTypesStr.ParseIntoArray(RobotTypes, TEXT("|"));
+    for (const FString& RT : RobotTypes)
+    {
+        FString Trimmed = RT.TrimStartAndEnd();
+        if (!Trimmed.IsEmpty())
+        {
+            Out.AssignedRobotType.Add(Trimmed);
+        }
+    }
+    
+    // 解析数量
+    if (CountStr.StartsWith(TEXT("tbd:")))
+    {
+        Out.AssignedRobotCount = 1; // tbd 时默认 1
+    }
+    else
+    {
+        Out.AssignedRobotCount = FCString::Atoi(*CountStr);
+        if (Out.AssignedRobotCount <= 0)
+        {
+            Out.AssignedRobotCount = 1;
+        }
+    }
+    
+    return true;
+}
+
 bool FMARequiredSkill::operator==(const FMARequiredSkill& Other) const
 {
     return SkillName == Other.SkillName &&
@@ -114,10 +195,22 @@ bool FMATaskNodeData::FromJson(const TSharedPtr<FJsonObject>& JsonObject, FMATas
     }
 
     Out.TaskId = JsonObject->GetStringField(TEXT("task_id"));
-    Out.Description = JsonObject->GetStringField(TEXT("description"));
-    Out.Location = JsonObject->GetStringField(TEXT("location"));
+    
+    // description 字段可选
+    if (!JsonObject->TryGetStringField(TEXT("description"), Out.Description))
+    {
+        Out.Description = TEXT("");
+    }
+    
+    // location 字段
+    if (!JsonObject->TryGetStringField(TEXT("location"), Out.Location))
+    {
+        Out.Location = TEXT("");
+    }
 
-    // Required Skills
+    // Required Skills - 支持两种格式:
+    // 格式一 (对象数组): [{"skill_name": "...", "assigned_robot_type": [...], "assigned_robot_count": 1}]
+    // 格式二 (紧凑字符串数组): ["UAV:search<area>_for<target>:1"]
     const TArray<TSharedPtr<FJsonValue>>* SkillsArray;
     if (JsonObject->TryGetArrayField(TEXT("required_skills"), SkillsArray))
     {
@@ -125,9 +218,21 @@ bool FMATaskNodeData::FromJson(const TSharedPtr<FJsonObject>& JsonObject, FMATas
         for (const TSharedPtr<FJsonValue>& Value : *SkillsArray)
         {
             FMARequiredSkill Skill;
-            if (FMARequiredSkill::FromJson(Value->AsObject(), Skill))
+            if (Value->Type == EJson::Object)
             {
-                Out.RequiredSkills.Add(Skill);
+                // 格式一: JSON 对象
+                if (FMARequiredSkill::FromJson(Value->AsObject(), Skill))
+                {
+                    Out.RequiredSkills.Add(Skill);
+                }
+            }
+            else if (Value->Type == EJson::String)
+            {
+                // 格式二: 紧凑字符串 "robot_type:skill_str:count"
+                if (FMARequiredSkill::FromCompactString(Value->AsString(), Skill))
+                {
+                    Out.RequiredSkills.Add(Skill);
+                }
             }
         }
     }
@@ -187,7 +292,16 @@ bool FMATaskEdgeData::FromJson(const TSharedPtr<FJsonObject>& JsonObject, FMATas
 
     Out.FromNodeId = JsonObject->GetStringField(TEXT("from"));
     Out.ToNodeId = JsonObject->GetStringField(TEXT("to"));
-    Out.EdgeType = JsonObject->GetStringField(TEXT("type"));
+    
+    // type 字段: 支持 "sequential"/"parallel"/"conditional" (格式一) 和 "normal"/"conditional" (格式二)
+    if (JsonObject->HasField(TEXT("type")))
+    {
+        Out.EdgeType = JsonObject->GetStringField(TEXT("type"));
+    }
+    else
+    {
+        Out.EdgeType = TEXT("sequential");
+    }
     
     if (JsonObject->HasField(TEXT("condition")))
     {
@@ -195,6 +309,39 @@ bool FMATaskEdgeData::FromJson(const TSharedPtr<FJsonObject>& JsonObject, FMATas
     }
 
     return true;
+}
+
+bool FMATaskEdgeData::FromCompactString(const FString& CompactStr, FMATaskEdgeData& Out)
+{
+    // 解析紧凑格式: "T1->T2" 或 "T1->T2:condition_expression"
+    // 使用正则匹配: (T\w+) -> (T\w+) 可选 :(.+)
+    
+    // 先找 "->" 分隔符
+    int32 ArrowIdx = CompactStr.Find(TEXT("->"));
+    if (ArrowIdx == INDEX_NONE)
+    {
+        return false;
+    }
+    
+    Out.FromNodeId = CompactStr.Left(ArrowIdx).TrimStartAndEnd();
+    
+    FString Remainder = CompactStr.Mid(ArrowIdx + 2).TrimStartAndEnd();
+    
+    // 检查是否有条件 (第一个冒号后面是条件表达式)
+    int32 ColonIdx = Remainder.Find(TEXT(":"));
+    if (ColonIdx != INDEX_NONE)
+    {
+        Out.ToNodeId = Remainder.Left(ColonIdx).TrimStartAndEnd();
+        Out.Condition = Remainder.Mid(ColonIdx + 1).TrimStartAndEnd();
+        Out.EdgeType = TEXT("conditional");
+    }
+    else
+    {
+        Out.ToNodeId = Remainder;
+        Out.EdgeType = TEXT("sequential");
+    }
+    
+    return !Out.FromNodeId.IsEmpty() && !Out.ToNodeId.IsEmpty();
 }
 
 bool FMATaskEdgeData::operator==(const FMATaskEdgeData& Other) const
@@ -333,16 +480,26 @@ bool FMATaskGraphData::FromJsonWithError(const FString& Json, FMATaskGraphData& 
             }
         }
 
-        // Parse edges
+        // Parse edges - 支持对象数组和紧凑字符串数组
         const TArray<TSharedPtr<FJsonValue>>* EdgesArray;
         if (RootObject->TryGetArrayField(TEXT("edges"), EdgesArray))
         {
             for (const TSharedPtr<FJsonValue>& Value : *EdgesArray)
             {
                 FMATaskEdgeData Edge;
-                if (FMATaskEdgeData::FromJson(Value->AsObject(), Edge))
+                if (Value->Type == EJson::Object)
                 {
-                    OutData.Edges.Add(Edge);
+                    if (FMATaskEdgeData::FromJson(Value->AsObject(), Edge))
+                    {
+                        OutData.Edges.Add(Edge);
+                    }
+                }
+                else if (Value->Type == EJson::String)
+                {
+                    if (FMATaskEdgeData::FromCompactString(Value->AsString(), Edge))
+                    {
+                        OutData.Edges.Add(Edge);
+                    }
                 }
             }
         }
@@ -368,11 +525,15 @@ bool FMATaskGraphData::FromResponseJson(const FString& Json, FMATaskGraphData& O
     OutData.Nodes.Empty();
     OutData.Edges.Empty();
 
-    // Parse meta section
+    // Parse meta section - 支持 "description" (格式一) 和 "reasoning" (格式二)
     const TSharedPtr<FJsonObject>* MetaObject;
     if (RootObject->TryGetObjectField(TEXT("meta"), MetaObject))
     {
-        OutData.Description = (*MetaObject)->GetStringField(TEXT("description"));
+        if (!(*MetaObject)->TryGetStringField(TEXT("description"), OutData.Description))
+        {
+            // 格式二使用 "reasoning" 字段
+            (*MetaObject)->TryGetStringField(TEXT("reasoning"), OutData.Description);
+        }
     }
 
     // Parse task_graph section
@@ -397,16 +558,30 @@ bool FMATaskGraphData::FromResponseJson(const FString& Json, FMATaskGraphData& O
         }
     }
 
-    // Parse edges
+    // Parse edges - 支持两种格式:
+    // 格式一 (对象数组): [{"from": "T1", "to": "T2", "type": "sequential"}]
+    // 格式二 (紧凑字符串数组): ["T1->T2", "T1->T2:condition"]
     const TArray<TSharedPtr<FJsonValue>>* EdgesArray;
     if ((*TaskGraphObject)->TryGetArrayField(TEXT("edges"), EdgesArray))
     {
         for (const TSharedPtr<FJsonValue>& Value : *EdgesArray)
         {
             FMATaskEdgeData Edge;
-            if (FMATaskEdgeData::FromJson(Value->AsObject(), Edge))
+            if (Value->Type == EJson::Object)
             {
-                OutData.Edges.Add(Edge);
+                // 格式一: JSON 对象
+                if (FMATaskEdgeData::FromJson(Value->AsObject(), Edge))
+                {
+                    OutData.Edges.Add(Edge);
+                }
+            }
+            else if (Value->Type == EJson::String)
+            {
+                // 格式二: 紧凑字符串 "T1->T2" 或 "T1->T2:condition"
+                if (FMATaskEdgeData::FromCompactString(Value->AsString(), Edge))
+                {
+                    OutData.Edges.Add(Edge);
+                }
             }
         }
     }

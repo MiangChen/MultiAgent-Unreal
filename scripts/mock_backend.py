@@ -307,6 +307,7 @@ SKILL_LISTS = {
             "1": {'Quadruped-1': {'skill': 'guide', 'params': {'target': {'token': 'sportive_male', 'class': 'object', 'type': 'person', 'features': {'subtype': 'sportive', 'gender': 'male', 'clothing_color': 'brown'}, 'conf_ge': 0.85, 'persist_ge_s': 1.0}, 'target_token': 'sportive_male', 'object_id': '3004', 'dest_token': 'Intersection-4', 'dest': {'x': -6703.0, 'y': 12800.0, 'z': 0.0}, 'task_id': 'T2'}}}
         }
     },
+    "traffic_enforcement_broadcast": {
         "name": "Traffic Enforcement (Broadcast)",
         "description": "UAV 对违停车辆进行广播警告",
         "data": {

@@ -225,7 +225,7 @@
         {
             "label": "Boat_1", "type": "boat",
             "position": [1000, 6000, -200], "rotation": [0, 45, 0],
-            "enabled": true,
+            "enabled": false,
             "features": { "subtype": "lifeboat" },
             "patrol": {
                 "enabled": true,
@@ -248,7 +248,7 @@
         {
             "label": "Fire_1", "type": "fire",
             "position": [-10500, 15900, 250],
-            "enabled": true,
+            "enabled": false,
             "features": { "scale": "8" }
         },
         {

@@ -5,34 +5,61 @@
 	{
 		"0":
 		{
-			"UAV-1":
+			"UGV-2":
 			{
-				"skill": "take_off",
+				"skill": "navigate<RedBox>",
 				"params":
 				{
-					"task_id": "T1"
+					"task_id": "T2"
+				}
+			},
+			"Humanoid-1":
+			{
+				"skill": "navigate<RedBox>",
+				"params":
+				{
+					"task_id": "T2"
 				}
 			}
 		},
 		"1":
 		{
-			"UAV-1":
+			"Humanoid-1":
 			{
-				"skill": "navigate<Intersection-1>",
+				"skill": "place<Red_Box>_on<UGV>",
 				"params":
 				{
-					"task_id": "T1"
+					"task_id": "T3"
 				}
 			}
 		},
 		"2":
 		{
-			"UAV-1":
+			"UGV-2":
 			{
-				"skill": "search<Intersection-1>_for<traffic_violation>",
+				"skill": "navigate<intersection-4>",
 				"params":
 				{
-					"task_id": "T1"
+					"task_id": "T4"
+				}
+			},
+			"Humanoid-1":
+			{
+				"skill": "navigate<intersection-4>",
+				"params":
+				{
+					"task_id": "T4"
+				}
+			}
+		},
+		"3":
+		{
+			"Humanoid-1":
+			{
+				"skill": "place<Red_Box>_on<ground>",
+				"params":
+				{
+					"task_id": "T5"
 				}
 			}
 		}
