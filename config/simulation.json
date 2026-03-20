@@ -6,6 +6,7 @@
         "use_setup_ui": false,
         "use_state_tree": false,
         "enable_energy_drain": false,
+        "enable_info_checks": true,
         "map_type": "Downtown"
     },
     "spawn_settings": {

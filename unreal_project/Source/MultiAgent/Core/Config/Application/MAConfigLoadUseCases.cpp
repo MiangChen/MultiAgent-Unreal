@@ -48,6 +48,7 @@ void ParseSimulationConfig(const TSharedPtr<FJsonObject>& RootObject, FMAConfigS
         (*SimObj)->TryGetBoolField(TEXT("use_setup_ui"), Snapshot.bUseSetupUI);
         (*SimObj)->TryGetBoolField(TEXT("use_state_tree"), Snapshot.bUseStateTree);
         (*SimObj)->TryGetBoolField(TEXT("enable_energy_drain"), Snapshot.bEnableEnergyDrain);
+        (*SimObj)->TryGetBoolField(TEXT("enable_info_checks"), Snapshot.bEnableInfoChecks);
         (*SimObj)->TryGetStringField(TEXT("map_type"), Snapshot.MapType);
 
         FString RunModeStr;

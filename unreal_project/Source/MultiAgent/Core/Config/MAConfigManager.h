@@ -37,6 +37,9 @@ public:
     bool bEnableEnergyDrain = false;
 
     UPROPERTY(BlueprintReadOnly, Category = "Config|Simulation")
+    bool bEnableInfoChecks = true;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Config|Simulation")
     FString MapType;
 
     UPROPERTY(BlueprintReadOnly, Category = "Config|Simulation")

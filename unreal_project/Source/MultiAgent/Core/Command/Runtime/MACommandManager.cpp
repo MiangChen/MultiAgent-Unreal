@@ -87,7 +87,7 @@ void UMACommandManager::ExecuteSkillList(const FMASkillListMessage& SkillList)
     {
         for (AMACharacter* Agent : AgentMgr->GetAllAgents())
         {
-            if (Agent) Agent->HideSpeechBubble();
+            if (Agent) RequestHideSpeechBubble(Agent);
         }
     }
     
@@ -638,6 +638,13 @@ void UMACommandManager::HandlePrecheckFailure(AMACharacter* Agent, EMACommand Co
     
     // 显示头顶气泡消息
     Agent->ShowSpeechBubble(FirstEvent.Message);
+    SpeechBubbleShowTimes.Add(Agent, GetWorld()->GetTimeSeconds());
+
+    if (FTimerHandle* OldTimer = SpeechBubbleHideTimers.Find(Agent))
+    {
+        GetWorld()->GetTimerManager().ClearTimer(*OldTimer);
+        SpeechBubbleHideTimers.Remove(Agent);
+    }
     
     // 添加到当前时间步反馈
     CurrentTimeStepFeedback.SkillFeedbacks.Add(Feedback);
@@ -806,6 +813,13 @@ void UMACommandManager::HandleRuntimeCheckFailure(AMACharacter* Agent, EMAComman
     
     // 显示头顶气泡消息
     Agent->ShowSpeechBubble(FirstEvent.Message);
+    SpeechBubbleShowTimes.Add(Agent, GetWorld()->GetTimeSeconds());
+
+    if (FTimerHandle* OldTimer = SpeechBubbleHideTimers.Find(Agent))
+    {
+        GetWorld()->GetTimerManager().ClearTimer(*OldTimer);
+        SpeechBubbleHideTimers.Remove(Agent);
+    }
     
     // 4) 添加到当前时间步反馈
     CurrentTimeStepFeedback.SkillFeedbacks.Add(Feedback);
@@ -847,6 +861,56 @@ void UMACommandManager::SendTimeStepFeedbackToPython(const FMATimeStepFeedback& 
             CommSubsystem->SendTimeStepFeedback(CommFeedback);
         }
     }
+}
+
+void UMACommandManager::RequestHideSpeechBubble(AMACharacter* Agent)
+{
+    if (!Agent)
+    {
+        return;
+    }
+
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return;
+    }
+
+    double* ShowTime = SpeechBubbleShowTimes.Find(Agent);
+    if (!ShowTime)
+    {
+        Agent->HideSpeechBubble();
+        return;
+    }
+
+    const double Elapsed = World->GetTimeSeconds() - *ShowTime;
+    if (Elapsed >= SpeechBubbleMinDisplaySec)
+    {
+        Agent->HideSpeechBubble();
+        SpeechBubbleShowTimes.Remove(Agent);
+        return;
+    }
+
+    if (SpeechBubbleHideTimers.Contains(Agent))
+    {
+        return;
+    }
+
+    const float Remaining = SpeechBubbleMinDisplaySec - static_cast<float>(Elapsed);
+    FTimerHandle TimerHandle;
+    FTimerDelegate TimerDelegate;
+    TimerDelegate.BindLambda([this, Agent]()
+    {
+        if (Agent)
+        {
+            Agent->HideSpeechBubble();
+            SpeechBubbleShowTimes.Remove(Agent);
+        }
+        SpeechBubbleHideTimers.Remove(Agent);
+    });
+
+    World->GetTimerManager().SetTimer(TimerHandle, TimerDelegate, Remaining, false);
+    SpeechBubbleHideTimers.Add(Agent, TimerHandle);
 }
 
 void UMACommandManager::SendSkillListCompletedFeedbackToPython(bool bCompleted, bool bInterrupted, int32 CompletedSteps, int32 TotalSteps)

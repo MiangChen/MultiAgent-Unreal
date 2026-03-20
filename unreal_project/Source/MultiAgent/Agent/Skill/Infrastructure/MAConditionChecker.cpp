@@ -4,6 +4,7 @@
 #include "Agent/Skill/Domain/MASkillTemplateRegistry.h"
 #include "Agent/Skill/Domain/MAEventTemplateRegistry.h"
 #include "Agent/Skill/Infrastructure/MASkillSceneGraphBridge.h"
+#include "Core/Config/MAConfigManager.h"
 #include "Core/Shared/Types/MATypes.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
 #include "Agent/Skill/Runtime/MASkillComponent.h"
@@ -547,6 +548,18 @@ FMAPrecheckResult FMAConditionChecker::RunChecks(
 {
 	FMAPrecheckResult Result;
 	const FMAConditionCheckContext Context(Agent, SkillComp);
+	bool bEnableInfoChecks = true;
+
+	if (Agent)
+	{
+		if (UGameInstance* GameInstance = Agent->GetGameInstance())
+		{
+			if (UMAConfigManager* ConfigMgr = GameInstance->GetSubsystem<UMAConfigManager>())
+			{
+				bEnableInfoChecks = ConfigMgr->bEnableInfoChecks;
+			}
+		}
+	}
 
 	for (const EMAConditionCheckItem& Item : Items)
 	{
@@ -568,9 +581,9 @@ FMAPrecheckResult FMAConditionChecker::RunChecks(
 			Result.bAllPassed = false;
 			Result.FailedEvents.Add(Event);
 		}
-		else
+		else if (bEnableInfoChecks)
 		{
-			// Info-level event
+			// Info-level event (only collected when enabled by config)
 			Result.InfoEvents.Add(Event);
 		}
 	}

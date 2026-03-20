@@ -19,6 +19,7 @@ struct FMAConfigSnapshot
     bool bUseSetupUI = false;
     bool bUseStateTree = true;
     bool bEnableEnergyDrain = false;
+    bool bEnableInfoChecks = true;
     FString MapType;
     FString DefaultMapPath;
     FString SceneGraphPath;
