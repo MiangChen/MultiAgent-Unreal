@@ -460,8 +460,8 @@ void USK_TakePhoto::ShowPIPCamera()
     
     // 显示配置
     FMAPIPDisplayConfig DisplayConfig;
-    DisplayConfig.ScreenPosition = FVector2D(0.7f, 0.3f);  // 右下角
     DisplayConfig.Size = FVector2D(800.f, 450.f);
+    DisplayConfig.ScreenPosition = PIPCameraManager->AllocateScreenPosition(DisplayConfig.Size);
     DisplayConfig.bShowBorder = true;
     DisplayConfig.bShowShadow = true;
     DisplayConfig.BorderColor = FLinearColor(0.4f, 0.4f, 0.4f, 1.f);

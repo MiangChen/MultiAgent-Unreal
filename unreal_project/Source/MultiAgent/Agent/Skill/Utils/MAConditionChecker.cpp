@@ -5,6 +5,7 @@
 #include "MAEventTemplateRegistry.h"
 #include "../../../Core/Manager/MACommandManager.h"
 #include "../../../Core/Manager/MASceneGraphManager.h"
+#include "../../../Core/Config/MAConfigManager.h"
 #include "../../../Core/Types/MATypes.h"
 #include "../../Character/MACharacter.h"
 #include "../MASkillComponent.h"
@@ -451,6 +452,19 @@ FMAPrecheckResult FMAConditionChecker::RunChecks(
 {
 	FMAPrecheckResult Result;
 
+	// 读取 Info 级别检查开关
+	bool bEnableInfoChecks = true;
+	if (Agent)
+	{
+		if (UGameInstance* GI = Agent->GetGameInstance())
+		{
+			if (UMAConfigManager* ConfigMgr = GI->GetSubsystem<UMAConfigManager>())
+			{
+				bEnableInfoChecks = ConfigMgr->bEnableInfoChecks;
+			}
+		}
+	}
+
 	for (const EMAConditionCheckItem& Item : Items)
 	{
 		FMACheckResult CheckResult = ExecuteCheckItem(Item, Agent, Command, SkillComp, SceneGraphMgr);
@@ -471,9 +485,9 @@ FMAPrecheckResult FMAConditionChecker::RunChecks(
 			Result.bAllPassed = false;
 			Result.FailedEvents.Add(Event);
 		}
-		else
+		else if (bEnableInfoChecks)
 		{
-			// Info-level event
+			// Info-level event (only collected when info checks are enabled)
 			Result.InfoEvents.Add(Event);
 		}
 	}

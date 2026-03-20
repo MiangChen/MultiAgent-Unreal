@@ -340,6 +340,10 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "Config|Simulation")
     bool bEnableEnergyDrain = false;
 
+    /** 是否启用 Info 级别的条件检查 (如高优先级目标发现等) */
+    UPROPERTY(BlueprintReadOnly, Category = "Config|Simulation")
+    bool bEnableInfoChecks = true;
+
     /** 地图类型 (如 Downtown, SciFiModernCity, Port) */
     UPROPERTY(BlueprintReadOnly, Category = "Config|Simulation")
     FString MapType;

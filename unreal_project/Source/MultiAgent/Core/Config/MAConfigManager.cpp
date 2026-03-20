@@ -95,6 +95,7 @@ bool UMAConfigManager::LoadAllConfigs()
         UE_LOG(LogMAConfig, Log, TEXT("  bUseSetupUI: %s"), bUseSetupUI ? TEXT("true") : TEXT("false"));
         UE_LOG(LogMAConfig, Log, TEXT("  bUseStateTree: %s"), bUseStateTree ? TEXT("true") : TEXT("false"));
         UE_LOG(LogMAConfig, Log, TEXT("  bEnableEnergyDrain: %s"), bEnableEnergyDrain ? TEXT("true") : TEXT("false"));
+        UE_LOG(LogMAConfig, Log, TEXT("  bEnableInfoChecks: %s"), bEnableInfoChecks ? TEXT("true") : TEXT("false"));
         UE_LOG(LogMAConfig, Log, TEXT("  DefaultMapPath: %s"), *DefaultMapPath);
         UE_LOG(LogMAConfig, Log, TEXT("  SceneGraphPath: %s"), *SceneGraphPath);
         UE_LOG(LogMAConfig, Log, TEXT("  RunMode: %s"), RunMode == EMARunMode::Modify ? TEXT("Modify") : TEXT("Edit"));
@@ -156,6 +157,7 @@ bool UMAConfigManager::LoadSimulationConfig()
         (*SimObj)->TryGetBoolField(TEXT("use_setup_ui"), bUseSetupUI);
         (*SimObj)->TryGetBoolField(TEXT("use_state_tree"), bUseStateTree);
         (*SimObj)->TryGetBoolField(TEXT("enable_energy_drain"), bEnableEnergyDrain);
+        (*SimObj)->TryGetBoolField(TEXT("enable_info_checks"), bEnableInfoChecks);
         (*SimObj)->TryGetStringField(TEXT("map_type"), MapType);
         
         // 解析 run_mode 字段

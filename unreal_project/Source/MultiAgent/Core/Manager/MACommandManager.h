@@ -199,6 +199,22 @@ private:
     static constexpr float RuntimeCheckIntervalSec = 1.0f;
 
     //=========================================================================
+    // 气泡最小显示时长
+    //=========================================================================
+
+    /** 请求隐藏气泡（尊重最小显示时长，到期后自动隐藏） */
+    void RequestHideSpeechBubble(AMACharacter* Agent);
+
+    /** 气泡显示时刻记录 (Agent -> 显示时的世界时间) */
+    TMap<AMACharacter*, double> SpeechBubbleShowTimes;
+
+    /** 延迟隐藏气泡的定时器 */
+    TMap<AMACharacter*, FTimerHandle> SpeechBubbleHideTimers;
+
+    /** 气泡最小显示时长（秒） */
+    static constexpr float SpeechBubbleMinDisplaySec = 10.0f;
+
+    //=========================================================================
     // 场景图周期性同步
     //=========================================================================
 

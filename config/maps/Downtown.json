@@ -143,7 +143,7 @@
         },
         {
             "label": "Person_12", "type": "person",
-            "position": [-3700, 3800, 0], "rotation": [0, 180, 0],
+            "position": [-4800, 3800, 0], "rotation": [0, 180, 0],
             "enabled": true,
             "features": { "subtype": "sportive", "variant": "03", "gender": "male", "animation": "walk", "clothing_color": "black" }
         },
@@ -259,7 +259,7 @@
         },
         {
             "label": "Wind_1", "type": "wind",
-            "position": [-7000, 10000, 1500],
+            "position": [-7000, 12000, 500],
             "enabled": false,
             "features": { "scale": "8", "radius": "1000" }
         },

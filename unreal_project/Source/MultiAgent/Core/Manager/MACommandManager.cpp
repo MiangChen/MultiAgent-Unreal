@@ -79,12 +79,12 @@ void UMACommandManager::ExecuteSkillList(const FMASkillListMessage& SkillList)
         InterruptCurrentExecution();
     }
     
-    // 隐藏所有 Agent 的头顶气泡（新技能列表下发时清除旧消息）
+    // 隐藏所有 Agent 的头顶气泡（尊重最小显示时长）
     if (UMAAgentManager* AgentMgr = GetWorld()->GetSubsystem<UMAAgentManager>())
     {
         for (AMACharacter* Agent : AgentMgr->GetAllAgents())
         {
-            if (Agent) Agent->HideSpeechBubble();
+            if (Agent) RequestHideSpeechBubble(Agent);
         }
     }
     
@@ -684,6 +684,14 @@ void UMACommandManager::HandlePrecheckFailure(AMACharacter* Agent, EMACommand Co
     
     // 显示头顶气泡消息
     Agent->ShowSpeechBubble(FirstEvent.Message);
+    SpeechBubbleShowTimes.Add(Agent, GetWorld()->GetTimeSeconds());
+    
+    // 取消该 Agent 上可能存在的延迟隐藏定时器（新气泡覆盖旧的）
+    if (FTimerHandle* OldTimer = SpeechBubbleHideTimers.Find(Agent))
+    {
+        GetWorld()->GetTimerManager().ClearTimer(*OldTimer);
+        SpeechBubbleHideTimers.Remove(Agent);
+    }
     
     // 添加到当前时间步反馈
     CurrentTimeStepFeedback.SkillFeedbacks.Add(Feedback);
@@ -853,6 +861,14 @@ void UMACommandManager::HandleRuntimeCheckFailure(AMACharacter* Agent, EMAComman
     
     // 显示头顶气泡消息
     Agent->ShowSpeechBubble(FirstEvent.Message);
+    SpeechBubbleShowTimes.Add(Agent, GetWorld()->GetTimeSeconds());
+    
+    // 取消该 Agent 上可能存在的延迟隐藏定时器（新气泡覆盖旧的）
+    if (FTimerHandle* OldTimer = SpeechBubbleHideTimers.Find(Agent))
+    {
+        GetWorld()->GetTimerManager().ClearTimer(*OldTimer);
+        SpeechBubbleHideTimers.Remove(Agent);
+    }
     
     // 4) 添加到当前时间步反馈
     CurrentTimeStepFeedback.SkillFeedbacks.Add(Feedback);
@@ -946,6 +962,58 @@ void UMACommandManager::SendSkillListCompletedFeedbackToPython(bool bCompleted, 
     }
     
     UE_LOG(LogMACommandManager, Log, TEXT("Sent skill list completed feedback: %s"), *Message.Message);
+}
+
+//=============================================================================
+// 气泡最小显示时长
+//=============================================================================
+
+void UMACommandManager::RequestHideSpeechBubble(AMACharacter* Agent)
+{
+    if (!Agent) return;
+    
+    UWorld* World = GetWorld();
+    if (!World) return;
+    
+    double* ShowTime = SpeechBubbleShowTimes.Find(Agent);
+    if (!ShowTime)
+    {
+        // 没有记录过显示时间，直接隐藏
+        Agent->HideSpeechBubble();
+        return;
+    }
+    
+    double Elapsed = World->GetTimeSeconds() - *ShowTime;
+    if (Elapsed >= SpeechBubbleMinDisplaySec)
+    {
+        // 已超过最小显示时长，立即隐藏
+        Agent->HideSpeechBubble();
+        SpeechBubbleShowTimes.Remove(Agent);
+        return;
+    }
+    
+    // 尚未到期，如果已有延迟定时器则不重复设置
+    if (SpeechBubbleHideTimers.Contains(Agent))
+    {
+        return;
+    }
+    
+    // 设置延迟隐藏定时器
+    float Remaining = SpeechBubbleMinDisplaySec - static_cast<float>(Elapsed);
+    FTimerHandle TimerHandle;
+    FTimerDelegate TimerDelegate;
+    TimerDelegate.BindLambda([this, Agent]()
+    {
+        if (Agent)
+        {
+            Agent->HideSpeechBubble();
+            SpeechBubbleShowTimes.Remove(Agent);
+        }
+        SpeechBubbleHideTimers.Remove(Agent);
+    });
+    
+    World->GetTimerManager().SetTimer(TimerHandle, TimerDelegate, Remaining, false);
+    SpeechBubbleHideTimers.Add(Agent, TimerHandle);
 }
 
 //=============================================================================
