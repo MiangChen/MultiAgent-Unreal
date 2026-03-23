@@ -207,7 +207,7 @@ void UMATaskGraphPreview::UpdatePreview(const FMATaskGraphData& Data)
     {
         if (bHasData)
         {
-            FString StatsStr = FString::Printf(TEXT("%d 节点, %d 边"), 
+            FString StatsStr = FString::Printf(TEXT("%d Nodes, %d Edges"), 
                 CurrentData.Nodes.Num(), CurrentData.Edges.Num());
             StatsText->SetText(FText::FromString(StatsStr));
             // 使用成员变量 TextColor（从 Theme 获取或使用 fallback 默认值）
@@ -556,16 +556,16 @@ void UMATaskGraphPreview::DrawTooltip(const FGeometry& AllottedGeometry, FSlateW
     switch (Node.Status)
     {
     case EMATaskExecutionStatus::Pending:
-        StatusStr = TEXT("待执行");
+        StatusStr = TEXT("Pending");
         break;
     case EMATaskExecutionStatus::InProgress:
-        StatusStr = TEXT("执行中");
+        StatusStr = TEXT("In Progress");
         break;
     case EMATaskExecutionStatus::Completed:
-        StatusStr = TEXT("已完成");
+        StatusStr = TEXT("Completed");
         break;
     case EMATaskExecutionStatus::Failed:
-        StatusStr = TEXT("失败");
+        StatusStr = TEXT("Failed");
         break;
     }
     
@@ -573,13 +573,13 @@ void UMATaskGraphPreview::DrawTooltip(const FGeometry& AllottedGeometry, FSlateW
     TooltipLines.Add(FString::Printf(TEXT("ID: %s"), *Node.NodeId));
     if (!Node.Description.IsEmpty())
     {
-        TooltipLines.Add(FString::Printf(TEXT("描述: %s"), *Node.Description));
+        TooltipLines.Add(FString::Printf(TEXT("Desc: %s"), *Node.Description));
     }
     if (!Node.Location.IsEmpty())
     {
-        TooltipLines.Add(FString::Printf(TEXT("位置: %s"), *Node.Location));
+        TooltipLines.Add(FString::Printf(TEXT("Location: %s"), *Node.Location));
     }
-    TooltipLines.Add(FString::Printf(TEXT("状态: %s"), *StatusStr));
+    TooltipLines.Add(FString::Printf(TEXT("Status: %s"), *StatusStr));
     
     // 计算工具提示大小
     float TooltipWidth = 150.0f;

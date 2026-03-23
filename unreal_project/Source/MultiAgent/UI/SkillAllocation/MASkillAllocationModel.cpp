@@ -253,35 +253,35 @@ bool UMASkillAllocationModel::ValidateMoveSkill(int32 SourceTimeStep, const FStr
     // Validate source time step
     if (SourceTimeStep < 0)
     {
-        OutErrorMessage = FString::Printf(TEXT("无效的源时间步: %d"), SourceTimeStep);
+        OutErrorMessage = FString::Printf(TEXT("Invalid source time step: %d"), SourceTimeStep);
         return false;
     }
 
     // Validate source robot ID
     if (SourceRobotId.IsEmpty())
     {
-        OutErrorMessage = TEXT("源机器人ID为空");
+        OutErrorMessage = TEXT("Source robot ID is empty");
         return false;
     }
 
     // Validate target time step
     if (TargetTimeStep < 0)
     {
-        OutErrorMessage = FString::Printf(TEXT("无效的目标时间步: %d"), TargetTimeStep);
+        OutErrorMessage = FString::Printf(TEXT("Invalid target time step: %d"), TargetTimeStep);
         return false;
     }
 
     // Validate target robot ID
     if (TargetRobotId.IsEmpty())
     {
-        OutErrorMessage = TEXT("目标机器人ID为空");
+        OutErrorMessage = TEXT("Target robot ID is empty");
         return false;
     }
 
     // Check if source and target are the same
     if (SourceTimeStep == TargetTimeStep && SourceRobotId == TargetRobotId)
     {
-        OutErrorMessage = TEXT("源位置和目标位置相同");
+        OutErrorMessage = TEXT("Source and target are the same");
         return false;
     }
 
@@ -289,14 +289,14 @@ bool UMASkillAllocationModel::ValidateMoveSkill(int32 SourceTimeStep, const FStr
     FMASkillAssignment SourceSkill;
     if (!FindSkill(SourceTimeStep, SourceRobotId, SourceSkill))
     {
-        OutErrorMessage = FString::Printf(TEXT("源位置没有技能: T%d, %s"), SourceTimeStep, *SourceRobotId);
+        OutErrorMessage = FString::Printf(TEXT("No skill at source: T%d, %s"), SourceTimeStep, *SourceRobotId);
         return false;
     }
 
     // Check if target slot is empty
     if (!IsSlotEmpty(TargetTimeStep, TargetRobotId))
     {
-        OutErrorMessage = FString::Printf(TEXT("目标槽位已被占用: T%d, %s"), TargetTimeStep, *TargetRobotId);
+        OutErrorMessage = FString::Printf(TEXT("Target slot is occupied: T%d, %s"), TargetTimeStep, *TargetRobotId);
         return false;
     }
 

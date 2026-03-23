@@ -66,9 +66,6 @@ public class MultiAgent : ModuleRules
             Path.Combine(ModuleDirectory, "Agent/Character"),
             Path.Combine(ModuleDirectory, "Agent/Component"),
             Path.Combine(ModuleDirectory, "Agent/Component/Sensor"),
-            // GAS 目录已移除，如需使用请创建对应目录
-            // Path.Combine(ModuleDirectory, "Agent/GAS"),
-            // Path.Combine(ModuleDirectory, "Agent/GAS/Ability"),
             Path.Combine(ModuleDirectory, "Agent/StateTree"),
             Path.Combine(ModuleDirectory, "Agent/StateTree/Task"),
             Path.Combine(ModuleDirectory, "Agent/StateTree/Condition")

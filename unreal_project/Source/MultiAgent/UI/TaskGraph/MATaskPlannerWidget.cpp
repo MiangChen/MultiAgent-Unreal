@@ -874,20 +874,20 @@ void UMATaskPlannerWidget::SaveAndNavigateToModal()
             if (UMATempDataManager* TempDataMgr = GameInstance->GetSubsystem<UMATempDataManager>())
             {
                 TempDataMgr->SaveTaskGraph(CurrentData);
-                AppendStatusLog(TEXT("[保存] 任务图已保存"));
+                AppendStatusLog(TEXT("[Save] Task graph saved"));
                 UE_LOG(LogMATaskPlanner, Log, TEXT("SaveAndNavigateToModal: Task graph saved to TempDataManager"));
             }
             else
             {
                 UE_LOG(LogMATaskPlanner, Error, TEXT("SaveAndNavigateToModal: TempDataManager not found"));
-                AppendStatusLog(TEXT("[错误] 无法保存数据：TempDataManager 不可用"));
+                AppendStatusLog(TEXT("[Error] Cannot save data: TempDataManager unavailable"));
                 return;
             }
         }
         else
         {
             UE_LOG(LogMATaskPlanner, Error, TEXT("SaveAndNavigateToModal: GameInstance not found"));
-            AppendStatusLog(TEXT("[错误] 无法保存数据：GameInstance 不可用"));
+            AppendStatusLog(TEXT("[Error] Cannot save data: GameInstance unavailable"));
             return;
         }
     }
@@ -906,13 +906,13 @@ void UMATaskPlannerWidget::SaveAndNavigateToModal()
             else
             {
                 UE_LOG(LogMATaskPlanner, Error, TEXT("SaveAndNavigateToModal: UIManager not found"));
-                AppendStatusLog(TEXT("[错误] 无法导航：UIManager 不可用"));
+                AppendStatusLog(TEXT("[Error] Cannot navigate: UIManager unavailable"));
             }
         }
         else
         {
             UE_LOG(LogMATaskPlanner, Error, TEXT("SaveAndNavigateToModal: MAHUD not found"));
-            AppendStatusLog(TEXT("[错误] 无法导航：HUD 不可用"));
+            AppendStatusLog(TEXT("[Error] Cannot navigate: HUD unavailable"));
         }
     }
 }

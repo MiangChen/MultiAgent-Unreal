@@ -270,7 +270,7 @@ void UMAGanttCanvas::CancelDrag()
         return;
     }
     
-    UE_LOG(LogMAGanttCanvas, Log, TEXT("[取消] 拖拽操作已取消"));
+    UE_LOG(LogMAGanttCanvas, Log, TEXT("[Cancel] Drag operation cancelled"));
     
     // 重置拖拽状态
     DragState = EGanttDragState::Idle;
@@ -1469,7 +1469,7 @@ FReply UMAGanttCanvas::NativeOnMouseButtonDown(const FGeometry& InGeometry, cons
                 else
                 {
                     // 拖拽被禁用（可能正在执行中）
-                    UE_LOG(LogMAGanttCanvas, Log, TEXT("[警告] 执行期间无法修改技能分配"));
+                    UE_LOG(LogMAGanttCanvas, Log, TEXT("[Warning] Cannot modify skill allocation during execution"));
                     
                     // 广播拖拽被阻止事件，通知 Viewer 显示警告日志
                     OnDragBlocked.Broadcast();
@@ -1516,7 +1516,7 @@ FReply UMAGanttCanvas::NativeOnMouseMove(const FGeometry& InGeometry, const FPoi
             DragPreview.SkillName = DragSource.SkillName;
             
             // 记录拖拽开始日志
-            UE_LOG(LogMAGanttCanvas, Log, TEXT("[拖拽] 开始移动技能: %s (T%d, %s)"),
+            UE_LOG(LogMAGanttCanvas, Log, TEXT("[Drag] Start moving skill: %s (T%d, %s)"),
                    *DragSource.SkillName, DragSource.TimeStep, *DragSource.RobotId);
             
             // 广播拖拽开始事件（用于状态日志记录）
@@ -1658,7 +1658,7 @@ FReply UMAGanttCanvas::NativeOnMouseButtonUp(const FGeometry& InGeometry, const 
                     if (bDropSuccess)
                     {
                         // 记录成功日志
-                        UE_LOG(LogMAGanttCanvas, Log, TEXT("[成功] 技能已移动: %s 从 T%d 到 T%d"),
+                        UE_LOG(LogMAGanttCanvas, Log, TEXT("[Success] Skill moved: %s from T%d to T%d"),
                                *DragSource.SkillName, DragSource.TimeStep, FinalTarget.TimeStep);
                         
                         // 广播拖拽完成事件（用于数据持久化）
@@ -1670,7 +1670,7 @@ FReply UMAGanttCanvas::NativeOnMouseButtonUp(const FGeometry& InGeometry, const 
                     else
                     {
                         // 记录失败日志
-                        UE_LOG(LogMAGanttCanvas, Log, TEXT("[失败] 无法放置: 目标槽位已被占用"));
+                        UE_LOG(LogMAGanttCanvas, Log, TEXT("[Failed] Cannot drop: target slot is occupied"));
                         
                         // 广播拖拽失败事件（用于状态日志记录）
                         OnDragFailed.Broadcast();
@@ -1684,7 +1684,7 @@ FReply UMAGanttCanvas::NativeOnMouseButtonUp(const FGeometry& InGeometry, const 
             else
             {
                 // 无效目标
-                UE_LOG(LogMAGanttCanvas, Log, TEXT("[失败] 无法放置: 目标槽位已被占用或无效"));
+                UE_LOG(LogMAGanttCanvas, Log, TEXT("[Failed] Cannot drop: target slot is occupied or invalid"));
                 
                 // 广播拖拽失败事件（用于状态日志记录）
                 OnDragFailed.Broadcast();

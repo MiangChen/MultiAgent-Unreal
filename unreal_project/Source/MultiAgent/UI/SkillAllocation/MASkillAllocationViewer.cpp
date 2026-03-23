@@ -808,20 +808,20 @@ void UMASkillAllocationViewer::SaveAndNavigateToModal()
             if (UMATempDataManager* TempDataMgr = GameInstance->GetSubsystem<UMATempDataManager>())
             {
                 TempDataMgr->SaveSkillAllocation(CurrentData);
-                AppendStatusLog(TEXT("[保存] 技能分配已保存"));
+                AppendStatusLog(TEXT("[Save] Skill allocation saved"));
                 UE_LOG(LogMASkillAllocationViewer, Log, TEXT("SaveAndNavigateToModal: Skill allocation saved to TempDataManager"));
             }
             else
             {
                 UE_LOG(LogMASkillAllocationViewer, Error, TEXT("SaveAndNavigateToModal: TempDataManager not found"));
-                AppendStatusLog(TEXT("[错误] 无法保存数据：TempDataManager 不可用"));
+                AppendStatusLog(TEXT("[Error] Cannot save data: TempDataManager unavailable"));
                 return;
             }
         }
         else
         {
             UE_LOG(LogMASkillAllocationViewer, Error, TEXT("SaveAndNavigateToModal: GameInstance not found"));
-            AppendStatusLog(TEXT("[错误] 无法保存数据：GameInstance 不可用"));
+            AppendStatusLog(TEXT("[Error] Cannot save data: GameInstance unavailable"));
             return;
         }
     }
@@ -840,13 +840,13 @@ void UMASkillAllocationViewer::SaveAndNavigateToModal()
             else
             {
                 UE_LOG(LogMASkillAllocationViewer, Error, TEXT("SaveAndNavigateToModal: UIManager not found"));
-                AppendStatusLog(TEXT("[错误] 无法导航：UIManager 不可用"));
+                AppendStatusLog(TEXT("[Error] Cannot navigate: UIManager unavailable"));
             }
         }
         else
         {
             UE_LOG(LogMASkillAllocationViewer, Error, TEXT("SaveAndNavigateToModal: MAHUD not found"));
-            AppendStatusLog(TEXT("[错误] 无法导航：HUD 不可用"));
+            AppendStatusLog(TEXT("[Error] Cannot navigate: HUD unavailable"));
         }
     }
 }
@@ -878,7 +878,7 @@ void UMASkillAllocationViewer::OnResetButtonClicked()
     }
     
     // 记录日志
-    AppendStatusLog(TEXT("[重置] 所有技能状态已重置为待执行"));
+    AppendStatusLog(TEXT("[Reset] All skill statuses reset to Pending"));
     UE_LOG(LogMASkillAllocationViewer, Log, TEXT("Reset completed - all skills set to Pending"));
 }
 
@@ -1027,7 +1027,7 @@ void UMASkillAllocationViewer::OnGanttDragStarted(const FString& SkillName, int3
         *SkillName, TimeStep, *RobotId);
     
     // 记录状态日志
-    AppendStatusLog(FString::Printf(TEXT("[拖拽] 开始移动技能: %s (T%d, %s)"),
+    AppendStatusLog(FString::Printf(TEXT("[Drag] Start moving skill: %s (T%d, %s)"),
         *SkillName, TimeStep, *RobotId));
 }
 
@@ -1044,12 +1044,12 @@ void UMASkillAllocationViewer::OnGanttDragCompleted(int32 SourceTimeStep, const 
         FMASkillAssignment Skill;
         if (AllocationModel->FindSkill(TargetTimeStep, TargetRobotId, Skill))
         {
-            AppendStatusLog(FString::Printf(TEXT("[成功] 技能已移动: %s 从 T%d 到 T%d"),
+            AppendStatusLog(FString::Printf(TEXT("[Success] Skill moved: %s from T%d to T%d"),
                 *Skill.SkillName, SourceTimeStep, TargetTimeStep));
         }
         else
         {
-            AppendStatusLog(FString::Printf(TEXT("[成功] 技能已移动: 从 T%d/%s 到 T%d/%s"),
+            AppendStatusLog(FString::Printf(TEXT("[Success] Skill moved: from T%d/%s to T%d/%s"),
                 SourceTimeStep, *SourceRobotId, TargetTimeStep, *TargetRobotId));
         }
     }
@@ -1066,7 +1066,7 @@ void UMASkillAllocationViewer::OnGanttDragCancelled()
     UE_LOG(LogMASkillAllocationViewer, Log, TEXT("OnGanttDragCancelled: Drag operation cancelled"));
     
     // 记录状态日志
-    AppendStatusLog(TEXT("[取消] 拖拽操作已取消"));
+    AppendStatusLog(TEXT("[Cancel] Drag operation cancelled"));
 }
 
 void UMASkillAllocationViewer::OnGanttDragBlocked()
@@ -1074,7 +1074,7 @@ void UMASkillAllocationViewer::OnGanttDragBlocked()
     UE_LOG(LogMASkillAllocationViewer, Log, TEXT("OnGanttDragBlocked: Drag attempt blocked during execution"));
     
     // 记录警告日志
-    AppendStatusLog(TEXT("[警告] 执行期间无法修改技能分配"));
+    AppendStatusLog(TEXT("[Warning] Cannot modify skill allocation during execution"));
 }
 
 void UMASkillAllocationViewer::OnGanttDragFailed()
@@ -1082,7 +1082,7 @@ void UMASkillAllocationViewer::OnGanttDragFailed()
     UE_LOG(LogMASkillAllocationViewer, Log, TEXT("OnGanttDragFailed: Drag operation failed due to invalid target"));
     
     // 记录失败日志
-    AppendStatusLog(TEXT("[失败] 无法放置: 目标槽位已被占用"));
+    AppendStatusLog(TEXT("[Failed] Cannot drop: target slot is occupied"));
 }
 
 void UMASkillAllocationViewer::SyncDataToTempFile()
@@ -1091,7 +1091,7 @@ void UMASkillAllocationViewer::SyncDataToTempFile()
     UGameInstance* GameInstance = UGameplayStatics::GetGameInstance(GetWorld());
     if (!GameInstance)
     {
-        AppendStatusLog(TEXT("[错误] 无法获取 GameInstance，数据同步失败"));
+        AppendStatusLog(TEXT("[Error] Cannot get GameInstance, data sync failed"));
         UE_LOG(LogMASkillAllocationViewer, Error, TEXT("SyncDataToTempFile: Failed to get GameInstance"));
         return;
     }
@@ -1099,7 +1099,7 @@ void UMASkillAllocationViewer::SyncDataToTempFile()
     UMATempDataManager* TempDataMgr = GameInstance->GetSubsystem<UMATempDataManager>();
     if (!TempDataMgr)
     {
-        AppendStatusLog(TEXT("[错误] TempDataManager 不可用，数据同步失败"));
+        AppendStatusLog(TEXT("[Error] TempDataManager unavailable, data sync failed"));
         UE_LOG(LogMASkillAllocationViewer, Error, TEXT("SyncDataToTempFile: TempDataManager not available"));
         return;
     }
@@ -1107,7 +1107,7 @@ void UMASkillAllocationViewer::SyncDataToTempFile()
     // 获取当前模型数据
     if (!AllocationModel)
     {
-        AppendStatusLog(TEXT("[错误] AllocationModel 为空，数据同步失败"));
+        AppendStatusLog(TEXT("[Error] AllocationModel is null, data sync failed"));
         UE_LOG(LogMASkillAllocationViewer, Error, TEXT("SyncDataToTempFile: AllocationModel is null"));
         return;
     }
@@ -1117,7 +1117,7 @@ void UMASkillAllocationViewer::SyncDataToTempFile()
     // 验证数据完整性
     if (Data.Data.Num() == 0)
     {
-        AppendStatusLog(TEXT("[警告] 技能分配为空，跳过数据同步"));
+        AppendStatusLog(TEXT("[Warning] Skill allocation is empty, skipping data sync"));
         UE_LOG(LogMASkillAllocationViewer, Warning, TEXT("SyncDataToTempFile: Skill allocation is empty, skipping sync"));
         return;
     }
@@ -1126,13 +1126,13 @@ void UMASkillAllocationViewer::SyncDataToTempFile()
     if (TempDataMgr->SaveSkillAllocation(Data))
     {
         // 记录成功日志
-        AppendStatusLog(TEXT("[同步] 数据已保存到 skill_allocation_temp.json"));
+        AppendStatusLog(TEXT("[Sync] Data saved to skill_allocation_temp.json"));
         UE_LOG(LogMASkillAllocationViewer, Log, TEXT("SyncDataToTempFile: Data saved to skill_allocation_temp.json"));
     }
     else
     {
         // 记录失败日志
-        AppendStatusLog(TEXT("[错误] 文件写入失败，数据同步失败"));
+        AppendStatusLog(TEXT("[Error] File write failed, data sync failed"));
         UE_LOG(LogMASkillAllocationViewer, Error, TEXT("SyncDataToTempFile: Failed to save data to temp file"));
     }
 }
@@ -1174,7 +1174,7 @@ bool UMASkillAllocationViewer::ConvertToSkillListMessage(
     // Check for empty data
     if (InData.Data.Num() == 0)
     {
-        OutErrorMessage = TEXT("技能列表为空");
+        OutErrorMessage = TEXT("Skill list is empty");
         return false;
     }
     

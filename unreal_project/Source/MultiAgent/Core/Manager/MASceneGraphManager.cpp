@@ -107,7 +107,7 @@ bool UMASceneGraphManager::ParseLabelInput(const FString& InputText, FString& Ou
 
     if (InputText.IsEmpty())
     {
-        OutErrorMessage = TEXT("输入格式错误，请使用: cate:building/trans_facility/prop,type:值");
+        OutErrorMessage = TEXT("Invalid input format, use: cate:building/trans_facility/prop,type:<value>");
         return false;
     }
 
@@ -135,7 +135,7 @@ bool UMASceneGraphManager::ParseLabelInput(const FString& InputText, FString& Ou
             {
                 if (Value.IsEmpty())
                 {
-                    OutErrorMessage = TEXT("缺少必填字段: id");
+                    OutErrorMessage = TEXT("Missing required field: id");
                     return false;
                 }
                 OutId = Value;
@@ -145,7 +145,7 @@ bool UMASceneGraphManager::ParseLabelInput(const FString& InputText, FString& Ou
             {
                 if (Value.IsEmpty())
                 {
-                    OutErrorMessage = TEXT("缺少必填字段: type");
+                    OutErrorMessage = TEXT("Missing required field: type");
                     return false;
                 }
                 OutType = Value;
@@ -157,7 +157,7 @@ bool UMASceneGraphManager::ParseLabelInput(const FString& InputText, FString& Ou
                 FString ValueLower = Value.ToLower();
                 if (ValueLower != TEXT("building") && ValueLower != TEXT("trans_facility") && ValueLower != TEXT("prop"))
                 {
-                    OutErrorMessage = FString::Printf(TEXT("无效的 cate 值: %s (应为 building, trans_facility 或 prop)"), *Value);
+                    OutErrorMessage = FString::Printf(TEXT("Invalid cate value: %s (expected building, trans_facility or prop)"), *Value);
                     return false;
                 }
                 bFoundCate = true;
@@ -168,7 +168,7 @@ bool UMASceneGraphManager::ParseLabelInput(const FString& InputText, FString& Ou
     // 验证必填字段
     if (!bFoundType)
     {
-        OutErrorMessage = TEXT("缺少必填字段: type");
+        OutErrorMessage = TEXT("Missing required field: type");
         return false;
     }
 
@@ -181,7 +181,7 @@ bool UMASceneGraphManager::ParseLabelInput(const FString& InputText, FString& Ou
     else if (!bFoundId)
     {
         // 旧格式必须有 id
-        OutErrorMessage = TEXT("缺少必填字段: id (或使用 cate:xxx 格式自动分配)");
+        OutErrorMessage = TEXT("Missing required field: id (or use cate:xxx format for auto-assignment)");
         return false;
     }
 
@@ -522,13 +522,13 @@ bool UMASceneGraphManager::BindDynamicNodeGuid(const FString& NodeIdOrLabel, con
 {
     if (NodeIdOrLabel.IsEmpty())
     {
-        UE_LOG(LogMASceneGraphManager, Warning, TEXT("BindDynamicNodeGuid: NodeIdOrLabel 为空"));
+        UE_LOG(LogMASceneGraphManager, Warning, TEXT("BindDynamicNodeGuid: NodeIdOrLabel is empty"));
         return false;
     }
 
     if (ActorGuid.IsEmpty())
     {
-        UE_LOG(LogMASceneGraphManager, Warning, TEXT("BindDynamicNodeGuid: ActorGuid 为空"));
+        UE_LOG(LogMASceneGraphManager, Warning, TEXT("BindDynamicNodeGuid: ActorGuid is empty"));
         return false;
     }
 
@@ -536,18 +536,18 @@ bool UMASceneGraphManager::BindDynamicNodeGuid(const FString& NodeIdOrLabel, con
     FMASceneGraphNode* Node = FindDynamicNodeByIdMutable(NodeIdOrLabel);
     if (!Node)
     {
-        UE_LOG(LogMASceneGraphManager, Warning, TEXT("BindDynamicNodeGuid: 未找到节点: %s"), *NodeIdOrLabel);
+        UE_LOG(LogMASceneGraphManager, Warning, TEXT("BindDynamicNodeGuid: Node not found: %s"), *NodeIdOrLabel);
         return false;
     }
 
     // 调用 MADynamicNodeManager::UpdateNodeGuid() 更新节点
     if (!FMADynamicNodeManager::UpdateNodeGuid(*Node, ActorGuid))
     {
-        UE_LOG(LogMASceneGraphManager, Error, TEXT("BindDynamicNodeGuid: 更新节点 GUID 失败: %s"), *NodeIdOrLabel);
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("BindDynamicNodeGuid: Failed to update node GUID: %s"), *NodeIdOrLabel);
         return false;
     }
 
-    UE_LOG(LogMASceneGraphManager, Log, TEXT("BindDynamicNodeGuid: 成功绑定节点 %s (Label: %s) 到 GUID %s"), 
+    UE_LOG(LogMASceneGraphManager, Log, TEXT("BindDynamicNodeGuid: Successfully bound node %s (Label: %s) to GUID %s"), 
         *Node->Id, *Node->Label, *ActorGuid);
 
     // 用 Actor 的实际位置校准节点 (Spawn 时的地面投影可能修改了 Z)
@@ -565,15 +565,15 @@ bool UMASceneGraphManager::EditDynamicNode(const FString& NodeId, const FString&
 
     if (NodeId.IsEmpty())
     {
-        OutError = TEXT("节点 ID 为空");
-        UE_LOG(LogMASceneGraphManager, Error, TEXT("EditDynamicNode: NodeId 为空"));
+        OutError = TEXT("Node ID is empty");
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("EditDynamicNode: NodeId is empty"));
         return false;
     }
 
     if (NewNodeJson.IsEmpty())
     {
-        OutError = TEXT("新节点 JSON 为空");
-        UE_LOG(LogMASceneGraphManager, Error, TEXT("EditDynamicNode: NewNodeJson 为空"));
+        OutError = TEXT("New node JSON is empty");
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("EditDynamicNode: NewNodeJson is empty"));
         return false;
     }
 
@@ -582,15 +582,15 @@ bool UMASceneGraphManager::EditDynamicNode(const FString& NodeId, const FString&
     TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(NewNodeJson);
     if (!FJsonSerializer::Deserialize(Reader, NewNodeObject) || !NewNodeObject.IsValid())
     {
-        OutError = TEXT("JSON 解析失败");
-        UE_LOG(LogMASceneGraphManager, Error, TEXT("EditDynamicNode: JSON 解析失败: %s"), *NewNodeJson);
+        OutError = TEXT("JSON parse failed");
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("EditDynamicNode: JSON parse failed: %s"), *NewNodeJson);
         return false;
     }
 
     // 验证 JSON 结构
     if (!ValidateNodeJsonStructure(NewNodeObject, OutError))
     {
-        UE_LOG(LogMASceneGraphManager, Error, TEXT("EditDynamicNode: JSON 验证失败: %s"), *OutError);
+        UE_LOG(LogMASceneGraphManager, Error, TEXT("EditDynamicNode: JSON validation failed: %s"), *OutError);
         return false;
     }
 
@@ -598,8 +598,8 @@ bool UMASceneGraphManager::EditDynamicNode(const FString& NodeId, const FString&
     FMASceneGraphNode* Node = FindDynamicNodeByIdMutable(NodeId);
     if (!Node)
     {
-        OutError = FString::Printf(TEXT("动态节点不存在: %s"), *NodeId);
-        UE_LOG(LogMASceneGraphManager, Warning, TEXT("EditDynamicNode: 未找到动态节点: %s"), *NodeId);
+        OutError = FString::Printf(TEXT("Dynamic node does not exist: %s"), *NodeId);
+        UE_LOG(LogMASceneGraphManager, Warning, TEXT("EditDynamicNode: Dynamic node not found: %s"), *NodeId);
         return false;
     }
 
@@ -693,7 +693,7 @@ bool UMASceneGraphManager::EditDynamicNode(const FString& NodeId, const FString&
     // 重新生成 RawJson
     Node->RawJson = FMADynamicNodeManager::GenerateRawJson(*Node);
 
-    UE_LOG(LogMASceneGraphManager, Log, TEXT("EditDynamicNode: 成功编辑动态节点 %s"), *NodeId);
+    UE_LOG(LogMASceneGraphManager, Log, TEXT("EditDynamicNode: Successfully edited dynamic node %s"), *NodeId);
     return true;
 }
 
@@ -948,7 +948,7 @@ bool UMASceneGraphManager::ValidateNodeJsonStructure(const TSharedPtr<FJsonObjec
 
     if (!NodeObject.IsValid())
     {
-        OutErrorMessage = TEXT("JSON 对象无效");
+        OutErrorMessage = TEXT("Invalid JSON object");
         return false;
     }
 
@@ -956,7 +956,7 @@ bool UMASceneGraphManager::ValidateNodeJsonStructure(const TSharedPtr<FJsonObjec
     FString NodeId;
     if (!NodeObject->TryGetStringField(TEXT("id"), NodeId) || NodeId.IsEmpty())
     {
-        OutErrorMessage = TEXT("JSON 缺少有效的 id 字段");
+        OutErrorMessage = TEXT("JSON missing valid 'id' field");
         return false;
     }
 
@@ -964,7 +964,7 @@ bool UMASceneGraphManager::ValidateNodeJsonStructure(const TSharedPtr<FJsonObjec
     const TSharedPtr<FJsonObject>* PropertiesObject;
     if (!NodeObject->TryGetObjectField(TEXT("properties"), PropertiesObject) || !PropertiesObject->IsValid())
     {
-        OutErrorMessage = TEXT("JSON 缺少 properties 对象");
+        OutErrorMessage = TEXT("JSON missing 'properties' object");
         return false;
     }
 
@@ -972,7 +972,7 @@ bool UMASceneGraphManager::ValidateNodeJsonStructure(const TSharedPtr<FJsonObjec
     FString PropertyType;
     if (!(*PropertiesObject)->TryGetStringField(TEXT("type"), PropertyType) || PropertyType.IsEmpty())
     {
-        OutErrorMessage = TEXT("JSON properties 缺少有效的 type 字段");
+        OutErrorMessage = TEXT("JSON properties missing valid 'type' field");
         return false;
     }
 
@@ -980,7 +980,7 @@ bool UMASceneGraphManager::ValidateNodeJsonStructure(const TSharedPtr<FJsonObjec
     const TSharedPtr<FJsonObject>* ShapeObject;
     if (!NodeObject->TryGetObjectField(TEXT("shape"), ShapeObject) || !ShapeObject->IsValid())
     {
-        OutErrorMessage = TEXT("JSON 缺少 shape 对象");
+        OutErrorMessage = TEXT("JSON missing 'shape' object");
         return false;
     }
 
@@ -988,7 +988,7 @@ bool UMASceneGraphManager::ValidateNodeJsonStructure(const TSharedPtr<FJsonObjec
     FString ShapeType;
     if (!(*ShapeObject)->TryGetStringField(TEXT("type"), ShapeType) || ShapeType.IsEmpty())
     {
-        OutErrorMessage = TEXT("JSON shape 缺少有效的 type 字段");
+        OutErrorMessage = TEXT("JSON shape missing valid 'type' field");
         return false;
     }
 
@@ -1000,26 +1000,26 @@ bool UMASceneGraphManager::ValidateNodeJsonStructure(const TSharedPtr<FJsonObjec
         const TArray<TSharedPtr<FJsonValue>>* VerticesArray;
         if (!(*ShapeObject)->TryGetArrayField(TEXT("vertices"), VerticesArray))
         {
-            OutErrorMessage = TEXT("prism 类型缺少 vertices 字段");
+            OutErrorMessage = TEXT("prism type missing 'vertices' field");
             return false;
         }
         
         if (VerticesArray->Num() < 3)
         {
-            OutErrorMessage = FString::Printf(TEXT("prism 类型 vertices 数量不足 (需要至少 3 个，实际 %d 个)"), VerticesArray->Num());
+            OutErrorMessage = FString::Printf(TEXT("prism type insufficient vertices (need at least 3, got %d)"), VerticesArray->Num());
             return false;
         }
 
         double Height;
         if (!(*ShapeObject)->TryGetNumberField(TEXT("height"), Height))
         {
-            OutErrorMessage = TEXT("prism 类型缺少 height 字段");
+            OutErrorMessage = TEXT("prism type missing 'height' field");
             return false;
         }
 
         if (Height <= 0)
         {
-            OutErrorMessage = FString::Printf(TEXT("prism 类型 height 值无效 (需要 > 0，实际 %f)"), Height);
+            OutErrorMessage = FString::Printf(TEXT("prism type invalid height (need > 0, got %f)"), Height);
             return false;
         }
 
@@ -1033,26 +1033,26 @@ bool UMASceneGraphManager::ValidateNodeJsonStructure(const TSharedPtr<FJsonObjec
         const TArray<TSharedPtr<FJsonValue>>* PointsArray;
         if (!(*ShapeObject)->TryGetArrayField(TEXT("points"), PointsArray))
         {
-            OutErrorMessage = TEXT("linestring 类型缺少 points 字段");
+            OutErrorMessage = TEXT("linestring type missing 'points' field");
             return false;
         }
         
         if (PointsArray->Num() < 2)
         {
-            OutErrorMessage = FString::Printf(TEXT("linestring 类型 points 数量不足 (需要至少 2 个，实际 %d 个)"), PointsArray->Num());
+            OutErrorMessage = FString::Printf(TEXT("linestring type insufficient points (need at least 2, got %d)"), PointsArray->Num());
             return false;
         }
 
         const TArray<TSharedPtr<FJsonValue>>* VerticesArray;
         if (!(*ShapeObject)->TryGetArrayField(TEXT("vertices"), VerticesArray))
         {
-            OutErrorMessage = TEXT("linestring 类型缺少 vertices 字段");
+            OutErrorMessage = TEXT("linestring type missing 'vertices' field");
             return false;
         }
         
         if (VerticesArray->Num() != 4)
         {
-            OutErrorMessage = FString::Printf(TEXT("linestring 类型 vertices 数量错误 (需要 4 个，实际 %d 个)"), VerticesArray->Num());
+            OutErrorMessage = FString::Printf(TEXT("linestring type incorrect vertices count (need 4, got %d)"), VerticesArray->Num());
             return false;
         }
 
@@ -1066,13 +1066,13 @@ bool UMASceneGraphManager::ValidateNodeJsonStructure(const TSharedPtr<FJsonObjec
         const TArray<TSharedPtr<FJsonValue>>* CenterArray;
         if (!(*ShapeObject)->TryGetArrayField(TEXT("center"), CenterArray))
         {
-            OutErrorMessage = TEXT("point 类型缺少 center 字段");
+            OutErrorMessage = TEXT("point type missing 'center' field");
             return false;
         }
         
         if (CenterArray->Num() != 3)
         {
-            OutErrorMessage = FString::Printf(TEXT("point 类型 center 坐标数量错误 (需要 3 个，实际 %d 个)"), CenterArray->Num());
+            OutErrorMessage = FString::Printf(TEXT("point type incorrect center coordinate count (need 3, got %d)"), CenterArray->Num());
             return false;
         }
 
@@ -1084,13 +1084,13 @@ bool UMASceneGraphManager::ValidateNodeJsonStructure(const TSharedPtr<FJsonObjec
         const TArray<TSharedPtr<FJsonValue>>* VerticesArray;
         if (!(*ShapeObject)->TryGetArrayField(TEXT("vertices"), VerticesArray))
         {
-            OutErrorMessage = TEXT("polygon 类型缺少 vertices 字段");
+            OutErrorMessage = TEXT("polygon type missing 'vertices' field");
             return false;
         }
         
         if (VerticesArray->Num() < 3)
         {
-            OutErrorMessage = FString::Printf(TEXT("polygon 类型 vertices 数量不足 (需要至少 3 个，实际 %d 个)"), VerticesArray->Num());
+            OutErrorMessage = FString::Printf(TEXT("polygon type insufficient vertices (need at least 3, got %d)"), VerticesArray->Num());
             return false;
         }
 
@@ -1146,7 +1146,7 @@ bool UMASceneGraphManager::AddNode(const FString& NodeJson, FString& OutError)
 
     if (NodeJson.IsEmpty())
     {
-        OutError = TEXT("JSON 字符串为空");
+        OutError = TEXT("JSON string is empty");
         UE_LOG(LogMASceneGraphManager, Error, TEXT("AddNode: JSON string is empty"));
         return false;
     }
@@ -1156,7 +1156,7 @@ bool UMASceneGraphManager::AddNode(const FString& NodeJson, FString& OutError)
     TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(NodeJson);
     if (!FJsonSerializer::Deserialize(Reader, NodeObject) || !NodeObject.IsValid())
     {
-        OutError = TEXT("JSON 解析失败");
+        OutError = TEXT("JSON parse failed");
         UE_LOG(LogMASceneGraphManager, Error, TEXT("AddNode: Failed to parse JSON: %s"), *NodeJson);
         return false;
     }
@@ -1165,7 +1165,7 @@ bool UMASceneGraphManager::AddNode(const FString& NodeJson, FString& OutError)
     FString NodeId;
     if (!NodeObject->TryGetStringField(TEXT("id"), NodeId))
     {
-        OutError = TEXT("JSON 缺少 id 字段");
+        OutError = TEXT("JSON missing 'id' field");
         UE_LOG(LogMASceneGraphManager, Error, TEXT("AddNode: JSON missing 'id' field"));
         return false;
     }
@@ -1173,7 +1173,7 @@ bool UMASceneGraphManager::AddNode(const FString& NodeJson, FString& OutError)
     // 检查 ID 是否已存在
     if (IsIdExists(NodeId))
     {
-        OutError = FString::Printf(TEXT("ID 已存在: %s"), *NodeId);
+        OutError = FString::Printf(TEXT("ID already exists: %s"), *NodeId);
         UE_LOG(LogMASceneGraphManager, Warning, TEXT("AddNode: %s"), *OutError);
         return false;
     }
@@ -1195,7 +1195,7 @@ bool UMASceneGraphManager::AddNode(const FString& NodeJson, FString& OutError)
     TArray<TSharedPtr<FJsonValue>>* NodesArray = GetNodesArray();
     if (!NodesArray)
     {
-        OutError = TEXT("无法获取节点数组");
+        OutError = TEXT("Failed to get nodes array");
         UE_LOG(LogMASceneGraphManager, Error, TEXT("AddNode: Failed to get nodes array"));
         return false;
     }
@@ -1220,7 +1220,7 @@ bool UMASceneGraphManager::DeleteNode(const FString& NodeId, FString& OutError)
 
     if (NodeId.IsEmpty())
     {
-        OutError = TEXT("节点 ID 为空");
+        OutError = TEXT("Node ID is empty");
         UE_LOG(LogMASceneGraphManager, Error, TEXT("DeleteNode: NodeId is empty"));
         return false;
     }
@@ -1228,7 +1228,7 @@ bool UMASceneGraphManager::DeleteNode(const FString& NodeId, FString& OutError)
     // 确保 WorkingCopy 有效
     if (!WorkingCopy.IsValid())
     {
-        OutError = TEXT("Working Copy 无效");
+        OutError = TEXT("Working Copy is invalid");
         UE_LOG(LogMASceneGraphManager, Error, TEXT("DeleteNode: WorkingCopy is invalid"));
         return false;
     }
@@ -1237,7 +1237,7 @@ bool UMASceneGraphManager::DeleteNode(const FString& NodeId, FString& OutError)
     TArray<TSharedPtr<FJsonValue>>* NodesArray = GetNodesArray();
     if (!NodesArray)
     {
-        OutError = TEXT("无法获取节点数组");
+        OutError = TEXT("Failed to get nodes array");
         UE_LOG(LogMASceneGraphManager, Error, TEXT("DeleteNode: Failed to get nodes array"));
         return false;
     }
@@ -1268,7 +1268,7 @@ bool UMASceneGraphManager::DeleteNode(const FString& NodeId, FString& OutError)
 
     if (NodeIndex == INDEX_NONE)
     {
-        OutError = FString::Printf(TEXT("节点不存在: %s"), *NodeId);
+        OutError = FString::Printf(TEXT("Node does not exist: %s"), *NodeId);
         UE_LOG(LogMASceneGraphManager, Warning, TEXT("DeleteNode: Node not found: %s"), *NodeId);
         return false;
     }
@@ -1296,14 +1296,14 @@ bool UMASceneGraphManager::EditNode(const FString& NodeId, const FString& NewNod
 
     if (NodeId.IsEmpty())
     {
-        OutError = TEXT("节点 ID 为空");
+        OutError = TEXT("Node ID is empty");
         UE_LOG(LogMASceneGraphManager, Error, TEXT("EditNode: NodeId is empty"));
         return false;
     }
 
     if (NewNodeJson.IsEmpty())
     {
-        OutError = TEXT("新节点 JSON 为空");
+        OutError = TEXT("New node JSON is empty");
         UE_LOG(LogMASceneGraphManager, Error, TEXT("EditNode: NewNodeJson is empty"));
         return false;
     }
@@ -1323,7 +1323,7 @@ bool UMASceneGraphManager::EditStaticNode(const FString& NodeId, const FString& 
     TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(NewNodeJson);
     if (!FJsonSerializer::Deserialize(Reader, NewNodeObject) || !NewNodeObject.IsValid())
     {
-        OutError = TEXT("新节点 JSON 解析失败");
+        OutError = TEXT("New node JSON parse failed");
         UE_LOG(LogMASceneGraphManager, Error, TEXT("EditStaticNode: Failed to parse JSON: %s"), *NewNodeJson);
         return false;
     }
@@ -1338,7 +1338,7 @@ bool UMASceneGraphManager::EditStaticNode(const FString& NodeId, const FString& 
     // 确保 WorkingCopy 有效
     if (!WorkingCopy.IsValid())
     {
-        OutError = TEXT("Working Copy 无效");
+        OutError = TEXT("Working Copy is invalid");
         UE_LOG(LogMASceneGraphManager, Error, TEXT("EditStaticNode: WorkingCopy is invalid"));
         return false;
     }
@@ -1347,7 +1347,7 @@ bool UMASceneGraphManager::EditStaticNode(const FString& NodeId, const FString& 
     TArray<TSharedPtr<FJsonValue>>* NodesArray = GetNodesArray();
     if (!NodesArray)
     {
-        OutError = TEXT("无法获取节点数组");
+        OutError = TEXT("Failed to get nodes array");
         UE_LOG(LogMASceneGraphManager, Error, TEXT("EditStaticNode: Failed to get nodes array"));
         return false;
     }
@@ -1374,7 +1374,7 @@ bool UMASceneGraphManager::EditStaticNode(const FString& NodeId, const FString& 
 
     if (NodeIndex == INDEX_NONE)
     {
-        OutError = FString::Printf(TEXT("静态节点不存在: %s"), *NodeId);
+        OutError = FString::Printf(TEXT("Static node does not exist: %s"), *NodeId);
         UE_LOG(LogMASceneGraphManager, Warning, TEXT("EditStaticNode: Node not found: %s"), *NodeId);
         return false;
     }
@@ -1436,7 +1436,7 @@ bool UMASceneGraphManager::SetNodeAsGoal(const FString& NodeId, FString& OutErro
 
     if (NodeId.IsEmpty())
     {
-        OutError = TEXT("节点 ID 为空");
+        OutError = TEXT("Node ID is empty");
         UE_LOG(LogMASceneGraphManager, Error, TEXT("SetNodeAsGoal: NodeId is empty"));
         return false;
     }
@@ -1445,7 +1445,7 @@ bool UMASceneGraphManager::SetNodeAsGoal(const FString& NodeId, FString& OutErro
     TArray<TSharedPtr<FJsonValue>>* NodesArray = GetNodesArray();
     if (!NodesArray)
     {
-        OutError = TEXT("无法获取节点数组");
+        OutError = TEXT("Failed to get nodes array");
         UE_LOG(LogMASceneGraphManager, Error, TEXT("SetNodeAsGoal: Failed to get nodes array"));
         return false;
     }
@@ -1495,7 +1495,7 @@ bool UMASceneGraphManager::SetNodeAsGoal(const FString& NodeId, FString& OutErro
         return EditNode(NodeId, ModifiedNodeJson, OutError);
     }
 
-    OutError = FString::Printf(TEXT("节点不存在: %s"), *NodeId);
+    OutError = FString::Printf(TEXT("Node does not exist: %s"), *NodeId);
     UE_LOG(LogMASceneGraphManager, Warning, TEXT("SetNodeAsGoal: Node not found: %s"), *NodeId);
     return false;
 }
@@ -1506,7 +1506,7 @@ bool UMASceneGraphManager::UnsetNodeAsGoal(const FString& NodeId, FString& OutEr
 
     if (NodeId.IsEmpty())
     {
-        OutError = TEXT("节点 ID 为空");
+        OutError = TEXT("Node ID is empty");
         UE_LOG(LogMASceneGraphManager, Error, TEXT("UnsetNodeAsGoal: NodeId is empty"));
         return false;
     }
@@ -1515,7 +1515,7 @@ bool UMASceneGraphManager::UnsetNodeAsGoal(const FString& NodeId, FString& OutEr
     TArray<TSharedPtr<FJsonValue>>* NodesArray = GetNodesArray();
     if (!NodesArray)
     {
-        OutError = TEXT("无法获取节点数组");
+        OutError = TEXT("Failed to get nodes array");
         UE_LOG(LogMASceneGraphManager, Error, TEXT("UnsetNodeAsGoal: Failed to get nodes array"));
         return false;
     }
@@ -1556,7 +1556,7 @@ bool UMASceneGraphManager::UnsetNodeAsGoal(const FString& NodeId, FString& OutEr
         return EditNode(NodeId, ModifiedNodeJson, OutError);
     }
 
-    OutError = FString::Printf(TEXT("节点不存在: %s"), *NodeId);
+    OutError = FString::Printf(TEXT("Node does not exist: %s"), *NodeId);
     UE_LOG(LogMASceneGraphManager, Warning, TEXT("UnsetNodeAsGoal: Node not found: %s"), *NodeId);
     return false;
 }
