@@ -57,7 +57,7 @@ bool FMASceneGraphCommandUseCases::ResolveLabelInput(
         return true;
     }
 
-    OutError = TEXT("缺少必填字段: id (或使用 cate:xxx 格式自动分配)");
+    OutError = TEXT("Missing required field: id (or use cate:xxx format for auto-assignment)");
     return false;
 }
 
@@ -152,14 +152,14 @@ bool FMASceneGraphCommandUseCases::ParseAndValidateNodeJson(
 
     if (NodeJson.IsEmpty())
     {
-        OutError = TEXT("JSON 字符串为空");
+        OutError = TEXT("JSON string is empty");
         return false;
     }
 
     TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(NodeJson);
     if (!FJsonSerializer::Deserialize(Reader, OutNodeObject) || !OutNodeObject.IsValid())
     {
-        OutError = TEXT("JSON 解析失败");
+        OutError = TEXT("JSON parse failed");
         return false;
     }
 
@@ -186,13 +186,13 @@ bool FMASceneGraphCommandUseCases::PrepareStaticNodeForAdd(
 
     if (!OutNodeObject->TryGetStringField(TEXT("id"), OutNodeId))
     {
-        OutError = TEXT("JSON 缺少 id 字段");
+        OutError = TEXT("JSON missing 'id' field");
         return false;
     }
 
     if (IsIdExistsFn(OutNodeId))
     {
-        OutError = FString::Printf(TEXT("ID 已存在: %s"), *OutNodeId);
+        OutError = FString::Printf(TEXT("ID already exists: %s"), *OutNodeId);
         return false;
     }
 
@@ -206,7 +206,7 @@ bool FMASceneGraphCommandUseCases::AddStaticNode(
 {
     if (!NodeObject.IsValid())
     {
-        OutError = TEXT("节点 JSON 对象无效");
+        OutError = TEXT("Node JSON object is invalid");
         return false;
     }
 
@@ -225,7 +225,7 @@ bool FMASceneGraphCommandUseCases::AddStaticNode(
 
     if (!NodesArray)
     {
-        OutError = TEXT("无法获取节点数组");
+        OutError = TEXT("Failed to get nodes array");
         return false;
     }
 
@@ -263,14 +263,14 @@ bool FMASceneGraphCommandUseCases::DeleteStaticNodeById(
 {
     if (!Context.WorkingCopy.IsValid())
     {
-        OutError = TEXT("Working Copy 无效");
+        OutError = TEXT("Working copy is invalid");
         return false;
     }
 
     TArray<TSharedPtr<FJsonValue>>* NodesArray = GetNodesArrayMutable(Context.WorkingCopy);
     if (!NodesArray)
     {
-        OutError = TEXT("无法获取节点数组");
+        OutError = TEXT("Failed to get nodes array");
         return false;
     }
 
@@ -321,20 +321,20 @@ bool FMASceneGraphCommandUseCases::ReplaceStaticNodeById(
 {
     if (!Context.WorkingCopy.IsValid())
     {
-        OutError = TEXT("Working Copy 无效");
+        OutError = TEXT("Working copy is invalid");
         return false;
     }
 
     if (!NewNodeObject.IsValid())
     {
-        OutError = TEXT("新节点 JSON 对象无效");
+        OutError = TEXT("New node JSON object is invalid");
         return false;
     }
 
     TArray<TSharedPtr<FJsonValue>>* NodesArray = GetNodesArrayMutable(Context.WorkingCopy);
     if (!NodesArray)
     {
-        OutError = TEXT("无法获取节点数组");
+        OutError = TEXT("Failed to get nodes array");
         return false;
     }
 
@@ -396,14 +396,14 @@ bool FMASceneGraphCommandUseCases::BuildNodeJsonWithGoalFlag(
 {
     if (!Context.WorkingCopy.IsValid())
     {
-        OutError = TEXT("Working Copy 无效");
+        OutError = TEXT("Working copy is invalid");
         return false;
     }
 
     TArray<TSharedPtr<FJsonValue>>* NodesArray = GetNodesArrayMutable(Context.WorkingCopy);
     if (!NodesArray)
     {
-        OutError = TEXT("无法获取节点数组");
+        OutError = TEXT("Failed to get nodes array");
         return false;
     }
 
@@ -528,26 +528,26 @@ bool FMASceneGraphCommandUseCases::BindDynamicNodeGuid(
 
     if (NodeIdOrLabel.IsEmpty())
     {
-        OutError = TEXT("NodeIdOrLabel 为空");
+        OutError = TEXT("NodeIdOrLabel is empty");
         return false;
     }
 
     if (ActorGuid.IsEmpty())
     {
-        OutError = TEXT("ActorGuid 为空");
+        OutError = TEXT("ActorGuid is empty");
         return false;
     }
 
     FMASceneGraphNode* Node = FindDynamicNodeByIdMutable(Context, NodeIdOrLabel);
     if (!Node)
     {
-        OutError = FString::Printf(TEXT("未找到节点: %s"), *NodeIdOrLabel);
+        OutError = FString::Printf(TEXT("Node not found: %s"), *NodeIdOrLabel);
         return false;
     }
 
     if (!FMADynamicNodeManager::UpdateNodeGuid(*Node, ActorGuid))
     {
-        OutError = FString::Printf(TEXT("更新节点 GUID 失败: %s"), *NodeIdOrLabel);
+        OutError = FString::Printf(TEXT("Failed to update node GUID: %s"), *NodeIdOrLabel);
         return false;
     }
 
@@ -587,14 +587,14 @@ bool FMASceneGraphCommandUseCases::EditDynamicNodeFromJson(
 {
     if (!NewNodeObject.IsValid())
     {
-        OutError = TEXT("新节点 JSON 对象无效");
+        OutError = TEXT("New node JSON object is invalid");
         return false;
     }
 
     FMASceneGraphNode* Node = FindDynamicNodeByIdMutable(Context, NodeId);
     if (!Node)
     {
-        OutError = FString::Printf(TEXT("动态节点不存在: %s"), *NodeId);
+        OutError = FString::Printf(TEXT("Dynamic node does not exist: %s"), *NodeId);
         return false;
     }
 
@@ -682,13 +682,13 @@ bool FMASceneGraphCommandUseCases::ValidateEditDynamicNodeInput(
 {
     if (NodeId.IsEmpty())
     {
-        OutError = TEXT("节点 ID 为空");
+        OutError = TEXT("Node ID is empty");
         return false;
     }
 
     if (NewNodeJson.IsEmpty())
     {
-        OutError = TEXT("新节点 JSON 为空");
+        OutError = TEXT("New node JSON is empty");
         return false;
     }
 

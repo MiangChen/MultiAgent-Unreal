@@ -45,29 +45,29 @@
     function buildDemoFlowMermaid() {
         return [
             'flowchart LR',
-            '    A["待审核计划<br/>Task Graph"] --> B["待审核排班<br/>Skill Allocation"]',
-            '    B --> C["直接执行示例<br/>Skill List"]',
-            '    D["完整流程 Demo<br/>引导演示页"] -. 按步骤驱动 .-> A',
-            '    D -. 串起审核与执行 .-> B',
-            '    D -. 最终进入执行 .-> C'
+            '    A["Review Plan<br/>Task Graph"] --> B["Review Allocation<br/>Skill Allocation"]',
+            '    B --> C["Direct Execute<br/>Skill List"]',
+            '    D["End-to-End Demo<br/>Guided page"] -. Step-by-step flow .-> A',
+            '    D -. Chains review and execution .-> B',
+            '    D -. Ends in execution .-> C'
         ].join('\n');
     }
 
     function buildTaskGraphMeta(taskEntry) {
         const graph = taskEntry?.data?.task_graph || {};
         return [
-            `${graph.nodes?.length || 0} 个任务`,
-            `${graph.edges?.length || 0} 条依赖`,
-            'HITL 审核'
+            `${graph.nodes?.length || 0} tasks`,
+            `${graph.edges?.length || 0} dependencies`,
+            'HITL review'
         ];
     }
 
     function buildSkillAllocationMeta(entry) {
-        return UI.buildTimelineMeta(entry?.data || {}, 'HITL 审核');
+        return UI.buildTimelineMeta(entry?.data || {}, 'HITL review');
     }
 
     function buildSkillListMeta(entry) {
-        return UI.buildTimelineMeta(entry?.data || {}, '直接执行');
+        return UI.buildTimelineMeta(entry?.data || {}, 'direct execute');
     }
 
     function getSelectionPayload(type, key) {
@@ -75,13 +75,13 @@
             const entry = taskGraphs[key];
             if (!entry) return null;
             return {
-                kind: '待审核计划',
+                kind: 'Review Plan',
                 kindClass: 'plan',
-                status: '当前展示任务依赖 DAG',
+                status: 'Showing the task dependency DAG',
                 title: entry.name,
-                desc: entry.description || '无描述',
+                desc: entry.description || 'No description',
                 meta: buildTaskGraphMeta(entry),
-                hint: '发送后进入 HITL 审核队列，需要在 UE 中查看任务图并确认后才继续。',
+                hint: 'After sending, this enters the HITL review queue. Continue only after reviewing and confirming the task graph in UE.',
                 diagramKind: 'mermaid',
                 mermaidCode: buildTaskGraphMermaid(entry)
             };
@@ -90,13 +90,13 @@
             const entry = skillAllocations[key];
             if (!entry) return null;
             return {
-                kind: '待审核排班',
+                kind: 'Review Allocation',
                 kindClass: 'allocation',
-                status: '当前展示机器人时间分配甘特图',
+                status: 'Showing the robot allocation timeline',
                 title: entry.name,
-                desc: entry.description || '无描述',
+                desc: entry.description || 'No description',
                 meta: buildSkillAllocationMeta(entry),
-                hint: '发送后进入 HITL 审核队列，需要在 UE 中查看甘特图并确认排班。',
+                hint: 'After sending, this enters the HITL review queue. Continue only after reviewing and confirming the gantt allocation in UE.',
                 diagramKind: 'timeline',
                 timelineTitle: entry.name,
                 timelineSubtitle: entry.description || 'Skill allocation timeline',
@@ -107,13 +107,13 @@
             const entry = skillLists[key];
             if (!entry) return null;
             return {
-                kind: '直接执行示例',
+                kind: 'Direct Execute',
                 kindClass: 'execute',
-                status: '当前展示可直接下发的技能时间线',
+                status: 'Showing the timeline for direct dispatch',
                 title: entry.name,
-                desc: entry.description || '无描述',
+                desc: entry.description || 'No description',
                 meta: buildSkillListMeta(entry),
-                hint: '这一类不会进入 HITL 审核，发送后会直接下发到 Platform 执行链路。',
+                hint: 'This path bypasses HITL review and is dispatched directly to the Platform execution pipeline.',
                 diagramKind: 'timeline',
                 timelineTitle: entry.name,
                 timelineSubtitle: entry.description || 'Direct execution timeline',
@@ -122,17 +122,17 @@
         }
         if (type === 'demo_flow') {
             return {
-                kind: '完整流程 Demo',
+                kind: 'End-to-End Demo',
                 kindClass: 'demo',
-                status: '当前展示引导演示的完整工作流',
-                title: '引导演示页',
-                desc: '这个入口不直接下发任务，而是切换到 Demo 页，按步骤串起待审核计划、待审核排班和最终执行。',
+                status: 'Showing the guided demo workflow',
+                title: 'Guided Demo Page',
+                desc: 'This entry does not dispatch tasks directly. It switches to the Demo page and walks through review plan, review allocation, and final execution.',
                 meta: [
-                    '4 个语义分区',
-                    '按步骤驱动',
-                    '教学 / 演示'
+                    '4 semantic groups',
+                    'step-driven',
+                    'teaching / demo'
                 ],
-                hint: '点击左侧按钮会跳转到 /demo，引导你逐步发送任务图、排班和执行指令。',
+                hint: 'Use the left-side button to jump to /demo and walk through task-graph review, allocation review, and execution step by step.',
                 diagramKind: 'mermaid',
                 mermaidCode: buildDemoFlowMermaid()
             };
@@ -162,16 +162,16 @@
         updateActiveSelectionCard();
 
         if (!payload) {
-            setSelectionKind('未选择', '');
-            selectionStatus.textContent = '点击左侧 4 类入口中的任意条目，直接在这里查看';
-            selectionTitle.textContent = '选择左侧条目';
-            selectionDesc.textContent = '左侧负责组织 4 类入口，中间负责可视化预览，右侧负责精简发送状态。';
+            setSelectionKind('Not Selected', '');
+            selectionStatus.textContent = 'Select any item from the four groups on the left to preview it here';
+            selectionTitle.textContent = 'Choose an item on the left';
+            selectionDesc.textContent = 'The left panel organizes the four entry groups, the middle panel previews them, and the right panel keeps compact send status logs.';
             selectionMeta.innerHTML = '';
-            selectionHint.textContent = '点卡片查看结构，点按钮才触发发送或跳转。';
+            selectionHint.textContent = 'Click a card to preview it. Click a button only when you want to send or navigate.';
             selectionDiagramWrap.innerHTML = `
                 <div class="preview-empty">
-                    <strong>还没有选中任何条目</strong>
-                    <span>左侧点击审核计划、审核排班、直接执行示例或 Demo 入口，中间会直接渲染可视化。</span>
+                    <strong>No item selected yet</strong>
+                    <span>Select a review plan, review allocation, direct execute example, or demo entry on the left to render its visualization here.</span>
                 </div>
             `;
             return;
@@ -197,12 +197,12 @@
         }
 
         if (!payload.mermaidCode) {
-            selectionDiagramWrap.innerHTML = '<div class="preview-empty"><strong>暂无可视化内容</strong><span>当前条目没有可用的 Mermaid 图。</span></div>';
+            selectionDiagramWrap.innerHTML = '<div class="preview-empty"><strong>No visualization available</strong><span>The current entry has no Mermaid diagram to render.</span></div>';
             return;
         }
         const rendered = UI.renderMermaidInto(selectionDiagramWrap, payload.mermaidCode);
         if (!rendered) {
-            selectionDiagramWrap.innerHTML = '<div class="preview-empty"><strong>可视化引擎加载中</strong><span>Mermaid 初始化完成后会自动渲染当前选择。</span></div>';
+            selectionDiagramWrap.innerHTML = '<div class="preview-empty"><strong>Visualization engine loading</strong><span>The current selection will render automatically after Mermaid finishes initializing.</span></div>';
         }
     }
 
@@ -244,31 +244,31 @@
 
     function classifyBusinessTopic(topic, title, content) {
         const searchText = buildTopicSearchText(topic, title, content);
-        if (searchText.includes('task_graph') || String(topic).includes('待审核计划')) {
-            return { label: '待审核计划', className: 'plan' };
+        if (searchText.includes('task_graph') || String(topic).includes('review plan')) {
+            return { label: 'Review Plan', className: 'plan' };
         }
-        if (searchText.includes('skill_allocation') || searchText.includes('auto skill allocation') || String(topic).includes('待审核排班')) {
-            return { label: '待审核排班', className: 'allocation' };
+        if (searchText.includes('skill_allocation') || searchText.includes('auto skill allocation') || String(topic).includes('review allocation')) {
+            return { label: 'Review Allocation', className: 'allocation' };
         }
-        if (searchText.includes('skill_list') || searchText.includes('auto execute skill list') || String(topic).includes('直接执行示例')) {
-            return { label: '直接执行示例', className: 'execute' };
+        if (searchText.includes('skill_list') || searchText.includes('auto execute skill list') || String(topic).includes('direct execute')) {
+            return { label: 'Direct Execute', className: 'execute' };
         }
-        if (searchText.includes('demo') || String(topic).includes('完整流程 Demo')) {
-            return { label: '完整流程 Demo', className: 'demo' };
+        if (searchText.includes('demo') || String(topic).includes('end-to-end demo')) {
+            return { label: 'End-to-End Demo', className: 'demo' };
         }
-        if (searchText.includes('user_instruction') || String(topic).includes('辅助工具')) {
-            return { label: '辅助工具', className: 'tool' };
+        if (searchText.includes('user_instruction') || String(topic).includes('utilities')) {
+            return { label: 'Utilities', className: 'tool' };
         }
         if (searchText.includes('scene_change')) {
-            return { label: '场景变化', className: 'system' };
+            return { label: 'Scene Change', className: 'system' };
         }
-        if (searchText.includes('连接') || searchText.includes('connection')) {
-            return { label: '连接状态', className: 'system' };
+        if (searchText.includes('connection')) {
+            return { label: 'Connection', className: 'system' };
         }
         if (searchText.includes('hitl') || searchText.includes('review_response') || searchText.includes('decision_response')) {
-            return { label: '审核回传', className: 'system' };
+            return { label: 'Review Response', className: 'system' };
         }
-        return { label: '系统消息', className: 'system' };
+        return { label: 'System', className: 'system' };
     }
 
     function addMessage(topic, title, content, direction, level = 'normal') {
@@ -277,8 +277,8 @@
             ? 'error'
             : (direction === 'system' ? 'system' : (direction === 'outgoing' ? 'outgoing' : 'incoming'));
         const dirLabel = dirClass === 'error'
-            ? '失败'
-            : (direction === 'system' ? '状态' : (direction === 'outgoing' ? '发送' : '回传'));
+            ? 'Error'
+            : (direction === 'system' ? 'State' : (direction === 'outgoing' ? 'Sent' : 'Received'));
         const topicMeta = classifyBusinessTopic(topic, title, content);
         const msg = document.createElement('div');
         msg.className = `message ${dirClass} topic-${topicMeta.className}`;
@@ -304,21 +304,21 @@
         isUEConnected = connected;
         if (connected) {
             statusDot.className = 'dot connected';
-            statusText.textContent = 'UE5 链接成功';
+            statusText.textContent = 'UE5 connected';
             logConnection.classList.add('connected');
-            logConnectionText.textContent = 'UE5 已连接';
-            if (emptyStateTitle) emptyStateTitle.textContent = '✅ UE5 链接成功';
-            if (emptyStateSubtitle) emptyStateSubtitle.textContent = '等待你发送任务，消息将实时显示在这里';
+            logConnectionText.textContent = 'UE5 connected';
+            if (emptyStateTitle) emptyStateTitle.textContent = '✅ UE5 connected';
+            if (emptyStateSubtitle) emptyStateSubtitle.textContent = 'Waiting for you to send tasks. Messages will appear here in real time.';
         } else {
             statusDot.className = 'dot disconnected';
-            statusText.textContent = `Server Running on :${port} | 等待 UE5 连接...`;
+            statusText.textContent = `Server Running on :${port} | Waiting for UE5 connection...`;
             logConnection.classList.remove('connected');
-            logConnectionText.textContent = '等待 UE5 连接';
-            if (emptyStateTitle) emptyStateTitle.textContent = '等待 UE5 仿真端连接...';
-            if (emptyStateSubtitle) emptyStateSubtitle.textContent = '消息将实时显示在这里';
+            logConnectionText.textContent = 'Waiting for UE5 connection';
+            if (emptyStateTitle) emptyStateTitle.textContent = 'Waiting for UE5 simulator connection...';
+            if (emptyStateSubtitle) emptyStateSubtitle.textContent = 'Messages will appear here in real time.';
         }
-        if (connected && !previous) addMessage('连接状态', 'UE5 仿真端', '链接成功，可以发送任务并接收回传。', 'system');
-        else if (!connected && previous) addMessage('连接状态', 'UE5 仿真端', '连接已断开，等待 UE5 重新轮询。', 'system', 'error');
+        if (connected && !previous) addMessage('Connection', 'UE5 simulator', 'Connected. Tasks can now be sent and responses can be received.', 'system');
+        else if (!connected && previous) addMessage('Connection', 'UE5 simulator', 'Connection lost. Waiting for UE5 to poll again.', 'system', 'error');
     }
 
     async function fetchUEConnectionStatus() {
@@ -339,9 +339,9 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ task_key: taskKey })
             });
-            addMessage('待审核计划', taskGraphs[taskKey]?.name || taskKey, await response.json(), 'outgoing');
+            addMessage('Review Plan', taskGraphs[taskKey]?.name || taskKey, await response.json(), 'outgoing');
         } catch (error) {
-            addMessage('待审核计划', taskGraphs[taskKey]?.name || taskKey, `发送失败: ${error.message}`, 'system', 'error');
+            addMessage('Review Plan', taskGraphs[taskKey]?.name || taskKey, `Send failed: ${error.message}`, 'system', 'error');
         }
     }
 
@@ -352,9 +352,9 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ allocation_key: allocationKey })
             });
-            addMessage('待审核排班', skillAllocations[allocationKey]?.name || allocationKey, await response.json(), 'outgoing');
+            addMessage('Review Allocation', skillAllocations[allocationKey]?.name || allocationKey, await response.json(), 'outgoing');
         } catch (error) {
-            addMessage('待审核排班', skillAllocations[allocationKey]?.name || allocationKey, `发送失败: ${error.message}`, 'system', 'error');
+            addMessage('Review Allocation', skillAllocations[allocationKey]?.name || allocationKey, `Send failed: ${error.message}`, 'system', 'error');
         }
     }
 
@@ -365,9 +365,9 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ skill_key: skillKey })
             });
-            addMessage('直接执行示例', skillLists[skillKey]?.name || skillKey, await response.json(), 'outgoing');
+            addMessage('Direct Execute', skillLists[skillKey]?.name || skillKey, await response.json(), 'outgoing');
         } catch (error) {
-            addMessage('直接执行示例', skillLists[skillKey]?.name || skillKey, `发送失败: ${error.message}`, 'system', 'error');
+            addMessage('Direct Execute', skillLists[skillKey]?.name || skillKey, `Send failed: ${error.message}`, 'system', 'error');
         }
     }
 
@@ -378,14 +378,14 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({})
             });
-            addMessage('辅助工具', '索要用户指令', await response.json(), 'outgoing');
+            addMessage('Utilities', 'Request User Command', await response.json(), 'outgoing');
         } catch (error) {
-            addMessage('辅助工具', '索要用户指令', `发送失败: ${error.message}`, 'system', 'error');
+            addMessage('Utilities', 'Request User Command', `Send failed: ${error.message}`, 'system', 'error');
         }
     }
 
     function openDemoPage() {
-        addMessage('完整流程 Demo', '打开引导演示页', '切换到 /demo，引导式串联审核计划、审核排班和最终执行。', 'system');
+        addMessage('End-to-End Demo', 'Open guided demo page', 'Switching to /demo to guide review plan, review allocation, and final execution.', 'system');
         window.location.href = '/demo';
     }
 
@@ -435,9 +435,9 @@
                 title: `📊 ${task.name}`,
                 description: task.description,
                 meta: buildTaskGraphMeta(task),
-                hint: '点击卡片查看 DAG，点击按钮发送到 HITL 计划审核。',
+                hint: 'Click the card to preview the DAG. Click the button to send it into HITL plan review.',
                 accentClass: 'plan',
-                actionLabel: '发送审核',
+                actionLabel: 'Send for Review',
                 onAction: () => sendTaskGraph(key)
             }));
         });
@@ -449,9 +449,9 @@
                 title: `🎯 ${allocation.name}`,
                 description: allocation.description,
                 meta: buildSkillAllocationMeta(allocation),
-                hint: '点击卡片查看甘特图，点击按钮发送到 HITL 排班审核。',
+                hint: 'Click the card to preview the gantt. Click the button to send it into HITL allocation review.',
                 accentClass: 'allocation',
-                actionLabel: '发送审核',
+                actionLabel: 'Send for Review',
                 onAction: () => sendSkillAllocation(key)
             }));
         });
@@ -463,9 +463,9 @@
                 title: `⚡ ${skill.name}`,
                 description: skill.description,
                 meta: buildSkillListMeta(skill),
-                hint: '点击卡片查看执行时间线，点击按钮直接下发到 Platform。',
+                hint: 'Click the card to preview the execution timeline. Click the button to dispatch directly to the Platform.',
                 accentClass: 'execute',
-                actionLabel: '直接执行',
+                actionLabel: 'Execute Now',
                 onAction: () => sendSkill(key)
             }));
         });
@@ -473,12 +473,12 @@
         demoFlowButtonsDiv.appendChild(buildPreviewItem({
             type: 'demo_flow',
             key: 'guided_demo',
-            title: '🎬 引导演示页',
-            description: '按步骤体验计划审核、排班审核和最终执行，不直接在这里下发任务。',
-            meta: ['教学模式', '逐步操作', '端到端体验'],
-            hint: '点击卡片先看完整流程图，点击按钮进入 /demo。',
+            title: '🎬 Guided Demo Page',
+            description: 'Walk through plan review, allocation review, and final execution step by step instead of dispatching directly here.',
+            meta: ['guided mode', 'step by step', 'end-to-end'],
+            hint: 'Click the card to preview the full workflow first, then click the button to open /demo.',
             accentClass: 'demo',
-            actionLabel: '进入 Demo',
+            actionLabel: 'Open Demo',
             onAction: openDemoPage
         }));
 
@@ -491,11 +491,11 @@
         evtSource.onopen = () => fetchUEConnectionStatus();
         evtSource.onmessage = (event) => {
             const payload = JSON.parse(event.data);
-            addMessage(payload.type || 'UE 回传', payload.title || '未命名消息', payload.content, payload.direction || 'incoming');
+            addMessage(payload.type || 'UE Response', payload.title || 'Untitled Message', payload.content, payload.direction || 'incoming');
         };
         evtSource.onerror = () => {
             applyUEConnectionStatus(false);
-            statusText.textContent = `Server Running on :${port} | 连接丢失，等待重连...`;
+            statusText.textContent = `Server Running on :${port} | Connection lost, waiting to reconnect...`;
         };
     }
 
@@ -515,7 +515,7 @@
         selectionDiagramWrap = document.getElementById('selection-diagram-wrap');
         logConnection = document.getElementById('log-connection');
         logConnectionText = document.getElementById('log-connection-text');
-        statusText.textContent = `Server Running on :${port} | 等待 UE5 连接...`;
+        statusText.textContent = `Server Running on :${port} | Waiting for UE5 connection...`;
     }
 
     function pickDefaultSelection() {

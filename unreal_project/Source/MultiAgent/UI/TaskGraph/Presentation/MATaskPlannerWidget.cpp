@@ -809,22 +809,22 @@ void UMATaskPlannerWidget::SaveAndNavigateToModal()
 
     if (!GraphModel)
     {
-        AppendStatusLog(TEXT("[错误] 无法保存数据：TaskGraphModel 不可用"));
+        AppendStatusLog(TEXT("[Error] Cannot save data: TaskGraphModel unavailable"));
         return;
     }
 
     FString RuntimeError;
     if (!PersistTaskGraph(&RuntimeError))
     {
-        AppendStatusLog(FString::Printf(TEXT("[错误] 无法保存数据：%s"), *RuntimeError));
+        AppendStatusLog(FString::Printf(TEXT("[Error] Cannot save data: %s"), *RuntimeError));
         return;
     }
 
-    AppendStatusLog(TEXT("[保存] 任务图已保存"));
+    AppendStatusLog(TEXT("[Save] Task graph saved"));
 
     if (!FMATaskPlannerRuntimeAdapter::TryNavigateToTaskGraphModal(this, RuntimeError))
     {
-        AppendStatusLog(FString::Printf(TEXT("[错误] 无法导航：%s"), *RuntimeError));
+        AppendStatusLog(FString::Printf(TEXT("[Error] Cannot navigate: %s"), *RuntimeError));
         return;
     }
 

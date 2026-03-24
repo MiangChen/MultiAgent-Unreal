@@ -7,6 +7,25 @@
 
 namespace
 {
+FString GetOptionalStringField(const TSharedPtr<FJsonObject>& JsonObject, const TCHAR* FieldName)
+{
+    FString Value;
+    if (JsonObject.IsValid())
+    {
+        JsonObject->TryGetStringField(FieldName, Value);
+    }
+    return Value;
+}
+
+FString NormalizeEdgeType(const FString& RawType)
+{
+    if (RawType.IsEmpty() || RawType.Equals(TEXT("normal"), ESearchCase::IgnoreCase))
+    {
+        return TEXT("sequential");
+    }
+    return RawType;
+}
+
 TSharedPtr<FJsonObject> SerializeRequiredSkill(const FMARequiredSkill& Skill)
 {
     TSharedPtr<FJsonObject> JsonObject = MakeShared<FJsonObject>();
@@ -45,6 +64,97 @@ bool ParseRequiredSkill(const TSharedPtr<FJsonObject>& JsonObject, FMARequiredSk
     return true;
 }
 
+bool ParseRequiredSkillCompactString(const FString& CompactString, FMARequiredSkill& Out)
+{
+    const FString Trimmed = CompactString.TrimStartAndEnd();
+    if (Trimmed.IsEmpty())
+    {
+        return false;
+    }
+
+    TArray<FString> Parts;
+    Trimmed.ParseIntoArray(Parts, TEXT(":"));
+    if (Parts.Num() < 3)
+    {
+        Out.SkillName = Trimmed;
+        Out.AssignedRobotType.Empty();
+        Out.AssignedRobotCount = 1;
+        return true;
+    }
+
+    const FString RobotTypesPart = Parts[0].TrimStartAndEnd();
+    FString CountPart;
+    FString SkillNamePart;
+
+    if (Parts.Num() >= 4 && Parts[Parts.Num() - 2].Equals(TEXT("tbd"), ESearchCase::IgnoreCase))
+    {
+        CountPart = FString::Printf(TEXT("tbd:%s"), *Parts.Last().TrimStartAndEnd());
+        TArray<FString> SkillParts;
+        for (int32 Index = 1; Index < Parts.Num() - 2; ++Index)
+        {
+            SkillParts.Add(Parts[Index]);
+        }
+        SkillNamePart = FString::Join(SkillParts, TEXT(":"));
+    }
+    else
+    {
+        CountPart = Parts.Last().TrimStartAndEnd();
+        TArray<FString> SkillParts;
+        for (int32 Index = 1; Index < Parts.Num() - 1; ++Index)
+        {
+            SkillParts.Add(Parts[Index]);
+        }
+        SkillNamePart = FString::Join(SkillParts, TEXT(":"));
+    }
+
+    Out.SkillName = SkillNamePart.TrimStartAndEnd();
+    Out.AssignedRobotType.Empty();
+
+    TArray<FString> RobotTypes;
+    RobotTypesPart.ParseIntoArray(RobotTypes, TEXT("|"));
+    for (const FString& RobotType : RobotTypes)
+    {
+        const FString Normalized = RobotType.TrimStartAndEnd();
+        if (!Normalized.IsEmpty())
+        {
+            Out.AssignedRobotType.Add(Normalized);
+        }
+    }
+
+    if (CountPart.StartsWith(TEXT("tbd:"), ESearchCase::IgnoreCase))
+    {
+        Out.AssignedRobotCount = 1;
+    }
+    else
+    {
+        Out.AssignedRobotCount = FCString::Atoi(*CountPart);
+        if (Out.AssignedRobotCount <= 0)
+        {
+            Out.AssignedRobotCount = 1;
+        }
+    }
+
+    return !Out.SkillName.IsEmpty();
+}
+
+bool ParseRequiredSkillValue(const TSharedPtr<FJsonValue>& Value, FMARequiredSkill& Out)
+{
+    if (!Value.IsValid())
+    {
+        return false;
+    }
+
+    if (Value->Type == EJson::Object)
+    {
+        return ParseRequiredSkill(Value->AsObject(), Out);
+    }
+    if (Value->Type == EJson::String)
+    {
+        return ParseRequiredSkillCompactString(Value->AsString(), Out);
+    }
+    return false;
+}
+
 TSharedPtr<FJsonObject> SerializeTaskNode(const FMATaskNodeData& Node)
 {
     TSharedPtr<FJsonObject> JsonObject = MakeShared<FJsonObject>();
@@ -76,8 +186,8 @@ bool ParseTaskNode(const TSharedPtr<FJsonObject>& JsonObject, FMATaskNodeData& O
     }
 
     Out.TaskId = JsonObject->GetStringField(TEXT("task_id"));
-    Out.Description = JsonObject->GetStringField(TEXT("description"));
-    Out.Location = JsonObject->GetStringField(TEXT("location"));
+    Out.Description = GetOptionalStringField(JsonObject, TEXT("description"));
+    Out.Location = GetOptionalStringField(JsonObject, TEXT("location"));
 
     const TArray<TSharedPtr<FJsonValue>>* SkillsArray = nullptr;
     if (JsonObject->TryGetArrayField(TEXT("required_skills"), SkillsArray))
@@ -86,7 +196,7 @@ bool ParseTaskNode(const TSharedPtr<FJsonObject>& JsonObject, FMATaskNodeData& O
         for (const TSharedPtr<FJsonValue>& Value : *SkillsArray)
         {
             FMARequiredSkill Skill;
-            if (ParseRequiredSkill(Value->AsObject(), Skill))
+            if (ParseRequiredSkillValue(Value, Skill))
             {
                 Out.RequiredSkills.Add(Skill);
             }
@@ -128,9 +238,56 @@ bool ParseTaskEdge(const TSharedPtr<FJsonObject>& JsonObject, FMATaskEdgeData& O
 
     Out.FromNodeId = JsonObject->GetStringField(TEXT("from"));
     Out.ToNodeId = JsonObject->GetStringField(TEXT("to"));
-    Out.EdgeType = JsonObject->GetStringField(TEXT("type"));
-    Out.Condition = JsonObject->HasField(TEXT("condition")) ? JsonObject->GetStringField(TEXT("condition")) : FString();
+    Out.EdgeType = NormalizeEdgeType(GetOptionalStringField(JsonObject, TEXT("type")));
+    Out.Condition = GetOptionalStringField(JsonObject, TEXT("condition"));
     return true;
+}
+
+bool ParseTaskEdgeCompactString(const FString& CompactString, FMATaskEdgeData& Out)
+{
+    const FString Trimmed = CompactString.TrimStartAndEnd();
+    const int32 ArrowIndex = Trimmed.Find(TEXT("->"));
+    if (ArrowIndex == INDEX_NONE)
+    {
+        return false;
+    }
+
+    Out.FromNodeId = Trimmed.Left(ArrowIndex).TrimStartAndEnd();
+    FString Remainder = Trimmed.Mid(ArrowIndex + 2).TrimStartAndEnd();
+
+    const int32 ColonIndex = Remainder.Find(TEXT(":"));
+    if (ColonIndex != INDEX_NONE)
+    {
+        Out.ToNodeId = Remainder.Left(ColonIndex).TrimStartAndEnd();
+        Out.Condition = Remainder.Mid(ColonIndex + 1).TrimStartAndEnd();
+        Out.EdgeType = TEXT("conditional");
+    }
+    else
+    {
+        Out.ToNodeId = Remainder;
+        Out.Condition.Empty();
+        Out.EdgeType = TEXT("sequential");
+    }
+
+    return !Out.FromNodeId.IsEmpty() && !Out.ToNodeId.IsEmpty();
+}
+
+bool ParseTaskEdgeValue(const TSharedPtr<FJsonValue>& Value, FMATaskEdgeData& Out)
+{
+    if (!Value.IsValid())
+    {
+        return false;
+    }
+
+    if (Value->Type == EJson::Object)
+    {
+        return ParseTaskEdge(Value->AsObject(), Out);
+    }
+    if (Value->Type == EJson::String)
+    {
+        return ParseTaskEdgeCompactString(Value->AsString(), Out);
+    }
+    return false;
 }
 }
 
@@ -209,7 +366,7 @@ bool FTaskGraphJsonCodec::TryParseJson(const FString& Json, FMATaskGraphData& Ou
         for (const TSharedPtr<FJsonValue>& Value : *EdgesArray)
         {
             FMATaskEdgeData Edge;
-            if (ParseTaskEdge(Value->AsObject(), Edge))
+            if (ParseTaskEdgeValue(Value, Edge))
             {
                 OutData.Edges.Add(Edge);
             }
@@ -234,7 +391,11 @@ bool FTaskGraphJsonCodec::TryParseResponseJson(const FString& Json, FMATaskGraph
     const TSharedPtr<FJsonObject>* MetaObject = nullptr;
     if (RootObject->TryGetObjectField(TEXT("meta"), MetaObject))
     {
-        OutData.Description = (*MetaObject)->GetStringField(TEXT("description"));
+        OutData.Description = GetOptionalStringField(*MetaObject, TEXT("description"));
+        if (OutData.Description.IsEmpty())
+        {
+            OutData.Description = GetOptionalStringField(*MetaObject, TEXT("reasoning"));
+        }
     }
 
     const TSharedPtr<FJsonObject>* TaskGraphObject = nullptr;
@@ -263,7 +424,7 @@ bool FTaskGraphJsonCodec::TryParseResponseJson(const FString& Json, FMATaskGraph
         for (const TSharedPtr<FJsonValue>& Value : *EdgesArray)
         {
             FMATaskEdgeData Edge;
-            if (ParseTaskEdge(Value->AsObject(), Edge))
+            if (ParseTaskEdgeValue(Value, Edge))
             {
                 OutData.Edges.Add(Edge);
             }

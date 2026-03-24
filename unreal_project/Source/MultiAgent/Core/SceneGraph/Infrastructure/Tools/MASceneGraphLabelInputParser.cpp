@@ -12,7 +12,7 @@ bool FMASceneGraphLabelInputParser::Parse(
 
     if (InputText.IsEmpty())
     {
-        OutErrorMessage = TEXT("输入格式错误，请使用: cate:building/trans_facility/prop,type:值");
+        OutErrorMessage = TEXT("Invalid input format, use: cate:building/trans_facility/prop,type:<value>");
         return false;
     }
 
@@ -37,7 +37,7 @@ bool FMASceneGraphLabelInputParser::Parse(
         {
             if (Value.IsEmpty())
             {
-                OutErrorMessage = TEXT("缺少必填字段: id");
+                OutErrorMessage = TEXT("Missing required field: id");
                 return false;
             }
             OutResult.Id = Value;
@@ -49,7 +49,7 @@ bool FMASceneGraphLabelInputParser::Parse(
         {
             if (Value.IsEmpty())
             {
-                OutErrorMessage = TEXT("缺少必填字段: type");
+                OutErrorMessage = TEXT("Missing required field: type");
                 return false;
             }
             OutResult.Type = Value;
@@ -65,7 +65,7 @@ bool FMASceneGraphLabelInputParser::Parse(
                 && ValueLower != TEXT("prop"))
             {
                 OutErrorMessage = FString::Printf(
-                    TEXT("无效的 cate 值: %s (应为 building, trans_facility 或 prop)"),
+                    TEXT("Invalid cate value: %s (expected building, trans_facility or prop)"),
                     *Value);
                 return false;
             }
@@ -75,7 +75,7 @@ bool FMASceneGraphLabelInputParser::Parse(
 
     if (!bFoundType)
     {
-        OutErrorMessage = TEXT("缺少必填字段: type");
+        OutErrorMessage = TEXT("Missing required field: type");
         return false;
     }
 

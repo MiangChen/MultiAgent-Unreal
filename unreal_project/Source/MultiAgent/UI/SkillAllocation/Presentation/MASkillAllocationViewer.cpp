@@ -700,15 +700,15 @@ void UMASkillAllocationViewer::SaveAndNavigateToModal()
     FString RuntimeError;
     if (!PersistRuntimeData(&RuntimeError))
     {
-        AppendStatusLog(FString::Printf(TEXT("[错误] 无法保存数据：%s"), *RuntimeError));
+        AppendStatusLog(FString::Printf(TEXT("[Error] Cannot save data: %s"), *RuntimeError));
         return;
     }
 
-    AppendStatusLog(TEXT("[保存] 技能分配已保存"));
+    AppendStatusLog(TEXT("[Save] Skill allocation saved"));
 
     if (!FMASkillAllocationViewerRuntimeAdapter::TryNavigateToSkillAllocationModal(this, RuntimeError))
     {
-        AppendStatusLog(FString::Printf(TEXT("[错误] 无法导航：%s"), *RuntimeError));
+        AppendStatusLog(FString::Printf(TEXT("[Error] Cannot navigate: %s"), *RuntimeError));
         return;
     }
 
@@ -853,7 +853,7 @@ void UMASkillAllocationViewer::OnGanttDragStarted(const FString& SkillName, int3
         *SkillName, TimeStep, *RobotId);
     
     // 记录状态日志
-    AppendStatusLog(FString::Printf(TEXT("[拖拽] 开始移动技能: %s (T%d, %s)"),
+    AppendStatusLog(FString::Printf(TEXT("[Drag] Start moving skill: %s (T%d, %s)"),
         *SkillName, TimeStep, *RobotId));
 }
 
@@ -870,12 +870,12 @@ void UMASkillAllocationViewer::OnGanttDragCompleted(int32 SourceTimeStep, const 
         FMASkillAssignment Skill;
         if (AllocationModel->FindSkill(TargetTimeStep, TargetRobotId, Skill))
         {
-            AppendStatusLog(FString::Printf(TEXT("[成功] 技能已移动: %s 从 T%d 到 T%d"),
+            AppendStatusLog(FString::Printf(TEXT("[Success] Skill moved: %s from T%d to T%d"),
                 *Skill.SkillName, SourceTimeStep, TargetTimeStep));
         }
         else
         {
-            AppendStatusLog(FString::Printf(TEXT("[成功] 技能已移动: 从 T%d/%s 到 T%d/%s"),
+            AppendStatusLog(FString::Printf(TEXT("[Success] Skill moved: from T%d/%s to T%d/%s"),
                 SourceTimeStep, *SourceRobotId, TargetTimeStep, *TargetRobotId));
         }
     }
@@ -887,7 +887,7 @@ void UMASkillAllocationViewer::OnGanttDragCompleted(int32 SourceTimeStep, const 
     FString RuntimeError;
     if (!PersistRuntimeData(&RuntimeError))
     {
-        AppendStatusLog(FString::Printf(TEXT("[错误] 数据同步失败：%s"), *RuntimeError));
+        AppendStatusLog(FString::Printf(TEXT("[Error] Data sync failed: %s"), *RuntimeError));
     }
 }
 
@@ -904,7 +904,7 @@ void UMASkillAllocationViewer::OnGanttDragBlocked()
     UE_LOG(LogMASkillAllocationViewer, Log, TEXT("OnGanttDragBlocked: Drag attempt blocked during execution"));
     
     // 记录警告日志
-    AppendStatusLog(TEXT("[警告] 执行期间无法修改技能分配"));
+    AppendStatusLog(TEXT("[Warning] Cannot modify skill allocation during execution"));
 }
 
 void UMASkillAllocationViewer::OnGanttDragFailed()
@@ -912,7 +912,7 @@ void UMASkillAllocationViewer::OnGanttDragFailed()
     UE_LOG(LogMASkillAllocationViewer, Log, TEXT("OnGanttDragFailed: Drag operation failed due to invalid target"));
     
     // 记录失败日志
-    AppendStatusLog(TEXT("[失败] 无法放置: 目标槽位已被占用"));
+    AppendStatusLog(TEXT("[Failed] Cannot drop: target slot is occupied"));
 }
 
 void UMASkillAllocationViewer::LoadRuntimeSkillAllocation()

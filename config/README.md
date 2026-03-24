@@ -1,151 +1,152 @@
-# 配置文件说明
+# Configuration Reference
 
-## 配置结构
+## Directory Structure
 
 ```
 config/
-├── simulation.json      # 仿真参数 (全局配置)
-├── maps/                # 地图配置 (按地图类型分离)
+├── simulation.json      # Simulation parameters (global config)
+├── maps/                # Map configs (per map type)
 │   ├── Downtown.json
 │   ├── SciFiModernCity.json
 │   └── Port.json
 └── README.md
 ```
 
-**核心设计**: `simulation.json` 中只需设置 `map_type`，系统自动加载对应的地图配置文件。
+**Core design**: Set `map_type` in `simulation.json`, and the system automatically loads the corresponding map config file.
 
 ---
 
-## simulation.json - 仿真参数
+## simulation.json - Simulation Parameters
 
 ### simulation
-| 参数 | 说明 |
-|------|------|
-| `name` | 仿真名称 (仅用于标识) |
-| `version` | 配置版本号 |
-| `map_type` | 地图类型，对应 `maps/` 下的配置文件名 (如 `Downtown`, `SciFiModernCity`, `Port`) |
-| `run_mode` | 运行模式: `edit`(运行时修改，不保存) / `modify`(标注模式，保存到文件) |
-| `use_setup_ui` | 启动时显示设置界面（已弃用） |
-| `use_state_tree` | 使用 StateTree 行为树（以弃用） |
-| `enable_energy_drain` | 启用能量消耗 |
+| Parameter | Description |
+|-----------|-------------|
+| `name` | Simulation name (for identification only) |
+| `version` | Config version number |
+| `map_type` | Map type, corresponds to a config filename under `maps/` (e.g. `Downtown`, `SciFiModernCity`, `Port`) |
+| `run_mode` | Run mode: `edit` (runtime changes, not saved) / `modify` (annotation mode, saved to file) |
+| `use_setup_ui` | Show setup UI on startup (deprecated) |
+| `use_state_tree` | Use StateTree behavior tree (deprecated) |
+| `enable_energy_drain` | Enable energy consumption |
+| `enable_info_checks` | Enable Info-level condition checks (e.g. high-priority target discovery) |
 
-### spawn_settings - 生成设置 (通用)
-| 参数 | 说明 |
-|------|------|
-| `use_player_start` | 使用 PlayerStart 位置生成 |
-| `fallback_origin` | 备用生成原点 [x, y, z] |
-| `spawn_radius` | 生成半径 |
-| `project_to_navmesh` | 投影到导航网格 |
+### spawn_settings - Spawn Settings (Global)
+| Parameter | Description |
+|-----------|-------------|
+| `use_player_start` | Use PlayerStart location for spawning |
+| `fallback_origin` | Fallback spawn origin [x, y, z] |
+| `spawn_radius` | Spawn radius |
+| `project_to_navmesh` | Project spawn location to navigation mesh |
 
 ### server
-| 参数 | 说明 |
-|------|------|
-| `planner_url` | 规划器后端地址 |
-| `local_server_port` | 本地 HTTP 服务端口 |
-| `enable_local_server` | 启用本地服务器 |
-| `use_mock_data` | 使用模拟数据 (调试用) |
-| `debug_mode` | 调试模式 |
-| `enable_polling` | 启用任务轮询 |
-| `poll_interval_seconds` | 任务轮询间隔 (秒) |
-| `enable_hitl_polling` | 启用 HITL (Human-in-the-Loop) 轮询 |
-| `hitl_poll_interval_seconds` | HITL 轮询间隔 (秒) |
+| Parameter | Description |
+|-----------|-------------|
+| `planner_url` | Planner backend URL |
+| `local_server_port` | Local HTTP server port |
+| `enable_local_server` | Enable local HTTP server |
+| `use_mock_data` | Use mock data (for debugging) |
+| `debug_mode` | Debug mode |
+| `enable_polling` | Enable task polling |
+| `poll_interval_seconds` | Task polling interval (seconds) |
+| `enable_hitl_polling` | Enable HITL (Human-in-the-Loop) polling |
+| `hitl_poll_interval_seconds` | HITL polling interval (seconds) |
 
-### navigation - 手动导航路径规划
-| 参数 | 说明 |
-|------|------|
-| `path_planner_type` | 算法类型: `MultiLayerRaycast`(多层射线扫描) / `ElevationMap`(2.5D高程图) |
+### navigation - Manual Navigation Path Planning
+| Parameter | Description |
+|-----------|-------------|
+| `path_planner_type` | Algorithm type: `MultiLayerRaycast` (multi-layer ray scanning) / `ElevationMap` (2.5D elevation map) |
 
-#### multi_layer_raycast - 多层射线扫描配置
-| 参数 | 说明 | 默认值 | 范围 |
-|------|------|--------|------|
-| `layer_count` | 射线层数 | 3 | 2-5 |
-| `layer_distance` | 每层检测距离 (cm) | 300 | 100-500 |
-| `scan_angle_range` | 扫描角度范围 (±度) | 120 | 60-180 |
-| `scan_angle_step` | 扫描角度步长 (度) | 15 | 5-30 |
+#### multi_layer_raycast - Multi-Layer Ray Scanning Config
+| Parameter | Description | Default | Range |
+|-----------|-------------|---------|-------|
+| `layer_count` | Number of ray layers | 3 | 2-5 |
+| `layer_distance` | Detection distance per layer (cm) | 300 | 100-500 |
+| `scan_angle_range` | Scan angle range (±degrees) | 120 | 60-180 |
+| `scan_angle_step` | Scan angle step (degrees) | 15 | 5-30 |
 
-#### elevation_map - 2.5D 高程图配置
-| 参数 | 说明 | 默认值 | 范围 |
-|------|------|--------|------|
-| `cell_size` | 栅格单元大小 (cm) | 100 | 50-200 |
-| `search_radius` | 搜索半径 (cm) | 3000 | 1000-10000 |
-| `max_slope_angle` | 最大可通行坡度角 (度) | 30 | 10-45 |
-| `max_step_height` | 最大可通行台阶高度 (cm) | 50 | 20-100 |
-| `path_smoothing_factor` | 路径平滑因子 | 0.15 | 0.1-0.5 |
+#### elevation_map - 2.5D Elevation Map Config
+| Parameter | Description | Default | Range |
+|-----------|-------------|---------|-------|
+| `cell_size` | Grid cell size (cm) | 100 | 50-200 |
+| `search_radius` | Search radius (cm) | 3000 | 1000-10000 |
+| `max_slope_angle` | Maximum traversable slope angle (degrees) | 30 | 10-45 |
+| `max_step_height` | Maximum traversable step height (cm) | 50 | 20-100 |
+| `path_smoothing_factor` | Path smoothing factor | 0.15 | 0.1-0.5 |
 
-### flight - 飞行参数 (统一配置)
-| 参数 | 说明 | 默认值 |
-|------|------|--------|
-| `min_altitude` | 最低飞行高度 (cm) | 800 |
-| `default_altitude` | 默认飞行高度 (cm) | 1000 |
-| `max_speed` | 最大飞行速度 (cm/s) | 600 |
-| `obstacle_detection_range` | 障碍物检测距离 (cm) | 800 |
-| `obstacle_avoidance_radius` | 障碍物避让半径 (cm) | 150 |
-| `acceptance_radius` | 到达判定半径 (cm) | 200 |
+### flight - Flight Parameters (Unified Config)
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `min_altitude` | Minimum flight altitude (cm) | 800 |
+| `default_altitude` | Default flight altitude (cm) | 1000 |
+| `max_speed` | Maximum flight speed (cm/s) | 600 |
+| `obstacle_detection_range` | Obstacle detection range (cm) | 800 |
+| `obstacle_avoidance_radius` | Obstacle avoidance radius (cm) | 150 |
+| `acceptance_radius` | Arrival acceptance radius (cm) | 200 |
 
-### ground_navigation - 地面导航参数 (统一配置)
-| 参数 | 说明 | 默认值 |
-|------|------|--------|
-| `acceptance_radius` | 到达判定半径 (cm) | 200 |
-| `stuck_timeout` | 卡住超时时间 (秒) | 10 |
+### ground_navigation - Ground Navigation Parameters (Unified Config)
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `acceptance_radius` | Arrival acceptance radius (cm) | 200 |
+| `stuck_timeout` | Stuck timeout (seconds) | 10 |
 
-### follow - 跟随参数 (统一配置，适用于所有机器人)
-| 参数 | 说明 | 默认值 |
-|------|------|--------|
-| `distance` | 跟随距离 (cm) | 300 |
-| `position_tolerance` | 跟随位置容差 (cm) - 判断是否到达跟随位置 | 350 |
-| `continuous_time_threshold` | 持续跟踪时间阈值 (秒) - 达到此时间视为跟随成功 | 30 |
+### follow - Follow Parameters (Unified Config, applies to all agents)
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `distance` | Follow distance (cm) | 300 |
+| `position_tolerance` | Follow position tolerance (cm) - determines if the follow position is reached | 350 |
+| `continuous_time_threshold` | Continuous tracking time threshold (seconds) - follow is considered successful after this duration | 30 |
 
-### guide - 引导参数 (Guide 技能)
-| 参数 | 说明 | 默认值 |
-|------|------|--------|
-| `target_move_mode` | 被引导对象移动模式: `direct`(直接移动，无避障) / `navmesh`(导航服务，有避障) | navmesh |
-| `wait_distance_threshold` | 等待距离阈值 (cm) - 机器人与被引导对象距离超过此值时停下等待 | 500 |
+### guide - Guide Parameters (Guide Skill)
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `target_move_mode` | Guided target movement mode: `direct` (direct movement, no avoidance) / `navmesh` (navigation service, with avoidance) | navmesh |
+| `wait_distance_threshold` | Wait distance threshold (cm) - agent stops and waits when distance to guided target exceeds this value | 500 |
 
-### handle_hazard - 处理危险参数 (HandleHazard 技能)
-| 参数 | 说明 | 默认值 |
-|------|------|--------|
-| `safe_distance` | 安全距离 (cm) - 机器人与危险源保持的距离 | 1000 |
-| `duration` | 处理持续时间 (秒) | 15 |
-| `spray_speed` | 喷射特效移动速度 (cm/s) | 800 |
-| `spray_width` | 喷射特效宽度 (倍数) | 1.0 |
+### handle_hazard - Hazard Handling Parameters (HandleHazard Skill)
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `safe_distance` | Safe distance (cm) - distance the agent maintains from the hazard source | 1000 |
+| `duration` | Handling duration (seconds) | 15 |
+| `spray_speed` | Spray effect movement speed (cm/s) | 800 |
+| `spray_width` | Spray effect width (multiplier) | 1.0 |
 
-### take_photo - 拍照参数 (TakePhoto 技能)
-| 参数 | 说明 | 默认值 |
-|------|------|--------|
-| `photo_distance` | 拍照距离 (cm) - 机器人与目标的距离 | 800 |
-| `photo_duration` | 拍照持续时间 (秒) | 15 |
-| `camera_fov` | 相机视场角 (度) | 60 |
-| `camera_forward_offset` | 相机前向偏移 (cm) | 50 |
+### take_photo - Photo Parameters (TakePhoto Skill)
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `photo_distance` | Photo distance (cm) - distance between agent and target | 800 |
+| `photo_duration` | Photo duration (seconds) | 15 |
+| `camera_fov` | Camera field of view (degrees) | 60 |
+| `camera_forward_offset` | Camera forward offset (cm) | 50 |
 
-### broadcast - 喊话参数 (Broadcast 技能)
-| 参数 | 说明 | 默认值 |
-|------|------|--------|
-| `broadcast_distance` | 喊话距离 (cm) - 机器人与目标的距离 | 800 |
-| `broadcast_duration` | 喊话持续时间 (秒) | 20 |
-| `effect_speed` | 声波特效移动速度 (cm/s) | 1000 |
-| `effect_width` | 声波特效宽度 (cm) | 1000 |
-| `shock_rate` | 声波震动频率 (Hz) | 3.0 |
+### broadcast - Broadcast Parameters (Broadcast Skill)
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `broadcast_distance` | Broadcast distance (cm) - distance between agent and target | 800 |
+| `broadcast_duration` | Broadcast duration (seconds) | 20 |
+| `effect_speed` | Sound wave effect speed (cm/s) | 1000 |
+| `effect_width` | Sound wave effect width (cm) | 1000 |
+| `shock_rate` | Sound wave oscillation frequency (Hz) | 3.0 |
 
 ---
 
-## maps/{MapType}.json - 地图配置
+## maps/{MapType}.json - Map Configuration
 
-每个地图类型一个配置文件，包含该地图特有的设置。
+Each map type has its own config file containing map-specific settings.
 
-### map_info - 地图信息
-| 参数 | 说明 |
-|------|------|
-| `display_name` | 显示名称 |
-| `map_path` | UE 地图资源路径 |
-| `scene_graph_folder` | 场景图文件夹路径 (相对于 unreal_project) |
+### map_info - Map Information
+| Parameter | Description |
+|-----------|-------------|
+| `display_name` | Display name |
+| `map_path` | UE map asset path |
+| `scene_graph_folder` | Scene graph folder path (relative to unreal_project) |
 
-### spectator - 观察者相机
-| 参数 | 说明 |
-|------|------|
-| `position` | 初始相机位置 [x, y, z] |
-| `rotation` | 初始相机旋转 [pitch, yaw, roll] |
+### spectator - Spectator Camera
+| Parameter | Description |
+|-----------|-------------|
+| `position` | Initial camera position [x, y, z] |
+| `rotation` | Initial camera rotation [pitch, yaw, roll] |
 
-### agents - 机器人配置
+### agents - Agent Configuration
 ```json
 {
   "agents": [
@@ -164,90 +165,90 @@ config/
 }
 ```
 
-| 参数 | 说明 | 默认值 |
-|------|------|--------|
-| `type` | 机器人类型: `UAV`, `UGV`, `Quadruped`, `Humanoid` | - |
-| `label` | 显示标签 | - |
-| `position` | 生成位置 [x, y, z] | - |
-| `rotation` | 生成朝向 [pitch, yaw, roll] | [0, 0, 0] |
-| `battery_level` | 初始电量 (0-100) | 100 |
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `type` | Agent type: `UAV`, `UGV`, `Quadruped`, `Humanoid` | - |
+| `label` | Display label | - |
+| `position` | Spawn position [x, y, z] | - |
+| `rotation` | Spawn rotation [pitch, yaw, roll] | [0, 0, 0] |
+| `battery_level` | Initial battery level (0-100) | 100 |
 
-### environment - 环境配置
+### environment - Environment Configuration
 
-环境对象统一使用数组格式，每个对象包含以下通用字段：
+Environment objects use a unified array format. Each object contains the following common fields:
 
-| 参数 | 说明 | 默认值 |
-|------|------|--------|
-| `label` | 显示标签 (唯一标识) | - |
-| `type` | 对象类型 (见下表) | - |
-| `position` | 位置 [x, y, z] | - |
-| `rotation` | 朝向 [pitch, yaw, roll] | [0, 0, 0] |
-| `enabled` | 是否启用 | true |
-| `features` | 特征属性 (键值对) | {} |
-| `patrol` | 巡逻配置 (可选) | - |
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `label` | Display label (unique identifier) | - |
+| `type` | Object type (see table below) | - |
+| `position` | Position [x, y, z] | - |
+| `rotation` | Rotation [pitch, yaw, roll] | [0, 0, 0] |
+| `enabled` | Whether the object is enabled | true |
+| `features` | Feature attributes (key-value pairs) | {} |
+| `patrol` | Patrol configuration (optional) | - |
 
-#### 支持的环境对象类型
+#### Supported Environment Object Types
 
-| type | 说明 | 特有 features |
-|------|------|---------------|
-| `charging_station` | 充电站 | - |
-| `cargo` | 可拾取货物 | `color`, `subtype` |
-| `person` | 行人 | `subtype`, `variant`, `gender`, `animation`, `clothing_color`, `crowd` |
-| `vehicle` | 车辆 | `subtype`, `color`, `is_fire`, `fire_scale`, `traffic_violation` |
-| `boat` | 船只 | `subtype`, `is_fire`, `is_spill` |
-| `fire` | 火焰特效 | `scale` |
-| `smoke` | 烟雾特效 | `scale`, `radius` |
-| `wind` | 强风特效 | `scale`, `radius` |
-| `assembly_component` | 组装组件 | `subtype` |
+| type | Description | Specific features |
+|------|-------------|-------------------|
+| `charging_station` | Charging station | - |
+| `cargo` | Pickable cargo | `color`, `subtype` |
+| `person` | Pedestrian | `subtype`, `variant`, `gender`, `animation`, `clothing_color`, `crowd` |
+| `vehicle` | Vehicle | `subtype`, `color`, `is_fire`, `fire_scale`, `traffic_violation` |
+| `boat` | Boat | `subtype`, `is_fire`, `is_spill` |
+| `fire` | Fire effect | `scale` |
+| `smoke` | Smoke effect | `scale`, `radius` |
+| `wind` | Wind effect | `scale`, `radius` |
+| `assembly_component` | Assembly component | `subtype` |
 
-#### features 详细说明
+#### Feature Details
 
-**cargo (货物)**
-| 特征 | 说明 | 可选值 |
-|------|------|--------|
-| `color` | 颜色 | `red`, `blue`, `green`, `yellow`, 等 |
-| `subtype` | 子类型 | `box` |
+**cargo**
+| Feature | Description | Values |
+|---------|-------------|--------|
+| `color` | Color | `red`, `blue`, `green`, `yellow`, etc. |
+| `subtype` | Subtype | `box` |
 
-**person (行人)**
-| 特征 | 说明 | 可选值 |
-|------|------|--------|
-| `subtype` | 穿着风格 | `business`, `casual`, `sportive` |
-| `variant` | 变体编号 | `01`, `02`, `03`, ... |
-| `gender` | 性别 | `male`, `female` |
-| `animation` | 动画状态 | `idle`, `walk`, `talk` |
-| `clothing_color` | 服装颜色 | `yellow`, `beige`, `pink`, `brown`, 等 |
-| `crowd` | 是否为人群成员 | `true`, `false` |
+**person**
+| Feature | Description | Values |
+|---------|-------------|--------|
+| `subtype` | Clothing style | `business`, `casual`, `sportive` |
+| `variant` | Variant number | `01`, `02`, `03`, ... |
+| `gender` | Gender | `male`, `female` |
+| `animation` | Animation state | `idle`, `walk`, `talk` |
+| `clothing_color` | Clothing color | `yellow`, `beige`, `pink`, `brown`, etc. |
+| `crowd` | Whether part of a crowd | `true`, `false` |
 
-**vehicle (车辆)**
-| 特征 | 说明 | 可选值 |
-|------|------|--------|
-| `subtype` | 车型 | `sedan`, `suv`, `hatchback`, `crossover`, `wagon`, `sporty`, `van` |
-| `color` | 颜色 | `red`, `blue`, `silver`, `black`, `gray`, `orange`, `white` |
-| `is_fire` | 是否着火 | `true`, `false` |
-| `fire_scale` | 火焰大小 | 数字字符串，如 `"8"` |
-| `traffic_violation` | 是否违章 | `true`, `false` |
+**vehicle**
+| Feature | Description | Values |
+|---------|-------------|--------|
+| `subtype` | Vehicle model | `sedan`, `suv`, `hatchback`, `crossover`, `wagon`, `sporty`, `van` |
+| `color` | Color | `red`, `blue`, `silver`, `black`, `gray`, `orange`, `white` |
+| `is_fire` | Whether on fire | `true`, `false` |
+| `fire_scale` | Fire size | Numeric string, e.g. `"8"` |
+| `traffic_violation` | Whether in traffic violation | `true`, `false` |
 
-**boat (船只)**
-| 特征 | 说明 | 可选值 |
-|------|------|--------|
-| `subtype` | 船型 | `lifeboat`, `metal_03`, 等 |
-| `is_fire` | 是否着火 | `true`, `false` |
-| `is_spill` | 是否泄漏 | `true`, `false` |
+**boat**
+| Feature | Description | Values |
+|---------|-------------|--------|
+| `subtype` | Boat model | `lifeboat`, `metal_03`, etc. |
+| `is_fire` | Whether on fire | `true`, `false` |
+| `is_spill` | Whether spilling | `true`, `false` |
 
-**fire/smoke/wind (特效)**
-| 特征 | 说明 |
-|------|------|
-| `scale` | 特效缩放比例 |
-| `radius` | 影响半径 (cm) - 仅 smoke/wind |
+**fire / smoke / wind (effects)**
+| Feature | Description |
+|---------|-------------|
+| `scale` | Effect scale |
+| `radius` | Effect radius (cm) - smoke/wind only |
 
-**assembly_component (组装组件)**
-| 特征 | 说明 | 可选值 |
-|------|------|--------|
-| `subtype` | 组件类型 | `solar_panel`, `antenna_module`, `address_speaker`, `stand` |
+**assembly_component**
+| Feature | Description | Values |
+|---------|-------------|--------|
+| `subtype` | Component type | `solar_panel`, `antenna_module`, `address_speaker`, `stand` |
 
-#### patrol - 巡逻配置
+#### patrol - Patrol Configuration
 
-支持 `person`, `vehicle`, `boat` 类型的对象进行巡逻。
+Supports patrol for `person`, `vehicle`, and `boat` object types.
 
 ```json
 {
@@ -263,25 +264,25 @@ config/
 }
 ```
 
-| 参数 | 说明 | 默认值 |
-|------|------|--------|
-| `enabled` | 是否启用巡逻 | false |
-| `waypoints` | 巡逻路径点数组 [[x,y,z], ...] | [] |
-| `loop` | 是否循环巡逻 | false |
-| `wait_time` | 每个路径点等待时间 (秒) | 0 |
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `enabled` | Whether patrol is enabled | false |
+| `waypoints` | Patrol waypoint array [[x,y,z], ...] | [] |
+| `loop` | Whether to loop the patrol | false |
+| `wait_time` | Wait time at each waypoint (seconds) | 0 |
 
 ---
 
-## 切换地图
+## Switching Maps
 
-只需修改 `simulation.json` 中的 `map_type` 字段：
+Simply change the `map_type` field in `simulation.json`:
 
 ```json
 {
   "simulation": {
-    "map_type": "SciFiModernCity"
+    "map_type": "Downtown"
   }
 }
 ```
 
-系统会自动加载 `maps/SciFiModernCity.json` 中的所有地图相关配置。
+The system will automatically load all map-related configuration from `maps/Downtown.json`.

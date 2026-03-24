@@ -82,8 +82,8 @@
     function buildTimelineMeta(data, reviewLabel) {
         const model = buildTimelineModel(data);
         return [
-            `${model.columnCount} 个时间步`,
-            `${model.rowCount} 台机器人`,
+            `${model.columnCount} time steps`,
+            `${model.rowCount} robots`,
             reviewLabel
         ];
     }
@@ -117,7 +117,7 @@
     }
 
     function summarizeContent(content) {
-        if (content == null) return '无摘要';
+        if (content == null) return 'No summary';
         if (typeof content === 'string') {
             return content.length > 180 ? `${content.slice(0, 177)}...` : content;
         }
@@ -147,7 +147,7 @@
         if (!container) return false;
         const model = buildTimelineModel(options?.data || {});
         if (!model.rowCount) {
-            container.innerHTML = '<div class="ma-gantt-empty"><strong>暂无时间线数据</strong><span>当前条目没有可展示的技能分配。</span></div>';
+            container.innerHTML = '<div class="ma-gantt-empty"><strong>No timeline data</strong><span>The current entry has no skill allocation to visualize.</span></div>';
             return false;
         }
 
@@ -158,15 +158,15 @@
         const badges = Array.isArray(options?.badges) ? options.badges : [];
         const badgeHtml = badges.map((badge) => `<span class="ma-gantt-badge">${escapeHtml(badge)}</span>`).join('');
         const axisHtml = Array.from({ length: model.columnCount }, (_, index) => `
-            <div class="ma-gantt-axis-cell">
-                <div class="ma-gantt-axis-label">时间步</div>
+                <div class="ma-gantt-axis-cell">
+                <div class="ma-gantt-axis-label">Step</div>
                 <div class="ma-gantt-axis-value">${index}</div>
             </div>
         `).join('');
         const leftRowsHtml = model.rows.map((row) => `
             <div class="ma-gantt-robot-row">
                 <span class="ma-gantt-robot-name">${escapeHtml(row.robotId)}</span>
-                <span class="ma-gantt-robot-meta">${row.tasks.length} 个技能</span>
+                <span class="ma-gantt-robot-meta">${row.tasks.length} skills</span>
             </div>
         `).join('');
         const rightRowsHtml = model.rows.map((row) => {
@@ -191,7 +191,7 @@
                 </div>
                 <div class="ma-gantt-shell">
                     <div class="ma-gantt-left">
-                        <div class="ma-gantt-corner">Robots / 机器人</div>
+                        <div class="ma-gantt-corner">Robots</div>
                         <div class="ma-gantt-robot-list">${leftRowsHtml}</div>
                     </div>
                     <div class="ma-gantt-right">

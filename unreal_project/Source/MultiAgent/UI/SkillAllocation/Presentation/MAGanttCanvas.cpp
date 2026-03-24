@@ -625,7 +625,7 @@ bool UMAGanttCanvas::TryCommitDrop(const FGanttDragSource& DragSource, const FGa
 {
     if (!FinalTarget.bIsValid || !FinalTarget.HasTarget())
     {
-        UE_LOG(LogMAGanttCanvas, Log, TEXT("[失败] 无法放置: 目标槽位已被占用或无效"));
+        UE_LOG(LogMAGanttCanvas, Log, TEXT("[Failed] Cannot drop: target slot is occupied or invalid"));
         OnDragFailed.Broadcast();
         return false;
     }
@@ -643,7 +643,7 @@ bool UMAGanttCanvas::TryCommitDrop(const FGanttDragSource& DragSource, const FGa
 
     if (bDropSuccess)
     {
-        UE_LOG(LogMAGanttCanvas, Log, TEXT("[成功] 技能已移动: %s 从 T%d 到 T%d"),
+        UE_LOG(LogMAGanttCanvas, Log, TEXT("[Success] Skill moved: %s from T%d to T%d"),
                *DragSource.SkillName, DragSource.TimeStep, FinalTarget.TimeStep);
         OnDragCompleted.Broadcast(
             DragSource.TimeStep, DragSource.RobotId,
@@ -652,7 +652,7 @@ bool UMAGanttCanvas::TryCommitDrop(const FGanttDragSource& DragSource, const FGa
         return true;
     }
 
-    UE_LOG(LogMAGanttCanvas, Log, TEXT("[失败] 无法放置: 目标槽位已被占用"));
+    UE_LOG(LogMAGanttCanvas, Log, TEXT("[Failed] Cannot drop: target slot is occupied"));
     OnDragFailed.Broadcast();
     return false;
 }
@@ -715,7 +715,7 @@ FReply UMAGanttCanvas::NativeOnMouseButtonDown(const FGeometry& InGeometry, cons
 
         if (DownResult.bDragBlocked)
         {
-            UE_LOG(LogMAGanttCanvas, Log, TEXT("[警告] 执行期间无法修改技能分配"));
+            UE_LOG(LogMAGanttCanvas, Log, TEXT("[Warning] Cannot modify skill allocation during execution"));
             OnDragBlocked.Broadcast();
         }
 
@@ -756,7 +756,7 @@ FReply UMAGanttCanvas::NativeOnMouseMove(const FGeometry& InGeometry, const FPoi
     if (MoveResult.bDragStarted)
     {
         const FGanttDragSource& DragSource = MoveResult.DragSource;
-        UE_LOG(LogMAGanttCanvas, Log, TEXT("[拖拽] 开始移动技能: %s (T%d, %s)"),
+        UE_LOG(LogMAGanttCanvas, Log, TEXT("[Drag] Start moving skill: %s (T%d, %s)"),
                *DragSource.SkillName, DragSource.TimeStep, *DragSource.RobotId);
         OnDragStarted.Broadcast(DragSource.SkillName, DragSource.TimeStep, DragSource.RobotId);
     }

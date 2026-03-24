@@ -566,7 +566,18 @@ void FMACommInbound::HandleTaskGraph(const TSharedPtr<FJsonObject>& PayloadObjec
             {
                 FMATaskPlanNode PlanNode;
                 PlanNode.NodeId = NodeData.TaskId;
-                PlanNode.TaskType = NodeData.Description;
+                if (!NodeData.Description.IsEmpty())
+                {
+                    PlanNode.TaskType = NodeData.Description;
+                }
+                else if (NodeData.RequiredSkills.Num() > 0)
+                {
+                    PlanNode.TaskType = NodeData.RequiredSkills[0].SkillName;
+                }
+                else
+                {
+                    PlanNode.TaskType = NodeData.TaskId;
+                }
                 if (!NodeData.Location.IsEmpty())
                 {
                     PlanNode.Parameters.Add(TEXT("location"), NodeData.Location);

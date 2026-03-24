@@ -12,42 +12,42 @@ bool FMASceneGraphNodeJsonValidator::ValidateNodeJsonStructure(
 
     if (!NodeObject.IsValid())
     {
-        OutErrorMessage = TEXT("JSON 对象无效");
+        OutErrorMessage = TEXT("Invalid JSON object");
         return false;
     }
 
     FString NodeId;
     if (!NodeObject->TryGetStringField(TEXT("id"), NodeId) || NodeId.IsEmpty())
     {
-        OutErrorMessage = TEXT("JSON 缺少有效的 id 字段");
+        OutErrorMessage = TEXT("JSON missing valid 'id' field");
         return false;
     }
 
     const TSharedPtr<FJsonObject>* PropertiesObject = nullptr;
     if (!NodeObject->TryGetObjectField(TEXT("properties"), PropertiesObject) || !PropertiesObject || !(*PropertiesObject).IsValid())
     {
-        OutErrorMessage = TEXT("JSON 缺少 properties 对象");
+        OutErrorMessage = TEXT("JSON missing 'properties' object");
         return false;
     }
 
     FString PropertyType;
     if (!(*PropertiesObject)->TryGetStringField(TEXT("type"), PropertyType) || PropertyType.IsEmpty())
     {
-        OutErrorMessage = TEXT("JSON properties 缺少有效的 type 字段");
+        OutErrorMessage = TEXT("JSON properties missing valid 'type' field");
         return false;
     }
 
     const TSharedPtr<FJsonObject>* ShapeObject = nullptr;
     if (!NodeObject->TryGetObjectField(TEXT("shape"), ShapeObject) || !ShapeObject || !(*ShapeObject).IsValid())
     {
-        OutErrorMessage = TEXT("JSON 缺少 shape 对象");
+        OutErrorMessage = TEXT("JSON missing 'shape' object");
         return false;
     }
 
     FString ShapeType;
     if (!(*ShapeObject)->TryGetStringField(TEXT("type"), ShapeType) || ShapeType.IsEmpty())
     {
-        OutErrorMessage = TEXT("JSON shape 缺少有效的 type 字段");
+        OutErrorMessage = TEXT("JSON shape missing valid 'type' field");
         return false;
     }
 
@@ -56,25 +56,25 @@ bool FMASceneGraphNodeJsonValidator::ValidateNodeJsonStructure(
         const TArray<TSharedPtr<FJsonValue>>* VerticesArray = nullptr;
         if (!(*ShapeObject)->TryGetArrayField(TEXT("vertices"), VerticesArray))
         {
-            OutErrorMessage = TEXT("prism 类型缺少 vertices 字段");
+            OutErrorMessage = TEXT("prism type missing 'vertices' field");
             return false;
         }
         if (!VerticesArray || VerticesArray->Num() < 3)
         {
             const int32 Count = VerticesArray ? VerticesArray->Num() : 0;
-            OutErrorMessage = FString::Printf(TEXT("prism 类型 vertices 数量不足 (需要至少 3 个，实际 %d 个)"), Count);
+            OutErrorMessage = FString::Printf(TEXT("prism type insufficient vertices (need at least 3, got %d)"), Count);
             return false;
         }
 
         double Height = 0.0;
         if (!(*ShapeObject)->TryGetNumberField(TEXT("height"), Height))
         {
-            OutErrorMessage = TEXT("prism 类型缺少 height 字段");
+            OutErrorMessage = TEXT("prism type missing 'height' field");
             return false;
         }
         if (Height <= 0.0)
         {
-            OutErrorMessage = FString::Printf(TEXT("prism 类型 height 值无效 (需要 > 0，实际 %f)"), Height);
+            OutErrorMessage = FString::Printf(TEXT("prism type invalid height (need > 0, got %f)"), Height);
             return false;
         }
 
@@ -86,26 +86,26 @@ bool FMASceneGraphNodeJsonValidator::ValidateNodeJsonStructure(
         const TArray<TSharedPtr<FJsonValue>>* PointsArray = nullptr;
         if (!(*ShapeObject)->TryGetArrayField(TEXT("points"), PointsArray))
         {
-            OutErrorMessage = TEXT("linestring 类型缺少 points 字段");
+            OutErrorMessage = TEXT("linestring type missing 'points' field");
             return false;
         }
         if (!PointsArray || PointsArray->Num() < 2)
         {
             const int32 Count = PointsArray ? PointsArray->Num() : 0;
-            OutErrorMessage = FString::Printf(TEXT("linestring 类型 points 数量不足 (需要至少 2 个，实际 %d 个)"), Count);
+            OutErrorMessage = FString::Printf(TEXT("linestring type insufficient points (need at least 2, got %d)"), Count);
             return false;
         }
 
         const TArray<TSharedPtr<FJsonValue>>* VerticesArray = nullptr;
         if (!(*ShapeObject)->TryGetArrayField(TEXT("vertices"), VerticesArray))
         {
-            OutErrorMessage = TEXT("linestring 类型缺少 vertices 字段");
+            OutErrorMessage = TEXT("linestring type missing 'vertices' field");
             return false;
         }
         if (!VerticesArray || VerticesArray->Num() != 4)
         {
             const int32 Count = VerticesArray ? VerticesArray->Num() : 0;
-            OutErrorMessage = FString::Printf(TEXT("linestring 类型 vertices 数量错误 (需要 4 个，实际 %d 个)"), Count);
+            OutErrorMessage = FString::Printf(TEXT("linestring type incorrect vertices count (need 4, got %d)"), Count);
             return false;
         }
 
@@ -117,13 +117,13 @@ bool FMASceneGraphNodeJsonValidator::ValidateNodeJsonStructure(
         const TArray<TSharedPtr<FJsonValue>>* CenterArray = nullptr;
         if (!(*ShapeObject)->TryGetArrayField(TEXT("center"), CenterArray))
         {
-            OutErrorMessage = TEXT("point 类型缺少 center 字段");
+            OutErrorMessage = TEXT("point type missing 'center' field");
             return false;
         }
         if (!CenterArray || CenterArray->Num() != 3)
         {
             const int32 Count = CenterArray ? CenterArray->Num() : 0;
-            OutErrorMessage = FString::Printf(TEXT("point 类型 center 坐标数量错误 (需要 3 个，实际 %d 个)"), Count);
+            OutErrorMessage = FString::Printf(TEXT("point type incorrect center coordinate count (need 3, got %d)"), Count);
             return false;
         }
 
@@ -134,13 +134,13 @@ bool FMASceneGraphNodeJsonValidator::ValidateNodeJsonStructure(
         const TArray<TSharedPtr<FJsonValue>>* VerticesArray = nullptr;
         if (!(*ShapeObject)->TryGetArrayField(TEXT("vertices"), VerticesArray))
         {
-            OutErrorMessage = TEXT("polygon 类型缺少 vertices 字段");
+            OutErrorMessage = TEXT("polygon type missing 'vertices' field");
             return false;
         }
         if (!VerticesArray || VerticesArray->Num() < 3)
         {
             const int32 Count = VerticesArray ? VerticesArray->Num() : 0;
-            OutErrorMessage = FString::Printf(TEXT("polygon 类型 vertices 数量不足 (需要至少 3 个，实际 %d 个)"), Count);
+            OutErrorMessage = FString::Printf(TEXT("polygon type insufficient vertices (need at least 3, got %d)"), Count);
             return false;
         }
 
@@ -166,4 +166,3 @@ bool FMASceneGraphNodeJsonValidator::ValidateNodeJsonStructure(
     UE_LOG(LogMASceneGraphNodeJsonValidator, Verbose, TEXT("ValidateNodeJsonStructure: Validation passed for node id=%s, shape.type=%s"), *NodeId, *ShapeType);
     return true;
 }
-

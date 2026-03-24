@@ -422,7 +422,7 @@ bool UMASceneGraphManager::EditDynamicNode(const FString& NodeId, const FString&
         return false;
     }
 
-    UE_LOG(LogMASceneGraphManager, Log, TEXT("EditDynamicNode: 成功编辑动态节点 %s"), *NodeId);
+    UE_LOG(LogMASceneGraphManager, Log, TEXT("EditDynamicNode: Successfully edited dynamic node %s"), *NodeId);
     return true;
 }
 
@@ -774,7 +774,7 @@ bool UMASceneGraphManager::DeleteNodeInternal(const FString& NodeId, FString& Ou
 
     if (NodeId.IsEmpty())
     {
-        OutError = TEXT("节点 ID 为空");
+        OutError = TEXT("Node ID is empty");
         UE_LOG(LogMASceneGraphManager, Error, TEXT("DeleteNode: NodeId is empty"));
         return false;
     }
@@ -810,14 +810,14 @@ bool UMASceneGraphManager::EditNodeInternal(const FString& NodeId, const FString
 
     if (NodeId.IsEmpty())
     {
-        OutError = TEXT("节点 ID 为空");
+        OutError = TEXT("Node ID is empty");
         UE_LOG(LogMASceneGraphManager, Error, TEXT("EditNode: NodeId is empty"));
         return false;
     }
 
     if (NewNodeJson.IsEmpty())
     {
-        OutError = TEXT("新节点 JSON 为空");
+        OutError = TEXT("New node JSON is empty");
         UE_LOG(LogMASceneGraphManager, Error, TEXT("EditNode: NewNodeJson is empty"));
         return false;
     }
@@ -917,7 +917,7 @@ bool UMASceneGraphManager::UpdateNodeGoalFlagInternal(
 
     if (NodeId.IsEmpty())
     {
-        OutError = TEXT("节点 ID 为空");
+        OutError = TEXT("Node ID is empty");
         UE_LOG(LogMASceneGraphManager, Error, TEXT("UpdateNodeGoalFlag: NodeId is empty"));
         return false;
     }

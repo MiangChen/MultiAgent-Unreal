@@ -523,7 +523,7 @@ void UMACommSubsystem::OnHttpRequestComplete(FHttpRequestPtr Request, FHttpRespo
         {
             FMAPlannerResponse PlannerResponse;
             PlannerResponse.bSuccess = true;
-            PlannerResponse.Message = TEXT("请求已处理");
+            PlannerResponse.Message = TEXT("Request processed");
             if (!ResponseContent.IsEmpty())
             {
                 PlannerResponse.PlanText = ResponseContent;
