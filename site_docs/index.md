@@ -99,7 +99,7 @@ hide:
         </div>
 
         <div class="home-featured-media">
-          <video controls preload="metadata" playsinline poster="assets/images/home/fig2_method.png">
+          <video autoplay muted loop controls preload="auto" playsinline>
             <source src="assets/videos/home/human_robot_scheduling_demo.mp4" type="video/mp4">
           </video>
           <div class="home-featured-overlay"></div>
