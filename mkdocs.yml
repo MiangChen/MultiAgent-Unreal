@@ -49,3 +49,7 @@ markdown_extensions:
 extra_javascript:
   - https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js
   - javascripts/mermaid-init.js
+  - javascripts/home.js
+
+extra_css:
+  - stylesheets/home.css
