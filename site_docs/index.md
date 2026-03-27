@@ -102,14 +102,6 @@ hide:
           <video autoplay muted loop controls preload="auto" playsinline>
             <source src="assets/videos/home/human_robot_scheduling_demo.mp4" type="video/mp4">
           </video>
-          <div class="home-featured-overlay"></div>
-          <div class="home-featured-copy">
-            <h3>Web control, review, allocation, and execution in one loop</h3>
-            <p>
-              The homepage uses the same project-page rhythm as the reference site, but the content is grounded in
-              MultiAgent-Unreal’s current task graph and skill allocation workflow.
-            </p>
-          </div>
         </div>
       </div>
     </section>
