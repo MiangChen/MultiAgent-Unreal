@@ -523,16 +523,18 @@ body.home-page .md-content__inner::after {
   inset: 0;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0) 42%, rgba(7, 12, 25, 0.78) 100%);
+  pointer-events: none;
 }
 
 .md-typeset .home-landing .home-featured-copy {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: 4.75rem;
   z-index: 1;
   padding: 1.4rem 1.5rem 1.5rem;
   color: #ffffff;
+  pointer-events: none;
 }
 
 .md-typeset .home-landing .home-featured-copy h3 {
