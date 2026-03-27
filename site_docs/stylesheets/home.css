@@ -501,6 +501,8 @@ body.home-page .md-content__inner::after {
 .md-typeset .home-landing .home-featured-media {
   position: relative;
   overflow: hidden;
+  width: min(52%, 720px);
+  margin: 0 auto;
   border-radius: 26px;
   border: 1px solid rgba(16, 24, 40, 0.1);
   box-shadow: var(--home-shadow);
@@ -528,6 +530,10 @@ body.home-page .md-content__inner::after {
   .md-typeset .home-landing .home-hero {
     min-height: auto;
     padding-bottom: 3rem;
+  }
+
+  .md-typeset .home-landing .home-featured-media {
+    width: min(100%, 760px);
   }
 }
 
