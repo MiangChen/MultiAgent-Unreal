@@ -504,15 +504,15 @@ body.home-page .md-content__inner::after {
   border-radius: 26px;
   border: 1px solid rgba(16, 24, 40, 0.1);
   box-shadow: var(--home-shadow);
-  min-height: 360px;
+  aspect-ratio: 16 / 9;
+  min-height: 0;
   background: #09101f;
 }
 
 .md-typeset .home-landing .home-featured-media video {
   display: block;
   width: 100%;
-  min-height: 360px;
-  max-height: 72vh;
+  height: 100%;
   object-fit: cover;
   background: #09101f;
 }
