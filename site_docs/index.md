@@ -283,5 +283,29 @@ hide:
         </div>
       </div>
     </section>
+
+    <section class="home-section home-surface" id="citation">
+      <div class="home-container">
+        <div class="home-section-heading">
+          <span class="home-section-kicker">Citation</span>
+          <h2>Cite This Project</h2>
+          <p>
+            If you use MultiAgent-Unreal in research, demos, or internal evaluation, cite the project entry below.
+            If a formal paper version is released later, this block can be replaced with the paper BibTeX.
+          </p>
+        </div>
+
+        <div class="home-citation-card">
+          <pre class="home-citation-block"><code>@misc{multiagentunreal2026,
+  title={MultiAgent-Unreal: A Web-Controlled Multi-Robot Simulation Platform for Heterogeneous Teams in Unreal Engine},
+  author={Chen, Miang and contributors},
+  year={2026},
+  howpublished={GitHub repository},
+  url={https://github.com/MiangChen/MultiAgent-Unreal},
+  note={Project page: https://miangchen.github.io/MultiAgent-Unreal/}
+}</code></pre>
+        </div>
+      </div>
+    </section>
   </div>
 </div>

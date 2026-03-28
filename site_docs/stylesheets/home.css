@@ -623,6 +623,32 @@ body.home-page .md-content__inner::after {
   background: #09101f;
 }
 
+.md-typeset .home-landing .home-citation-card {
+  padding: 1.5rem 1.65rem;
+  border: 1px solid var(--home-line);
+  border-radius: var(--home-radius);
+  background: var(--home-card);
+  box-shadow: var(--home-shadow);
+}
+
+.md-typeset .home-landing .home-citation-block {
+  margin: 0;
+  padding: 1.25rem 1.35rem;
+  overflow-x: auto;
+  border-radius: 22px;
+  background: #f7f9fc;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.md-typeset .home-landing .home-citation-block code {
+  display: block;
+  color: #0f172a;
+  font-size: 0.95rem;
+  line-height: 1.75;
+  white-space: pre;
+  font-family: ui-monospace, SFMono-Regular, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
 @media (max-width: 980px) {
   .md-typeset .home-landing .home-hero-inner,
   .md-typeset .home-landing .home-callout,
