@@ -142,28 +142,76 @@ hide:
           </p>
         </div>
 
-        <div class="home-grid home-grid-3">
-          <article class="home-media-card">
-            <img src="assets/images/home/fig6_transport_snapshots.png" alt="Transport snapshots" loading="lazy">
-            <div class="home-card-copy">
-              <h3>Transport Workflow</h3>
-              <p>Humanoid and UGV coordination for object movement and placement inside the simulated environment.</p>
+        <div class="home-snapshot-viewer" data-snapshot-viewer>
+          <article class="home-snapshot-stage">
+            <figure class="home-snapshot-stage-media">
+              <img
+                src="assets/images/home/fig6_transport_snapshots.png"
+                alt="Transport snapshots"
+                loading="lazy"
+                data-snapshot-image
+              >
+            </figure>
+            <div class="home-card-copy home-snapshot-stage-copy">
+              <h3 data-snapshot-title>Transport Workflow</h3>
+              <p data-snapshot-description>
+                Humanoid and UGV coordination for object movement and placement inside the simulated environment.
+              </p>
             </div>
           </article>
-          <article class="home-media-card">
-            <img src="assets/images/home/fig7_multi_task_snapshots.png" alt="Multi-task snapshots" loading="lazy">
-            <div class="home-card-copy">
-              <h3>Multi-task Snapshots</h3>
-              <p>Concurrent tasks across heterogeneous robots, with role-specific skills and runtime execution views.</p>
-            </div>
-          </article>
-          <article class="home-media-card">
-            <img src="assets/images/home/fig7_multi_task_snapshots_xu.png" alt="Additional multi-task snapshots" loading="lazy">
-            <div class="home-card-copy">
-              <h3>Cross-scene Execution</h3>
-              <p>Different tasks and map layouts can be driven by the same control and skill-allocation pipeline.</p>
-            </div>
-          </article>
+
+          <div class="home-snapshot-list" role="tablist" aria-label="Execution snapshot selection">
+            <button
+              class="home-snapshot-item is-active"
+              type="button"
+              role="tab"
+              aria-selected="true"
+              data-snapshot-src="assets/images/home/fig6_transport_snapshots.png"
+              data-snapshot-alt="Transport snapshots"
+              data-snapshot-title="Transport Workflow"
+              data-snapshot-description="Humanoid and UGV coordination for object movement and placement inside the simulated environment."
+            >
+              <span class="home-snapshot-item-index">01</span>
+              <span class="home-snapshot-item-copy">
+                <strong>Transport Workflow</strong>
+                <span>Humanoid and UGV coordination for object movement and placement.</span>
+              </span>
+            </button>
+
+            <button
+              class="home-snapshot-item"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              data-snapshot-src="assets/images/home/fig7_multi_task_snapshots.png"
+              data-snapshot-alt="Multi-task snapshots"
+              data-snapshot-title="Multi-task Snapshots"
+              data-snapshot-description="Concurrent tasks across heterogeneous robots, with role-specific skills and runtime execution views."
+            >
+              <span class="home-snapshot-item-index">02</span>
+              <span class="home-snapshot-item-copy">
+                <strong>Multi-task Snapshots</strong>
+                <span>Concurrent tasks across heterogeneous robots with role-specific skills.</span>
+              </span>
+            </button>
+
+            <button
+              class="home-snapshot-item"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              data-snapshot-src="assets/images/home/fig7_multi_task_snapshots_xu.png"
+              data-snapshot-alt="Additional multi-task snapshots"
+              data-snapshot-title="Cross-scene Execution"
+              data-snapshot-description="Different tasks and map layouts can be driven by the same control and skill-allocation pipeline."
+            >
+              <span class="home-snapshot-item-index">03</span>
+              <span class="home-snapshot-item-copy">
+                <strong>Cross-scene Execution</strong>
+                <span>Different tasks and map layouts driven by the same control pipeline.</span>
+              </span>
+            </button>
+          </div>
         </div>
       </div>
     </section>
