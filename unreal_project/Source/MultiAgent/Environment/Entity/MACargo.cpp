@@ -2,6 +2,7 @@
 // 货物类实现 - cargo 类型的可搬运物体
 
 #include "MACargo.h"
+#include "MAComponent.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -350,7 +351,7 @@ void AMACargo::PlaceOnObject(AActor* TargetObject, bool bUprightPlacement)
     FVector TargetStackOffset = FVector::ZeroVector;
     if (AMAComponent* TargetComp = Cast<AMAComponent>(TargetObject))
     {
-        FString TargetSubtype = TargetComp->Features.FindRef(TEXT("subtype"));
+        FString TargetSubtype = TargetComp->GetObjectFeatures().FindRef(TEXT("subtype"));
         TargetStackOffset = AMAComponent::GetComponentStackOffset(TargetSubtype);
         TargetStackOffset = TargetComp->GetActorRotation().RotateVector(TargetStackOffset);
     }
