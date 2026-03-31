@@ -70,6 +70,7 @@ body.home-page .md-content__inner::after {
   flex-wrap: wrap;
   gap: 0.7rem;
   margin-top: 1.2rem;
+  justify-content: center;
 }
 
 .md-typeset .home-landing .home-link-pill {
@@ -96,23 +97,51 @@ body.home-page .md-content__inner::after {
 
 .md-typeset .home-landing .home-hero {
   position: relative;
-  min-height: 100vh;
-  padding: 0 2rem 4rem;
+  min-height: 92vh;
+  padding: 0 2rem 3rem;
   display: flex;
   align-items: stretch;
+  background: #07101d;
+  overflow: hidden;
+}
+
+.md-typeset .home-landing .home-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
   background:
-    linear-gradient(180deg, rgba(10, 15, 28, 0.24) 0%, rgba(7, 12, 25, 0.68) 100%),
-    linear-gradient(120deg, rgba(25, 60, 135, 0.34) 0%, rgba(10, 15, 28, 0.1) 60%),
-    url("../assets/images/home/fig1_framework.png") center center / cover no-repeat;
+    linear-gradient(180deg, rgba(7, 12, 25, 0.34) 0%, rgba(7, 12, 25, 0.74) 100%),
+    linear-gradient(120deg, rgba(25, 60, 135, 0.28) 0%, rgba(10, 15, 28, 0.04) 60%);
+  z-index: 1;
+  pointer-events: none;
 }
 
 .md-typeset .home-landing .home-hero::after {
   content: "";
   position: absolute;
   inset: 0;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0) 72%, rgba(255, 255, 255, 1) 100%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0) 72%, rgba(255, 255, 255, 1) 100%);
+  z-index: 2;
   pointer-events: none;
+}
+
+.md-typeset .home-landing .home-hero-grid {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+  padding: 0.55rem;
+}
+
+.md-typeset .home-landing .home-hero-grid video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 18px;
+  background: #09101f;
+  opacity: 0.96;
 }
 
 .md-typeset .home-landing .home-topbar {
@@ -120,7 +149,7 @@ body.home-page .md-content__inner::after {
   top: 0;
   left: 0;
   right: 0;
-  z-index: 2;
+  z-index: 3;
 }
 
 .md-typeset .home-landing .home-nav {
@@ -164,20 +193,21 @@ body.home-page .md-content__inner::after {
 
 .md-typeset .home-landing .home-hero-inner {
   position: relative;
-  z-index: 1;
+  z-index: 3;
   width: 100%;
   max-width: 1240px;
   margin: 0 auto;
-  padding: 8rem 1.25rem 2rem;
-  display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
-  gap: 2rem;
-  align-items: end;
+  padding: 8.5rem 1.25rem 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 92vh;
 }
 
 .md-typeset .home-landing .home-copy {
   color: #ffffff;
-  max-width: 760px;
+  max-width: 900px;
+  text-align: center;
 }
 
 .md-typeset .home-landing .home-kicker {
@@ -433,8 +463,7 @@ body.home-page .md-content__inner::after {
 .md-typeset .home-landing .home-media-card img {
   display: block;
   width: 100%;
-  aspect-ratio: 16 / 10;
-  object-fit: cover;
+  height: auto;
   background: #f4f7fb;
 }
 
@@ -451,6 +480,11 @@ body.home-page .md-content__inner::after {
   margin: 0;
   color: var(--home-muted);
   line-height: 1.7;
+}
+
+.md-typeset .home-landing .home-media-stack {
+  display: grid;
+  gap: 1.6rem;
 }
 
 .md-typeset .home-landing .home-snapshot-viewer {
@@ -584,6 +618,25 @@ body.home-page .md-content__inner::after {
   line-height: 1.8;
 }
 
+.md-typeset .home-landing .home-video-panel {
+  width: min(100%, 920px);
+  margin: 0 auto;
+  overflow: hidden;
+  border-radius: 26px;
+  border: 1px solid rgba(16, 24, 40, 0.1);
+  box-shadow: var(--home-shadow);
+  aspect-ratio: 16 / 9;
+  background: #09101f;
+}
+
+.md-typeset .home-landing .home-video-panel video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #09101f;
+}
+
 .md-typeset .home-landing .home-chip-list {
   display: flex;
   flex-wrap: wrap;
@@ -663,12 +716,20 @@ body.home-page .md-content__inner::after {
     padding-bottom: 3rem;
   }
 
+  .md-typeset .home-landing .home-hero-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .md-typeset .home-landing .home-featured-media {
     width: min(100%, 760px);
   }
 
   .md-typeset .home-landing .home-snapshot-list {
     order: 2;
+  }
+
+  .md-typeset .home-landing .home-hero-inner {
+    min-height: auto;
   }
 }
 
@@ -686,6 +747,10 @@ body.home-page .md-content__inner::after {
   .md-typeset .home-landing .home-nav {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .md-typeset .home-landing .home-hero-grid {
+    grid-template-columns: 1fr;
   }
 
   .md-typeset .home-landing .home-title {
