@@ -331,11 +331,20 @@ void AMACargo::PlaceOnObject(AActor* TargetObject, bool bUprightPlacement)
     }
     
     DetachFromCarrier();
-    
-    // 获取目标物体的顶部位置
+
+    // 获取目标物体的几何中心（Bounds.Origin），而不是 Actor Origin (pivot)
     FVector TargetLocation = TargetObject->GetActorLocation();
+    float TargetCenterX = TargetLocation.X;
+    float TargetCenterY = TargetLocation.Y;
+
+    if (UPrimitiveComponent* TargetRoot = Cast<UPrimitiveComponent>(TargetObject->GetRootComponent()))
+    {
+        TargetCenterX = TargetRoot->Bounds.Origin.X;
+        TargetCenterY = TargetRoot->Bounds.Origin.Y;
+    }
+
     float TargetTopZ = TargetLocation.Z;
-    
+
     if (IMAPickupItem* TargetItem = Cast<IMAPickupItem>(TargetObject))
     {
         FVector TargetExtent = TargetItem->GetBoundsExtent();
@@ -346,10 +355,10 @@ void AMACargo::PlaceOnObject(AActor* TargetObject, bool bUprightPlacement)
     {
         TargetTopZ = TargetLocation.Z + TargetPrim->Bounds.BoxExtent.Z;
     }
-    
-    // 计算本物体的放置位置
+
+    // 计算本物体的放置位置：XY 对齐目标几何中心，Z 放在目标顶部
     float MyBottomOffset = GetBottomOffset();
-    FVector PlaceLocation = FVector(TargetLocation.X, TargetLocation.Y, TargetTopZ - MyBottomOffset);
+    FVector PlaceLocation = FVector(TargetCenterX, TargetCenterY, TargetTopZ - MyBottomOffset);
     
     SetActorLocation(PlaceLocation);
     
