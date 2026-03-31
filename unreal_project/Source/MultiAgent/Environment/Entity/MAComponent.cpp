@@ -499,7 +499,7 @@ FVector AMAComponent::GetComponentStackOffset(const FString& Subtype)
     // 例如 bar stool 的 pivot 在底部中心，但座面可能不在正上方
     // 值为本地空间偏移（未缩放），会在 PlaceOnObject 中根据目标旋转变换
     TMap<FString, FVector> StackOffsetMap = {
-        {TEXT("stand"), FVector(0.f, -50.f, 0.f)},
+        {TEXT("stand"), FVector(-50.f, -30.f, 0.f)},
     };
 
     FString SubtypeLower = Subtype.ToLower();
