@@ -229,6 +229,8 @@ body.home-page .md-content__inner::after {
   font-size: clamp(2.8rem, 6vw, 5.2rem);
   line-height: 0.96;
   font-weight: 700;
+  color: #ffffff;
+  text-shadow: 0 6px 28px rgba(7, 12, 25, 0.45);
 }
 
 .md-typeset .home-landing .home-subtitle {

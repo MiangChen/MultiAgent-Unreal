@@ -37,10 +37,6 @@ hide:
         <div class="home-copy">
           <span class="home-kicker">Anonymous Submission</span>
           <h1 class="home-title">General Task Planning for Multi-Robot Teams in Open-World Environments</h1>
-          <p class="home-subtitle">
-            A general multi-robot task planning framework with a task planning layer, a world model layer,
-            and an execution platform layer for heterogeneous robot teams in open-world environments.
-          </p>
           <p class="home-meta">
             GT-Planner · TANGO · CyberCity · CyberBench · Human-robot interaction
           </p>
