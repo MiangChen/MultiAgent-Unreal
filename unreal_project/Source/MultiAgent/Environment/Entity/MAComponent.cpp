@@ -134,7 +134,8 @@ void AMAComponent::AttachToHand(AMACharacter* Character)
         AttachOffset = Humanoid->HandAttachOffset;
     }
     SetActorRelativeLocation(AttachOffset);
-    
+    SetActorRelativeRotation(FRotator::ZeroRotator);
+
     // 记录承载者
     CurrentCarrier = Character;
     bCanBePickedUp = false;
@@ -242,7 +243,7 @@ void AMAComponent::PlaceOnObject(AActor* TargetObject, bool bUprightPlacement)
     {
         FVector TargetExtent = TargetItem->GetBoundsExtent();
         float TargetBottomOffset = TargetItem->GetBottomOffset();
-        TargetTopZ = TargetLocation.Z - TargetBottomOffset + TargetExtent.Z * 2.f;
+        TargetTopZ = TargetLocation.Z + TargetBottomOffset + TargetExtent.Z * 2.f;
     }
     else if (UPrimitiveComponent* TargetPrim = Cast<UPrimitiveComponent>(TargetObject->GetRootComponent()))
     {
@@ -329,7 +330,8 @@ bool AMAComponent::ShouldEnablePhysicsOnPlace() const
         TEXT("antenna_module"),
         TEXT("solar_panel_large"),
         TEXT("address_speaker"),
-        TEXT("solar_panel")
+        TEXT("solar_panel"),
+        TEXT("stand")
     };
     
     return !UnstableSubtypes.Contains(Subtype);

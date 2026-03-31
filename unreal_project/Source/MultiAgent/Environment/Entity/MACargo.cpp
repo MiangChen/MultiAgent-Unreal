@@ -340,7 +340,7 @@ void AMACargo::PlaceOnObject(AActor* TargetObject, bool bUprightPlacement)
     {
         FVector TargetExtent = TargetItem->GetBoundsExtent();
         float TargetBottomOffset = TargetItem->GetBottomOffset();
-        TargetTopZ = TargetLocation.Z - TargetBottomOffset + TargetExtent.Z * 2.f;
+        TargetTopZ = TargetLocation.Z + TargetBottomOffset + TargetExtent.Z * 2.f;
     }
     else if (UPrimitiveComponent* TargetPrim = Cast<UPrimitiveComponent>(TargetObject->GetRootComponent()))
     {
