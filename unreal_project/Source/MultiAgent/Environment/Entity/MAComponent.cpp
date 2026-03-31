@@ -231,36 +231,48 @@ void AMAComponent::PlaceOnObject(AActor* TargetObject, bool bUprightPlacement)
         UE_LOG(LogTemp, Warning, TEXT("[MAComponent] PlaceOnObject: TargetObject is null"));
         return;
     }
-    
+
     DetachFromCarrier();
-    
+
     // 获取目标物体的顶部位置
     FVector TargetLocation = TargetObject->GetActorLocation();
+    FRotator TargetRotation = TargetObject->GetActorRotation();
     float TargetTopZ = TargetLocation.Z;
-    
+
     // 尝试获取目标物体的精确顶部位置
     if (IMAPickupItem* TargetItem = Cast<IMAPickupItem>(TargetObject))
     {
         FVector TargetExtent = TargetItem->GetBoundsExtent();
         float TargetBottomOffset = TargetItem->GetBottomOffset();
         TargetTopZ = TargetLocation.Z + TargetBottomOffset + TargetExtent.Z * 2.f;
+
+        UE_LOG(LogTemp, Warning, TEXT("[MAComponent] PlaceOnObject DEBUG: Target=%s, TargetLoc=%s, TargetRot=%s, TargetBottomOffset=%.2f, TargetExtent=%s, TargetTopZ=%.2f"),
+            *TargetObject->GetName(), *TargetLocation.ToString(), *TargetRotation.ToString(),
+            TargetBottomOffset, *TargetExtent.ToString(), TargetTopZ);
     }
     else if (UPrimitiveComponent* TargetPrim = Cast<UPrimitiveComponent>(TargetObject->GetRootComponent()))
     {
         TargetTopZ = TargetLocation.Z + TargetPrim->Bounds.BoxExtent.Z;
     }
-    
+
     // 计算本物体的放置位置
     float MyBottomOffset = GetBottomOffset();
     FVector PlaceLocation = FVector(TargetLocation.X, TargetLocation.Y, TargetTopZ - MyBottomOffset);
-    
-    SetActorLocation(PlaceLocation);
-    
+
+    UE_LOG(LogTemp, Warning, TEXT("[MAComponent] PlaceOnObject DEBUG: Source=%s, MyBottomOffset=%.2f, PlaceLocation=%s, PreDetachRot=%s"),
+        *ObjectLabel, MyBottomOffset, *PlaceLocation.ToString(), *GetActorRotation().ToString());
+
+    // 先设置旋转再设置位置，确保 Bounds 在正确旋转下计算
     if (bUprightPlacement)
     {
         SetActorRotation(FRotator::ZeroRotator);
     }
-    
+    SetActorLocation(PlaceLocation);
+
+    UE_LOG(LogTemp, Warning, TEXT("[MAComponent] PlaceOnObject DEBUG: FinalLocation=%s, FinalRotation=%s, Scale=%s"),
+        *GetActorLocation().ToString(), *GetActorRotation().ToString(),
+        *GetActorScale3D().ToString());
+
     // 根据物体类型决定是否启用物理
     if (MeshComponent)
     {
@@ -270,12 +282,16 @@ void AMAComponent::PlaceOnObject(AActor* TargetObject, bool bUprightPlacement)
     {
         SetPhysicsEnabled(true);
     }
-    
+
+    // 最终确认旋转未被碰撞开启改变
+    UE_LOG(LogTemp, Warning, TEXT("[MAComponent] PlaceOnObject DEBUG: AfterCollision Rotation=%s, Physics=%d"),
+        *GetActorRotation().ToString(), ShouldEnablePhysicsOnPlace());
+
     bCanBePickedUp = true;
-    
-    UE_LOG(LogTemp, Log, TEXT("[MAComponent] %s placed on %s at %s"), 
+
+    UE_LOG(LogTemp, Log, TEXT("[MAComponent] %s placed on %s at %s"),
         *ObjectLabel, *TargetObject->GetName(), *PlaceLocation.ToString());
-    
+
     OnDropped(PlaceLocation);
 }
 
