@@ -49,6 +49,7 @@ AMAQuadrupedCharacter::AMAQuadrupedCharacter()
     }
     
     GetCharacterMovement()->MaxWalkSpeed = 500.f;
+    GetCharacterMovement()->AvoidanceWeight = 0.3f;
 }
 
 void AMAQuadrupedCharacter::BeginPlay()
@@ -98,7 +99,16 @@ void AMAQuadrupedCharacter::Tick(float DeltaTime)
     {
         PlayIdleAnimation();
     }
-    
+
+    // 动态调整 PlayRate，使腿部动画速度与实际位移同步
+    if (bIsPlayingWalk)
+    {
+        float MaxSpeed = GetCharacterMovement()->MaxWalkSpeed;
+        float SpeedRatio = (MaxSpeed > 0.f) ? (Speed / MaxSpeed) : 0.f;
+        float TargetPlayRate = FMath::Clamp(SpeedRatio * NormalWalkPlayRate, MinWalkPlayRate, MaxWalkPlayRate);
+        GetMesh()->SetPlayRate(TargetPlayRate);
+    }
+
     if (bIsMoving && ShouldDrainEnergy() && SkillComponent && SkillComponent->HasEnergy())
     {
         SkillComponent->DrainEnergy(DeltaTime);
@@ -110,7 +120,7 @@ void AMAQuadrupedCharacter::PlayWalkAnimation()
     if (WalkAnim)
     {
         GetMesh()->SetAnimation(WalkAnim);
-        GetMesh()->SetPlayRate(2.5f);
+        GetMesh()->SetPlayRate(NormalWalkPlayRate);
         GetMesh()->Play(true);
         bIsPlayingWalk = true;
     }
