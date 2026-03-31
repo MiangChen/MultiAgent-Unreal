@@ -60,15 +60,6 @@ hide:
 
     <section class="home-section home-surface" id="integration">
       <div class="home-container">
-        <div class="home-section-heading">
-          <span class="home-section-kicker">System Integration</span>
-          <h2>CyberCity-Unreal Runtime Demo</h2>
-          <p>
-            CyberCity-Unreal provides high-fidelity task simulation, integrating web-side review,
-            world-model updates, and runtime execution for heterogeneous robot teams.
-          </p>
-        </div>
-
         <div class="home-video-panel">
           <video autoplay muted loop controls preload="auto" playsinline>
             <source src="assets/videos/home/human_robot_scheduling_demo.mp4" type="video/mp4">
@@ -81,22 +72,24 @@ hide:
       <div class="home-container">
         <div class="home-section-heading">
           <span class="home-section-kicker">Abstract</span>
-          <h2>Task Planning as the Core of General Multi-Robot Systems</h2>
-          <p>
-            The paper frames multi-robot task planning as the key path toward general open-world deployment.
-          </p>
         </div>
-
         <div class="home-single-card home-abstract-card">
           <p>
-            Task planning is a key enabler for general multi-robot systems, yet existing approaches are often constrained
-            to specific tasks and exhibit limited reliability in open-world scenarios involving diverse tasks, contingencies,
-            and human-robot interaction. This work proposes a three-layer framework with a task planning layer,
-            a world model layer, and an execution platform layer. At the task planning layer, GT-Planner combines
-            the generalization capabilities of large language models with the reliability and optimality of optimization-based
-            methods, while TANGO handles allocation with broader temporal and coherence constraints. At the platform layer,
-            CyberCity-Unreal supports high-fidelity execution and CyberCity-Semantic supports large-scale evaluation and
-            fine-tuning. CyberBench provides the benchmark setting for open-world multi-robot task planning.
+            Task planning is a key enabler for general multi-robot systems. However, existing approaches are often constrained
+            to specific tasks and exhibit limited reliability, making them inadequate for open-world scenarios involving diverse
+            tasks, contingencies, and human-robot interaction. In this work, we propose a general multi-robot task planning
+            framework with three layers: a task planning layer, a world model layer, and an execution platform layer. At the task
+            planning layer, we introduce GT-Planner, a general planner that integrates the generalization capabilities of large
+            language models (LLMs) with the reliability and optimality of optimization-based methods. We design a generic
+            prompting scheme and fine-tune a small-parameter LLM to balance LLM generality with improved accuracy. We
+            further propose the TANGO algorithm for task allocation, which supports a broader class of constraints, including
+            pre-specified robot execution. At the world model layer, we maintain a dynamic world model that assesses task
+            progress and translates upper-layer plans for the lower layer. At the execution platform layer, we present the
+            CyberCity simulation platform: CyberCity-Unreal enables high-fidelity task simulation, while CyberCity-Semantic
+            supports large-scale evaluation and LLM fine-tuning. We also develop a human-robot interaction interface that
+            accommodates multiple interaction modalities. Finally, we release CyberBench, the first open-world multi-robot
+            task-planning benchmark, featuring five heterogeneous robot types, 29+ environmental element types, 10 core
+            goal tasks, 19 contingency templates, and 105 tasks.
           </p>
         </div>
       </div>
@@ -104,15 +97,6 @@ hide:
 
     <section class="home-section home-surface" id="method">
       <div class="home-container">
-        <div class="home-section-heading">
-          <span class="home-section-kicker">Method</span>
-          <h2>Method Framework</h2>
-          <p>
-            The paper organizes the system into a task planning layer, a world model layer,
-            and an execution platform layer.
-          </p>
-        </div>
-
         <div class="home-single-card">
           <figure class="home-figure">
             <img src="assets/images/home/fig2_method.png" alt="Method overview" loading="lazy">
@@ -190,14 +174,6 @@ hide:
 
     <section class="home-section" id="citation">
       <div class="home-container">
-        <div class="home-section-heading">
-          <span class="home-section-kicker">Citation</span>
-          <h2>Cite This Project</h2>
-          <p>
-            The homepage is now aligned with the current anonymous paper draft. This citation block uses the paper title and can be updated with the final publication metadata later.
-          </p>
-        </div>
-
         <div class="home-citation-card">
           <pre class="home-citation-block"><code>@misc{general_task_planning_multi_robot_2026,
   title={General Task Planning for Multi-Robot Teams in Open-World Environments},
