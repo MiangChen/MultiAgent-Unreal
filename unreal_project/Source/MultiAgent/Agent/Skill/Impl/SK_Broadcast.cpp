@@ -135,7 +135,7 @@ void USK_Broadcast::ActivateAbility(
         *Character->AgentLabel, HorizontalDistance, BroadcastDistance);
     
     // 如果已经在合适距离内，直接转向
-    if (HorizontalDistance <= BroadcastDistance * 1.2f && HorizontalDistance >= BroadcastDistance * 0.5f)
+    if (HorizontalDistance <= BroadcastDistance * 1.5f && HorizontalDistance >= BroadcastDistance * 0.3f)
     {
         CurrentPhase = EBroadcastPhase::TurnToTarget;
     }
@@ -188,7 +188,7 @@ void USK_Broadcast::HandleMoveToDistance()
     
     NavigationService->OnNavigationCompleted.AddDynamic(this, &USK_Broadcast::OnNavigationCompleted);
 
-    if (!NavigationService->NavigateTo(BroadcastPosition, 200.f))
+    if (!NavigationService->NavigateTo(BroadcastPosition, 400.f))
     {
         NavigationService->OnNavigationCompleted.RemoveDynamic(this, &USK_Broadcast::OnNavigationCompleted);
         bBroadcastSucceeded = false;
