@@ -676,8 +676,8 @@ bool FMAMultiLayerRaycast::IsOscillating() const
         // 计算方向变化的角度
         float DotProduct = FVector::DotProduct(PrevDir, CurrDir);
         
-        // 如果方向变化超过 60 度，认为是一次显著变化
-        if (DotProduct < 0.5f)  // cos(60°) ≈ 0.5
+        // 如果方向变化超过 30 度，认为是一次显著变化
+        if (DotProduct < 0.866f)  // cos(30°) ≈ 0.866
         {
             DirectionChanges++;
         }

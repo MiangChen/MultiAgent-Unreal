@@ -453,17 +453,17 @@ private:
     /** 平滑后的方向 */
     FVector SmoothedDirection = FVector::ZeroVector;
     
-    /** 方向平滑因子 */
-    static constexpr float DirectionSmoothingFactor = 0.15f;
-    
+    /** 方向平滑因子（越大越快跟随新方向，越小越稳定） */
+    static constexpr float DirectionSmoothingFactor = 0.08f;
+
     /** 最大历史方向数量 */
     static constexpr int32 MaxRecentDirections = 6;
-    
-    /** 振荡检测阈值（方向变化次数） */
-    static constexpr int32 OscillationThreshold = 3;
-    
+
+    /** 振荡检测阈值（方向变化次数，越小越敏感） */
+    static constexpr int32 OscillationThreshold = 2;
+
     /** 振荡锁定持续帧数 */
-    static constexpr int32 OscillationLockDuration = 30;
+    static constexpr int32 OscillationLockDuration = 60;
 };
 
 
