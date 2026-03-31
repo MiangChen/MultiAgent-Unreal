@@ -360,9 +360,8 @@ AMAComponent* UMAEnvironmentManager::SpawnComponent(const FMAEnvironmentObjectCo
     FActorSpawnParameters SpawnParams;
     SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 
-    // 默认启用物理掉落，从地面上方 100cm 掉落
+    // 先在临时位置生成，Configure 加载 Mesh 后再精确放置
     FVector SpawnLocation = AdjustGroundSpawnHeight(Config.Position);
-    SpawnLocation.Z += 100.f;
 
     AMAComponent* Component = GetWorld()->SpawnActor<AMAComponent>(
         AMAComponent::StaticClass(),
@@ -374,7 +373,13 @@ AMAComponent* UMAEnvironmentManager::SpawnComponent(const FMAEnvironmentObjectCo
     if (Component)
     {
         Component->Configure(Config);
-        Component->EnablePhysics();
+
+        // Mesh 加载后，利用 BottomOffset 精确贴地放置（与 PlaceOnGround 同逻辑）
+        float GroundZ = SpawnLocation.Z - 5.f; // AdjustGroundSpawnHeight 加了 5cm 偏移
+        float BottomOffset = Component->GetBottomOffset();
+        FVector FinalLocation = FVector(SpawnLocation.X, SpawnLocation.Y, GroundZ - BottomOffset);
+        Component->SetActorLocation(FinalLocation);
+
         SpawnedComponents.Add(Component);
     }
 
