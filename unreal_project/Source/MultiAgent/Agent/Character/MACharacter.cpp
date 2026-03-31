@@ -41,8 +41,6 @@ AMACharacter::AMACharacter()
 
     GetCharacterMovement()->bOrientRotationToMovement = true;
     GetCharacterMovement()->RotationRate = FRotator(0.0f, 360.0f, 0.0f);  // 更快的转向速度
-    GetCharacterMovement()->bConstrainToPlane = true;
-    GetCharacterMovement()->bSnapToPlaneAtStart = true;
     GetCharacterMovement()->bUseRVOAvoidance = true;
     GetCharacterMovement()->MaxStepHeight = 100.f;
 
