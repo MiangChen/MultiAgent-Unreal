@@ -188,7 +188,7 @@ void USK_Broadcast::HandleMoveToDistance()
     
     NavigationService->OnNavigationCompleted.AddDynamic(this, &USK_Broadcast::OnNavigationCompleted);
 
-    if (!NavigationService->NavigateTo(BroadcastPosition, 100.f))
+    if (!NavigationService->NavigateTo(BroadcastPosition, 200.f))
     {
         NavigationService->OnNavigationCompleted.RemoveDynamic(this, &USK_Broadcast::OnNavigationCompleted);
         bBroadcastSucceeded = false;
