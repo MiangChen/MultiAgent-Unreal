@@ -35,17 +35,17 @@ hide:
 
       <div class="home-hero-inner">
         <div class="home-copy">
-          <span class="home-kicker">UE5 Multi-Agent Simulation</span>
-          <h1 class="home-title">MultiAgent-Unreal</h1>
+          <span class="home-kicker">Anonymous Submission</span>
+          <h1 class="home-title">General Task Planning for Multi-Robot Teams in Open-World Environments</h1>
           <p class="home-subtitle">
-            A web-controlled multi-robot simulation platform for heterogeneous teams, task-graph review,
-            skill allocation, and coordinated execution inside large Unreal Engine environments.
+            A general multi-robot task planning framework with a task planning layer, a world model layer,
+            and an execution platform layer for heterogeneous robot teams in open-world environments.
           </p>
           <p class="home-meta">
-            Heterogeneous robots · Task graph review · Skill allocation · HITL execution · Scene-graph aware simulation
+            GT-Planner · TANGO · CyberCity · CyberBench · Human-robot interaction
           </p>
           <div class="home-authors">
-            <strong>Author information:</strong> temporarily anonymized in the current draft.
+            <strong>Submission status:</strong> anonymous draft aligned with the current paper version.
           </div>
           <div class="home-link-row">
             <a class="home-link-pill" href="https://github.com/MiangChen/MultiAgent-Unreal" target="_blank">Code</a>
@@ -62,10 +62,10 @@ hide:
       <div class="home-container">
         <div class="home-section-heading">
           <span class="home-section-kicker">System Integration</span>
-          <h2>Transport Demo in the Runtime Loop</h2>
+          <h2>CyberCity-Unreal Runtime Demo</h2>
           <p>
-            The current stack already supports web-side submission, Unreal-side review, skill allocation visualization,
-            and coordinated execution for heterogeneous robot teams.
+            CyberCity-Unreal provides high-fidelity task simulation, integrating web-side review,
+            world-model updates, and runtime execution for heterogeneous robot teams.
           </p>
         </div>
 
@@ -81,20 +81,22 @@ hide:
       <div class="home-container">
         <div class="home-section-heading">
           <span class="home-section-kicker">Abstract</span>
-          <h2>A Practical Loop from External Planning to Robot Execution</h2>
+          <h2>Task Planning as the Core of General Multi-Robot Systems</h2>
           <p>
-            MultiAgent-Unreal connects external planning outputs, web-side review, and Unreal runtime execution
-            into one operational project page.
+            The paper frames multi-robot task planning as the key path toward general open-world deployment.
           </p>
         </div>
 
         <div class="home-single-card home-abstract-card">
           <p>
-            MultiAgent-Unreal is built around a practical loop: external planners emit task structures,
-            the web console presents them for review, Unreal receives and visualizes the task graph and skill allocation,
-            and heterogeneous robots execute the resulting skills in a shared 3D environment. The platform is designed
-            to support extendable robot types, object semantics, and task workflows while preserving a coherent visual
-            story for demos, papers, and external communication.
+            Task planning is a key enabler for general multi-robot systems, yet existing approaches are often constrained
+            to specific tasks and exhibit limited reliability in open-world scenarios involving diverse tasks, contingencies,
+            and human-robot interaction. This work proposes a three-layer framework with a task planning layer,
+            a world model layer, and an execution platform layer. At the task planning layer, GT-Planner combines
+            the generalization capabilities of large language models with the reliability and optimality of optimization-based
+            methods, while TANGO handles allocation with broader temporal and coherence constraints. At the platform layer,
+            CyberCity-Unreal supports high-fidelity execution and CyberCity-Semantic supports large-scale evaluation and
+            fine-tuning. CyberBench provides the benchmark setting for open-world multi-robot task planning.
           </p>
         </div>
       </div>
@@ -106,8 +108,8 @@ hide:
           <span class="home-section-kicker">Method</span>
           <h2>Method Framework</h2>
           <p>
-            The platform centers on a UE runtime, a local web console, and a structured task pipeline:
-            task graph review, skill allocation review, and final executable skill lists.
+            The paper organizes the system into a task planning layer, a world model layer,
+            and an execution platform layer.
           </p>
         </div>
 
@@ -116,10 +118,11 @@ hide:
             <img src="assets/images/home/fig2_method.png" alt="Method overview" loading="lazy">
           </figure>
           <div class="home-card-copy">
-            <h3 class="home-card-title">From task intent to robot execution</h3>
+            <h3 class="home-card-title">GT-Planner, TANGO, and the three-layer architecture</h3>
             <p>
-              The external planner, task graph representation, web review flow, and UE execution runtime form a
-              single closed loop. The project is designed to support multiple robot categories and extendable object semantics.
+              As presented in the paper, GT-Planner interprets natural-language instructions and constructs a task
+              dependency graph, TANGO performs task allocation under richer constraints, the world model tracks task
+              progress and feedback, and CyberCity executes the resulting atomic skills in simulation.
             </p>
           </div>
         </div>
@@ -130,10 +133,9 @@ hide:
       <div class="home-container">
         <div class="home-section-heading">
           <span class="home-section-kicker">Benchmark</span>
-          <h2>Structured Benchmark Setting</h2>
+          <h2>CyberBench Benchmark Setting</h2>
           <p>
-            The benchmark setup captures evaluation scenarios for multi-robot collaboration, web control,
-            and simulation-driven task workflows.
+            CyberBench is the benchmark section of the paper for general open-world multi-robot task planning.
           </p>
         </div>
 
@@ -141,7 +143,7 @@ hide:
           <img src="assets/images/home/fig5_cyberbench.png" alt="CyberBench figure" loading="lazy">
           <div class="home-card-copy">
             <h3>Benchmark Setting</h3>
-            <p>Structured evaluation scenarios for multi-robot collaboration, web control, and simulation task flow.</p>
+            <p>CyberBench covers four heterogeneous robot types, more than 50 environment element types, 10 core goal tasks, 19 contingency-event templates, and on the order of 105 evaluation tasks.</p>
           </div>
         </article>
       </div>
@@ -151,10 +153,10 @@ hide:
       <div class="home-container">
         <div class="home-section-heading">
           <span class="home-section-kicker">Quantitative Comparison</span>
-          <h2>Planning, Replanning, and Fine-Tuning</h2>
+          <h2>General Planning, Dynamic Replanning, and Fine-Tuning</h2>
           <p>
-            The quantitative section is arranged as a sequence of figures, covering general planning,
-            dynamic replanning, and a temporary fine-tuning placeholder.
+            The quantitative section follows the paper structure: general task planning, dynamic replanning,
+            and a temporary fine-tuning placeholder.
           </p>
         </div>
 
@@ -163,7 +165,7 @@ hide:
             <img src="assets/images/home/fig8_statistic_general_task_planning.png" alt="General task planning statistics" loading="lazy">
             <div class="home-card-copy">
               <h3>General Planning</h3>
-              <p>Aggregate planning outcomes can be presented directly on the site as paper-ready static figures.</p>
+              <p>These results compare overall success rate, efficiency, planning quality, and energy consumption across methods. The paper reports GT-Planner as the strongest overall method for general task planning.</p>
             </div>
           </article>
 
@@ -171,7 +173,7 @@ hide:
             <img src="assets/images/home/fig9_statistic_dynamic_replanning.png" alt="Dynamic replanning statistics" loading="lazy">
             <div class="home-card-copy">
               <h3>Dynamic Replanning</h3>
-              <p>Runtime replanning behavior and replanning statistics fit naturally into the same project-page layout.</p>
+              <p>These results evaluate replanning across difficulty levels and show that GT-Planner maintains stronger robustness and lower performance degradation as contingencies increase.</p>
             </div>
           </article>
 
@@ -179,7 +181,7 @@ hide:
             <img src="assets/images/home/fig1_framework.png" alt="Fine-tuning placeholder figure" loading="lazy">
             <div class="home-card-copy">
               <h3>Fine-Tuning Placeholder</h3>
-              <p>This slot currently reuses the framework figure and can be replaced with a dedicated fine-tuning result later.</p>
+              <p>The current paper text describes a two-stage fine-tuning strategy: supervised fine-tuning for initialization, followed by RL-based fine-tuning for generalization. This slot currently reuses the framework figure and can be replaced with a dedicated fine-tuning result later.</p>
             </div>
           </article>
         </div>
@@ -192,19 +194,17 @@ hide:
           <span class="home-section-kicker">Citation</span>
           <h2>Cite This Project</h2>
           <p>
-            If you use MultiAgent-Unreal in research, demos, or internal evaluation, cite the project entry below.
-            If a formal paper version is released later, this block can be replaced with the paper BibTeX.
+            The homepage is now aligned with the current anonymous paper draft. This citation block uses the paper title and can be updated with the final publication metadata later.
           </p>
         </div>
 
         <div class="home-citation-card">
-          <pre class="home-citation-block"><code>@misc{multiagentunreal2026,
-  title={MultiAgent-Unreal: A Web-Controlled Multi-Robot Simulation Platform for Heterogeneous Teams in Unreal Engine},
-  author={Chen, Miang and contributors},
+          <pre class="home-citation-block"><code>@misc{general_task_planning_multi_robot_2026,
+  title={General Task Planning for Multi-Robot Teams in Open-World Environments},
+  author={Anonymous submission},
   year={2026},
-  howpublished={GitHub repository},
-  url={https://github.com/MiangChen/MultiAgent-Unreal},
-  note={Project page: https://miangchen.github.io/MultiAgent-Unreal/}
+  note={Project page and code release aligned with the current anonymous draft},
+  url={https://miangchen.github.io/MultiAgent-Unreal/}
 }</code></pre>
         </div>
       </div>
