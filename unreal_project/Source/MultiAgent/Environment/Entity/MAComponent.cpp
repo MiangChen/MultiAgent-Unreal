@@ -255,8 +255,15 @@ void AMAComponent::PlaceOnObject(AActor* TargetObject, bool bUprightPlacement)
     {
         FString TargetSubtype = TargetComp->Features.FindRef(TEXT("subtype"));
         TargetStackOffset = GetComponentStackOffset(TargetSubtype);
-        // 堆叠偏移需要根据目标的旋转进行变换
         TargetStackOffset = TargetComp->GetActorRotation().RotateVector(TargetStackOffset);
+
+        UE_LOG(LogTemp, Warning, TEXT("[MAComponent] PlaceOnObject: TargetSubtype='%s', StackOffset=%s"),
+            *TargetSubtype, *TargetStackOffset.ToString());
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[MAComponent] PlaceOnObject: Cast<AMAComponent> FAILED for %s (Class=%s)"),
+            *TargetObject->GetName(), *TargetObject->GetClass()->GetName());
     }
 
     float MyBottomOffset = GetBottomOffset();
@@ -264,6 +271,9 @@ void AMAComponent::PlaceOnObject(AActor* TargetObject, bool bUprightPlacement)
         TargetLocation.X + TargetStackOffset.X,
         TargetLocation.Y + TargetStackOffset.Y,
         TargetTopZ - MyBottomOffset);
+
+    UE_LOG(LogTemp, Warning, TEXT("[MAComponent] PlaceOnObject: TargetLoc=%s, PlaceLoc=%s"),
+        *TargetLocation.ToString(), *PlaceLocation.ToString());
 
     if (bUprightPlacement)
     {
@@ -488,8 +498,8 @@ FVector AMAComponent::GetComponentStackOffset(const FString& Subtype)
     // 堆叠偏移：补偿 mesh 不对称导致的视觉中心与 pivot 的偏差
     // 例如 bar stool 的 pivot 在底部中心，但座面可能不在正上方
     // 值为本地空间偏移（未缩放），会在 PlaceOnObject 中根据目标旋转变换
-    static TMap<FString, FVector> StackOffsetMap = {
-        {TEXT("stand"), FVector(0.f, -8.f, 0.f)},
+    TMap<FString, FVector> StackOffsetMap = {
+        {TEXT("stand"), FVector(0.f, -50.f, 0.f)},
     };
 
     FString SubtypeLower = Subtype.ToLower();
