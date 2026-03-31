@@ -234,21 +234,10 @@ void AMAComponent::PlaceOnObject(AActor* TargetObject, bool bUprightPlacement)
 
     DetachFromCarrier();
 
-    // 获取目标物体的几何中心（Bounds.Origin），而不是 Actor Origin (pivot)
-    // Mesh 的 pivot 可能不在视觉中心，直接用 ActorLocation 会导致放置偏移
     FVector TargetLocation = TargetObject->GetActorLocation();
-    float TargetCenterX = TargetLocation.X;
-    float TargetCenterY = TargetLocation.Y;
-
-    if (UPrimitiveComponent* TargetRoot = Cast<UPrimitiveComponent>(TargetObject->GetRootComponent()))
-    {
-        TargetCenterX = TargetRoot->Bounds.Origin.X;
-        TargetCenterY = TargetRoot->Bounds.Origin.Y;
-    }
-
     float TargetTopZ = TargetLocation.Z;
 
-    // 尝试获取目标物体的精确顶部位置
+    // 获取目标物体的精确顶部位置
     if (IMAPickupItem* TargetItem = Cast<IMAPickupItem>(TargetObject))
     {
         FVector TargetExtent = TargetItem->GetBoundsExtent();
@@ -260,9 +249,21 @@ void AMAComponent::PlaceOnObject(AActor* TargetObject, bool bUprightPlacement)
         TargetTopZ = TargetLocation.Z + TargetPrim->Bounds.BoxExtent.Z;
     }
 
-    // 计算本物体的放置位置：XY 对齐目标几何中心，Z 放在目标顶部
+    // 获取目标物体的堆叠偏移（补偿 mesh 不对称造成的视觉偏移）
+    FVector TargetStackOffset = FVector::ZeroVector;
+    if (AMAComponent* TargetComp = Cast<AMAComponent>(TargetObject))
+    {
+        FString TargetSubtype = TargetComp->Features.FindRef(TEXT("subtype"));
+        TargetStackOffset = GetComponentStackOffset(TargetSubtype);
+        // 堆叠偏移需要根据目标的旋转进行变换
+        TargetStackOffset = TargetComp->GetActorRotation().RotateVector(TargetStackOffset);
+    }
+
     float MyBottomOffset = GetBottomOffset();
-    FVector PlaceLocation = FVector(TargetCenterX, TargetCenterY, TargetTopZ - MyBottomOffset);
+    FVector PlaceLocation = FVector(
+        TargetLocation.X + TargetStackOffset.X,
+        TargetLocation.Y + TargetStackOffset.Y,
+        TargetTopZ - MyBottomOffset);
 
     if (bUprightPlacement)
     {
@@ -476,6 +477,23 @@ FVector AMAComponent::GetComponentDefaultOffset(const FString& Subtype)
 
     FString SubtypeLower = Subtype.ToLower();
     if (const FVector* Offset = OffsetMap.Find(SubtypeLower))
+    {
+        return *Offset;
+    }
+    return FVector::ZeroVector;
+}
+
+FVector AMAComponent::GetComponentStackOffset(const FString& Subtype)
+{
+    // 堆叠偏移：补偿 mesh 不对称导致的视觉中心与 pivot 的偏差
+    // 例如 bar stool 的 pivot 在底部中心，但座面可能不在正上方
+    // 值为本地空间偏移（未缩放），会在 PlaceOnObject 中根据目标旋转变换
+    static TMap<FString, FVector> StackOffsetMap = {
+        {TEXT("stand"), FVector(0.f, -8.f, 0.f)},
+    };
+
+    FString SubtypeLower = Subtype.ToLower();
+    if (const FVector* Offset = StackOffsetMap.Find(SubtypeLower))
     {
         return *Offset;
     }

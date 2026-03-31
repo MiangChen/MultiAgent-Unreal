@@ -161,4 +161,7 @@ private:
 
     /** 获取组件默认偏移 */
     static FVector GetComponentDefaultOffset(const FString& Subtype);
+
+    /** 获取组件堆叠偏移（补偿 mesh 不对称，确保堆叠物品视觉居中） */
+    static FVector GetComponentStackOffset(const FString& Subtype);
 };
