@@ -137,11 +137,6 @@ hide:
       <div class="home-container">
         <div class="home-section-heading">
           <span class="home-section-kicker">Quantitative Comparison</span>
-          <h2>General Planning, Dynamic Replanning, and Fine-Tuning</h2>
-          <p>
-            The quantitative section follows the paper structure: general task planning, dynamic replanning,
-            and a temporary fine-tuning placeholder.
-          </p>
         </div>
 
         <div class="home-media-stack">
