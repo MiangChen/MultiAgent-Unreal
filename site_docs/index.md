@@ -14,6 +14,7 @@ hide:
       <a href="#results">Results</a>
       <a href="#citation">Citation</a>
     </nav>
+    <div class="home-main">
     <section class="home-hero home-hero-mosaic">
       <div class="home-hero-grid" aria-hidden="true">
         <video autoplay muted loop playsinline preload="auto"><source src="assets/videos/home/human_robot_scheduling_demo.mp4" type="video/mp4"></video>
@@ -29,7 +30,6 @@ hide:
 
       <div class="home-hero-inner">
         <div class="home-copy">
-          <span class="home-kicker">Anonymous Submission</span>
           <h1 class="home-title">General Task Planning for Multi-Robot Teams in Open-World Environments</h1>
           <p class="home-meta">
             GT-Planner · TANGO · CyberCity · CyberBench · Human-robot interaction
@@ -165,5 +165,6 @@ hide:
         </div>
       </div>
     </section>
+    </div>
   </div>
 </div>
