@@ -108,6 +108,10 @@ body.home-page .md-content__inner::after {
   justify-content: center;
 }
 
+.md-typeset .home-landing .home-link-row-footer {
+  margin-top: 1.5rem;
+}
+
 .md-typeset .home-landing .home-link-pill {
   display: inline-flex;
   align-items: center;

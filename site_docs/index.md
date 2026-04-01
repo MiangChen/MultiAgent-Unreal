@@ -34,16 +34,6 @@ hide:
           <p class="home-meta">
             GT-Planner · TANGO · CyberCity · CyberBench · Human-robot interaction
           </p>
-          <div class="home-authors">
-            <strong>Submission status:</strong> anonymous draft aligned with the current paper version.
-          </div>
-          <div class="home-link-row">
-            <a class="home-link-pill" href="https://github.com/MiangChen/MultiAgent-Unreal" target="_blank">Code</a>
-            <a class="home-link-pill" href="startup-and-examples/">Run Example</a>
-            <a class="home-link-pill home-link-pill-light" href="api-reference/">API</a>
-            <a class="home-link-pill home-link-pill-light" href="architecture/">Architecture</a>
-            <a class="home-link-pill home-link-pill-light" href="keybindings/">Keybindings</a>
-          </div>
         </div>
       </div>
     </section>
@@ -164,6 +154,14 @@ hide:
   note={Project page and code release aligned with the current anonymous draft},
   url={https://miangchen.github.io/MultiAgent-Unreal/}
 }</code></pre>
+        </div>
+
+        <div class="home-link-row home-link-row-footer">
+          <a class="home-link-pill" href="https://github.com/MiangChen/MultiAgent-Unreal" target="_blank">Code</a>
+          <a class="home-link-pill" href="startup-and-examples/">Run Example</a>
+          <a class="home-link-pill home-link-pill-light" href="api-reference/">API</a>
+          <a class="home-link-pill home-link-pill-light" href="architecture/">Architecture</a>
+          <a class="home-link-pill home-link-pill-light" href="keybindings/">Keybindings</a>
         </div>
       </div>
     </section>
