@@ -6,6 +6,14 @@ hide:
 
 <div class="home-landing">
   <div class="home-shell">
+    <nav class="home-side-nav" aria-label="Section navigation">
+      <a href="#integration">Demo</a>
+      <a href="#abstract">Abstract</a>
+      <a href="#method">Method</a>
+      <a href="#benchmark">Benchmark</a>
+      <a href="#results">Results</a>
+      <a href="#citation">Citation</a>
+    </nav>
     <section class="home-hero home-hero-mosaic">
       <div class="home-hero-grid" aria-hidden="true">
         <video autoplay muted loop playsinline preload="auto"><source src="assets/videos/home/human_robot_scheduling_demo.mp4" type="video/mp4"></video>
@@ -17,20 +25,6 @@ hide:
         <video autoplay muted loop playsinline preload="auto"><source src="assets/videos/home/human_robot_scheduling_demo.mp4" type="video/mp4"></video>
         <video autoplay muted loop playsinline preload="auto"><source src="assets/videos/home/human_robot_scheduling_demo.mp4" type="video/mp4"></video>
         <video autoplay muted loop playsinline preload="auto"><source src="assets/videos/home/human_robot_scheduling_demo.mp4" type="video/mp4"></video>
-      </div>
-
-      <div class="home-topbar">
-        <div class="home-nav">
-          <a class="home-brand" href=".">MultiAgent-Unreal</a>
-          <div class="home-nav-links">
-            <a href="#integration">Demo</a>
-            <a href="#method">Method</a>
-            <a href="#benchmark">Benchmark</a>
-            <a href="#results">Results</a>
-            <a href="architecture/">Architecture</a>
-            <a href="startup-and-examples/">Startup</a>
-          </div>
-        </div>
       </div>
 
       <div class="home-hero-inner">
@@ -111,14 +105,6 @@ hide:
 
     <section class="home-section" id="benchmark">
       <div class="home-container">
-        <div class="home-section-heading">
-          <span class="home-section-kicker">Benchmark</span>
-          <h2>CyberBench Benchmark Setting</h2>
-          <p>
-            CyberBench is the benchmark section of the paper for general open-world multi-robot task planning.
-          </p>
-        </div>
-
         <article class="home-media-card home-media-card-wide">
           <img src="assets/images/home/fig5_cyberbench.png" alt="CyberBench figure" loading="lazy">
           <div class="home-card-copy">
@@ -165,6 +151,11 @@ hide:
 
     <section class="home-section" id="citation">
       <div class="home-container">
+        <div class="home-section-heading">
+          <span class="home-section-kicker">Citation</span>
+          <h2>Cite This Project</h2>
+        </div>
+
         <div class="home-citation-card">
           <pre class="home-citation-block"><code>@misc{general_task_planning_multi_robot_2026,
   title={General Task Planning for Multi-Robot Teams in Open-World Environments},

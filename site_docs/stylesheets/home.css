@@ -65,6 +65,41 @@ body.home-page .md-content__inner::after {
   background: var(--home-bg);
 }
 
+.md-typeset .home-landing .home-side-nav {
+  position: fixed;
+  left: 1.5rem;
+  top: 50%;
+  z-index: 5;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.8rem;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+}
+
+.md-typeset .home-landing .home-side-nav a {
+  min-width: 124px;
+  padding: 0.62rem 0.88rem;
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.96);
+  font-size: 0.86rem;
+  font-weight: 700;
+  text-decoration: none;
+  background: rgba(12, 18, 34, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+
+.md-typeset .home-landing .home-side-nav a:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateX(2px);
+}
+
 .md-typeset .home-landing .home-link-row {
   display: flex;
   flex-wrap: wrap;
@@ -144,60 +179,13 @@ body.home-page .md-content__inner::after {
   opacity: 0.96;
 }
 
-.md-typeset .home-landing .home-topbar {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 3;
-}
-
-.md-typeset .home-landing .home-nav {
-  max-width: 1240px;
-  margin: 0 auto;
-  padding: 1.25rem 1.25rem 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.md-typeset .home-landing .home-brand {
-  color: #ffffff;
-  font-weight: 700;
-  font-size: 1rem;
-  text-decoration: none;
-}
-
-.md-typeset .home-landing .home-nav-links {
-  display: flex;
-  align-items: center;
-  gap: 0.85rem;
-  flex-wrap: wrap;
-}
-
-.md-typeset .home-landing .home-nav-links a {
-  color: rgba(255, 255, 255, 0.92);
-  text-decoration: none;
-  font-size: 0.92rem;
-  padding: 0.55rem 0.85rem;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(10px);
-}
-
-.md-typeset .home-landing .home-nav-links a:hover {
-  background: rgba(255, 255, 255, 0.14);
-}
-
 .md-typeset .home-landing .home-hero-inner {
   position: relative;
   z-index: 3;
   width: 100%;
   max-width: 1240px;
   margin: 0 auto;
-  padding: 8.5rem 1.25rem 3rem;
+  padding: 6rem 1.25rem 3rem;
   display: flex;
   align-items: center;
   justify-content: center;
