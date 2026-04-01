@@ -143,7 +143,6 @@ hide:
       <div class="home-container">
         <div class="home-section-heading">
           <span class="home-section-kicker">Citation</span>
-          <h2>Cite This Project</h2>
         </div>
 
         <div class="home-citation-card">
@@ -159,9 +158,9 @@ hide:
         <div class="home-link-row home-link-row-footer">
           <a class="home-link-pill" href="https://github.com/MiangChen/MultiAgent-Unreal" target="_blank">Code</a>
           <a class="home-link-pill" href="startup-and-examples/">Run Example</a>
-          <a class="home-link-pill home-link-pill-light" href="api-reference/">API</a>
-          <a class="home-link-pill home-link-pill-light" href="architecture/">Architecture</a>
-          <a class="home-link-pill home-link-pill-light" href="keybindings/">Keybindings</a>
+          <a class="home-link-pill" href="api-reference/">API</a>
+          <a class="home-link-pill" href="architecture/">Architecture</a>
+          <a class="home-link-pill" href="keybindings/">Keybindings</a>
         </div>
       </div>
     </section>

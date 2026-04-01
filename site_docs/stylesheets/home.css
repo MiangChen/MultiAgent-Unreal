@@ -81,12 +81,7 @@ body.home-page .md-content__inner::after {
   flex-direction: column;
   gap: 0.55rem;
   margin: 1.25rem 0 0 1.25rem;
-  padding: 0.8rem;
-  border-radius: 22px;
-  background: rgba(13, 18, 31, 0.74);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(18px);
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
+  padding: 0;
 }
 
 .md-typeset .home-landing .home-side-nav a {
@@ -133,12 +128,6 @@ body.home-page .md-content__inner::after {
   font-weight: 700;
   text-decoration: none;
   box-shadow: 0 14px 30px rgba(15, 23, 42, 0.24);
-}
-
-.md-typeset .home-landing .home-link-pill-light {
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  backdrop-filter: blur(10px);
 }
 
 .md-typeset .home-landing .home-hero {
