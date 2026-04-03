@@ -30,10 +30,7 @@ hide:
 
       <div class="home-hero-inner">
         <div class="home-copy">
-          <h1 class="home-title">General Task Planning for Multi-Robot Teams in Open-World Environments</h1>
-          <p class="home-meta">
-            GT-Planner · TANGO · CyberCity · CyberBench · Human-robot interaction
-          </p>
+          <h1 class="home-title">General Task Planning for Multi-Robot Teams<br>in Open-World Environments</h1>
         </div>
       </div>
     </section>
