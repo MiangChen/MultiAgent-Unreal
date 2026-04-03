@@ -30,7 +30,10 @@ hide:
 
       <div class="home-hero-inner">
         <div class="home-copy home-copy-hero">
-          <h1 class="home-title">General Task Planning for Multi-Robot<br>Teams in Open-World Environments</h1>
+          <h1 class="home-title">
+            <span class="home-title-line home-title-line-nowrap">General Task Planning for Multi-Robot</span>
+            <span class="home-title-line">Teams in Open-World Environments</span>
+          </h1>
         </div>
       </div>
     </section>

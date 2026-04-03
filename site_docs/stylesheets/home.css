@@ -190,7 +190,7 @@ body.home-page .md-content__inner::after {
   position: relative;
   z-index: 3;
   width: 100%;
-  max-width: 1240px;
+  max-width: 1360px;
   margin: 0 auto;
   padding: 6rem 1.25rem 3rem;
   display: flex;
@@ -205,7 +205,7 @@ body.home-page .md-content__inner::after {
 }
 
 .md-typeset .home-landing .home-copy-hero {
-  max-width: 1120px;
+  max-width: 1280px;
 }
 
 .md-typeset .home-landing .home-kicker {
@@ -229,6 +229,14 @@ body.home-page .md-content__inner::after {
   font-weight: 700;
   color: #ffffff;
   text-shadow: 0 6px 28px rgba(7, 12, 25, 0.45);
+}
+
+.md-typeset .home-landing .home-title-line {
+  display: block;
+}
+
+.md-typeset .home-landing .home-title-line-nowrap {
+  white-space: nowrap;
 }
 
 .md-typeset .home-landing .home-subtitle {
@@ -757,6 +765,10 @@ body.home-page .md-content__inner::after {
 
   .md-typeset .home-landing .home-title {
     font-size: 3.9rem;
+  }
+
+  .md-typeset .home-landing .home-title-line-nowrap {
+    white-space: normal;
   }
 
   .md-typeset .home-landing .home-actions {
