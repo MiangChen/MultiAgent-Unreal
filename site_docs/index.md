@@ -78,11 +78,13 @@ hide:
     <section class="home-section home-surface" id="method">
       <div class="home-container">
         <div class="home-single-card">
+          <div class="home-card-copy home-card-copy-header">
+            <h3 class="home-card-title">GT-Planner, TANGO, and the three-layer architecture</h3>
+          </div>
           <figure class="home-figure">
             <img src="assets/images/home/fig2_method.png" alt="Method overview" loading="lazy">
           </figure>
           <div class="home-card-copy">
-            <h3 class="home-card-title">GT-Planner, TANGO, and the three-layer architecture</h3>
             <p>
               As presented in the paper, GT-Planner interprets natural-language instructions and constructs a task
               dependency graph, TANGO performs task allocation under richer constraints, the world model tracks task
@@ -96,9 +98,11 @@ hide:
     <section class="home-section" id="benchmark">
       <div class="home-container">
         <article class="home-media-card home-media-card-wide">
+          <div class="home-card-copy home-card-copy-header">
+            <h3>Benchmark Setting</h3>
+          </div>
           <img src="assets/images/home/fig5_cyberbench.png" alt="CyberBench figure" loading="lazy">
           <div class="home-card-copy">
-            <h3>Benchmark Setting</h3>
             <p>CyberBench covers four heterogeneous robot types, more than 50 environment element types, 10 core goal tasks, 19 contingency-event templates, and on the order of 105 evaluation tasks.</p>
           </div>
         </article>
@@ -113,25 +117,31 @@ hide:
 
         <div class="home-media-stack">
           <article class="home-media-card home-media-card-wide">
+            <div class="home-card-copy home-card-copy-header">
+              <h3>General Planning</h3>
+            </div>
             <img src="assets/images/home/fig8_statistic_general_task_planning.png" alt="General task planning statistics" loading="lazy">
             <div class="home-card-copy">
-              <h3>General Planning</h3>
               <p>These results compare overall success rate, efficiency, planning quality, and energy consumption across methods. The paper reports GT-Planner as the strongest overall method for general task planning.</p>
             </div>
           </article>
 
           <article class="home-media-card home-media-card-wide">
+            <div class="home-card-copy home-card-copy-header">
+              <h3>Dynamic Replanning</h3>
+            </div>
             <img src="assets/images/home/fig9_statistic_dynamic_replanning.png" alt="Dynamic replanning statistics" loading="lazy">
             <div class="home-card-copy">
-              <h3>Dynamic Replanning</h3>
               <p>These results evaluate replanning across difficulty levels and show that GT-Planner maintains stronger robustness and lower performance degradation as contingencies increase.</p>
             </div>
           </article>
 
           <article class="home-media-card home-media-card-wide">
+            <div class="home-card-copy home-card-copy-header">
+              <h3>Fine-Tuning Placeholder</h3>
+            </div>
             <img src="assets/images/home/fig1_framework.png" alt="Fine-tuning placeholder figure" loading="lazy">
             <div class="home-card-copy">
-              <h3>Fine-Tuning Placeholder</h3>
               <p>The current paper text describes a two-stage fine-tuning strategy: supervised fine-tuning for initialization, followed by RL-based fine-tuning for generalization. This slot currently reuses the framework figure and can be replaced with a dedicated fine-tuning result later.</p>
             </div>
           </article>
