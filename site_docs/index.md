@@ -37,9 +37,16 @@ hide:
 
     <section class="home-section home-surface" id="integration">
       <div class="home-container">
+        <article class="home-media-card home-media-card-wide">
+          <div class="home-card-copy home-card-copy-header">
+            <h3>System Integration</h3>
+          </div>
+          <img src="assets/images/home/fig1_framework.png" alt="System integration overview" loading="lazy">
+        </article>
+
         <div class="home-video-panel">
           <video autoplay muted loop controls preload="auto" playsinline>
-            <source src="assets/videos/home/human_robot_scheduling_demo.mp4" type="video/mp4">
+            <source src="assets/videos/home/hero/transport_neo.mp4" type="video/mp4">
           </video>
         </div>
       </div>
