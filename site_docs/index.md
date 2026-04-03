@@ -17,15 +17,15 @@ hide:
     <div class="home-main">
     <section class="home-hero home-hero-mosaic">
       <div class="home-hero-grid" aria-hidden="true">
-        <video autoplay muted loop playsinline preload="auto"><source src="assets/videos/home/human_robot_scheduling_demo.mp4" type="video/mp4"></video>
-        <video autoplay muted loop playsinline preload="auto"><source src="assets/videos/home/human_robot_scheduling_demo.mp4" type="video/mp4"></video>
-        <video autoplay muted loop playsinline preload="auto"><source src="assets/videos/home/human_robot_scheduling_demo.mp4" type="video/mp4"></video>
-        <video autoplay muted loop playsinline preload="auto"><source src="assets/videos/home/human_robot_scheduling_demo.mp4" type="video/mp4"></video>
-        <video autoplay muted loop playsinline preload="auto"><source src="assets/videos/home/human_robot_scheduling_demo.mp4" type="video/mp4"></video>
-        <video autoplay muted loop playsinline preload="auto"><source src="assets/videos/home/human_robot_scheduling_demo.mp4" type="video/mp4"></video>
-        <video autoplay muted loop playsinline preload="auto"><source src="assets/videos/home/human_robot_scheduling_demo.mp4" type="video/mp4"></video>
-        <video autoplay muted loop playsinline preload="auto"><source src="assets/videos/home/human_robot_scheduling_demo.mp4" type="video/mp4"></video>
-        <video autoplay muted loop playsinline preload="auto"><source src="assets/videos/home/human_robot_scheduling_demo.mp4" type="video/mp4"></video>
+        <video autoplay muted loop playsinline preload="auto"><source src="assets/videos/home/hero/EvidenceCollection.mp4" type="video/mp4"></video>
+        <video autoplay muted loop playsinline preload="auto"><source src="assets/videos/home/hero/area_search.mp4" type="video/mp4"></video>
+        <video autoplay muted loop playsinline preload="auto"><source src="assets/videos/home/hero/assembly_4.mp4" type="video/mp4"></video>
+        <video autoplay muted loop playsinline preload="auto"><source src="assets/videos/home/hero/emergence_response.mp4" type="video/mp4"></video>
+        <video autoplay muted loop playsinline preload="auto"><source src="assets/videos/home/hero/evidence_collection_2.mp4" type="video/mp4"></video>
+        <video autoplay muted loop playsinline preload="auto"><source src="assets/videos/home/hero/guidance_2.mp4" type="video/mp4"></video>
+        <video autoplay muted loop playsinline preload="auto"><source src="assets/videos/home/hero/patrol.mp4" type="video/mp4"></video>
+        <video autoplay muted loop playsinline preload="auto"><source src="assets/videos/home/hero/target_following.mp4" type="video/mp4"></video>
+        <video autoplay muted loop playsinline preload="auto"><source src="assets/videos/home/hero/transport_neo.mp4" type="video/mp4"></video>
       </div>
 
       <div class="home-hero-inner">
