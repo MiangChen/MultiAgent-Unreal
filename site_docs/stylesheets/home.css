@@ -224,7 +224,7 @@ body.home-page .md-content__inner::after {
 
 .md-typeset .home-landing .home-title {
   margin: 1rem 0 0.9rem;
-  font-size: clamp(3rem, 3.3vw, 4.5rem);
+  font-size: clamp(3rem, 3.3vw, 4rem);
   line-height: 1.71;
   font-weight: 700;
   color: #ffffff;
