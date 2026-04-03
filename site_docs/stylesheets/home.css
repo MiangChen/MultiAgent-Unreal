@@ -425,9 +425,10 @@ body.home-page .md-content__inner::after {
   padding: 1.3rem 1.4rem 1.5rem;
 }
 
-.md-typeset .home-landing .home-card-title {
+.md-typeset .home-landing .home-card-copy-header h3 {
   margin: 0 0 0.4rem;
-  font-size: 1.4rem;
+  font-size: 1.28rem;
+  line-height: 1.32;
 }
 
 .md-typeset .home-landing .home-card-copy p {
@@ -467,11 +468,6 @@ body.home-page .md-content__inner::after {
 
 .md-typeset .home-landing .home-media-card .home-card-copy {
   padding: 1rem 1.2rem 1.25rem;
-}
-
-.md-typeset .home-landing .home-media-card h3 {
-  margin: 0 0 0.35rem;
-  font-size: 1.18rem;
 }
 
 .md-typeset .home-landing .home-media-card p {
