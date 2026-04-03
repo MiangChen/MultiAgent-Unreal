@@ -201,8 +201,11 @@ body.home-page .md-content__inner::after {
 
 .md-typeset .home-landing .home-copy {
   color: #ffffff;
-  max-width: 900px;
   text-align: center;
+}
+
+.md-typeset .home-landing .home-copy-hero {
+  max-width: 1120px;
 }
 
 .md-typeset .home-landing .home-kicker {

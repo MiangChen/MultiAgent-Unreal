@@ -29,7 +29,7 @@ hide:
       </div>
 
       <div class="home-hero-inner">
-        <div class="home-copy">
+        <div class="home-copy home-copy-hero">
           <h1 class="home-title">General Task Planning for Multi-Robot<br>Teams in Open-World Environments</h1>
         </div>
       </div>
