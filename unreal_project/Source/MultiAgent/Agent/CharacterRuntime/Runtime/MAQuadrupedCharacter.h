@@ -30,11 +30,18 @@ protected:
 
     UPROPERTY()
     UAnimSequence* IdleAnim;
-    
+
     UPROPERTY()
     UAnimSequence* WalkAnim;
-    
+
     bool bIsPlayingWalk;
+
+    /** 正常行走时的动画播放速率（满速时使用） */
+    float NormalWalkPlayRate = 2.5f;
+    /** 最低动画播放速率（防止动画静止） */
+    float MinWalkPlayRate = 0.5f;
+    /** 最高动画播放速率（安全上限） */
+    float MaxWalkPlayRate = 3.0f;
 
 private:
     void PlayWalkAnimation();

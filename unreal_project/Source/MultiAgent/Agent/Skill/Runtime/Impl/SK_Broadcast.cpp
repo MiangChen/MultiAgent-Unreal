@@ -116,7 +116,7 @@ bool USK_Broadcast::InitializeBroadcastContext(AMACharacter& Character, UMASkill
     UE_LOG(LogTemp, Log, TEXT("[SK_Broadcast] %s: HorizontalDistance=%.0f, BroadcastDistance=%.0f"),
         *Character.AgentLabel, HorizontalDistance, BroadcastDistance);
 
-    CurrentPhase = (HorizontalDistance <= BroadcastDistance * 1.2f && HorizontalDistance >= BroadcastDistance * 0.5f)
+    CurrentPhase = (HorizontalDistance <= BroadcastDistance * 1.5f && HorizontalDistance >= BroadcastDistance * 0.3f)
         ? EBroadcastPhase::TurnToTarget
         : EBroadcastPhase::MoveToDistance;
     return true;
@@ -267,7 +267,7 @@ void USK_Broadcast::HandleMoveToDistance()
     
     NavigationService->OnNavigationCompleted.AddDynamic(this, &USK_Broadcast::OnNavigationCompleted);
 
-    if (!NavigationService->NavigateTo(BroadcastPosition, 100.f))
+    if (!NavigationService->NavigateTo(BroadcastPosition, 400.f))
     {
         NavigationService->OnNavigationCompleted.RemoveDynamic(this, &USK_Broadcast::OnNavigationCompleted);
         HandleNavigationFailure(TEXT("Could not start navigation"));

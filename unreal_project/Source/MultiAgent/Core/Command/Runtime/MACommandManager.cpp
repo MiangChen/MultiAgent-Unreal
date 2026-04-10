@@ -82,7 +82,7 @@ void UMACommandManager::ExecuteSkillList(const FMASkillListMessage& SkillList)
         InterruptCurrentExecution();
     }
     
-    // 隐藏所有 Agent 的头顶气泡（新技能列表下发时清除旧消息）
+    // 隐藏所有 Agent 的头顶气泡（尊重最小显示时长）
     if (UMAAgentManager* AgentMgr = GetWorld()->GetSubsystem<UMAAgentManager>())
     {
         for (AMACharacter* Agent : AgentMgr->GetAllAgents())
@@ -640,6 +640,7 @@ void UMACommandManager::HandlePrecheckFailure(AMACharacter* Agent, EMACommand Co
     Agent->ShowSpeechBubble(FirstEvent.Message);
     SpeechBubbleShowTimes.Add(Agent, GetWorld()->GetTimeSeconds());
 
+    // 取消该 Agent 上可能存在的延迟隐藏定时器（新气泡覆盖旧的）
     if (FTimerHandle* OldTimer = SpeechBubbleHideTimers.Find(Agent))
     {
         GetWorld()->GetTimerManager().ClearTimer(*OldTimer);
@@ -815,6 +816,7 @@ void UMACommandManager::HandleRuntimeCheckFailure(AMACharacter* Agent, EMAComman
     Agent->ShowSpeechBubble(FirstEvent.Message);
     SpeechBubbleShowTimes.Add(Agent, GetWorld()->GetTimeSeconds());
 
+    // 取消该 Agent 上可能存在的延迟隐藏定时器（新气泡覆盖旧的）
     if (FTimerHandle* OldTimer = SpeechBubbleHideTimers.Find(Agent))
     {
         GetWorld()->GetTimerManager().ClearTimer(*OldTimer);

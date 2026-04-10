@@ -81,17 +81,9 @@ unreal_project/Content/
 # 临时记录
 temp_record.txt
 
-doc/REFACTORING_ANALYSIS_PART1.md
-doc/REFACTORING_ANALYSIS_PART2.md
-doc/REFACTORING_INDEX.md
-doc/REFACTORING_SUMMARY.md
-config_simplecity.zip
 unreal_project/Source/MultiAgent/UI/Temp/MAEmergencyModalforREF.cpp.txt
 .gitignore
 unreal_project/data/task_graph_temp.json
-unreal_project/data/task_graph_temp.json
-unreal_project/data/task_graph_temp.json
 unreal_project/Source/MultiAgent/UI/Temp/MAEmergencyManagerforREF.cpp.txt
-/config/README.md
-/doc/UI_HARDCODED_COLORS_REPORT.md
+
 /config_simplecity.zip

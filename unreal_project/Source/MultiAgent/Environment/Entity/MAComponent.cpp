@@ -134,7 +134,8 @@ void AMAComponent::AttachToHand(AMACharacter* Character)
         AttachOffset = Humanoid->HandAttachOffset;
     }
     SetActorRelativeLocation(AttachOffset);
-    
+    SetActorRelativeRotation(FRotator::ZeroRotator);
+
     // 记录承载者
     CurrentCarrier = Character;
     bCanBePickedUp = false;
@@ -236,36 +237,56 @@ void AMAComponent::PlaceOnObject(AActor* TargetObject, bool bUprightPlacement)
         UE_LOG(LogTemp, Warning, TEXT("[MAComponent] PlaceOnObject: TargetObject is null"));
         return;
     }
-    
+
     DetachFromCarrier();
-    
-    // 获取目标物体的顶部位置
+
     FVector TargetLocation = TargetObject->GetActorLocation();
     float TargetTopZ = TargetLocation.Z;
-    
-    // 尝试获取目标物体的精确顶部位置
+
+    // 获取目标物体的精确顶部位置
     if (IMAPickupItem* TargetItem = Cast<IMAPickupItem>(TargetObject))
     {
         FVector TargetExtent = TargetItem->GetBoundsExtent();
         float TargetBottomOffset = TargetItem->GetBottomOffset();
-        TargetTopZ = TargetLocation.Z - TargetBottomOffset + TargetExtent.Z * 2.f;
+        TargetTopZ = TargetLocation.Z + TargetBottomOffset + TargetExtent.Z * 2.f;
     }
     else if (UPrimitiveComponent* TargetPrim = Cast<UPrimitiveComponent>(TargetObject->GetRootComponent()))
     {
         TargetTopZ = TargetLocation.Z + TargetPrim->Bounds.BoxExtent.Z;
     }
-    
-    // 计算本物体的放置位置
+
+    // 获取目标物体的堆叠偏移（补偿 mesh 不对称造成的视觉偏移）
+    FVector TargetStackOffset = FVector::ZeroVector;
+    if (AMAComponent* TargetComp = Cast<AMAComponent>(TargetObject))
+    {
+        FString TargetSubtype = TargetComp->Features.FindRef(TEXT("subtype"));
+        TargetStackOffset = GetComponentStackOffset(TargetSubtype);
+        TargetStackOffset = TargetComp->GetActorRotation().RotateVector(TargetStackOffset);
+
+        UE_LOG(LogTemp, Warning, TEXT("[MAComponent] PlaceOnObject: TargetSubtype='%s', StackOffset=%s"),
+            *TargetSubtype, *TargetStackOffset.ToString());
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[MAComponent] PlaceOnObject: Cast<AMAComponent> FAILED for %s (Class=%s)"),
+            *TargetObject->GetName(), *TargetObject->GetClass()->GetName());
+    }
+
     float MyBottomOffset = GetBottomOffset();
-    FVector PlaceLocation = FVector(TargetLocation.X, TargetLocation.Y, TargetTopZ - MyBottomOffset);
-    
-    SetActorLocation(PlaceLocation);
-    
+    FVector PlaceLocation = FVector(
+        TargetLocation.X + TargetStackOffset.X,
+        TargetLocation.Y + TargetStackOffset.Y,
+        TargetTopZ - MyBottomOffset);
+
+    UE_LOG(LogTemp, Warning, TEXT("[MAComponent] PlaceOnObject: TargetLoc=%s, PlaceLoc=%s"),
+        *TargetLocation.ToString(), *PlaceLocation.ToString());
+
     if (bUprightPlacement)
     {
         SetActorRotation(FRotator::ZeroRotator);
     }
-    
+    SetActorLocation(PlaceLocation);
+
     // 根据物体类型决定是否启用物理
     if (MeshComponent)
     {
@@ -275,12 +296,12 @@ void AMAComponent::PlaceOnObject(AActor* TargetObject, bool bUprightPlacement)
     {
         SetPhysicsEnabled(true);
     }
-    
+
     bCanBePickedUp = true;
-    
-    UE_LOG(LogTemp, Log, TEXT("[MAComponent] %s placed on %s at %s"), 
+
+    UE_LOG(LogTemp, Log, TEXT("[MAComponent] %s placed on %s at %s"),
         *ObjectLabel, *TargetObject->GetName(), *PlaceLocation.ToString());
-    
+
     OnDropped(PlaceLocation);
 }
 
@@ -335,7 +356,8 @@ bool AMAComponent::ShouldEnablePhysicsOnPlace() const
         TEXT("antenna_module"),
         TEXT("solar_panel_large"),
         TEXT("address_speaker"),
-        TEXT("solar_panel")
+        TEXT("solar_panel"),
+        TEXT("stand")
     };
     
     return !UnstableSubtypes.Contains(Subtype);
@@ -471,6 +493,23 @@ FVector AMAComponent::GetComponentDefaultOffset(const FString& Subtype)
 
     FString SubtypeLower = Subtype.ToLower();
     if (const FVector* Offset = OffsetMap.Find(SubtypeLower))
+    {
+        return *Offset;
+    }
+    return FVector::ZeroVector;
+}
+
+FVector AMAComponent::GetComponentStackOffset(const FString& Subtype)
+{
+    // 堆叠偏移：补偿 mesh 不对称导致的视觉中心与 pivot 的偏差
+    // 例如 bar stool 的 pivot 在底部中心，但座面可能不在正上方
+    // 值为本地空间偏移（未缩放），会在 PlaceOnObject 中根据目标旋转变换
+    TMap<FString, FVector> StackOffsetMap = {
+        {TEXT("stand"), FVector(-50.f, -30.f, 0.f)},
+    };
+
+    FString SubtypeLower = Subtype.ToLower();
+    if (const FVector* Offset = StackOffsetMap.Find(SubtypeLower))
     {
         return *Offset;
     }

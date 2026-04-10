@@ -566,12 +566,14 @@ void FMACommInbound::HandleTaskGraph(const TSharedPtr<FJsonObject>& PayloadObjec
             {
                 FMATaskPlanNode PlanNode;
                 PlanNode.NodeId = NodeData.TaskId;
+                // 优先使用 Description，若为空则从 required_skills 生成摘要
                 if (!NodeData.Description.IsEmpty())
                 {
                     PlanNode.TaskType = NodeData.Description;
                 }
                 else if (NodeData.RequiredSkills.Num() > 0)
                 {
+                    // 用第一个技能的名称作为 TaskType
                     PlanNode.TaskType = NodeData.RequiredSkills[0].SkillName;
                 }
                 else

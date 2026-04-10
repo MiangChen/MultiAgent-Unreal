@@ -896,7 +896,7 @@ void UMASkillAllocationViewer::OnGanttDragCancelled()
     UE_LOG(LogMASkillAllocationViewer, Log, TEXT("OnGanttDragCancelled: Drag operation cancelled"));
     
     // 记录状态日志
-    AppendStatusLog(TEXT("[取消] 拖拽操作已取消"));
+    AppendStatusLog(TEXT("[Cancel] Drag operation cancelled"));
 }
 
 void UMASkillAllocationViewer::OnGanttDragBlocked()

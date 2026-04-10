@@ -2,6 +2,7 @@
 // 货物类实现 - cargo 类型的可搬运物体
 
 #include "MACargo.h"
+#include "MAComponent.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -337,26 +338,36 @@ void AMACargo::PlaceOnObject(AActor* TargetObject, bool bUprightPlacement)
     }
     
     DetachFromCarrier();
-    
-    // 获取目标物体的顶部位置
+
     FVector TargetLocation = TargetObject->GetActorLocation();
     float TargetTopZ = TargetLocation.Z;
-    
+
     if (IMAPickupItem* TargetItem = Cast<IMAPickupItem>(TargetObject))
     {
         FVector TargetExtent = TargetItem->GetBoundsExtent();
         float TargetBottomOffset = TargetItem->GetBottomOffset();
-        TargetTopZ = TargetLocation.Z - TargetBottomOffset + TargetExtent.Z * 2.f;
+        TargetTopZ = TargetLocation.Z + TargetBottomOffset + TargetExtent.Z * 2.f;
     }
     else if (UPrimitiveComponent* TargetPrim = Cast<UPrimitiveComponent>(TargetObject->GetRootComponent()))
     {
         TargetTopZ = TargetLocation.Z + TargetPrim->Bounds.BoxExtent.Z;
     }
-    
-    // 计算本物体的放置位置
+
+    // 获取目标物体的堆叠偏移
+    FVector TargetStackOffset = FVector::ZeroVector;
+    if (AMAComponent* TargetComp = Cast<AMAComponent>(TargetObject))
+    {
+        FString TargetSubtype = TargetComp->GetObjectFeatures().FindRef(TEXT("subtype"));
+        TargetStackOffset = AMAComponent::GetComponentStackOffset(TargetSubtype);
+        TargetStackOffset = TargetComp->GetActorRotation().RotateVector(TargetStackOffset);
+    }
+
     float MyBottomOffset = GetBottomOffset();
-    FVector PlaceLocation = FVector(TargetLocation.X, TargetLocation.Y, TargetTopZ - MyBottomOffset);
-    
+    FVector PlaceLocation = FVector(
+        TargetLocation.X + TargetStackOffset.X,
+        TargetLocation.Y + TargetStackOffset.Y,
+        TargetTopZ - MyBottomOffset);
+
     SetActorLocation(PlaceLocation);
     
     if (bUprightPlacement)
