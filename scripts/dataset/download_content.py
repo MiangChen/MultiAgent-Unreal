@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-从 HuggingFace Hub 下载 UE5 Content 资源压缩包
+Download UE5 Content archive from HuggingFace Hub
 
-支持：
-- 只下载压缩包（不下载其他文件）
-- 自动解压到指定目录
-- 指定下载分支
+Features:
+- Download archive only (no other files)
+- Auto-extract to specified directory
+- Specify download branch
 
 Usage:
     python scripts/download_content.py
@@ -21,7 +21,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-# 默认配置
 SCRIPT_DIR = Path(__file__).parent.resolve()
 PROJECT_ROOT = SCRIPT_DIR.parent
 DEFAULT_REPO_ID = "WindyLab/MultiAgent-Content"
@@ -31,7 +30,7 @@ DEFAULT_BRANCH = "main"
 
 
 def check_dependencies():
-    """检查 huggingface_hub 是否安装"""
+    """Check if huggingface_hub is installed"""
     try:
         from huggingface_hub import hf_hub_download
         return True
@@ -40,8 +39,8 @@ def check_dependencies():
 
 
 def install_dependencies():
-    """安装 huggingface_hub"""
-    print("正在安装 huggingface_hub...")
+    """Install huggingface_hub"""
+    print("Installing huggingface_hub...")
     subprocess.check_call([sys.executable, "-m", "pip", "install", "huggingface_hub"])
 
 
@@ -53,27 +52,26 @@ def download_archive(
     token: str = None,
 ) -> Path:
     """
-    从 HuggingFace Hub 下载压缩包
+    Download archive from HuggingFace Hub
     
     Args:
-        repo_id: HuggingFace 仓库ID
-        filename: 要下载的文件名
-        output_dir: 下载目录
-        branch: 分支名
-        token: HuggingFace token（可选）
+        repo_id: HuggingFace repository ID
+        filename: File to download
+        output_dir: Download directory
+        branch: Branch name
+        token: HuggingFace token (optional)
     
     Returns:
-        下载的文件路径
+        Path to downloaded file
     """
     from huggingface_hub import hf_hub_download
     
-    print(f"📥 正在下载 {filename}...")
-    print(f"   仓库: {repo_id}")
-    print(f"   分支: {branch}")
-    print(f"   目标目录: {output_dir}")
-    print(f"   这可能需要一些时间，请耐心等待...")
+    print(f"📥 Downloading {filename}...")
+    print(f"   Repo: {repo_id}")
+    print(f"   Branch: {branch}")
+    print(f"   Target dir: {output_dir}")
+    print(f"   This may take a while, please be patient...")
     
-    # 确保输出目录存在
     output_dir.mkdir(parents=True, exist_ok=True)
     
     try:
@@ -88,47 +86,44 @@ def download_archive(
         
         downloaded_file = Path(local_path)
         file_size_mb = round(downloaded_file.stat().st_size / (1024 * 1024), 2)
-        print(f"✅ 下载完成: {downloaded_file}")
-        print(f"   大小: {file_size_mb} MB")
+        print(f"✅ Download complete: {downloaded_file}")
+        print(f"   Size: {file_size_mb} MB")
         
-        # 清理 huggingface 缓存目录
         cache_dir = output_dir / ".cache"
         if cache_dir.exists():
             import shutil
             shutil.rmtree(cache_dir)
-            print(f"🗑️  已清理缓存目录: {cache_dir}")
+            print(f"🗑️  Cleaned cache dir: {cache_dir}")
         
         return downloaded_file
         
     except Exception as e:
-        print(f"❌ 下载失败: {e}")
+        print(f"❌ Download failed: {e}")
         if "401" in str(e) or "403" in str(e):
-            print("\n   这可能是私有仓库，请设置 HF_TOKEN 环境变量或使用 --token 参数")
+            print("\n   This may be a private repo. Set HF_TOKEN env var or use --token")
         elif "404" in str(e):
-            print(f"\n   文件 {filename} 不存在，请检查仓库内容")
+            print(f"\n   File {filename} not found. Check repo contents")
         raise
 
 
 def extract_archive(archive_path: Path, extract_dir: Path, delete_after: bool = False) -> Path:
     """
-    解压压缩包
+    Extract archive
     
     Args:
-        archive_path: 压缩包路径
-        extract_dir: 解压目录
-        delete_after: 解压后是否删除压缩包
+        archive_path: Path to archive
+        extract_dir: Extraction directory
+        delete_after: Delete archive after extraction
     
     Returns:
-        解压后的目录路径
+        Path to extracted directory
     """
-    print(f"📦 正在解压...")
-    print(f"   压缩包: {archive_path}")
-    print(f"   目标目录: {extract_dir}")
+    print(f"📦 Extracting...")
+    print(f"   Archive: {archive_path}")
+    print(f"   Target dir: {extract_dir}")
     
-    # 确保目标目录存在
     extract_dir.mkdir(parents=True, exist_ok=True)
     
-    # 根据文件扩展名选择解压方式
     suffix = archive_path.suffix.lower()
     name = archive_path.name.lower()
     
@@ -144,33 +139,31 @@ def extract_archive(archive_path: Path, extract_dir: Path, delete_after: bool = 
             with zipfile.ZipFile(archive_path, 'r') as zip_ref:
                 zip_ref.extractall(extract_dir)
         else:
-            raise ValueError(f"不支持的压缩格式: {archive_path.name}")
+            raise ValueError(f"Unsupported archive format: {archive_path.name}")
         
-        print(f"✅ 解压完成")
+        print(f"✅ Extraction complete")
         
-        # 检查解压后的 Content 目录
         content_dir = extract_dir / "Content"
         if content_dir.exists():
-            print(f"   Content 目录: {content_dir}")
+            print(f"   Content dir: {content_dir}")
         
-        # 删除压缩包
         if delete_after:
-            print(f"🗑️  正在删除压缩包...")
+            print(f"🗑️  Deleting archive...")
             archive_path.unlink()
-            print(f"✅ 压缩包已删除")
+            print(f"✅ Archive deleted")
         
         return extract_dir
         
     except subprocess.CalledProcessError as e:
-        print(f"❌ 解压失败: {e}")
+        print(f"❌ Extraction failed: {e}")
         raise
     except Exception as e:
-        print(f"❌ 解压失败: {e}")
+        print(f"❌ Extraction failed: {e}")
         raise
 
 
 def list_repo_files(repo_id: str, branch: str = "main", token: str = None) -> list:
-    """列出仓库中的文件"""
+    """List files in the repository"""
     from huggingface_hub import HfApi
     
     api = HfApi(token=token)
@@ -183,29 +176,29 @@ def list_repo_files(repo_id: str, branch: str = "main", token: str = None) -> li
 
 def main():
     parser = argparse.ArgumentParser(
-        description="从 HuggingFace Hub 下载 UE5 Content 资源",
+        description="Download UE5 Content assets from HuggingFace Hub",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=f"""
-示例:
-  # 下载压缩包到默认位置（unreal_project/）
+Examples:
+  # Download archive to default location (unreal_project/)
   python download_content.py
 
-  # 下载并自动解压
+  # Download and auto-extract
   python download_content.py --extract
 
-  # 下载到指定目录
+  # Download to specified directory
   python download_content.py --output ~/Downloads
 
-  # 下载并解压，然后删除压缩包
+  # Download, extract, then delete archive
   python download_content.py --extract --delete-archive
 
-  # 从指定分支下载
+  # Download from specified branch
   python download_content.py --branch dev
 
-  # 下载指定文件名
+  # Download specified filename
   python download_content.py --filename Content.tar.gz
 
-默认输出目录: {DEFAULT_OUTPUT_DIR}
+Default output dir: {DEFAULT_OUTPUT_DIR}
 """,
     )
     
@@ -213,85 +206,80 @@ def main():
         "--repo",
         type=str,
         default=DEFAULT_REPO_ID,
-        help=f"HuggingFace 仓库ID（默认: {DEFAULT_REPO_ID}）",
+        help=f"HuggingFace repo ID (default: {DEFAULT_REPO_ID})",
     )
     parser.add_argument(
         "--filename",
         type=str,
         default=DEFAULT_ARCHIVE_NAME,
-        help=f"要下载的文件名（默认: {DEFAULT_ARCHIVE_NAME}）",
+        help=f"File to download (default: {DEFAULT_ARCHIVE_NAME})",
     )
     parser.add_argument(
         "--output",
         type=str,
         default=None,
-        help=f"下载目录（默认: {DEFAULT_OUTPUT_DIR}）",
+        help=f"Download directory (default: {DEFAULT_OUTPUT_DIR})",
     )
     parser.add_argument(
         "--branch",
         type=str,
         default=DEFAULT_BRANCH,
-        help=f"分支名（默认: {DEFAULT_BRANCH}）",
+        help=f"Branch name (default: {DEFAULT_BRANCH})",
     )
     parser.add_argument(
         "--token",
         type=str,
         default=None,
-        help="HuggingFace token（或设置 HF_TOKEN 环境变量）",
+        help="HuggingFace token (or set HF_TOKEN env var)",
     )
     parser.add_argument(
         "--extract",
         action="store_true",
-        help="下载后自动解压",
+        help="Auto-extract after download",
     )
     parser.add_argument(
         "--delete-archive",
         action="store_true",
-        help="解压后删除压缩包（需配合 --extract 使用）",
+        help="Delete archive after extraction (requires --extract)",
     )
     parser.add_argument(
         "--list",
         action="store_true",
-        help="列出仓库中的文件（不下载）",
+        help="List files in the repo (no download)",
     )
     
     args = parser.parse_args()
     
-    # 检查并安装依赖
     if not check_dependencies():
-        print("huggingface_hub 未安装，正在安装...")
+        print("huggingface_hub not installed, installing...")
         install_dependencies()
     
-    # 获取 token
     token = args.token or os.environ.get('HF_TOKEN') or os.environ.get('HUGGINGFACE_HUB_TOKEN')
     
     print("=" * 60)
-    print("  HuggingFace Content 下载器")
+    print("  HuggingFace Content Downloader")
     print("=" * 60)
     
-    # 列出文件模式
     if args.list:
-        print(f"📋 仓库 {args.repo} ({args.branch}) 中的文件:")
+        print(f"📋 Files in {args.repo} ({args.branch}):")
         files = list_repo_files(args.repo, args.branch, token)
         if files:
             for f in files:
                 print(f"   - {f}")
         else:
-            print("   (无法获取文件列表或仓库为空)")
+            print("   (Unable to get file list or repo is empty)")
         return 0
     
-    # 确定输出目录
     output_dir = Path(args.output).expanduser().resolve() if args.output else DEFAULT_OUTPUT_DIR
     
-    print(f"  仓库: {args.repo}")
-    print(f"  分支: {args.branch}")
-    print(f"  文件: {args.filename}")
-    print(f"  输出: {output_dir}")
-    print(f"  解压: {'是' if args.extract else '否'}")
+    print(f"  Repo: {args.repo}")
+    print(f"  Branch: {args.branch}")
+    print(f"  File: {args.filename}")
+    print(f"  Output: {output_dir}")
+    print(f"  Extract: {'Yes' if args.extract else 'No'}")
     print("=" * 60)
     
     try:
-        # 下载压缩包
         archive_path = download_archive(
             repo_id=args.repo,
             filename=args.filename,
@@ -300,7 +288,6 @@ def main():
             token=token,
         )
         
-        # 解压
         if args.extract:
             extract_archive(
                 archive_path=archive_path,
@@ -309,19 +296,19 @@ def main():
             )
         
         print("\n" + "=" * 60)
-        print("✅ 完成!")
+        print("✅ Done!")
         if args.extract:
             content_dir = output_dir / "Content"
             if content_dir.exists():
-                print(f"   Content 目录: {content_dir}")
+                print(f"   Content dir: {content_dir}")
         else:
-            print(f"   压缩包: {archive_path}")
-            print(f"\n   解压命令: tar -xzvf {archive_path} -C {output_dir}")
+            print(f"   Archive: {archive_path}")
+            print(f"\n   Extract command: tar -xzvf {archive_path} -C {output_dir}")
         print("=" * 60)
         return 0
         
     except Exception as e:
-        print(f"\n❌ 错误: {e}")
+        print(f"\n❌ Error: {e}")
         return 1
 
 

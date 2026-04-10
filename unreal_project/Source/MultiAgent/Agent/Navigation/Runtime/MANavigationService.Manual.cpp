@@ -4,6 +4,8 @@
 #include "MANavigationService.h"
 #include "Agent/Navigation/Application/MANavigationUseCases.h"
 #include "../Infrastructure/MAPathPlanner.h"
+#include "AIController.h"
+#include "Navigation/PathFollowingComponent.h"
 #include "GameFramework/Character.h"
 
 void UMANavigationService::StartManualNavigation()
@@ -13,6 +15,17 @@ void UMANavigationService::StartManualNavigation()
         CompleteNavigation(false, TEXT("Navigate failed: Character lost"));
         return;
     }
+
+    // 确保停止 AIController 的 NavMesh 寻路，避免与手动导航双重控制冲突
+    if (AAIController* AICtrl = Cast<AAIController>(OwnerCharacter->GetController()))
+    {
+        AICtrl->StopMovement();
+        if (UPathFollowingComponent* PathComp = AICtrl->GetPathFollowingComponent())
+        {
+            PathComp->OnRequestFinished.RemoveAll(this);
+        }
+    }
+    bHasActiveNavMeshRequest = false;
 
     bUsingManualNavigation = true;
     ManualNavStuckTime = 0.f;

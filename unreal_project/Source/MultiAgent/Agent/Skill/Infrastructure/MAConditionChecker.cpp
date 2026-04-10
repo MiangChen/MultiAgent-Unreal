@@ -561,6 +561,19 @@ FMAPrecheckResult FMAConditionChecker::RunChecks(
 		}
 	}
 
+	// 读取 Info 级别检查开关
+	bool bEnableInfoChecks = true;
+	if (Agent)
+	{
+		if (UGameInstance* GI = Agent->GetGameInstance())
+		{
+			if (UMAConfigManager* ConfigMgr = GI->GetSubsystem<UMAConfigManager>())
+			{
+				bEnableInfoChecks = ConfigMgr->bEnableInfoChecks;
+			}
+		}
+	}
+
 	for (const EMAConditionCheckItem& Item : Items)
 	{
 		FMACheckResult CheckResult = ExecuteCheckItemWithContext(Item, Context, Command);

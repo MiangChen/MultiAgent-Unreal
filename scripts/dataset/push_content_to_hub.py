@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-推送 UE5 Content 资源到 HuggingFace Hub
+Push UE5 Content assets to HuggingFace Hub
 
 支持两种模式：
 1. 指定 Content 文件夹，自动打包后上传（默认使用项目内的 Content）
@@ -22,7 +22,7 @@ try:
     HF_HUB_AVAILABLE = True
 except ImportError:
     HF_HUB_AVAILABLE = False
-    print("警告: huggingface_hub 未安装，请运行: pip install huggingface_hub")
+    print("Warning: huggingface_hub not installed. Run: pip install huggingface_hub")
 
 # 默认路径
 SCRIPT_DIR = Path(__file__).parent.resolve()
@@ -33,7 +33,7 @@ DEFAULT_ARCHIVE_NAME = "Content.tar.gz"
 
 
 def get_content_stats(content_dir: Path) -> dict:
-    """获取 Content 目录统计信息"""
+    """Get Content directory statistics"""
     stats = {
         "total_files": 0,
         "total_size_mb": 0,
@@ -77,9 +77,9 @@ def create_archive(content_dir: Path, archive_path: Path) -> Path:
     Returns:
         压缩包路径
     """
-    print(f"📦 正在打包 Content 文件夹...")
-    print(f"   源目录: {content_dir}")
-    print(f"   目标文件: {archive_path}")
+    print(f"📦 Packing Content folder...")
+    print(f"   Source dir: {content_dir}")
+    print(f"   Target file: {archive_path}")
     
     # 使用 tar 命令打包，排除不必要的文件
     parent_dir = content_dir.parent
@@ -106,27 +106,27 @@ def create_archive(content_dir: Path, archive_path: Path) -> Path:
         )
         
         file_size_mb = round(archive_path.stat().st_size / (1024 * 1024), 2)
-        print(f"✅ 打包完成: {file_size_mb} MB")
+        print(f"✅ Packing complete: {file_size_mb} MB")
         return archive_path
         
     except subprocess.CalledProcessError as e:
-        print(f"❌ 打包失败: {e.stderr}")
+        print(f"❌ Packing failed: {e.stderr}")
         raise
 
 
 def generate_readme(archive_name: str, file_size_mb: float, stats: Optional[dict] = None) -> str:
-    """生成 README.md 内容"""
+    """Generate README.md content"""
     stats_section = ""
     if stats:
         stats_section = f"""
-## 资源统计
+## Asset Statistics
 
-- **总文件数**: {stats['total_files']}
-- **总大小**: {stats['total_size_mb']} MB
-- **UAsset 文件**: {stats['uasset_count']}
-- **UMap 文件**: {stats['umap_count']}
+- **Total files**: {stats['total_files']}
+- **Total size**: {stats['total_size_mb']} MB
+- **UAsset files**: {stats['uasset_count']}
+- **UMap files**: {stats['umap_count']}
 
-## 目录结构
+## Directory Structure
 
 ```
 Content/
@@ -149,23 +149,23 @@ size_categories:
 
 # MultiAgent UE5 Content
 
-UE5 项目资源文件，用于多机器人仿真系统 [MultiAgent-Unreal](https://github.com/WindyLab/MultiAgent-Unreal)。
+UE5 project assets for the multi-robot simulation system [MultiAgent-Unreal](https://github.com/WindyLab/MultiAgent-Unreal).
 
-## 资源信息
+## Asset Info
 
-- **压缩包**: {archive_name}
-- **大小**: {file_size_mb} MB
+- **Archive**: {archive_name}
+- **Size**: {file_size_mb} MB
 {stats_section}
-## 下载方法
+## Download
 
-### 方法 1: 使用下载脚本（推荐）
+### Method 1: Download script (recommended)
 
 ```bash
 # 在项目根目录运行
 python scripts/download_content.py
 ```
 
-### 方法 2: 使用 huggingface-cli 下载
+### Method 2: Download with huggingface-cli
 
 ```bash
 # 安装 huggingface_hub
@@ -175,7 +175,7 @@ pip install huggingface_hub
 huggingface-cli download WindyLab/MultiAgent-Content {archive_name} --repo-type dataset --local-dir .
 ```
 
-### 方法 3: 使用 Python 下载
+### Method 3: Download with Python
 
 ```python
 from huggingface_hub import hf_hub_download
@@ -188,15 +188,15 @@ hf_hub_download(
 )
 ```
 
-## 解压
+## Extract
 
 ```bash
 tar -xzvf {archive_name} -C unreal_project/
 ```
 
-## 相关项目
+## Related Projects
 
-- [MultiAgent-Unreal](https://github.com/WindyLab/MultiAgent-Unreal) - 多机器人仿真系统
+- [MultiAgent-Unreal](https://github.com/WindyLab/MultiAgent-Unreal) - Multi-robot simulation system
 
 ## License
 
@@ -218,15 +218,15 @@ def push_archive(
     推送压缩包到 HuggingFace Hub
     """
     if not HF_HUB_AVAILABLE:
-        raise ImportError("huggingface_hub 未安装。请运行: pip install huggingface_hub")
+        raise ImportError("huggingface_hub not installed. Run: pip install huggingface_hub")
     
     if not archive_path.exists():
-        raise FileNotFoundError(f"压缩包不存在: {archive_path}")
+        raise FileNotFoundError(f"Archive not found: {archive_path}")
     
     file_size_mb = round(archive_path.stat().st_size / (1024 * 1024), 2)
-    print(f"📦 压缩包信息:")
-    print(f"   文件: {archive_path.name}")
-    print(f"   大小: {file_size_mb} MB")
+    print(f"📦 Archive info:")
+    print(f"   File: {archive_path.name}")
+    print(f"   Size: {file_size_mb} MB")
     
     # 创建 HfApi 实例
     api = HfApi(token=token)
@@ -236,9 +236,9 @@ def push_archive(
     try:
         api.repo_info(repo_id=repo_id, repo_type="dataset", token=token)
         repo_exists = True
-        print(f"ℹ️  仓库已存在: {repo_id}")
+        print(f"ℹ️  Repo already exists: {repo_id}")
     except Exception:
-        print(f"ℹ️  仓库不存在: {repo_id}")
+        print(f"ℹ️  Repo does not exist: {repo_id}")
     
     # 如果仓库不存在，创建它
     if not repo_exists:
@@ -250,15 +250,15 @@ def push_archive(
                     private=private,
                     exist_ok=True,
                 )
-                print(f"✅ 仓库已创建: {repo_id}")
+                print(f"✅ Repo created: {repo_id}")
             except Exception as e:
-                raise ValueError(f"无法创建仓库 {repo_id}: {e}")
+                raise ValueError(f"Cannot create repo {repo_id}: {e}")
         else:
-            raise ValueError(f"仓库 {repo_id} 不存在，请先创建或使用 --create-repo")
+            raise ValueError(f"Repo {repo_id}  does not exist, create it first or use --create-repo")
     
     # 清空仓库现有内容
     if clear_repo and repo_exists:
-        print(f"🗑️  正在清空仓库现有内容...")
+        print(f"🗑️  Clearing existing repo content...")
         try:
             files = api.list_repo_files(repo_id=repo_id, repo_type="dataset")
             if files:
@@ -272,10 +272,10 @@ def push_archive(
                         operations=delete_ops,
                         commit_message="Clear repository for new upload",
                     )
-                    print(f"   已删除 {len(files_to_delete)} 个文件")
+                    print(f"   Deleted {len(files_to_delete)} files")
         except Exception as e:
-            print(f"⚠️  清空仓库失败: {e}")
-            print(f"   继续上传...")
+            print(f"⚠️  Failed to clear repo: {e}")
+            print(f"   Continuing upload...")
     
     # 生成 README.md
     readme_content = generate_readme(archive_path.name, file_size_mb, stats)
@@ -287,8 +287,8 @@ def push_archive(
     if commit_message is None:
         commit_message = f"Upload {archive_path.name}"
     
-    print(f"📤 正在上传压缩包到 Hub: {repo_id} ...")
-    print(f"   这可能需要较长时间，请耐心等待...")
+    print(f"📤 Uploading archive to Hub: {repo_id} ...")
+    print(f"   This may take a while, please be patient...")
     
     try:
         # 先上传 README
@@ -299,7 +299,7 @@ def push_archive(
             repo_type="dataset",
             commit_message="Update README.md",
         )
-        print(f"✅ README.md 已上传")
+        print(f"✅ README.md uploaded")
         
         # 上传压缩包
         api.upload_file(
@@ -313,40 +313,40 @@ def push_archive(
         # 清理临时文件
         readme_path.unlink(missing_ok=True)
         
-        print(f"✅ 上传成功: https://huggingface.co/datasets/{repo_id}")
+        print(f"✅ Upload successful: https://huggingface.co/datasets/{repo_id}")
         return repo_id
         
     except HfHubHTTPError as e:
         readme_path.unlink(missing_ok=True)
-        print(f"❌ 上传失败: {e}")
+        print(f"❌ Upload failed: {e}")
         if "403" in str(e) or "Forbidden" in str(e):
-            print(f"   提示: 请检查 token 权限，确保有写入权限")
+            print(f"   Hint: Check token permissions, ensure write access")
         raise
     except Exception as e:
         readme_path.unlink(missing_ok=True)
-        print(f"❌ 上传失败: {e}")
+        print(f"❌ Upload failed: {e}")
         raise
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="推送 UE5 Content 资源到 HuggingFace Hub",
+        description="Push UE5 Content assets to HuggingFace Hub",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=f"""
-示例:
-  # 使用项目内的 Content 文件夹（默认）
+Examples:
+  # Use project Content folder (default)
   python scripts/push_content_to_hub.py
 
-  # 指定其他 Content 文件夹
+  # Specify another Content folder
   python scripts/push_content_to_hub.py --content-dir ~/Material/UE5_Projects/MultiAgent_Content
 
-  # 直接上传已有的压缩包
+  # Upload an existing archive directly
   python scripts/push_content_to_hub.py --archive ~/Material/UE5_Projects/Content.tar.gz
 
-  # 上传并清空仓库现有内容
+  # Upload and clear existing repo content
   python scripts/push_content_to_hub.py --clear
 
-默认 Content 目录: {DEFAULT_CONTENT_DIR}
+Default Content dir: {DEFAULT_CONTENT_DIR}
 """,
     )
     
@@ -356,52 +356,52 @@ def main():
         "--content-dir",
         type=str,
         default=None,
-        help=f"Content 文件夹路径（默认: {DEFAULT_CONTENT_DIR}）",
+        help=f"Content folder path (default: {DEFAULT_CONTENT_DIR}）",
     )
     source_group.add_argument(
         "--archive",
         type=str,
         default=None,
-        help="已有的压缩包路径（跳过打包步骤）",
+        help="Existing archive path (skip packing step)",
     )
     
     parser.add_argument(
         "--repo-id",
         type=str,
         default=DEFAULT_REPO_ID,
-        help=f"HuggingFace 仓库ID（默认: {DEFAULT_REPO_ID}）",
+        help=f"HuggingFace repo ID (default: {DEFAULT_REPO_ID}）",
     )
     parser.add_argument(
         "--token",
         type=str,
         default=None,
-        help="HuggingFace 访问令牌（优先使用环境变量 HF_TOKEN）",
+        help="HuggingFace access token (env var HF_TOKEN takes priority)",
     )
     parser.add_argument(
         "--private",
         action="store_true",
-        help="创建私有仓库",
+        help="Create private repo",
     )
     parser.add_argument(
         "--commit-message",
         type=str,
         default=None,
-        help="提交消息",
+        help="Commit message",
     )
     parser.add_argument(
         "--no-create-repo",
         action="store_true",
-        help="如果仓库不存在，不自动创建",
+        help="Do not auto-create repo if it does not exist",
     )
     parser.add_argument(
         "--clear",
         action="store_true",
-        help="清空仓库现有内容后再上传",
+        help="Clear existing repo content before uploading",
     )
     parser.add_argument(
         "--keep-archive",
         action="store_true",
-        help="上传后保留压缩包（默认会删除自动生成的压缩包）",
+        help="Keep archive after upload (auto-generated archives are deleted by default)",
     )
     
     args = parser.parse_args()
@@ -412,13 +412,13 @@ def main():
         if token is None:
             token = os.getenv("HF_TOKEN") or os.getenv("HUGGINGFACE_HUB_TOKEN")
         if token is None:
-            print("ℹ️  尝试读取本地 HuggingFace 缓存 Token...")
+            print("ℹ️  Trying to read local HuggingFace cached token...")
             token = get_token()
         if token is None:
             raise ValueError(
-                "未找到 HuggingFace token。\n"
-                "请先运行 'python -c \"from huggingface_hub import login; login()\"' 登录\n"
-                "或设置 HF_TOKEN 环境变量。"
+                "HuggingFace token not found.\n"
+                "Please run 'python -c \"from huggingface_hub import login; login()\"' to login\n"
+                "or set the HF_TOKEN environment variable."
             )
         
         archive_path: Path
@@ -429,19 +429,19 @@ def main():
             # 直接使用已有压缩包
             archive_path = Path(args.archive).expanduser().resolve()
             if not archive_path.exists():
-                raise FileNotFoundError(f"压缩包不存在: {archive_path}")
+                raise FileNotFoundError(f"Archive not found: {archive_path}")
         else:
             # 从 Content 文件夹打包
             content_dir = Path(args.content_dir).expanduser().resolve() if args.content_dir else DEFAULT_CONTENT_DIR
             
             if not content_dir.exists():
-                raise FileNotFoundError(f"Content 目录不存在: {content_dir}")
+                raise FileNotFoundError(f"Content directory not found: {content_dir}")
             
             # 获取统计信息
-            print(f"📊 正在分析 Content 目录...")
+            print(f"📊 Analyzing Content directory...")
             stats = get_content_stats(content_dir)
-            print(f"   文件数: {stats['total_files']}")
-            print(f"   大小: {stats['total_size_mb']} MB")
+            print(f"   Files: {stats['total_files']}")
+            print(f"   Size: {stats['total_size_mb']} MB")
             print(f"   UAsset: {stats['uasset_count']}, UMap: {stats['umap_count']}")
             
             # 在临时目录创建压缩包
@@ -465,19 +465,19 @@ def main():
         
         # 清理自动生成的压缩包
         if auto_created_archive and not args.keep_archive:
-            print(f"🗑️  正在删除临时压缩包...")
+            print(f"🗑️  Deleting temporary archive...")
             archive_path.unlink(missing_ok=True)
-            print(f"✅ 临时文件已清理")
+            print(f"✅ Temporary files cleaned up")
         
         print("\n" + "=" * 60)
-        print("📊 推送完成!")
-        print(f"   仓库: {repo_id}")
+        print("📊 Push complete!")
+        print(f"   Repo: {repo_id}")
         print(f"   URL: https://huggingface.co/datasets/{repo_id}")
         print("=" * 60)
         return 0
         
     except Exception as e:
-        print(f"\n❌ 错误: {e}")
+        print(f"\n❌ Error: {e}")
         import traceback
         traceback.print_exc()
         return 1

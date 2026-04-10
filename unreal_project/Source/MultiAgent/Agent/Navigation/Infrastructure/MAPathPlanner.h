@@ -455,13 +455,13 @@ private:
     
     /** 方向平滑因子 */
     static constexpr float DirectionSmoothingFactor = 0.15f;
-    
+
     /** 最大历史方向数量 */
     static constexpr int32 MaxRecentDirections = 6;
-    
+
     /** 振荡检测阈值（方向变化次数） */
     static constexpr int32 OscillationThreshold = 3;
-    
+
     /** 振荡锁定持续帧数 */
     static constexpr int32 OscillationLockDuration = 30;
 };

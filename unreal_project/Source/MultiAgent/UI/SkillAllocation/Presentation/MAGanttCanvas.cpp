@@ -299,7 +299,7 @@ void UMAGanttCanvas::CancelDrag()
         return;
     }
     
-    UE_LOG(LogMAGanttCanvas, Log, TEXT("[取消] 拖拽操作已取消"));
+    UE_LOG(LogMAGanttCanvas, Log, TEXT("[Cancel] Drag operation cancelled"));
 
     // 广播取消事件
     OnSkillDragCancelled.Broadcast();
