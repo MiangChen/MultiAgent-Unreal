@@ -5,7 +5,6 @@
 #include "Core/Config/MAConfigManager.h"
 #include "Input/MAPlayerController.h"
 #include "UI/HUD/Runtime/MAHUD.h"
-#include "UI/Components/Runtime/MAMiniMapManager.h"
 #include "Core/AgentRuntime/Runtime/MAAgentManager.h"
 #include "Core/EnvironmentCore/Runtime/MAEnvironmentManager.h"
 #include "Core/Camera/Runtime/MAExternalCameraManager.h"
@@ -42,8 +41,7 @@ void AMAGameMode::BeginPlay()
     {
         SetupSpectatorStart();
         LoadAndSpawnAgents();
-        SpawnMiniMapManager();
-        
+
         // 延迟初始化外部摄像头，确保 Agent 已生成
         GetWorld()->GetTimerManager().SetTimerForNextTick([this]()
         {
@@ -139,24 +137,6 @@ void AMAGameMode::SpawnAgentsFromSetupConfig(UMAGameInstance* GameInstance)
             MAPC->EnterDeploymentModeWithUnits(Deployments);
         }
     });
-}
-
-void AMAGameMode::SpawnMiniMapManager()
-{
-    UWorld* World = GetWorld();
-    if (!World) return;
-
-    UClass* ClassToSpawn = MiniMapManagerClass ? MiniMapManagerClass.Get() : AMAMiniMapManager::StaticClass();
-
-    FActorSpawnParameters SpawnParams;
-    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-    MiniMapManager = World->SpawnActor<AMAMiniMapManager>(ClassToSpawn, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
-    
-    if (MiniMapManager)
-    {
-        UE_LOG(LogTemp, Log, TEXT("[GameMode] MiniMapManager spawned"));
-    }
 }
 
 FVector AMAGameMode::FindSafeSpectatorLocation(FVector DesiredLocation)

@@ -210,18 +210,6 @@ public:
     FLinearColor AgentSelectedColor;
 
     //=========================================================================
-    // 小地图颜色 (MiniMap Colors) - 用于小地图显示
-    //=========================================================================
-
-    /** 小地图背景颜色 */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Colors|MiniMap")
-    FLinearColor MiniMapBackgroundColor;
-
-    /** 小地图相机指示器颜色 - 红色 */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Colors|MiniMap")
-    FLinearColor MiniMapCameraColor;
-
-    //=========================================================================
     // 字体设置
     //=========================================================================
 
