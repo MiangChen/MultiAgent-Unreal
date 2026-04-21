@@ -175,6 +175,11 @@ bool UMAUIManager::ScheduleResumeNotificationAutoHideInternal(float DelaySeconds
     return RuntimeBridge.TryScheduleResumeNotificationAutoHide(this, ResumeNotificationTimerHandle, DelaySeconds, OutError);
 }
 
+bool UMAUIManager::IsPhaseNotificationEnabledInternal() const
+{
+    return RuntimeBridge.IsPhaseNotificationEnabled(this);
+}
+
 void UMAUIManager::CreateModalWidgetsInternal()
 {
     CreateModalWidgets();

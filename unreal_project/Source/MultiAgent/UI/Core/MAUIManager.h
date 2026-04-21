@@ -168,6 +168,9 @@ public:
     /** 运行时动作：调度恢复通知自动隐藏 */
     bool ScheduleResumeNotificationAutoHideInternal(float DelaySeconds, FString& OutError);
 
+    /** 运行时配置：是否显示阶段提示气泡（读 simulation.show_notification，缺失时回退 true） */
+    bool IsPhaseNotificationEnabledInternal() const;
+
     /** 统一创建模态窗口（供生命周期协调器调用） */
     void CreateModalWidgetsInternal();
 
