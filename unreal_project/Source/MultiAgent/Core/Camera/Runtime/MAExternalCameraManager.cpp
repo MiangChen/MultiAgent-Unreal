@@ -103,6 +103,38 @@ void UMAExternalCameraManager::InitializeDefaultCameras()
         AddExternalCamera(Config);
     }
 
+    // 5. UGV-2 身前摄像头 - 与 UGV-1 UGV_Front 一致
+    {
+        FMAExternalCameraConfig Config;
+        Config.CameraName = TEXT("UGV2_Front");
+        Config.CameraType = EMAExternalCameraType::Follow;
+        Config.TargetAgentLabel = TEXT("UGV-2");
+        Config.FollowViewType = EMAFollowViewType::BehindElevated;
+        Config.FollowDistance = 1200.f;
+        Config.FollowHeight = 500.f;
+        Config.FOV = 90.f;
+        Config.bUseSpringArm = true;
+        Config.CameraLagSpeed = 4.f;
+        Config.CameraRotationLagSpeed = 4.f;
+        AddExternalCamera(Config);
+    }
+
+    // 6. UGV-2 身后摄像头 - 与 UGV-1 UGV_Behind 一致
+    {
+        FMAExternalCameraConfig Config;
+        Config.CameraName = TEXT("UGV2_Behind");
+        Config.CameraType = EMAExternalCameraType::Follow;
+        Config.TargetAgentLabel = TEXT("UGV-2");
+        Config.FollowViewType = EMAFollowViewType::BehindElevatedReverse;
+        Config.FollowDistance = 1000.f;
+        Config.FollowHeight = 500.f;
+        Config.FOV = 90.f;
+        Config.bUseSpringArm = true;
+        Config.CameraLagSpeed = 4.f;
+        Config.CameraRotationLagSpeed = 4.f;
+        AddExternalCamera(Config);
+    }
+
     UE_LOG(LogTemp, Log, TEXT("[ExternalCameraManager] Initialized %d default cameras"), ExternalCameras.Num());
 }
 
