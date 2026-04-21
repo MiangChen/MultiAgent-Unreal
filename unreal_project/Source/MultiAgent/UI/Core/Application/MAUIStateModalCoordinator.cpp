@@ -10,8 +10,10 @@
 #include "../../TaskGraph/Presentation/MATaskGraphModal.h"
 #include "../../SkillAllocation/Presentation/MASkillAllocationModal.h"
 #include "../Modal/MADecisionModal.h"
+#include "Core/Config/MAConfigManager.h"
 #include "Blueprint/UserWidget.h"
 #include "GameFramework/PlayerController.h"
+#include "Engine/GameInstance.h"
 
 void FMAUIStateModalCoordinator::InitializeHUDStateManager(UMAUIManager* UIManager) const
 {
@@ -241,6 +243,24 @@ void FMAUIStateModalCoordinator::HandleNotificationReceived(UMAUIManager* UIMana
         UMANotificationWidget* NotificationWidget = MainHUDWidget->GetNotification();
         if (NotificationWidget)
         {
+            if (const APlayerController* PC = UIManager->GetOwningPlayerController())
+            {
+                if (const UWorld* World = PC->GetWorld())
+                {
+                    if (const UGameInstance* GI = World->GetGameInstance())
+                    {
+                        if (const UMAConfigManager* Config = GI->GetSubsystem<UMAConfigManager>())
+                        {
+                            if (!Config->bShowNotification)
+                            {
+                                UE_LOG(LogMAUIManager, Log, TEXT("OnNotificationReceived: suppressed by config (show_notification=false)"));
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+
             UE_LOG(LogMAUIManager, Log, TEXT("OnNotificationReceived: Calling NotificationWidget->ShowNotification"));
             NotificationWidget->ShowNotification(Type);
         }
