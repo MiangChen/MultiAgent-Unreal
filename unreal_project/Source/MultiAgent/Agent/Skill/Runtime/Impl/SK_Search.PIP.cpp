@@ -165,7 +165,7 @@ void USK_Search::CreateAndShowPIP(const FRotator& CameraRotation)
     }
 
     FMAPIPDisplayConfig DisplayConfig;
-    DisplayConfig.Size = FVector2D(800.f, 450.f);
+    DisplayConfig.Size = FVector2D(640.f, 360.f);
     DisplayConfig.ScreenPosition = FMASkillPIPCameraBridge::AllocateScreenPosition(Character->GetWorld(), DisplayConfig.Size);
     DisplayConfig.bShowBorder = true;
     DisplayConfig.bShowShadow = true;
@@ -236,7 +236,7 @@ void USK_Search::CreateCoverageCamera()
     if (!PIPCameraId.IsValid()) return;
 
     FMAPIPDisplayConfig DisplayConfig;
-    DisplayConfig.Size = FVector2D(800.f, 450.f);
+    DisplayConfig.Size = FVector2D(640.f, 360.f);
     DisplayConfig.ScreenPosition = FMASkillPIPCameraBridge::AllocateScreenPosition(Character->GetWorld(), DisplayConfig.Size);
     DisplayConfig.bShowBorder = true;
     DisplayConfig.bShowShadow = true;
