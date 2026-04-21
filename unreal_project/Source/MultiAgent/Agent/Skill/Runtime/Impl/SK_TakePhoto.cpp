@@ -466,7 +466,7 @@ void USK_TakePhoto::ShowPIPCamera()
     
     // 显示配置
     FMAPIPDisplayConfig DisplayConfig;
-    DisplayConfig.Size = FVector2D(800.f, 450.f);
+    DisplayConfig.Size = FVector2D(640.f, 360.f);
     DisplayConfig.ScreenPosition = FMASkillPIPCameraBridge::AllocateScreenPosition(Character->GetWorld(), DisplayConfig.Size);
     DisplayConfig.bShowBorder = true;
     DisplayConfig.bShowShadow = true;
