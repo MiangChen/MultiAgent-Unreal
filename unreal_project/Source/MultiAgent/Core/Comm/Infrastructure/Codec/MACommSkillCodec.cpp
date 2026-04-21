@@ -218,6 +218,7 @@ FString MACommJsonCodec::SerializeSkillListCompleted(const FMASkillListCompleted
 {
     TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject());
 
+    JsonObject->SetStringField(TEXT("feedback_type"), TEXT("skill_list_completed"));
     JsonObject->SetBoolField(TEXT("completed"), Message.bCompleted);
     JsonObject->SetBoolField(TEXT("interrupted"), Message.bInterrupted);
     JsonObject->SetNumberField(TEXT("completed_time_steps"), Message.CompletedTimeSteps);
