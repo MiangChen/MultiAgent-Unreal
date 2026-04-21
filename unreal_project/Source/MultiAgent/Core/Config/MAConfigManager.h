@@ -40,6 +40,10 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "Config|Simulation")
     bool bEnableInfoChecks = true;
 
+    /** 是否显示左上角阶段提示气泡 (Command Input Required / Skills Executing 等) */
+    UPROPERTY(BlueprintReadOnly, Category = "Config|Simulation")
+    bool bShowNotification = false;
+
     /** 地图类型 (如 Downtown, SciFiModernCity, Port) */
     UPROPERTY(BlueprintReadOnly, Category = "Config|Simulation")
     FString MapType;

@@ -71,13 +71,6 @@ void UMATaskPlannerWidget::NativeConstruct()
         UE_LOG(LogMATaskPlanner, Log, TEXT("UpdateGraphButton event bound"));
     }
     
-    // Bind send command button event
-    if (SendCommandButton && !SendCommandButton->OnClicked.IsAlreadyBound(this, &UMATaskPlannerWidget::OnSendCommandButtonClicked))
-    {
-        SendCommandButton->OnClicked.AddDynamic(this, &UMATaskPlannerWidget::OnSendCommandButtonClicked);
-        UE_LOG(LogMATaskPlanner, Log, TEXT("SendCommandButton event bound"));
-    }
-    
     // Bind submit task graph button event (deprecated)
     if (SubmitTaskGraphButton && !SubmitTaskGraphButton->OnClicked.IsAlreadyBound(this, &UMATaskPlannerWidget::OnSubmitTaskGraphButtonClicked))
     {
@@ -357,91 +350,11 @@ UBorder* UMATaskPlannerWidget::CreateLeftPanel()
     // Apply rounded corners using MARoundedBorderUtils
     MARoundedBorderUtils::ApplyRoundedCorners(LeftPanelBorder, PanelBackgroundColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
 
-    // Vertical layout
-    UVerticalBox* LeftVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("LeftVBox"));
-    LeftPanelBorder->AddChild(LeftVBox);
-
-    // Status log section - auto size based on content
-    UVerticalBox* StatusLogSection = CreateStatusLogSection();
-    UVerticalBoxSlot* StatusSlot = LeftVBox->AddChildToVerticalBox(StatusLogSection);
-    FSlateChildSize StatusSize(ESlateSizeRule::Fill);
-    StatusSize.Value = 0.22f;
-    StatusSlot->SetSize(StatusSize);
-    StatusSlot->SetPadding(FMargin(0, 0, 0, 3));
-
-    // JSON editor section - takes most space
+    // JSON editor section fills the entire left panel
     UVerticalBox* JsonEditorSection = CreateJsonEditorSection();
-    UVerticalBoxSlot* JsonSlot = LeftVBox->AddChildToVerticalBox(JsonEditorSection);
-    FSlateChildSize JsonSize(ESlateSizeRule::Fill);
-    JsonSize.Value = 0.58f;
-    JsonSlot->SetSize(JsonSize);
-    JsonSlot->SetPadding(FMargin(0, 0, 0, 3));
-
-    // User command input section
-    UVerticalBox* UserInputSection = CreateUserInputSection();
-    UVerticalBoxSlot* UserInputSlot = LeftVBox->AddChildToVerticalBox(UserInputSection);
-    FSlateChildSize UserInputSize(ESlateSizeRule::Fill);
-    UserInputSize.Value = 0.2f;
-    UserInputSlot->SetSize(UserInputSize);
+    LeftPanelBorder->AddChild(JsonEditorSection);
 
     return LeftPanelBorder;
-}
-
-UVerticalBox* UMATaskPlannerWidget::CreateStatusLogSection()
-{
-    UVerticalBox* Section = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("StatusLogSection"));
-
-    // Label - use Theme->LabelTextColor with fallback
-    StatusLogLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("StatusLogLabel"));
-    StatusLogLabel->SetText(FText::FromString(TEXT("Status Log:")));
-    FLinearColor LabelTextColor = Theme ? Theme->LabelTextColor : FLinearColor::White;
-    StatusLogLabel->SetColorAndOpacity(FSlateColor(LabelTextColor));
-    FSlateFontInfo LabelFont = FCoreStyle::GetDefaultFontStyle("Bold", 14);
-    StatusLogLabel->SetFont(LabelFont);
-    
-    UVerticalBoxSlot* LabelSlot = Section->AddChildToVerticalBox(StatusLogLabel);
-    LabelSlot->SetPadding(FMargin(0, 0, 0, 3));
-
-    // Status log text box (read-only) - wrapped in rounded border
-    StatusLogBox = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(UMultiLineEditableTextBox::StaticClass(), TEXT("StatusLogBox"));
-    StatusLogBox->SetIsReadOnly(true);
-    StatusLogBox->SetText(FText::GetEmpty());
-    
-    // 设置文本样式：使用主题输入文字颜色，字号 12，透明背景
-    FEditableTextBoxStyle StatusLogStyle;
-    FSlateColor StatusLogSlateColor = FSlateColor(Theme ? Theme->InputTextColor : FLinearColor::White);
-    StatusLogStyle.SetForegroundColor(StatusLogSlateColor);
-    StatusLogStyle.SetFocusedForegroundColor(StatusLogSlateColor);
-    StatusLogStyle.SetReadOnlyForegroundColor(StatusLogSlateColor);
-    StatusLogStyle.TextStyle.ColorAndOpacity = StatusLogSlateColor;
-    FSlateFontInfo StatusLogFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
-    StatusLogStyle.SetFont(StatusLogFont);
-    
-    // 设置透明背景，让外层圆角 Border 的背景显示出来
-    FSlateBrush StatusLogTransparentBrush;
-    StatusLogTransparentBrush.TintColor = FSlateColor(FLinearColor::Transparent);
-    StatusLogStyle.SetBackgroundImageNormal(StatusLogTransparentBrush);
-    StatusLogStyle.SetBackgroundImageHovered(StatusLogTransparentBrush);
-    StatusLogStyle.SetBackgroundImageFocused(StatusLogTransparentBrush);
-    StatusLogStyle.SetBackgroundImageReadOnly(StatusLogTransparentBrush);
-    
-    StatusLogBox->WidgetStyle = StatusLogStyle;
-    
-    // 创建圆角 Border 包装文本框
-    StatusLogBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("StatusLogBorder"));
-    StatusLogBorder->SetPadding(FMargin(8.0f, 4.0f));
-    
-    // 应用圆角效果 - 只读文本框使用主题输入框背景色
-    FLinearColor StatusLogBgColor = Theme ? Theme->InputBackgroundColor : FLinearColor(0.22f, 0.22f, 0.22f, 0.7f);
-    MARoundedBorderUtils::ApplyRoundedCorners(StatusLogBorder, StatusLogBgColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
-    
-    StatusLogBorder->AddChild(StatusLogBox);
-    
-    // Add border to section - let it fill available space
-    UVerticalBoxSlot* BoxSlot = Section->AddChildToVerticalBox(StatusLogBorder);
-    BoxSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-
-    return Section;
 }
 
 UVerticalBox* UMATaskPlannerWidget::CreateJsonEditorSection()
@@ -527,74 +440,6 @@ UVerticalBox* UMATaskPlannerWidget::CreateJsonEditorSection()
     return Section;
 }
 
-UVerticalBox* UMATaskPlannerWidget::CreateUserInputSection()
-{
-    UVerticalBox* Section = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("UserInputSection"));
-
-    // Label - use Theme->LabelTextColor with fallback
-    UserInputLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("UserInputLabel"));
-    UserInputLabel->SetText(FText::FromString(TEXT("Instruction:")));
-    FLinearColor LabelTextColor = Theme ? Theme->LabelTextColor : FLinearColor::White;
-    UserInputLabel->SetColorAndOpacity(FSlateColor(LabelTextColor));
-    FSlateFontInfo LabelFont3 = FCoreStyle::GetDefaultFontStyle("Bold", 14);
-    UserInputLabel->SetFont(LabelFont3);
-    
-    UVerticalBoxSlot* LabelSlot = Section->AddChildToVerticalBox(UserInputLabel);
-    LabelSlot->SetPadding(FMargin(0, 0, 0, 5));
-
-    // User input text box (editable) - wrapped in rounded border
-    UserInputBox = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(UMultiLineEditableTextBox::StaticClass(), TEXT("UserInputBox"));
-    UserInputBox->SetIsReadOnly(false);
-    UserInputBox->SetHintText(FText::FromString(TEXT("Enter natural language command, e.g.: Have the robot patrol...")));
-    
-    // 设置文本样式：使用主题输入文字颜色，字号 12，透明背景
-    FEditableTextBoxStyle UserInputStyle;
-    FSlateColor UserInputSlateColor = FSlateColor(Theme ? Theme->InputTextColor : FLinearColor::White);
-    UserInputStyle.SetForegroundColor(UserInputSlateColor);
-    UserInputStyle.SetFocusedForegroundColor(UserInputSlateColor);
-    FSlateFontInfo UserInputFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
-    UserInputStyle.SetFont(UserInputFont);
-    
-    // 设置透明背景，让外层圆角 Border 的背景显示出来
-    FSlateBrush TransparentBrush;
-    TransparentBrush.TintColor = FSlateColor(FLinearColor::Transparent);
-    UserInputStyle.SetBackgroundImageNormal(TransparentBrush);
-    UserInputStyle.SetBackgroundImageHovered(TransparentBrush);
-    UserInputStyle.SetBackgroundImageFocused(TransparentBrush);
-    UserInputStyle.SetBackgroundImageReadOnly(TransparentBrush);
-    
-    UserInputBox->WidgetStyle = UserInputStyle;
-    
-    // 创建圆角 Border 包装文本框
-    UserInputBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("UserInputBorder"));
-    UserInputBorder->SetPadding(FMargin(8.0f, 4.0f));  // 内边距
-    
-    // 应用圆角效果 - 使用主题输入框背景色
-    FLinearColor TextBoxBgColor = Theme ? Theme->InputBackgroundColor : FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
-    MARoundedBorderUtils::ApplyRoundedCorners(UserInputBorder, TextBoxBgColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
-    
-    UserInputBorder->AddChild(UserInputBox);
-    
-    // Use SizeBox to set minimum height
-    USizeBox* SizeBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("UserInputSizeBox"));
-    SizeBox->SetMinDesiredHeight(60.0f);
-    SizeBox->AddChild(UserInputBorder);  // 改为添加 Border 而不是直接添加 TextBox
-    
-    UVerticalBoxSlot* BoxSlot = Section->AddChildToVerticalBox(SizeBox);
-    BoxSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-    BoxSlot->SetPadding(FMargin(0, 0, 0, 8));
-
-    // "Send" button - using MAStyledButton for rounded corners
-    SendCommandButton = WidgetTree->ConstructWidget<UMAStyledButton>(UMAStyledButton::StaticClass(), TEXT("SendCommandButton"));
-    SendCommandButton->SetButtonText(FText::FromString(TEXT("Send")));
-    SendCommandButton->SetButtonStyle(EMAButtonStyle::Primary);
-    
-    UVerticalBoxSlot* ButtonSlot = Section->AddChildToVerticalBox(SendCommandButton);
-    ButtonSlot->SetHorizontalAlignment(HAlign_Left);
-
-    return Section;
-}
-
 UBorder* UMATaskPlannerWidget::CreateRightPanel()
 {
     // Right panel background
@@ -664,33 +509,7 @@ bool UMATaskPlannerWidget::LoadTaskGraphFromJson(const FString& JsonString)
 
 void UMATaskPlannerWidget::AppendStatusLog(const FString& Message)
 {
-    if (!StatusLogBox)
-    {
-        return;
-    }
-    
-    FString Timestamp = GetTimestamp();
-    FString CurrentText = StatusLogBox->GetText().ToString();
-    FString NewLine = FString::Printf(TEXT("[%s] %s"), *Timestamp, *Message);
-    
-    if (CurrentText.IsEmpty())
-    {
-        StatusLogBox->SetText(FText::FromString(NewLine));
-    }
-    else
-    {
-        StatusLogBox->SetText(FText::FromString(CurrentText + TEXT("\n") + NewLine));
-    }
-    
-    UE_LOG(LogMATaskPlanner, Log, TEXT("StatusLog: %s"), *Message);
-}
-
-void UMATaskPlannerWidget::ClearStatusLog()
-{
-    if (StatusLogBox)
-    {
-        StatusLogBox->SetText(FText::GetEmpty());
-    }
+    UE_LOG(LogMATaskPlanner, Log, TEXT("[%s] %s"), *GetTimestamp(), *Message);
 }
 
 FString UMATaskPlannerWidget::GetJsonText() const
@@ -732,35 +551,6 @@ void UMATaskPlannerWidget::OnUpdateGraphButtonClicked()
         TEXT("[Warning] JSON editor is empty"),
         TEXT("[Success] Task graph updated: "));
     ApplyActionResult(Result);
-}
-
-void UMATaskPlannerWidget::OnSendCommandButtonClicked()
-{
-    UE_LOG(LogMATaskPlanner, Log, TEXT("SendCommandButton clicked"));
-    
-    if (!UserInputBox)
-    {
-        return;
-    }
-    
-    FString Command = UserInputBox->GetText().ToString().TrimStartAndEnd();
-    
-    if (Command.IsEmpty())
-    {
-        AppendStatusLog(TEXT("[Warning] Please enter a command"));
-        return;
-    }
-    
-    // Log the sent command
-    AppendStatusLog(FString::Printf(TEXT("[Sent] %s"), *Command));
-    
-    // Clear input box
-    UserInputBox->SetText(FText::GetEmpty());
-    
-    // Broadcast command submitted event (forwarded to backend by HUD or other components)
-    OnCommandSubmitted.Broadcast(Command);
-    
-    UE_LOG(LogMATaskPlanner, Log, TEXT("Command submitted: %s"), *Command);
 }
 
 void UMATaskPlannerWidget::OnSubmitTaskGraphButtonClicked()
@@ -1043,45 +833,22 @@ void UMATaskPlannerWidget::ApplyTheme(UMAUITheme* InTheme)
     {
         CloseText->SetColorAndOpacity(FSlateColor(Theme->SecondaryTextColor));
     }
-    
-    if (StatusLogLabel)
-    {
-        StatusLogLabel->SetColorAndOpacity(FSlateColor(Theme->LabelTextColor));
-    }
-    
+
     if (JsonEditorLabel)
     {
         JsonEditorLabel->SetColorAndOpacity(FSlateColor(Theme->LabelTextColor));
     }
-    
-    if (UserInputLabel)
-    {
-        UserInputLabel->SetColorAndOpacity(FSlateColor(Theme->LabelTextColor));
-    }
-    
+
     if (BackgroundOverlay)
     {
         BackgroundOverlay->SetBrushColor(Theme->OverlayColor);
     }
-    
-    // 更新输入框 Border 背景颜色
-    if (StatusLogBorder)
-    {
-        // 只读文本框使用稍微变暗的输入框背景色
-        FLinearColor StatusLogBgColor = FLinearColor(Theme->InputBackgroundColor.R * 0.85f, Theme->InputBackgroundColor.G * 0.85f, Theme->InputBackgroundColor.B * 0.85f, 1.0f);
-        MARoundedBorderUtils::ApplyRoundedCorners(StatusLogBorder, StatusLogBgColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
-    }
-    
+
     if (JsonEditorBorder)
     {
         MARoundedBorderUtils::ApplyRoundedCorners(JsonEditorBorder, Theme->InputBackgroundColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
     }
-    
-    if (UserInputBorder)
-    {
-        MARoundedBorderUtils::ApplyRoundedCorners(UserInputBorder, Theme->InputBackgroundColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
-    }
-    
+
     // 将主题传递给子组件
     if (DAGCanvas)
     {

@@ -31,6 +31,7 @@ bool UMAConfigManager::LoadAllConfigs()
         UE_LOG(LogMAConfig, Log, TEXT("  bUseStateTree: %s"), bUseStateTree ? TEXT("true") : TEXT("false"));
         UE_LOG(LogMAConfig, Log, TEXT("  bEnableEnergyDrain: %s"), bEnableEnergyDrain ? TEXT("true") : TEXT("false"));
         UE_LOG(LogMAConfig, Log, TEXT("  bEnableInfoChecks: %s"), bEnableInfoChecks ? TEXT("true") : TEXT("false"));
+        UE_LOG(LogMAConfig, Log, TEXT("  bShowNotification: %s"), bShowNotification ? TEXT("true") : TEXT("false"));
         UE_LOG(LogMAConfig, Log, TEXT("  DefaultMapPath: %s"), *DefaultMapPath);
         UE_LOG(LogMAConfig, Log, TEXT("  SceneGraphPath: %s"), *SceneGraphPath);
         UE_LOG(LogMAConfig, Log, TEXT("  RunMode: %s"), RunMode == EMARunMode::Modify ? TEXT("Modify") : TEXT("Edit"));
@@ -123,6 +124,7 @@ void UMAConfigManager::ApplySnapshot(const FMAConfigSnapshot& Snapshot)
     bUseStateTree = Snapshot.bUseStateTree;
     bEnableEnergyDrain = Snapshot.bEnableEnergyDrain;
     bEnableInfoChecks = Snapshot.bEnableInfoChecks;
+    bShowNotification = Snapshot.bShowNotification;
     MapType = Snapshot.MapType;
     DefaultMapPath = Snapshot.DefaultMapPath;
     SceneGraphPath = Snapshot.SceneGraphPath;

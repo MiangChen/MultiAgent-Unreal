@@ -7,7 +7,6 @@
 #include "../../Components/Presentation/MAInstructionPanel.h"
 #include "../../SceneEditing/Presentation/MAModifyWidget.h"
 #include "../../SceneEditing/Presentation/MASceneListWidget.h"
-#include "../../TaskGraph/Presentation/MATaskPlannerWidget.h"
 #include "../../../Input/MAPlayerController.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMAHUDDelegateCoordinator, Log, All);
@@ -18,16 +17,6 @@ void FMAHUDDelegateCoordinator::BindWidgetDelegates(AMAHUD* HUD) const
     {
         UE_LOG(LogMAHUDDelegateCoordinator, Warning, TEXT("BindWidgetDelegates: UIManager is null"));
         return;
-    }
-
-    UMATaskPlannerWidget* TaskPlannerWidget = HUD->UIManager->GetTaskPlannerWidget();
-    if (TaskPlannerWidget)
-    {
-        if (!TaskPlannerWidget->OnCommandSubmitted.IsAlreadyBound(HUD, &AMAHUD::OnSimpleCommandSubmitted))
-        {
-            TaskPlannerWidget->OnCommandSubmitted.AddDynamic(HUD, &AMAHUD::OnSimpleCommandSubmitted);
-        }
-        UE_LOG(LogMAHUDDelegateCoordinator, Log, TEXT("BindWidgetDelegates: Bound TaskPlannerWidget delegates"));
     }
 
     UMAInstructionPanel* InstructionPanel = HUD->UIManager->GetInstructionPanel();

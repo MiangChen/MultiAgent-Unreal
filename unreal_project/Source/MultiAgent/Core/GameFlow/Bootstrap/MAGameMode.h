@@ -10,7 +10,6 @@
 
 class UMAAgentManager;
 class UMAEnvironmentManager;
-class AMAMiniMapManager;
 class UMAEditModeManager;
 
 UCLASS()
@@ -29,10 +28,6 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Subsystem")
     UMAEnvironmentManager* GetEnvironmentManager() const;
 
-    // 小地图管理器类
-    UPROPERTY(EditDefaultsOnly, Category = "MiniMap")
-    TSubclassOf<AMAMiniMapManager> MiniMapManagerClass;
-
 protected:
     virtual void BeginPlay() override;
     
@@ -47,9 +42,6 @@ protected:
     
     // 查找安全的 Spectator 位置（避免卡在建筑内）
     FVector FindSafeSpectatorLocation(FVector DesiredLocation);
-    
-    // 生成小地图管理器
-    void SpawnMiniMapManager();
 
     // 初始化 Edit Mode 管理器
     void InitializeEditModeManager();
@@ -59,9 +51,4 @@ protected:
 
     // 设置描边后处理效果
     void SetupOutlinePostProcess();
-
-private:
-    // 小地图管理器实例
-    UPROPERTY()
-    AMAMiniMapManager* MiniMapManager;
 };

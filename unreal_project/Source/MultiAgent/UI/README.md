@@ -97,7 +97,7 @@ UI/
   - 业务专属 modal 已归还给各自 owner context
 - `UI/*/Runtime/`
   - 和 `Core/*/Runtime/` 一样，表示该 UI context 的运行时入口壳
-  - 当前主要用于 `HUD`、`Setup` 和 `Components/MiniMap`
+  - 当前主要用于 `HUD` 和 `Setup`
 - `UI/TaskGraph`、`UI/SkillAllocation`
   - 是轻量 UI context
   - 它们没有独立 `Runtime/`，运行时数据分别经 `Core/TempData`、`Core/Comm` 与 `UI/Core` 接入

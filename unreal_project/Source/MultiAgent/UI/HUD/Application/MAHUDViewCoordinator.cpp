@@ -5,7 +5,6 @@
 #include "../../Core/MAUIManager.h"
 #include "../Presentation/MAHUDWidget.h"
 #include "../Presentation/MAMainHUDWidget.h"
-#include "../../Components/Presentation/MAMiniMapWidget.h"
 #include "GameFramework/PlayerController.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMAHUDViewCoordinator, Log, All);
@@ -14,9 +13,6 @@ namespace MAHUDViewCoordinatorConstants
 {
     static constexpr float SidebarRightMargin = 20.0f;
     static constexpr float SidebarWidth = 480.0f;
-    static constexpr float MiniMapLeft = 20.0f;
-    static constexpr float MiniMapTop = 20.0f;
-    static constexpr float MiniMapSize = 200.0f;
 }
 
 void FMAHUDViewCoordinator::SetUIManager(UMAUIManager* InUIManager)
@@ -119,16 +115,7 @@ bool FMAHUDViewCoordinator::IsMouseOverPersistentUI(const APlayerController* Pla
         return true;
     }
 
-    UMAMiniMapWidget* MiniMap = MainHUDWidget->GetMiniMap();
-    if (!MiniMap || !MiniMap->IsVisible())
-    {
-        return false;
-    }
-
-    return MouseX >= MAHUDViewCoordinatorConstants::MiniMapLeft &&
-           MouseX <= MAHUDViewCoordinatorConstants::MiniMapLeft + MAHUDViewCoordinatorConstants::MiniMapSize &&
-           MouseY >= MAHUDViewCoordinatorConstants::MiniMapTop &&
-           MouseY <= MAHUDViewCoordinatorConstants::MiniMapTop + MAHUDViewCoordinatorConstants::MiniMapSize;
+    return false;
 }
 
 void FMAHUDViewCoordinator::ShowNotification(const FString& Message, bool bIsError, bool bIsWarning) const

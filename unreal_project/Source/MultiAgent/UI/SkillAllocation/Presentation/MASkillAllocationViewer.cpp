@@ -139,7 +139,6 @@ void UMASkillAllocationViewer::NativeConstruct()
         }
     }
     
-    // Initialize status log
     AppendStatusLog(TEXT("Skill Allocation Workbench started"));
     AppendStatusLog(TEXT("Tip: Edit JSON and click 'Update' to load data"));
 
@@ -316,187 +315,38 @@ void UMASkillAllocationViewer::BuildUI()
     CloseSlot->SetVerticalAlignment(VAlign_Top);
     CloseSlot->SetHorizontalAlignment(HAlign_Right);
 
-    // Create top panel (Gantt chart) - takes 60% of space
-    UBorder* TopPanel = CreateTopPanel();
-    UVerticalBoxSlot* TopSlot = MainVBox->AddChildToVerticalBox(TopPanel);
-    FSlateChildSize TopSize(ESlateSizeRule::Fill);
-    TopSize.Value = 0.6f;
-    TopSlot->SetSize(TopSize);
-    TopSlot->SetPadding(FMargin(0, 0, 0, 5));
+    // Main content area: horizontal split (JSON editor left, Gantt right)
+    UHorizontalBox* ContentHBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("ContentHBox"));
+    UVerticalBoxSlot* ContentSlot = MainVBox->AddChildToVerticalBox(ContentHBox);
+    ContentSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 
-    // Create bottom panel (Status Log + JSON Editor + Buttons) - takes 40% of space
-    UBorder* BottomPanel = CreateBottomPanel();
-    UVerticalBoxSlot* BottomSlot = MainVBox->AddChildToVerticalBox(BottomPanel);
-    FSlateChildSize BottomSize(ESlateSizeRule::Fill);
-    BottomSize.Value = 0.4f;
-    BottomSlot->SetSize(BottomSize);
+    UBorder* LeftPanel = CreateLeftPanel();
+    UHorizontalBoxSlot* LeftSlot = ContentHBox->AddChildToHorizontalBox(LeftPanel);
+    FSlateChildSize LeftSize(ESlateSizeRule::Fill);
+    LeftSize.Value = 0.35f;
+    LeftSlot->SetSize(LeftSize);
+    LeftSlot->SetPadding(FMargin(0, 0, 5, 0));
 
-    UE_LOG(LogMASkillAllocationViewer, Log, TEXT("BuildUI: UI construction completed successfully (top-bottom layout)"));
-}
+    UBorder* RightPanel = CreateRightPanel();
+    UHorizontalBoxSlot* RightSlot = ContentHBox->AddChildToHorizontalBox(RightPanel);
+    FSlateChildSize RightSize(ESlateSizeRule::Fill);
+    RightSize.Value = 0.65f;
+    RightSlot->SetSize(RightSize);
 
-UBorder* UMASkillAllocationViewer::CreateTopPanel()
-{
-    // Top panel background (Gantt chart area)
-    UBorder* TopPanelBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("TopPanelBorder"));
-    TopPanelBorder->SetPadding(FMargin(10.0f));
-    
-    // Apply rounded corners using MARoundedBorderUtils
-    MARoundedBorderUtils::ApplyRoundedCorners(TopPanelBorder, PanelBackgroundColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
-    
-    // 启用裁剪 - 确保内容不会溢出圆角边框
-    TopPanelBorder->SetClipping(EWidgetClipping::ClipToBoundsAlways);
-
-    // Gantt canvas - will auto-size based on content
-    GanttCanvas = WidgetTree->ConstructWidget<UMAGanttCanvas>(UMAGanttCanvas::StaticClass(), TEXT("GanttCanvas"));
-    GanttCanvas->BindToModel(AllocationModel);
-    
-    TopPanelBorder->AddChild(GanttCanvas);
-
-    return TopPanelBorder;
-}
-
-UBorder* UMASkillAllocationViewer::CreateBottomPanel()
-{
-    // Bottom panel background
-    UBorder* BottomPanelBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("BottomPanelBorder"));
-    BottomPanelBorder->SetPadding(FMargin(10.0f));
-    
-    // Apply rounded corners using MARoundedBorderUtils
-    MARoundedBorderUtils::ApplyRoundedCorners(BottomPanelBorder, PanelBackgroundColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
-    
-    // 启用裁剪 - 确保内容不会溢出圆角边框
-    BottomPanelBorder->SetClipping(EWidgetClipping::ClipToBoundsAlways);
-
-    // Horizontal layout (Status Log | JSON Editor + Buttons)
-    UHorizontalBox* BottomHBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("BottomHBox"));
-    BottomPanelBorder->AddChild(BottomHBox);
-
-    // Status log section (left side of bottom panel)
-    UVerticalBox* StatusLogSection = CreateStatusLogSection();
-    UHorizontalBoxSlot* StatusSlot = BottomHBox->AddChildToHorizontalBox(StatusLogSection);
-    FSlateChildSize StatusSize(ESlateSizeRule::Fill);
-    StatusSize.Value = 0.4f;
-    StatusSlot->SetSize(StatusSize);
-    StatusSlot->SetPadding(FMargin(0, 0, 15, 0));  // 增加两个框之间的间距
-
-    // JSON editor section (right side of bottom panel)
-    UVerticalBox* JsonEditorSection = CreateJsonEditorSection();
-    UHorizontalBoxSlot* JsonSlot = BottomHBox->AddChildToHorizontalBox(JsonEditorSection);
-    FSlateChildSize JsonSize(ESlateSizeRule::Fill);
-    JsonSize.Value = 0.6f;
-    JsonSlot->SetSize(JsonSize);
-
-    return BottomPanelBorder;
+    UE_LOG(LogMASkillAllocationViewer, Log, TEXT("BuildUI: UI construction completed successfully (left-right layout)"));
 }
 
 UBorder* UMASkillAllocationViewer::CreateLeftPanel()
 {
-    // Left panel background (deprecated - kept for compatibility)
     UBorder* LeftPanelBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("LeftPanelBorder"));
-    LeftPanelBorder->SetBrushColor(PanelBackgroundColor);
     LeftPanelBorder->SetPadding(FMargin(10.0f));
+    MARoundedBorderUtils::ApplyRoundedCorners(LeftPanelBorder, PanelBackgroundColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
+    LeftPanelBorder->SetClipping(EWidgetClipping::ClipToBoundsAlways);
 
-    // Vertical layout
-    UVerticalBox* LeftVBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("LeftVBox"));
-    LeftPanelBorder->AddChild(LeftVBox);
-
-    // Title
-    UTextBlock* LeftPanelTitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("LeftPanelTitle"));
-    LeftPanelTitleText->SetText(FText::FromString(TEXT("Skill Allocation Workbench")));
-    FSlateFontInfo TitleFont = LeftPanelTitleText->GetFont();
-    TitleFont.Size = 16;
-    LeftPanelTitleText->SetFont(TitleFont);
-    LeftPanelTitleText->SetColorAndOpacity(FSlateColor(TitleColor));
-    
-    UVerticalBoxSlot* TitleSlot = LeftVBox->AddChildToVerticalBox(LeftPanelTitleText);
-    TitleSlot->SetPadding(FMargin(0, 0, 0, 10));
-
-    // Hint text
-    UTextBlock* LeftPanelHintText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("HintText"));
-    LeftPanelHintText->SetText(FText::FromString(TEXT("Press X to toggle visibility")));
-    FSlateFontInfo HintFont = LeftPanelHintText->GetFont();
-    HintFont.Size = 10;
-    LeftPanelHintText->SetFont(HintFont);
-    FLinearColor LeftHintTextColor = Theme ? Theme->HintTextColor : FLinearColor(0.5f, 0.5f, 0.6f);
-    LeftPanelHintText->SetColorAndOpacity(FSlateColor(LeftHintTextColor));
-    
-    UVerticalBoxSlot* HintSlot = LeftVBox->AddChildToVerticalBox(LeftPanelHintText);
-    HintSlot->SetPadding(FMargin(0, 0, 0, 15));
-
-    // Status log section
-    UVerticalBox* StatusLogSection = CreateStatusLogSection();
-    UVerticalBoxSlot* StatusSlot = LeftVBox->AddChildToVerticalBox(StatusLogSection);
-    FSlateChildSize StatusSize(ESlateSizeRule::Fill);
-    StatusSize.Value = StatusLogHeightRatio;
-    StatusSlot->SetSize(StatusSize);
-    StatusSlot->SetPadding(FMargin(0, 0, 0, 10));
-
-    // JSON editor section
     UVerticalBox* JsonEditorSection = CreateJsonEditorSection();
-    UVerticalBoxSlot* JsonSlot = LeftVBox->AddChildToVerticalBox(JsonEditorSection);
-    FSlateChildSize JsonSize(ESlateSizeRule::Fill);
-    JsonSize.Value = 1.0f - StatusLogHeightRatio;
-    JsonSlot->SetSize(JsonSize);
+    LeftPanelBorder->AddChild(JsonEditorSection);
 
     return LeftPanelBorder;
-}
-
-UVerticalBox* UMASkillAllocationViewer::CreateStatusLogSection()
-{
-    UVerticalBox* Section = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("StatusLogSection"));
-
-    // Label - use Theme->LabelTextColor with fallback
-    StatusLogLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("StatusLogLabel"));
-    StatusLogLabel->SetText(FText::FromString(TEXT("Status Log:")));
-    FLinearColor LabelTextColor = Theme ? Theme->LabelTextColor : FLinearColor::White;
-    StatusLogLabel->SetColorAndOpacity(FSlateColor(LabelTextColor));
-    FSlateFontInfo LabelFont = FCoreStyle::GetDefaultFontStyle("Bold", 14);
-    StatusLogLabel->SetFont(LabelFont);
-    
-    UVerticalBoxSlot* LabelSlot = Section->AddChildToVerticalBox(StatusLogLabel);
-    LabelSlot->SetPadding(FMargin(0, 0, 0, 3));
-
-    // Status log text box (read-only) - wrapped in rounded border
-    StatusLogBox = WidgetTree->ConstructWidget<UMultiLineEditableTextBox>(UMultiLineEditableTextBox::StaticClass(), TEXT("StatusLogBox"));
-    StatusLogBox->SetIsReadOnly(true);
-    StatusLogBox->SetText(FText::GetEmpty());
-    
-    // 设置文本样式：使用主题颜色，字号 12，透明背景
-    FEditableTextBoxStyle StatusLogStyle;
-    FLinearColor StatusLogTextColor = Theme ? Theme->InputTextColor : FLinearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    FSlateColor StatusLogSlateColor = FSlateColor(StatusLogTextColor);
-    StatusLogStyle.SetForegroundColor(StatusLogSlateColor);
-    StatusLogStyle.SetFocusedForegroundColor(StatusLogSlateColor);
-    StatusLogStyle.SetReadOnlyForegroundColor(StatusLogSlateColor);
-    StatusLogStyle.TextStyle.ColorAndOpacity = StatusLogSlateColor;
-    FSlateFontInfo StatusLogFont = FCoreStyle::GetDefaultFontStyle("Regular", 12);
-    StatusLogStyle.SetFont(StatusLogFont);
-    
-    // 设置透明背景，让外层圆角 Border 的背景显示出来
-    FSlateBrush TransparentBrush1;
-    TransparentBrush1.TintColor = FSlateColor(FLinearColor::Transparent);
-    StatusLogStyle.SetBackgroundImageNormal(TransparentBrush1);
-    StatusLogStyle.SetBackgroundImageHovered(TransparentBrush1);
-    StatusLogStyle.SetBackgroundImageFocused(TransparentBrush1);
-    StatusLogStyle.SetBackgroundImageReadOnly(TransparentBrush1);
-    
-    StatusLogBox->WidgetStyle = StatusLogStyle;
-    
-    // 创建圆角 Border 包装文本框
-    UBorder* StatusLogBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("StatusLogBorder"));
-    StatusLogBorder->SetPadding(FMargin(8.0f, 4.0f));
-    
-    // 应用圆角效果 - 只读文本框使用主题输入框背景色
-    FLinearColor StatusLogBgColor = Theme ? Theme->InputBackgroundColor : FLinearColor(0.22f, 0.22f, 0.22f, 0.7f);
-    MARoundedBorderUtils::ApplyRoundedCorners(StatusLogBorder, StatusLogBgColor, MARoundedBorderUtils::DefaultButtonCornerRadius);
-    
-    StatusLogBorder->AddChild(StatusLogBox);
-    
-    // Add border to section - let it fill available space
-    UVerticalBoxSlot* BoxSlot = Section->AddChildToVerticalBox(StatusLogBorder);
-    BoxSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-
-    return Section;
 }
 
 UVerticalBox* UMASkillAllocationViewer::CreateJsonEditorSection()
@@ -582,15 +432,13 @@ UVerticalBox* UMASkillAllocationViewer::CreateJsonEditorSection()
 
 UBorder* UMASkillAllocationViewer::CreateRightPanel()
 {
-    // Right panel background (deprecated - kept for compatibility)
     UBorder* RightPanelBorder = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("RightPanelBorder"));
-    RightPanelBorder->SetBrushColor(PanelBackgroundColor);
     RightPanelBorder->SetPadding(FMargin(10.0f));
+    MARoundedBorderUtils::ApplyRoundedCorners(RightPanelBorder, PanelBackgroundColor, MARoundedBorderUtils::DefaultPanelCornerRadius);
+    RightPanelBorder->SetClipping(EWidgetClipping::ClipToBoundsAlways);
 
-    // Gantt canvas
     GanttCanvas = WidgetTree->ConstructWidget<UMAGanttCanvas>(UMAGanttCanvas::StaticClass(), TEXT("GanttCanvas"));
     GanttCanvas->BindToModel(AllocationModel);
-    
     RightPanelBorder->AddChild(GanttCanvas);
 
     return RightPanelBorder;
@@ -620,33 +468,7 @@ bool UMASkillAllocationViewer::LoadSkillAllocationFromJson(const FString& JsonSt
 
 void UMASkillAllocationViewer::AppendStatusLog(const FString& Message)
 {
-    if (!StatusLogBox)
-    {
-        return;
-    }
-    
-    FString Timestamp = GetTimestamp();
-    FString CurrentText = StatusLogBox->GetText().ToString();
-    FString NewLine = FString::Printf(TEXT("[%s] %s"), *Timestamp, *Message);
-    
-    if (CurrentText.IsEmpty())
-    {
-        StatusLogBox->SetText(FText::FromString(NewLine));
-    }
-    else
-    {
-        StatusLogBox->SetText(FText::FromString(CurrentText + TEXT("\n") + NewLine));
-    }
-    
-    UE_LOG(LogMASkillAllocationViewer, Log, TEXT("StatusLog: %s"), *Message);
-}
-
-void UMASkillAllocationViewer::ClearStatusLog()
-{
-    if (StatusLogBox)
-    {
-        StatusLogBox->SetText(FText::GetEmpty());
-    }
+    UE_LOG(LogMASkillAllocationViewer, Log, TEXT("[%s] %s"), *GetTimestamp(), *Message);
 }
 
 FString UMASkillAllocationViewer::GetJsonText() const
@@ -1093,11 +915,6 @@ void UMASkillAllocationViewer::ApplyTheme(UMAUITheme* InTheme)
     if (CloseText)
     {
         CloseText->SetColorAndOpacity(FSlateColor(Theme->SecondaryTextColor));
-    }
-    
-    if (StatusLogLabel)
-    {
-        StatusLogLabel->SetColorAndOpacity(FSlateColor(Theme->LabelTextColor));
     }
     
     if (JsonEditorLabel)
