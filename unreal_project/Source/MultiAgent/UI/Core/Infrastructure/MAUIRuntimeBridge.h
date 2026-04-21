@@ -18,4 +18,7 @@ public:
     bool TrySendDecisionResponse(const UMAUIManager* UIManager, const FString& SelectedOption, const FString& UserFeedback, FString& OutError) const;
     bool TryClearResumeNotificationTimer(const UMAUIManager* UIManager, FTimerHandle& TimerHandle, FString& OutError) const;
     bool TryScheduleResumeNotificationAutoHide(const UMAUIManager* UIManager, FTimerHandle& TimerHandle, float DelaySeconds, FString& OutError) const;
+
+    /** 读取 simulation.show_notification 配置；ConfigManager 缺失时回退默认值 true（保持原有行为） */
+    bool IsPhaseNotificationEnabled(const UMAUIManager* UIManager) const;
 };

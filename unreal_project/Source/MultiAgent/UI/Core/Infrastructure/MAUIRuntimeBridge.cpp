@@ -6,6 +6,7 @@
 #include "Core/TempData/Runtime/MATempDataManager.h"
 #include "Core/Command/Runtime/MACommandManager.h"
 #include "Core/Comm/Runtime/MACommSubsystem.h"
+#include "Core/Config/MAConfigManager.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
@@ -41,6 +42,12 @@ UMACommandManager* ResolveCommandManager(const UMAUIManager* UIManager)
 {
     UWorld* World = ResolveWorld(UIManager);
     return World ? World->GetSubsystem<UMACommandManager>() : nullptr;
+}
+
+UMAConfigManager* ResolveConfigManager(const UMAUIManager* UIManager)
+{
+    UGameInstance* GameInstance = ResolveGameInstance(UIManager);
+    return GameInstance ? GameInstance->GetSubsystem<UMAConfigManager>() : nullptr;
 }
 }
 
@@ -229,4 +236,14 @@ bool FMAUIRuntimeBridge::TryScheduleResumeNotificationAutoHide(
     );
 
     return true;
+}
+
+bool FMAUIRuntimeBridge::IsPhaseNotificationEnabled(const UMAUIManager* UIManager) const
+{
+    const UMAConfigManager* Config = ResolveConfigManager(UIManager);
+    if (!Config)
+    {
+        return true;
+    }
+    return Config->bShowNotification;
 }
