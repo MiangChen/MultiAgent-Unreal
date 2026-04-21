@@ -41,28 +41,22 @@ DECLARE_LOG_CATEGORY_EXTERN(LogMASkillAllocationViewer, Log, All);
 
 /**
  * 技能分配查看器主容器 Widget
- * 
- * 布局结构:
+ *
+ * 布局结构 (左右分栏):
  * ┌─────────────────────────────────────────────────────────────────────┐
- * │                  Skill Allocation Viewer                            │
- * ├─────────────────────┬───────────────────────────────────────────────┤
- * │   Left Panel        │         Right Panel                           │
- * │  ┌───────────────┐  │  ┌─────────────────────────────────────────┐ │
- * │  │ Status Log    │  │  │    Gantt Canvas                         │ │
- * │  │ (ReadOnly)    │  │  │  Time Step 0  1  2  3  4  ...           │ │
- * │  └───────────────┘  │  │  ├──────────────────────────────────────┤ │
- * │  ┌───────────────┐  │  │  │ UAV-1   [■][■][■]                  │ │
- * │  │ JSON Editor   │  │  │  │ UAV-2   [■][■][■]                  │ │
- * │  │ (Editable)    │  │  │  │ UGV-1      [■■■■]                  │ │
- * │  └───────────────┘  │  │  │ Humanoid [■][■■■]                  │ │
- * │  ┌───────────────┐  │  │  └──────────────────────────────────────┘ │
- * │  │ Update Button │  │  │                                             │
- * │  └───────────────┘  │  │  Legend:                                    │
- * │  ┌───────────────┐  │  │  ■ Gray (Pending)                           │
- * │  │ Start Execute │  │  │  ■ Yellow (In-Progress)                     │
- * │  └───────────────┘  │  │  ■ Green (Completed)                        │
- * └─────────────────────┴──────────────────────────────────────────────┘
- * 
+ * │                  Skill Allocation Workbench                  [✕]   │
+ * ├──────────────────────────────┬──────────────────────────────────────┤
+ * │   Left: JSON Editor          │    Right: Gantt Canvas               │
+ * │  ┌────────────────────────┐  │  ┌───────────────────────────────┐ │
+ * │  │ {                      │  │  │ Time Step 0  1  2  3 ...      │ │
+ * │  │   "timeSteps": [...],  │  │  ├───────────────────────────────┤ │
+ * │  │   "robots":    [...]   │  │  │ UAV-1   [■][■][■]             │ │
+ * │  │ }                      │  │  │ UGV-1      [■■■■]             │ │
+ * │  │         (editable)     │  │  │ Humanoid [■][■■■]             │ │
+ * │  └────────────────────────┘  │  └───────────────────────────────┘ │
+ * │  [ Update ] [ Save ]          │                                     │
+ * └──────────────────────────────┴──────────────────────────────────────┘
+ *
  */
 UCLASS()
 class MULTIAGENT_API UMASkillAllocationViewer : public UUserWidget
@@ -84,13 +78,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "SkillAllocation")
     bool LoadSkillAllocationFromJson(const FString& JsonString);
 
-    /** 追加状态日志消息 (带时间戳) */
+    /** 追加诊断日志消息 (输出到控制台，带时间戳) */
     UFUNCTION(BlueprintCallable, Category = "SkillAllocation")
     void AppendStatusLog(const FString& Message);
-
-    /** 清空状态日志 */
-    UFUNCTION(BlueprintCallable, Category = "SkillAllocation")
-    void ClearStatusLog();
 
     /** 获取 JSON 编辑器文本 */
     UFUNCTION(BlueprintPure, Category = "SkillAllocation")
@@ -155,20 +145,11 @@ protected:
     /** 构建 UI 布局 */
     void BuildUI();
 
-    /** 创建左侧面板 (deprecated - kept for compatibility) */
+    /** 创建左侧面板 (JSON 编辑器 + 按钮) */
     UBorder* CreateLeftPanel();
 
-    /** 创建右侧面板 (deprecated - kept for compatibility) */
+    /** 创建右侧面板 (甘特图画布) */
     UBorder* CreateRightPanel();
-
-    /** 创建顶部面板 (甘特图区域) */
-    UBorder* CreateTopPanel();
-
-    /** 创建底部面板 (日志 + JSON编辑器 + 按钮) */
-    UBorder* CreateBottomPanel();
-
-    /** 创建状态日志区域 */
-    UVerticalBox* CreateStatusLogSection();
 
     /** 创建 JSON 编辑器区域 */
     UVerticalBox* CreateJsonEditorSection();
@@ -263,10 +244,6 @@ protected:
     // UI 组件
     //=========================================================================
 
-    /** 状态日志文本框 (只读) */
-    UPROPERTY()
-    UMultiLineEditableTextBox* StatusLogBox;
-
     /** JSON 编辑器文本框 (可编辑) */
     UPROPERTY()
     UMultiLineEditableTextBox* JsonEditorBox;
@@ -307,10 +284,6 @@ protected:
     UPROPERTY()
     UTextBlock* CloseText;
 
-    /** 状态日志标签 */
-    UPROPERTY()
-    UTextBlock* StatusLogLabel;
-
     /** JSON 编辑器标签 */
     UPROPERTY()
     UTextBlock* JsonEditorLabel;
@@ -332,16 +305,6 @@ protected:
     UMASkillAllocationModel* AllocationModel;
 
     friend class FMASkillAllocationViewerRuntimeAdapter;
-
-    //=========================================================================
-    // 配置
-    //=========================================================================
-
-    /** 左侧面板宽度比例 */
-    float LeftPanelWidthRatio = 0.35f;
-
-    /** 状态日志高度比例 */
-    float StatusLogHeightRatio = 0.3f;
 
     //=========================================================================
     // 颜色配置

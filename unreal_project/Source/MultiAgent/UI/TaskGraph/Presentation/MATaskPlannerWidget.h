@@ -32,9 +32,6 @@ class UMAUITheme;
 /** 任务图变更委托 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTaskGraphChanged, const FMATaskGraphData&, NewData);
 
-/** 指令提交委托 (兼容旧接口) */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlannerCommandSubmitted, const FString&, Command);
-
 //=============================================================================
 // 日志类别
 //=============================================================================
@@ -46,29 +43,29 @@ DECLARE_LOG_CATEGORY_EXTERN(LogMATaskPlanner, Log, All);
 
 /**
  * 任务规划工作台主容器 Widget
- * 
+ *
  * 布局结构:
  * ┌─────────────────────────────────────────────────────────────────────┐
  * │                    Task Planner Workbench                           │
  * ├─────────────────────┬───────────────────────────────────────────────┤
  * │   Left Panel        │         Right Panel                           │
  * │  ┌───────────────┐  │  ┌─────────────────────────────────────────┐ │
- * │  │ Status Log    │  │  │     DAG Canvas                          │ │
- * │  │ (ReadOnly)    │  │  │  ┌─────────┐  ┌─────────┐              │ │
- * │  └───────────────┘  │  │  │ Node A  │──│ Node B  │              │ │
- * │  ┌───────────────┐  │  │  └─────────┘  └─────────┘              │ │
- * │  │ JSON Editor   │  │  │       │                                 │ │
- * │  │ (Editable)    │  │  │       ▼                                 │ │
+ * │  │ JSON Editor   │  │  │     DAG Canvas                          │ │
+ * │  │ (Editable,    │  │  │  ┌─────────┐  ┌─────────┐              │ │
+ * │  │  fills left)  │  │  │  │ Node A  │──│ Node B  │              │ │
+ * │  └───────────────┘  │  │  └─────────┘  └─────────┘              │ │
+ * │  ┌───────────────┐  │  │       │                                 │ │
+ * │  │ Update / Save │  │  │       ▼                                 │ │
  * │  └───────────────┘  │  │  ┌─────────┐                            │ │
- * │  ┌───────────────┐  │  │  │ Node C  │                            │ │
- * │  │ Update Button │  │  │  └─────────┘                            │ │
- * │  └───────────────┘  │  └─────────────────────────────────────────┘ │
+ * │                     │  │  │ Node C  │                            │ │
+ * │                     │  │  └─────────┘                            │ │
+ * │                     │  └─────────────────────────────────────────┘ │
  * │                     │  ┌─────────────────────────────────────────┐ │
  * │                     │  │     Node Palette (Sidebar)              │ │
  * │                     │  │  [Navigate] [Patrol] [Custom]           │ │
  * │                     │  └─────────────────────────────────────────┘ │
  * └─────────────────────┴───────────────────────────────────────────────┘
- * 
+ *
  */
 UCLASS()
 class MULTIAGENT_API UMATaskPlannerWidget : public UUserWidget
@@ -90,13 +87,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "TaskPlanner")
     bool LoadTaskGraphFromJson(const FString& JsonString);
 
-    /** 追加状态日志消息 (带时间戳) */
+    /** 追加诊断日志消息 (输出到控制台，带时间戳) */
     UFUNCTION(BlueprintCallable, Category = "TaskPlanner")
     void AppendStatusLog(const FString& Message);
-
-    /** 清空状态日志 */
-    UFUNCTION(BlueprintCallable, Category = "TaskPlanner")
-    void ClearStatusLog();
 
     /** 获取 JSON 编辑器文本 */
     UFUNCTION(BlueprintPure, Category = "TaskPlanner")
@@ -146,10 +139,6 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "TaskPlanner|Events")
     FOnTaskGraphChanged OnTaskGraphChanged;
 
-    /** 指令提交委托 (兼容旧接口) */
-    UPROPERTY(BlueprintAssignable, Category = "TaskPlanner|Events")
-    FOnPlannerCommandSubmitted OnCommandSubmitted;
-
 protected:
     //=========================================================================
     // UUserWidget 重写
@@ -175,14 +164,8 @@ protected:
     /** 创建右侧面板 */
     UBorder* CreateRightPanel();
 
-    /** 创建状态日志区域 */
-    UVerticalBox* CreateStatusLogSection();
-
     /** 创建 JSON 编辑器区域 */
     UVerticalBox* CreateJsonEditorSection();
-
-    /** 创建用户指令输入区域 */
-    UVerticalBox* CreateUserInputSection();
 
     //=========================================================================
     // 事件处理
@@ -191,10 +174,6 @@ protected:
     /** "更新任务图" 按钮点击回调 */
     UFUNCTION()
     void OnUpdateGraphButtonClicked();
-
-    /** "发送指令" 按钮点击回调 */
-    UFUNCTION()
-    void OnSendCommandButtonClicked();
 
     /** "提交任务图" 按钮点击回调 */
     UFUNCTION()
@@ -265,10 +244,6 @@ protected:
     // UI 组件
     //=========================================================================
 
-    /** 状态日志文本框 (只读) */
-    UPROPERTY()
-    UMultiLineEditableTextBox* StatusLogBox;
-
     /** JSON 编辑器文本框 (可编辑) */
     UPROPERTY()
     UMultiLineEditableTextBox* JsonEditorBox;
@@ -276,14 +251,6 @@ protected:
     /** "更新任务图" 按钮 */
     UPROPERTY()
     UMAStyledButton* UpdateGraphButton;
-
-    /** 用户指令输入框 */
-    UPROPERTY()
-    UMultiLineEditableTextBox* UserInputBox;
-
-    /** "发送指令" 按钮 */
-    UPROPERTY()
-    UMAStyledButton* SendCommandButton;
 
     /** "保存" 按钮 (黄色，保存并返回 Modal) */
     UPROPERTY()
@@ -313,33 +280,17 @@ protected:
     UPROPERTY()
     UTextBlock* CloseText;
 
-    /** 状态日志标签 */
-    UPROPERTY()
-    UTextBlock* StatusLogLabel;
-
     /** JSON 编辑器标签 */
     UPROPERTY()
     UTextBlock* JsonEditorLabel;
-
-    /** 用户输入标签 */
-    UPROPERTY()
-    UTextBlock* UserInputLabel;
 
     /** 背景遮罩 */
     UPROPERTY()
     UBorder* BackgroundOverlay;
 
-    /** 状态日志 Border (圆角背景) */
-    UPROPERTY()
-    UBorder* StatusLogBorder;
-
     /** JSON 编辑器 Border (圆角背景) */
     UPROPERTY()
     UBorder* JsonEditorBorder;
-
-    /** 用户输入 Border (圆角背景) */
-    UPROPERTY()
-    UBorder* UserInputBorder;
 
     /** DAG 画布 Widget */
     UPROPERTY()
@@ -363,9 +314,6 @@ protected:
 
     /** 左侧面板宽度比例 */
     float LeftPanelWidthRatio = 0.35f;
-
-    /** 状态日志高度比例 */
-    float StatusLogHeightRatio = 0.3f;
 
     //=========================================================================
     // 主题引用
