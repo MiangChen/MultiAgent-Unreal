@@ -50,6 +50,8 @@ cd MultiAgent-Unreal
 
 The GitHub repository intentionally excludes `unreal_project/Content/`. Restore it separately before opening the UE project.
 
+Git LFS is only needed for downloading the external Hugging Face Content asset repository. Do not enable Git LFS tracking in this GitHub source repository.
+
 Preferred asset source:
 
 ```bash
@@ -70,6 +72,14 @@ Alternative script:
 ```bash
 ./scripts/dataset/setup_hf_content.sh
 ```
+
+Hugging Face setup notes:
+
+- Install Git LFS before cloning the external Content asset repository.
+- Clone the asset repository exactly into `unreal_project/Content`.
+- If the Hugging Face dataset is private, authenticate first with `huggingface-cli login` or configure an access token.
+- If `unreal_project/Content` already exists, inspect it before replacing it. If it is a Git repository, update it with `cd unreal_project/Content && git pull`. If it is a stale local folder, move it aside before cloning a fresh copy.
+- Do not run `git lfs track` in the main GitHub source repository.
 
 If the asset repository moves, ask the project owner for the current Content package. The code repository can be edited without Content, but the full UE scene cannot be reproduced without it.
 
