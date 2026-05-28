@@ -33,13 +33,7 @@ The goal is not just to render robots in UE. The project is a testbed for connec
 
 ## How To Reproduce The Project
 
-For humans, start with the docs site and setup notes:
-
-- Documentation: [https://miangchen.github.io/MultiAgent-Unreal/](https://miangchen.github.io/MultiAgent-Unreal/)
-- Configuration reference: [config/README.md](config/README.md)
-- Startup examples: [site_docs/startup-and-examples.md](site_docs/startup-and-examples.md)
-
-For AI coding assistants, give them this file:
+We strongly recommend using an AI coding assistant to configure the local environment. Give the assistant this file:
 
 ```text
 AGENTS.md
