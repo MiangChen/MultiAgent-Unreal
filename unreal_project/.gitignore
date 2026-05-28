@@ -1,0 +1,19 @@
+# Unreal Engine generated files
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+Content/
+Content.zip
+
+# IDE
+.idea/
+.vs/
+.vscode/
+*.code-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+/Content/Map/
+/Content/

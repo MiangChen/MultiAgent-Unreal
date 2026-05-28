@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MultiAgent - Guided Demo</title>
+    <link rel="stylesheet" href="/assets/shared.css">
+    <link rel="stylesheet" href="/assets/demo.css">
+</head>
+<body>
+    <div class="top-tabs">
+        <a class="top-tab" href="/">🎮 控制台</a>
+        <a class="top-tab active demo-active" href="/demo">📖 引导演示 <span class="new-badge">NEW</span></a>
+    </div>
+    <div class="page">{{DEMO_CONTENT}}</div>
+    <script>
+        window.MA_DEMO_DATA = {
+            scenarios: {{DEMO_SCENARIOS}},
+            skillLists: {{SKILL_LISTS}},
+            skillAllocations: {{SKILL_ALLOCATIONS}}
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script src="/assets/shared_ui.js"></script>
+    <script src="/assets/demo.js"></script>
+</body>
+</html>

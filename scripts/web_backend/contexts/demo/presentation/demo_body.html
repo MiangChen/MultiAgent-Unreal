@@ -1,0 +1,45 @@
+<!-- Landing -->
+<div class="landing" id="demo-landing">
+    <div class="landing-header">
+        <h1>🎮 Interactive Demo</h1>
+        <p>选择一个场景，跟着引导一步步体验多机器人协同仿真</p>
+    </div>
+    <div class="cards" id="demo-cards"></div>
+</div>
+
+<!-- Guide -->
+<div class="guide" id="demo-guide">
+    <div class="guide-header">
+        <button class="back-btn" onclick="demoBack()">← 返回</button>
+        <span class="guide-title" id="dg-title"></span>
+        <span class="guide-sub" id="dg-sub"></span>
+    </div>
+    <div class="progress" id="dg-progress"></div>
+    <div class="step-area">
+        <div class="step-main">
+            <div class="step-num" id="ds-num"></div>
+            <div class="step-title" id="ds-title"></div>
+            <div class="step-desc" id="ds-desc"></div>
+            <div class="demo-visual" id="ds-visual" style="display:none"></div>
+            <div class="ue-tip">
+                <span class="ue-tip-icon">🎮</span>
+                <div>
+                    <div class="ue-tip-label">UE5 操作提示</div>
+                    <div class="ue-tip-text" id="ds-uetip"></div>
+                </div>
+            </div>
+            <div class="step-actions" id="ds-actions"></div>
+            <div class="nav-row">
+                <button class="nav-btn" id="dn-prev" onclick="demoNav(-1)">← 上一步</button>
+                <div class="nav-spacer"></div>
+                <button class="nav-btn" id="dn-next" onclick="demoNav(1)">下一步 →</button>
+            </div>
+        </div>
+        <div class="demo-sidebar">
+            <div class="demo-sidebar-hdr">📨 实时日志</div>
+            <div class="demo-sidebar-msgs" id="demo-sb">
+                <div class="demo-sidebar-empty">发送命令后，日志将显示在这里</div>
+            </div>
+        </div>
+    </div>
+</div>

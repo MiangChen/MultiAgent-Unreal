@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MultiAgent Interactive Demo</title>
+    <link rel="stylesheet" href="/assets/shared.css">
+    <link rel="stylesheet" href="/assets/demo.css">
+    <style>
+        .sa-header { height: 50px; background: var(--panel-bg); border-bottom: 1px solid var(--border);
+                     display: flex; align-items: center; padding: 0 24px; gap: 12px; }
+        .sa-title { font-size: 16px; font-weight: 700; color: var(--amber); }
+        .sa-status { margin-left: auto; font-size: 12px; color: var(--muted); }
+        .sa-dot { width: 8px; height: 8px; border-radius: 50%; background: #f44; display: inline-block; margin-right: 6px; }
+        .sa-dot.ok { background: var(--green); }
+        .sa-wrap { height: calc(100vh - 50px); overflow: hidden; }
+    </style>
+</head>
+<body>
+<div class="sa-header">
+    <span>🎮</span> <span class="sa-title">MultiAgent Interactive Demo (Standalone)</span>
+    <div class="sa-status"><span class="sa-dot" id="sa-dot"></span><span id="sa-st">...</span></div>
+</div>
+<div class="sa-wrap">{{DEMO_CONTENT}}</div>
+<script>
+window.MA_DEMO_DATA = {
+    scenarios: {{DEMO_SCENARIOS}},
+    skillLists: {},
+    skillAllocations: {}
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script src="/assets/shared_ui.js"></script>
+<script src="/assets/demo.js"></script>
+<script>
+async function checkBk(){try{const r=await fetch('/api/health_proxy');const d=await r.json();
+const ok=d.status==='healthy';document.getElementById('sa-dot').className='sa-dot'+(ok?' ok':'');
+document.getElementById('sa-st').textContent=ok?'Backend OK':'Error';}catch(e){
+document.getElementById('sa-dot').className='sa-dot';document.getElementById('sa-st').textContent='Offline';}}
+checkBk();setInterval(checkBk,3000);
+</script>
+</body>
+</html>

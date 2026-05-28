@@ -1,0 +1,105 @@
+{
+    "meta": {
+      "description": "派遣无人机侦察火灾区域，机器狗前往灭火，人形机器人疏散人员。",
+      "shared_skill_groups": [
+        ["T1.0", "T4.0"],
+        ["T2.0", "T5.0"],
+        ["T3.0", "T6.0"]
+      ]
+    },
+    "task_graph": {
+      "nodes": [
+        {
+          "task_id": "T1",
+          "description": "无人机飞往火灾区域进行空中侦察",
+          "location": "building_A_roof",
+          "required_skills": [
+            {
+              "skill_name": "navigate_to(building_A_roof)",
+              "assigned_robot_type": ["UAV"],
+              "assigned_robot_count": 1
+            }
+          ],
+          "produces": ["drone_at_fire_zone"]
+        },
+        {
+          "task_id": "T2",
+          "description": "无人机扫描火灾区域获取热成像数据",
+          "location": "building_A_roof",
+          "required_skills": [
+            {
+              "skill_name": "perceive(thermal_scan)",
+              "assigned_robot_type": ["UAV"],
+              "assigned_robot_count": 1
+            }
+          ],
+          "produces": ["fire_location_data", "victim_locations"]
+        },
+        {
+          "task_id": "T3",
+          "description": "机器狗导航至火灾现场入口",
+          "location": "building_A_entrance",
+          "required_skills": [
+            {
+              "skill_name": "navigate_to(building_A_entrance)",
+              "assigned_robot_type": ["Quadruped"],
+              "assigned_robot_count": 2
+            }
+          ],
+          "produces": ["dogs_at_entrance"]
+        },
+        {
+          "task_id": "T4",
+          "description": "无人机广播火灾位置给地面机器人",
+          "location": "building_A_roof",
+          "required_skills": [
+            {
+              "skill_name": "Broadcast(fire_location_data)",
+              "assigned_robot_type": ["UAV"],
+              "assigned_robot_count": 1
+            }
+          ],
+          "produces": ["fire_info_shared"]
+        },
+        {
+          "task_id": "T5",
+          "description": "机器狗执行灭火操作",
+          "location": "tbd:fire_point",
+          "required_skills": [
+            {
+              "skill_name": "manipulate(fire_extinguisher)",
+              "assigned_robot_type": ["Quadruped"],
+              "assigned_robot_count": 2
+            }
+          ],
+          "produces": ["fire_suppressed"]
+        },
+        {
+          "task_id": "T6",
+          "description": "人形机器人疏散被困人员",
+          "location": "tbd:victim_location",
+          "required_skills": [
+            {
+              "skill_name": "navigate_to(victim_location)",
+              "assigned_robot_type": ["Humanoid"],
+              "assigned_robot_count": 1
+            },
+            {
+              "skill_name": "manipulate(assist_evacuation)",
+              "assigned_robot_type": ["Humanoid"],
+              "assigned_robot_count": 1
+            }
+          ],
+          "produces": ["victims_evacuated"]
+        }
+      ],
+      "edges": [
+        {"from": "T1", "to": "T2", "type": "sequential"},
+        {"from": "T2", "to": "T4", "type": "sequential"},
+        {"from": "T2", "to": "T3", "type": "parallel"},
+        {"from": "T4", "to": "T5", "type": "conditional", "condition": "fire_info_shared != null"},
+        {"from": "T3", "to": "T5", "type": "sequential"},
+        {"from": "T2", "to": "T6", "type": "conditional", "condition": "victim_locations != null"}
+      ]
+    }
+}

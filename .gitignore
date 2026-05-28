@@ -1,0 +1,97 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+site/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Kiro / SII
+.kiro/
+.kiro/steering/
+.kiro/steering/project-guide.md
+.sii/
+
+# Temp files
+._____temp/
+*.log
+*.tmp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+*.utoc
+*.pak
+unrealcv/
+
+# 本地脚本 (使用 *_example.sh 作为模板)
+compile.sh
+start.sh
+linux_compile_and_start.sh
+mac_compile_and_start.sh
+
+# UE5 大文件 (可本地重新生成)
+*_BuiltData.uasset
+*.code-workspace
+
+# Unreal generated (这些目录可本地重新生成)
+Binaries/
+Intermediate/
+Saved/
+DerivedDataCache/
+
+# UE5 Content (资源文件太大，不适合 Git)
+# 如需共享资源，建议使用网盘或 Git LFS
+unreal_project/Content/
+
+# Visual Studio
+.vs/
+*.sln
+*.VC.db
+
+
+# 临时记录
+temp_record.txt
+
+doc/REFACTORING_ANALYSIS_PART1.md
+doc/REFACTORING_ANALYSIS_PART2.md
+doc/REFACTORING_INDEX.md
+doc/REFACTORING_SUMMARY.md
+config_simplecity.zip
+unreal_project/Source/MultiAgent/UI/Temp/MAEmergencyModalforREF.cpp.txt
+.gitignore
+unreal_project/data/task_graph_temp.json
+unreal_project/data/task_graph_temp.json
+unreal_project/data/task_graph_temp.json
+unreal_project/Source/MultiAgent/UI/Temp/MAEmergencyManagerforREF.cpp.txt
+/config/README.md
+/doc/UI_HARDCODED_COLORS_REPORT.md
+/config_simplecity.zip

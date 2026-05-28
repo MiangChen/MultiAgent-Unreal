@@ -1,0 +1,85 @@
+{
+    "simulation": {
+        "name": "MultiAgent Simulation",
+        "version": "1.0",
+        "run_mode": "edit",
+        "use_setup_ui": false,
+        "use_state_tree": false,
+        "enable_energy_drain": false,
+        "enable_info_checks": true,
+        "map_type": "Downtown"
+    },
+    "spawn_settings": {
+        "use_player_start": true,
+        "fallback_origin": [0, 0, 100],
+        "spawn_radius": 400,
+        "project_to_navmesh": true
+    },
+    "flight": {
+        "min_altitude": 800.0,
+        "default_altitude": 1000.0,
+        "max_speed": 600.0,
+        "obstacle_detection_range": 800.0,
+        "obstacle_avoidance_radius": 100.0,
+        "acceptance_radius": 200.0
+    },
+    "ground_navigation": {
+        "acceptance_radius": 200.0,
+        "stuck_timeout": 10.0
+    },
+    "follow": {
+        "distance": 700.0,
+        "position_tolerance": 700.0,
+        "continuous_time_threshold": 20.0
+    },
+    "guide": {
+        "target_move_mode": "direct",
+        "wait_distance_threshold": 1000.0
+    },
+    "handle_hazard": {
+        "safe_distance": 1000.0,
+        "duration": 15.0,
+        "spray_speed": 800.0,
+        "spray_width": 1.0
+    },
+    "take_photo": {
+        "photo_distance": 800.0,
+        "photo_duration": 15.0,
+        "camera_fov": 60.0,
+        "camera_forward_offset": 50.0
+    },
+    "broadcast": {
+        "broadcast_distance": 800.0,
+        "broadcast_duration": 20.0,
+        "effect_speed": 1000.0,
+        "effect_width": 1000.0,
+        "shock_rate": 3.0
+    },
+    "navigation": {
+        "path_planner_type": "MultiLayerRaycast",
+        "multi_layer_raycast": {
+            "layer_count": 3,
+            "layer_distance": 300.0,
+            "scan_angle_range": 120.0,
+            "scan_angle_step": 15.0
+        },
+        "elevation_map": {
+            "cell_size": 50.0,
+            "search_radius": 1000.0,
+            "max_slope_angle": 30.0,
+            "max_step_height": 50.0,
+            "path_smoothing_factor": 0.15
+        }
+    },
+    "server": {
+        "planner_url": "http://localhost:8081",
+        "use_mock_data": false,
+        "enable_polling": true,
+        "enable_hitl_polling": true,
+        "poll_interval_seconds": 1.0,
+        "hitl_poll_interval_seconds": 1.0,
+        "debug_mode": false,
+        "local_server_port": 8080,
+        "enable_local_server": true
+    }
+}
