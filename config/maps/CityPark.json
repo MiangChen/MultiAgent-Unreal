@@ -1,0 +1,61 @@
+{
+    "map_info": {
+        "display_name": "CityPark",
+        "map_path": "/Game/Map/CityPark/Map/Showcase",
+        "scene_graph_folder": "datasets/CityPark"
+    },
+    "spectator": {
+        "position": [0, -3000, 1800],
+        "rotation": [-20, 90, 0]
+    },
+    "agents": [
+        {
+            "type": "UAV",
+            "instances": [
+                { "label": "UAV-1", "position": [0, 0, 20], "rotation": [0, 0, 0], "battery_level": 100 },
+                { "label": "UAV-2", "position": [300, 0, 20], "rotation": [0, 0, 0], "battery_level": 100 }
+            ]
+        },
+        {
+            "type": "UGV",
+            "instances": [
+                { "label": "UGV-1", "position": [0, 400, 20], "rotation": [0, 0, 0], "battery_level": 100 },
+                { "label": "UGV-2", "position": [300, 400, 20], "rotation": [0, 0, 0], "battery_level": 100 }
+            ]
+        },
+        {
+            "type": "Quadruped",
+            "instances": [
+                { "label": "Quadruped-1", "position": [0, 800, 20], "rotation": [0, 0, 0], "battery_level": 100 },
+                { "label": "Quadruped-2", "position": [300, 800, 20], "rotation": [0, 0, 0], "battery_level": 100 }
+            ]
+        },
+        {
+            "type": "Humanoid",
+            "instances": [
+                { "label": "Humanoid-1", "position": [0, 1200, 20], "rotation": [0, 0, 0], "battery_level": 100 },
+                { "label": "Humanoid-2", "position": [300, 1200, 20], "rotation": [0, 0, 0], "battery_level": 100 }
+            ]
+        }
+    ],
+    "environment": [
+        {
+            "label": "ChargingStation_1", "type": "charging_station",
+            "position": [-600, 0, 20],
+            "enabled": true,
+            "features": {}
+        },
+        {
+            "label": "RedBox", "type": "cargo",
+            "position": [-600, 600, 0],
+            "enabled": true,
+            "features": { "color": "red", "subtype": "box" }
+        },
+        {
+            "label": "BlueBox", "type": "cargo",
+            "position": [-600, 1000, 0],
+            "enabled": true,
+            "features": { "color": "blue", "subtype": "box" }
+        }
+    ]
+}
