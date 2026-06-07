@@ -119,16 +119,16 @@ void AMAUAVCharacter::UpdatePropellerAnimation()
     // 根据导航服务状态控制螺旋桨
     bool bShouldSpin = IsInAir();
     
-    USkeletalMeshComponent* Mesh = GetMesh();
-    if (!Mesh) return;
-    
-    if (bShouldSpin && !Mesh->IsPlaying())
+    USkeletalMeshComponent* MeshComp = GetMesh();
+    if (!MeshComp) return;
+
+    if (bShouldSpin && !MeshComp->IsPlaying())
     {
-        Mesh->Play(true);
+        MeshComp->Play(true);
     }
-    else if (!bShouldSpin && Mesh->IsPlaying())
+    else if (!bShouldSpin && MeshComp->IsPlaying())
     {
-        Mesh->Stop();
+        MeshComp->Stop();
     }
 }
 

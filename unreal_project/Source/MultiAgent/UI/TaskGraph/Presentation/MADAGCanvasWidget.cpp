@@ -152,13 +152,13 @@ UMATaskNodeWidget* UMADAGCanvasWidget::CreateNode(const FMATaskNodeData& NodeDat
     NodeWidget->OnRightClicked.AddDynamic(this, &UMADAGCanvasWidget::OnNodeWidgetRightClicked);
 
     // 添加到容器
-    UCanvasPanelSlot* Slot = NodeContainer->AddChildToCanvas(NodeWidget);
-    if (Slot)
+    UCanvasPanelSlot* CanvasSlot = NodeContainer->AddChildToCanvas(NodeWidget);
+    if (CanvasSlot)
     {
         FVector2D ScreenPos = CanvasToScreen(Position);
-        Slot->SetAnchors(FAnchors(0.0f, 0.0f, 0.0f, 0.0f));
-        Slot->SetPosition(ScreenPos);
-        Slot->SetAutoSize(true);
+        CanvasSlot->SetAnchors(FAnchors(0.0f, 0.0f, 0.0f, 0.0f));
+        CanvasSlot->SetPosition(ScreenPos);
+        CanvasSlot->SetAutoSize(true);
     }
 
     // 存储引用
@@ -213,11 +213,11 @@ void UMADAGCanvasWidget::MoveNode(const FString& NodeId, FVector2D NewPosition)
     Widget->SetNodeData(Data);
 
     // 更新 Widget 位置
-    UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(Widget->Slot);
-    if (Slot)
+    UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(Widget->Slot);
+    if (CanvasSlot)
     {
         FVector2D ScreenPos = CanvasToScreen(NewPosition);
-        Slot->SetPosition(ScreenPos);
+        CanvasSlot->SetPosition(ScreenPos);
     }
 
     // 更新模型中的位置
@@ -785,10 +785,10 @@ void UMADAGCanvasWidget::UpdateNodePositions()
         FMATaskNodeData Data = Widget->GetNodeData();
         FVector2D ScreenPos = CanvasToScreen(Data.CanvasPosition);
 
-        UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(Widget->Slot);
-        if (Slot)
+        UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(Widget->Slot);
+        if (CanvasSlot)
         {
-            Slot->SetPosition(ScreenPos);
+            CanvasSlot->SetPosition(ScreenPos);
         }
     }
 }
@@ -1042,9 +1042,9 @@ void UMADAGCanvasWidget::AutoLayoutNodes()
         NodeData.CanvasPosition = Pair.Value;
         Widget->SetNodeData(NodeData);
 
-        if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(Widget->Slot))
+        if (UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(Widget->Slot))
         {
-            Slot->SetPosition(CanvasToScreen(Pair.Value));
+            CanvasSlot->SetPosition(CanvasToScreen(Pair.Value));
         }
 
         GraphModel->UpdateNodePosition(Pair.Key, Pair.Value);

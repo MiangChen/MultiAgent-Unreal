@@ -231,12 +231,12 @@ void UMASpeechBubbleWidget::BuildUI()
         ShadowBorder->SetPadding(FMargin(BubblePaddingH + 2.0f, BubblePaddingV + 2.0f));
 
         RootCanvas->AddChild(ShadowBorder);
-        if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(ShadowBorder->Slot))
+        if (UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(ShadowBorder->Slot))
         {
-            Slot->SetAnchors(FAnchors(0.0f, 0.0f, 0.0f, 0.0f));
-            Slot->SetPosition(FVector2D(ShadowOffsetX, ShadowOffsetY));
-            Slot->SetSize(FVector2D(BubbleMaxWidth, 0.0f));
-            Slot->SetAutoSize(true);
+            CanvasSlot->SetAnchors(FAnchors(0.0f, 0.0f, 0.0f, 0.0f));
+            CanvasSlot->SetPosition(FVector2D(ShadowOffsetX, ShadowOffsetY));
+            CanvasSlot->SetSize(FVector2D(BubbleMaxWidth, 0.0f));
+            CanvasSlot->SetAutoSize(true);
         }
     }
 
@@ -251,11 +251,11 @@ void UMASpeechBubbleWidget::BuildUI()
             TailShadowImage->SetDesiredSizeOverride(FVector2D(TailWidth + 4.0f, TailHeight + 2.0f));
         }
         RootCanvas->AddChild(TailShadowImage);
-        if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(TailShadowImage->Slot))
+        if (UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(TailShadowImage->Slot))
         {
-            Slot->SetAnchors(FAnchors(0.0f, 0.0f, 0.0f, 0.0f));
-            Slot->SetPosition(FVector2D(0.0f, 0.0f));
-            Slot->SetAutoSize(true);
+            CanvasSlot->SetAnchors(FAnchors(0.0f, 0.0f, 0.0f, 0.0f));
+            CanvasSlot->SetPosition(FVector2D(0.0f, 0.0f));
+            CanvasSlot->SetAutoSize(true);
         }
     }
 
@@ -294,12 +294,12 @@ void UMASpeechBubbleWidget::BuildUI()
         }
 
         RootCanvas->AddChild(BubbleBorder);
-        if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(BubbleBorder->Slot))
+        if (UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(BubbleBorder->Slot))
         {
-            Slot->SetAnchors(FAnchors(0.0f, 0.0f, 0.0f, 0.0f));
-            Slot->SetPosition(FVector2D(0.0f, 0.0f));
-            Slot->SetSize(FVector2D(BubbleMaxWidth, 0.0f));
-            Slot->SetAutoSize(true);
+            CanvasSlot->SetAnchors(FAnchors(0.0f, 0.0f, 0.0f, 0.0f));
+            CanvasSlot->SetPosition(FVector2D(0.0f, 0.0f));
+            CanvasSlot->SetSize(FVector2D(BubbleMaxWidth, 0.0f));
+            CanvasSlot->SetAutoSize(true);
         }
     }
 
@@ -314,11 +314,11 @@ void UMASpeechBubbleWidget::BuildUI()
             TailImage->SetDesiredSizeOverride(FVector2D(TailWidth, TailHeight));
         }
         RootCanvas->AddChild(TailImage);
-        if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(TailImage->Slot))
+        if (UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(TailImage->Slot))
         {
-            Slot->SetAnchors(FAnchors(0.0f, 0.0f, 0.0f, 0.0f));
-            Slot->SetPosition(FVector2D(0.0f, 0.0f));
-            Slot->SetAutoSize(true);
+            CanvasSlot->SetAnchors(FAnchors(0.0f, 0.0f, 0.0f, 0.0f));
+            CanvasSlot->SetPosition(FVector2D(0.0f, 0.0f));
+            CanvasSlot->SetAutoSize(true);
         }
     }
 }

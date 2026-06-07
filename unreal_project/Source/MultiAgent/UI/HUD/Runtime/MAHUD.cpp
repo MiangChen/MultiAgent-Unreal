@@ -29,7 +29,7 @@ const FMAHUDBootstrap& HUDBootstrap()
 
 const FMAFeedback21Applier& HUDFeedbackApplier()
 {
-    static const FMAFeedback21Applier Applier;
+    static FMAFeedback21Applier Applier;
     return Applier;
 }
 
@@ -47,13 +47,13 @@ const FMAHUDEditRuntimeAdapter& HUDEditRuntimeAdapter()
 
 const FMAHUDSceneActionRuntimeAdapter& HUDSceneActionRuntimeAdapter()
 {
-    static const FMAHUDSceneActionRuntimeAdapter Adapter;
+    static FMAHUDSceneActionRuntimeAdapter Adapter;
     return Adapter;
 }
 
 const FMAEditWidgetRuntimeAdapter& EditWidgetRuntimeAdapter()
 {
-    static const FMAEditWidgetRuntimeAdapter Adapter;
+    static FMAEditWidgetRuntimeAdapter Adapter;
     return Adapter;
 }
 }
