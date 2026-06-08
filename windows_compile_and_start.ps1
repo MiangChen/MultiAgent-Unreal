@@ -30,6 +30,7 @@ $TARGET = "MultiAgentEditor"
 $PLATFORM = "Win64"
 $CONFIG = "Development"
 $REBUILD = $false
+$NOWAIT = $false
 
 function Show-Help {
     Write-Host "Usage: .\windows_compile_and_start.ps1 [compile options] [-- editor args]"
@@ -38,6 +39,7 @@ function Show-Help {
     Write-Host "  -c, -Config <config>   Build config: Debug, Development, Shipping (default: Development)"
     Write-Host "  -r, -Rebuild           Clean Intermediate/Binaries before build"
     Write-Host "  -g, -Game              Build game target only (MultiAgent)"
+    Write-Host "  -n, -NoWait            Launch the editor detached (don't block this terminal)"
     Write-Host "  -h, -Help              Show this help"
     Write-Host ""
     Write-Host "Examples:"
@@ -58,6 +60,9 @@ for ($i = 0; $i -lt $args.Count; $i++) {
         }
         { $_ -in '-g', '-Game', '--game' } {
             $TARGET = "MultiAgent"
+        }
+        { $_ -in '-n', '-NoWait', '--no-wait' } {
+            $NOWAIT = $true
         }
         { $_ -in '-h', '-Help', '--help' } {
             Show-Help
@@ -140,4 +145,30 @@ if ($DEFAULT_MAP) {
 }
 
 Write-Host "Launching UnrealEditor..." -ForegroundColor Green
-& $EDITOR_BIN $PROJECT_FILE @LAUNCH_ARGS @EDITOR_ARGS
+
+# UnrealEditor.exe is a GUI (WINDOWS subsystem) app, so the call operator (&)
+# returns immediately instead of waiting -- which left the editor detached and
+# un-stoppable from this terminal. Start it via Start-Process and block on it so
+# Ctrl+C (or normal editor exit) tears the whole process tree down, matching the
+# mac/linux scripts' foreground behaviour.
+$ALL_ARGS = @($PROJECT_FILE) + $LAUNCH_ARGS + $EDITOR_ARGS
+$proc = Start-Process -FilePath $EDITOR_BIN -ArgumentList $ALL_ARGS -PassThru
+
+if ($NOWAIT) {
+    Write-Host "UnrealEditor started detached (PID $($proc.Id)). This terminal is free." -ForegroundColor Green
+    exit 0
+}
+
+Write-Host "UnrealEditor running (PID $($proc.Id)). Press Ctrl+C here to stop it." -ForegroundColor Green
+try {
+    # Poll instead of WaitForExit() so Ctrl+C can interrupt and reach 'finally'.
+    while (-not $proc.HasExited) { Start-Sleep -Milliseconds 250 }
+    exit $proc.ExitCode
+}
+finally {
+    if ($proc -and -not $proc.HasExited) {
+        Write-Host "`nStopping UnrealEditor (PID $($proc.Id))..." -ForegroundColor Yellow
+        # /T kills the child process tree (ShaderCompileWorker, etc.); works on PS 5.1 and 7.
+        taskkill /PID $proc.Id /T /F 2>$null | Out-Null
+    }
+}
