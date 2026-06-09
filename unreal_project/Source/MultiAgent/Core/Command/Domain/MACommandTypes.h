@@ -19,5 +19,7 @@ enum class EMACommand : uint8
     TakePhoto    UMETA(DisplayName = "TakePhoto"),
     Broadcast    UMETA(DisplayName = "Broadcast"),
     HandleHazard UMETA(DisplayName = "HandleHazard"),
-    Guide        UMETA(DisplayName = "Guide")
+    Guide        UMETA(DisplayName = "Guide"),
+    Clear        UMETA(DisplayName = "Clear"),
+    Transport    UMETA(DisplayName = "Transport")
 };

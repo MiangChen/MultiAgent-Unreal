@@ -31,9 +31,9 @@ void FMASkillTemplateRegistry::InitBaseTemplates()
 	//   在装货模式下，surface target就是承载者(carrier)
 	const TArray<EMAConditionCheckItem> PlaceTargetItems = {
 		EMAConditionCheckItem::TargetExists,
-		EMAConditionCheckItem::TargetNearby,
+		// EMAConditionCheckItem::TargetNearby,
 		EMAConditionCheckItem::SurfaceTargetExists,
-		EMAConditionCheckItem::SurfaceTargetNearby
+		// EMAConditionCheckItem::SurfaceTargetNearby
 	};
 
 	// --- Navigate ---
@@ -119,6 +119,28 @@ void FMASkillTemplateRegistry::InitBaseTemplates()
 		T.RuntimeCheckItems.Append(RobotItems);
 		T.RuntimeCheckItems.Append(EnvItems);
 		BaseTemplates.Add(EMACommand::Guide, T);
+	}
+
+	// --- Clear ---
+	{
+		FMASkillCheckTemplate T;
+		T.PrecheckItems.Append(RobotItems);
+		T.PrecheckItems.Append(EnvItems);
+		T.PrecheckItems.Append(TargetItems);
+		T.RuntimeCheckItems.Append(RobotItems);
+		T.RuntimeCheckItems.Append(EnvItems);
+		BaseTemplates.Add(EMACommand::Clear, T);
+	}
+
+	// --- Transport ---
+	{
+		FMASkillCheckTemplate T;
+		T.PrecheckItems.Append(RobotItems);
+		T.PrecheckItems.Append(EnvItems);
+		T.PrecheckItems.Append(TargetItems);
+		T.RuntimeCheckItems.Append(RobotItems);
+		T.RuntimeCheckItems.Append(EnvItems);
+		BaseTemplates.Add(EMACommand::Transport, T);
 	}
 
 	// --- Place ---

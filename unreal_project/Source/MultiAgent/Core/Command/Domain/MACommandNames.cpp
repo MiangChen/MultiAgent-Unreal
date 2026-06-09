@@ -17,6 +17,8 @@ FString FMACommandNames::ToString(const EMACommand Command)
         case EMACommand::Broadcast: return TEXT("broadcast");
         case EMACommand::HandleHazard: return TEXT("handle_hazard");
         case EMACommand::Guide: return TEXT("guide");
+        case EMACommand::Clear: return TEXT("clear");
+        case EMACommand::Transport: return TEXT("transport");
         default: return TEXT("None");
     }
 }
@@ -36,5 +38,7 @@ EMACommand FMACommandNames::FromString(const FString& CommandString)
     if (CommandString.Equals(TEXT("broadcast"), ESearchCase::IgnoreCase)) return EMACommand::Broadcast;
     if (CommandString.Equals(TEXT("handle_hazard"), ESearchCase::IgnoreCase)) return EMACommand::HandleHazard;
     if (CommandString.Equals(TEXT("guide"), ESearchCase::IgnoreCase)) return EMACommand::Guide;
+    if (CommandString.Equals(TEXT("clear"), ESearchCase::IgnoreCase)) return EMACommand::Clear;
+    if (CommandString.Equals(TEXT("transport"), ESearchCase::IgnoreCase)) return EMACommand::Transport;
     return EMACommand::None;
 }

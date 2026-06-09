@@ -217,6 +217,44 @@ struct FMAFeedbackContext
     UPROPERTY(BlueprintReadOnly)
     float GuideDurationSeconds = 0.f;
     
+    // Clear 反馈字段
+    UPROPERTY(BlueprintReadOnly)
+    bool bClearTargetFound = false;
+    
+    UPROPERTY(BlueprintReadOnly)
+    FString ClearTargetName;
+    
+    UPROPERTY(BlueprintReadOnly)
+    FString ClearTargetId;
+    
+    UPROPERTY(BlueprintReadOnly)
+    int32 ClearWaypointCount = 0;
+    
+    UPROPERTY(BlueprintReadOnly)
+    float ClearDurationSeconds = 0.f;
+    
+    // Transport 反馈字段
+    UPROPERTY(BlueprintReadOnly)
+    bool bTransportTargetFound = false;
+    
+    UPROPERTY(BlueprintReadOnly)
+    FString TransportTargetName;
+    
+    UPROPERTY(BlueprintReadOnly)
+    FString TransportTargetId;
+    
+    UPROPERTY(BlueprintReadOnly)
+    FVector TransportDestination = FVector::ZeroVector;
+    
+    UPROPERTY(BlueprintReadOnly)
+    int32 TransportParticipantCount = 0;
+    
+    UPROPERTY(BlueprintReadOnly)
+    FString TransportRole;
+    
+    UPROPERTY(BlueprintReadOnly)
+    float TransportDurationSeconds = 0.f;
+    
     void Reset() { *this = FMAFeedbackContext(); }
 };
 

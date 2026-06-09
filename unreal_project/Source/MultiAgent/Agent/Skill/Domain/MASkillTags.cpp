@@ -22,6 +22,8 @@ void FMASkillTags::InitializeNativeTags()
     SkillTags.Skill_Broadcast = FGameplayTag::RequestGameplayTag(FName("Skill.Broadcast"));
     SkillTags.Skill_HandleHazard = FGameplayTag::RequestGameplayTag(FName("Skill.HandleHazard"));
     SkillTags.Skill_Guide = FGameplayTag::RequestGameplayTag(FName("Skill.Guide"));
+    SkillTags.Skill_Clear = FGameplayTag::RequestGameplayTag(FName("Skill.Clear"));
+    SkillTags.Skill_Transport = FGameplayTag::RequestGameplayTag(FName("Skill.Transport"));
 
     // Status Tags
     SkillTags.Status_Moving = FGameplayTag::RequestGameplayTag(FName("Status.Moving"));
@@ -42,6 +44,8 @@ void FMASkillTags::InitializeNativeTags()
     SkillTags.Command_Broadcast = FMACommandTags::ToTag(EMACommand::Broadcast);
     SkillTags.Command_HandleHazard = FMACommandTags::ToTag(EMACommand::HandleHazard);
     SkillTags.Command_Guide = FMACommandTags::ToTag(EMACommand::Guide);
+    SkillTags.Command_Clear = FMACommandTags::ToTag(EMACommand::Clear);
+    SkillTags.Command_Transport = FMACommandTags::ToTag(EMACommand::Transport);
 
     UE_LOG(LogTemp, Log, TEXT("MASkillTags initialized"));
 }

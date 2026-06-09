@@ -1,7 +1,9 @@
-// MAComponent.h
-// 通用组件环境对象 - 静态道具类（太阳能板、LED屏幕、音响、支架等）
-// 
-// 现在也支持搬运操作，实现 IMAPickupItem 接口
+// MAMetalGrate.h
+// 金属网格平板 - metal_grate 类型的静态承载平台
+//
+// 平板默认静止于地面，可被一个或多个机器人抬起或拉起；
+// 平板表面可承载其他物品。实现 IMAEnvironmentObject 和 IMAPickupItem 接口，
+// 因此可以被场景查询定位，也可以经 Place/Carry 类技能被搬运。
 
 #pragma once
 
@@ -9,7 +11,7 @@
 #include "GameFramework/Actor.h"
 #include "../IMAEnvironmentObject.h"
 #include "../IMAPickupItem.h"
-#include "MAComponent.generated.h"
+#include "MAMetalGrate.generated.h"
 
 class UStaticMeshComponent;
 class USphereComponent;
@@ -18,38 +20,31 @@ class AMAUGVCharacter;
 struct FMAEnvironmentObjectConfig;
 
 /**
- * 通用组件环境对象
- * 
- * 用于表示组装组件类环境对象，如太阳能板、天线、音响、支架等。
- * 这些对象可以被 Humanoid 搬运，实现 IMAPickupItem 接口。
- * 
+ * 金属网格平板
+ *
  * 配置示例:
  * {
- *     "label": "SolarPanel_1",
- *     "type": "assembly_component",
- *     "position": [1000, 2000, 0],
+ *     "label": "Grate_1",
+ *     "type": "metal_grate",
+ *     "position": [7000, 9000, 0],
  *     "rotation": [0, 0, 0],
  *     "features": {
- *         "subtype": "solar_panel",
- *         "scale": "2.0"
+ *         "scale": "1.0",
+ *         "mass": "80"
  *     }
  * }
- * 
- * 支持的 subtype:
- * - solar_panel: 太阳能板
- * - antenna_module: 卫星天线
- * - address_speaker: 广播音响
- * - loudspeaker: 户外大型扩音器
- * - surveillance_camera: 监控摄像头
- * - stand: 支架/高脚凳
+ *
+ * 支持的 features:
+ * - scale: 平板整体缩放倍数（在默认尺寸基础上相乘），默认 1.0
+ * - mass: 平板质量（kg），用于物理模拟，默认 80
  */
 UCLASS()
-class MULTIAGENT_API AMAComponent : public AActor, public IMAEnvironmentObject, public IMAPickupItem
+class MULTIAGENT_API AMAMetalGrate : public AActor, public IMAEnvironmentObject, public IMAPickupItem
 {
     GENERATED_BODY()
 
 public:
-    AMAComponent();
+    AMAMetalGrate();
 
     //=========================================================================
     // IMAEnvironmentObject 接口实现
@@ -78,7 +73,6 @@ public:
     virtual bool IsBeingCarried() const override { return CurrentCarrier.IsValid(); }
     virtual AActor* GetCurrentCarrier() const override { return CurrentCarrier.Get(); }
     virtual void SetPhysicsEnabled(bool bEnabled) override;
-    virtual bool ShouldEnablePhysicsOnPlace() const override;
     virtual void OnPickedUp(AActor* PickerActor) override;
     virtual void OnDropped(FVector DropLocation) override;
 
@@ -86,17 +80,9 @@ public:
     // 配置方法
     //=========================================================================
 
-    /** 根据配置初始化组件 */
-    UFUNCTION(BlueprintCallable, Category = "Component")
+    /** 根据配置初始化平板 */
+    UFUNCTION(BlueprintCallable, Category = "MetalGrate")
     void Configure(const FMAEnvironmentObjectConfig& Config);
-
-    /** 启用物理模拟（掉落） */
-    UFUNCTION(BlueprintCallable, Category = "Component")
-    void EnablePhysics();
-
-    /** 禁用物理模拟 */
-    UFUNCTION(BlueprintCallable, Category = "Component")
-    void DisablePhysics();
 
     /** 获取网格组件 */
     UStaticMeshComponent* GetMeshComponent() const { return MeshComponent; }
@@ -112,7 +98,7 @@ protected:
     FString ObjectLabel;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Environment")
-    FString ObjectType = TEXT("assembly_component");
+    FString ObjectType = TEXT("metal_grate");
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Environment")
     TMap<FString, FString> Features;
@@ -130,37 +116,52 @@ protected:
     TWeakObjectPtr<AActor> CurrentCarrier;
 
     //=========================================================================
+    // 外观资源（可在编辑器中替换）
+    //=========================================================================
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance")
+    TSoftObjectPtr<UStaticMesh> GrateMeshAsset;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance")
+    TSoftObjectPtr<UMaterialInterface> GrateMaterialAsset;
+
+    //=========================================================================
+    // 物理参数
+    //=========================================================================
+
+    /** 平板默认质量（kg） */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics")
+    float DefaultMassKg = 80.f;
+
+    /** 线性阻尼（避免被轻微外力推动后滑行） */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics")
+    float LinearDamping = 1.5f;
+
+    /** 角阻尼（避免长时间旋转） */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics")
+    float AngularDamping = 2.0f;
+
+    //=========================================================================
     // 组件
     //=========================================================================
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
     TObjectPtr<UStaticMeshComponent> MeshComponent;
 
-    /** 碰撞检测组件 (用于检测 Character 进入范围) */
+    /** 拾取交互范围检测组件 */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
     TObjectPtr<USphereComponent> CollisionComponent;
 
-    /** Overlap 开始事件 */
     UFUNCTION()
     void OnOverlapBegin(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
         UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,
         bool bFromSweep, const FHitResult& SweepResult);
 
-    /** Overlap 结束事件 */
     UFUNCTION()
     void OnOverlapEnd(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
         UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
 private:
-    /** 设置组件网格 */
-    void SetComponentMesh(const FString& Subtype);
-
-    /** 获取组件网格路径 */
-    static FString GetComponentMeshPath(const FString& Subtype);
-
-    /** 获取组件默认缩放 */
-    static FVector GetComponentDefaultScale(const FString& Subtype);
-
-    /** 获取组件默认偏移 */
-    static FVector GetComponentDefaultOffset(const FString& Subtype);
+    /** 应用 features 中的 scale / mass 到运行时组件 */
+    void ApplyFeatureOverrides();
 };

@@ -53,6 +53,16 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Skill")
     const TArray<EMASkillType>& GetAvailableSkills() const { return AvailableSkills; }
 
+    /**
+     * 携带物体时，物体相对于角色根 transform 的附着偏移。
+     * 各机器人类型可重写：
+     * - Humanoid: 手部位置（前方约 60cm，与腰齐平）
+     * - UAV: 机体下方（悬挂在飞机底部）
+     * - 其他: 默认前方一段距离
+     */
+    UFUNCTION(BlueprintCallable, Category = "Carry")
+    virtual FVector GetCarryAttachOffset() const { return FVector(60.f, 0.f, 20.f); }
+
     // ========== 属性 ==========
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Agent")
     FString AgentID;

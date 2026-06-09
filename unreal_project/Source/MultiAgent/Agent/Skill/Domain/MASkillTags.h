@@ -22,6 +22,8 @@ public:
     FGameplayTag Skill_Broadcast;
     FGameplayTag Skill_HandleHazard;
     FGameplayTag Skill_Guide;
+    FGameplayTag Skill_Clear;
+    FGameplayTag Skill_Transport;
 
     // ========== Status Tags ==========
     FGameplayTag Status_Moving;
@@ -42,6 +44,8 @@ public:
     FGameplayTag Command_Broadcast;
     FGameplayTag Command_HandleHazard;
     FGameplayTag Command_Guide;
+    FGameplayTag Command_Clear;
+    FGameplayTag Command_Transport;
 
 private:
     static FMASkillTags SkillTags;

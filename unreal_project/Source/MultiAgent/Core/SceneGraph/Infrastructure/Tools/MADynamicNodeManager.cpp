@@ -58,7 +58,7 @@ FMASceneGraphNode FMADynamicNodeManager::CreateEnvironmentObjectNode(const FMAEn
     Node.Features = Config.Features;
 
     // 根据类型设置 Category
-    if (Config.Type == TEXT("cargo") || Config.Type == TEXT("assembly_component"))
+    if (Config.Type == TEXT("cargo") || Config.Type == TEXT("assembly_component") || Config.Type == TEXT("metal_grate"))
     {
         Node.Category = TEXT("prop");
         Node.bIsCarried = false;

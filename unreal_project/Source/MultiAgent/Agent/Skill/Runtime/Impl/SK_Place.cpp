@@ -5,10 +5,49 @@
 #include "Agent/Skill/Runtime/MASkillComponent.h"
 #include "Agent/CharacterRuntime/Runtime/MACharacter.h"
 #include "Agent/CharacterRuntime/Runtime/MAHumanoidCharacter.h"
+#include "Agent/CharacterRuntime/Runtime/MAUAVCharacter.h"
 #include "Agent/CharacterRuntime/Runtime/MAUGVCharacter.h"
 #include "Agent/Navigation/Runtime/MANavigationService.h"
+#include "Components/PrimitiveComponent.h"
 #include "Environment/IMAPickupItem.h"
 #include "TimerManager.h"
+
+namespace
+{
+/** UAV 拾取/放置时悬停在物体顶部上方的高度（cm） */
+constexpr float UAVPlaceHoverOffset = 200.f;
+
+/** 估算物体顶部的世界 Z（优先用 IMAPickupItem 接口，回退到 Bounds） */
+float GetActorTopWorldZ(const AActor& Actor)
+{
+    const FVector Center = Actor.GetActorLocation();
+
+    if (const IMAPickupItem* Item = Cast<const IMAPickupItem>(&Actor))
+    {
+        const FVector Extent = Item->GetBoundsExtent();
+        const float BottomOffset = Item->GetBottomOffset();
+        return Center.Z - BottomOffset + Extent.Z * 2.f;
+    }
+
+    if (const UPrimitiveComponent* Prim = Cast<UPrimitiveComponent>(Actor.GetRootComponent()))
+    {
+        return Center.Z + Prim->Bounds.BoxExtent.Z;
+    }
+
+    return Center.Z;
+}
+
+/** 把世界点的 Z 抬到 RefActor 顶面之上 HoverOffset 处，XY 不变 */
+FVector LiftToHoverAbove(const FVector& WorldPoint, const AActor* RefActor, float HoverOffset)
+{
+    if (!RefActor)
+    {
+        return WorldPoint;
+    }
+    const float TopZ = GetActorTopWorldZ(*RefActor);
+    return FVector(WorldPoint.X, WorldPoint.Y, TopZ + HoverOffset);
+}
+}
 
 USK_Place::USK_Place()
 {
@@ -78,6 +117,26 @@ void USK_Place::ApplyPlaceContextConfig(const FMAPlaceContextConfig& Config)
     SourceLocation = Config.SourceLocation;
     TargetLocation = Config.TargetLocation;
     DropLocation = Config.DropLocation;
+
+    // UAV 不会下到地面拾取/放置：把"导航锚点"抬到物体顶面上方的悬停位置。
+    // 物体附着到 UAV 后会挂在机体下方（见 AMAUAVCharacter::CarryAttachOffset），
+    // 释放时也是从空中释放，由物体自身的 PlaceOnObject/PlaceOnGround 决定最终高度。
+    if (const AMACharacter* Character = GetOwningCharacter();
+        Character && Character->IsA(AMAUAVCharacter::StaticClass()))
+    {
+        if (const AActor* SrcRef = SourceObject.Get())
+        {
+            SourceLocation = LiftToHoverAbove(SourceLocation, SrcRef, UAVPlaceHoverOffset);
+        }
+        if (const AActor* TgtRef = TargetObject.Get())
+        {
+            TargetLocation = LiftToHoverAbove(TargetLocation, TgtRef, UAVPlaceHoverOffset);
+        }
+        else if (const AActor* UGV = Cast<AActor>(TargetUGV.Get()))
+        {
+            TargetLocation = LiftToHoverAbove(TargetLocation, UGV, UAVPlaceHoverOffset);
+        }
+    }
 }
 
 void USK_Place::AdvanceToPhase(const EPlacePhase NextPhase)
@@ -224,13 +283,24 @@ void USK_Place::HandleStandUpTransition()
 
 FVector USK_Place::ResolveCurrentTargetLocation() const
 {
+    auto LiftForUAV = [this](const AActor* Ref, const FVector& Fallback) -> FVector
+    {
+        const FVector Base = Ref ? Ref->GetActorLocation() : Fallback;
+        const AMACharacter* Character = const_cast<USK_Place*>(this)->GetOwningCharacter();
+        if (Ref && Character && Character->IsA(AMAUAVCharacter::StaticClass()))
+        {
+            return LiftToHoverAbove(Base, Ref, UAVPlaceHoverOffset);
+        }
+        return Base;
+    };
+
     if (CurrentMode == EPlaceMode::LoadToUGV && TargetUGV.IsValid())
     {
-        return TargetUGV->GetActorLocation();
+        return LiftForUAV(TargetUGV.Get(), TargetLocation);
     }
     if (CurrentMode == EPlaceMode::StackOnObject && TargetObject.IsValid())
     {
-        return TargetObject->GetActorLocation();
+        return LiftForUAV(TargetObject.Get(), TargetLocation);
     }
     return TargetLocation;
 }

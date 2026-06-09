@@ -14,6 +14,7 @@
 #include "Environment/Effect/MASmoke.h"
 #include "Environment/Effect/MAWind.h"
 #include "Environment/Entity/MAComponent.h"
+#include "Environment/Entity/MAMetalGrate.h"
 #include "Environment/IMAEnvironmentObject.h"
 
 DEFINE_LOG_CATEGORY(LogMAEnvironmentManager);
@@ -33,6 +34,7 @@ void UMAEnvironmentManager::Deinitialize()
     SpawnedPickupItems.Empty();
     SpawnedChargingStations.Empty();
     SpawnedComponents.Empty();
+    SpawnedMetalGrates.Empty();
     SpawnedEffects.Empty();
     Super::Deinitialize();
 }
@@ -118,6 +120,10 @@ void UMAEnvironmentManager::SpawnEnvironmentObjects()
         {
             SpawnedObject = SpawnComponent(Config);
         }
+        else if (Config.Type == TEXT("metal_grate"))
+        {
+            SpawnedObject = SpawnMetalGrate(Config);
+        }
         else
         {
             UE_LOG(LogMAEnvironmentManager, Warning, TEXT("Unknown environment object type: %s (ID: %s)"), *Config.Type, *Config.ID);
@@ -200,6 +206,7 @@ bool UMAEnvironmentManager::DestroyEnvironmentObject(AActor* Object)
         SpawnedPickupItems.Remove(Cast<AMACargo>(Object));
         SpawnedChargingStations.Remove(Cast<AMAChargingStation>(Object));
         SpawnedComponents.Remove(Cast<AMAComponent>(Object));
+        SpawnedMetalGrates.Remove(Cast<AMAMetalGrate>(Object));
         SpawnedEffects.Remove(Object);
 
         OnEnvironmentObjectDestroyed.Broadcast(Object);
@@ -380,6 +387,31 @@ AMAComponent* UMAEnvironmentManager::SpawnComponent(const FMAEnvironmentObjectCo
     }
 
     return Component;
+}
+
+AMAMetalGrate* UMAEnvironmentManager::SpawnMetalGrate(const FMAEnvironmentObjectConfig& Config)
+{
+    FActorSpawnParameters SpawnParams;
+    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+    // 平板贴地放置：吸附到地面后给一点缓冲让物理稳定
+    FVector SpawnLocation = AdjustGroundSpawnHeight(Config.Position);
+    SpawnLocation.Z += 50.f;
+
+    AMAMetalGrate* Grate = GetWorld()->SpawnActor<AMAMetalGrate>(
+        AMAMetalGrate::StaticClass(),
+        SpawnLocation,
+        Config.Rotation,
+        SpawnParams
+    );
+
+    if (Grate)
+    {
+        Grate->Configure(Config);
+        SpawnedMetalGrates.Add(Grate);
+    }
+
+    return Grate;
 }
 
 AMAFire* UMAEnvironmentManager::SpawnFire(const FMAEnvironmentObjectConfig& Config)

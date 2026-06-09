@@ -17,6 +17,7 @@ class AMASmoke;
 class AMAWind;
 class AMAChargingStation;
 class AMAComponent;
+class AMAMetalGrate;
 struct FMAEnvironmentObjectConfig;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogMAEnvironmentManager, Log, All);
@@ -41,6 +42,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEnvironmentObjectDestroyed, AActo
  * - smoke: 烟雾特效 (AMASmoke)
  * - wind: 强风特效 (AMAWind)
  * - charging_station: 充电站 (AMAChargingStation)
+ * - assembly_component: 组装组件 (AMAComponent)
+ * - metal_grate: 金属网格平板 (AMAMetalGrate)
  */
 UCLASS()
 class MULTIAGENT_API UMAEnvironmentManager : public UWorldSubsystem
@@ -98,6 +101,10 @@ public:
     UFUNCTION(BlueprintPure, Category = "EnvironmentManager")
     TArray<AMAComponent*> GetAllComponents() const { return SpawnedComponents; }
 
+    /** 获取所有金属网格平板 */
+    UFUNCTION(BlueprintPure, Category = "EnvironmentManager")
+    TArray<AMAMetalGrate*> GetAllMetalGrates() const { return SpawnedMetalGrates; }
+
     // ========== 环境对象管理 ==========
 
     /** 销毁环境对象 */
@@ -147,6 +154,10 @@ private:
     UPROPERTY()
     TArray<AMAComponent*> SpawnedComponents;
 
+    /** 金属网格平板列表 */
+    UPROPERTY()
+    TArray<AMAMetalGrate*> SpawnedMetalGrates;
+
     /** 特效列表 (fire, smoke, wind) */
     UPROPERTY()
     TArray<AActor*> SpawnedEffects;
@@ -175,6 +186,9 @@ private:
 
     /** 生成组件 (assembly_component 类型) */
     AMAComponent* SpawnComponent(const FMAEnvironmentObjectConfig& Config);
+
+    /** 生成金属网格平板 (metal_grate 类型) */
+    AMAMetalGrate* SpawnMetalGrate(const FMAEnvironmentObjectConfig& Config);
 
     /** 生成火焰特效 */
     AMAFire* SpawnFire(const FMAEnvironmentObjectConfig& Config);

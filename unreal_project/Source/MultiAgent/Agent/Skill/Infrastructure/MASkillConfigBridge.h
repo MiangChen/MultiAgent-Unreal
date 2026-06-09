@@ -40,4 +40,20 @@ struct MULTIAGENT_API FMASkillConfigBridge
         float& InOutEffectSpeed,
         float& InOutEffectWidth,
         float& InOutEffectRate);
+
+    static void ApplyClearConfig(
+        const AMACharacter& Character,
+        float& InOutStandoffDistance,
+        float& InOutSpraySpeed,
+        float& InOutSprayWidth,
+        float& InOutMoveSpeed,
+        float& InOutAcceptanceRadius);
+
+    static void ApplyTransportConfig(
+        const AMACharacter& Character,
+        float& InOutGraspHeightOffset,
+        float& InOutLiftAltitude,
+        float& InOutCarryAltitude,
+        float& InOutAcceptanceRadius,
+        float& InOutReadyTimeout);
 };

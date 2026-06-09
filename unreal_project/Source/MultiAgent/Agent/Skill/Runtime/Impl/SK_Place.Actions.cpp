@@ -86,17 +86,29 @@ void USK_Place::PerformPlaceOnObject()
     if (!Character || !HeldObject.IsValid() || !TargetObject.IsValid()) return;
 
     IMAPickupItem* Item = Cast<IMAPickupItem>(HeldObject.Get());
-    IMAPickupItem* Target = Cast<IMAPickupItem>(TargetObject.Get());
-
-    if (Item && Target)
+    if (!Item)
     {
-        Item->PlaceOnObject(TargetObject.Get());
-        HeldObject.Reset();
+        return;
+    }
 
-        if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
+    // 目标可以是任意 Actor（包含 IMAPickupItem 实现者，如 Grate；也包含路灯等纯几何 prop）。
+    // PlaceOnObject 内部通过 FMAPlacementSurfaceUtils 兼容两种情况：能拿到 IMAPickupItem
+    // 的 Bounds 就用接口；否则退到 RootComponent->Bounds。
+    Item->PlaceOnObject(TargetObject.Get());
+    HeldObject.Reset();
+
+    if (UMASkillComponent* SkillComp = Character->GetSkillComponent())
+    {
+        FString TargetName;
+        if (IMAPickupItem* TargetItem = Cast<IMAPickupItem>(TargetObject.Get()))
         {
-            SkillComp->GetFeedbackContextMutable().PlaceTargetName = Target->GetItemName();
+            TargetName = TargetItem->GetItemName();
         }
+        else if (TargetObject.IsValid())
+        {
+            TargetName = TargetObject->GetActorNameOrLabel();
+        }
+        SkillComp->GetFeedbackContextMutable().PlaceTargetName = TargetName;
     }
 }
 

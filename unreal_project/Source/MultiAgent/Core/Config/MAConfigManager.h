@@ -180,6 +180,18 @@ public:
     UFUNCTION(BlueprintPure, Category = "Config")
     const FMABroadcastConfig& GetBroadcastConfig() const { return BroadcastConfig; }
 
+    UPROPERTY(BlueprintReadOnly, Category = "Config|Clear")
+    FMAClearConfig ClearConfig;
+
+    UFUNCTION(BlueprintPure, Category = "Config")
+    const FMAClearConfig& GetClearConfig() const { return ClearConfig; }
+
+    UPROPERTY(BlueprintReadOnly, Category = "Config|Transport")
+    FMATransportConfig TransportConfig;
+
+    UFUNCTION(BlueprintPure, Category = "Config")
+    const FMATransportConfig& GetTransportConfig() const { return TransportConfig; }
+
     UPROPERTY(BlueprintReadOnly, Category = "Config|Agents")
     TArray<FMAAgentConfigData> AgentConfigs;
 

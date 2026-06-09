@@ -70,6 +70,14 @@ public:
 
     /** 设置到达判定半径 */
     virtual void SetAcceptanceRadius(float Radius) = 0;
+
+    /** 应用飞行配置（最小高度、最大速度、避障范围等），由 MANavigationService 在 bootstrap 时注入 */
+    virtual void ApplyFlightConfig(
+        float InMinAltitude,
+        float InDefaultAltitude,
+        float InMaxSpeed,
+        float InObstacleDetectionRange,
+        float InObstacleAvoidanceRadius) = 0;
 };
 
 //=============================================================================
@@ -93,6 +101,19 @@ public:
     virtual bool HasArrived() const override { return State == EMAFlightControlState::Arrived; }
     virtual float GetAcceptanceRadius() const override { return AcceptanceRadius; }
     virtual void SetAcceptanceRadius(float Radius) override { AcceptanceRadius = Radius; }
+    virtual void ApplyFlightConfig(
+        float InMinAltitude,
+        float InDefaultAltitude,
+        float InMaxSpeed,
+        float InObstacleDetectionRange,
+        float InObstacleAvoidanceRadius) override
+    {
+        MinFlightAltitude = InMinAltitude;
+        DefaultFlightAltitude = InDefaultAltitude;
+        MaxFlightSpeed = InMaxSpeed;
+        ObstacleDetectionRange = InObstacleDetectionRange;
+        ObstacleAvoidanceRadius = InObstacleAvoidanceRadius;
+    }
 
     /** 悬停 */
     void Hover();
@@ -155,6 +176,20 @@ public:
     virtual bool HasArrived() const override { return State == EMAFlightControlState::Arrived; }
     virtual float GetAcceptanceRadius() const override { return AcceptanceRadius; }
     virtual void SetAcceptanceRadius(float Radius) override { AcceptanceRadius = Radius; }
+    virtual void ApplyFlightConfig(
+        float InMinAltitude,
+        float InDefaultAltitude,
+        float InMaxSpeed,
+        float InObstacleDetectionRange,
+        float InObstacleAvoidanceRadius) override
+    {
+        // 固定翼用 CruiseAltitude/MaxSpeed，无 MinAltitude 概念；MinAltitude 只用作飞行下限的兜底
+        CruiseAltitude = (InDefaultAltitude > 0.f) ? InDefaultAltitude : CruiseAltitude;
+        MaxSpeed = (InMaxSpeed > 0.f) ? InMaxSpeed : MaxSpeed;
+        ObstacleDetectionRange = InObstacleDetectionRange;
+        ObstacleAvoidanceRadius = InObstacleAvoidanceRadius;
+        (void)InMinAltitude;
+    }
 
     /** 开始盘旋 */
     void StartOrbit(const FVector& OrbitCenter);

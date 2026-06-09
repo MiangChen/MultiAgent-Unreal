@@ -202,6 +202,94 @@ void FMASkillParamsProcessor::ProcessGuide(AMACharacter* Agent, UMASkillComponen
         Destination.X, Destination.Y, Destination.Z);
 }
 
+void FMASkillParamsProcessor::ProcessClear(AMACharacter* Agent, UMASkillComponent* SkillComp, const FMAAgentSkillCommand* Cmd)
+{
+    if (!Agent || !SkillComp || !Cmd) return;
+
+    FMASkillParams& Params = SkillComp->GetSkillParamsMutable();
+    FMAFeedbackContext& Context = SkillComp->GetFeedbackContextMutable();
+    FMASkillRuntimeTargets& RuntimeTargets = SkillComp->GetSkillRuntimeTargetsMutable();
+
+    FString ObjectId;
+    FMASemanticTarget Target;
+
+    TSharedPtr<FJsonObject> ParamsJson;
+    if (MAParamsHelper::ParseRawParams(Cmd->Params.RawParamsJson, ParamsJson))
+    {
+        ObjectId = MAParamsHelper::ExtractObjectId(ParamsJson);
+        FString TargetJsonStr;
+        if (MAParamsHelper::ExtractTargetJson(ParamsJson, TEXT("target"), TargetJsonStr))
+        {
+            FMASkillTargetResolver::ParseSemanticTargetFromJson(TargetJsonStr, Target);
+        }
+    }
+
+    const FMAResolvedSkillTarget ResolvedTarget = FMASkillTargetResolver::ResolveTarget(
+        *Agent, ObjectId, Target, TEXT("ProcessClear"));
+    const FVector TargetLocation = ResolvedTarget.Actor.IsValid()
+        ? ResolvedTarget.Actor->GetActorLocation()
+        : ResolvedTarget.Location;
+
+    Params.CommonTargetObjectId = ResolvedTarget.Id;
+    Params.CommonTarget = Target;
+    RuntimeTargets.ClearTargetActor = ResolvedTarget.Actor;
+
+    Context.bClearTargetFound = ResolvedTarget.bFound;
+    Context.ClearTargetName = ResolvedTarget.Name;
+    Context.ClearTargetId = ResolvedTarget.Id;
+    Context.TargetLocation = TargetLocation;
+
+    UE_LOG(LogTemp, Log, TEXT("[ProcessClear] %s: Target found=%s, name='%s', Actor=%s"),
+        *Agent->AgentLabel, Context.bClearTargetFound ? TEXT("true") : TEXT("false"),
+        *ResolvedTarget.Name, ResolvedTarget.Actor.IsValid() ? TEXT("valid") : TEXT("null"));
+}
+
+void FMASkillParamsProcessor::ProcessTransport(AMACharacter* Agent, UMASkillComponent* SkillComp, const FMAAgentSkillCommand* Cmd)
+{
+    if (!Agent || !SkillComp || !Cmd) return;
+
+    FMASkillParams& Params = SkillComp->GetSkillParamsMutable();
+    FMAFeedbackContext& Context = SkillComp->GetFeedbackContextMutable();
+    FMASkillRuntimeTargets& RuntimeTargets = SkillComp->GetSkillRuntimeTargetsMutable();
+
+    FString ObjectId;
+    FMASemanticTarget Target;
+    FVector Destination = FVector::ZeroVector;
+
+    TSharedPtr<FJsonObject> ParamsJson;
+    if (MAParamsHelper::ParseRawParams(Cmd->Params.RawParamsJson, ParamsJson))
+    {
+        ObjectId = MAParamsHelper::ExtractObjectId(ParamsJson);
+        FString TargetJsonStr;
+        if (MAParamsHelper::ExtractTargetJson(ParamsJson, TEXT("target"), TargetJsonStr))
+        {
+            FMASkillTargetResolver::ParseSemanticTargetFromJson(TargetJsonStr, Target);
+        }
+        MAParamsHelper::ExtractDestPosition(ParamsJson, Destination);
+    }
+
+    const FMAResolvedSkillTarget ResolvedTarget = FMASkillTargetResolver::ResolveTarget(
+        *Agent, ObjectId, Target, TEXT("ProcessTransport"));
+    const FVector TargetLocation = ResolvedTarget.Actor.IsValid()
+        ? ResolvedTarget.Actor->GetActorLocation()
+        : ResolvedTarget.Location;
+
+    Params.CommonTargetObjectId = ResolvedTarget.Id;
+    Params.CommonTarget = Target;
+    Params.TransportDestination = Destination;
+    RuntimeTargets.TransportTargetActor = ResolvedTarget.Actor;
+
+    Context.bTransportTargetFound = ResolvedTarget.bFound;
+    Context.TransportTargetName = ResolvedTarget.Name;
+    Context.TransportTargetId = ResolvedTarget.Id;
+    Context.TransportDestination = Destination;
+    Context.TargetLocation = TargetLocation;
+
+    UE_LOG(LogTemp, Log, TEXT("[ProcessTransport] %s: Target found=%s, name='%s', dest=(%.0f, %.0f, %.0f)"),
+        *Agent->AgentLabel, Context.bTransportTargetFound ? TEXT("true") : TEXT("false"),
+        *ResolvedTarget.Name, Destination.X, Destination.Y, Destination.Z);
+}
+
 void FMASkillParamsProcessor::ProcessFollow(UMASkillComponent* SkillComp, const FMAAgentSkillCommand* Cmd)
 {
     if (!SkillComp || !Cmd) return;

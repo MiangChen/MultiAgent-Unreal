@@ -114,7 +114,7 @@ struct FMASceneGraphNode
     //=========================================================================
 
     bool IsRobot() const { return Category == TEXT("robot"); }
-    bool IsPickupItem() const { return Type == TEXT("cargo") || Type == TEXT("assembly_component"); }
+    bool IsPickupItem() const { return Type == TEXT("cargo") || Type == TEXT("assembly_component") || Type == TEXT("metal_grate"); }
     bool IsChargingStation() const { return Type == TEXT("charging_station"); }
     bool IsBuilding() const { return Category == TEXT("building") || Type == TEXT("building"); }
     bool IsRoad() const { return Type == TEXT("road_segment") || Type == TEXT("street_segment"); }

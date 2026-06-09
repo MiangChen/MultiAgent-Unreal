@@ -25,6 +25,12 @@ struct FMASkillRuntimeTargets
     UPROPERTY()
     TWeakObjectPtr<AActor> GuideTargetActor;
 
+    UPROPERTY()
+    TWeakObjectPtr<AActor> ClearTargetActor;
+
+    UPROPERTY()
+    TWeakObjectPtr<AActor> TransportTargetActor;
+
     void Reset()
     {
         FollowTarget.Reset();
@@ -32,6 +38,8 @@ struct FMASkillRuntimeTargets
         PhotoTargetActor.Reset();
         BroadcastTargetActor.Reset();
         GuideTargetActor.Reset();
+        ClearTargetActor.Reset();
+        TransportTargetActor.Reset();
     }
 };
 

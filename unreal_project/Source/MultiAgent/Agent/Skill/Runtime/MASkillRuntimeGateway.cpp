@@ -56,6 +56,10 @@ bool FMASkillRuntimeGateway::ActivatePreparedCommand(UMASkillComponent& SkillCom
             return SkillComponent.TryActivateSkillHandle(SkillComponent.HandleHazardSkillHandle, TEXT("HandleHazard"));
         case EMACommand::Guide:
             return SkillComponent.TryActivateSkillHandle(SkillComponent.GuideSkillHandle, TEXT("Guide"));
+        case EMACommand::Clear:
+            return SkillComponent.TryActivateSkillHandle(SkillComponent.ClearSkillHandle, TEXT("Clear"));
+        case EMACommand::Transport:
+            return SkillComponent.TryActivateSkillHandle(SkillComponent.TransportSkillHandle, TEXT("Transport"));
         case EMACommand::Idle:
             SkillComponent.NotifySkillCompleted(true, TEXT("Idle state entered"));
             return true;

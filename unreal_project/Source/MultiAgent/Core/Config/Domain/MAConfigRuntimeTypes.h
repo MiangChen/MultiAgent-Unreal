@@ -63,6 +63,8 @@ struct FMAConfigSnapshot
     FMAHandleHazardConfig HandleHazardConfig;
     FMATakePhotoConfig TakePhotoConfig;
     FMABroadcastConfig BroadcastConfig;
+    FMAClearConfig ClearConfig;
+    FMATransportConfig TransportConfig;
 
     TArray<FMAAgentConfigData> AgentConfigs;
     TArray<FMAEnvironmentObjectConfig> EnvironmentObjects;

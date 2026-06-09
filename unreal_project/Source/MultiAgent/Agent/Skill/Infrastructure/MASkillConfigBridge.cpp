@@ -101,3 +101,41 @@ void FMASkillConfigBridge::ApplyBroadcastConfig(
         InOutEffectRate = Config.ShockRate;
     }
 }
+
+void FMASkillConfigBridge::ApplyClearConfig(
+    const AMACharacter& Character,
+    float& InOutStandoffDistance,
+    float& InOutSpraySpeed,
+    float& InOutSprayWidth,
+    float& InOutMoveSpeed,
+    float& InOutAcceptanceRadius)
+{
+    if (const UMAConfigManager* ConfigManager = ResolveConfigManager(Character))
+    {
+        const FMAClearConfig& Config = ConfigManager->GetClearConfig();
+        InOutStandoffDistance = Config.StandoffDistance;
+        InOutSpraySpeed = Config.SpraySpeed;
+        InOutSprayWidth = Config.SprayWidth;
+        InOutMoveSpeed = Config.MoveSpeed;
+        InOutAcceptanceRadius = Config.AcceptanceRadius;
+    }
+}
+
+void FMASkillConfigBridge::ApplyTransportConfig(
+    const AMACharacter& Character,
+    float& InOutGraspHeightOffset,
+    float& InOutLiftAltitude,
+    float& InOutCarryAltitude,
+    float& InOutAcceptanceRadius,
+    float& InOutReadyTimeout)
+{
+    if (const UMAConfigManager* ConfigManager = ResolveConfigManager(Character))
+    {
+        const FMATransportConfig& Config = ConfigManager->GetTransportConfig();
+        InOutGraspHeightOffset = Config.GraspHeightOffset;
+        InOutLiftAltitude = Config.LiftAltitude;
+        InOutCarryAltitude = Config.CarryAltitude;
+        InOutAcceptanceRadius = Config.AcceptanceRadius;
+        InOutReadyTimeout = Config.ReadyTimeout;
+    }
+}

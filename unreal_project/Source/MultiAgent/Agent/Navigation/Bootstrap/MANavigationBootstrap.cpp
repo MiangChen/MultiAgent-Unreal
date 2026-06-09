@@ -26,7 +26,7 @@ void FMANavigationBootstrap::ApplyConfig(UMANavigationService& NavigationService
     NavigationService.ApplyBootstrapConfig(
         ConfigMgr->GetPathPlannerTypeEnum(),
         ConfigMgr->GetPathPlannerConfig(),
-        ConfigMgr->GetFlightConfig().MinAltitude,
+        ConfigMgr->GetFlightConfig(),
         ConfigMgr->GetFollowConfig().Distance,
         ConfigMgr->GetFollowConfig().PositionTolerance,
         ConfigMgr->GetGroundNavigationConfig().StuckTimeout

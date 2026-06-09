@@ -94,6 +94,8 @@ void FMASceneGraphUpdater::UpdateAfterSkillCompletion(AMACharacter* Agent, EMACo
         case EMACommand::ReturnHome:   UpdateAfterReturnHome(Agent, bSuccess);   break;
         case EMACommand::HandleHazard: UpdateAfterHandleHazard(Agent, bSuccess); break;
         case EMACommand::Guide:        UpdateAfterGuide(Agent, bSuccess);        break;
+        case EMACommand::Clear:        UpdateAfterClear(Agent, bSuccess);        break;
+        case EMACommand::Transport:    UpdateAfterTransport(Agent, bSuccess);    break;
         default: break;
     }
 }
@@ -236,6 +238,31 @@ void FMASceneGraphUpdater::UpdateAfterGuide(AMACharacter* Agent, bool bSuccess)
     if (!Ctx.GuideTargetId.IsEmpty())
     {
         SyncActorPositionToNode(Agent, Ctx.GuideTargetId);
+    }
+}
+
+void FMASceneGraphUpdater::UpdateAfterClear(AMACharacter* Agent, bool bSuccess)
+{
+    if (!bSuccess) return;
+
+    // 清洗目标静止，仅同步机器人自身位置（清洗结束后机器人停在最后一个航点）
+    UpdateRobotPosition(Agent);
+}
+
+void FMASceneGraphUpdater::UpdateAfterTransport(AMACharacter* Agent, bool bSuccess)
+{
+    if (!bSuccess || !Agent) return;
+
+    // 运输完成：同步机器人位置；被运输物体仍附着在 leader 上，由 leader 的 TransportTargetId 同步
+    UpdateRobotPosition(Agent);
+
+    UMASkillComponent* SkillComp = Agent->GetSkillComponent();
+    if (!SkillComp) return;
+
+    const FMAFeedbackContext& Ctx = SkillComp->GetFeedbackContext();
+    if (!Ctx.TransportTargetId.IsEmpty())
+    {
+        SyncActorPositionToNode(Agent, Ctx.TransportTargetId);
     }
 }
 

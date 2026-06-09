@@ -40,6 +40,16 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Avoidance")
     float MinFlightAltitude = 800.f;
 
+    /**
+     * 携带物体时物体相对 UAV 的附着偏移。
+     * UAV 悬停在物体正上方的实现策略：物体悬挂在机体下方一段距离，
+     * 因此偏移取一个负 Z 值。X/Y 为 0 让物体精准吊挂在质心下方。
+     */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Carry")
+    FVector CarryAttachOffset = FVector(0.f, 0.f, -80.f);
+
+    virtual FVector GetCarryAttachOffset() const override { return CarryAttachOffset; }
+
     UFUNCTION(BlueprintCallable, Category = "Flight")
     bool IsInAir() const;
 

@@ -195,3 +195,85 @@ void FMAFeedbackGenerator::GenerateGuideFeedback(
         Feedback.Message = bSuccess ? TEXT("Guide succeeded") : TEXT("Guide failed");
     }
 }
+
+void FMAFeedbackGenerator::GenerateClearFeedback(
+    FMASkillExecutionFeedback& Feedback,
+    AMACharacter* Agent,
+    UMASkillComponent* SkillComp,
+    const bool bSuccess,
+    const FString& Message)
+{
+    AddCommonFieldsToFeedback(Feedback, SkillComp, Agent);
+
+    if (SkillComp)
+    {
+        const FMAFeedbackContext& Context = SkillComp->GetFeedbackContext();
+        const TArray<FMASceneGraphNode> AllNodes = LoadSceneGraphNodes(Agent);
+
+        Feedback.Data.Add(TEXT("target_found"), Context.bClearTargetFound ? TEXT("true") : TEXT("false"));
+
+        if (Context.bClearTargetFound)
+        {
+            MAFeedbackGeneratorInternal::AddSceneGraphNodeFields(
+                Feedback,
+                AllNodes,
+                TEXT("target_id"),
+                TEXT("target_label"),
+                Context.ClearTargetId,
+                Context.ClearTargetName);
+        }
+
+        Feedback.Data.Add(TEXT("waypoint_count"), FString::FromInt(Context.ClearWaypointCount));
+        MAFeedbackGeneratorInternal::AddDurationSecondsField(Feedback, Context.ClearDurationSeconds);
+    }
+
+    Feedback.Message = Message.IsEmpty()
+        ? (bSuccess ? TEXT("Clear completed successfully") : TEXT("Clear failed"))
+        : Message;
+}
+
+void FMAFeedbackGenerator::GenerateTransportFeedback(
+    FMASkillExecutionFeedback& Feedback,
+    AMACharacter* Agent,
+    UMASkillComponent* SkillComp,
+    const bool bSuccess,
+    const FString& Message)
+{
+    AddCommonFieldsToFeedback(Feedback, SkillComp, Agent);
+
+    if (SkillComp)
+    {
+        const FMAFeedbackContext& Context = SkillComp->GetFeedbackContext();
+        const TArray<FMASceneGraphNode> AllNodes = LoadSceneGraphNodes(Agent);
+
+        Feedback.Data.Add(TEXT("target_found"), Context.bTransportTargetFound ? TEXT("true") : TEXT("false"));
+
+        if (Context.bTransportTargetFound)
+        {
+            MAFeedbackGeneratorInternal::AddSceneGraphNodeFields(
+                Feedback,
+                AllNodes,
+                TEXT("target_id"),
+                TEXT("target_label"),
+                Context.TransportTargetId,
+                Context.TransportTargetName);
+        }
+
+        if (!Context.TransportDestination.IsZero())
+        {
+            Feedback.Data.Add(TEXT("destination"), FString::Printf(TEXT("(%.1f, %.1f, %.1f)"),
+                Context.TransportDestination.X, Context.TransportDestination.Y, Context.TransportDestination.Z));
+        }
+
+        Feedback.Data.Add(TEXT("participant_count"), FString::FromInt(Context.TransportParticipantCount));
+        if (!Context.TransportRole.IsEmpty())
+        {
+            Feedback.Data.Add(TEXT("role"), Context.TransportRole);
+        }
+        MAFeedbackGeneratorInternal::AddDurationSecondsField(Feedback, Context.TransportDurationSeconds);
+    }
+
+    Feedback.Message = Message.IsEmpty()
+        ? (bSuccess ? TEXT("Transport completed successfully") : TEXT("Transport failed"))
+        : Message;
+}

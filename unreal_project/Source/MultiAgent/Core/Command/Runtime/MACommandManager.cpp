@@ -63,6 +63,8 @@ void UMACommandManager::InitializeCommandTags()
     CommandTagCache.Add(EMACommand::Broadcast, FMACommandTags::ToTag(EMACommand::Broadcast));
     CommandTagCache.Add(EMACommand::HandleHazard, FMACommandTags::ToTag(EMACommand::HandleHazard));
     CommandTagCache.Add(EMACommand::Guide, FMACommandTags::ToTag(EMACommand::Guide));
+    CommandTagCache.Add(EMACommand::Clear, FMACommandTags::ToTag(EMACommand::Clear));
+    CommandTagCache.Add(EMACommand::Transport, FMACommandTags::ToTag(EMACommand::Transport));
 }
 
 // ========== 技能列表执行 ==========

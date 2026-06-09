@@ -138,6 +138,8 @@ private:
     FGameplayAbilitySpecHandle BroadcastSkillHandle;
     FGameplayAbilitySpecHandle HandleHazardSkillHandle;
     FGameplayAbilitySpecHandle GuideSkillHandle;
+    FGameplayAbilitySpecHandle ClearSkillHandle;
+    FGameplayAbilitySpecHandle TransportSkillHandle;
 
     UPROPERTY()
     FMASkillParams SkillParams;

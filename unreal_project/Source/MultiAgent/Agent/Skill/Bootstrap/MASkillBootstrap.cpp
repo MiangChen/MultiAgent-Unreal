@@ -12,6 +12,8 @@
 #include "Agent/Skill/Runtime/Impl/SK_Search.h"
 #include "Agent/Skill/Runtime/Impl/SK_TakeOff.h"
 #include "Agent/Skill/Runtime/Impl/SK_TakePhoto.h"
+#include "Agent/Skill/Runtime/Impl/SK_Clear.h"
+#include "Agent/Skill/Runtime/Impl/SK_Transport.h"
 
 void FMASkillBootstrap::GrantDefaultAbilities(UMASkillComponent& SkillComponent, AActor* OwnerActor)
 {
@@ -32,4 +34,6 @@ void FMASkillBootstrap::GrantDefaultAbilities(UMASkillComponent& SkillComponent,
     SkillComponent.BroadcastSkillHandle = SkillComponent.GiveAbility(FGameplayAbilitySpec(USK_Broadcast::StaticClass(), 1, INDEX_NONE, OwnerActor));
     SkillComponent.HandleHazardSkillHandle = SkillComponent.GiveAbility(FGameplayAbilitySpec(USK_HandleHazard::StaticClass(), 1, INDEX_NONE, OwnerActor));
     SkillComponent.GuideSkillHandle = SkillComponent.GiveAbility(FGameplayAbilitySpec(USK_Guide::StaticClass(), 1, INDEX_NONE, OwnerActor));
+    SkillComponent.ClearSkillHandle = SkillComponent.GiveAbility(FGameplayAbilitySpec(USK_Clear::StaticClass(), 1, INDEX_NONE, OwnerActor));
+    SkillComponent.TransportSkillHandle = SkillComponent.GiveAbility(FGameplayAbilitySpec(USK_Transport::StaticClass(), 1, INDEX_NONE, OwnerActor));
 }

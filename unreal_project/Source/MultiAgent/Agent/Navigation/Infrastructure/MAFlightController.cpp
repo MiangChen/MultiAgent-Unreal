@@ -289,6 +289,18 @@ FVector FMAMultiRotorFlightController::CalculateAvoidanceDirection(const FVector
 
     FCollisionQueryParams Params;
     Params.AddIgnoredActor(Owner);
+    // 忽略附着在自身上的所有 Actor（如运输/搬运中携带的物体），避免把携带物当成障碍物
+    {
+        TArray<AActor*> AttachedActors;
+        Owner->GetAttachedActors(AttachedActors, /*bResetArray=*/true, /*bRecursivelyIncludeAttachedActors=*/true);
+        for (AActor* Attached : AttachedActors)
+        {
+            if (Attached)
+            {
+                Params.AddIgnoredActor(Attached);
+            }
+        }
+    }
     Params.bTraceComplex = true;
 
     FCollisionObjectQueryParams ObjectParams;
@@ -633,6 +645,18 @@ FVector FMAFixedWingFlightController::CalculateAvoidanceDirection(const FVector&
     FHitResult HitResult;
     FCollisionQueryParams Params;
     Params.AddIgnoredActor(Owner);
+    // 忽略附着在自身上的所有 Actor（如运输/搬运中携带的物体），避免把携带物当成障碍物
+    {
+        TArray<AActor*> AttachedActors;
+        Owner->GetAttachedActors(AttachedActors, /*bResetArray=*/true, /*bRecursivelyIncludeAttachedActors=*/true);
+        for (AActor* Attached : AttachedActors)
+        {
+            if (Attached)
+            {
+                Params.AddIgnoredActor(Attached);
+            }
+        }
+    }
 
     FVector TraceEnd = CurrentLocation + DesiredDirection * ObstacleDetectionRange;
 

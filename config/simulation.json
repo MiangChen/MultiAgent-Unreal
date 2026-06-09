@@ -7,7 +7,7 @@
         "use_state_tree": false,
         "enable_energy_drain": false,
         "enable_info_checks": true,
-        "map_type": "Downtown"
+        "map_type": "AerialWork"
     },
     "spawn_settings": {
         "use_player_start": true,
@@ -16,11 +16,11 @@
         "project_to_navmesh": true
     },
     "flight": {
-        "min_altitude": 800.0,
+        "min_altitude": -300.0,
         "default_altitude": 1000.0,
         "max_speed": 600.0,
-        "obstacle_detection_range": 800.0,
-        "obstacle_avoidance_radius": 100.0,
+        "obstacle_detection_range": 0.0,
+        "obstacle_avoidance_radius": 0.0,
         "acceptance_radius": 200.0
     },
     "ground_navigation": {
@@ -54,6 +54,20 @@
         "effect_speed": 1000.0,
         "effect_width": 1000.0,
         "shock_rate": 3.0
+    },
+    "clear": {
+        "standoff_distance": 1000.0,
+        "spray_speed": 800.0,
+        "spray_width": 1.0,
+        "move_speed": 0.0,
+        "acceptance_radius": 150.0
+    },
+    "transport": {
+        "grasp_height_offset": 0.0,
+        "lift_altitude": 1000.0,
+        "carry_altitude": 1500.0,
+        "acceptance_radius": 100.0,
+        "ready_timeout": 30.0
     },
     "navigation": {
         "path_planner_type": "MultiLayerRaycast",

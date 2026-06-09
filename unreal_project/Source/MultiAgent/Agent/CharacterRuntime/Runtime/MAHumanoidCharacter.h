@@ -56,6 +56,8 @@ public:
      */
     UPROPERTY(EditDefaultsOnly, Category = "Animation")
     FVector HandAttachOffset = FVector(60.f, 0.f, -20.f);
+
+    virtual FVector GetCarryAttachOffset() const override { return HandAttachOffset; }
     
     /** 拾取动画总时长（从动画资产获取） */
     UPROPERTY(VisibleAnywhere, Category = "Animation")

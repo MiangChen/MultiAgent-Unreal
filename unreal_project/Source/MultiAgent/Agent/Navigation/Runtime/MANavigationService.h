@@ -10,6 +10,7 @@
 #include "AITypes.h"
 #include "Navigation/PathFollowingComponent.h"
 #include "Agent/Navigation/Domain/MANavigationTypes.h"
+#include "Core/Config/Domain/MAConfigNavigationTypes.h"
 #include "../Infrastructure/MAPathPlanner.h"
 #include "../Infrastructure/MAFlightController.h"
 #include "MANavigationService.generated.h"
@@ -177,7 +178,7 @@ public:
     void ApplyBootstrapConfig(
         EMAPathPlannerType InPathPlannerType,
         const FMAPathPlannerConfig& InPathPlannerConfig,
-        float InMinFlightAltitude,
+        const FMAFlightConfig& InFlightConfig,
         float InFollowDistance,
         float InFollowPositionTolerance,
         float InStuckTimeout
@@ -374,6 +375,9 @@ private:
     TUniquePtr<IMAPathPlanner> PathPlanner;
     EMAPathPlannerType PathPlannerType = EMAPathPlannerType::MultiLayerRaycast;
     FMAPathPlannerConfig PathPlannerConfig;
+
+    /** 完整飞行配置（注入到 FlightController） */
+    FMAFlightConfig FlightConfig;
 
     /** 当前 NavMesh 请求 ID */
     FAIRequestID CurrentRequestID;

@@ -117,4 +117,7 @@ struct FMASkillParams
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     FVector GuideDestination = FVector::ZeroVector;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FVector TransportDestination = FVector::ZeroVector;
+
 };

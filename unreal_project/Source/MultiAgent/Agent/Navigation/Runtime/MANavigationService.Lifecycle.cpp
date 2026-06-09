@@ -110,7 +110,7 @@ void UMANavigationService::InitializeFromConfig()
 void UMANavigationService::ApplyBootstrapConfig(
     EMAPathPlannerType InPathPlannerType,
     const FMAPathPlannerConfig& InPathPlannerConfig,
-    float InMinFlightAltitude,
+    const FMAFlightConfig& InFlightConfig,
     float InFollowDistance,
     float InFollowPositionTolerance,
     float InStuckTimeout
@@ -118,14 +118,16 @@ void UMANavigationService::ApplyBootstrapConfig(
 {
     PathPlannerType = InPathPlannerType;
     PathPlannerConfig = InPathPlannerConfig;
-    MinFlightAltitude = InMinFlightAltitude;
+    FlightConfig = InFlightConfig;
+    MinFlightAltitude = InFlightConfig.MinAltitude;
     DefaultFollowDistance = InFollowDistance;
     DefaultFollowPositionTolerance = InFollowPositionTolerance;
     StuckTimeout = InStuckTimeout;
 
-    UE_LOG(LogTemp, Verbose, TEXT("[MANavigationService] Bootstrapped config: PlannerType=%d, MinFlightAlt=%.0f, FollowDist=%.0f, FollowTolerance=%.0f, StuckTimeout=%.0f"),
+    UE_LOG(LogTemp, Verbose, TEXT("[MANavigationService] Bootstrapped config: PlannerType=%d, MinFlightAlt=%.0f, MaxFlightSpeed=%.0f, FollowDist=%.0f, FollowTolerance=%.0f, StuckTimeout=%.0f"),
         static_cast<int32>(PathPlannerType),
         MinFlightAltitude,
+        FlightConfig.MaxSpeed,
         DefaultFollowDistance,
         DefaultFollowPositionTolerance,
         StuckTimeout);
@@ -150,4 +152,10 @@ void UMANavigationService::EnsureFlightControllerInitialized()
         FlightController = MakeUnique<FMAMultiRotorFlightController>();
     }
     FlightController->Initialize(OwnerCharacter);
+    FlightController->ApplyFlightConfig(
+        FlightConfig.MinAltitude,
+        FlightConfig.DefaultAltitude,
+        FlightConfig.MaxSpeed,
+        FlightConfig.ObstacleDetectionRange,
+        FlightConfig.ObstacleAvoidanceRadius);
 }

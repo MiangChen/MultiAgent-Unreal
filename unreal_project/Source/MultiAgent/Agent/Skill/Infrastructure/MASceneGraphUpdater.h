@@ -87,6 +87,8 @@ private:
     static void UpdateAfterReturnHome(AMACharacter* Agent, bool bSuccess);
     static void UpdateAfterHandleHazard(AMACharacter* Agent, bool bSuccess);
     static void UpdateAfterGuide(AMACharacter* Agent, bool bSuccess);
+    static void UpdateAfterClear(AMACharacter* Agent, bool bSuccess);
+    static void UpdateAfterTransport(AMACharacter* Agent, bool bSuccess);
 
     /** 位置差异阈值 (cm)，低于此值不触发更新 */
     static constexpr float PositionSyncThreshold = 10.f;

@@ -10,17 +10,26 @@
 class UNiagaraComponent;
 class UNiagaraSystem;
 
+/** 水喷射模式 */
+UENUM(BlueprintType)
+enum class EMAWaterSprayMode : uint8
+{
+    /** 抛物线（受重力影响），用于灭火等慢速喷射场景 */
+    Gravity     UMETA(DisplayName = "Gravity (Parabolic)"),
+
+    /** 直线（无重力），用于高压水柱场景 */
+    StraightJet UMETA(DisplayName = "Straight Jet (No Gravity)")
+};
+
 /**
  * 水喷射特效
- * 
+ *
  * 使用 Niagara 系统渲染水喷射效果，支持动态调整方向和参数。
- * 特效资源: /Game/VisualEffect/WaterSpray/Particle/P_FountainNoParameter_Converted
- * 
- * 物理模型：
- * - 喷水遵循抛物线轨迹
- * - 根据发射点、目标点、初速度自动计算发射角度
- * - SpraySpeed 控制初速度大小，决定射程
- * - SprayWidth 控制粒子大小/水柱宽度
+ *
+ * 两种模式共享同一组用户参数 (SprayDirection / SpraySpeed / SprayWidth)，
+ * 在 Niagara 资产层面通过是否启用重力来区分形态：
+ * - Gravity:     /Game/VisualEffect/WaterSpray/Particle/P_FountainNoParameter_Converted
+ * - StraightJet: /Game/VisualEffect/WaterSpray/Particle/P_WaterJet_Straight
  */
 UCLASS()
 class MULTIAGENT_API AMAWaterSpray : public AActor
@@ -30,9 +39,22 @@ class MULTIAGENT_API AMAWaterSpray : public AActor
 public:
     AMAWaterSpray();
 
-    /** 开始喷射，自动计算抛物线发射方向指向目标 */
+    /** 开始喷射，根据当前 Mode 选择 Niagara 资产并瞄准目标 */
     UFUNCTION(BlueprintCallable, Category = "WaterSpray")
     void StartSpray(FVector TargetLocation);
+
+    /**
+     * 以显式世界方向开始喷射（直线模式专用）。
+     *
+     * 与 StartSpray 不同，喷射方向不再由"发射点->目标"推导，而是直接采用给定方向，
+     * 因此水柱可以平行于某个法向量喷出，而不必指向目标中心。
+     * 水柱长度固定为 JetLength（通常等于机器人到作业面的间距），随机器人移动保持不变。
+     *
+     * @param WorldDirection 世界空间喷射方向（内部会归一化）
+     * @param JetLength 水柱长度 (cm)
+     */
+    UFUNCTION(BlueprintCallable, Category = "WaterSpray")
+    void StartSprayDirectional(FVector WorldDirection, float JetLength);
 
     /** 停止喷射 */
     UFUNCTION(BlueprintCallable, Category = "WaterSpray")
@@ -42,9 +64,24 @@ public:
     UFUNCTION(BlueprintCallable, Category = "WaterSpray")
     void UpdateTarget(FVector NewTargetLocation);
 
+    /**
+     * 更新显式喷射方向（直线模式，配合 StartSprayDirectional 使用）。
+     * 机器人移动 / 朝向变化时调用，保持水柱平行于给定法向量。
+     */
+    UFUNCTION(BlueprintCallable, Category = "WaterSpray")
+    void UpdateDirection(FVector NewWorldDirection);
+
     /** 设置喷射参数 */
     UFUNCTION(BlueprintCallable, Category = "WaterSpray")
     void SetSprayParameters(float InSpraySpeed, float InSprayWidth);
+
+    /** 设置喷射模式（必须在 StartSpray 之前调用） */
+    UFUNCTION(BlueprintCallable, Category = "WaterSpray")
+    void SetSprayMode(EMAWaterSprayMode InMode) { Mode = InMode; }
+
+    /** 获取当前模式 */
+    UFUNCTION(BlueprintPure, Category = "WaterSpray")
+    EMAWaterSprayMode GetSprayMode() const { return Mode; }
 
     /** 是否正在喷射 */
     UFUNCTION(BlueprintPure, Category = "WaterSpray")
@@ -57,9 +94,17 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
     TObjectPtr<UNiagaraComponent> SprayEffect;
 
-    /** 特效资源路径 */
+    /** 喷射模式（重力 / 直线） */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
-    FString EffectPath = TEXT("/Game/VisualEffect/WaterSpray/Particle/P_FountainNoParameter_Converted.P_FountainNoParameter_Converted");
+    EMAWaterSprayMode Mode = EMAWaterSprayMode::Gravity;
+
+    /** 重力模式（抛物线）使用的 Niagara 资产路径 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
+    FString GravityEffectPath = TEXT("/Game/VisualEffect/WaterSpray/Particle/P_FountainNoParameter_Converted.P_FountainNoParameter_Converted");
+
+    /** 直线模式（无重力）使用的 Niagara 资产路径 */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
+    FString StraightEffectPath = TEXT("/Game/VisualEffect/WaterSpray/Particle/P_WaterJet_Straight.P_WaterJet_Straight");
 
     /** 喷射初速度 (cm/s)，决定射程 */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
@@ -69,23 +114,34 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
     float SprayWidth = 10.f;
 
+    /**
+     * 直线模式下粒子寿命的下限（秒）。
+     *
+     * 直线模式会用 距离/速度 计算粒子寿命，使水柱长度刚好等于发射点到目标的距离。
+     * 当目标距离非常近、计算结果过小时，用此下限兜底，避免水柱完全看不见。
+     */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
+    float MinStraightLifetime = 0.05f;
+
 private:
     bool bIsSpraying = false;
     FVector CurrentTargetLocation;
 
-    /** 更新 Niagara 参数 */
+    /** 是否处于显式方向模式（由 StartSprayDirectional 启用） */
+    bool bUseExplicitDirection = false;
+
+    /** 显式喷射方向（世界空间，已归一化） */
+    FVector ExplicitDirection = FVector::ForwardVector;
+
+    /** 显式方向模式下的水柱长度 (cm) */
+    float ExplicitJetLength = 0.f;
+
+    /** 根据当前模式获取要加载的 Niagara 资产路径 */
+    const FString& GetActiveEffectPath() const;
+
+    /** 根据当前模式计算发射方向单位向量 */
+    FVector ComputeAimDirection(const FVector& StartPos, const FVector& TargetPos) const;
+
+    /** 更新 Niagara 用户参数 */
     void UpdateSprayParameters();
-    
-    /**
-     * 计算抛物线发射方向
-     * 
-     * 根据发射点、目标点、初速度，使用抛物线物理公式计算发射方向。
-     * 选择低弧线解（更自然的喷水效果）。
-     * 
-     * @param StartPos 发射点位置
-     * @param TargetPos 目标点位置
-     * @param InitialSpeed 初速度大小 (cm/s)
-     * @return 发射方向单位向量
-     */
-    FVector CalculateProjectileLaunchDirection(const FVector& StartPos, const FVector& TargetPos, float InitialSpeed) const;
 };

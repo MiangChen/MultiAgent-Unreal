@@ -553,9 +553,9 @@ FString FMASceneGraphIO::ParseCategory(const TSharedPtr<FJsonObject>& Properties
         {
             return TEXT("robot");
         }
-        else if (Type == TEXT("cargo") || Type == TEXT("charging_station"))
+        else if (Type == TEXT("cargo") || Type == TEXT("charging_station") || Type == TEXT("metal_grate"))
         {
-            return TEXT("prop");  // cargo 和 charging_station 归类为 prop
+            return TEXT("prop");  // cargo / charging_station / metal_grate 归类为 prop
         }
         else
         {

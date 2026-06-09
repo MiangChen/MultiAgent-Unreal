@@ -156,6 +156,8 @@ void FMASkillParamsProcessor::Process(AMACharacter* Agent, EMACommand Command, c
         case EMACommand::Broadcast: ProcessBroadcast(Agent, SkillComp, Cmd); break;
         case EMACommand::HandleHazard: ProcessHandleHazard(Agent, SkillComp, Cmd); break;
         case EMACommand::Guide: ProcessGuide(Agent, SkillComp, Cmd); break;
+        case EMACommand::Clear: ProcessClear(Agent, SkillComp, Cmd); break;
+        case EMACommand::Transport: ProcessTransport(Agent, SkillComp, Cmd); break;
         default: break;
     }
 }

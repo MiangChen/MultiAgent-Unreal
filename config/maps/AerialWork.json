@@ -1,0 +1,104 @@
+{
+    "map_info": {
+        "display_name": "AerialWork",
+        "map_path": "/Game/Map/Downtown/Map/Downtown",
+        "scene_graph_folder": "datasets/AerialWork"
+    },
+    "spectator": {
+        "position": [7700, 9500, 800],
+        "rotation": [25, 180, 0]
+    },
+    "agents": [
+        {
+            "type": "UAV",
+            "instances": [
+                { "label": "UAV-1", "position": [7000, 8500, 20], "rotation": [0, 180, 0], "battery_level": 100 },
+                { "label": "UAV-2", "position": [7300, 8500, 20], "rotation": [0, 180, 0], "battery_level": 100 },
+                { "label": "UAV-3", "position": [7600, 8500, 20], "rotation": [0, 180, 0], "battery_level": 100 },
+                { "label": "UAV-4", "position": [7900, 8500, 20], "rotation": [0, 180, 0], "battery_level": 100 },
+                { "label": "UAV-5", "position": [8200, 8500, 20], "rotation": [0, 180, 0], "battery_level": 100 },
+                { "label": "UAV-6", "position": [7000, 8800, 20], "rotation": [0, 180, 0], "battery_level": 100 },
+                { "label": "UAV-7", "position": [7300, 8800, 20], "rotation": [0, 180, 0], "battery_level": 100 },
+                { "label": "UAV-8", "position": [7600, 8800, 20], "rotation": [0, 180, 0], "battery_level": 100 },
+                { "label": "UAV-9", "position": [7900, 8800, 20], "rotation": [0, 180, 0], "battery_level": 100 },
+                { "label": "UAV-10", "position": [8200, 8800, 20], "rotation": [0, 180, 0], "battery_level": 100 }
+            ]
+        }
+    ],
+    "environment": [
+        {
+            "label": "ChargingStation_1", "type": "charging_station",
+            "position": [7300, 8400, 20],
+            "enabled": true,
+            "features": {}
+        },
+        {
+            "label": "Grate_1", "type": "metal_grate",
+            "position": [3500, 2800, 20], "rotation": [0, 0, 0],
+            "enabled": true,
+            "features": { "scale": "4.0", "mass": "80" }
+        },
+
+        {
+            "label": "Loudspeaker_1", "type": "assembly_component",
+            "position": [4600, 2500, 20], "rotation": [0, 0, 0],
+            "enabled": true,
+            "features": { "subtype": "loudspeaker" }
+        },
+        {
+            "label": "Loudspeaker_2", "type": "assembly_component",
+            "position": [4600, 2700, 20], "rotation": [0, 0, 0],
+            "enabled": true,
+            "features": { "subtype": "loudspeaker" }
+        },
+        {
+            "label": "Loudspeaker_3", "type": "assembly_component",
+            "position": [4600, 2400, 20], "rotation": [0, 180, 0],
+            "enabled": true,
+            "features": { "subtype": "loudspeaker" }
+        },
+        {
+            "label": "Loudspeaker_4", "type": "assembly_component",
+            "position": [4600, 2800, 20], "rotation": [0, 180, 0],
+            "enabled": true,
+            "features": { "subtype": "loudspeaker" }
+        },
+        {
+            "label": "Loudspeaker_5", "type": "assembly_component",
+            "position": [4600, 2800, 20], "rotation": [0, 90, 0],
+            "enabled": true,
+            "features": { "subtype": "loudspeaker" }
+        },
+
+        {
+            "label": "SurveillanceCamera_1", "type": "assembly_component",
+            "position": [4200, 2200, 30], "rotation": [0, 0, 0],
+            "enabled": true,
+            "features": { "subtype": "surveillance_camera" }
+        },
+        {
+            "label": "SurveillanceCamera_2", "type": "assembly_component",
+            "position": [4400, 2200, 30], "rotation": [0, 180, 0],
+            "enabled": true,
+            "features": { "subtype": "surveillance_camera" }
+        },
+        {
+            "label": "SurveillanceCamera_3", "type": "assembly_component",
+            "position": [4400, 2800, 30], "rotation": [0, 0, 0],
+            "enabled": true,
+            "features": { "subtype": "surveillance_camera" }
+        },
+        {
+            "label": "SurveillanceCamera_4", "type": "assembly_component",
+            "position": [4500, 2800, 30], "rotation": [0, 180, 0],
+            "enabled": true,
+            "features": { "subtype": "surveillance_camera" }
+        },
+        {
+            "label": "SurveillanceCamera_5", "type": "assembly_component",
+            "position": [4200, 2800, 30], "rotation": [0, -90, 0],
+            "enabled": true,
+            "features": { "subtype": "surveillance_camera" }
+        }
+    ]
+}

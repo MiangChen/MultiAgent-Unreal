@@ -162,7 +162,8 @@ void UMAConfigManager::ApplySnapshot(const FMAConfigSnapshot& Snapshot)
     HandleHazardConfig = Snapshot.HandleHazardConfig;
     TakePhotoConfig = Snapshot.TakePhotoConfig;
     BroadcastConfig = Snapshot.BroadcastConfig;
-
+    ClearConfig = Snapshot.ClearConfig;
+    TransportConfig = Snapshot.TransportConfig;
     AgentConfigs = Snapshot.AgentConfigs;
     EnvironmentObjects = Snapshot.EnvironmentObjects;
     bConfigLoaded = Snapshot.bConfigLoaded;

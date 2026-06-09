@@ -17,6 +17,8 @@ FGameplayTag FMACommandTags::ToTag(const EMACommand Command)
         case EMACommand::Broadcast: return FGameplayTag::RequestGameplayTag(FName("Command.Broadcast"));
         case EMACommand::HandleHazard: return FGameplayTag::RequestGameplayTag(FName("Command.HandleHazard"));
         case EMACommand::Guide: return FGameplayTag::RequestGameplayTag(FName("Command.Guide"));
+        case EMACommand::Clear: return FGameplayTag::RequestGameplayTag(FName("Command.Clear"));
+        case EMACommand::Transport: return FGameplayTag::RequestGameplayTag(FName("Command.Transport"));
         case EMACommand::None:
         default:
             return FGameplayTag();

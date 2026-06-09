@@ -127,6 +127,26 @@ config/
 | `effect_width` | Sound wave effect width (cm) | 1000 |
 | `shock_rate` | Sound wave oscillation frequency (Hz) | 3.0 |
 
+### clear - Cleaning Parameters (Clear Skill)
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `standoff_distance` | Distance between the cleaning work plane and the target's flat face (cm) | 1000 |
+| `spray_speed` | Straight water-jet initial speed (cm/s) | 4000 |
+| `spray_width` | Straight water-jet width | 8 |
+| `move_speed` | Move speed between waypoints (cm/s); 0 means use the robot's default speed | 0 |
+| `acceptance_radius` | Arrival acceptance radius at each waypoint (cm) | 150 |
+
+### transport - Transport Parameters (Transport Skill)
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `grasp_height_offset` | Hover height above the assigned grasp point when approaching the object (cm) | 15 |
+| `lift_altitude` | World-Z altitude (cm) the formation ascends to right after lifting, before flying to the destination. Skipped when the agent is already at or above this altitude. Aerial agents only. | 1000 |
+| `carry_altitude` | Cruise altitude while carrying the object to the destination (cm) | 1500 |
+| `acceptance_radius` | Arrival acceptance radius at the grasp point / destination (cm) | 200 |
+| `ready_timeout` | Timeout for all participants to get into position before the cooperation fails (seconds) | 30 |
+
+> Transport supports single-robot or multi-robot cooperation. When several robots are commanded to `transport` the **same object** to the **same destination** within one time step, a local coordinator negotiates grasp points, formation offsets and elects a leader. The object is attached to the leader once everyone is in position, then the formation lifts and carries it. The attachment is **kept** after reaching the destination (the robots are likely airborne).
+
 ---
 
 ## maps/{MapType}.json - Map Configuration
@@ -200,6 +220,7 @@ Environment objects use a unified array format. Each object contains the followi
 | `smoke` | Smoke effect | `scale`, `radius` |
 | `wind` | Wind effect | `scale`, `radius` |
 | `assembly_component` | Assembly component | `subtype` |
+| `metal_grate` | Metal grate platform (carryable, supports stacking items on top) | `scale`, `mass` |
 
 #### Feature Details
 
@@ -244,7 +265,13 @@ Environment objects use a unified array format. Each object contains the followi
 **assembly_component**
 | Feature | Description | Values |
 |---------|-------------|--------|
-| `subtype` | Component type | `solar_panel`, `antenna_module`, `address_speaker`, `stand` |
+| `subtype` | Component type | `solar_panel`, `antenna_module`, `address_speaker`, `loudspeaker`, `surveillance_camera`, `stand` |
+
+**metal_grate**
+| Feature | Description | Values |
+|---------|-------------|--------|
+| `scale` | Overall scale multiplier on default size | Numeric string, e.g. `"1.0"` |
+| `mass` | Rigid body mass in kg (used for physics) | Numeric string, e.g. `"80"` |
 
 #### patrol - Patrol Configuration
 

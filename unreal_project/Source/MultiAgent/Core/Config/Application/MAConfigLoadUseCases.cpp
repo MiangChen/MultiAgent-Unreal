@@ -16,6 +16,7 @@ int32 GChargingStationIdCounter = 2000;
 int32 GHumanIdCounter = 3000;
 int32 GVehicleIdCounter = 4000;
 int32 GEffectIdCounter = 6000;
+int32 GMetalGrateIdCounter = 7000;
 int32 GGenericEnvironmentIdCounter = 9000;
 
 bool TryReadVector(const TArray<TSharedPtr<FJsonValue>>* Array, FVector& OutVector)
@@ -219,6 +220,26 @@ void ParseSimulationConfig(const TSharedPtr<FJsonObject>& RootObject, FMAConfigS
         if ((*BroadcastObj)->TryGetNumberField(TEXT("effect_width"), Value)) Snapshot.BroadcastConfig.EffectWidth = static_cast<float>(Value);
         if ((*BroadcastObj)->TryGetNumberField(TEXT("shock_rate"), Value)) Snapshot.BroadcastConfig.ShockRate = static_cast<float>(Value);
     }
+
+    if (const TSharedPtr<FJsonObject>* ClearObj; RootObject->TryGetObjectField(TEXT("clear"), ClearObj))
+    {
+        double Value = 0.0;
+        if ((*ClearObj)->TryGetNumberField(TEXT("standoff_distance"), Value)) Snapshot.ClearConfig.StandoffDistance = static_cast<float>(Value);
+        if ((*ClearObj)->TryGetNumberField(TEXT("spray_speed"), Value)) Snapshot.ClearConfig.SpraySpeed = static_cast<float>(Value);
+        if ((*ClearObj)->TryGetNumberField(TEXT("spray_width"), Value)) Snapshot.ClearConfig.SprayWidth = static_cast<float>(Value);
+        if ((*ClearObj)->TryGetNumberField(TEXT("move_speed"), Value)) Snapshot.ClearConfig.MoveSpeed = static_cast<float>(Value);
+        if ((*ClearObj)->TryGetNumberField(TEXT("acceptance_radius"), Value)) Snapshot.ClearConfig.AcceptanceRadius = static_cast<float>(Value);
+    }
+
+    if (const TSharedPtr<FJsonObject>* TransportObj; RootObject->TryGetObjectField(TEXT("transport"), TransportObj))
+    {
+        double Value = 0.0;
+        if ((*TransportObj)->TryGetNumberField(TEXT("grasp_height_offset"), Value)) Snapshot.TransportConfig.GraspHeightOffset = static_cast<float>(Value);
+        if ((*TransportObj)->TryGetNumberField(TEXT("lift_altitude"), Value)) Snapshot.TransportConfig.LiftAltitude = static_cast<float>(Value);
+        if ((*TransportObj)->TryGetNumberField(TEXT("carry_altitude"), Value)) Snapshot.TransportConfig.CarryAltitude = static_cast<float>(Value);
+        if ((*TransportObj)->TryGetNumberField(TEXT("acceptance_radius"), Value)) Snapshot.TransportConfig.AcceptanceRadius = static_cast<float>(Value);
+        if ((*TransportObj)->TryGetNumberField(TEXT("ready_timeout"), Value)) Snapshot.TransportConfig.ReadyTimeout = static_cast<float>(Value);
+    }
 }
 
 void ParseAgentsFromJson(const TSharedPtr<FJsonObject>& RootObject, FMAConfigSnapshot& Snapshot)
@@ -285,6 +306,7 @@ FString AllocateEnvironmentId(const FString& Type)
     if (Type.Equals(TEXT("person"), ESearchCase::IgnoreCase)) return FString::Printf(TEXT("%d"), GHumanIdCounter++);
     if (Type.Equals(TEXT("vehicle"), ESearchCase::IgnoreCase) || Type.Equals(TEXT("boat"), ESearchCase::IgnoreCase)) return FString::Printf(TEXT("%d"), GVehicleIdCounter++);
     if (Type.Equals(TEXT("fire"), ESearchCase::IgnoreCase) || Type.Equals(TEXT("smoke"), ESearchCase::IgnoreCase) || Type.Equals(TEXT("wind"), ESearchCase::IgnoreCase)) return FString::Printf(TEXT("%d"), GEffectIdCounter++);
+    if (Type.Equals(TEXT("metal_grate"), ESearchCase::IgnoreCase)) return FString::Printf(TEXT("%d"), GMetalGrateIdCounter++);
     return FString::Printf(TEXT("%d"), GGenericEnvironmentIdCounter++);
 }
 

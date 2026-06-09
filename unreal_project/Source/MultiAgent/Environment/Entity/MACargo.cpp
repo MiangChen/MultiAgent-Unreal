@@ -8,6 +8,7 @@
 #include "../../Agent/CharacterRuntime/Runtime/MACharacter.h"
 #include "../../Agent/CharacterRuntime/Runtime/MAHumanoidCharacter.h"
 #include "../../Agent/CharacterRuntime/Runtime/MAUGVCharacter.h"
+#include "../Utils/MAPlacementSurfaceUtils.h"
 
 AMACargo::AMACargo()
 {
@@ -230,11 +231,7 @@ void AMACargo::AttachToHand(AMACharacter* Character)
     AttachToActor(Character, FAttachmentTransformRules::KeepWorldTransform);
     
     // 设置相对位置到手部位置
-    FVector AttachOffset = FVector(60.f, 0.f, 20.f);
-    if (AMAHumanoidCharacter* Humanoid = Cast<AMAHumanoidCharacter>(Character))
-    {
-        AttachOffset = Humanoid->HandAttachOffset;
-    }
+    const FVector AttachOffset = Character->GetCarryAttachOffset();
     SetActorRelativeLocation(AttachOffset);
     
     // 记录承载者
@@ -337,26 +334,9 @@ void AMACargo::PlaceOnObject(AActor* TargetObject, bool bUprightPlacement)
     }
     
     DetachFromCarrier();
-    
-    // 获取目标物体的顶部位置
-    FVector TargetLocation = TargetObject->GetActorLocation();
-    float TargetTopZ = TargetLocation.Z;
-    
-    if (IMAPickupItem* TargetItem = Cast<IMAPickupItem>(TargetObject))
-    {
-        FVector TargetExtent = TargetItem->GetBoundsExtent();
-        float TargetBottomOffset = TargetItem->GetBottomOffset();
-        TargetTopZ = TargetLocation.Z - TargetBottomOffset + TargetExtent.Z * 2.f;
-    }
-    else if (UPrimitiveComponent* TargetPrim = Cast<UPrimitiveComponent>(TargetObject->GetRootComponent()))
-    {
-        TargetTopZ = TargetLocation.Z + TargetPrim->Bounds.BoxExtent.Z;
-    }
-    
-    // 计算本物体的放置位置
-    float MyBottomOffset = GetBottomOffset();
-    FVector PlaceLocation = FVector(TargetLocation.X, TargetLocation.Y, TargetTopZ - MyBottomOffset);
-    
+
+    const FVector PlaceLocation = FMAPlacementSurfaceUtils::ComputePlacementWorldLocation(*TargetObject, *this);
+
     SetActorLocation(PlaceLocation);
     
     if (bUprightPlacement)

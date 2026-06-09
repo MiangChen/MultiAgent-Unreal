@@ -273,27 +273,48 @@ void FMASkillParamsProcessor::ProcessPlace(AMACharacter* Agent, UMASkillComponen
 
         case EPlaceMode::StackOnObject:
         {
-            bool bFoundInSceneGraph = false;
+            // surface_target 不要求是 IMAPickupItem：可以是路灯、车辆等任意场景物。
+            // 只要场景图里有该节点，就用其 GUID 解析到具体 UE5 Actor；解析不到再退回到
+            // 老的 FindObjectByLabel 逻辑（仅匹配 IMAEnvironmentObject Actor）。
+            bool bResolved = false;
             if (AllNodes.Num() > 0)
             {
                 const FMASceneGraphNode Object2Node = FMASceneGraphQueryUseCases::FindNodeByLabel(AllNodes, Label2);
-                if (Object2Node.IsValid() && Object2Node.IsPickupItem())
+                if (Object2Node.IsValid())
                 {
                     Context.PlaceTargetName = Object2Node.Label.IsEmpty() ? Object2Node.Id : Object2Node.Label;
                     SearchResults.Object2Location = Object2Node.Center;
                     Context.ObjectAttributes.Add(TEXT("object2_node_id"), Object2Node.Id);
 
-                    const FMAUESceneQueryResult ActorResult = FMAUESceneQuery::FindObjectByLabel(World, Label2);
-                    if (ActorResult.bFound && ActorResult.Actor)
+                    AActor* ResolvedActor = nullptr;
+                    if (!Object2Node.Guid.IsEmpty())
                     {
-                        SearchResults.Object2Actor = ActorResult.Actor;
+                        ResolvedActor = FMAUESceneQuery::FindActorByGuid(World, Object2Node.Guid);
+                    }
+                    if (!ResolvedActor && Object2Node.GuidArray.Num() > 0)
+                    {
+                        ResolvedActor = FMAUESceneQuery::FindActorByGuid(World, Object2Node.GuidArray[0]);
                     }
 
-                    bFoundInSceneGraph = true;
+                    if (!ResolvedActor && Object2Node.IsPickupItem())
+                    {
+                        const FMAUESceneQueryResult ActorResult = FMAUESceneQuery::FindObjectByLabel(World, Label2);
+                        if (ActorResult.bFound)
+                        {
+                            ResolvedActor = ActorResult.Actor;
+                        }
+                    }
+
+                    if (ResolvedActor)
+                    {
+                        SearchResults.Object2Actor = ResolvedActor;
+                        SearchResults.Object2Location = ResolvedActor->GetActorLocation();
+                        bResolved = true;
+                    }
                 }
             }
 
-            if (!bFoundInSceneGraph)
+            if (!bResolved)
             {
                 const FMAUESceneQueryResult Result2 = FMAUESceneQuery::FindObjectByLabel(World, Label2);
                 if (Result2.bFound)

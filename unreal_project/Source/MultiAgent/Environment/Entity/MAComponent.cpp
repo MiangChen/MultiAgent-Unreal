@@ -8,6 +8,7 @@
 #include "../../Agent/CharacterRuntime/Runtime/MACharacter.h"
 #include "../../Agent/CharacterRuntime/Runtime/MAHumanoidCharacter.h"
 #include "../../Agent/CharacterRuntime/Runtime/MAUGVCharacter.h"
+#include "../Utils/MAPlacementSurfaceUtils.h"
 
 AMAComponent::AMAComponent()
 {
@@ -126,13 +127,8 @@ void AMAComponent::AttachToHand(AMACharacter* Character)
     
     // 附着到角色
     AttachToActor(Character, FAttachmentTransformRules::KeepWorldTransform);
-    
-    // 设置相对位置到手部位置
-    FVector AttachOffset = FVector(60.f, 0.f, 20.f);
-    if (AMAHumanoidCharacter* Humanoid = Cast<AMAHumanoidCharacter>(Character))
-    {
-        AttachOffset = Humanoid->HandAttachOffset;
-    }
+
+    const FVector AttachOffset = Character->GetCarryAttachOffset();
     SetActorRelativeLocation(AttachOffset);
     
     // 记录承载者
@@ -238,27 +234,9 @@ void AMAComponent::PlaceOnObject(AActor* TargetObject, bool bUprightPlacement)
     }
     
     DetachFromCarrier();
-    
-    // 获取目标物体的顶部位置
-    FVector TargetLocation = TargetObject->GetActorLocation();
-    float TargetTopZ = TargetLocation.Z;
-    
-    // 尝试获取目标物体的精确顶部位置
-    if (IMAPickupItem* TargetItem = Cast<IMAPickupItem>(TargetObject))
-    {
-        FVector TargetExtent = TargetItem->GetBoundsExtent();
-        float TargetBottomOffset = TargetItem->GetBottomOffset();
-        TargetTopZ = TargetLocation.Z - TargetBottomOffset + TargetExtent.Z * 2.f;
-    }
-    else if (UPrimitiveComponent* TargetPrim = Cast<UPrimitiveComponent>(TargetObject->GetRootComponent()))
-    {
-        TargetTopZ = TargetLocation.Z + TargetPrim->Bounds.BoxExtent.Z;
-    }
-    
-    // 计算本物体的放置位置
-    float MyBottomOffset = GetBottomOffset();
-    FVector PlaceLocation = FVector(TargetLocation.X, TargetLocation.Y, TargetTopZ - MyBottomOffset);
-    
+
+    const FVector PlaceLocation = FMAPlacementSurfaceUtils::ComputePlacementWorldLocation(*TargetObject, *this);
+
     SetActorLocation(PlaceLocation);
     
     if (bUprightPlacement)
@@ -335,7 +313,9 @@ bool AMAComponent::ShouldEnablePhysicsOnPlace() const
         TEXT("antenna_module"),
         TEXT("solar_panel_large"),
         TEXT("address_speaker"),
-        TEXT("solar_panel")
+        TEXT("solar_panel"),
+        TEXT("loudspeaker"),
+        TEXT("surveillance_camera")
     };
     
     return !UnstableSubtypes.Contains(Subtype);
@@ -424,7 +404,13 @@ FString AMAComponent::GetComponentMeshPath(const FString& Subtype)
         
         // 音响
         {TEXT("address_speaker"), TEXT("/Game/Props/Speakers/SM_Speaker_01.SM_Speaker_01")},
-        
+
+        // 户外扩音器（高音喇叭）
+        {TEXT("loudspeaker"), TEXT("/Game/Props/Laudspeaker/laudspeaker.laudspeaker")},
+
+        // 监控摄像头
+        {TEXT("surveillance_camera"), TEXT("/Game/Props/SurveillanceCamera/surveillance_camera.surveillance_camera")},
+
         // 支架/高脚凳
         {TEXT("stand"), TEXT("/Game/Props/WoodBarStool/wood_bar_stool.wood_bar_stool")},
     };
@@ -446,6 +432,8 @@ FVector AMAComponent::GetComponentDefaultScale(const FString& Subtype)
         {TEXT("solar_panel_large"), FVector(1.0f)},
         {TEXT("antenna_module"), FVector(1.0f)},
         {TEXT("address_speaker"), FVector(5.0f)},
+        {TEXT("loudspeaker"), FVector(2.0f)},
+        {TEXT("surveillance_camera"), FVector(2.0f)},
         {TEXT("stand"), FVector(2.0f, 2.0f, 4.0f)},
     };
 
@@ -466,6 +454,8 @@ FVector AMAComponent::GetComponentDefaultOffset(const FString& Subtype)
         {TEXT("solar_panel_large"), FVector(0.f, 0.f, 0.f)},
         {TEXT("antenna_module"), FVector(0.f, 0.f, 0.f)},
         {TEXT("address_speaker"), FVector(0.f, 0.f, 0.f)},
+        {TEXT("loudspeaker"), FVector(0.f, 0.f, 0.f)},
+        {TEXT("surveillance_camera"), FVector(0.f, 0.f, 0.f)},
         {TEXT("stand"), FVector(0.f, 0.f, 0.f)},
     };
 

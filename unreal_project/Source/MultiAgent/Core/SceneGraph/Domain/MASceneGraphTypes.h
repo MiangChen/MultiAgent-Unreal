@@ -81,12 +81,13 @@ struct FMASemanticLabel
         return Class.Equals(TEXT("ground"), ESearchCase::IgnoreCase);
     }
 
-    /** 是否引用可拾取物品 (class 为 "object", "cargo", 或 "assembly_component") */
+    /** 是否引用可拾取物品 (class 为 "object", "cargo", "assembly_component" 或 "metal_grate") */
     bool IsPickupItem() const
     {
         return Class.Equals(TEXT("object"), ESearchCase::IgnoreCase) ||
                Class.Equals(TEXT("cargo"), ESearchCase::IgnoreCase) ||
-               Class.Equals(TEXT("assembly_component"), ESearchCase::IgnoreCase);
+               Class.Equals(TEXT("assembly_component"), ESearchCase::IgnoreCase) ||
+               Class.Equals(TEXT("metal_grate"), ESearchCase::IgnoreCase);
     }
 
     /** 是否引用建筑物 */

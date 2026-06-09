@@ -25,11 +25,12 @@ void AMAWaterSpray::StartSpray(FVector TargetLocation)
 
     CurrentTargetLocation = TargetLocation;
 
-    // 加载 Niagara 特效
-    UNiagaraSystem* SpraySystem = LoadObject<UNiagaraSystem>(nullptr, *EffectPath);
+    // 加载当前模式对应的 Niagara 资产
+    const FString& ActivePath = GetActiveEffectPath();
+    UNiagaraSystem* SpraySystem = LoadObject<UNiagaraSystem>(nullptr, *ActivePath);
     if (!SpraySystem)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[MAWaterSpray] Failed to load effect: %s"), *EffectPath);
+        UE_LOG(LogTemp, Warning, TEXT("[MAWaterSpray] Failed to load effect: %s"), *ActivePath);
         // 即使没有特效也标记为喷射中，让技能流程继续
         bIsSpraying = true;
         return;
@@ -47,9 +48,10 @@ void AMAWaterSpray::StartSpray(FVector TargetLocation)
     // 激活特效
     SprayEffect->Activate(true);
     bIsSpraying = true;
-    
-    FVector Direction = (TargetLocation - GetActorLocation()).GetSafeNormal();
-    UE_LOG(LogTemp, Log, TEXT("[MAWaterSpray] Started spray at %s targeting %s, direction=%s"),
+
+    const FVector Direction = ComputeAimDirection(GetActorLocation(), TargetLocation);
+    UE_LOG(LogTemp, Log, TEXT("[MAWaterSpray] Started spray (mode=%s) at %s targeting %s, direction=%s"),
+        Mode == EMAWaterSprayMode::StraightJet ? TEXT("StraightJet") : TEXT("Gravity"),
         *GetActorLocation().ToString(), *TargetLocation.ToString(), *Direction.ToString());
 }
 
@@ -77,27 +79,68 @@ void AMAWaterSpray::UpdateTarget(FVector NewTargetLocation)
     }
 }
 
+void AMAWaterSpray::StartSprayDirectional(FVector WorldDirection, float JetLength)
+{
+    bUseExplicitDirection = true;
+    ExplicitDirection = WorldDirection.GetSafeNormal();
+    ExplicitJetLength = JetLength;
+
+    // 显式方向喷射只在直线模式下有物理意义（无重力，水柱沿固定方向）
+    Mode = EMAWaterSprayMode::StraightJet;
+
+    // 复用 StartSpray 的资产加载/组件创建流程；目标点按方向和长度推导，仅用于内部一致性
+    StartSpray(GetActorLocation() + ExplicitDirection * FMath::Max(JetLength, 1.f));
+}
+
+void AMAWaterSpray::UpdateDirection(FVector NewWorldDirection)
+{
+    ExplicitDirection = NewWorldDirection.GetSafeNormal();
+    bUseExplicitDirection = true;
+    if (bIsSpraying)
+    {
+        UpdateSprayParameters();
+    }
+}
+
 void AMAWaterSpray::SetSprayParameters(float InSpraySpeed, float InSprayWidth)
 {
     SpraySpeed = InSpraySpeed;
     SprayWidth = InSprayWidth;
-    
+
     UE_LOG(LogTemp, Log, TEXT("[MAWaterSpray] SetSprayParameters: Speed=%.0f, Width=%.0f"),
         SpraySpeed, SprayWidth);
 }
 
-FVector AMAWaterSpray::CalculateProjectileLaunchDirection(const FVector& StartPos, const FVector& TargetPos, float InitialSpeed) const
+const FString& AMAWaterSpray::GetActiveEffectPath() const
 {
-    // 计算发射方向（水平发射）
-    FVector Direction = (TargetPos - StartPos).GetSafeNormal2D();
-    
-    float Distance = FVector::Dist(StartPos, TargetPos);
-    float HorizontalDistance = FVector::Dist2D(StartPos, TargetPos);
-    float HeightDiff = TargetPos.Z - StartPos.Z;
-    
-    UE_LOG(LogTemp, Log, TEXT("[MAWaterSpray] Direct aim: Distance=%.0f, HorizontalDist=%.0f, HeightDiff=%.0f, Direction=%s"),
+    return Mode == EMAWaterSprayMode::StraightJet ? StraightEffectPath : GravityEffectPath;
+}
+
+FVector AMAWaterSpray::ComputeAimDirection(const FVector& StartPos, const FVector& TargetPos) const
+{
+    // 显式方向模式：直接使用外部给定方向（平行于法向量），不指向目标中心
+    if (bUseExplicitDirection)
+    {
+        return ExplicitDirection;
+    }
+
+    // 直线模式：水柱没有重力，直接指向目标，瞄哪打哪
+    if (Mode == EMAWaterSprayMode::StraightJet)
+    {
+        const FVector Direction = (TargetPos - StartPos).GetSafeNormal();
+        UE_LOG(LogTemp, Verbose, TEXT("[MAWaterSpray] Straight aim direction=%s"), *Direction.ToString());
+        return Direction;
+    }
+
+    // 重力模式：粒子受重力下沉，先按水平方向发射，由抛物线落到目标
+    const FVector Direction = (TargetPos - StartPos).GetSafeNormal2D();
+    const float Distance = FVector::Dist(StartPos, TargetPos);
+    const float HorizontalDistance = FVector::Dist2D(StartPos, TargetPos);
+    const float HeightDiff = TargetPos.Z - StartPos.Z;
+
+    UE_LOG(LogTemp, Log, TEXT("[MAWaterSpray] Gravity aim: Distance=%.0f, HorizontalDist=%.0f, HeightDiff=%.0f, Direction=%s"),
         Distance, HorizontalDistance, HeightDiff, *Direction.ToString());
-    
+
     return Direction;
 }
 
@@ -106,21 +149,35 @@ void AMAWaterSpray::UpdateSprayParameters()
     if (!SprayEffect) return;
 
     // 计算发射方向（世界空间）
-    FVector Direction = CalculateProjectileLaunchDirection(GetActorLocation(), CurrentTargetLocation, SpraySpeed);
+    const FVector Direction = ComputeAimDirection(GetActorLocation(), CurrentTargetLocation);
 
-    // 设置 Niagara 参数
+    // Niagara 用户参数
     // SprayDirection: 发射方向（单位向量，世界空间）
-    // SpraySpeed: 初速度大小
-    // SprayWidth: 水柱宽度/粒子大小
-    
+    // SpraySpeed:     初速度大小
+    // SprayWidth:     水柱宽度/粒子大小
+    // SprayLifetime:  粒子寿命（秒），仅直线模式有效；用于把水柱长度截断到目标距离
     SprayEffect->SetVectorParameter(FName("SprayDirection"), Direction);
     SprayEffect->SetFloatParameter(FName("SpraySpeed"), SpraySpeed);
     SprayEffect->SetFloatParameter(FName("SprayWidth"), SprayWidth);
-    
-    // 同时设置组件旋转，使粒子系统的局部坐标系对齐发射方向
-    FRotator SprayRotation = Direction.Rotation();
-    SprayEffect->SetWorldRotation(SprayRotation);
-    
+
+    if (Mode == EMAWaterSprayMode::StraightJet)
+    {
+        // 显式方向模式用固定水柱长度；否则用 发射点->目标 的距离
+        const float Distance = bUseExplicitDirection
+            ? ExplicitJetLength
+            : FVector::Dist(GetActorLocation(), CurrentTargetLocation);
+        const float Lifetime = SpraySpeed > KINDA_SMALL_NUMBER
+            ? FMath::Max(MinStraightLifetime, Distance / SpraySpeed)
+            : MinStraightLifetime;
+        SprayEffect->SetFloatParameter(FName("SprayLifetime"), Lifetime);
+
+        UE_LOG(LogTemp, Verbose, TEXT("[MAWaterSpray] StraightJet lifetime=%.3fs (dist=%.0f, speed=%.0f)"),
+            Lifetime, Distance, SpraySpeed);
+    }
+
+    // 同时让组件本身朝向喷射方向，保证局部坐标系下的 Cone/Mesh 等模块朝向正确
+    SprayEffect->SetWorldRotation(Direction.Rotation());
+
     UE_LOG(LogTemp, Log, TEXT("[MAWaterSpray] Updated parameters: Direction=%s, Speed=%.0f, Width=%.0f"),
         *Direction.ToString(), SpraySpeed, SprayWidth);
 }

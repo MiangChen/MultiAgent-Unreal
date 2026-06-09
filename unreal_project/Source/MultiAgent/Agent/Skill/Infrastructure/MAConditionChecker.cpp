@@ -376,6 +376,8 @@ FString FMAConditionChecker::GetTargetObjectId(EMACommand Command, UMASkillCompo
 	case EMACommand::TakePhoto:
 	case EMACommand::Broadcast:
 	case EMACommand::HandleHazard:
+	case EMACommand::Clear:
+	case EMACommand::Transport:
 		return Params.CommonTargetObjectId;
 
 	case EMACommand::Place:

@@ -79,6 +79,8 @@ FMASkillExecutionFeedback FMAFeedbackGenerator::Generate(
         case EMACommand::Broadcast: GenerateBroadcastFeedback(Feedback, Agent, SkillComp, bSuccess, Message); break;
         case EMACommand::HandleHazard: GenerateHandleHazardFeedback(Feedback, Agent, SkillComp, bSuccess, Message); break;
         case EMACommand::Guide: GenerateGuideFeedback(Feedback, Agent, SkillComp, bSuccess, Message); break;
+        case EMACommand::Clear: GenerateClearFeedback(Feedback, Agent, SkillComp, bSuccess, Message); break;
+        case EMACommand::Transport: GenerateTransportFeedback(Feedback, Agent, SkillComp, bSuccess, Message); break;
         case EMACommand::Idle: GenerateIdleFeedback(Feedback, Agent, bSuccess, Message); break;
         default: Feedback.Message = Message; break;
     }
