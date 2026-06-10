@@ -251,8 +251,8 @@ void UMASystemLogPanel::RefreshLogDisplay()
         UWidget* EntryWidget = CreateLogEntryWidget(Entry);
         if (EntryWidget)
         {
-            UVerticalBoxSlot* Slot = LogContainer->AddChildToVerticalBox(EntryWidget);
-            Slot->SetPadding(FMargin(0.0f, 2.0f));
+            UVerticalBoxSlot* BoxSlot = LogContainer->AddChildToVerticalBox(EntryWidget);
+            BoxSlot->SetPadding(FMargin(0.0f, 2.0f));
         }
     }
 }

@@ -1,0 +1,49 @@
+{
+    "map_info": {
+        "display_name": "CityPark",
+        "map_path": "/Game/Map/CityPark/Map/Showcase",
+        "scene_graph_folder": "datasets/CityPark"
+    },
+    "spectator": {
+        "position": [-31640, 13120, 110],
+        "rotation": [-20, 90, 0]
+    },
+    "agents": [
+        {
+            "type": "UAV",
+            "instances": [
+                { "label": "UAV-1", "position": [-31890, 12220, 127], "rotation": [0, 90, 0], "battery_level": 100 },
+                { "label": "UAV-2", "position": [-31390, 12220, 127], "rotation": [0, 90, 0], "battery_level": 100 }
+            ]
+        },
+        {
+            "type": "UGV",
+            "instances": [
+                { "label": "UGV-1", "position": [-31890, 12820, 127], "rotation": [0, 90, 0], "battery_level": 100 },
+                { "label": "UGV-2", "position": [-31390, 12820, 127], "rotation": [0, 90, 0], "battery_level": 100 }
+            ]
+        },
+        {
+            "type": "Quadruped",
+            "instances": [
+                { "label": "Quadruped-1", "position": [-31890, 13420, 127], "rotation": [0, 90, 0], "battery_level": 100 },
+                { "label": "Quadruped-2", "position": [-31390, 13420, 127], "rotation": [0, 90, 0], "battery_level": 100 }
+            ]
+        },
+        {
+            "type": "Humanoid",
+            "instances": [
+                { "label": "Humanoid-1", "position": [-31890, 14020, 127], "rotation": [0, 90, 0], "battery_level": 100 },
+                { "label": "Humanoid-2", "position": [-31390, 14020, 127], "rotation": [0, 90, 0], "battery_level": 100 }
+            ]
+        }
+    ],
+    "environment": [
+        {
+            "label": "ChargingStation_1", "type": "charging_station",
+            "position": [-31640, 11620, 110],
+            "enabled": true,
+            "features": {}
+        }
+    ]
+}

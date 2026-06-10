@@ -330,7 +330,7 @@ bool FMAInteractionRuntimeAdapter::SpawnAgentByType(
 {
     if (UMAAgentManager* AgentManager = ResolveAgentManager(PlayerController))
     {
-        return AgentManager->SpawnAgentByType(AgentType, Location, Rotation, false);
+        return AgentManager->SpawnAgentByType(AgentType, Location, Rotation, false) != nullptr;
     }
 
     return false;

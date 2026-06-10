@@ -219,8 +219,8 @@ void UMAContextMenuWidget::RebuildMenuItems()
         UButton* Button = CreateMenuItemButton(Item);
         if (Button)
         {
-            UVerticalBoxSlot* Slot = ItemContainer->AddChildToVerticalBox(Button);
-            Slot->SetPadding(FMargin(0, 1, 0, 1));
+            UVerticalBoxSlot* BoxSlot = ItemContainer->AddChildToVerticalBox(Button);
+            BoxSlot->SetPadding(FMargin(0, 1, 0, 1));
             ItemButtons.Add(Button);
         }
     }

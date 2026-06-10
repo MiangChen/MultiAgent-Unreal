@@ -260,13 +260,7 @@ bool FMAHUDBackendCoordinator::HandleModalRejected(AMAHUD* HUD, UMAUIManager* UI
 
     default:
         {
-            FString WidgetName;
-            switch (ModalType)
-            {
-            default:
-                WidgetName = TEXT("UnknownModal");
-                break;
-            }
+            const FString WidgetName = TEXT("UnknownModal");
 
             HUD->RuntimeSendButtonEvent(WidgetName, TEXT("reject"), TEXT("Reject"));
             UE_LOG(LogMAHUDBackendCoordinator, Log, TEXT("HandleModalRejected: Reject event sent for %s"), *WidgetName);

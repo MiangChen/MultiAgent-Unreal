@@ -274,10 +274,10 @@ void UMAMiniMapWidget::ApplyFrameModel(const FMAMiniMapFrameModel& Model)
         Icon->SetBrushTintColor(FSlateColor(Marker.Color));
         IconCanvas->AddChild(Icon);
 
-        if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(Icon->Slot))
+        if (UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(Icon->Slot))
         {
-            Slot->SetSize(FVector2D(Marker.Size, Marker.Size));
-            Slot->SetPosition(Marker.Position - FVector2D(Marker.Size / 2.0f, Marker.Size / 2.0f));
+            CanvasSlot->SetSize(FVector2D(Marker.Size, Marker.Size));
+            CanvasSlot->SetPosition(Marker.Position - FVector2D(Marker.Size / 2.0f, Marker.Size / 2.0f));
         }
     }
 
@@ -291,10 +291,10 @@ void UMAMiniMapWidget::ApplyCameraIndicator(const FMAMiniMapCameraIndicatorModel
         return;
     }
 
-    const ESlateVisibility Visibility = Model.bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed;
-    CameraIcon->SetVisibility(Visibility);
-    CameraFOVLeft->SetVisibility(Visibility);
-    CameraFOVRight->SetVisibility(Visibility);
+    const ESlateVisibility IndicatorVisibility = Model.bVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed;
+    CameraIcon->SetVisibility(IndicatorVisibility);
+    CameraFOVLeft->SetVisibility(IndicatorVisibility);
+    CameraFOVRight->SetVisibility(IndicatorVisibility);
 
     if (!Model.bVisible)
     {
