@@ -399,6 +399,26 @@ SKILL_LISTS = {
             }
         }
     },
+    "clear_wind_turbine": {
+        "name": "Clear Wind Turbine Blade",
+        "description": "UAV-1 takes off, navigates near Wind_turbine_1_wing-1, then executes clear skill to wash the blade (AerialWork map)",
+        "data": {
+            "0": {
+                "UAV-1": {"skill": "take_off", "params": {}}
+            },
+            "1": {
+                "UAV-1": {"skill": "navigate", "params": {
+                    "dest": {"x": -43610, "y": 1140, "z": 4910}
+                }}
+            },
+            "2": {
+                "UAV-1": {"skill": "clear", "params": {
+                    "target": {"class": "object", "type": "wind_turbine_1_wing", "features": {"label": "Wind_turbine_1_wing-1"}},
+                    "object_id": "10"
+                }}
+            }
+        }
+    },
     "aerial_place_and_transport": {
         "name": "Aerial Place and Cooperative Transport",
         "description": "UAV-1 and UAV-2 stack speakers/cameras onto Grate_1 in parallel, then 4 UAVs cooperatively transport Grate_1; UAV-5 then places items onto Streetlight-51 (AerialWork map)",
@@ -460,13 +480,13 @@ SKILL_LISTS = {
             "5": {
                 "UAV-5": {"skill": "place", "params": {
                     "target": {"class": "object", "type": "assembly_component", "features": {"subtype": "loudspeaker", "label": "Loudspeaker_1"}},
-                    "surface_target": {"class": "object", "type": "electric_tower", "features": {"label": "Electric_tower-1"}}
+                    "surface_target": {"class": "object", "type": "electric_tower_top", "features": {"label": "electric_tower_top-1"}}
                 }}
             },
             "6": {
                 "UAV-5": {"skill": "place", "params": {
                     "target": {"class": "object", "type": "assembly_component", "features": {"subtype": "surveillance_camera", "label": "SurveillanceCamera_1"}},
-                    "surface_target": {"class": "object", "type": "electric_tower", "features": {"label": "Electric_tower-1"}}
+                    "surface_target": {"class": "object", "type": "electric_tower_top", "features": {"label": "electric_tower_top-1"}}
                 }}
             }
         }

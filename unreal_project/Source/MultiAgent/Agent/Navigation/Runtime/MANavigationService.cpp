@@ -83,16 +83,56 @@ void UMANavigationService::SetMoveSpeed(float Speed)
 
 void UMANavigationService::RestoreDefaultSpeed()
 {
-    if (!OwnerCharacter || !bSpeedModified) return;
+    if (!OwnerCharacter) return;
     
-    if (UCharacterMovementComponent* MovementComp = OwnerCharacter->GetCharacterMovement())
+    if (bSpeedModified)
     {
-        MovementComp->MaxWalkSpeed = OriginalMoveSpeed;
-        UE_LOG(LogTemp, Verbose, TEXT("[MANavigationService] %s: RestoreDefaultSpeed to %.0f"), 
-            *OwnerCharacter->GetName(), OriginalMoveSpeed);
+        if (UCharacterMovementComponent* MovementComp = OwnerCharacter->GetCharacterMovement())
+        {
+            MovementComp->MaxWalkSpeed = OriginalMoveSpeed;
+            UE_LOG(LogTemp, Verbose, TEXT("[MANavigationService] %s: RestoreDefaultSpeed (walk) to %.0f"), 
+                *OwnerCharacter->GetName(), OriginalMoveSpeed);
+        }
+        bSpeedModified = false;
     }
     
-    bSpeedModified = false;
+    if (bFlightSpeedModified)
+    {
+        EnsureFlightControllerInitialized();
+        if (FlightController.IsValid())
+        {
+            FlightController->SetMaxFlightSpeed(OriginalFlightSpeed);
+            UE_LOG(LogTemp, Verbose, TEXT("[MANavigationService] %s: RestoreDefaultSpeed (flight) to %.0f"),
+                *OwnerCharacter->GetName(), OriginalFlightSpeed);
+        }
+        bFlightSpeedModified = false;
+    }
+}
+
+void UMANavigationService::SetFlightSpeed(float Speed)
+{
+    if (!OwnerCharacter) return;
+
+    EnsureFlightControllerInitialized();
+    if (!FlightController.IsValid()) return;
+
+    if (!bFlightSpeedModified)
+    {
+        OriginalFlightSpeed = FlightController->GetMaxFlightSpeed();
+        bFlightSpeedModified = true;
+    }
+
+    if (Speed > 0.f)
+    {
+        FlightController->SetMaxFlightSpeed(Speed);
+        UE_LOG(LogTemp, Log, TEXT("[MANavigationService] %s: SetFlightSpeed to %.0f"),
+            *OwnerCharacter->GetName(), Speed);
+    }
+    else
+    {
+        FlightController->SetMaxFlightSpeed(OriginalFlightSpeed);
+        bFlightSpeedModified = false;
+    }
 }
 
 //=========================================================================

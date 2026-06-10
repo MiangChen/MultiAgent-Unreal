@@ -71,6 +71,12 @@ public:
     /** 设置到达判定半径 */
     virtual void SetAcceptanceRadius(float Radius) = 0;
 
+    /** 临时覆盖最大飞行速度（cm/s）*/
+    virtual void SetMaxFlightSpeed(float Speed) = 0;
+
+    /** 获取当前最大飞行速度（cm/s）*/
+    virtual float GetMaxFlightSpeed() const = 0;
+
     /** 应用飞行配置（最小高度、最大速度、避障范围等），由 MANavigationService 在 bootstrap 时注入 */
     virtual void ApplyFlightConfig(
         float InMinAltitude,
@@ -101,6 +107,8 @@ public:
     virtual bool HasArrived() const override { return State == EMAFlightControlState::Arrived; }
     virtual float GetAcceptanceRadius() const override { return AcceptanceRadius; }
     virtual void SetAcceptanceRadius(float Radius) override { AcceptanceRadius = Radius; }
+    virtual void SetMaxFlightSpeed(float Speed) override { MaxFlightSpeed = Speed; }
+    virtual float GetMaxFlightSpeed() const override { return MaxFlightSpeed; }
     virtual void ApplyFlightConfig(
         float InMinAltitude,
         float InDefaultAltitude,
@@ -176,6 +184,8 @@ public:
     virtual bool HasArrived() const override { return State == EMAFlightControlState::Arrived; }
     virtual float GetAcceptanceRadius() const override { return AcceptanceRadius; }
     virtual void SetAcceptanceRadius(float Radius) override { AcceptanceRadius = Radius; }
+    virtual void SetMaxFlightSpeed(float Speed) override { MaxSpeed = Speed; }
+    virtual float GetMaxFlightSpeed() const override { return MaxSpeed; }
     virtual void ApplyFlightConfig(
         float InMinAltitude,
         float InDefaultAltitude,

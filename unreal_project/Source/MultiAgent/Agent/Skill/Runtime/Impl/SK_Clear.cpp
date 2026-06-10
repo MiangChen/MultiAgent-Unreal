@@ -11,6 +11,8 @@
 #include "Agent/Navigation/Runtime/MANavigationService.h"
 #include "../../../Environment/Effect/MAWaterSpray.h"
 #include "Components/PrimitiveComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "TimerManager.h"
 
 namespace
@@ -37,6 +39,7 @@ void USK_Clear::ResetClearRuntimeState()
     SprayDirection = FVector::ForwardVector;
     NavigationService = nullptr;
     WaterSpray = nullptr;
+    TargetDynMaterial = nullptr;
     TargetActor.Reset();
 }
 
@@ -225,6 +228,9 @@ void USK_Clear::ActivateAbility(
     // 全程开启直线喷水，方向平行于平面法向量、长度等于 standoff
     StartSpray();
 
+    // 初始化目标表面材质为脏色，后续随航点推进渐变到白色
+    InitializeTargetMaterial();
+
     MoveToCurrentWaypoint();
 }
 
@@ -246,7 +252,14 @@ void USK_Clear::MoveToCurrentWaypoint()
 
     if (MoveSpeed > 0.f)
     {
-        NavigationService->SetMoveSpeed(MoveSpeed);
+        if (bIsAircraft)
+        {
+            NavigationService->SetFlightSpeed(MoveSpeed);
+        }
+        else
+        {
+            NavigationService->SetMoveSpeed(MoveSpeed);
+        }
     }
 
     const FVector Waypoint = Waypoints[CurrentWaypointIndex];
@@ -282,6 +295,9 @@ void USK_Clear::OnNavigationCompleted(bool bSuccess, const FString& Message)
 void USK_Clear::AdvanceWaypoint()
 {
     CurrentWaypointIndex++;
+
+    // 按进度更新目标材质颜色（从脏到干净）
+    UpdateTargetMaterialProgress();
 
     if (Waypoints.IsValidIndex(CurrentWaypointIndex))
     {
@@ -356,6 +372,61 @@ void USK_Clear::CleanupSpray()
         WaterSpray->Destroy();
         WaterSpray = nullptr;
     }
+}
+
+void USK_Clear::InitializeTargetMaterial()
+{
+    AActor* Target = TargetActor.Get();
+    if (!Target)
+    {
+        return;
+    }
+
+    UStaticMeshComponent* MeshComp = Target->FindComponentByClass<UStaticMeshComponent>();
+    if (!MeshComp)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[SK_Clear] Target '%s' has no StaticMeshComponent, skipping material tint"),
+            *Target->GetName());
+        return;
+    }
+
+    // 对 element 0 创建 DMI，继承材质中 TintColor 的默认值（已在资产里设为脏色）。
+    // 后续只需随清洗进度把 TintColor Lerp 到白色。
+    TargetDynMaterial = MeshComp->CreateAndSetMaterialInstanceDynamic(0);
+    if (TargetDynMaterial)
+    {
+        // 读取材质当前的 TintColor 作为起始脏色（与资产保持一致）
+        FLinearColor CurrentTint;
+        if (TargetDynMaterial->GetVectorParameterValue(TEXT("TintColor"), CurrentTint))
+        {
+            DirtyTintColor = CurrentTint;
+        }
+
+        UE_LOG(LogTemp, Log, TEXT("[SK_Clear] Initialized target material DMI, dirty tint from asset (%.2f, %.2f, %.2f)"),
+            DirtyTintColor.R, DirtyTintColor.G, DirtyTintColor.B);
+    }
+}
+
+void USK_Clear::UpdateTargetMaterialProgress()
+{
+    if (!TargetDynMaterial)
+    {
+        return;
+    }
+
+    const int32 TotalWaypoints = Waypoints.Num();
+    if (TotalWaypoints <= 0)
+    {
+        return;
+    }
+
+    // Progress: 0 → 完全脏，1 → 完全干净
+    const float Progress = FMath::Clamp(
+        static_cast<float>(CurrentWaypointIndex) / static_cast<float>(TotalWaypoints),
+        0.f, 1.f);
+
+    const FLinearColor Current = FMath::Lerp(DirtyTintColor, CleanTintColor, Progress);
+    TargetDynMaterial->SetVectorParameterValue(TEXT("TintColor"), Current);
 }
 
 void USK_Clear::CompleteClear()

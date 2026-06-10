@@ -74,6 +74,13 @@ public:
     void SetMoveSpeed(float Speed);
 
     /**
+     * 设置飞行最大速度（仅对飞行机器人有效）
+     * @param Speed 目标最大速度 (cm/s)，0 表示恢复默认速度
+     */
+    UFUNCTION(BlueprintCallable, Category = "Navigation")
+    void SetFlightSpeed(float Speed);
+
+    /**
      * 恢复默认移动速度
      */
     UFUNCTION(BlueprintCallable, Category = "Navigation")
@@ -442,8 +449,14 @@ private:
     /** 原始移动速度（用于恢复） */
     float OriginalMoveSpeed = 0.f;
 
+    /** 原始飞行速度（用于恢复） */
+    float OriginalFlightSpeed = 0.f;
+
     /** 是否已修改移动速度 */
     bool bSpeedModified = false;
+
+    /** 是否已修改飞行速度 */
+    bool bFlightSpeedModified = false;
 
     /** 手动导航卡住超时时间 (秒) - 从 ConfigManager 加载 */
     float StuckTimeout = 10.f;

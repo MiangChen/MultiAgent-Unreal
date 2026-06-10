@@ -115,6 +115,20 @@ private:
     FTimerHandle SprayRefreshTimerHandle;
 
     //=========================================================================
+    // 清洗视觉效果 - 目标材质渐变（脏色 → 白色）
+    //=========================================================================
+
+    /** 目标 mesh 的动态材质实例（用于运行时调色） */
+    UPROPERTY()
+    TObjectPtr<UMaterialInstanceDynamic> TargetDynMaterial;
+
+    /** 脏色（清洗开始时的初始颜色乘数） */
+    FLinearColor DirtyTintColor = FLinearColor(0.55f, 0.50f, 0.40f, 1.f);
+
+    /** 干净色（清洗结束时的最终颜色乘数 = 不染色） */
+    FLinearColor CleanTintColor = FLinearColor::White;
+
+    //=========================================================================
     // 流程
     //=========================================================================
 
@@ -126,6 +140,12 @@ private:
     void StartSpray();
     void RefreshSprayDirection();
     void CleanupSpray();
+
+    /** 初始化目标材质为脏色 DMI */
+    void InitializeTargetMaterial();
+
+    /** 按清洗进度更新目标材质颜色 */
+    void UpdateTargetMaterialProgress();
 
     void MoveToCurrentWaypoint();
     void AdvanceWaypoint();

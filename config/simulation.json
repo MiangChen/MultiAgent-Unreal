@@ -56,10 +56,10 @@
         "shock_rate": 3.0
     },
     "clear": {
-        "standoff_distance": 1000.0,
-        "spray_speed": 800.0,
+        "standoff_distance": 600.0,
+        "spray_speed": 1600.0,
         "spray_width": 1.0,
-        "move_speed": 0.0,
+        "move_speed": 240.0,
         "acceptance_radius": 150.0
     },
     "transport": {
