@@ -86,8 +86,8 @@ FMATransportAssignment UMATransportCoordinator::FinalizeAndGetAssignment(const F
 
 void UMATransportCoordinator::DistributeGraspPointsOnRectanglePerimeter(
     const FVector& ObjectCenter,
-    const float HalfX,
-    const float HalfY,
+    const FVector& AxisXVec,
+    const FVector& AxisYVec,
     const float TopZ,
     const int32 Count,
     TArray<FVector>& OutGraspPoints,
@@ -101,44 +101,42 @@ void UMATransportCoordinator::DistributeGraspPointsOnRectanglePerimeter(
         return;
     }
 
+    // 顶面投影中心：把世界中心 (X, Y, *) 抬到 TopZ 处
+    const FVector TopCenter(ObjectCenter.X, ObjectCenter.Y, TopZ);
+
+    auto BuildOffset = [&](const FVector& WorldGrasp) -> FVector
+    {
+        // FormationOffset 用 (worldGrasp - ObjectCenter) 的水平分量 + (TopZ - ObjectCenter.Z)
+        // 这样运输阶段以编队偏移飞行时，相对几何与抓取瞬间保持一致。
+        return FVector(
+            WorldGrasp.X - ObjectCenter.X,
+            WorldGrasp.Y - ObjectCenter.Y,
+            TopZ - ObjectCenter.Z);
+    };
+
     if (Count == 1)
     {
         // 单机器人：抓取点取顶面中心
-        OutGraspPoints.Add(FVector(ObjectCenter.X, ObjectCenter.Y, TopZ));
-        OutFormationOffsets.Add(FVector(0.f, 0.f, TopZ - ObjectCenter.Z));
+        OutGraspPoints.Add(TopCenter);
+        OutFormationOffsets.Add(BuildOffset(TopCenter));
         return;
     }
 
-    // 矩形顶面四角（按 X+ 起点逆时针）。每条边长度依次为 2*HalfY、2*HalfX、2*HalfY、2*HalfX
-    const FVector2D Corners[4] = {
-        FVector2D(+HalfX, -HalfY),  // 右下
-        FVector2D(+HalfX, +HalfY),  // 右上
-        FVector2D(-HalfX, +HalfY),  // 左上
-        FVector2D(-HalfX, -HalfY),  // 左下
+    // OBB 顶面四角（沿物体局部 X/Y 轴排列），按 (+X,-Y) 起点逆时针
+    const FVector CornerWorld[4] = {
+        TopCenter + AxisXVec - AxisYVec, // 右下（+X, -Y）
+        TopCenter + AxisXVec + AxisYVec, // 右上（+X, +Y）
+        TopCenter - AxisXVec + AxisYVec, // 左上（-X, +Y）
+        TopCenter - AxisXVec - AxisYVec, // 左下（-X, -Y）
     };
-    const float EdgeLengths[4] = {
-        2.f * HalfY,
-        2.f * HalfX,
-        2.f * HalfY,
-        2.f * HalfX,
-    };
-    const float Perimeter = 2.f * (2.f * HalfX + 2.f * HalfY);
-    if (Perimeter <= KINDA_SMALL_NUMBER)
-    {
-        OutGraspPoints.Add(FVector(ObjectCenter.X, ObjectCenter.Y, TopZ));
-        OutFormationOffsets.Add(FVector(0.f, 0.f, TopZ - ObjectCenter.Z));
-        return;
-    }
 
-    // 特殊情形：N=2 取一对对角；N=4 取四个角点。
-    // 对一般矩形，沿周长均匀采样不会精确落在角上，因此显式枚举更稳。
     auto EmitCorner = [&](int32 CornerIdx)
     {
-        const FVector2D& C = Corners[CornerIdx];
-        OutGraspPoints.Add(FVector(ObjectCenter.X + C.X, ObjectCenter.Y + C.Y, TopZ));
-        OutFormationOffsets.Add(FVector(C.X, C.Y, TopZ - ObjectCenter.Z));
+        OutGraspPoints.Add(CornerWorld[CornerIdx]);
+        OutFormationOffsets.Add(BuildOffset(CornerWorld[CornerIdx]));
     };
 
+    // 特殊情形：N=2 取一对对角；N=4 取四个角点。
     if (Count == 2)
     {
         EmitCorner(0);  // 右下
@@ -155,7 +153,23 @@ void UMATransportCoordinator::DistributeGraspPointsOnRectanglePerimeter(
         return;
     }
 
-    // 其他个数：沿周长按弧长均匀采样
+    // 其他个数：沿 OBB 周长按弧长均匀采样
+    const float LenX = AxisXVec.Size();    // 注意：LenX/LenY 是 OBB 半尺寸，已含旋转与缩放
+    const float LenY = AxisYVec.Size();
+    const float EdgeLengths[4] = {
+        2.f * LenY,  // CornerWorld[0] -> CornerWorld[1]
+        2.f * LenX,  // CornerWorld[1] -> CornerWorld[2]
+        2.f * LenY,  // CornerWorld[2] -> CornerWorld[3]
+        2.f * LenX,  // CornerWorld[3] -> CornerWorld[0]
+    };
+    const float Perimeter = 2.f * (2.f * LenX + 2.f * LenY);
+    if (Perimeter <= KINDA_SMALL_NUMBER)
+    {
+        OutGraspPoints.Add(TopCenter);
+        OutFormationOffsets.Add(BuildOffset(TopCenter));
+        return;
+    }
+
     const float Step = Perimeter / static_cast<float>(Count);
 
     for (int32 i = 0; i < Count; ++i)
@@ -170,15 +184,15 @@ void UMATransportCoordinator::DistributeGraspPointsOnRectanglePerimeter(
         }
         EdgeIdx = FMath::Clamp(EdgeIdx, 0, 3);
 
-        const FVector2D A = Corners[EdgeIdx];
-        const FVector2D B = Corners[(EdgeIdx + 1) % 4];
+        const FVector A = CornerWorld[EdgeIdx];
+        const FVector B = CornerWorld[(EdgeIdx + 1) % 4];
         const float T = (EdgeLengths[EdgeIdx] > KINDA_SMALL_NUMBER)
             ? FMath::Clamp(Remaining / EdgeLengths[EdgeIdx], 0.f, 1.f)
             : 0.f;
-        const FVector2D Point = FMath::Lerp(A, B, T);
+        const FVector Point = FMath::Lerp(A, B, T);
 
-        OutGraspPoints.Add(FVector(ObjectCenter.X + Point.X, ObjectCenter.Y + Point.Y, TopZ));
-        OutFormationOffsets.Add(FVector(Point.X, Point.Y, TopZ - ObjectCenter.Z));
+        OutGraspPoints.Add(Point);
+        OutFormationOffsets.Add(BuildOffset(Point));
     }
 }
 
@@ -266,18 +280,27 @@ void UMATransportCoordinator::FinalizeSession(FSession& Session)
         return;
     }
 
-    // 物体世界 AABB（注意：使用 Bounds 即 AABB；物体被旋转后这是世界轴向膨胀的盒子）
-    FVector ObjectCenter = Object->GetActorLocation();
-    FVector BoxExtent(100.f, 100.f, 50.f);
-    float TopZ = ObjectCenter.Z;
-
-    if (const UPrimitiveComponent* Prim = Cast<UPrimitiveComponent>(Object->GetRootComponent()))
+    // 计算物体的 OBB（依据 mesh 局部包围盒 + 组件世界 transform）：
+    // - 水平两轴沿物体局部 X / Y，长度 = 局部半尺寸 ×|缩放|
+    // - 顶面 Z 取世界中心 + 局部 Z 半尺寸 ×|Scale.Z|（沿世界 Z 取最高点）
+    const UPrimitiveComponent* Prim = Cast<UPrimitiveComponent>(Object->GetRootComponent());
+    if (!Prim)
     {
-        const FBoxSphereBounds Bounds = Prim->Bounds;
-        ObjectCenter = Bounds.Origin;
-        BoxExtent = Bounds.BoxExtent;
-        TopZ = ObjectCenter.Z + BoxExtent.Z;
+        UE_LOG(LogMATransportCoordinator, Warning,
+            TEXT("[Transport] FinalizeSession: object '%s' has no UPrimitiveComponent root, cannot compute OBB"),
+            *Object->GetName());
+        return;
     }
+
+    const FBoxSphereBounds LocalBounds = Prim->CalcLocalBounds();
+    const FTransform Xform = Prim->GetComponentTransform();
+    const FVector Scale = Xform.GetScale3D();
+
+    const FVector ObjectCenter = Xform.TransformPosition(LocalBounds.Origin);
+    const FVector AxisXVec = Xform.GetUnitAxis(EAxis::X) * (LocalBounds.BoxExtent.X * FMath::Abs(Scale.X));
+    const FVector AxisYVec = Xform.GetUnitAxis(EAxis::Y) * (LocalBounds.BoxExtent.Y * FMath::Abs(Scale.Y));
+    const float HalfHeight = LocalBounds.BoxExtent.Z * FMath::Abs(Scale.Z);
+    const float TopZ = ObjectCenter.Z + HalfHeight;
 
     const int32 Count = Session.Participants.Num();
     if (Count <= 0)
@@ -285,11 +308,11 @@ void UMATransportCoordinator::FinalizeSession(FSession& Session)
         return;
     }
 
-    // 沿矩形顶面边缘按周长均匀采样 N 个抓取点（落在边缘上）
+    // 沿 OBB 顶面边缘按周长均匀采样 N 个抓取点（落在 OBB 边缘上，随物体旋转）
     TArray<FVector> GraspPoints;
     TArray<FVector> FormationOffsets;
     DistributeGraspPointsOnRectanglePerimeter(
-        ObjectCenter, BoxExtent.X, BoxExtent.Y, TopZ, Count,
+        ObjectCenter, AxisXVec, AxisYVec, TopZ, Count,
         GraspPoints, FormationOffsets);
 
     // 按当前位置就近匹配槽位
@@ -331,17 +354,17 @@ void UMATransportCoordinator::FinalizeSession(FSession& Session)
         {
             Pickup->SetPhysicsEnabled(false);
         }
-        else if (UPrimitiveComponent* Prim = Cast<UPrimitiveComponent>(Object_->GetRootComponent()))
+        else if (UPrimitiveComponent* Prim_ = Cast<UPrimitiveComponent>(Object_->GetRootComponent()))
         {
-            Prim->SetSimulatePhysics(false);
-            Prim->SetEnableGravity(false);
+            Prim_->SetSimulatePhysics(false);
+            Prim_->SetEnableGravity(false);
         }
     }
 
     UE_LOG(LogMATransportCoordinator, Log,
-        TEXT("[Transport] Session finalized: %d participants, leader=%s, AABB extent=(%.0f, %.0f, %.0f)"),
+        TEXT("[Transport] Session finalized: %d participants, leader=%s, OBB halfX=%.0f halfY=%.0f halfZ=%.0f"),
         Count, Session.Leader.IsValid() ? *Session.Leader->AgentLabel : TEXT("none"),
-        BoxExtent.X, BoxExtent.Y, BoxExtent.Z);
+        AxisXVec.Size(), AxisYVec.Size(), HalfHeight);
 }
 
 void UMATransportCoordinator::ReportReady(const FString& SessionKey, AMACharacter* Agent)

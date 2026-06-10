@@ -1,86 +1,25 @@
 {
 	"nodes": [
 		{
-			"id": "0",
-			"count": 1,
-			"Guid": [],
-			"properties": {
-				"label": "CityPark",
-				"type": "citypark",
-				"category": "scene",
-				"is_abnormal": false
-			},
-			"shape": {
-				"type": "polygon",
-				"vertices": [
-					[
-						-100000,
-						-100000,
-						0
-					],
-					[
-						100000,
-						-100000,
-						0
-					],
-					[
-						100000,
-						100000,
-						0
-					],
-					[
-						-100000,
-						100000,
-						0
-					]
-				]
-			}
-		},
-		{
 			"id": "1",
 			"count": 1,
 			"Guid": [
-				"24130889498BFBB87C9545BFC39531F4"
+				"4099164CDA784859877466701FDEF957"
 			],
-			"properties": {
+			"properties":
+			{
 				"label": "Electric_tower-1",
 				"type": "electric_tower",
 				"category": "prop",
-				"is_abnormal": false,
-				"parts": {
-					"Top": [
-						-28000,
-						9830.0,
-						3410
-					],
-					"Branch_1": [
-						-28363,
-						10239.0,
-						2920
-					],
-					"Branch_2": [
-						-27636,
-						9620.0,
-						2940
-					],
-					"Branch_3": [
-						-28386,
-						10241.0,
-						2530
-					],
-					"Branch_4": [
-						-27627,
-						9615.0,
-						2520
-					]
-				}
+				"is_abnormal": false
 			},
-			"shape": {
+			"shape":
+			{
 				"type": "point",
 				"center": [
-					-28000,
-					9829.999999999998,
-					40
+					-28003.169872500002,
+					9801.8301270000011,
+					15
 				]
 			}
 		},
@@ -88,47 +27,22 @@
 			"id": "2",
 			"count": 1,
 			"Guid": [
-				"375E5D61442FA737875DEA8C5173EB28"
+				"7AC3115172644289A3E6284C4E9BF5AB"
 			],
-			"properties": {
-				"label": "Electric_tower-2",
-				"type": "electric_tower",
+			"properties":
+			{
+				"label": "Electric_tower_top-1",
+				"type": "electric_tower_top",
 				"category": "prop",
-				"is_abnormal": false,
-				"parts": {
-					"Top": [
-						-29390,
-						5020.0,
-						3590
-					],
-					"Branch_1": [
-						-29753,
-						5429.0,
-						3100
-					],
-					"Branch_2": [
-						-29026,
-						4810.0,
-						3120
-					],
-					"Branch_3": [
-						-29776,
-						5431.0,
-						2710
-					],
-					"Branch_4": [
-						-29017,
-						4805.0,
-						2700
-					]
-				}
+				"is_abnormal": false
 			},
-			"shape": {
+			"shape":
+			{
 				"type": "point",
 				"center": [
-					-29390,
-					5020,
-					220
+					-28003.169872500002,
+					9801.8301270000011,
+					3385
 				]
 			}
 		},
@@ -136,47 +50,22 @@
 			"id": "3",
 			"count": 1,
 			"Guid": [
-				"A9E5DB614A697CD8F15524BC6F7F3D4E"
+				"1BCCA39956334048A9807F736A9F0B35"
 			],
-			"properties": {
-				"label": "Electric_tower-3",
-				"type": "electric_tower",
+			"properties":
+			{
+				"label": "Electric_tower_1_branch-1",
+				"type": "electric_tower_1_branch",
 				"category": "prop",
-				"is_abnormal": false,
-				"parts": {
-					"Top": [
-						-32593.17,
-						401.83,
-						2895
-					],
-					"Branch_1": [
-						-32956.17,
-						810.83,
-						2405
-					],
-					"Branch_2": [
-						-32229.17,
-						191.83,
-						2425
-					],
-					"Branch_3": [
-						-32979.17,
-						812.83,
-						2015
-					],
-					"Branch_4": [
-						-32220.17,
-						186.83,
-						2005
-					]
-				}
+				"is_abnormal": false
 			},
-			"shape": {
+			"shape":
+			{
 				"type": "point",
 				"center": [
-					-32593.169872500002,
-					401.83012699999927,
-					-475
+					-28366.900542500003,
+					10011.830126000001,
+					2895
 				]
 			}
 		},
@@ -184,47 +73,22 @@
 			"id": "4",
 			"count": 1,
 			"Guid": [
-				"2589C06A4646E0D3EF76DAADE399DA0E"
+				"D8DE1A00232640B3A995419D76036E0A"
 			],
-			"properties": {
-				"label": "Electric_tower-4",
-				"type": "electric_tower",
+			"properties":
+			{
+				"label": "Electric_tower_1_branch-2",
+				"type": "electric_tower_1_branch",
 				"category": "prop",
-				"is_abnormal": false,
-				"parts": {
-					"Top": [
-						-35413.17,
-						-5728.17,
-						2695
-					],
-					"Branch_1": [
-						-35776.17,
-						-5319.17,
-						2205
-					],
-					"Branch_2": [
-						-35049.17,
-						-5938.17,
-						2225
-					],
-					"Branch_3": [
-						-35799.17,
-						-5317.17,
-						1815
-					],
-					"Branch_4": [
-						-35040.17,
-						-5943.17,
-						1805
-					]
-				}
+				"is_abnormal": false
 			},
-			"shape": {
+			"shape":
+			{
 				"type": "point",
 				"center": [
-					-35413.1698725,
-					-5728.169873000001,
-					-675
+					-27639.439202500002,
+					9591.8301280000014,
+					2915
 				]
 			}
 		},
@@ -232,47 +96,22 @@
 			"id": "5",
 			"count": 1,
 			"Guid": [
-				"345D777646FF81A48B762492CA0186B6"
+				"B890FD1689074B758FA62AE8C68910B5"
 			],
-			"properties": {
-				"label": "Electric_tower-5",
-				"type": "electric_tower",
+			"properties":
+			{
+				"label": "Electric_tower_1_branch-3",
+				"type": "electric_tower_1_branch",
 				"category": "prop",
-				"is_abnormal": false,
-				"parts": {
-					"Top": [
-						-39273.17,
-						-11868.17,
-						2955
-					],
-					"Branch_1": [
-						-39636.17,
-						-11459.17,
-						2465
-					],
-					"Branch_2": [
-						-38909.17,
-						-12078.17,
-						2485
-					],
-					"Branch_3": [
-						-39659.17,
-						-11457.17,
-						2075
-					],
-					"Branch_4": [
-						-38900.17,
-						-12083.17,
-						2065
-					]
-				}
+				"is_abnormal": false
 			},
-			"shape": {
+			"shape":
+			{
 				"type": "point",
 				"center": [
-					-39273.1698725,
-					-11868.169872999999,
-					-415
+					-28389.221051500001,
+					10013.169871,
+					2505
 				]
 			}
 		},
@@ -280,42 +119,22 @@
 			"id": "6",
 			"count": 1,
 			"Guid": [
-				"F70D4BF64822B1017EACDCA93AD0C39C"
+				"5C73120630344B92933C3C6CBD328FC1"
 			],
-			"properties": {
-				"label": "Wind_turbine-1",
-				"type": "wind_turbine",
+			"properties":
+			{
+				"label": "Electric_tower_1_branch-4",
+				"type": "electric_tower_1_branch",
 				"category": "prop",
-				"is_abnormal": false,
-				"parts": {
-					"Turbine_1": [
-						-48000,
-						-8500,
-						5170
-					],
-					"Turbine_2": [
-						-48680,
-						-8500,
-						3890
-					],
-					"Turbine_3": [
-						-47180,
-						-8500,
-						3890
-					],
-					"Rotor": [
-						-47990,
-						-8500,
-						4320
-					]
-				}
+				"is_abnormal": false
 			},
-			"shape": {
+			"shape":
+			{
 				"type": "point",
 				"center": [
-					-48020,
-					-8600,
-					-500
+					-27630.778948500003,
+					9586.8301289999999,
+					2495
 				]
 			}
 		},
@@ -323,37 +142,63 @@
 			"id": "7",
 			"count": 1,
 			"Guid": [
+				"94A0936730DD408BBB7AB18911F0B50A"
+			],
+			"properties":
+			{
+				"label": "Electric_tower_1_branch-5",
+				"type": "electric_tower_1_branch",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-28366.900542500003,
+					10011.830126000001,
+					2025
+				]
+			}
+		},
+		{
+			"id": "8",
+			"count": 1,
+			"Guid": [
+				"F0825B36D785411CBE47603FEB604E24"
+			],
+			"properties":
+			{
+				"label": "Electric_tower_1_branch-6",
+				"type": "electric_tower_1_branch",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-27639.439202500002,
+					9591.8301280000014,
+					2025
+				]
+			}
+		},
+		{
+			"id": "9",
+			"count": 1,
+			"Guid": [
 				"B98066204CCAAE9A736A4CA9EBF26503"
 			],
-			"properties": {
-				"label": "Wind_turbine-2",
+			"properties":
+			{
+				"label": "Wind_turbine-1",
 				"type": "wind_turbine",
 				"category": "prop",
-				"is_abnormal": false,
-				"parts": {
-					"Turbine_1": [
-						-43610,
-						1140,
-						4910
-					],
-					"Turbine_2": [
-						-44290,
-						1140,
-						3630
-					],
-					"Turbine_3": [
-						-42790,
-						1140,
-						3630
-					],
-					"Rotor": [
-						-43600,
-						1140,
-						4060
-					]
-				}
+				"is_abnormal": false
 			},
-			"shape": {
+			"shape":
+			{
 				"type": "point",
 				"center": [
 					-43630,
@@ -363,131 +208,25 @@
 			}
 		},
 		{
-			"id": "8",
-			"count": 1,
-			"Guid": [
-				"30D17D6B4A0FDE12813ED197C21D8D28"
-			],
-			"properties": {
-				"label": "Wind_turbine-3",
-				"type": "wind_turbine",
-				"category": "prop",
-				"is_abnormal": false,
-				"parts": {
-					"Turbine_1": [
-						-28510,
-						-5880,
-						5380
-					],
-					"Turbine_2": [
-						-29190,
-						-5880,
-						4100
-					],
-					"Turbine_3": [
-						-27690,
-						-5880,
-						4100
-					],
-					"Rotor": [
-						-28500,
-						-5880,
-						4530
-					]
-				}
-			},
-			"shape": {
-				"type": "point",
-				"center": [
-					-28530,
-					-5980,
-					-290
-				]
-			}
-		},
-		{
-			"id": "9",
-			"count": 1,
-			"Guid": [
-				"957DA94B4BC50D705FCCCD94E4C23305"
-			],
-			"properties": {
-				"label": "Wind_turbine-4",
-				"type": "wind_turbine",
-				"category": "prop",
-				"is_abnormal": false,
-				"parts": {
-					"Turbine_1": [
-						-46160,
-						-34910,
-						5700
-					],
-					"Turbine_2": [
-						-46840,
-						-34910,
-						4420
-					],
-					"Turbine_3": [
-						-45340,
-						-34910,
-						4420
-					],
-					"Rotor": [
-						-46150,
-						-34910,
-						4850
-					]
-				}
-			},
-			"shape": {
-				"type": "point",
-				"center": [
-					-46180,
-					-35010,
-					30
-				]
-			}
-		},
-		{
 			"id": "10",
 			"count": 1,
 			"Guid": [
-				"6EA14D5C487DB0901F15689C304DA7F9"
+				"23DF1C12475E4FB7E3ED7E94F4B1F125"
 			],
-			"properties": {
-				"label": "Wind_turbine-5",
-				"type": "wind_turbine",
+			"properties":
+			{
+				"label": "Wind_turbine_1_wing-1",
+				"type": "wind_turbine_1_wing",
 				"category": "prop",
-				"is_abnormal": false,
-				"parts": {
-					"Turbine_1": [
-						-29260,
-						-39240,
-						5980
-					],
-					"Turbine_2": [
-						-29940,
-						-39240,
-						4700
-					],
-					"Turbine_3": [
-						-28440,
-						-39240,
-						4700
-					],
-					"Rotor": [
-						-29250,
-						-39240,
-						5130
-					]
-				}
+				"is_abnormal": false
 			},
-			"shape": {
+			"shape":
+			{
 				"type": "point",
 				"center": [
-					-29280,
-					-39340,
-					310
+					-43610,
+					1140,
+					4910
 				]
 			}
 		},
@@ -495,47 +234,73 @@
 			"id": "11",
 			"count": 1,
 			"Guid": [
-				"A87B55D644F8538B634A0580B52FE253"
+				"694AA17243E4894BCC0D38B6513B736A"
 			],
-			"properties": {
-				"label": "Wind_turbine-6",
-				"type": "wind_turbine",
+			"properties":
+			{
+				"label": "Wind_turbine_1_wing-2",
+				"type": "wind_turbine_1_wing",
 				"category": "prop",
-				"is_abnormal": false,
-				"parts": {
-					"Turbine_1": [
-						-20750,
-						-19310,
-						5320
-					],
-					"Turbine_2": [
-						-21430,
-						-19310,
-						4040
-					],
-					"Turbine_3": [
-						-19930,
-						-19310,
-						4040
-					],
-					"Rotor": [
-						-20740,
-						-19310,
-						4470
-					]
-				}
+				"is_abnormal": false
 			},
-			"shape": {
+			"shape":
+			{
 				"type": "point",
 				"center": [
-					-20770,
-					-19410,
-					-350
+					-44290,
+					1140,
+					3630
 				]
 			}
 		},
 		{
 			"id": "12",
+			"count": 1,
+			"Guid": [
+				"F976870A4AFA4C44CDF3B1A9D69ADC83"
+			],
+			"properties":
+			{
+				"label": "Wind_turbine_1_wing-3",
+				"type": "wind_turbine_1_wing",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-42790,
+					1140,
+					3630
+				]
+			}
+		},
+		{
+			"id": "13",
+			"count": 1,
+			"Guid": [
+				"97BFF25D4A692EA8F56D6EA547A3E858"
+			],
+			"properties":
+			{
+				"label": "Wind_turbine_rotor-1",
+				"type": "wind_turbine_rotor",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-43600,
+					1140,
+					4060
+				]
+			}
+		},
+		{
+			"id": "14",
 			"count": 1,
 			"Guid": [],
 			"properties": {
@@ -571,7 +336,7 @@
 			}
 		},
 		{
-			"id": "13",
+			"id": "15",
 			"count": 1,
 			"Guid": [],
 			"properties": {
@@ -605,73 +370,6 @@
 					]
 				]
 			}
-		}
-	],
-	"edges": [
-		{
-			"source": "0",
-			"target": "1",
-			"type": "contains"
-		},
-		{
-			"source": "0",
-			"target": "2",
-			"type": "contains"
-		},
-		{
-			"source": "0",
-			"target": "3",
-			"type": "contains"
-		},
-		{
-			"source": "0",
-			"target": "4",
-			"type": "contains"
-		},
-		{
-			"source": "0",
-			"target": "5",
-			"type": "contains"
-		},
-		{
-			"source": "0",
-			"target": "6",
-			"type": "contains"
-		},
-		{
-			"source": "0",
-			"target": "7",
-			"type": "contains"
-		},
-		{
-			"source": "0",
-			"target": "8",
-			"type": "contains"
-		},
-		{
-			"source": "0",
-			"target": "9",
-			"type": "contains"
-		},
-		{
-			"source": "0",
-			"target": "10",
-			"type": "contains"
-		},
-		{
-			"source": "0",
-			"target": "11",
-			"type": "contains"
-		},
-		{
-			"source": "0",
-			"target": "12",
-			"type": "contains"
-		},
-		{
-			"source": "0",
-			"target": "13",
-			"type": "contains"
 		}
 	]
 }

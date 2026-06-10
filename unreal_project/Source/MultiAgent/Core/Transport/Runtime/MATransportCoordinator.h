@@ -131,11 +131,17 @@ private:
     FParticipant* FindParticipant(FSession& Session, const AMACharacter* Agent);
     const FParticipant* FindParticipant(const FSession& Session, const AMACharacter* Agent) const;
 
-    /** 在矩形顶面边缘按周长均匀采样 N 个抓取点（世界坐标），输出对应的相对中心偏移 */
+    /**
+     * 在 OBB 顶面矩形的周界上分配 N 个抓取点（世界坐标），并输出对应的相对中心偏移。
+     *
+     * 物体的水平包围盒由两个世界向量给出：AxisXVec、AxisYVec。
+     * 它们方向沿物体局部 X / Y 轴，长度等于该轴半尺寸 ×|缩放|（已含旋转、缩放）。
+     * 顶面 Z 由 ObjectCenter.Z + 局部 Z 半尺寸计算（沿世界 Z 取最高点）。
+     */
     static void DistributeGraspPointsOnRectanglePerimeter(
         const FVector& ObjectCenter,
-        float HalfX,
-        float HalfY,
+        const FVector& AxisXVec,
+        const FVector& AxisYVec,
         float TopZ,
         int32 Count,
         TArray<FVector>& OutGraspPoints,

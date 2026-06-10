@@ -439,34 +439,34 @@ SKILL_LISTS = {
             "4": {
                 "UAV-1": {"skill": "transport", "params": {
                     "target": {"class": "object", "type": "metal_grate", "features": {"label": "Grate_1"}},
-                    "dest": {"x": -8500, "y": 3700, "z": 1000}
+                    "dest": {"x": -28000, "y": 10239, "z": 2900}
                 }},
                 "UAV-2": {"skill": "transport", "params": {
                     "target": {"class": "object", "type": "metal_grate", "features": {"label": "Grate_1"}},
-                    "dest": {"x": -8500, "y": 3700, "z": 1000}
+                    "dest": {"x": -28000, "y": 10239, "z": 2900}
                 }},
                 "UAV-3": {"skill": "transport", "params": {
                     "target": {"class": "object", "type": "metal_grate", "features": {"label": "Grate_1"}},
-                    "dest": {"x": -8500, "y": 3700, "z": 1000}
+                    "dest": {"x": -28000, "y": 10239, "z": 2900}
                 }},
                 "UAV-4": {"skill": "transport", "params": {
                     "target": {"class": "object", "type": "metal_grate", "features": {"label": "Grate_1"}},
-                    "dest": {"x": -8500, "y": 3700, "z": 1000}
+                    "dest": {"x": -28000, "y": 10239, "z": 2900}
                 }},
                 "UAV-5": {"skill": "navigate", "params": {
-                    "dest": {"x": -8000, "y": 3700, "z": 1000}
+                    "dest": {"x": -28000, "y": 10239, "z": 2900}
                 }}
             },
             "5": {
                 "UAV-5": {"skill": "place", "params": {
                     "target": {"class": "object", "type": "assembly_component", "features": {"subtype": "loudspeaker", "label": "Loudspeaker_1"}},
-                    "surface_target": {"class": "object", "type": "streetlight", "features": {"label": "Streetlight-51"}}
+                    "surface_target": {"class": "object", "type": "electric_tower", "features": {"label": "Electric_tower-1"}}
                 }}
             },
             "6": {
                 "UAV-5": {"skill": "place", "params": {
                     "target": {"class": "object", "type": "assembly_component", "features": {"subtype": "surveillance_camera", "label": "SurveillanceCamera_1"}},
-                    "surface_target": {"class": "object", "type": "streetlight", "features": {"label": "Streetlight-51"}}
+                    "surface_target": {"class": "object", "type": "electric_tower", "features": {"label": "Electric_tower-1"}}
                 }}
             }
         }
