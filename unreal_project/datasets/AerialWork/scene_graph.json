@@ -303,13 +303,15 @@
 			"id": "14",
 			"count": 1,
 			"Guid": [],
-			"properties": {
+			"properties":
+			{
 				"label": "Storage_District-1",
 				"type": "storage_district",
 				"category": "zone",
 				"is_abnormal": false
 			},
-			"shape": {
+			"shape":
+			{
 				"type": "polygon",
 				"vertices": [
 					[
@@ -339,13 +341,15 @@
 			"id": "15",
 			"count": 1,
 			"Guid": [],
-			"properties": {
+			"properties":
+			{
 				"label": "Robot_Base-1",
 				"type": "robot_base",
 				"category": "zone",
 				"is_abnormal": false
 			},
-			"shape": {
+			"shape":
+			{
 				"type": "polygon",
 				"vertices": [
 					[
@@ -368,6 +372,972 @@
 						9849,
 						110
 					]
+				]
+			}
+		},
+		{
+			"id": "16",
+			"count": 1,
+			"Guid": [
+				"375E5D61442FA737875DEA8C5173EB28"
+			],
+			"properties":
+			{
+				"label": "Electric_tower-2",
+				"type": "electric_tower",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-29390,
+					5020,
+					220
+				]
+			}
+		},
+		{
+			"id": "17",
+			"count": 1,
+			"Guid": [
+				"A9E5DB614A697CD8F15524BC6F7F3D4E"
+			],
+			"properties":
+			{
+				"label": "Electric_tower-3",
+				"type": "electric_tower",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-32593.169872500002,
+					401.83012699999927,
+					-475
+				]
+			}
+		},
+		{
+			"id": "18",
+			"count": 1,
+			"Guid": [
+				"2589C06A4646E0D3EF76DAADE399DA0E"
+			],
+			"properties":
+			{
+				"label": "Electric_tower-4",
+				"type": "electric_tower",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-35413.169872500002,
+					-5728.1698730000007,
+					-675
+				]
+			}
+		},
+		{
+			"id": "19",
+			"count": 1,
+			"Guid": [
+				"345D777646FF81A48B762492CA0186B6"
+			],
+			"properties":
+			{
+				"label": "Electric_tower-5",
+				"type": "electric_tower",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-39273.169872500002,
+					-11868.169872999999,
+					-415
+				]
+			}
+		},
+		{
+			"id": "20",
+			"count": 1,
+			"Guid": [
+				"F5F3F4F04BCEA290029D68A8FFABA9E9"
+			],
+			"properties":
+			{
+				"label": "Electric_tower_top-2",
+				"type": "electric_tower_top",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-29390,
+					5020,
+					3590
+				]
+			}
+		},
+		{
+			"id": "21",
+			"count": 1,
+			"Guid": [
+				"A99F12374AE8D5458A02C28FE8F9F695"
+			],
+			"properties":
+			{
+				"label": "Electric_tower_top-3",
+				"type": "electric_tower_top",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-32593.169872500002,
+					401.83012699999927,
+					2895
+				]
+			}
+		},
+		{
+			"id": "22",
+			"count": 1,
+			"Guid": [
+				"C112CB1C43852F012CCFD6BF2C5F323C"
+			],
+			"properties":
+			{
+				"label": "Electric_tower_top-4",
+				"type": "electric_tower_top",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-35413.169872500002,
+					-5728.1698730000007,
+					2695
+				]
+			}
+		},
+		{
+			"id": "23",
+			"count": 1,
+			"Guid": [
+				"4BE7514343DC345EF64D8AAAE71C5331"
+			],
+			"properties":
+			{
+				"label": "Electric_tower_top-5",
+				"type": "electric_tower_top",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-39273.169872500002,
+					-11868.169872999999,
+					2955
+				]
+			}
+		},
+		{
+			"id": "24",
+			"count": 1,
+			"Guid": [
+				"EB9F0E8E4A31C29076229CA5416C431F"
+			],
+			"properties":
+			{
+				"label": "Electric_tower_2_branch-1",
+				"type": "electric_tower_2_branch",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-29753.730670000001,
+					5229.9999989999997,
+					3100
+				]
+			}
+		},
+		{
+			"id": "25",
+			"count": 1,
+			"Guid": [
+				"493999DB41EE0327D9E1A29F4C7BE708"
+			],
+			"properties":
+			{
+				"label": "Electric_tower_2_branch-2",
+				"type": "electric_tower_2_branch",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-29026.269329999999,
+					4810.0000010000003,
+					3120
+				]
+			}
+		},
+		{
+			"id": "26",
+			"count": 1,
+			"Guid": [
+				"C353B9EB46715DB8E786C7954593DD0B"
+			],
+			"properties":
+			{
+				"label": "Electric_tower_2_branch-3",
+				"type": "electric_tower_2_branch",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-29776.051178999998,
+					5231.3397440000008,
+					2710
+				]
+			}
+		},
+		{
+			"id": "27",
+			"count": 1,
+			"Guid": [
+				"3E8E0E0246C8820B6F69479A71F8C863"
+			],
+			"properties":
+			{
+				"label": "Electric_tower_2_branch-4",
+				"type": "electric_tower_2_branch",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-29017.609076000001,
+					4805.0000020000007,
+					2700
+				]
+			}
+		},
+		{
+			"id": "28",
+			"count": 1,
+			"Guid": [
+				"E0D14F884048C9205CE693A08EEC0616"
+			],
+			"properties":
+			{
+				"label": "Electric_tower_2_branch-5",
+				"type": "electric_tower_2_branch",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-29753.730670000001,
+					5229.9999989999997,
+					2230
+				]
+			}
+		},
+		{
+			"id": "29",
+			"count": 1,
+			"Guid": [
+				"9895638F45AE0FD11B7E42B91B0B7175"
+			],
+			"properties":
+			{
+				"label": "Electric_tower_2_branch-6",
+				"type": "electric_tower_2_branch",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-29026.269329999999,
+					4810.0000010000003,
+					2230
+				]
+			}
+		},
+		{
+			"id": "30",
+			"count": 1,
+			"Guid": [
+				"47E71A084EE37771E96585BDE4DB7A4B"
+			],
+			"properties":
+			{
+				"label": "Electric_tower_3_branch-1",
+				"type": "electric_tower_3_branch",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-32956.900542500007,
+					611.83012599999893,
+					2405
+				]
+			}
+		},
+		{
+			"id": "31",
+			"count": 1,
+			"Guid": [
+				"28BAB6AD4E09FC90AA7DFC91C6B1C786"
+			],
+			"properties":
+			{
+				"label": "Electric_tower_3_branch-2",
+				"type": "electric_tower_3_branch",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-32229.439202500002,
+					191.8301279999996,
+					2425
+				]
+			}
+		},
+		{
+			"id": "32",
+			"count": 1,
+			"Guid": [
+				"633EDF0B405998AAB489C5947E75B7C3"
+			],
+			"properties":
+			{
+				"label": "Electric_tower_3_branch-3",
+				"type": "electric_tower_3_branch",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-32979.221051500004,
+					613.16987100000006,
+					2015
+				]
+			}
+		},
+		{
+			"id": "33",
+			"count": 1,
+			"Guid": [
+				"F20FCF5D4CE8B84F199C44A389B6064A"
+			],
+			"properties":
+			{
+				"label": "Electric_tower_3_branch-4",
+				"type": "electric_tower_3_branch",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-32220.778948500003,
+					186.83012899999994,
+					2005
+				]
+			}
+		},
+		{
+			"id": "34",
+			"count": 1,
+			"Guid": [
+				"C0736388431D97A7A686F088D192EC1D"
+			],
+			"properties":
+			{
+				"label": "Electric_tower_3_branch-5",
+				"type": "electric_tower_3_branch",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-32956.900542500007,
+					611.83012599999893,
+					1535
+				]
+			}
+		},
+		{
+			"id": "35",
+			"count": 1,
+			"Guid": [
+				"3CDA35924EF78AD9FE8479A20F93F48A"
+			],
+			"properties":
+			{
+				"label": "Electric_tower_3_branch-6",
+				"type": "electric_tower_3_branch",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-32229.439202500002,
+					191.8301279999996,
+					1535
+				]
+			}
+		},
+		{
+			"id": "36",
+			"count": 1,
+			"Guid": [
+				"C9D417124051B5B7EE410CA32955C275"
+			],
+			"properties":
+			{
+				"label": "Electric_tower_4_branch-1",
+				"type": "electric_tower_4_branch",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-35776.900542500007,
+					-5518.1698740000011,
+					2205
+				]
+			}
+		},
+		{
+			"id": "37",
+			"count": 1,
+			"Guid": [
+				"1B01298040C5D51889B2EDA09EB10C77"
+			],
+			"properties":
+			{
+				"label": "Electric_tower_4_branch-2",
+				"type": "electric_tower_4_branch",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-35049.439202499998,
+					-5938.1698720000004,
+					2225
+				]
+			}
+		},
+		{
+			"id": "38",
+			"count": 1,
+			"Guid": [
+				"422A6E684DEF9E0031CC419A3806E839"
+			],
+			"properties":
+			{
+				"label": "Electric_tower_4_branch-3",
+				"type": "electric_tower_4_branch",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-35799.221051500004,
+					-5516.8301289999999,
+					1815
+				]
+			}
+		},
+		{
+			"id": "39",
+			"count": 1,
+			"Guid": [
+				"97EF94E74321924D8344B1BEE5E59C70"
+			],
+			"properties":
+			{
+				"label": "Electric_tower_4_branch-4",
+				"type": "electric_tower_4_branch",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-35040.778948500003,
+					-5943.1698710000001,
+					1805
+				]
+			}
+		},
+		{
+			"id": "40",
+			"count": 1,
+			"Guid": [
+				"F1AE5CBA4CDABC5D95C13F819DF19957"
+			],
+			"properties":
+			{
+				"label": "Electric_tower_4_branch-5",
+				"type": "electric_tower_4_branch",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-35776.900542500007,
+					-5518.1698740000011,
+					1335
+				]
+			}
+		},
+		{
+			"id": "41",
+			"count": 1,
+			"Guid": [
+				"941FF5EB4301B8FCE9B1A284A5F669C0"
+			],
+			"properties":
+			{
+				"label": "Electric_tower_4_branch-6",
+				"type": "electric_tower_4_branch",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-35049.439202499998,
+					-5938.1698720000004,
+					1335
+				]
+			}
+		},
+		{
+			"id": "42",
+			"count": 1,
+			"Guid": [
+				"E72C2EC747B6DF315998A8ABD36BAF7A"
+			],
+			"properties":
+			{
+				"label": "Electric_tower_5_branch-1",
+				"type": "electric_tower_5_branch",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-39636.900542500007,
+					-11658.169873999999,
+					2465
+				]
+			}
+		},
+		{
+			"id": "43",
+			"count": 1,
+			"Guid": [
+				"B90912334F4CCB7B27211FBB5A87F808"
+			],
+			"properties":
+			{
+				"label": "Electric_tower_5_branch-2",
+				"type": "electric_tower_5_branch",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-38909.439202499998,
+					-12078.169871999999,
+					2485
+				]
+			}
+		},
+		{
+			"id": "44",
+			"count": 1,
+			"Guid": [
+				"EE844EA3450D55F10F5EC6A2061166DC"
+			],
+			"properties":
+			{
+				"label": "Electric_tower_5_branch-3",
+				"type": "electric_tower_5_branch",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-39659.221051500004,
+					-11656.830128999998,
+					2075
+				]
+			}
+		},
+		{
+			"id": "45",
+			"count": 1,
+			"Guid": [
+				"DD0A867F440C97DFFCDFAA86AB9DCB71"
+			],
+			"properties":
+			{
+				"label": "Electric_tower_5_branch-4",
+				"type": "electric_tower_5_branch",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-38900.778948500003,
+					-12083.169870999998,
+					2065
+				]
+			}
+		},
+		{
+			"id": "46",
+			"count": 1,
+			"Guid": [
+				"7AEEBF3A45415D02A657A6B4A74251F3"
+			],
+			"properties":
+			{
+				"label": "Electric_tower_5_branch-5",
+				"type": "electric_tower_5_branch",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-39636.900542500007,
+					-11658.169873999999,
+					1595
+				]
+			}
+		},
+		{
+			"id": "47",
+			"count": 1,
+			"Guid": [
+				"71FFA0994DBD4B3B1CA723BDAE56B88F"
+			],
+			"properties":
+			{
+				"label": "Electric_tower_5_branch-6",
+				"type": "electric_tower_5_branch",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-38909.439202499998,
+					-12078.169871999999,
+					1595
+				]
+			}
+		},
+		{
+			"id": "48",
+			"count": 1,
+			"Guid": [
+				"F70D4BF64822B1017EACDCA93AD0C39C"
+			],
+			"properties":
+			{
+				"label": "Wind_turbine-2",
+				"type": "wind_turbine",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-48020,
+					-8600,
+					-500
+				]
+			}
+		},
+		{
+			"id": "49",
+			"count": 1,
+			"Guid": [
+				"30D17D6B4A0FDE12813ED197C21D8D28"
+			],
+			"properties":
+			{
+				"label": "Wind_turbine-3",
+				"type": "wind_turbine",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-28530,
+					-5980,
+					-290
+				]
+			}
+		},
+		{
+			"id": "50",
+			"count": 1,
+			"Guid": [
+				"ACD159BE4023F17F3F1189A1153E5A03"
+			],
+			"properties":
+			{
+				"label": "Wind_turbine_rotor-2",
+				"type": "wind_turbine_rotor",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-48025,
+					-8440,
+					4255
+				]
+			}
+		},
+		{
+			"id": "51",
+			"count": 1,
+			"Guid": [
+				"DD8DAF55421EBBA2899BFBB44D4FEF7C"
+			],
+			"properties":
+			{
+				"label": "Wind_turbine_rotor-3",
+				"type": "wind_turbine_rotor",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-28520,
+					-5880,
+					4590
+				]
+			}
+		},
+		{
+			"id": "52",
+			"count": 1,
+			"Guid": [
+				"474F6A95481E079F7B07B4A822BB0AE7"
+			],
+			"properties":
+			{
+				"label": "Wind_turbine_2_wing-1",
+				"type": "wind_turbine_2_wing",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-48715,
+					-8440,
+					3825
+				]
+			}
+		},
+		{
+			"id": "53",
+			"count": 1,
+			"Guid": [
+				"41D476784F0FD070C4D1E1A468E7AA7B"
+			],
+			"properties":
+			{
+				"label": "Wind_turbine_2_wing-2",
+				"type": "wind_turbine_2_wing",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-47215,
+					-8440,
+					3825
+				]
+			}
+		},
+		{
+			"id": "54",
+			"count": 1,
+			"Guid": [
+				"B111FF384B9C9B8E2C530595AAE1FCD6"
+			],
+			"properties":
+			{
+				"label": "Wind_turbine_2_wing-3",
+				"type": "wind_turbine_2_wing",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-48035,
+					-8440,
+					5105
+				]
+			}
+		},
+		{
+			"id": "55",
+			"count": 1,
+			"Guid": [
+				"AAFA7F114E4F0B0C10FE02965F132A7D"
+			],
+			"properties":
+			{
+				"label": "Wind_turbine_3_wing-2",
+				"type": "wind_turbine_3_wing",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-29210,
+					-5880,
+					4160
+				]
+			}
+		},
+		{
+			"id": "56",
+			"count": 1,
+			"Guid": [
+				"4628C82044A97DE4E8004C912AB48F77"
+			],
+			"properties":
+			{
+				"label": "Wind_turbine_3_wing-3",
+				"type": "wind_turbine_3_wing",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-27710,
+					-5880,
+					4160
+				]
+			}
+		},
+		{
+			"id": "57",
+			"count": 1,
+			"Guid": [
+				"90FBD5C749397D237293DE84FA527115"
+			],
+			"properties":
+			{
+				"label": "Wind_turbine_3_wing-1",
+				"type": "wind_turbine_3_wing",
+				"category": "prop",
+				"is_abnormal": false
+			},
+			"shape":
+			{
+				"type": "point",
+				"center": [
+					-28530,
+					-5880,
+					5440
 				]
 			}
 		}
