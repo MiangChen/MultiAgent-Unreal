@@ -2,7 +2,7 @@
     "simulation": {
         "name": "MultiAgent Simulation",
         "version": "1.0",
-        "run_mode": "edit",
+        "run_mode": "modify",
         "use_setup_ui": false,
         "use_state_tree": false,
         "enable_energy_drain": false,

@@ -1,104 +1,383 @@
 {
     "map_info": {
         "display_name": "AerialWork",
-        "map_path": "/Game/Map/Downtown/Map/Downtown",
+        "map_path": "/Game/Map/Citypark/Map/Showcase",
         "scene_graph_folder": "datasets/AerialWork"
     },
     "spectator": {
-        "position": [7700, 9500, 800],
-        "rotation": [25, 180, 0]
+        "position": [
+            -31640,
+            13120,
+            110
+        ],
+        "rotation": [
+            -20,
+            90,
+            0
+        ]
     },
     "agents": [
         {
             "type": "UAV",
             "instances": [
-                { "label": "UAV-1", "position": [7000, 8500, 20], "rotation": [0, 180, 0], "battery_level": 100 },
-                { "label": "UAV-2", "position": [7300, 8500, 20], "rotation": [0, 180, 0], "battery_level": 100 },
-                { "label": "UAV-3", "position": [7600, 8500, 20], "rotation": [0, 180, 0], "battery_level": 100 },
-                { "label": "UAV-4", "position": [7900, 8500, 20], "rotation": [0, 180, 0], "battery_level": 100 },
-                { "label": "UAV-5", "position": [8200, 8500, 20], "rotation": [0, 180, 0], "battery_level": 100 },
-                { "label": "UAV-6", "position": [7000, 8800, 20], "rotation": [0, 180, 0], "battery_level": 100 },
-                { "label": "UAV-7", "position": [7300, 8800, 20], "rotation": [0, 180, 0], "battery_level": 100 },
-                { "label": "UAV-8", "position": [7600, 8800, 20], "rotation": [0, 180, 0], "battery_level": 100 },
-                { "label": "UAV-9", "position": [7900, 8800, 20], "rotation": [0, 180, 0], "battery_level": 100 },
-                { "label": "UAV-10", "position": [8200, 8800, 20], "rotation": [0, 180, 0], "battery_level": 100 }
+                {
+                    "label": "UAV-1",
+                    "position": [
+                        -30860.2,
+                        11141.7,
+                        127
+                    ],
+                    "rotation": [
+                        0,
+                        155.59,
+                        0
+                    ],
+                    "battery_level": 100
+                },
+                {
+                    "label": "UAV-2",
+                    "position": [
+                        -31315.5,
+                        11348.3,
+                        127
+                    ],
+                    "rotation": [
+                        0,
+                        155.59,
+                        0
+                    ],
+                    "battery_level": 100
+                },
+                {
+                    "label": "UAV-3",
+                    "position": [
+                        -31770.8,
+                        11554.9,
+                        127
+                    ],
+                    "rotation": [
+                        0,
+                        155.59,
+                        0
+                    ],
+                    "battery_level": 100
+                },
+                {
+                    "label": "UAV-4",
+                    "position": [
+                        -32226.1,
+                        11761.6,
+                        127
+                    ],
+                    "rotation": [
+                        0,
+                        155.59,
+                        0
+                    ],
+                    "battery_level": 100
+                },
+                {
+                    "label": "UAV-5",
+                    "position": [
+                        -32681.4,
+                        11968.2,
+                        127
+                    ],
+                    "rotation": [
+                        0,
+                        155.59,
+                        0
+                    ],
+                    "battery_level": 100
+                },
+                {
+                    "label": "UAV-6",
+                    "position": [
+                        -31108.1,
+                        10595.3,
+                        127
+                    ],
+                    "rotation": [
+                        0,
+                        155.59,
+                        0
+                    ],
+                    "battery_level": 100
+                },
+                {
+                    "label": "UAV-7",
+                    "position": [
+                        -31563.4,
+                        10801.9,
+                        127
+                    ],
+                    "rotation": [
+                        0,
+                        155.59,
+                        0
+                    ],
+                    "battery_level": 100
+                },
+                {
+                    "label": "UAV-8",
+                    "position": [
+                        -32018.7,
+                        11008.6,
+                        127
+                    ],
+                    "rotation": [
+                        0,
+                        155.59,
+                        0
+                    ],
+                    "battery_level": 100
+                },
+                {
+                    "label": "UAV-9",
+                    "position": [
+                        -32474.0,
+                        11215.2,
+                        127
+                    ],
+                    "rotation": [
+                        0,
+                        155.59,
+                        0
+                    ],
+                    "battery_level": 100
+                },
+                {
+                    "label": "UAV-10",
+                    "position": [
+                        -32929.3,
+                        11421.8,
+                        127
+                    ],
+                    "rotation": [
+                        0,
+                        155.59,
+                        0
+                    ],
+                    "battery_level": 100
+                }
             ]
         }
     ],
     "environment": [
         {
-            "label": "ChargingStation_1", "type": "charging_station",
-            "position": [7300, 8400, 20],
+            "label": "ChargingStation_1",
+            "type": "charging_station",
+            "position": [
+                -29225.1,
+                13631.4,
+                110
+            ],
             "enabled": true,
-            "features": {}
+            "features": {},
+            "rotation": [
+                0,
+                155.58,
+                0
+            ]
         },
         {
-            "label": "Grate_1", "type": "metal_grate",
-            "position": [3500, 2800, 20], "rotation": [0, 0, 0],
+            "label": "Grate_1",
+            "type": "metal_grate",
+            "position": [
+                -29571.1,
+                13788.5,
+                110
+            ],
+            "rotation": [
+                0,
+                155.58,
+                0
+            ],
             "enabled": true,
-            "features": { "scale": "4.0", "mass": "80" }
-        },
-
-        {
-            "label": "Loudspeaker_1", "type": "assembly_component",
-            "position": [4600, 2500, 20], "rotation": [0, 0, 0],
-            "enabled": true,
-            "features": { "subtype": "loudspeaker" }
-        },
-        {
-            "label": "Loudspeaker_2", "type": "assembly_component",
-            "position": [4600, 2700, 20], "rotation": [0, 0, 0],
-            "enabled": true,
-            "features": { "subtype": "loudspeaker" }
-        },
-        {
-            "label": "Loudspeaker_3", "type": "assembly_component",
-            "position": [4600, 2400, 20], "rotation": [0, 180, 0],
-            "enabled": true,
-            "features": { "subtype": "loudspeaker" }
+            "features": {
+                "scale": "4.0",
+                "mass": "80"
+            }
         },
         {
-            "label": "Loudspeaker_4", "type": "assembly_component",
-            "position": [4600, 2800, 20], "rotation": [0, 180, 0],
+            "label": "Loudspeaker_1",
+            "type": "assembly_component",
+            "position": [
+                -29917.2,
+                13945.6,
+                110
+            ],
+            "rotation": [
+                0,
+                155.58,
+                0
+            ],
             "enabled": true,
-            "features": { "subtype": "loudspeaker" }
+            "features": {
+                "subtype": "loudspeaker"
+            }
         },
         {
-            "label": "Loudspeaker_5", "type": "assembly_component",
-            "position": [4600, 2800, 20], "rotation": [0, 90, 0],
+            "label": "Loudspeaker_2",
+            "type": "assembly_component",
+            "position": [
+                -30263.2,
+                14102.7,
+                110
+            ],
+            "rotation": [
+                0,
+                155.58,
+                0
+            ],
             "enabled": true,
-            "features": { "subtype": "loudspeaker" }
-        },
-
-        {
-            "label": "SurveillanceCamera_1", "type": "assembly_component",
-            "position": [4200, 2200, 30], "rotation": [0, 0, 0],
-            "enabled": true,
-            "features": { "subtype": "surveillance_camera" }
-        },
-        {
-            "label": "SurveillanceCamera_2", "type": "assembly_component",
-            "position": [4400, 2200, 30], "rotation": [0, 180, 0],
-            "enabled": true,
-            "features": { "subtype": "surveillance_camera" }
-        },
-        {
-            "label": "SurveillanceCamera_3", "type": "assembly_component",
-            "position": [4400, 2800, 30], "rotation": [0, 0, 0],
-            "enabled": true,
-            "features": { "subtype": "surveillance_camera" }
+            "features": {
+                "subtype": "loudspeaker"
+            }
         },
         {
-            "label": "SurveillanceCamera_4", "type": "assembly_component",
-            "position": [4500, 2800, 30], "rotation": [0, 180, 0],
+            "label": "Loudspeaker_3",
+            "type": "assembly_component",
+            "position": [
+                -29382.2,
+                13285.3,
+                110
+            ],
+            "rotation": [
+                0,
+                155.58,
+                0
+            ],
             "enabled": true,
-            "features": { "subtype": "surveillance_camera" }
+            "features": {
+                "subtype": "loudspeaker"
+            }
         },
         {
-            "label": "SurveillanceCamera_5", "type": "assembly_component",
-            "position": [4200, 2800, 30], "rotation": [0, -90, 0],
+            "label": "Loudspeaker_4",
+            "type": "assembly_component",
+            "position": [
+                -29728.2,
+                13442.4,
+                110
+            ],
+            "rotation": [
+                0,
+                155.58,
+                0
+            ],
             "enabled": true,
-            "features": { "subtype": "surveillance_camera" }
+            "features": {
+                "subtype": "loudspeaker"
+            }
+        },
+        {
+            "label": "Loudspeaker_5",
+            "type": "assembly_component",
+            "position": [
+                -30074.3,
+                13599.6,
+                110
+            ],
+            "rotation": [
+                0,
+                155.58,
+                0
+            ],
+            "enabled": true,
+            "features": {
+                "subtype": "loudspeaker"
+            }
+        },
+        {
+            "label": "SurveillanceCamera_1",
+            "type": "assembly_component",
+            "position": [
+                -30420.3,
+                13756.7,
+                120
+            ],
+            "rotation": [
+                0,
+                155.58,
+                0
+            ],
+            "enabled": true,
+            "features": {
+                "subtype": "surveillance_camera"
+            }
+        },
+        {
+            "label": "SurveillanceCamera_2",
+            "type": "assembly_component",
+            "position": [
+                -29539.3,
+                12939.3,
+                120
+            ],
+            "rotation": [
+                0,
+                155.58,
+                0
+            ],
+            "enabled": true,
+            "features": {
+                "subtype": "surveillance_camera"
+            }
+        },
+        {
+            "label": "SurveillanceCamera_3",
+            "type": "assembly_component",
+            "position": [
+                -29885.3,
+                13096.4,
+                120
+            ],
+            "rotation": [
+                0,
+                155.58,
+                0
+            ],
+            "enabled": true,
+            "features": {
+                "subtype": "surveillance_camera"
+            }
+        },
+        {
+            "label": "SurveillanceCamera_4",
+            "type": "assembly_component",
+            "position": [
+                -30231.4,
+                13253.5,
+                120
+            ],
+            "rotation": [
+                0,
+                155.58,
+                0
+            ],
+            "enabled": true,
+            "features": {
+                "subtype": "surveillance_camera"
+            }
+        },
+        {
+            "label": "SurveillanceCamera_5",
+            "type": "assembly_component",
+            "position": [
+                -30577.4,
+                13410.6,
+                120
+            ],
+            "rotation": [
+                0,
+                155.58,
+                0
+            ],
+            "enabled": true,
+            "features": {
+                "subtype": "surveillance_camera"
+            }
         }
     ]
 }
