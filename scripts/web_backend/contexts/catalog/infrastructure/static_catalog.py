@@ -419,6 +419,111 @@ SKILL_LISTS = {
             }
         }
     },
+    "transport_place_and_clear": {
+        "name": "Transport, Place & Clear (Comprehensive)",
+        "description": "UAV-1/2 place items onto Grate_1, 4 UAVs transport Grate_1 to Electric_tower_3; UAV-5/6 place components from Grate onto tower; UAV-6/7/8 clean 3 wind turbine blades (AerialWork map)",
+        "data": {
+            "0": {
+                "UAV-1": {"skill": "take_off", "params": {}},
+                "UAV-2": {"skill": "take_off", "params": {}}
+            },
+            "1": {
+                "UAV-1": {"skill": "place", "params": {
+                    "target": {"class": "object", "type": "assembly_component", "features": {"subtype": "loudspeaker", "label": "Loudspeaker_1"}},
+                    "surface_target": {"class": "object", "type": "metal_grate", "features": {"label": "Grate_1"}}
+                }},
+                "UAV-2": {"skill": "place", "params": {
+                    "target": {"class": "object", "type": "assembly_component", "features": {"subtype": "surveillance_camera", "label": "SurveillanceCamera_1"}},
+                    "surface_target": {"class": "object", "type": "metal_grate", "features": {"label": "Grate_1"}}
+                }}
+            },
+            "2": {
+                "UAV-1": {"skill": "place", "params": {
+                    "target": {"class": "object", "type": "assembly_component", "features": {"subtype": "loudspeaker", "label": "Loudspeaker_2"}},
+                    "surface_target": {"class": "object", "type": "metal_grate", "features": {"label": "Grate_1"}}
+                }},
+                "UAV-2": {"skill": "place", "params": {
+                    "target": {"class": "object", "type": "assembly_component", "features": {"subtype": "surveillance_camera", "label": "SurveillanceCamera_2"}},
+                    "surface_target": {"class": "object", "type": "metal_grate", "features": {"label": "Grate_1"}}
+                }}
+            },
+            "3": {
+                "UAV-1": {"skill": "place", "params": {
+                    "target": {"class": "object", "type": "assembly_component", "features": {"subtype": "loudspeaker", "label": "Loudspeaker_3"}},
+                    "surface_target": {"class": "object", "type": "metal_grate", "features": {"label": "Grate_1"}}
+                }},
+                "UAV-3": {"skill": "take_off", "params": {}},
+                "UAV-4": {"skill": "take_off", "params": {}},
+                "UAV-5": {"skill": "take_off", "params": {}},
+                "UAV-6": {"skill": "take_off", "params": {}}
+            },
+            "4": {
+                "UAV-1": {"skill": "transport", "params": {
+                    "target": {"class": "object", "type": "metal_grate", "features": {"label": "Grate_1"}},
+                    "dest": {"x": -33500, "y": 1000, "z": 2500}
+                }},
+                "UAV-2": {"skill": "transport", "params": {
+                    "target": {"class": "object", "type": "metal_grate", "features": {"label": "Grate_1"}},
+                    "dest": {"x": -33500, "y": 1000, "z": 2500}
+                }},
+                "UAV-3": {"skill": "transport", "params": {
+                    "target": {"class": "object", "type": "metal_grate", "features": {"label": "Grate_1"}},
+                    "dest": {"x": -33500, "y": 1000, "z": 2500}
+                }},
+                "UAV-4": {"skill": "transport", "params": {
+                    "target": {"class": "object", "type": "metal_grate", "features": {"label": "Grate_1"}},
+                    "dest": {"x": -33500, "y": 1000, "z": 2500}
+                }},
+                "UAV-5": {"skill": "navigate", "params": {
+                    "dest": {"x": -33100, "y": 900, "z": 2500}
+                }},
+                "UAV-6": {"skill": "navigate", "params": {
+                    "dest": {"x": -32800, "y": 1000, "z": 2500}
+                }},
+            },
+            "5": {
+                "UAV-5": {"skill": "place", "params": {
+                    "target": {"class": "object", "type": "assembly_component", "features": {"subtype": "loudspeaker", "label": "Loudspeaker_1"}},
+                    "surface_target": {"class": "object", "type": "electric_tower_top", "features": {"label": "Electric_tower_top-3"}}
+                }},
+                "UAV-6": {"skill": "place", "params": {
+                    "target": {"class": "object", "type": "assembly_component", "features": {"subtype": "surveillance_camera", "label": "SurveillanceCamera_2"}},
+                    "surface_target": {"class": "object", "type": "electric_tower_3_branch", "features": {"label": "Electric_tower_3_branch-2"}}
+                }},
+                "UAV-7": {"skill": "take_off", "params": {}},
+                "UAV-8": {"skill": "take_off", "params": {}}
+            },
+            "6": {
+                "UAV-5": {"skill": "place", "params": {
+                    "target": {"class": "object", "type": "assembly_component", "features": {"subtype": "surveillance_camera", "label": "SurveillanceCamera_1"}},
+                    "surface_target": {"class": "object", "type": "electric_tower_3_branch", "features": {"label": "Electric_tower_3_branch-1"}}
+                }},
+                "UAV-6": {"skill": "navigate", "params": {
+                    "dest": {"x": -42790, "y": 1740, "z": 3630}
+                }},
+                "UAV-7": {"skill": "navigate", "params": {
+                    "dest": {"x": -43610, "y": 1740, "z": 4910}
+                }},
+                "UAV-8": {"skill": "navigate", "params": {
+                    "dest": {"x": -44290, "y": 1740, "z": 3630}
+                }}
+            },
+            "7": {
+                "UAV-6": {"skill": "clear", "params": {
+                    "target": {"class": "object", "type": "wind_turbine_1_wing", "features": {"label": "Wind_turbine_1_wing-3"}},
+                    "object_id": "12"
+                }},
+                "UAV-7": {"skill": "clear", "params": {
+                    "target": {"class": "object", "type": "wind_turbine_1_wing", "features": {"label": "Wind_turbine_1_wing-1"}},
+                    "object_id": "10"
+                }},
+                "UAV-8": {"skill": "clear", "params": {
+                    "target": {"class": "object", "type": "wind_turbine_1_wing", "features": {"label": "Wind_turbine_1_wing-2"}},
+                    "object_id": "11"
+                }}
+            }
+        }
+    },
     "aerial_place_and_transport": {
         "name": "Aerial Place and Cooperative Transport",
         "description": "UAV-1 and UAV-2 stack speakers/cameras onto Grate_1 in parallel, then 4 UAVs cooperatively transport Grate_1; UAV-5 then places items onto Streetlight-51 (AerialWork map)",

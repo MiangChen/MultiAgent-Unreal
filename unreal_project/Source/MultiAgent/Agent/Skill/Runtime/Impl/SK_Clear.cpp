@@ -4,6 +4,7 @@
 #include "SK_Clear.h"
 #include "MAObservationSkillRuntimeHelpers.h"
 #include "Agent/Skill/Application/MASkillCompletionUseCases.h"
+#include "Agent/Skill/Infrastructure/MAMeshOBB.h"
 #include "Agent/Skill/Infrastructure/MASkillConfigBridge.h"
 #include "../../Domain/MASkillTags.h"
 #include "../MASkillComponent.h"
@@ -105,46 +106,31 @@ bool USK_Clear::InitializeClearContext(AMACharacter& Character, UMASkillComponen
 
 bool USK_Clear::ComputeFaceWaypoints(const AMACharacter& Character, const AActor& Target)
 {
-    const UPrimitiveComponent* Prim = Cast<UPrimitiveComponent>(Target.GetRootComponent());
-    if (!Prim)
+    // 用 mesh 顶点 PCA 求真实贴身 OBB（不依赖 Component 局部坐标系朝向）。
+    // 这样无论 mesh 是否被斜着烤进顶点（如风机叶片），都能得到与形状真实主轴一致的盒子。
+    const FMAMeshOBB OBB = ComputeMeshOBBFromActor(Target, /*VertexStride=*/4);
+    if (!OBB.bValid)
     {
+        UE_LOG(LogTemp, Warning,
+            TEXT("[SK_Clear] ComputeMeshOBBFromActor failed for '%s' (no readable static mesh? AllowCPUAccess off?)"),
+            *Target.GetName());
         return false;
     }
 
-    // 目标定向包围盒：局部包围盒 + 组件世界变换
-    const FBoxSphereBounds LocalBounds = Prim->CalcLocalBounds();
-    const FTransform Xform = Prim->GetComponentTransform();
-    const FVector Scale = Xform.GetScale3D();
+    // OBB.Axis[0/1/2] 已按方差降序排列：
+    //   Axis[0] = 最长方向（叶片长度）
+    //   Axis[1] = 中等方向（弦向）
+    //   Axis[2] = 最短方向（厚度，即清洗面法线）
+    const FVector AxisLong = OBB.Axis[0];
+    const FVector AxisMid  = OBB.Axis[1];
+    const FVector AxisThin = OBB.Axis[2];
+    const float ExtentLong = OBB.Extent[0];
+    const float ExtentMid  = OBB.Extent[1];
+    const float ExtentThin = OBB.Extent[2];
 
-    const FVector WorldCenter = Xform.TransformPosition(LocalBounds.Origin);
-
-    // 三个世界轴方向及其对应的半尺寸
-    const FVector AxisDir[3] = {
-        Xform.GetUnitAxis(EAxis::X),
-        Xform.GetUnitAxis(EAxis::Y),
-        Xform.GetUnitAxis(EAxis::Z)
-    };
-    const float AxisExtent[3] = {
-        LocalBounds.BoxExtent.X * FMath::Abs(Scale.X),
-        LocalBounds.BoxExtent.Y * FMath::Abs(Scale.Y),
-        LocalBounds.BoxExtent.Z * FMath::Abs(Scale.Z)
-    };
-
-    // 最薄的轴 = 大平整面的法向轴；另外两个轴张成该平整面
-    int32 ThinAxis = 0;
-    for (int32 i = 1; i < 3; ++i)
-    {
-        if (AxisExtent[i] < AxisExtent[ThinAxis])
-        {
-            ThinAxis = i;
-        }
-    }
-    const int32 AxisA = (ThinAxis + 1) % 3;
-    const int32 AxisB = (ThinAxis + 2) % 3;
-
-    // 外法向量：选朝向机器人的一侧
-    FVector OutwardNormal = AxisDir[ThinAxis].GetSafeNormal();
-    const FVector ToRobot = Character.GetActorLocation() - WorldCenter;
+    // 外法向量：沿厚度轴、朝向机器人的一侧
+    FVector OutwardNormal = AxisThin;
+    const FVector ToRobot = Character.GetActorLocation() - OBB.Center;
     if (FVector::DotProduct(ToRobot, OutwardNormal) < 0.f)
     {
         OutwardNormal = -OutwardNormal;
@@ -153,21 +139,22 @@ bool USK_Clear::ComputeFaceWaypoints(const AMACharacter& Character, const AActor
     // 喷射方向 = 内法向量（从作业平面指向目标面）
     SprayDirection = -OutwardNormal;
 
-    // 平整面中心（贴合目标表面）
-    const FVector FaceCenter = WorldCenter + OutwardNormal * AxisExtent[ThinAxis];
+    // 平整面中心：从 OBB 中心沿外法向走半厚度，到达机器人侧的表面
+    const FVector FaceCenter = OBB.Center + OutwardNormal * ExtentThin;
 
-    const FVector SpanA = AxisDir[AxisA] * AxisExtent[AxisA];
-    const FVector SpanB = AxisDir[AxisB] * AxisExtent[AxisB];
+    // 平整面在两个长轴方向上的张量
+    const FVector SpanLong = AxisLong * ExtentLong;
+    const FVector SpanMid  = AxisMid  * ExtentMid;
 
     // 作业平面 = 平整面沿外法向偏移 StandoffDistance
     const FVector PlaneOffset = OutwardNormal * StandoffDistance;
 
-    // 航点：四角 + 中心；四角按矩形顺序排列，避免对角穿越
+    // 航点：四角 + 中心；按矩形顺序排列避免对角穿越
     TArray<FVector> Raw;
-    Raw.Add(FaceCenter - SpanA - SpanB + PlaneOffset);
-    Raw.Add(FaceCenter + SpanA - SpanB + PlaneOffset);
-    Raw.Add(FaceCenter + SpanA + SpanB + PlaneOffset);
-    Raw.Add(FaceCenter - SpanA + SpanB + PlaneOffset);
+    Raw.Add(FaceCenter - SpanLong - SpanMid + PlaneOffset);
+    Raw.Add(FaceCenter + SpanLong - SpanMid + PlaneOffset);
+    Raw.Add(FaceCenter + SpanLong + SpanMid + PlaneOffset);
+    Raw.Add(FaceCenter - SpanLong + SpanMid + PlaneOffset);
     Raw.Add(FaceCenter + PlaneOffset);
 
     // 飞行器：抬升任何低于最小飞行高度的航点，避免撞地
@@ -181,8 +168,11 @@ bool USK_Clear::ComputeFaceWaypoints(const AMACharacter& Character, const AActor
         Waypoints.Add(Point);
     }
 
-    UE_LOG(LogTemp, Log, TEXT("[SK_Clear] %s: Face normal=%s, Standoff=%.0f, Waypoints=%d"),
-        *Character.AgentLabel, *OutwardNormal.ToString(), StandoffDistance, Waypoints.Num());
+    UE_LOG(LogTemp, Log,
+        TEXT("[SK_Clear] %s: PCA OBB extents=(L=%.0f, M=%.0f, T=%.0f), normal=%s, Standoff=%.0f, Waypoints=%d"),
+        *Character.AgentLabel,
+        ExtentLong, ExtentMid, ExtentThin,
+        *OutwardNormal.ToString(), StandoffDistance, Waypoints.Num());
 
     return Waypoints.Num() > 0;
 }
