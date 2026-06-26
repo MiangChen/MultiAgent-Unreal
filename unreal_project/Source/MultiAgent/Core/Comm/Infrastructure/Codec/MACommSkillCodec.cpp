@@ -218,28 +218,11 @@ FString MACommJsonCodec::SerializeSkillListCompleted(const FMASkillListCompleted
 {
     TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject());
 
+    JsonObject->SetStringField(TEXT("feedback_type"), TEXT("skill_list_completed"));
     JsonObject->SetBoolField(TEXT("completed"), Message.bCompleted);
     JsonObject->SetBoolField(TEXT("interrupted"), Message.bInterrupted);
-    JsonObject->SetNumberField(TEXT("completed_time_steps"), Message.CompletedTimeSteps);
     JsonObject->SetNumberField(TEXT("total_time_steps"), Message.TotalTimeSteps);
-    JsonObject->SetStringField(TEXT("message"), Message.Message);
-
-    TArray<TSharedPtr<FJsonValue>> TimeStepFeedbacksArray;
-    for (const FMATimeStepFeedbackMessage& TSFeedback : Message.AllTimeStepFeedbacks)
-    {
-        TSharedPtr<FJsonObject> TSObject = MakeShareable(new FJsonObject());
-        TSObject->SetNumberField(TEXT("time_step"), TSFeedback.TimeStep);
-
-        TArray<TSharedPtr<FJsonValue>> FeedbacksArray;
-        for (const FMASkillFeedback_Comm& Feedback : TSFeedback.Feedbacks)
-        {
-            FeedbacksArray.Add(MakeShareable(new FJsonValueObject(SerializeSkillFeedbackObject(Feedback))));
-        }
-        TSObject->SetArrayField(TEXT("feedbacks"), FeedbacksArray);
-
-        TimeStepFeedbacksArray.Add(MakeShareable(new FJsonValueObject(TSObject)));
-    }
-    JsonObject->SetArrayField(TEXT("all_feedbacks"), TimeStepFeedbacksArray);
+    JsonObject->SetNumberField(TEXT("completed_time_steps"), Message.CompletedTimeSteps);
 
     FString OutputString;
     TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&OutputString);

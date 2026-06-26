@@ -7,7 +7,7 @@
         "use_state_tree": false,
         "enable_energy_drain": false,
         "enable_info_checks": true,
-        "map_type": "CityPark"
+        "map_type": "Downtown"
     },
     "spawn_settings": {
         "use_player_start": true,
