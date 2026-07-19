@@ -595,6 +595,23 @@ SKILL_LISTS = {
                 }}
             }
         }
+    },
+    "navigate_only": {
+        "name": "Navigate Only (YunguCampus)",
+        "description": "All robots navigate to the target point - ground robots at ground level, UAVs at altitude (YunguCampus map)",
+        "data": {
+            "0": {
+                "UAV-1": {"skill": "take_off", "params": {}},
+                "UAV-2": {"skill": "take_off", "params": {}}
+            },
+            "1": {
+                "UAV-1": {"skill": "navigate", "params": {"dest": {"x": 7800, "y": -2690, "z": 1000}}},
+                "UAV-2": {"skill": "navigate", "params": {"dest": {"x": 7800, "y": -2690, "z": 1200}}},
+                "UGV-1": {"skill": "navigate", "params": {"dest": {"x": 7800, "y": -2690, "z": 0}}},
+                "Quadruped-1": {"skill": "navigate", "params": {"dest": {"x": 7800, "y": -2690, "z": 0}}},
+                "Humanoid-1": {"skill": "navigate", "params": {"dest": {"x": 7800, "y": -2690, "z": 0}}}
+            }
+        }
     }
 }
 

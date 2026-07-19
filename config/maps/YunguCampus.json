@@ -1,0 +1,52 @@
+{
+    "map_info": {
+        "display_name": "YunguCampus",
+        "map_path": "/Game/Map/YunguCampus/Map/YunguCampus",
+        "scene_graph_folder": "datasets/YunguCampus"
+    },
+    "spectator": {
+        "position": [-310, -3730, 400],
+        "rotation": [-20, 0, 0]
+    },
+    "agents": [
+        {
+            "type": "UAV",
+            "instances": [
+                { "label": "UAV-1", "position": [-510, -3930, 127], "rotation": [0, 0, 0], "battery_level": 100 },
+                { "label": "UAV-2", "position": [-110, -3930, 127], "rotation": [0, 0, 0], "battery_level": 100 }
+            ]
+        },
+        {
+            "type": "UGV",
+            "instances": [
+                { "label": "UGV-1", "position": [-510, -3530, 0], "rotation": [0, 0, 0], "battery_level": 100 }
+            ]
+        },
+        {
+            "type": "Quadruped",
+            "instances": [
+                { "label": "Quadruped-1", "position": [-110, -3530, 0], "rotation": [0, 0, 0], "battery_level": 100 }
+            ]
+        },
+        {
+            "type": "Humanoid",
+            "instances": [
+                { "label": "Humanoid-1", "position": [-310, -3330, 0], "rotation": [0, 0, 0], "battery_level": 100 }
+            ]
+        }
+    ],
+    "environment": [
+        {
+            "label": "Speaker_1", "type": "assembly_component",
+            "position": [-610, -3730, 0], "rotation": [0, 0, 0],
+            "enabled": true,
+            "features": { "subtype": "address_speaker" }
+        },
+        {
+            "label": "Speaker_2", "type": "assembly_component",
+            "position": [-10, -3730, 0], "rotation": [0, 0, 0],
+            "enabled": true,
+            "features": { "subtype": "address_speaker" }
+        }
+    ]
+}
