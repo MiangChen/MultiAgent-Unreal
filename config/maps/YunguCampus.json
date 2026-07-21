@@ -1,11 +1,11 @@
 {
     "map_info": {
         "display_name": "YunguCampus",
-        "map_path": "/Game/Map/YunguCampus/Map/YunguCampus",
+        "map_path": "/Game/Map/YunguCampus/Maps/YunguCampus_Segmented",
         "scene_graph_folder": "datasets/YunguCampus"
     },
     "spectator": {
-        "position": [-310, -3730, 400],
+        "position": [-310, -3730, 1300],
         "rotation": [-20, 0, 0]
     },
     "agents": [
