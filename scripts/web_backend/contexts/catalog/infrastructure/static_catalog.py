@@ -633,11 +633,11 @@ SKILL_LISTS = {
                 "Humanoid-1": {"skill": "navigate", "params": {"dest": {"x": 5350, "y": -800, "z": 0}}}
             },
             "5": {
-                "UAV-1": {"skill": "navigate", "params": {"dest": {"x": 3000, "y": 160, "z": 1000}}},
-                "UAV-2": {"skill": "navigate", "params": {"dest": {"x": 3000, "y": 160, "z": 1200}}},
-                "UGV-1": {"skill": "navigate", "params": {"dest": {"x": 3000, "y": 160, "z": 0}}},
-                "Quadruped-1": {"skill": "navigate", "params": {"dest": {"x": 3000, "y": 160, "z": 0}}},
-                "Humanoid-1": {"skill": "navigate", "params": {"dest": {"x": 3000, "y": 160, "z": 0}}}
+                "UAV-1": {"skill": "navigate", "params": {"dest": {"x": 4500, "y": 550, "z": 1000}}},
+                "UAV-2": {"skill": "navigate", "params": {"dest": {"x": 4500, "y": 550, "z": 1200}}},
+                "UGV-1": {"skill": "navigate", "params": {"dest": {"x": 4500, "y": 550, "z": 0}}},
+                "Quadruped-1": {"skill": "navigate", "params": {"dest": {"x": 4500, "y": 550, "z": 0}}},
+                "Humanoid-1": {"skill": "navigate", "params": {"dest": {"x": 4500, "y": 550, "z": 0}}}
             },
             "6": {
                 "UAV-1": {"skill": "navigate", "params": {"dest": {"x": -5000, "y": 160, "z": 1000}}},
@@ -647,11 +647,11 @@ SKILL_LISTS = {
                 "Humanoid-1": {"skill": "navigate", "params": {"dest": {"x": -5000, "y": 160, "z": 0}}}
             },
             "7": {
-                "UAV-1": {"skill": "navigate", "params": {"dest": {"x": -5000, "y": 2450, "z": 1000}}},
-                "UAV-2": {"skill": "navigate", "params": {"dest": {"x": -5000, "y": 2450, "z": 1200}}},
-                "UGV-1": {"skill": "navigate", "params": {"dest": {"x": -5000, "y": 2450, "z": 0}}},
-                "Quadruped-1": {"skill": "navigate", "params": {"dest": {"x": -5000, "y": 2450, "z": 0}}},
-                "Humanoid-1": {"skill": "navigate", "params": {"dest": {"x": -5000, "y": 2450, "z": 0}}}
+                "UAV-1": {"skill": "navigate", "params": {"dest": {"x": -6250, "y": 2200, "z": 1000}}},
+                "UAV-2": {"skill": "navigate", "params": {"dest": {"x": -6250, "y": 2200, "z": 1200}}},
+                "UGV-1": {"skill": "navigate", "params": {"dest": {"x": -6250, "y": 2200, "z": 0}}},
+                "Quadruped-1": {"skill": "navigate", "params": {"dest": {"x": -6250, "y": 2200, "z": 0}}},
+                "Humanoid-1": {"skill": "navigate", "params": {"dest": {"x": -6250, "y": 2200, "z": 0}}}
             },
             "8": {
                 "UAV-1": {"skill": "navigate", "params": {"dest": {"x": -10700, "y": 2450, "z": 1000}}},
@@ -675,11 +675,11 @@ SKILL_LISTS = {
                 "Humanoid-1": {"skill": "navigate", "params": {"dest": {"x": -5200, "y": -3700, "z": 0}}}
             },
             "11": {
-                "UAV-1": {"skill": "navigate", "params": {"dest": {"x": -400, "y": -3700, "z": 1000}}},
-                "UAV-2": {"skill": "navigate", "params": {"dest": {"x": -400, "y": -3700, "z": 1200}}},
-                "UGV-1": {"skill": "navigate", "params": {"dest": {"x": -400, "y": -3700, "z": 0}}},
-                "Quadruped-1": {"skill": "navigate", "params": {"dest": {"x": -400, "y": -3700, "z": 0}}},
-                "Humanoid-1": {"skill": "navigate", "params": {"dest": {"x": -400, "y": -3700, "z": 0}}}
+                "UAV-1": {"skill": "navigate", "params": {"dest": {"x": -400, "y": -4000, "z": 1000}}},
+                "UAV-2": {"skill": "navigate", "params": {"dest": {"x": -400, "y": -4000, "z": 1200}}},
+                "UGV-1": {"skill": "navigate", "params": {"dest": {"x": -400, "y": -4000, "z": 0}}},
+                "Quadruped-1": {"skill": "navigate", "params": {"dest": {"x": -400, "y": -4000, "z": 0}}},
+                "Humanoid-1": {"skill": "navigate", "params": {"dest": {"x": -400, "y": -4000, "z": 0}}}
             }
         }
     }
